@@ -79,11 +79,11 @@ builds.
 
 ## Documentation
 
-- [`docs/DESIGN_SYSTEM.md`](apps/lotus-explore-rs/docs/DESIGN_SYSTEM.md) — the
+- [`docs/DESIGN_SYSTEM.md`](apps/lotus-explore-rs/docs/DESIGN_SYSTEM.md) --- the
   four shell planes, their measured separation, and the border rules
-- [`docs/PERFORMANCE.md`](apps/lotus-explore-rs/docs/PERFORMANCE.md) — where
+- [`docs/PERFORMANCE.md`](apps/lotus-explore-rs/docs/PERFORMANCE.md) --- where
   load time goes, and the profile experiments that were kept and rejected
-- [`docs/DEPLOYMENT.md`](apps/lotus-explore-rs/docs/DEPLOYMENT.md) — what the
+- [`docs/DEPLOYMENT.md`](apps/lotus-explore-rs/docs/DEPLOYMENT.md) --- what the
   production host actually serves, and how to measure it locally
 - [`docs/ARCHITECTURE.md`](apps/lotus-explore-rs/docs/ARCHITECTURE.md)
 

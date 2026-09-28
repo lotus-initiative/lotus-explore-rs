@@ -5,8 +5,8 @@
 There are four shell planes. Do not introduce a fifth page, panel or chrome
 background token.
 
-  | Role                    | Utility             | Token               | light    | dark     | Radius               | Separation                       |
-  | ---                     | ---                 | ---                 | ---      | ---      | ---                  | ---                              |
+  | Role                    | Utility             | Token               | light     | dark      | Radius               | Separation                       |
+  | ---                     | ---                 | ---                 | ---       | ---       | ---                  | ---                              |
   | Page (canvas)           | `bg-shell-page`     | `--shell-page-bg`   | `#f2f5f8` | `#0a0f19` | none                 | none                             |
   | Header/footer/metadata  | `bg-shell-chrome`   | `--shell-chrome-bg` | `#e7ecf1` | `#1c2637` | header/footer only   | `border-shell-border`, no shadow |
   | Card / raised panel     | `bg-shell-raised`   | `--shell-raised-bg` | `#ffffff` | `#131b29` | `rounded-xl` (12 px) | `border-shell-border`, no shadow |
@@ -22,13 +22,13 @@ The rule that matters is that **planes a user sees side by side stay
 distinguishable**. Measured ratios, element plane against the plane directly
 behind it, on `/`, `/search` and `/curation`:
 
-  | Adjacent pair              | light  | dark   |
-  | -------------------------- | ------ | ------ |
-  | chrome over page           | 1.086  | 1.262  |
-  | card over page             | 1.094  | 1.111  |
-  | card over chrome           | 1.189  | 1.136  |
-  | panel over card            | 1.133  | 1.067  |
-  | card over panel            | 1.133  | 1.067  |
+  | Adjacent pair    | light | dark  |
+  | ---------------- | ----- | ----- |
+  | chrome over page | 1.086 | 1.262 |
+  | card over page   | 1.094 | 1.111 |
+  | card over chrome | 1.189 | 1.136 |
+  | panel over card  | 1.133 | 1.067 |
+  | card over panel  | 1.133 | 1.067 |
 
 Every adjacent pair clears 1.08 except the **dark panel on card at 1.067**. That
 boundary is carried by the panel's own outline: `--border` on `--panel-bg-soft`
@@ -38,20 +38,20 @@ mean re-tuning the `--footer-wd-*` mixes, which are calibrated against both
 chrome and the stat cards; that has bitten twice, so the deliberate choice is to
 leave the tokens alone and keep the measured value written down here.
 
-Non-adjacent pairs are not constrained — page and panel are always separated by
-a card, so their 1.035:1 (light) is never visible as a direct edge.
+Non-adjacent pairs are not constrained --- page and panel are always separated
+by a card, so their 1.035:1 (light) is never visible as a direct edge.
 
 ### Borders
 
 `--border` outlines interactive controls, so it clears 1.4.11 (3:1) on every
 plane it can land on:
 
-  | Plane   | `--border` | `--border-soft` |
-  | ------- | ---------- | --------------- |
-  | page    | 3.47 / 5.18 | 1.44 / 2.02     |
-  | chrome  | 3.20 / 4.11 | 1.33 / 1.60     |
-  | card    | 3.80 / 4.66 | 1.58 / 1.82     |
-  | panel   | 3.36 / 4.37 | 1.39 / 1.71     |
+  | Plane  | `--border`  | `--border-soft` |
+  | ------ | ----------- | --------------- |
+  | page   | 3.47 / 5.18 | 1.44 / 2.02     |
+  | chrome | 3.20 / 4.11 | 1.33 / 1.60     |
+  | card   | 3.80 / 4.66 | 1.58 / 1.82     |
+  | panel  | 3.36 / 4.37 | 1.39 / 1.71     |
 
 (light / dark.) `--border-soft` is for decorative hairlines only and is
 deliberately below 3:1 everywhere.
@@ -60,9 +60,9 @@ deliberately below 3:1 everywhere.
 
 The footer organism badges sit on a `bg-current/14` tint of their own colour, so
 `--footer-wd-*` must be tuned against *both* chrome and the stat card. Measured
-on the live results view, light and dark: 6.03–10.01:1 and 6.42–6.94:1 against a
-4.5:1 requirement. **Any change to a plane colour invalidates these and requires
-re-measuring** — a `color-mix()` tint cannot be checked by reading
+on the live results view, light and dark: 6.03--10.01:1 and 6.42--6.94:1 against
+a 4.5:1 requirement. **Any change to a plane colour invalidates these and
+requires re-measuring** --- a `color-mix()` tint cannot be checked by reading
 `background-color`, which resolves to `oklab(...)`.
 
 Controls keep their existing 8 px radius and may use the existing subtle shadow.
@@ -79,20 +79,21 @@ in RSX; do not wrap styling rules in Rust components.
 A control with no visible boundary is often flagged for 1.4.11 on the assumption
 that it needs one. Measured on the live results view, in both themes:
 
-| Control                          | light   | dark    | Required |
-| -------------------------------- | ------- | ------- | -------- |
-| results sort button, label       | 17.74:1 | 15.59:1 | 4.5:1    |
-| results sort button, `⇅` glyph   | 7.06:1  | 9.86:1  | 3:1      |
-| native radio, checked            | 6.04:1  | 7.90:1  | 3:1      |
-| native radio, unchecked          | 4.42:1  | 4.62:1  | 3:1      |
+  | Control                        | light   | dark    | Required |
+  | ------------------------------ | ------- | ------- | -------- |
+  | results sort button, label     | 17.74:1 | 15.59:1 | 4.5:1    |
+  | results sort button, `⇅` glyph | 7.06:1  | 9.86:1  | 3:1      |
+  | native radio, checked          | 6.04:1  | 7.90:1  | 3:1      |
+  | native radio, unchecked        | 4.42:1  | 4.62:1  | 3:1      |
 
 The sort buttons and the radios all clear their thresholds, so **no border was
 added to any of them**. A border on all six sort buttons would put a 3:1 rule
 across every table header to fix a failure that does not exist, and the radio
-ring is chosen by the user agent rather than by us — its contrast is not a token
-we control, and `accent-accent` only tints the selected state. Their affordance
-is the label plus the `⇅` glyph, the `aria-sort` state, and hover/focus, all of
-which are present and all of which are legible at the ratios above.
+ring is chosen by the user agent rather than by us --- its contrast is not a
+token we control, and `accent-accent` only tints the selected state. Their
+affordance is the label plus the `⇅` glyph, the `aria-sort` state, and
+hover/focus, all of which are present and all of which are legible at the ratios
+above.
 
 The radios were checked by scanning painted pixels from a 1:1 screenshot,
 because a user-agent border is invisible to `getComputedStyle` and to any
