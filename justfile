@@ -86,6 +86,14 @@ web-bytes:
 	done
 	printf '%-34s %10s %10s %10s\n' TOTAL "$(kb $tot_raw)" "$(kb $tot_br)" "$(kb $tot_gz)"
 	printf '\nwasm raw bytes: %s\n' "$(stat -f%z "$out"/assets/*.wasm)"
+	# `dx build` does not prune a hashed asset whose name changed, so a rebuilt
+	# tree can hold a superseded bundle next to the current one. Summing both
+	# inflates the table, so say so rather than let the number be misread.
+	glue=$(ls "$out"/assets/lotus-explore-rs-dxh*.js 2>/dev/null | wc -l | tr -d ' ')
+	if [ "$glue" -gt 1 ]; then
+	  printf 'NOTE: %s app bundles present; only the one index.html names is loaded.\n' "$glue"
+	  printf '      Delete target/dx/lotus-explore-rs to measure a clean tree.\n'
+	fi
 
 # ── Supply-chain hygiene (skip gracefully if a tool is not installed) ─────────
 
