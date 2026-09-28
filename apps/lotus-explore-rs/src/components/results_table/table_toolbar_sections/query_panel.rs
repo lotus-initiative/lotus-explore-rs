@@ -12,7 +12,6 @@ pub fn QueryPanel() -> Element {
     let locale = crate::hooks::use_locale();
     let explore = use_results_context().explore;
     let toolbar_snapshot = use_toolbar_result_snapshot(explore);
-    let mut panel_open = use_signal(|| false);
 
     rsx! {
         if let Some(q) = toolbar_snapshot.read().sparql_query.as_ref() {
@@ -20,22 +19,14 @@ pub fn QueryPanel() -> Element {
                 class: "query-panel w-auto max-w-none px-0 mt-2",
                 aria_label: "{t(locale, TextKey::SparqlQuery)}",
                 details {
-                    class: "overflow-hidden",
-                    open: *panel_open.read(),
-                    ontoggle: move |_| {
-                        let next = !*panel_open.peek();
-                        panel_open.set(next);
-                    },
+                    class: "group overflow-hidden",
                     summary {
                         class: "flex w-auto min-w-0 cursor-pointer select-none items-center gap-2 rounded-xl border border-border bg-panel-soft px-3 py-2 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                         span {
-                            class: if *panel_open.read() {
-                                "inline-block rotate-90 text-subtle transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)]"
-                            } else {
-                                "inline-block text-subtle transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)]"
-                            },
+                            class: "inline-block text-subtle transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] group-open:rotate-90",
+                            aria_hidden: "true",
                             "▶"
-                        }
+                        },
                         "{t(locale, TextKey::SparqlQuery)}"
                     }
                     div { class: "flex w-full min-w-0 flex-col gap-2 bg-panel-soft p-3 sm:p-4",

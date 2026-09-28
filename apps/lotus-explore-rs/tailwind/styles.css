@@ -34,9 +34,12 @@ body,
 }
 
 /* Reserve viewport height before the WASM bundle mounts so the rendered
-   app fills pre-allocated space instead of shifting the page (CLS). */
+   app fills pre-allocated space instead of shifting the page (CLS).
+   svh stays fixed while mobile browser chrome collapses/expands; dvh is
+   the fallback for browsers without svh (Safari < 15.4). */
 #main {
     min-height: 100dvh;
+    min-height: 100svh;
 }
 
 img,
@@ -318,8 +321,10 @@ legend {
     contain-intrinsic-size: 0 100px;
 }
 
-/* Main layout containers - reserve space to prevent CLS */
-.app-shell { display: flex; flex-direction: column; min-height: 100dvh; }
+/* Main layout containers - reserve space to prevent CLS.
+   svh keeps the shell height constant when mobile browser chrome collapses;
+   dvh is the fallback for browsers without svh (Safari < 15.4). */
+.app-shell { display: flex; flex-direction: column; min-height: 100dvh; min-height: 100svh; }
 .main-content { min-height: 400px; }
 .search-panel { min-height: 300px; }
 .stat-bar { min-height: 70px; }
@@ -468,8 +473,14 @@ legend {
 
 @utility results-table-scroll {
     min-height: 0;
+    /* dvh tracks the mobile browser chrome, so collapsing the address bar
+       resized this scroller (and re-rendered the virtualized rows) mid-scroll.
+       svh is constant across chrome transitions; dvh stays as the fallback
+       for browsers without svh (Safari < 15.4). */
     height: min(78dvh, 1120px);
     max-height: min(78dvh, 1120px);
+    height: min(78svh, 1120px);
+    max-height: min(78svh, 1120px);
     overflow: auto;
     contain: layout paint;
 }

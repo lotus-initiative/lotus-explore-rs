@@ -13,7 +13,6 @@ use std::sync::Arc;
 #[component]
 pub fn SearchExamples() -> Element {
     let locale = crate::hooks::use_locale();
-    let mut urls_open = use_signal(|| false);
 
     rsx! {
         section {
@@ -24,22 +23,14 @@ pub fn SearchExamples() -> Element {
                         class: "flex flex-col gap-3 pb-4 sm:pb-6",
                         h2 { class: "text-body font-semibold text-text", "{t(locale, TextKey::SearchExamples)}" }
                         details {
-                            class: "overflow-hidden",
-                            ontoggle: move |_| {
-                                let next = !*urls_open.peek();
-                                urls_open.set(next);
-                            },
+                            class: "group overflow-hidden",
                             summary {
                                 class: "flex w-full min-w-0 cursor-pointer select-none items-center gap-2 rounded-xl bg-panel-soft px-3 py-2 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                                 span {
-                                    class: if *urls_open.read() {
-                                        "inline-block rotate-90 text-subtle transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)]"
-                                    } else {
-                                        "inline-block text-subtle transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)]"
-                                    },
+                                    class: "inline-block text-subtle transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] group-open:rotate-90",
                                     aria_hidden: "true",
                                     "▶"
-                                }
+                                },
                                 "{t(locale, TextKey::ExampleApiUrls)}"
                             }
                             div { class: "flex w-full min-w-0 flex-col gap-2 bg-panel-soft p-3 sm:p-4",
