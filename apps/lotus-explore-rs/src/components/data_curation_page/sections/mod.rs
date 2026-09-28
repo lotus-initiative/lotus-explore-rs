@@ -314,7 +314,7 @@ pub fn QueueRowsCard(
                 }
             }
             div {
-                class: "w-full overflow-x-auto rounded-xl border border-b-0 border-shell-border focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                class: "w-full overflow-x-auto rounded-xl border border-shell-border focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                 role: "region",
                 tabindex: "0",
                 aria_label: "{heading_queued_rows(locale)}",
