@@ -125,7 +125,7 @@ pub fn AddRowCard(
                 evt.prevent_default();
                 on_add_row.call(());
             },
-            class: "flex flex-col gap-4 rounded-xl bg-panel-soft p-4 shadow-xs",
+            class: "flex flex-col gap-4 rounded-xl border border-border bg-panel-soft p-4",
             h3 { "{heading_add_one_row(locale)}" }
             div { class: "grid grid-cols-1 gap-3",
                 label { class: "form-label", r#for: "curation-name-input",
@@ -233,7 +233,7 @@ pub fn TsvImportCard(
                     on_parse_tsv.call(());
                 }
             },
-            class: "flex flex-col gap-4 rounded-xl bg-panel-soft p-4 shadow-xs",
+            class: "flex flex-col gap-4 rounded-xl border border-border bg-panel-soft p-4",
             h3 { "{heading_tsv_import(locale)}" }
             p { class: "text-ui text-subtle leading-snug", "{hint_expected_tsv_headers(locale)}" }
             label { class: "form-label", r#for: "curation-tsv-input", "TSV" }

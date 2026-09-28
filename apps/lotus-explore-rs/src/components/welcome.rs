@@ -25,7 +25,7 @@ pub fn SearchExamples() -> Element {
                         details {
                             class: "group overflow-hidden",
                             summary {
-                                class: "flex w-full min-w-0 cursor-pointer select-none items-center gap-2 rounded-xl bg-panel-soft px-3 py-2 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                                class: "flex w-full min-w-0 cursor-pointer select-none items-center gap-2 px-3 py-2 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                                 span {
                                     class: "inline-block text-subtle transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] group-open:rotate-90",
                                     aria_hidden: "true",
@@ -33,7 +33,7 @@ pub fn SearchExamples() -> Element {
                                 },
                                 "{t(locale, TextKey::ExampleApiUrls)}"
                             }
-                            div { class: "flex w-full min-w-0 flex-col gap-2 bg-panel-soft p-3 sm:p-4",
+                            div { class: "flex w-full min-w-0 flex-col gap-2 border-t border-border p-3 sm:p-4",
                                 div {
                                     class: "mt-1 grid grid-cols-1 gap-2.5 md:grid-cols-2",
                                     DownloadExampleRow {
