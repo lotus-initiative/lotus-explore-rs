@@ -33,5 +33,5 @@
   SEO: robots.txt, sitemap.xml, structured data, hreflang
   Accessibility: semantic HTML, ARIA, keyboard navigation, visible focus
   Security: HTTPS, CSP, HSTS, security.txt, Permissions-Policy
-  Agent Readiness: llms.txt, agent-skills, API catalog, Link headers
+  Agent Readiness: llms.txt, ai-catalog.json, agent-skills, API catalog, Link headers
   Resilience: web app manifest, graceful error handling, offline detection

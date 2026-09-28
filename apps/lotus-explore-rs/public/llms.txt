@@ -30,6 +30,7 @@
 - [LOTUS initiative](https://lotusnprod.github.io)
 - [Agent skills](/.well-known/agent-skills.json)
 - [API catalog](/.well-known/api-catalog.json)
+- [AI capability catalog](/.well-known/ai-catalog.json)
 
 ## Data sources
 
@@ -42,6 +43,7 @@
 
 - [Agent skills](/.well-known/agent-skills.json)
 - [API catalog](/.well-known/api-catalog.json)
+- [AI capability catalog](/.well-known/ai-catalog.json)
 - Structured data: JSON-LD in page head
 - Link headers: advertise llms, robots, security, sitemap
 

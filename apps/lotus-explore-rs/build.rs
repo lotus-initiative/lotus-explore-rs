@@ -102,6 +102,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let well_known_dir = public_dir.join(".well-known");
 
     write_if_changed(public_dir.join("llms.txt"), build_llms_txt(&metadata))?;
+    write_if_changed(
+        well_known_dir.join("ai-catalog.json"),
+        build_ai_catalog(&metadata)?,
+    )?;
     write_if_changed(public_dir.join("humans.txt"), build_humans_txt(&metadata))?;
     write_if_changed(public_dir.join("robots.txt"), build_robots_txt(&metadata))?;
     write_if_changed(public_dir.join("sitemap.xml"), build_sitemap_xml(&metadata))?;
@@ -190,6 +194,82 @@ fn build_sitemap_xml(meta: &Metadata) -> String {
     )
 }
 
+/// ARD (`Agentic Resource Discovery`) capability manifest.
+///
+/// Generated next to `llms.txt` so agents can discover the app's `WebMCP`
+/// annotated search form without scraping the page.
+fn build_ai_catalog(meta: &Metadata) -> Result<String, Box<dyn Error>> {
+    let s = &meta.site;
+    let base = s.base_url.trim_end_matches('/');
+    let publisher = "lotusnprod";
+    let catalog = serde_json::json!({
+        "specVersion": "1.0",
+        "host": {
+            "displayName": s.name,
+            "documentationUrl": format!("{base}/llms.txt"),
+            "logoUrl": format!("{base}/favicon.svg"),
+        },
+        "entries": [
+            {
+                "identifier": format!("urn:air:{publisher}:lotus-explore-rs:search"),
+                "displayName": format!("{} search", s.name),
+                "type": "application/agent-card+json",
+                "url": format!("{base}/search"),
+                "description": s.description,
+                "tags": [
+                    "lotus",
+                    "natural-products",
+                    "chemical-entities",
+                    "sparql",
+                    "wikidata",
+                ],
+                "capabilities": [
+                    "SearchByTaxon",
+                    "SearchByStructure",
+                    "SearchByMassRange",
+                    "SearchByPublicationYear",
+                    "SearchByFormula",
+                ],
+                "representativeQueries": [
+                    "Find natural products reported for Gentiana lutea",
+                    "Search compounds by substructure with a molecular mass range",
+                ],
+                "metadata": {
+                    "appLicense": s.app_license_url,
+                    "dataLicense": s.data_license_url,
+                    "sourceUrl": s.source_path,
+                },
+            },
+            {
+                "identifier": format!("urn:air:{publisher}:lotus-explore-rs:curation"),
+                "displayName": format!("{} Wikidata curation", s.name),
+                "type": "application/agent-card+json",
+                "url": format!("{base}/curation"),
+                "description":
+                    "Import TSV rows, resolve structures and references, and generate \
+                     QuickStatements for Wikidata curation.",
+                "tags": ["wikidata", "curation", "quickstatements", "rdkit"],
+                "capabilities": [
+                    "ImportTsvRows",
+                    "ResolveStructure",
+                    "ResolveReference",
+                    "GenerateQuickStatements",
+                ],
+                "representativeQueries": [
+                    "Curate natural products for a taxon into Wikidata",
+                    "Generate QuickStatements for a list of DOIs",
+                ],
+                "metadata": {
+                    "appLicense": s.app_license_url,
+                    "dataLicense": s.data_license_url,
+                    "sourceUrl": s.source_path,
+                },
+            },
+        ],
+    });
+    Ok(format!("{}\n", serde_json::to_string_pretty(&catalog)?))
+}
+
 fn build_llms_txt(meta: &Metadata) -> String {
     let s = &meta.site;
     format!(
@@ -217,7 +297,8 @@ fn build_llms_txt(meta: &Metadata) -> String {
         - [BibTeX references]({bibtex_path})\n\
         - [LOTUS initiative]({lotus_home_url})\n\
         - [Agent skills](/.well-known/agent-skills.json)\n\
-        - [API catalog](/.well-known/api-catalog.json)\n\n\
+        - [API catalog](/.well-known/api-catalog.json)\n\
+        - [AI capability catalog](/.well-known/ai-catalog.json)\n\n\
         ## Data sources\n\n\
         - [Wikidata SPARQL](https://query.wikidata.org/)\n\
         - [QLever](https://qlever.cs.uni-freiburg.de/wikidata)\n\
@@ -226,6 +307,7 @@ fn build_llms_txt(meta: &Metadata) -> String {
         ## Discovery\n\n\
         - [Agent skills](/.well-known/agent-skills.json)\n\
         - [API catalog](/.well-known/api-catalog.json)\n\
+        - [AI capability catalog](/.well-known/ai-catalog.json)\n\
         - Structured data: JSON-LD in page head\n\
         - Link headers: advertise llms, robots, security, sitemap\n\n\
         ## Citation\n\n\
@@ -290,7 +372,7 @@ fn build_humans_txt(meta: &Metadata) -> String {
         \x20 SEO: robots.txt, sitemap.xml, structured data, hreflang\n\
         \x20 Accessibility: semantic HTML, ARIA, keyboard navigation, visible focus\n\
         \x20 Security: HTTPS, CSP, HSTS, security.txt, Permissions-Policy\n\
-        \x20 Agent Readiness: llms.txt, agent-skills, API catalog, Link headers\n\
+        \x20 Agent Readiness: llms.txt, ai-catalog.json, agent-skills, API catalog, Link headers\n\
         \x20 Resilience: web app manifest, graceful error handling, offline detection\n",
         name = s.name,
         short_name = s.short_name,
@@ -357,7 +439,8 @@ fn build_headers_txt() -> String {
     \x20 Cross-Origin-Resource-Policy: same-origin\n\
      \x20 Link: </llms.txt>; rel=\"http://llmstxt.org/llms.txt\"; type=\"text/plain\"\n\
      \x20 Link: </.well-known/agent-skills.json>; rel=\"https://specification.website/rel/agent-skills\"; type=\"application/json\"\n\
-     \x20 Link: </.well-known/api-catalog.json>; rel=\"https://specification.website/rel/api-catalog\"; type=\"application/json\"\n\
+      \x20 Link: </.well-known/api-catalog.json>; rel=\"https://specification.website/rel/api-catalog\"; type=\"application/json\"\n\
+     \x20 Link: </.well-known/ai-catalog.json>; rel=\"ai-catalog\"; type=\"application/json\"\n\
      \x20 Link: </sitemap.xml>; rel=\"sitemap\"; type=\"application/xml\"\n\
      \x20 Link: </robots.txt>; rel=\"robots\"; type=\"text/plain\"\n\
      \x20 Link: </.well-known/security.txt>; rel=\"security.txt\"; type=\"text/plain\"\n\n\
@@ -391,8 +474,16 @@ fn build_headers_txt() -> String {
     \x20 Cache-Control: public, max-age=31536000, immutable\n\n\
     /wasm/*\n\
     \x20 Cache-Control: public, max-age=31536000, immutable\n\n\
+    # Content-hashed bundles (JS glue, wasm) are safe to pin for a year.
     /**/assets/*\n\
     \x20 Cache-Control: public, max-age=31536000, immutable\n\n\
+# Unhashed assets keep their filenames across deploys, so they must
+# revalidate: an immutable year-long entry would pin users to a stale
+# stylesheet or bridge script until they hard-reload.
+    /assets/lotus-explore.css\n\
+    \x20 Cache-Control: public, max-age=3600, must-revalidate\n\n\
+    /assets/js/*\n\
+    \x20 Cache-Control: public, max-age=3600, must-revalidate\n\n\
     /assets/vendor/*\n\
     \x20 Cache-Control: no-cache, must-revalidate\n\n\
     /index.html\n\

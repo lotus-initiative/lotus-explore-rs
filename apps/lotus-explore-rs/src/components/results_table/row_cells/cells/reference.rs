@@ -47,7 +47,9 @@ pub(in crate::components::results_table::row_cells) fn reference_cell(
                     href: "https://scholia.toolforge.org/work/{reference_qid}",
                     target: "_blank",
                     rel: "noopener noreferrer",
-                    aria_label: "{reference_qid} • {t(locale, TextKey::OpenInReferenceScholia)}",
+                    // WCAG 2.5.3: keep the visible "{qid} • Scholia" text in the accessible
+                    // name, then add what the link does.
+                    aria_label: "{reference_qid} • Scholia — {t(locale, TextKey::OpenInReferenceScholia)}",
                     class: "inline-flex min-h-7 items-center rounded-full border border-wd-reference/35 bg-surface px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-reference hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28",
                     "{reference_qid} • Scholia"
                 }
@@ -59,7 +61,9 @@ pub(in crate::components::results_table::row_cells) fn reference_cell(
                         target: "_blank",
                         rel: "noopener noreferrer",
                         class: "inline-flex min-h-7 items-center rounded-full border border-wd-reference/35 bg-surface px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-reference hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28",
-                        aria_label: "{text.open_doi}",
+                        // WCAG 2.5.3: the visible DOI text stays in the
+                        // accessible name, then what the link does.
+                        aria_label: "{d} — {text.open_doi}",
                         "{d}"
                     }
                 }
@@ -69,7 +73,8 @@ pub(in crate::components::results_table::row_cells) fn reference_cell(
                         target: "_blank",
                         rel: "noopener noreferrer",
                         class: "inline-flex min-h-7 items-center rounded-full border border-wd-reference/35 bg-surface px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-reference hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28",
-                        aria_label: "{aria_wikidata_statement(locale, stmt)}",
+                        // Same rule as the DOI badge above.
+                        aria_label: "{stmt} — {aria_wikidata_statement(locale, stmt)}",
                         "{stmt}"
                     }
                 }

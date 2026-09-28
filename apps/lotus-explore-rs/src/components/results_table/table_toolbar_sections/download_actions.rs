@@ -164,7 +164,8 @@ fn DownloadQueryButton(
             disabled,
             class: "inline-flex shrink-0 items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-9 px-4 py-1.5 text-ui active:scale-[0.98]",
             title: Some(title.to_string()),
-            aria_label: Some(title.to_string()),
+            // WCAG 2.5.3: the accessible name must contain the visible label.
+            // The tooltip carries the longer description instead.
             label: Some(label.to_string()),
             onclick: {
                 let filename = move || filename.clone();
@@ -206,7 +207,9 @@ fn DownloadMetadataButton(
             r#type: "button",
             disabled,
             class: "inline-flex shrink-0 items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-9 px-4 py-1.5 text-ui active:scale-[0.98]",
-            aria_label: Some(title.to_string()),
+            title: Some(title.to_string()),
+            // See the note in download_query_button: the visible label is the
+            // accessible name, the tooltip holds the description.
             label: Some(label.to_string()),
             onclick: {
                 let filename = toolbar_model.read().metadata_filename.clone();
@@ -332,8 +335,7 @@ pub fn DownloadActionsGroup() -> Element {
                                 r#type: "button",
                                 class: "inline-flex shrink-0 items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-9 px-4 py-1.5 text-ui active:scale-[0.98]",
                                 title: Some(format!("{open_in_title} ({endpoint_name})")),
-                                aria_label: Some(format!("{open_in_title} ({endpoint_name})")),
-                                 label: Some(open_in_label.to_string()),
+                                label: Some(open_in_label.to_string()),
                                 onclick: move |_| {
                                     #[cfg(target_arch = "wasm32")]
                                     {

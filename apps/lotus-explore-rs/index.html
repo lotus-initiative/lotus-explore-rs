@@ -20,6 +20,7 @@
   <link rel="alternate" hreflang="it" href="">
   <link rel="alternate" hreflang="x-default" href="">
   <link rel="manifest" href="">
+  <link id="ai-catalog" rel="ai-catalog" href="" type="application/json">
   <link id="app-css" rel="stylesheet" href="" media="print">
   <link rel="icon" href="" type="image/svg+xml">
   <link rel="dns-prefetch" href="https://qlever.dev">
@@ -60,6 +61,8 @@
           var manifest = document.querySelector('link[rel="manifest"]');
 
          if (manifest) manifest.href = basePath + "site.webmanifest";
+         var aiCatalog = document.getElementById("ai-catalog");
+         if (aiCatalog) aiCatalog.href = basePath + ".well-known/ai-catalog.json";
          var favicon = document.querySelector('link[rel="icon"]');
          if (favicon) favicon.href = basePath + "favicon.svg";
          var css = document.getElementById("app-css");

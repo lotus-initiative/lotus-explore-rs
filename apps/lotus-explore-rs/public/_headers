@@ -13,6 +13,7 @@
   Link: </llms.txt>; rel="http://llmstxt.org/llms.txt"; type="text/plain"
   Link: </.well-known/agent-skills.json>; rel="https://specification.website/rel/agent-skills"; type="application/json"
   Link: </.well-known/api-catalog.json>; rel="https://specification.website/rel/api-catalog"; type="application/json"
+  Link: </.well-known/ai-catalog.json>; rel="ai-catalog"; type="application/json"
   Link: </sitemap.xml>; rel="sitemap"; type="application/xml"
   Link: </robots.txt>; rel="robots"; type="text/plain"
   Link: </.well-known/security.txt>; rel="security.txt"; type="text/plain"
@@ -58,8 +59,18 @@
 /wasm/*
   Cache-Control: public, max-age=31536000, immutable
 
-/**/assets/*
+# Content-hashed bundles (JS glue, wasm) are safe to pin for a year.
+    /**/assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Unhashed assets keep their filenames across deploys, so they must
+# revalidate: an immutable year-long entry would pin users to a stale
+# stylesheet or bridge script until they hard-reload.
+    /assets/lotus-explore.css
+  Cache-Control: public, max-age=3600, must-revalidate
+
+/assets/js/*
+  Cache-Control: public, max-age=3600, must-revalidate
 
 /assets/vendor/*
   Cache-Control: no-cache, must-revalidate
