@@ -487,6 +487,19 @@ legend {
     background: var(--text3);
 }
 
+@utility brand-logo {
+    /* The lotus mark is injected as inline SVG with only a viewBox, so the
+       height has to be derived. Safari rounds that derivation up by a fraction
+       on some iOS releases and shaves the bottom row of pixels off the mark;
+       pinning the ratio keeps every engine on the same box. */
+    & > svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1114.949 / 981.018;
+    }
+}
+
 @utility results-table-scroll {
     min-height: 0;
     /* dvh tracks the mobile browser chrome, so collapsing the address bar

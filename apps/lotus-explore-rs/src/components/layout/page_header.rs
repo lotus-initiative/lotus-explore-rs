@@ -41,7 +41,9 @@ pub fn PageHeader() -> Element {
                 div {
                     class: "flex min-w-0 items-start gap-3",
                     div {
-                        class: "w-16 shrink-0",
+                        // pb-1 keeps clearance under the mark so a sub-pixel
+                        // height rounding can never crop its bottom edge.
+                        class: "brand-logo w-16 shrink-0 pb-1",
                         aria_hidden: "true",
                         dangerous_inner_html: LOTUS_LOGO_SVG,
                     }
