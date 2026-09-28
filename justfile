@@ -55,20 +55,37 @@ serve app="lotus-explore-rs":
 
 preview app="lotus-explore-rs":
 	cd apps/{{app}} && cargo run -p lotus-deploy --bin fetch-assets
-	cd apps/{{app}} && BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx serve --package {{app}} --platform web --release --debug-symbols=false --locked --rustc-args=-Copt-level=z --open=false
+	cd apps/{{app}} && BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx serve --package {{app}} --platform web --release --debug-symbols=false --locked --rustc-args=-Copt-level=s --open=false
 
 build app="lotus-explore-rs":
 	cd apps/{{app}} && cargo run -p lotus-deploy --bin fetch-assets
-	cd apps/{{app}} && BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx build --release --package {{app}} --locked --debug-symbols=false --rustc-args=-Copt-level=z
+	cd apps/{{app}} && BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx build --release --package {{app}} --locked --debug-symbols=false --rustc-args=-Copt-level=s
 
-web-size:
-	@out="target/dx/lotus-explore-rs/release/web/public"; \
-	if [ ! -f "$out/index.html" ]; then \
-		BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx build --release --platform web --base-path "/lotus-explore-rs" --package lotus-explore-rs --locked --debug-symbols=false --rustc-args=-Copt-level=z; \
-	fi; \
-	printf '%s\n' 'Web asset sizes:'; \
-	for file in "$out"/assets/*.wasm; do [ -f "$file" ] && du -h "$file"; done; \
-	du -h "$out/assets/lotus-explore.css" "$out/index.html"
+# One number per transfer encoding, so a profile experiment is comparable with
+# the one before it instead of eyeballed. `raw` is what the linker emitted,
+# `br` is the sibling dx pre-compresses, `gzip -9` is the fallback for hosts
+# without brotli. Only the bundle we actually ship is measured: no source maps.
+web-bytes:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	out="target/dx/lotus-explore-rs/release/web/public"
+	if [ ! -f "$out/index.html" ]; then
+	  echo "no build at $out — run 'just build' first" >&2
+	  exit 1
+	fi
+	kb() { echo $(( $1 / 1024 )); }
+	printf '%-34s %10s %10s %10s\n' asset raw_KiB br_KiB gzip_KiB
+	tot_raw=0; tot_br=0; tot_gz=0
+	for file in "$out"/assets/*.wasm "$out"/assets/*.js "$out"/assets/*.css "$out"/index.html; do
+	  [ -f "$file" ] || continue
+	  raw=$(stat -f%z "$file")
+	  if [ -f "$file.br" ]; then br=$(stat -f%z "$file.br"); else br=$raw; fi
+	  gz=$(gzip -c9 "$file" | wc -c | tr -d ' ')
+	  printf '%-34s %10s %10s %10s\n' "$(basename "$file")" "$(kb $raw)" "$(kb $br)" "$(kb $gz)"
+	  tot_raw=$(( tot_raw + raw )); tot_br=$(( tot_br + br )); tot_gz=$(( tot_gz + gz ))
+	done
+	printf '%-34s %10s %10s %10s\n' TOTAL "$(kb $tot_raw)" "$(kb $tot_br)" "$(kb $tot_gz)"
+	printf '\nwasm raw bytes: %s\n' "$(stat -f%z "$out"/assets/*.wasm)"
 
 # ── Supply-chain hygiene (skip gracefully if a tool is not installed) ─────────
 
