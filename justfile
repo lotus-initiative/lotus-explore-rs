@@ -33,6 +33,30 @@ ci:
 	just machete
 	just audit
 	just deny
+	just opt-levels
+
+# The optimisation level is declared in three places, and `dx` passes
+# `--rustc-args=-Copt-level=` last, so the justfile silently wins over the
+# `[profile.release]` it is supposed to match. That drift shipped once: the
+# recipes said `s` while the profile said `z`, and every `just build` produced a
+# module 185300 raw / 38433 brotli bytes larger than intended, with nothing in
+# CI noticing. Assert the three agree.
+opt-levels:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	profile=$(sed -n 's/^opt-level = "\(.\)"/\1/p' Cargo.toml | head -1)
+	wasmopt=$(sed -n '/^\[web.wasm_opt\]/,/^\[/ s/^level = "\(.\)"/\1/p' apps/lotus-explore-rs/Dioxus.toml | head -1)
+	# Only real `dx` invocations, so this recipe cannot match its own source.
+	levels=$(grep -E 'dx (build|serve)' justfile | grep -o -- '-Copt-level=.' | sed 's/.*=//' | sort -u | tr '\n' ' ')
+	printf 'Cargo.toml [profile.release]  opt-level = %s\n' "$profile"
+	printf 'Dioxus.toml [web.wasm_opt]   level     = %s\n' "$wasmopt"
+	printf 'justfile --rustc-args                  = %s\n' "${levels% }"
+	fail=0
+	[ -n "$profile" ] || { echo "MISMATCH: no opt-level found in Cargo.toml" >&2; fail=1; }
+	[ "$profile" = "$wasmopt" ] || { echo "MISMATCH: wasm_opt level '$wasmopt' != profile opt-level '$profile'" >&2; fail=1; }
+	[ "$(printf '%s' "$levels" | wc -w | tr -d ' ')" -eq 1 ] || { echo "MISMATCH: justfile passes more than one -Copt-level: $levels" >&2; fail=1; }
+	[ "${levels% }" = "$profile" ] || { echo "MISMATCH: justfile -Copt-level='${levels% }' != profile '$profile'" >&2; fail=1; }
+	exit $fail
 
 # One `cargo check -p <app>` per app keeps the wasm build green.
 wasm:
@@ -55,11 +79,11 @@ serve app="lotus-explore-rs":
 
 preview app="lotus-explore-rs":
 	cd apps/{{app}} && cargo run --locked -p lotus-deploy --bin fetch-assets
-	cd apps/{{app}} && BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx serve --package {{app}} --platform web --release --debug-symbols=false --locked --rustc-args=-Copt-level=s --open=false
+	cd apps/{{app}} && BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx serve --package {{app}} --platform web --release --debug-symbols=false --locked --rustc-args=-Copt-level=z --open=false
 
 build app="lotus-explore-rs":
 	cd apps/{{app}} && cargo run --locked -p lotus-deploy --bin fetch-assets
-	cd apps/{{app}} && BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx build --release --package {{app}} --locked --debug-symbols=false --rustc-args=-Copt-level=s
+	cd apps/{{app}} && BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx build --release --package {{app}} --locked --debug-symbols=false --rustc-args=-Copt-level=z
 
 # One number per transfer encoding, so a profile experiment is comparable with
 # the one before it instead of eyeballed. `raw` is what the linker emitted,
