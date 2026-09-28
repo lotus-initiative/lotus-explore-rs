@@ -56,6 +56,11 @@ Each of these was built and measured rather than reasoned about. Sizes are
   | `+ panic = "abort"`                   | 1465621 | 466744  | 598085  | **no-op**, +13 B raw           |
   | `dioxus/devtools` off                 | 1463423 | 465709  | 597095  | **no-op**, ±0.03 %             |
 
+All of the above were taken with a bare `dx build`. `just build` --- the path the
+Dockerfile runs --- was compiling at `opt-level=s` for part of this work, so its
+outputs came out 185300 raw bytes larger. The `opt-level=z` row is the one that
+ships, and `just opt-levels` now keeps the three declarations in agreement.
+
 ### `opt-level = "s"` is not the counter-intuitive win it is claimed to be
 
 The expectation is that `s` lets LLVM inline and vectorise before
@@ -125,6 +130,23 @@ and the dev-only crates are already out of the wasm graph (verified, not assumed
 `axum`, `utoipa`, `utoipa-swagger-ui`, `tokio`, `flat2`, `tempfile`,
 `tower-http`, `clap` and `env_logger` are all absent, and no TLS stack is
 reachable: `reqwest` on wasm uses the browser `fetch`).
+
+## Three copies of one setting, and nothing comparing them
+
+The optimisation level is declared in three places: `[profile.release]`
+`opt-level` in `Cargo.toml`, `[web.wasm_opt].level` in `Dioxus.toml`, and
+`--rustc-args=-Copt-level=` on every `dx` invocation in the justfile. `dx`
+appends `--rustc-args` last, so the justfile wins and the profile is decorative.
+
+They drifted: the justfile said `s`, the profile said `z`, and every `just build`
+shipped a module 185300 raw / 27843 brotli bytes larger than intended. CI stayed
+green, because each file was individually valid and nothing compared them.
+`just opt-levels` now runs in `ci` and fails on any disagreement.
+
+The cost was not only the bytes. A bare `dx build` and a `just build` were
+compiling at different levels from identical source, so they produced different
+binaries and every comparison between them was meaningless until this was found.
+Measure through the shipping path, and not by invoking `dx` by hand.
 
 ## A measurement trap worth recording
 
