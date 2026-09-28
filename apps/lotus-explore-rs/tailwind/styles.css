@@ -497,15 +497,15 @@ legend {
 }
 
 @utility brand-logo {
-    /* The lotus mark is injected as inline SVG with only a viewBox, so the
-       height has to be derived. Safari rounds that derivation up by a fraction
-       on some iOS releases and shaves the bottom row of pixels off the mark;
-       pinning the ratio keeps every engine on the same box. */
+    /* The mark is injected as inline SVG with only a viewBox, so the height
+       has to be derived from it. Pinning the ratio to the viewBox that
+       public/logo-mark.svg declares (see the test that keeps them in sync)
+       stops any engine from rounding the box onto the artwork's edge. */
     & > svg {
         display: block;
         width: 100%;
         height: auto;
-        aspect-ratio: 1114.949 / 981.018;
+        aspect-ratio: 1174 / 792;
     }
 }
 

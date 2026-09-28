@@ -95,4 +95,58 @@ mod tests {
         assert!(index_src.contains("color: var(--text, #111827)"));
         assert!(logo_src.contains("fill:currentColor"));
     }
+
+    /// The header logo must stay artwork-only and its CSS box must match the
+    /// asset's own viewBox.
+    ///
+    /// `favicon.svg` still carries the "LOTUS" wordmark as live `<text>` in
+    /// Albert Sans. No device has that font, so the substituted metrics decide
+    /// how far the glyphs reach, and on iOS the descender fell outside the
+    /// viewBox and got clipped. The header therefore uses `logo-mark.svg`,
+    /// which has no text and a viewBox re-fitted around the artwork.
+    #[test]
+    fn header_logo_is_text_free_and_matches_its_css_ratio() {
+        let mark_src = include_str!("../../public/logo-mark.svg");
+        let header_src = include_str!("../components/layout/page_header.rs");
+        let styles_src = include_str!("../../tailwind/styles.css");
+
+        assert!(
+            true && !mark_src.contains("<text"),
+            "logo-mark.svg must not contain a <text> element: a substituted font \
+             changes the rendered extents per platform"
+        );
+        assert!(
+            header_src.contains("logo-mark.svg"),
+            "the header must embed the text-free mark, not favicon.svg"
+        );
+
+        // Lints here deny panic!/expect/indexing, so the invariant is carried
+        // by asserts and plain iterator reads instead.
+        let view_box = mark_src
+            .split_once("viewBox=\"")
+            .and_then(|(_, rest)| rest.split_once('"'))
+            .map_or("", |(value, _)| value);
+        let mut parts = view_box
+            .split_whitespace()
+            .filter_map(|n| n.parse::<f64>().ok());
+        let _min_x = parts.next();
+        let _min_y = parts.next();
+        let w = parts.next();
+        let h = parts.next();
+        let extra = parts.next();
+        assert!(
+            matches!(w, Some(width) if width > 0.0)
+                && matches!(h, Some(height) if height > 0.0)
+                && extra.is_none(),
+            "logo-mark.svg viewBox must be \"minX minY width height\" with a positive size"
+        );
+        let (w, h) = (w.unwrap_or_default(), h.unwrap_or_default());
+
+        let expected = format!("aspect-ratio: {w} / {h};");
+        assert!(
+            styles_src.contains(&expected),
+            "brand-logo must pin aspect-ratio: {w} / {h}; to match the mark's \
+             viewBox, otherwise the box can round onto the artwork edge and clip it"
+        );
+    }
 }
