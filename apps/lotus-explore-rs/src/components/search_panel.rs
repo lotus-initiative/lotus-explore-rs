@@ -37,7 +37,7 @@ pub fn SearchPanel() -> Element {
     rsx! {
         form {
             id: "lotus-search-form",
-            class: "search-panel flex-0-auto flex flex-col gap-2 p-3.5 bg-shell-page w-full min-w-0",
+            class: "search-panel flex-0-auto flex flex-col gap-2 rounded-xl p-3.5 bg-panel-soft w-full min-w-0",
             aria_label: t(locale, TextKey::Search).to_string(),
             "data-webmcp-id": "lotus-search-form",
             "data-webmcp-type": "form",
