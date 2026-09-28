@@ -93,31 +93,41 @@ mod tests {
 
         assert!(index_src.contains("background: var(--shell-page-bg, #f2f5f8)"));
         assert!(index_src.contains("color: var(--text, #111827)"));
-        assert!(logo_src.contains("fill:currentColor"));
+        // the lockup inherits the surrounding text colour (the outlined wordmark
+        // carries fill="currentColor")
+        assert!(logo_src.contains("currentColor"));
     }
 
-    /// The header logo must stay artwork-only and its CSS box must match the
-    /// asset's own viewBox.
+    /// The logo must keep the official lotus lockup *and* render it without
+    /// depending on a font being installed.
     ///
-    /// `favicon.svg` still carries the "LOTUS" wordmark as live `<text>` in
-    /// Albert Sans. No device has that font, so the substituted metrics decide
-    /// how far the glyphs reach, and on iOS the descender fell outside the
-    /// viewBox and got clipped. The header therefore uses `logo-mark.svg`,
-    /// which has no text and a viewBox re-fitted around the artwork.
+    /// `favicon.svg` draws the "LOTUS" wordmark. It used to be live `<text>` in
+    /// Albert Sans, a font no device has, so the substituted metrics decided
+    /// how far the glyphs reached: on iOS they fell past the viewBox and were
+    /// clipped, while machines with the font and `WebKit` rendered them fine.
+    /// Chromium was worse, silently resolving weight 300 to `ExtraLight`. The
+    /// wordmark is now filled outlines taken from the real font, so every
+    /// engine paints the same shape, and the viewBox is re-fitted around the
+    /// whole lockup so nothing sits on the box edge.
     #[test]
-    fn header_logo_is_text_free_and_matches_its_css_ratio() {
-        let mark_src = include_str!("../../public/logo-mark.svg");
+    fn logo_keeps_the_official_lockup_without_a_font_dependency() {
+        let mark_src = include_str!("../../public/favicon.svg");
         let header_src = include_str!("../components/layout/page_header.rs");
         let styles_src = include_str!("../../tailwind/styles.css");
 
         assert!(
             !mark_src.contains("<text"),
-            "logo-mark.svg must not contain a <text> element: a substituted font \
-             changes the rendered extents per platform"
+            "favicon.svg must not contain a <text> element: a substituted font \
+             changes the rendered extents per platform, which is what clipped \
+             the wordmark on iOS"
         );
         assert!(
-            header_src.contains("logo-mark.svg"),
-            "the header must embed the text-free mark, not favicon.svg"
+            header_src.contains("public/favicon.svg"),
+            "the header must embed the official lockup, favicon.svg"
+        );
+        assert!(
+            mark_src.contains("AlbertSans-Light") || mark_src.contains("wordmark: outlined"),
+            "the wordmark must be present as outlined paths, not deleted"
         );
 
         // Lints here deny panic!/expect/indexing, so the invariant is carried
@@ -138,14 +148,14 @@ mod tests {
             matches!(w, Some(width) if width > 0.0)
                 && matches!(h, Some(height) if height > 0.0)
                 && extra.is_none(),
-            "logo-mark.svg viewBox must be \"minX minY width height\" with a positive size"
+            "favicon.svg viewBox must be \"minX minY width height\" with a positive size"
         );
         let (w, h) = (w.unwrap_or_default(), h.unwrap_or_default());
 
         let expected = format!("aspect-ratio: {w} / {h};");
         assert!(
             styles_src.contains(&expected),
-            "brand-logo must pin aspect-ratio: {w} / {h}; to match the mark's \
+            "brand-logo must pin aspect-ratio: {w} / {h}; to match the logo's \
              viewBox, otherwise the box can round onto the artwork edge and clip it"
         );
     }

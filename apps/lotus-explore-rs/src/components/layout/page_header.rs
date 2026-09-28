@@ -14,10 +14,7 @@ use crate::i18n::{TextKey, t};
 use crate::ui::a11y_contract::PAGE_TITLE_ID;
 use dioxus::prelude::*;
 
-// The mark is artwork-only and text-free: favicon.svg still carries the
-// "LOTUS" wordmark as live <text> in Albert Sans, and a substituted font
-// renders with different metrics on iOS, which clipped the descender.
-const LOTUS_LOGO_SVG: &str = include_str!("../../../public/logo-mark.svg");
+const LOTUS_LOGO_SVG: &str = include_str!("../../../public/favicon.svg");
 
 /// Full page header section.
 ///
