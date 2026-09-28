@@ -57,7 +57,10 @@ video {
     --bg2: #f7fafc;
     --surface: #ffffff;
     --surface2: #ffffff;
-    --border: #c3cfdd;
+    /* --border outlines interactive controls, so it clears 3:1 against every
+       shell surface; --border-soft keeps purely decorative hairlines quiet. */
+    --border: #75849a;
+    --border-soft: #c3cfdd;
     --text: #111827;
     --text2: #233548;
     --text3: #4a5a6d;
@@ -109,21 +112,23 @@ video {
     --critical-text: #172535;
     --critical-muted: #33475c;
 
-    /* Shell surfaces: page, raised panel, and sticky chrome. */
-    --shell-page-bg: var(--bg);
-    --shell-raised-bg: var(--surface);
-    --shell-chrome-bg: var(--surface);
+    /* Shell surfaces, three distinct planes so the chrome never reads as the
+       page: recessed canvas < sticky chrome < raised cards. */
+    --shell-page-bg: #dfe7f1;
+    --shell-chrome-bg: #f0f4fa;
+    --shell-raised-bg: #ffffff;
     --shell-border: var(--border);
-    --panel-bg: var(--surface);
-    --panel-bg-soft: var(--surface);
-    --panel-border: color-mix(in srgb, var(--border) 82%, transparent);
+    --panel-bg: #ffffff;
+    --panel-bg-soft: #eaf0f8;
+    --panel-border: var(--border-soft);
     --shell-radius: 12px;
     --shell-control-radius: 8px;
 
-    /* Footer organism colors */
-    --footer-wd-taxon: color-mix(in srgb, var(--wd-taxon) 77%, #000);
+    /* Footer organism colors. The badge text sits on a 14% tint of itself, so
+       each mix is set for 4.8:1+ against both the chrome and the stat card. */
+    --footer-wd-taxon: color-mix(in srgb, var(--wd-taxon) 70%, #000);
     --footer-wd-compound: var(--wd-compound);
-    --footer-wd-reference: var(--wd-reference);
+    --footer-wd-reference: color-mix(in srgb, var(--wd-reference) 95%, #000);
     --footer-wd-entries: color-mix(in srgb, var(--wd-entries) 77%, #000);
     --footer-wd-structure: var(--footer-wd-entries);
 
@@ -141,11 +146,12 @@ video {
 /* Dark mode theme */
 :is([data-theme="dark"], :root:not([data-theme="light"])) {
     color-scheme: dark;
-    --bg: #0f172a;
-    --bg2: #0f172a;
-    --surface: #111827;
-    --surface2: #111827;
-    --border: #38475a;
+    --bg: #0a0f19;
+    --bg2: #0a0f19;
+    --surface: #131b29;
+    --surface2: #131b29;
+    --border: #76869e;
+    --border-soft: #38475a;
     --text: #eef4fb;
     --text2: #d5deea;
     --text3: #b8c5d6;
@@ -166,10 +172,20 @@ video {
     --critical-text: #e8edf5;
     --critical-muted: #d0d9e5;
 
-    --footer-wd-compound: color-mix(in srgb, var(--wd-compound) 52%, white);
-    --footer-wd-taxon: color-mix(in srgb, var(--wd-taxon) 56%, white);
-    --footer-wd-reference: color-mix(in srgb, var(--wd-reference) 52%, white);
-    --footer-wd-entries: color-mix(in srgb, var(--wd-entries) 56%, white);
+    /* Same three-plane hierarchy as light, inverted for the dark canvas. */
+    --shell-page-bg: #0a0f19;
+    --shell-chrome-bg: #1c2637;
+    --shell-raised-bg: #131b29;
+    --panel-bg: #131b29;
+    --panel-bg-soft: #18212f;
+    --panel-border: var(--border-soft);
+
+    /* On the dark canvas these need far more white than the light theme needs
+       black, or the badge text lands under 4.5:1 on its own tint. */
+    --footer-wd-compound: color-mix(in srgb, var(--wd-compound) 40%, white);
+    --footer-wd-taxon: color-mix(in srgb, var(--wd-taxon) 65%, white);
+    --footer-wd-reference: color-mix(in srgb, var(--wd-reference) 50%, white);
+    --footer-wd-entries: color-mix(in srgb, var(--wd-entries) 45%, white);
     --footer-wd-structure: var(--footer-wd-entries);
 }
 

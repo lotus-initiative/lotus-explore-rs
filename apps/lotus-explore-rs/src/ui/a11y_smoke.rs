@@ -91,7 +91,7 @@ mod tests {
         let index_src = include_str!("../../index.html");
         let logo_src = include_str!("../../public/favicon.svg");
 
-        assert!(index_src.contains("background: var(--shell-page-bg, #f7fafc)"));
+        assert!(index_src.contains("background: var(--shell-page-bg, #dfe7f1)"));
         assert!(index_src.contains("color: var(--text, #111827)"));
         assert!(logo_src.contains("fill:currentColor"));
     }
