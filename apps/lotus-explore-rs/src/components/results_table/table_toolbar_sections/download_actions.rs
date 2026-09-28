@@ -169,15 +169,22 @@ fn DownloadQueryButton(
             label: Some(label.to_string()),
             onclick: {
                 let filename = move || filename.clone();
-                #[cfg(target_arch = "wasm32")]
-                let criteria_snapshot = Some(Arc::new(criteria.read().clone()));
-                #[cfg(not(target_arch = "wasm32"))]
-                let criteria_snapshot = None;
+                // Read inside the handler, not here. The `onclick: { .. }` block
+                // is evaluated while the template is built, so hoisting the
+                // snapshot out of the closure deep-copied a `SearchCriteria`
+                // (three `String`s) on every render of the toolbar — three
+                // times over, once for each of the CSV/JSON/RDF buttons — with
+                // no click involved. Reading at click time is also the fresher
+                // value: it is the criteria of the results on screen now.
                 move |_| {
+                    #[cfg(target_arch = "wasm32")]
+                    let criteria_snapshot = Some(Arc::new(criteria.read().clone()));
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let criteria_snapshot = None;
                     dispatch_query_download_spec(
                         spec,
                         locale,
-                        criteria_snapshot.clone(),
+                        criteria_snapshot,
                         filename(),
                         sparql_query.clone(),
                         download_busy,
@@ -212,8 +219,11 @@ fn DownloadMetadataButton(
             // accessible name, the tooltip holds the description.
             label: Some(label.to_string()),
             onclick: {
-                let filename = toolbar_model.read().metadata_filename.clone();
+                // Same reasoning as `DownloadQueryButton`: this block runs
+                // while the template is built, so the filename was rebuilt on
+                // every render rather than on the click that needs it.
                 move |_| {
+                    let filename = toolbar_model.read().metadata_filename.clone();
                     dispatch_metadata_download_blob(&filename, metadata_json.as_ref());
                 }
             },
