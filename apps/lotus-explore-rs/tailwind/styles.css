@@ -331,6 +331,12 @@ legend {
    CLS PREVENTION / LAYOUT STABILITY
    ======================================== */
 
+/* The header is its own chrome plane, so the content card needs air below it;
+   paired with .app-layout's bottom padding this gives one 12px rhythm. */
+.page-section {
+    padding-top: 12px;
+}
+
 /* Virtualized table spacer rows - use CSS custom properties for stable heights */
 .virtual-spacer {
     content-visibility: auto;
@@ -359,6 +365,9 @@ legend {
     overflow: visible;
     gap: 10px;
     padding: 8px;
+    /* Same 12px air under the content that .page-section puts above it, so the
+       card floats between the header band and the footer at every width. */
+    padding-bottom: 12px;
     align-items: stretch;
 }
 
@@ -371,7 +380,7 @@ legend {
     .app-layout {
         flex-direction: column;
         gap: 0;
-        padding: 0;
+        padding: 0 0 12px;
         overflow: visible;
     }
 
