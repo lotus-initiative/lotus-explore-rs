@@ -111,7 +111,7 @@ mod tests {
         let styles_src = include_str!("../../tailwind/styles.css");
 
         assert!(
-            true && !mark_src.contains("<text"),
+            !mark_src.contains("<text"),
             "logo-mark.svg must not contain a <text> element: a substituted font \
              changes the rendered extents per platform"
         );
