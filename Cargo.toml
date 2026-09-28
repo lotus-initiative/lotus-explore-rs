@@ -113,4 +113,4 @@ strip = "symbols"
 debug-assertions = false
 overflow-checks = false
 lto = "fat"
-codegen-units = 16
+codegen-units = 1
