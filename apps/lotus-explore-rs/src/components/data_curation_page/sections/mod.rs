@@ -296,7 +296,20 @@ pub fn QueueRowsCard(
     processing: bool,
     on_process: EventHandler<()>,
 ) -> Element {
-    let rows_snapshot = rows.read().clone();
+    // `rows.read().clone()` on every render deep-copied the whole
+    // `Vec<CurationInputRow>` — four `String`s plus three `Option<String>` per
+    // row — each time the page re-rendered for an unrelated reason. The page
+    // subscribes to `tsv_input` through `has_tsv_input()`, so every keystroke in
+    // the TSV textarea re-rendered this card and paid for that copy.
+    //
+    // The memo reads the same signal and subscribes to nothing else, so the deep
+    // copy happens once per actual change to `rows`. Wrapping it in an `Arc`
+    // lets each render take a refcount bump instead of a copy, and drops the
+    // read guard before the template is built — the same shape as
+    // `prepared_state` in `results_table.rs` and `result_rows_memo` in
+    // `data_curation_page.rs`.
+    let rows_snapshot = use_memo(move || Arc::<[CurationInputRow]>::from(rows.read().clone()));
+    let rows_snapshot = rows_snapshot.read().clone();
 
     rsx! {
         div { class: "flex flex-col gap-4 rounded-xl",
