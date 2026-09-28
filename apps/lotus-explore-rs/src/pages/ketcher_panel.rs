@@ -11,13 +11,7 @@ use dioxus::prelude::*;
 pub fn KetcherPanel() -> Element {
     let locale = crate::hooks::use_locale();
     let mut ketcher_ready = use_signal(|| false);
-    let mut ketcher_loaded = use_signal(|| false);
     let ketcher_url = asset_url("assets/ketcher/index.html");
-    let ketcher_class = if *ketcher_loaded.read() {
-        "min-h-[420px] w-full flex-1 border-0 bg-surface"
-    } else {
-        "hidden min-h-[420px] w-full flex-1 border-0 bg-surface"
-    };
     rsx! {
         div {
             class: "flex w-full flex-col gap-3",
@@ -33,11 +27,13 @@ pub fn KetcherPanel() -> Element {
                     "{t(locale, TextKey::KetcherHintD)}"
                 }
                 if *ketcher_ready.read() {
+                    // Rendered already visible: Ketcher measures its canvas and
+                    // menus on mount, and a display:none host leaves those boxes
+                    // unlaid out, which strands the editor without an instance.
                     iframe {
                         src: "{ketcher_url}",
                         title: "{t(locale, TextKey::KetcherIframeTitle)}",
-                        onload: move |_| ketcher_loaded.set(true),
-                        class: "{ketcher_class}",
+                        class: "min-h-[420px] w-full flex-1 border-0 bg-surface",
                         allow: "fullscreen",
                         referrerpolicy: "no-referrer",
                     }

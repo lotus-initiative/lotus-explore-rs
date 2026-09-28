@@ -44,8 +44,6 @@ const CITATION_LICENSE_URL: &str =
 const DEFAULT_DIR: &str = "public/assets/ketcher";
 const DEFAULT_CURATION_DIR: &str = "public/assets/vendor";
 const DEFAULT_CURATION_STATE: &str = "target/lotus-assets-state";
-const FOCUS_GUARD_MARKER: &str = "ketcher-focus-guard.js";
-const FOCUS_GUARD_SCRIPT: &str = "<script src=\"../js/ketcher-focus-guard.js\"></script>";
 
 fn setting(name: &str, default: &str) -> String {
     env::var(name)
@@ -266,13 +264,6 @@ fn fetch_curation_assets(client: &Client) -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 
-fn add_focus_guard(index: &str) -> String {
-    if index.contains(FOCUS_GUARD_MARKER) {
-        return index.to_owned();
-    }
-    index.replacen("</head>", &format!("{FOCUS_GUARD_SCRIPT}</head>"), 1)
-}
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::builder().build()?;
     fetch_curation_assets(&client)?;
@@ -284,10 +275,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if index_html.is_file() {
         let index = fs::read_to_string(&index_html)?;
         if index.contains(&format!("Ketcher v{version}")) {
-            let patched = add_focus_guard(&index);
-            if patched != index {
-                fs::write(&index_html, patched)?;
-            }
             println!(
                 "✓ Ketcher v{version} already present in {}",
                 ketcher_dir.display()
@@ -368,9 +355,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         entries += 1;
     }
 
-    let index = fs::read_to_string(&index_html)?;
-    fs::write(&index_html, add_focus_guard(&index))?;
-
     println!("  extracted {entries} file(s) to {}", ketcher_dir.display());
     if skipped_bytes > 0 {
         println!("  skipped {skipped_bytes} bytes of unused entry bundles (closable/duo/popup)");
@@ -381,14 +365,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn adds_focus_guard_once() {
-        let index = "<html><head></head></html>";
-        let patched = add_focus_guard(index);
-        assert!(patched.contains(FOCUS_GUARD_MARKER));
-        assert_eq!(add_focus_guard(&patched), patched);
-    }
 
     #[test]
     fn classifies_unused_entries() {
