@@ -50,15 +50,15 @@ clippy-wasm:
 # directories land inside apps/<app>/public, not at the repo-root public/.
 
 serve app="lotus-explore-rs":
-	cd apps/{{app}} && cargo run -p lotus-deploy --bin fetch-assets
+	cd apps/{{app}} && cargo run --locked -p lotus-deploy --bin fetch-assets
 	dx serve --package {{app}} --platform web --locked --open=false
 
 preview app="lotus-explore-rs":
-	cd apps/{{app}} && cargo run -p lotus-deploy --bin fetch-assets
+	cd apps/{{app}} && cargo run --locked -p lotus-deploy --bin fetch-assets
 	cd apps/{{app}} && BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx serve --package {{app}} --platform web --release --debug-symbols=false --locked --rustc-args=-Copt-level=s --open=false
 
 build app="lotus-explore-rs":
-	cd apps/{{app}} && cargo run -p lotus-deploy --bin fetch-assets
+	cd apps/{{app}} && cargo run --locked -p lotus-deploy --bin fetch-assets
 	cd apps/{{app}} && BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx build --release --package {{app}} --locked --debug-symbols=false --rustc-args=-Copt-level=s
 
 # One number per transfer encoding, so a profile experiment is comparable with
