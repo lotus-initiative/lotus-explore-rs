@@ -56,7 +56,7 @@ pub fn SearchPanel() -> Element {
             div {
                 id: SEARCH_PANEL_BODY_ID,
                 class: "search-panel-body flex flex-col gap-2",
-                div { class: "grid grid-cols-2 gap-3 lg:grid-cols-4",
+                div { class: "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4",
                     TaxonInput {}
                     StructureSection {}
                     MassRangeInput {}

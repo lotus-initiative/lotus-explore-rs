@@ -21,7 +21,9 @@ pub fn QueryPanel() -> Element {
                 details {
                     class: "group overflow-hidden",
                     summary {
-                        class: "flex w-auto min-w-0 cursor-pointer select-none items-center gap-2 rounded-xl border border-border bg-panel-soft px-3 py-2 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                        // scroll-mt keeps the row clear of the sticky header when a
+                        // tap focuses it; without it the browser scrolls it under the bar.
+                        class: "flex w-auto min-w-0 scroll-mt-16 cursor-pointer select-none items-center gap-2 rounded-xl border border-border bg-panel-soft px-3 py-2 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                         span {
                             class: "inline-block text-subtle transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] group-open:rotate-90",
                             aria_hidden: "true",
