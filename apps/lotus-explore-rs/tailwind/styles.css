@@ -112,23 +112,26 @@ video {
     --critical-text: #172535;
     --critical-muted: #33475c;
 
-    /* Shell surfaces, three distinct planes so the chrome never reads as the
-       page: recessed canvas < sticky chrome < raised cards. */
-    --shell-page-bg: #dfe7f1;
-    --shell-chrome-bg: #f0f4fa;
+    /* Shell surfaces: three distinct planes so the chrome never reads as the
+       page. The canvas sits 1.09:1 from pure white with a +6 blue cast, which
+       is the same tint strength as Apple's grouped background. A pure white
+       canvas would collapse the card into it (1.00:1) and force every
+       elevation cue onto borders and shadows. */
+    --shell-page-bg: #f2f5f8;
+    --shell-chrome-bg: #e7ecf1;
     --shell-raised-bg: #ffffff;
     --shell-border: var(--border);
     --panel-bg: #ffffff;
-    --panel-bg-soft: #eaf0f8;
+    --panel-bg-soft: #eef1f5;
     --panel-border: var(--border-soft);
     --shell-radius: 12px;
     --shell-control-radius: 8px;
 
     /* Footer organism colors. The badge text sits on a 14% tint of itself, so
        each mix is set for 4.8:1+ against both the chrome and the stat card. */
-    --footer-wd-taxon: color-mix(in srgb, var(--wd-taxon) 70%, #000);
+    --footer-wd-taxon: color-mix(in srgb, var(--wd-taxon) 65%, #000);
     --footer-wd-compound: var(--wd-compound);
-    --footer-wd-reference: color-mix(in srgb, var(--wd-reference) 95%, #000);
+    --footer-wd-reference: color-mix(in srgb, var(--wd-reference) 90%, #000);
     --footer-wd-entries: color-mix(in srgb, var(--wd-entries) 77%, #000);
     --footer-wd-structure: var(--footer-wd-entries);
 
