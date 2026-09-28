@@ -77,6 +77,16 @@ Dioxus 0.7.10 builds and watches Tailwind automatically during `dx serve` and
 `dx build`, so Node.js and npm are not required for local development or release
 builds.
 
+## Documentation
+
+- [`docs/DESIGN_SYSTEM.md`](apps/lotus-explore-rs/docs/DESIGN_SYSTEM.md) — the
+  four shell planes, their measured separation, and the border rules
+- [`docs/PERFORMANCE.md`](apps/lotus-explore-rs/docs/PERFORMANCE.md) — where
+  load time goes, and the profile experiments that were kept and rejected
+- [`docs/DEPLOYMENT.md`](apps/lotus-explore-rs/docs/DEPLOYMENT.md) — what the
+  production host actually serves, and how to measure it locally
+- [`docs/ARCHITECTURE.md`](apps/lotus-explore-rs/docs/ARCHITECTURE.md)
+
 ## Continuous integration
 
 On every push to `main`:
