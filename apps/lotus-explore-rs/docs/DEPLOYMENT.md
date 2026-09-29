@@ -11,12 +11,12 @@ against the live host with `curl`, not inferred from the configuration.
 the `github.io` name to the custom domain. So `github.io` is not an alternative
 address for this site, it is a redirect away from it. Measured:
 
-  | Request                                           | Result                                                 |
-  | ---------------------------------------------     | -----------------------------------                    |
-  | `https://lotusnprod.github.io/lotus-explore-rs/`  | **301** -> `https://lotus.nprod.net/lotus-explore-rs/` |
-  | `https://lotusnprod.github.io/`                   | **301** -> `https://lotus.nprod.net/`                  |
-  | `https://lotus.nprod.net/lotus-explore-rs/`       | 200                                                    |
-  | `https://lotus.nprod.net/`                        | 200                                                    |
+  | Request                                          | Result                                                 |
+  | ------------------------------------------------ | ------------------------------------------------------ |
+  | `https://lotusnprod.github.io/lotus-explore-rs/` | **301** -> `https://lotus.nprod.net/lotus-explore-rs/` |
+  | `https://lotusnprod.github.io/`                  | **301** -> `https://lotus.nprod.net/`                  |
+  | `https://lotus.nprod.net/lotus-explore-rs/`      | 200                                                    |
+  | `https://lotus.nprod.net/`                       | 200                                                    |
 
 `base_url` in `metadata/site-metadata.json` was still the `github.io` form,
 which put the retired host into every generated artefact: `llms.txt`,
@@ -41,35 +41,69 @@ catalog, a citation) points at the wrong origin.
 
 ### Changing the CNAME
 
-One edit: `base_url` in `metadata/site-metadata.json`. Everything else follows.
+`rg nprod.net` looks alarming -- 43 hits, 13 of them in this file -- but almost
+every hit is generated output that is committed to the tree. There is exactly
+**one** value to edit, plus one hand-written mirror of it, and tests fail if
+either is missed.
 
-`build.rs` derives the host from that field and generates every artefact that
-carries an absolute URL — `llms.txt`, `humans.txt`, `robots.txt`, `sitemap.xml`,
-`security.txt`, `ai-catalog.json`, and `_redirects` — so none of them restate a
-hostname. `lotus_home_url` was a second field naming the same host; it is now
-optional and defaults to the origin of `base_url`, so it only needs setting if
-the initiative ever moves to a host of its own.
+Use `rg --hidden` for the full count: `.well-known/` is a dotfile directory, so
+ripgrep skips it by default and the census looks smaller than it is.
 
-`index.html` is the one exception. It is the file dx serves, not a generated
-artefact, so its `og:url` and JSON-LD `url` are maintained by hand. Generating
-it from build.rs would fight the dev server's `watch_path` on `index.html`.
-Instead, a test asserts both match `base_url`, so a CNAME change that misses it
-fails `cargo test` with a message naming the field to update — verified by
-changing `base_url` alone and watching that test fail.
+  | File                          | Kind          | On a CNAME change                                                     |
+  | ----------------------------- | ------------- | --------------------------------------------------------------------- |
+  | `metadata/site-metadata.json` | **source**    | **Edit `base_url`. This is the change.**                              |
+  | `index.html`                  | hand-written  | **Edit 2 URLs**: `og:url`, JSON-LD `url`. A test fails if you do not. |
+  | `build.rs`                    | test fixtures | No action. Pinned to the real host on purpose.                        |
+  | `docs/DEPLOYMENT.md`          | prose         | No action. A measurement of the old host is history.                  |
+
+So a CNAME change is: edit `base_url`, edit the two `index.html` URLs, rebuild.
+Nothing else in the tree names the host as a value.
+
+The generated files are `public/llms.txt` (9 URLs), `public/sitemap.xml` (4),
+`public/.well-known/ai-catalog.json` (4), `public/humans.txt` (2),
+`public/robots.txt`, `public/.well-known/security.txt` and `public/_redirects` --
+22 of the 43 hits. They are committed because the site is served from the
+working tree, not built at deploy time, so they must be checked in. They are
+regenerated from `base_url` on every build and never edited by hand.
+
+`build.rs` derives the host from `base_url` with a single `hostname()` helper
+and generates every artefact that carries an absolute URL, so none of them
+restate a hostname. `lotus_home_url` was a second field naming the same host; it
+is now optional and defaults to the origin of `base_url`, so it only needs
+setting if the initiative ever moves to a host of its own.
+
+`index.html` is the one file that stays hand-written: it is what dx serves, and
+having build.rs write into it would fight the dev server's `watch_path` on that
+path. It matters because its `og:url` and JSON-LD `url` are precisely the two
+metadata fields with no runtime fallback --- `rel=canonical` and the `hreflang`
+alternates are rewritten from `window.location.origin`, so they cannot go stale.
 
 ```sh
-# 1. change base_url in metadata/site-metadata.json
-# 2. regenerate + check everything followed
+# 1. edit base_url in metadata/site-metadata.json
+# 2. edit og:url and the JSON-LD url in index.html
+# 3. regenerate, and let the tests confirm nothing was missed
 cargo build -p lotus-explore-rs
 cargo test -p lotus-explore-rs --test buildrs
-# 3. if the test names index.html, update those two URLs there too
 ```
 
-The `buildrs` test target exists because `cargo test` does not compile
-`build.rs` as a test target, so tests written there are silently never run —
-verified, a `#[test]` in build.rs reports "0 passed" under `cargo test
---all-targets`. The target is declared in `apps/lotus-explore-rs/Cargo.toml`
-and CI's `cargo test --workspace --all-targets` picks it up with no change.
+**The tests are the safety net, so read a failure rather than skipping it.**
+
+- `index_html_agrees_with_base_url` fails if `index.html` and `base_url`
+  disagree.
+- `only_the_documented_files_name_the_live_host` walks the whole app and fails
+  if any file names the live host without being generated or being one of the
+  four documented exceptions above. This is what keeps the table honest: a new
+  hardcoded copy is a build failure rather than something the next CNAME change
+  silently misses, which is how the original two-field drift shipped.
+- `every_host_bearing_artefact_follows_base_url` re-derives all seven generated
+  files from three different `base_url` values, so a generator that stops
+  following the source is caught without touching the real config.
+
+There is no separate step for these: the `buildrs` target is declared in
+`apps/lotus-explore-rs/Cargo.toml` and runs under `just test` and CI, because
+`cargo test` does not otherwise compile `build.rs` as a test target and tests
+written there are silently never run (verified: one reports "0 passed" under
+`cargo test --all-targets`).
 
 ## Plain HTTP is served, not redirected
 
@@ -78,19 +112,19 @@ HTTPS". The finding is correct and it is **not fixable from this repository**.
 
 Measured on the live host:
 
-  | Request                                       | Result                          |
-  | --------------------------------------------- | ------------------------------- |
-  | `http://lotus.nprod.net/lotus-explore-rs/`    | **200 OK** over plain HTTP      |
-  | `https://lotus.nprod.net/lotus-explore-rs/`   | 200                             |
+  | Request                                     | Result                     |
+  | ------------------------------------------- | -------------------------- |
+  | `http://lotus.nprod.net/lotus-explore-rs/`  | **200 OK** over plain HTTP |
+  | `https://lotus.nprod.net/lotus-explore-rs/` | 200                        |
 
 `lotus.nprod.net` is a CNAME to `lotusnprod.github.io`, so the site is served by
 GitHub Pages, and GitHub Pages does not implement `_redirects`. Two independent
 measurements confirm the file is inert there:
 
-  | Probe                                                          | Expected if honoured | Actual  |
-  | ------------------------------------------------------------   | -------------------- | ------  |
-  | `/lotus-explore-rs/no-such-route` (the `/* 200` SPA rewrite)   | 200                  | **404** |
-  | `Strict-Transport-Security` from `_headers`                    | present              | absent  |
+  | Probe                                                        | Expected if honoured | Actual  |
+  | ------------------------------------------------------------ | -------------------- | ------- |
+  | `/lotus-explore-rs/no-such-route` (the `/* 200` SPA rewrite) | 200                  | **404** |
+  | `Strict-Transport-Security` from `_headers`                  | present              | absent  |
 
 The redirect is a repository setting, not a file: **Settings → Pages → Enforce
 HTTPS**. It is off, which is why HTTP is answered with `200` instead of `301`.
@@ -121,7 +155,7 @@ that is the usual reason it stays off. The three things that break under
 `same-origin` were each checked:
 
   | Risk under COOP                                                                | This app                                                                                                                                            |
-  | ---------------                                                                | --------                                                                                                                                            |
+  | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
   | A popup that writes back through `window.opener`                               | No read of `window.opener` anywhere. The two `open_with_url*` call sites are download triggers, where severing the opener is the desired behaviour. |
   | `target="_blank"` links losing their opener                                    | Every one already carries `rel="noopener noreferrer"`, so the protection COOP adds is already in place per-link.                                    |
   | COOP+COEP together setting `crossOriginIsolated`, which some apps then require | No `SharedArrayBuffer`, no `Atomics`, no `crossOriginIsolated` check. The wasm module needs neither.                                                |
@@ -143,12 +177,12 @@ Pages / Netlify syntax. GitHub Pages has no equivalent and ignores it.
 
 Measured on the live host:
 
-  | Header | In `_headers` | Actually sent |
-  | --------------------- | ------------- | ------------- |
-  | `Content-Security-Policy` | yes | absent |
-  | `X-Frame-Options` | yes | absent |
-  | `Strict-Transport-Security` | yes | absent |
-  | `Cache-Control` | per-path rules | `max-age=600` on everything |
+  | Header                      | In `_headers`  | Actually sent               |
+  | --------------------------- | -------------- | --------------------------- |
+  | `Content-Security-Policy`   | yes            | absent                      |
+  | `X-Frame-Options`           | yes            | absent                      |
+  | `Strict-Transport-Security` | yes            | absent                      |
+  | `Cache-Control`             | per-path rules | `max-age=600` on everything |
 
 So the security headers and the cache policy in `_headers` are documentation of
 intent for a future CDN, not a description of the current host. `_headers` is
@@ -162,10 +196,10 @@ writing --- but do not read it as a claim about production.
 everything under `assets/`. Those siblings are uploaded and are individually
 fetchable:
 
-  | Request                        | Result                                     |
-  | ------------------------------ | -----------------------------------------  |
-  | `assets/lotus-explore.css`     | 200, `content-encoding: gzip`, 9852 B      |
-  | `assets/lotus-explore.css.br`  | 200, `application/octet-stream`, 8360 B    |
+  | Request                       | Result                                  |
+  | ----------------------------- | --------------------------------------- |
+  | `assets/lotus-explore.css`    | 200, `content-encoding: gzip`, 9852 B   |
+  | `assets/lotus-explore.css.br` | 200, `application/octet-stream`, 8360 B |
 
 The host gzips on the fly and never negotiates the precompressed brotli. The
 consequence is measurable on the critical path:
