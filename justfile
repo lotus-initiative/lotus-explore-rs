@@ -138,6 +138,14 @@ serve app="lotus-explore-rs":
 	cd apps/{{app}} && cargo run --locked -p lotus-web-assets --bin fetch-assets
 	dx serve --package {{app}} --platform web --locked --open=false --rustc-args="-Cdebuginfo=0 -Cstrip=debuginfo"
 
+# Dioxus supplies a different entry point per renderer and two of them cannot be
+# enabled at once, so the renderer is chosen by a feature. Without `--features
+# desktop` a native build has no user interface and exits immediately.
+# A native window, for working on the app without a browser in the loop.
+serve-desktop app="lotus-explore-rs":
+	cd apps/{{app}} && cargo run --locked -p lotus-web-assets --bin fetch-assets
+	cd apps/{{app}} && dx serve --package {{app}} --desktop --locked --features desktop --open=false
+
 preview app="lotus-explore-rs":
 	cd apps/{{app}} && cargo run --locked -p lotus-web-assets --bin fetch-assets
 	cd apps/{{app}} && BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx serve --package {{app}} --platform web --release --debug-symbols=false --locked --rustc-args=-Copt-level=z --open=false

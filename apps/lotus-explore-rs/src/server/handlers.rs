@@ -95,7 +95,7 @@ async fn prepare_search_request(
         limit: req
             .limit
             .unwrap_or(state.default_limit)
-            .clamp(1, crate::table_budget::TABLE_ROW_LIMIT),
+            .clamp(1, crate::table_budget::API_MAX_ROWS),
         include_counts: req.include_counts.unwrap_or(true),
     })
 }

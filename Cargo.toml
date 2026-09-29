@@ -25,7 +25,16 @@ clap = { version = "4", features = ["derive", "env"] }
 clap_complete = "4"
 clap_mangen = "0.2"
 console_log = "1.1"
-dioxus = { version = "=0.7.10", default-features = false, features = ["asset", "devtools", "document", "minimal", "router", "web"] }
+# `web` and `desktop` are mutually exclusive renderers in Dioxus: each one
+# supplies a different `main`. Naming `web` here meant a native build had no UI
+# to run at all -- `dx serve --desktop` compiled, launched, and exited. The
+# renderer is chosen by the app crate, per target, instead of being fixed for
+# the workspace.
+dioxus = { version = "=0.7.10", default-features = false, features = ["asset", "devtools", "document", "minimal", "router"] }
+# The native renderer. Behind the app's `desktop` feature, because it needs a
+# WebView toolchain that a browser-only machine has no reason to install.
+dioxus-desktop = { version = "=0.7.10", default-features = false }
+dirs = "6"
 env_logger = "0.11"
 flate2 = { version = "1", default-features = false, features = ["miniz_oxide"] }
 futures = { version = "0.3", default-features = false, features = ["async-await", "std"] }
@@ -49,6 +58,7 @@ tokio = { version = "1", features = ["net", "time"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["compression-gzip", "cors", "fs", "request-id", "trace"] }
 tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 urlencoding = "2.1"
 utoipa = "5"
 utoipa-swagger-ui = { version = "9", features = ["axum"] }

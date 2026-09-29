@@ -12,14 +12,28 @@
 
 /// The ceiling, by host.
 ///
-/// The native build serves and may render an export of any size, so it is
-/// effectively uncapped. The browser is the constraint: 1,000 rows is already
-/// slow to lay out, and [`runtime_table_row_limit`] lowers it further on
-/// weaker devices.
+/// A desktop window is a browser window: the same DOM, the same layout cost, and
+/// the difference between the two is a few hundred pixels. It gets a larger
+/// ceiling than a phone because the machine usually has more to give, and the
+/// same one as a desktop browser because the cost is the same.
+///
+/// The API server is a different program and does not render a table at all; it
+/// has its own ceiling, and the two are not conflated here.
 #[cfg(target_arch = "wasm32")]
 pub const TABLE_ROW_LIMIT: usize = 1_000;
 #[cfg(not(target_arch = "wasm32"))]
-pub const TABLE_ROW_LIMIT: usize = 2_000_000;
+pub const TABLE_ROW_LIMIT: usize = 5_000;
+
+/// The most rows the API will return for one request.
+///
+/// Separate from [`TABLE_ROW_LIMIT`] because the two answer different
+/// questions. The table ceiling is what a client can draw; this is what one
+/// request may carry. They were the same number, which meant a client-side
+/// tuning decision -- "a phone cannot draw 1,000 rows" -- silently capped how
+/// much a server would return to anyone, including a caller asking for a bulk
+/// export over the API.
+#[cfg(feature = "server")]
+pub const API_MAX_ROWS: usize = 200_000;
 
 /// The row count to actually ask the endpoint for.
 ///
@@ -94,5 +108,23 @@ mod tests {
         // Every call site divides by this or iterates it; zero would be a hang
         // rather than an error.
         assert!(runtime_table_row_limit() > 0);
+    }
+    #[test]
+    fn the_api_ceiling_is_not_the_table_ceiling() {
+        // They were the same constant, so lowering the one a phone can draw
+        // also lowered how much the server would return to a bulk caller. The
+        // two answer different questions and have to move apart.
+        #[cfg(feature = "server")]
+        {
+            assert!(
+                API_MAX_ROWS > TABLE_ROW_LIMIT,
+                "the API must be able to return more than one screen of rows: \
+                 {API_MAX_ROWS} vs {TABLE_ROW_LIMIT}"
+            );
+            assert!(
+                TABLE_ROW_LIMIT > 0 && API_MAX_ROWS > 0,
+                "a limit of zero means the caller can never have a result"
+            );
+        }
     }
 }

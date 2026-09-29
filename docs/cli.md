@@ -124,22 +124,22 @@ Quercetin   O=c1c(O)c(-c2ccc(O)c(O)c2)oc2cc(O)cc(O)c12  Gentiana lutea  10.7554/
 Pass `-` or nothing to read stdin. `--format` takes `table`, `tsv`, `json` or
 `jsonl`.
 
-**Nothing is submitted to Wikidata, and there is no flag that would.** The output
-is QuickStatements for a person to read and submit, and the command says so on
-stderr every time; `--quiet` silences that one line for when stderr is noise.
-There is deliberately no `--apply`: a batch of statements arriving from a script
-at 3am is not a decision anybody made on purpose.
+**Nothing is submitted to Wikidata, and there is no flag that would.** The
+output is QuickStatements for a person to read and submit, and the command says
+so on stderr every time; `--quiet` silences that one line for when stderr is
+noise. There is deliberately no `--apply`: a batch of statements arriving from a
+script at 3am is not a decision anybody made on purpose.
 
-Each row becomes one compound statement plus, when the row names them, a separate
-occurrence and a separate reference. They are separate because a
-`QuickStatements` run stops at the first failure — an occurrence pointing at a
+Each row becomes one compound statement plus, when the row names them, a
+separate occurrence and a separate reference. They are separate because a
+`QuickStatements` run stops at the first failure --- an occurrence pointing at a
 taxon nobody has created would take down the compound statement in the same
 block, which is the part a curator most wants.
 
 The formats differ in what they carry. `table` lists the rows and then appends
 the statements below them. `json` carries the rows, the statements and the
-citation. `tsv` and `jsonl` are one row per line and carry neither the statements
-nor the citation, so they are for piping into something else, not for
+citation. `tsv` and `jsonl` are one row per line and carry neither the
+statements nor the citation, so they are for piping into something else, not for
 curation.
 
 Rows that name the same structure, taxon and DOI under different names are one

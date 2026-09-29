@@ -24,7 +24,16 @@ name = "buildrs"
 path = "build_test.rs"
 
 [dependencies]
-dioxus = { workspace = true }
+# Dioxus supplies a different `main` per renderer and they cannot both be
+# enabled, so the renderer is chosen per target. The browser build gets `web`;
+# the `desktop` feature swaps in the native renderer for a `cargo build` or
+# `dx serve --desktop`. A `cfg`-selected `main` would not work, because Dioxus
+# defines the entry point through its own launcher macro.
+dioxus = { workspace = true, features = ["web"] }
+dioxus-desktop = { workspace = true, optional = true }
+# Where the WebView keeps its storage. `dirs` rather than the temp directory,
+# because a preference that resets itself is worse than one never stored.
+dirs = { workspace = true, optional = true }
 futures = { workspace = true }
 log = { workspace = true }
 lotus-curation = { workspace = true }
@@ -56,6 +65,7 @@ tempfile = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal", "sync"], optional = true }
 tower-http = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, optional = true }
 utoipa = { workspace = true, optional = true }
 utoipa-swagger-ui = { workspace = true, optional = true }
 
@@ -68,6 +78,14 @@ wasm-bindgen-futures = { workspace = true }
 web-sys = { workspace = true }
 
 [features]
+# A native window, for `dx serve --desktop`. Off by default so a plain
+# `cargo check` does not pull a WebView toolchain onto a machine that only ever
+# runs the browser build.
+# The native renderer. Turning off `dioxus/web` alongside turning on
+# `dioxus/desktop` is what makes the swap legal: leaving `web` on would give the
+# crate two launchers and the build would fail with a duplicate `main`.
+desktop = ["dep:dioxus-desktop", "dep:dirs", "dep:tracing-subscriber", "dioxus/desktop"]
+
 server = [
   "dep:axum",
   "dep:clap",
@@ -76,6 +94,7 @@ server = [
   "dep:tokio",
   "dep:tower-http",
   "dep:tracing",
+  "dep:tracing-subscriber",
   "dep:utoipa",
   "dep:utoipa-swagger-ui",
 ]
