@@ -40,12 +40,12 @@ documentation, and are not served from the site itself.
 
 Machine-readable descriptions of this app, for agents.
 
-- [AI capability catalog](https://lotusnprod.github.io/lotus-explore-rs/.well-known/ai-catalog.json)
-- [API catalog](https://lotusnprod.github.io/lotus-explore-rs/.well-known/api-catalog.json)
-- [Agent skills](https://lotusnprod.github.io/lotus-explore-rs/.well-known/agent-skills.json)
-- [Security policy](https://lotusnprod.github.io/lotus-explore-rs/.well-known/security.txt)
-- [robots.txt](https://lotusnprod.github.io/lotus-explore-rs/robots.txt)
-- [sitemap.xml](https://lotusnprod.github.io/lotus-explore-rs/sitemap.xml)
+- [AI capability catalog](https://lotus.nprod.net/lotus-explore-rs/.well-known/ai-catalog.json)
+- [API catalog](https://lotus.nprod.net/lotus-explore-rs/.well-known/api-catalog.json)
+- [Agent skills](https://lotus.nprod.net/lotus-explore-rs/.well-known/agent-skills.json)
+- [Security policy](https://lotus.nprod.net/lotus-explore-rs/.well-known/security.txt)
+- [robots.txt](https://lotus.nprod.net/lotus-explore-rs/robots.txt)
+- [sitemap.xml](https://lotus.nprod.net/lotus-explore-rs/sitemap.xml)
 - Structured data: JSON-LD in the page head
 - Link headers on the document advertise llms.txt, robots.txt, security.txt and sitemap.xml
 
@@ -54,13 +54,13 @@ Machine-readable descriptions of this app, for agents.
 - [Wikidata Query Service](https://query.wikidata.org/)
 - [QLever Wikidata endpoint](https://qlever.cs.uni-freiburg.de/wikidata)
 - [DOI metadata](https://doi.org/)
-- [LOTUS initiative](https://lotusnprod.github.io)
+- [LOTUS initiative](https://lotus.nprod.net)
 
 ## Citation
 
 - [Paper](https://elifesciences.org/articles/70780)
 - [DOI](https://doi.org/10.7554/eLife.70780)
-- [BibTeX](https://lotusnprod.github.io/lotus-explore-rs/docs/references.bib)
+- [BibTeX](https://lotus.nprod.net/lotus-explore-rs/docs/references.bib)
 
 ## Licensing
 
@@ -69,7 +69,7 @@ Machine-readable descriptions of this app, for agents.
 
 ## Project
 
-- [App](https://lotusnprod.github.io/lotus-explore-rs/)
+- [App](https://lotus.nprod.net/lotus-explore-rs/)
 - [Repository and source](https://github.com/lotusnprod/lotus-explore-rs)
 - [Issues](https://github.com/lotusnprod/lotus-explore-rs/issues)
 - [Discussions](https://github.com/lotusnprod/lotus-explore-rs/discussions)

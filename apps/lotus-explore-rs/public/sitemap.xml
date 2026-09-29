@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://lotusnprod.github.io/lotus-explore-rs/</loc>
+    <loc>https://lotus.nprod.net/lotus-explore-rs/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://lotusnprod.github.io/lotus-explore-rs/search</loc>
+    <loc>https://lotus.nprod.net/lotus-explore-rs/search</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://lotusnprod.github.io/lotus-explore-rs/curation</loc>
+    <loc>https://lotus.nprod.net/lotus-explore-rs/curation</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://lotusnprod.github.io/lotus-explore-rs/draw</loc>
+    <loc>https://lotus.nprod.net/lotus-explore-rs/draw</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
