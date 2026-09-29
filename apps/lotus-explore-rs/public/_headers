@@ -10,13 +10,13 @@
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: credentialless
   Cross-Origin-Resource-Policy: same-origin
-  Link: </llms.txt>; rel="http://llmstxt.org/llms.txt"; type="text/plain"
-  Link: </.well-known/agent-skills.json>; rel="https://specification.website/rel/agent-skills"; type="application/json"
-  Link: </.well-known/api-catalog.json>; rel="https://specification.website/rel/api-catalog"; type="application/json"
-  Link: </.well-known/ai-catalog.json>; rel="ai-catalog"; type="application/json"
-  Link: </sitemap.xml>; rel="sitemap"; type="application/xml"
-  Link: </robots.txt>; rel="robots"; type="text/plain"
-  Link: </.well-known/security.txt>; rel="security.txt"; type="text/plain"
+  Link: <https://lotus.nprod.net/lotus-explore-rs/llms.txt>; rel="http://llmstxt.org/llms.txt"; type="text/plain"
+  Link: <https://lotus.nprod.net/lotus-explore-rs/.well-known/agent-skills.json>; rel="https://specification.website/rel/agent-skills"; type="application/json"
+  Link: <https://lotus.nprod.net/lotus-explore-rs/.well-known/api-catalog.json>; rel="https://specification.website/rel/api-catalog"; type="application/json"
+  Link: <https://lotus.nprod.net/lotus-explore-rs/.well-known/ai-catalog.json>; rel="ai-catalog"; type="application/json"
+  Link: <https://lotus.nprod.net/lotus-explore-rs/sitemap.xml>; rel="sitemap"; type="application/xml"
+  Link: <https://lotus.nprod.net/lotus-explore-rs/robots.txt>; rel="robots"; type="text/plain"
+  Link: <https://lotus.nprod.net/lotus-explore-rs/.well-known/security.txt>; rel="security.txt"; type="text/plain"
 
 
 # Ketcher editor iframe (served from /assets/ketcher/): allow same-origin framing.

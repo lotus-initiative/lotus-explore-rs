@@ -138,7 +138,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         well_known_dir.join("security.txt"),
         build_security_txt(&metadata),
     )?;
-    write_if_changed(public_dir.join("_headers"), build_headers_txt())?;
+    write_if_changed(public_dir.join("_headers"), build_headers_txt(&metadata))?;
     write_if_changed(
         public_dir.join("_redirects"),
         build_redirects_txt(&metadata),
@@ -476,7 +476,12 @@ fn build_security_txt(meta: &Metadata) -> String {
     )
 }
 
-fn build_headers_txt() -> String {
+fn build_headers_txt(meta: &Metadata) -> String {
+    let base = &meta.site.base_url;
+    // The Link relations are absolute, from `base_url`. They were root-relative
+    // (`</llms.txt>`), which resolves to the domain root and 404s on the subpath
+    // deploy -- the same trap as the manifest href.
+    format!(
     "# Netlify / Cloudflare Pages / compatible CDN — HTTP security & cache headers\n\n\
     /*\n\
     \x20 Strict-Transport-Security: max-age=63072000; includeSubDomains; preload\n\
@@ -488,13 +493,13 @@ fn build_headers_txt() -> String {
     \x20 Cross-Origin-Opener-Policy: same-origin\n\
     \x20 Cross-Origin-Embedder-Policy: credentialless\n\
     \x20 Cross-Origin-Resource-Policy: same-origin\n\
-     \x20 Link: </llms.txt>; rel=\"http://llmstxt.org/llms.txt\"; type=\"text/plain\"\n\
-     \x20 Link: </.well-known/agent-skills.json>; rel=\"https://specification.website/rel/agent-skills\"; type=\"application/json\"\n\
-      \x20 Link: </.well-known/api-catalog.json>; rel=\"https://specification.website/rel/api-catalog\"; type=\"application/json\"\n\
-     \x20 Link: </.well-known/ai-catalog.json>; rel=\"ai-catalog\"; type=\"application/json\"\n\
-     \x20 Link: </sitemap.xml>; rel=\"sitemap\"; type=\"application/xml\"\n\
-     \x20 Link: </robots.txt>; rel=\"robots\"; type=\"text/plain\"\n\
-     \x20 Link: </.well-known/security.txt>; rel=\"security.txt\"; type=\"text/plain\"\n\n\
+     \x20 Link: <{base}llms.txt>; rel=\"http://llmstxt.org/llms.txt\"; type=\"text/plain\"\n\
+     \x20 Link: <{base}.well-known/agent-skills.json>; rel=\"https://specification.website/rel/agent-skills\"; type=\"application/json\"\n\
+     \x20 Link: <{base}.well-known/api-catalog.json>; rel=\"https://specification.website/rel/api-catalog\"; type=\"application/json\"\n\
+     \x20 Link: <{base}.well-known/ai-catalog.json>; rel=\"ai-catalog\"; type=\"application/json\"\n\
+     \x20 Link: <{base}sitemap.xml>; rel=\"sitemap\"; type=\"application/xml\"\n\
+     \x20 Link: <{base}robots.txt>; rel=\"robots\"; type=\"text/plain\"\n\
+     \x20 Link: <{base}.well-known/security.txt>; rel=\"security.txt\"; type=\"text/plain\"\n\n\
     \n\
     # Ketcher editor iframe (served from /assets/ketcher/): allow same-origin framing.\n\
     # The wildcard /* rule above sets X-Frame-Options: DENY + frame-ancestors 'none',\n\
@@ -539,7 +544,7 @@ fn build_headers_txt() -> String {
     \x20 Cache-Control: no-cache, must-revalidate\n\n\
     /index.html\n\
     \x20 No-Vary-Search: key-order, params, except=(\"locale\")\n"
-        .to_string()
+    )
 }
 
 /// `_redirects` is generated so the host lives only in `base_url`. The file is
@@ -777,6 +782,45 @@ mod tests {
                  index.html."
             );
         }
+        Ok(())
+    }
+
+    #[test]
+    fn headers_advertise_absolute_link_relations() -> Result<(), Box<dyn Error>> {
+        // The Link relations are how an agent finds llms.txt, the catalogs and
+        // security.txt. They were root-relative, which resolves to the domain
+        // root and 404s on the subpath deploy -- the same trap as the manifest
+        // href. Every one is now absolute from `base_url`.
+        let meta = real_metadata()?;
+        let headers = build_headers_txt(&meta);
+        let base = &meta.site.base_url;
+        for (name, rel) in [
+            ("llms.txt", "http://llmstxt.org/llms.txt"),
+            (
+                ".well-known/agent-skills.json",
+                "https://specification.website/rel/agent-skills",
+            ),
+            (
+                ".well-known/api-catalog.json",
+                "https://specification.website/rel/api-catalog",
+            ),
+            (".well-known/ai-catalog.json", "ai-catalog"),
+            ("sitemap.xml", "sitemap"),
+            ("robots.txt", "robots"),
+            (".well-known/security.txt", "security.txt"),
+        ] {
+            let expected = format!("Link: <{base}{name}>; rel=\"{rel}\"");
+            assert!(
+                headers.contains(&expected),
+                "_headers does not advertise {name} as {base}{name}; a \
+                 root-relative target 404s on the subpath deploy"
+            );
+        }
+        assert!(
+            !headers.contains("Link: </"),
+            "_headers still has a root-relative Link target: it resolves to the \
+             domain root, not the app, and 404s"
+        );
         Ok(())
     }
 
