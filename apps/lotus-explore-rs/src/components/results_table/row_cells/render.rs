@@ -56,8 +56,17 @@ fn row_view(
             "typeof": "ChemicalEntity",
             "about": "https://www.wikidata.org/entity/{compound_qid}",
             "data-lotus-id": "compound:{compound_qid}",
-            class: "data-row border-b border-shell-border hover:bg-surface/40 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 [contain:layout_paint]",
-            tabindex: "0",
+            // No `tabindex` and no focus ring: the row is not a control. It has
+            // no click handler and no interactive role, so making it focusable
+            // only put 13 dead stops on the search page (growing with the
+            // virtualised table) that a keyboard user tabs through to reach
+            // nothing, which Firefox reports as "Clickable elements must be
+            // focusable and should have interactive semantics" and as failing
+            // keyboard accessibility. The hover tint stays because it is a
+            // scanning aid and does not change the cursor. The scroll container
+            // keeps its own `tabindex`, which is what actually needs to be
+            // focusable.
+            class: "data-row border-b border-shell-border hover:bg-surface/40 [contain:layout_paint]",
             {structure_cell(locale, text, prepared.depict_url.clone(), name)}
             {compound_cell(locale, text, entry, prepared, name, compound_qid)}
             {mass_cell(entry.mass)}

@@ -35,6 +35,17 @@ pub fn ShareNotice(shareable_url: Memo<Option<Arc<str>>>) -> Element {
             role: "status",
             aria_live: "polite",
             dark: dark_mode,
+            // A real <label for>, not just an aria-label. The field carried
+            // `aria-label="Copy shareable link"`, which named the *button* next
+            // to it rather than the field, and Firefox reported the field under
+            // that borrowed name with "Form elements should have a visible text
+            // label". A visible label also gives the name without an ARIA
+            // override, so the two can no longer disagree.
+            label {
+                r#for: share_input_id,
+                class: "shrink-0 text-ui font-semibold text-muted",
+                "{t(locale, TextKey::ShareableLink)}"
+            }
             input {
                 id: share_input_id,
                 name: "share_url",
@@ -42,7 +53,6 @@ pub fn ShareNotice(shareable_url: Memo<Option<Arc<str>>>) -> Element {
                 r#type: "text",
                 readonly: true,
                 value: "{share}",
-                aria_label: "{t(locale, TextKey::CopyShareableLink)}",
                 class: "min-w-0 flex-1 truncate font-mono w-full rounded-xl border border-border bg-surface px-2 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
             }
             CopyButton {

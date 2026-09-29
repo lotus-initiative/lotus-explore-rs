@@ -11,6 +11,8 @@ use crate::i18n::TextKey;
 pub const fn fr_t(key: TextKey) -> &'static str {
     match key {
         TextKey::Share => "Partager",
+        TextKey::ShareableLink => "Lien partageable",
+        TextKey::TsvFileUpload => "Fichier TSV",
         TextKey::Copy => "Copier",
         TextKey::Copied => "Copié!",
         TextKey::CopyToClipboard => "Copier dans le presse-papiers",

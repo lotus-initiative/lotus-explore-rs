@@ -96,6 +96,8 @@ pub enum CountNoun {
 pub enum TextKey {
     // Generic/meta
     Share,
+    ShareableLink,
+    TsvFileUpload,
     Copy,
     Copied,
     CopyToClipboard,
