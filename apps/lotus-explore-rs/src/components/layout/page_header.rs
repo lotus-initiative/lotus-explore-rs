@@ -54,7 +54,14 @@ pub fn PageHeader() -> Element {
                         Link {
                              to: NavigationTarget::Internal(home.navigation_string()),
 
-                            class: "break-words text-text no-underline hover:no-underline",
+                            // `hover:no-underline` was a no-op: the link is
+                            // already `no-underline` at rest, so hovering changed
+                            // nothing measurable. It is a link to the home page
+                            // and needs a real affordance. `text-accent` on the
+                            // chrome plane is 5.64:1 light and 7.78:1 dark, both
+                            // clear of 4.5:1, so the hover state keeps its
+                            // contrast.
+                            class: "break-words text-text no-underline hover:text-accent",
                             "{t(locale, TextKey::PageTitle)}"
                         }
                     }

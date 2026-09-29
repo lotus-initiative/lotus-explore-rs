@@ -134,7 +134,7 @@ fn StructureSection() -> Element {
                         id: "smiles-search-type-substructure",
                         name: "stype",
                         autocomplete: "off",
-                        class: "accent-accent h-4 w-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                        class: "accent-accent h-4 w-4 cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                         checked: smiles_search_type == SmilesSearchType::Substructure,
                         onchange: move |_| {
                             ctx.update(FormAction::SmilesSearchType(SmilesSearchType::Substructure));
@@ -148,7 +148,7 @@ fn StructureSection() -> Element {
                         id: "smiles-search-type-similarity",
                         name: "stype",
                         autocomplete: "off",
-                        class: "accent-accent h-4 w-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                        class: "accent-accent h-4 w-4 cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                         checked: smiles_search_type == SmilesSearchType::Similarity,
                         onchange: move |_| {
                             ctx.update(FormAction::SmilesSearchType(SmilesSearchType::Similarity));

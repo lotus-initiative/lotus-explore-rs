@@ -135,7 +135,7 @@ pub fn FormulaSection() -> Element {
                     id: "formula-enabled",
                     name: "formula_enabled",
                     autocomplete: "off",
-                    class: "accent-accent",
+                    class: "accent-accent cursor-pointer",
                     checked: enabled,
                     onchange: move |e| ctx.update(FormAction::FormulaEnabled(e.checked())),
                 }
