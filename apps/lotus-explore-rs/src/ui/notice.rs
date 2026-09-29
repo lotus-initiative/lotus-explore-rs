@@ -8,10 +8,7 @@ use dioxus::prelude::*;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NoticeTone {
     Neutral,
-    Info,
-    Success,
     Warning,
-    Danger,
 }
 
 /// Properties for the [`NoticeBar`] component.
@@ -39,21 +36,9 @@ pub fn NoticeBar(props: NoticeBarProps) -> Element {
             "border-border bg-panel-soft border-l-4 border-l-accent",
             "bg-accent/12 text-accent",
         ),
-        NoticeTone::Info => (
-            "border-blue/35 bg-blue/10 border-l-4 border-l-blue",
-            "bg-blue/12 text-blue",
-        ),
-        NoticeTone::Success => (
-            "border-success/35 bg-success/10 border-l-4 border-l-success",
-            "bg-success/12 text-success",
-        ),
         NoticeTone::Warning => (
             "border-warning/35 bg-warning/10 border-l-4 border-l-warning",
             "bg-warning/12 text-warning",
-        ),
-        NoticeTone::Danger => (
-            "border-danger/35 bg-danger/10 border-l-4 border-l-danger",
-            "bg-danger/12 text-danger",
         ),
     };
 

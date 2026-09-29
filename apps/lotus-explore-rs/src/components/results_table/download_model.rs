@@ -89,6 +89,9 @@ pub(super) struct DownloadToolbarModel {
 }
 
 #[must_use]
+// Only the tests below read this, so it is not compiled into a binary that
+// has no tests to run.
+#[cfg(test)]
 pub(super) fn build_download_toolbar_model(
     criteria: &SearchCriteria,
     sparql_query: Option<&str>,

@@ -23,6 +23,9 @@ mod cache_impl {
             }
         }
 
+        // Only the tests below read this, so it is not compiled into a binary that
+        // has no tests to run.
+        #[cfg(test)]
         pub(crate) fn len(&self) -> usize {
             self.entries.len()
         }

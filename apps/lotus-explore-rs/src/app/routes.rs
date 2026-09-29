@@ -17,6 +17,12 @@ pub struct RouteQuery {
 }
 
 impl RouteQuery {
+    /// Read a query string that is still percent-encoded.
+    ///
+    /// The router hands over a query it has already decoded, so `from_decoded` is
+    /// what runs. This exists for a caller holding a raw `location.search`, and
+    /// nothing does -- the browser reads the URL through the router.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn from_encoded(query: &str) -> Self {
         Self {
             params: parse_encoded_query(query),
@@ -75,6 +81,9 @@ pub enum Route {
 }
 
 impl Route {
+    // Only the tests below read this, so it is not compiled into a binary that
+    // has no tests to run.
+    #[cfg(test)]
     pub fn query_string(&self) -> String {
         self.query_value().to_string()
     }
@@ -255,6 +264,9 @@ pub fn NotFound(segments: Vec<String>) -> Element {
     rsx! { NotFoundPage {} }
 }
 
+// Only the native and server paths reach this; the browser client has its
+// own fetch path, so a wasm build has no caller for it.
+#[cfg(not(target_arch = "wasm32"))]
 fn parse_encoded_query(query: &str) -> BTreeMap<String, String> {
     query
         .trim_start_matches('?')
@@ -312,6 +324,9 @@ fn split_decoded_query(query: &str) -> Vec<&str> {
     parts
 }
 
+// Only the native and server paths reach this; the browser client has its
+// own fetch path, so a wasm build has no caller for it.
+#[cfg(not(target_arch = "wasm32"))]
 fn decode_component(value: &str) -> String {
     urlencoding::decode(value).map_or_else(|_| value.to_string(), std::borrow::Cow::into_owned)
 }

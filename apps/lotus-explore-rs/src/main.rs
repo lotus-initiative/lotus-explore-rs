@@ -2,21 +2,20 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 // This crate compiles Dioxus WASM-client code alongside native-server code in
-// a single compilation unit.  On native targets (no `server` feature) main()
-// just prints a hint and never launches the Dioxus renderer, so all UI/i18n
-// modules are technically unreachable. The following lints are allowed for this
-// Dioxus cross-cfg situation: dead_code, unreachable_pub.
-// `missing_const_for_fn` (nursery) is allowed crate-wide: it fires ~64× across
-// UI/i18n locale-dispatch code where const-ness has no material benefit (the
-// dispatchers cannot be `const` without const-cascading into all four locale
-// table files, and UI helpers run at runtime only).
-// `dead_code` is allowed because the lint does not follow Dioxus's macro output.
-// `#[component]` and `#[derive(Routable)]` generate the calls that reach the app
-// -- `main` -> `AppBootstrap` -> `AppShell` -> `Route` -> every screen -- and
-// rustc's reachability pass works on the un-expanded source. Without this it
-// reports `enum Route is never used` and 540-odd others, all of which the
-// compiler would reject if they really were unreachable. It is a false positive
-// about generated code, not a licence to leave unused helpers behind: the
+// a single compilation unit. On native targets (no `server` feature) main()
+// just prints a hint and never launches a renderer, so the modules below are not
+// compiled at all there -- see the `cfg` on each one. That is the fix for the
+// `dead_code` allow this file used to carry: the lint was right, and the answer
+// was to stop building code that has no caller in that configuration, not to
+// stop listening. `unreachable_pub` is allowed for the cross-cfg reason --
+// `pub` items inside a module that only exists on some targets are unreachable
+// from the others -- and `missing_const_for_fn` (nursery) is allowed
+// crate-wide: it fires ~64x across UI/i18n locale-dispatch code where
+// const-ness has no material benefit (the dispatchers cannot be `const` without
+// const-cascading into all four locale table files, and UI helpers run at
+// runtime only).
+// `dead_code` stays denied and meaningful. Items that are genuinely unused on a
+// target are removed or gated there, with a reason at the site; the
 // `#[allow(dead_code)]`s inside the i18n dispatch macros are scoped to what
 // those macros generate, which is the only place it is needed.
 // NOTE: `clippy::module_name_repetitions` is deliberately NOT allowed here;
@@ -28,37 +27,69 @@
 // invocation). The lint stays enabled workspace-wide and remains effective
 // for the feature-less `lotus`/`lotus-web-assets` crates.
 #![allow(unused_crate_dependencies)]
-#![allow(dead_code, unreachable_pub, clippy::missing_const_for_fn)]
+#![allow(unreachable_pub, clippy::missing_const_for_fn)]
+// In a test build the app modules are compiled so the app's own tests can reach
+// them, and no test launches a Dioxus component tree. Every component, and every
+// helper only a component calls, is unreferenced *in that build* -- which says
+// something about the test harness and nothing about the app. So the allow is
+// scoped to `test`: the same code is checked with `dead_code` denied in the
+// wasm, desktop and server builds, where those items do have callers, so nothing
+// escapes review by being allowed here.
+#![cfg_attr(test, allow(dead_code))]
 //! `lotus-explore-rs` — LOTUS Explorer.
 
 #![allow(non_snake_case)] // Dioxus PascalCase component naming convention
 
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod api;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod app;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod app_state;
 /// In-browser result cache (mirrors the native server's result cache).
-#[cfg(any(test, target_arch = "wasm32"))]
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod cache;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod cache_key;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod clock;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod components;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod curation;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod document_head;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod download;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod export;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod features;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod hooks;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod i18n;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod pages;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod perf;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod repositories;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod services;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod sort;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod sparql;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod state;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod table_budget;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod ui;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod upload;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod utils;
 
 #[cfg(all(feature = "server", not(target_arch = "wasm32")))]

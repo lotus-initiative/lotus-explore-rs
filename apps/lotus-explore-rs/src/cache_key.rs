@@ -38,6 +38,9 @@ pub fn build_search_cache_key(query: &str, limit: usize, include_counts: bool) -
 /// would need re-running the query to do so, whereas the result of running it
 /// is the expensive thing being cached.
 #[must_use]
+// Only the native and server paths reach this; the browser client has its
+// own fetch path, so a wasm build has no caller for it.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn build_export_cache_key(query: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(b"export");

@@ -9,6 +9,9 @@ use super::{NATPROD_API_BASE, http_client::BatchConvertResponse, http_client::na
 #[cfg(not(target_arch = "wasm32"))]
 use futures::try_join;
 use serde::Deserialize;
+// The exact-mass readers are native-only (they are gated with their callers), so
+// this is too.
+#[cfg(not(target_arch = "wasm32"))]
 use serde_json::Value;
 
 #[derive(Debug, Deserialize)]
@@ -113,6 +116,9 @@ fn extract_batch_convert_output(parsed: BatchConvertResponse) -> Result<String, 
     Ok(first.output.clone())
 }
 
+// Only the native and server paths reach this; the browser client has its
+// own fetch path, so a wasm build has no caller for it.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn extract_exact_mass_from_json(value: &Value) -> Option<f64> {
     if let Some(v) = value
         .get("exact_molecular_weight")
@@ -140,6 +146,9 @@ pub fn extract_exact_mass_from_json(value: &Value) -> Option<f64> {
 // Exact masses are far below 2^53, so the i64→f64 conversion is exact for
 // every chemically-plausible value.
 #[allow(clippy::cast_precision_loss)]
+// Only the native and server paths reach this; the browser client has its
+// own fetch path, so a wasm build has no caller for it.
+#[cfg(not(target_arch = "wasm32"))]
 fn parse_exact_mass_scalar(value: &Value) -> Option<f64> {
     if let Some(v) = value.as_f64() {
         return Some(v);

@@ -18,14 +18,11 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::Notice => "Nota",
         TextKey::Error => "Errore",
         TextKey::DismissError => "Chiudi errore",
-        TextKey::FiltersShow => "Mostra filtri",
-        TextKey::FiltersHide => "Nascondi filtri",
         TextKey::Language => "Lingua",
         TextKey::PageTitle => "Esploratore LOTUS",
         TextKey::DarkModeToggle => "Attiva/disattiva tema chiaro/scuro",
         TextKey::DarkMode => "Scuro",
         TextKey::LightMode => "Chiaro",
-        TextKey::GoToHomepage => "Vai alla home page",
         TextKey::SkipToResults => "Vai al contenuto principale",
         TextKey::PageSubtitle => {
             "Esplora dati aperti collegati: entità chimiche, organismi biologici e letteratura scientifica."
@@ -81,10 +78,6 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::WelcomeLeadD => " e interrogati tramite SPARQL da ",
 
         TextKey::WelcomeLeadE => ".",
-        TextKey::ExampleGentiana => {
-            "Inserisci un nome di taxon, un QID Wikidata o * per tutti i taxa"
-        }
-        TextKey::ExampleSmilesOnly => "Incolla uno SMILES o un Molfile nel campo struttura",
         TextKey::ExampleQueryExecute => "Esegui",
         TextKey::ExampleQueryTaxon | TextKey::DownloadCsvLabel => "Scarica CSV",
         TextKey::ExampleQueryStructure | TextKey::DownloadJsonLabel => "Scarica JSON",
@@ -95,11 +88,8 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::LabelLanguagePolicy => {
             "Le etichette preferiscono 'mul' e ricorrono a 'en' come fallback per mantenere confrontabili i risultati."
         }
-
-        TextKey::SearchFilters => "Filtri di ricerca",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonPlaceholder => "Gentiana lutea - Q34317 - *",
-        TextKey::TaxonHint => "Nome, QID oppure * per tutti i taxa.",
         TextKey::StructureSmilesOrMol => "SMILES o Molfile",
         TextKey::StructurePlaceholder => {
             "c1ccccc1   - oppure incolla un blocco Molfile (V2000 / V3000)"

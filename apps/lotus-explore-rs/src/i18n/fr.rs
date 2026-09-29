@@ -18,14 +18,11 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::Notice => "Note",
         TextKey::Error => "Erreur",
         TextKey::DismissError => "Fermer l'erreur",
-        TextKey::FiltersShow => "Afficher les filtres",
-        TextKey::FiltersHide => "Masquer les filtres",
         TextKey::Language => "Langue",
         TextKey::PageTitle => "Explorateur LOTUS",
         TextKey::DarkModeToggle => "Basculer thème clair/sombre",
         TextKey::DarkMode => "Sombre",
         TextKey::LightMode => "Clair",
-        TextKey::GoToHomepage => "Aller à la page d'accueil",
         TextKey::SkipToResults => "Passer au contenu principal",
         TextKey::PageSubtitle => {
             "Explorez des données ouvertes liées : entités chimiques, organismes biologiques et littérature scientifique."
@@ -78,11 +75,6 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::WelcomeLeadC => ", publiées en tant que données ouvertes liées sur ",
         TextKey::WelcomeLeadD => " et interrogées via SPARQL par ",
         TextKey::WelcomeLeadE => ".",
-        TextKey::ExampleGentiana => {
-            "Saisir un nom de taxon, un QID Wikidata ou * pour tous les taxa"
-        }
-        TextKey::ExampleSmilesOnly => "Collez un SMILES ou un Molfile dans le champ Structure",
-
         TextKey::ExampleQueryExecute => "Exécuter",
         TextKey::ExampleQueryTaxon | TextKey::DownloadCsvLabel => "Télécharger CSV",
         TextKey::ExampleQueryStructure | TextKey::DownloadJsonLabel => "Télécharger JSON",
@@ -94,11 +86,8 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::LabelLanguagePolicy => {
             "Les libellés privilégient 'mul' et utilisent 'en' en repli afin de garantir des résultats comparables."
         }
-
-        TextKey::SearchFilters => "Filtres de recherche",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonPlaceholder => "Gentiana lutea - Q34317 - *",
-        TextKey::TaxonHint => "Nom, QID ou * pour tous les taxa.",
         TextKey::StructureSmilesOrMol => "SMILES ou Molfile",
         TextKey::StructurePlaceholder => "c1ccccc1   - ou collez un Molfile (V2000 / V3000)",
         TextKey::Substructure => "Sous-structure",

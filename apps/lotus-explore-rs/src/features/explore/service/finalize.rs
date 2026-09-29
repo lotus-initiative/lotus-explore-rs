@@ -16,8 +16,6 @@ pub struct FinalizedMeta {
     pub filtered_matches: Option<usize>,
     /// Filtered dataset stats (absent in download-only mode).
     pub filtered_stats: Option<DatasetStats>,
-    /// The SPARQL endpoint used for this query.
-    pub endpoint: export::SparqlEndpoint,
 }
 
 /// Assemble [`FinalizedMeta`] from the raw outcome parts.
@@ -58,7 +56,6 @@ pub fn finalize(
         metadata_json,
         filtered_matches,
         filtered_stats,
-        endpoint,
     }
 }
 

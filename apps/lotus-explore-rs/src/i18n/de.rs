@@ -18,14 +18,11 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::Notice => "Hinweis",
         TextKey::Error => "Fehler",
         TextKey::DismissError => "Fehler schließen",
-        TextKey::FiltersShow => "Filter anzeigen",
-        TextKey::FiltersHide => "Filter ausblenden",
         TextKey::Language => "Sprache",
         TextKey::PageTitle => "LOTUS Explorer",
         TextKey::DarkModeToggle => "Thema hell/dunkel umschalten",
         TextKey::DarkMode => "Dunkel",
         TextKey::LightMode => "Hell",
-        TextKey::GoToHomepage => "Zur Startseite",
         TextKey::SkipToResults => "Zum Hauptinhalt springen",
         TextKey::PageSubtitle => {
             "Erkunden Sie verknüpfte offene Daten: chemische Entitäten, biologische Organismen und wissenschaftliche Literatur."
@@ -78,8 +75,6 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::WelcomeLeadD => " und über SPARQL abgefragt durch ",
 
         TextKey::WelcomeLeadE => ".",
-        TextKey::ExampleGentiana => "Taxonname, Wikidata-QID oder * für alle Taxa eingeben",
-        TextKey::ExampleSmilesOnly => "SMILES oder Molfile in das Strukturfeld einfügen",
         TextKey::ExampleQueryExecute => "Ausführen",
         TextKey::ExampleQueryTaxon | TextKey::DownloadCsvLabel => "CSV herunterladen",
         TextKey::ExampleQueryStructure | TextKey::DownloadJsonLabel => "JSON herunterladen",
@@ -91,11 +86,8 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::LabelLanguagePolicy => {
             "Beschriftungen bevorzugen 'mul' und verwenden 'en' als Fallback, damit Ergebnisse vergleichbar bleiben."
         }
-
-        TextKey::SearchFilters => "Suchfilter",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonPlaceholder => "Gentiana lutea - Q34317 - *",
-        TextKey::TaxonHint => "Name, QID oder * für alle Taxa.",
         TextKey::StructureSmilesOrMol => "SMILES oder Molfile",
         TextKey::StructurePlaceholder => {
             "c1ccccc1   - oder einen Molfile-Block (V2000 / V3000) einfügen"

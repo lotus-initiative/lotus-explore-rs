@@ -38,6 +38,9 @@ fn endpoint_for(url: &str) -> Endpoint {
     }
 }
 
+// Only the native and server paths reach this; the browser client has its
+// own fetch path, so a wasm build has no caller for it.
+#[cfg(not(target_arch = "wasm32"))]
 /// Run a query on `QLever` and return the body as text.
 ///
 /// # Errors
@@ -55,6 +58,9 @@ pub async fn execute_query(sparql: &str) -> Result<String, FetchError> {
     answer.text()
 }
 
+// Only the native and server paths reach this; the browser client has its
+// own fetch path, so a wasm build has no caller for it.
+#[cfg(not(target_arch = "wasm32"))]
 /// Run a query on `QLever` and return the raw bytes, without decoding.
 ///
 /// Used where the payload is an archive being streamed to disk or handed to the
@@ -90,6 +96,9 @@ pub async fn execute_sparql_body(sparql: &str) -> Result<ResponseBody, FetchErro
     Ok(answer.body.into())
 }
 
+// Only the native and server paths reach this; the browser client has its
+// own fetch path, so a wasm build has no caller for it.
+#[cfg(not(target_arch = "wasm32"))]
 /// Run a query on `QLever`, asking for a specific representation.
 ///
 /// # Errors
@@ -145,21 +154,11 @@ pub async fn execute_sparql_tempfile_at(
 /// # Errors
 /// Propagates transport failures and any problem creating or writing the file.
 #[cfg(not(target_arch = "wasm32"))]
+// Only the native and server paths reach this; the browser client has its
+// own fetch path, so a wasm build has no caller for it.
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn execute_sparql_tempfile(sparql: &str) -> Result<tempfile::NamedTempFile, FetchError> {
     execute_sparql_tempfile_at(sparql, QLEVER_WIKIDATA).await
-}
-
-/// Run a query and return the answer as text, for an export.
-///
-/// The browser has no filesystem, so on wasm this is the decoded body and the
-/// caller writes it out through a blob. One name for the operation means the
-/// export path reads the same on both platforms.
-///
-/// # Errors
-/// Propagates transport or decode failures.
-#[cfg(target_arch = "wasm32")]
-pub async fn execute_sparql_tempfile(sparql: &str) -> Result<String, FetchError> {
-    execute_query(sparql).await
 }
 
 /// Rewrite a query for `WDQS`, returning the endpoint URL to send it to.

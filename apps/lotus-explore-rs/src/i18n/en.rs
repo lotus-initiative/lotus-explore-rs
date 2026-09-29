@@ -18,14 +18,11 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::Notice => "Notice",
         TextKey::Error => "Error",
         TextKey::DismissError => "Dismiss error",
-        TextKey::FiltersShow => "Show filters",
-        TextKey::FiltersHide => "Hide filters",
         TextKey::Language => "Language",
         TextKey::PageTitle => "LOTUS Explorer",
         TextKey::DarkModeToggle => "Toggle dark/light mode",
         TextKey::DarkMode => "Dark",
         TextKey::LightMode => "Light",
-        TextKey::GoToHomepage => "Go to homepage",
         TextKey::SkipToResults => "Skip to main content",
         TextKey::PageSubtitle => {
             "Explore linked open data: chemical entities, biological organisms, and scientific literature."
@@ -73,8 +70,6 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::WelcomeLeadC => ", published as linked data on ",
         TextKey::WelcomeLeadD => ", and queried via SPARQL through ",
         TextKey::WelcomeLeadE => ".",
-        TextKey::ExampleGentiana => "Enter a taxon name, Wikidata QID, or * for all taxa",
-        TextKey::ExampleSmilesOnly => "Paste a SMILES or Molfile in the structure box",
         TextKey::ExampleQueryExecute => "Execute",
         TextKey::ExampleQueryTaxon | TextKey::DownloadCsvLabel => "Download CSV",
         TextKey::ExampleQueryStructure | TextKey::DownloadJsonLabel => "Download JSON",
@@ -86,11 +81,8 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::LabelLanguagePolicy => {
             "Labels prefer 'mul' and fall back to 'en' so results remain comparable."
         }
-
-        TextKey::SearchFilters => "Search filters",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonPlaceholder => "Gentiana lutea - Q34317 - *",
-        TextKey::TaxonHint => "Name, QID or * for all taxa.",
         TextKey::StructureSmilesOrMol => "SMILES or Molfile",
         TextKey::StructurePlaceholder => "c1ccccc1   - or paste a Molfile (V2000 / V3000) block",
         TextKey::Substructure => "Substructure",

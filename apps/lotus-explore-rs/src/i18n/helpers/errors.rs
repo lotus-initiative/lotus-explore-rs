@@ -85,7 +85,6 @@ dispatch!(err_year_out_of_range);
 dispatch!(err_year_range_invalid);
 dispatch!(err_element_count_too_high);
 dispatch!(err_similarity_threshold_invalid);
-dispatch!(warn_qlever_bad_gateway);
 dispatch!(warn_wdqs_fallback);
 
 dispatch!(err_unsupported_format, fmt: &str);

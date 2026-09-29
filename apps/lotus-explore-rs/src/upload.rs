@@ -35,8 +35,6 @@ pub type UploadBlob = ();
 pub struct ExtractedFile {
     /// Blob for streaming reads.
     pub blob: UploadBlob,
-    /// Original filename.
-    pub name: String,
 }
 
 /// Blob read error.
@@ -46,34 +44,20 @@ pub enum UploadError {
     #[error("blob read error: {0}")]
     UploadBlob(String),
 
-    /// Stream ended early (truncated input).
-    #[error("unexpected EOF while reading stream")]
-    UnexpectedEof,
-
-    /// An input invariant was violated.
-    #[error("expected {expected}")]
-    Expected {
-        /// What was expected.
-        expected: &'static str,
-    },
-
-    /// Browser-only operation.
+    /// Browser-only operation, raised by the native stubs.
+    #[cfg(not(target_arch = "wasm32"))]
     #[error("download is only available in the browser")]
     BrowserOnly,
 
-    /// App-level validation error.
+    /// App-level validation error, raised by the native stubs.
+    #[cfg(not(target_arch = "wasm32"))]
     #[error("{0}")]
     Other(String),
 }
 
 impl UploadError {
-    /// "Expected X but got end of stream".
-    #[must_use]
-    pub const fn expected(expected: &'static str) -> Self {
-        Self::Expected { expected }
-    }
-
     /// Wrap a message.
+    #[cfg(not(target_arch = "wasm32"))]
     #[must_use]
     pub fn other(msg: impl Into<String>) -> Self {
         Self::Other(msg.into())
@@ -227,7 +211,6 @@ pub fn extract_blob_from_file_data(
             return Ok(None);
         };
 
-        let file_name = file.name();
         let Some(web_file) = file.inner().downcast_ref::<WebFile>() else {
             return Err("This file type is not supported in the browser.".to_string());
         };
@@ -236,10 +219,7 @@ pub fn extract_blob_from_file_data(
             .clone()
             .dyn_into::<UploadBlob>()
             .map_err(|_| "Unable to read the selected file as a blob.".to_string())?;
-        Ok(Some(ExtractedFile {
-            blob,
-            name: file_name,
-        }))
+        Ok(Some(ExtractedFile { blob }))
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -311,6 +291,9 @@ fn blob_url_from_str(content: &str, mime: &str) -> Result<String, String> {
 /// # Errors
 /// Returns a message if the download cannot be triggered.
 #[cfg(target_arch = "wasm32")]
+// Only the native and server paths reach this; the browser client has its
+// own fetch path, so a wasm build has no caller for it.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn download_text(content: &str, filename: &str) -> Result<(), String> {
     let safe_name = sanitize_filename(filename);
     let url = blob_url_from_str(content, "text/plain;charset=utf-8")?;

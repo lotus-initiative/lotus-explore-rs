@@ -75,8 +75,6 @@ pub enum TaxonWarning {
     },
     /// Raw warning string received from the REST API response.
     ApiMessage(String),
-    /// `QLever` was unavailable; the query was retried against WDQS.
-    QleverBadGateway,
     /// Query executed against Wikidata Query Service after a `QLever` fallback.
     WdqsFallback,
 }

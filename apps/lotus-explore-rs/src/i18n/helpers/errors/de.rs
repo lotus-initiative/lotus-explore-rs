@@ -65,10 +65,6 @@ pub fn warn_ambiguous_taxon(best_name: &str, best_qid: &str, names: &str) -> Str
     format!("Mehrdeutiger Taxonname; verwende {best_name} ({best_qid}). Kandidaten: {names}")
 }
 
-pub fn warn_qlever_bad_gateway() -> String {
-    "QLever war nicht verfügbar; Wiederholung mit Wikidata Query Service.".to_string()
-}
-
 pub fn warn_wdqs_fallback() -> String {
     "Abfrage über Wikidata Query Service ausgeführt (Fallback von QLever).".to_string()
 }

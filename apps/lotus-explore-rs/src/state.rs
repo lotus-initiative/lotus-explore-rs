@@ -46,13 +46,6 @@ pub fn use_app_state_context() -> AppStateContext {
     use_context::<AppStateContext>()
 }
 
-pub fn use_app_selector<T: PartialEq + Clone + 'static>(
-    app_state: Signal<AppState>,
-    f: impl Fn(&AppState) -> T + 'static,
-) -> Memo<T> {
-    use_memo(move || f(&app_state.read()))
-}
-
 pub fn use_results_context() -> ResultsContext {
     use_context::<ResultsContext>()
 }
