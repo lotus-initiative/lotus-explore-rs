@@ -6,10 +6,10 @@
 use crate::features::explore::outcome::SearchOutcome;
 use crate::features::explore::request::SearchRequest;
 use crate::features::explore::search_metrics::SearchMetrics;
+use crate::models::runtime_table_row_limit;
 use crate::perf;
 use crate::repositories::{LotusRepository, RepositoryError};
 use crate::services::search_telemetry as telemetry;
-use lotus::models::runtime_table_row_limit;
 
 pub async fn try_execute<R: LotusRepository>(
     request: &SearchRequest,
@@ -18,8 +18,8 @@ pub async fn try_execute<R: LotusRepository>(
     metrics: &mut SearchMetrics,
 ) -> Option<SearchOutcome> {
     let mut api_criteria = request.criteria().clone();
-    api_criteria.smiles.clear();
-    api_criteria.smiles.push_str(normalized_smiles);
+    api_criteria.structure.clear();
+    api_criteria.structure.push_str(normalized_smiles);
     let display_limit = runtime_table_row_limit();
     let include_counts = true;
     let api_timer = perf::start_timer("LOTUS:api_search");
@@ -100,7 +100,7 @@ mod tests {
         async fn sparql_body(
             &self,
             _: &str,
-        ) -> Result<lotus::transport::ResponseBody, RepositoryError> {
+        ) -> Result<crate::sparql::ResponseBody, RepositoryError> {
             panic!("api fast-path tests should not hit SPARQL")
         }
     }
@@ -144,8 +144,8 @@ mod tests {
             let request = SearchRequest::new(
                 SearchCriteria {
                     taxon: "Rosa".into(),
-                    smiles: "raw smiles should be replaced".into(),
-                    ..SearchCriteria::default()
+                    structure: "raw smiles should be replaced".into(),
+                    ..SearchCriteria::up_to_year(crate::models::current_year())
                 },
                 SearchCommand::Interactive,
             );
@@ -156,7 +156,7 @@ mod tests {
                 .expect("api response should short-circuit search");
 
             assert_eq!(
-                repo.seen_criteria.borrow().as_ref().unwrap().smiles,
+                repo.seen_criteria.borrow().as_ref().unwrap().structure,
                 "C1=CC=CC=C1"
             );
             assert_eq!(outcome.rows.len(), 1);
@@ -171,7 +171,10 @@ mod tests {
     fn not_configured_api_path_falls_through_without_outcome() {
         futures::executor::block_on(async {
             let repo = StubRepo::not_configured();
-            let request = SearchRequest::new(SearchCriteria::default(), SearchCommand::Interactive);
+            let request = SearchRequest::new(
+                SearchCriteria::up_to_year(crate::models::current_year()),
+                SearchCommand::Interactive,
+            );
             let mut metrics = SearchMetrics::default();
 
             let outcome = try_execute(&request, "", &repo, &mut metrics).await;

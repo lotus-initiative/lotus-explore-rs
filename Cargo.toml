@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
   "apps/lotus-explore-rs",
-  "crates/lotus",
   "crates/lotus-cli",
   "crates/lotus-jsonld",
   "crates/lotus-model",

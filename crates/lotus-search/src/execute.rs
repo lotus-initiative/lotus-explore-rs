@@ -352,9 +352,27 @@ fn urlencode(value: &str) -> String {
 /// retrying immediately.
 async fn backoff(duration: Duration) {
     #[cfg(not(target_arch = "wasm32"))]
+    tokio::time::sleep(duration).await;
+
+    #[cfg(target_arch = "wasm32")]
     {
+        // No timer exists here, and blocking the browser's only thread to wait
+        // for one would be worse than retrying straight away.
         let _ = duration;
-        tokio::time::sleep(duration).await;
+    }
+}
+
+impl From<lotus_query::ExportFormat> for ResponseFormat {
+    /// An export format names the shape the caller wants; the transport names
+    /// the content type it has to ask the endpoint for. They are the same
+    /// choice seen from two ends, so the conversion is a lookup, not a
+    /// decision a caller has to repeat.
+    fn from(format: lotus_query::ExportFormat) -> Self {
+        match format {
+            lotus_query::ExportFormat::Csv => Self::Csv,
+            lotus_query::ExportFormat::Json => Self::SparqlJson,
+            lotus_query::ExportFormat::Rdf => Self::Turtle,
+        }
     }
 }
 

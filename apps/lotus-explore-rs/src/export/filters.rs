@@ -7,17 +7,17 @@ use serde_json::{Map, Value, json};
 pub fn criteria_to_filters_value(criteria: &SearchCriteria) -> Value {
     let mut filters = Map::new();
 
-    if !criteria.smiles.trim().is_empty() {
+    if !criteria.structure.trim().is_empty() {
         let mut cs = Map::new();
-        cs.insert("smiles".into(), Value::String(criteria.smiles.clone()));
+        cs.insert("smiles".into(), Value::String(criteria.structure.clone()));
         cs.insert(
             "search_type".into(),
-            Value::String(criteria.smiles_search_type.as_str().into()),
+            Value::String(criteria.structure_search.as_str().into()),
         );
-        if criteria.smiles_search_type == SmilesSearchType::Similarity {
+        if criteria.structure_search == SmilesSearchType::Similarity {
             cs.insert(
                 "similarity_threshold".into(),
-                json!(criteria.smiles_threshold),
+                json!(criteria.structure_threshold),
             );
         }
         filters.insert("chemical_structure".into(), Value::Object(cs));
@@ -30,7 +30,7 @@ pub fn criteria_to_filters_value(criteria: &SearchCriteria) -> Value {
         );
     }
 
-    if criteria.has_year_filter() {
+    if criteria.has_year_filter(crate::models::current_year()) {
         filters.insert(
             "publication_year".into(),
             json!({ "start": criteria.year_min, "end": criteria.year_max }),

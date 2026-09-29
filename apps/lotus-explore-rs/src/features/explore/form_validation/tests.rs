@@ -86,9 +86,9 @@ fn validate_element_count_rejects_unreasonably_high_counts() {
 fn validate_dispatch_criteria_rejects_empty_primary_filters() {
     let criteria = SearchCriteria {
         taxon: "   ".into(),
-        smiles: "".into(),
+        structure: "".into(),
         formula_enabled: false,
-        ..SearchCriteria::default()
+        ..SearchCriteria::up_to_year(crate::models::current_year())
     };
     assert_eq!(
         validate_dispatch_criteria(&criteria),
@@ -100,9 +100,9 @@ fn validate_dispatch_criteria_rejects_empty_primary_filters() {
 fn validate_dispatch_criteria_accepts_formula_only_search() {
     let criteria = SearchCriteria {
         taxon: "".into(),
-        smiles: "".into(),
+        structure: "".into(),
         formula_enabled: true,
-        ..SearchCriteria::default()
+        ..SearchCriteria::up_to_year(crate::models::current_year())
     };
     assert_eq!(validate_dispatch_criteria(&criteria), Ok(()));
 }
@@ -112,7 +112,7 @@ fn validate_dispatch_criteria_maps_mass_out_of_range_to_domain_fault() {
     let criteria = SearchCriteria {
         taxon: "Rosa".into(),
         mass_min: -1.0,
-        ..SearchCriteria::default()
+        ..SearchCriteria::up_to_year(crate::models::current_year())
     };
 
     assert_eq!(
@@ -127,7 +127,7 @@ fn validate_dispatch_criteria_maps_year_range_to_domain_fault() {
         taxon: "Rosa".into(),
         year_min: 2025,
         year_max: 2020,
-        ..SearchCriteria::default()
+        ..SearchCriteria::up_to_year(crate::models::current_year())
     };
 
     assert_eq!(
@@ -155,10 +155,10 @@ fn validation_error_uses_typed_field_for_mass() {
 fn validate_dispatch_criteria_rejects_zero_similarity_threshold() {
     let criteria = SearchCriteria {
         taxon: "Rosa".into(),
-        smiles: "c1ccccc1".into(),
-        smiles_search_type: SmilesSearchType::Similarity,
-        smiles_threshold: 0.0,
-        ..SearchCriteria::default()
+        structure: "c1ccccc1".into(),
+        structure_search: SmilesSearchType::Similarity,
+        structure_threshold: 0.0,
+        ..SearchCriteria::up_to_year(crate::models::current_year())
     };
     assert_eq!(
         validate_dispatch_criteria(&criteria),
@@ -170,10 +170,10 @@ fn validate_dispatch_criteria_rejects_zero_similarity_threshold() {
 fn validate_dispatch_criteria_accepts_positive_similarity_threshold() {
     let criteria = SearchCriteria {
         taxon: "Rosa".into(),
-        smiles: "c1ccccc1".into(),
-        smiles_search_type: SmilesSearchType::Similarity,
-        smiles_threshold: 0.7,
-        ..SearchCriteria::default()
+        structure: "c1ccccc1".into(),
+        structure_search: SmilesSearchType::Similarity,
+        structure_threshold: 0.7,
+        ..SearchCriteria::up_to_year(crate::models::current_year())
     };
     assert_eq!(validate_dispatch_criteria(&criteria), Ok(()));
 }
@@ -182,10 +182,10 @@ fn validate_dispatch_criteria_accepts_positive_similarity_threshold() {
 fn validate_dispatch_criteria_ignores_threshold_for_substructure() {
     let criteria = SearchCriteria {
         taxon: "Rosa".into(),
-        smiles: "c1ccccc1".into(),
-        smiles_search_type: SmilesSearchType::Substructure,
-        smiles_threshold: 0.0,
-        ..SearchCriteria::default()
+        structure: "c1ccccc1".into(),
+        structure_search: SmilesSearchType::Substructure,
+        structure_threshold: 0.0,
+        ..SearchCriteria::up_to_year(crate::models::current_year())
     };
     assert_eq!(validate_dispatch_criteria(&criteria), Ok(()));
 }
@@ -194,9 +194,9 @@ fn validate_dispatch_criteria_ignores_threshold_for_substructure() {
 fn validate_dispatch_criteria_rejects_malformed_single_letter_structure() {
     let criteria = SearchCriteria {
         taxon: "Rosa".into(),
-        smiles: "d".into(),
-        smiles_search_type: SmilesSearchType::Substructure,
-        ..SearchCriteria::default()
+        structure: "d".into(),
+        structure_search: SmilesSearchType::Substructure,
+        ..SearchCriteria::up_to_year(crate::models::current_year())
     };
     assert_eq!(
         validate_dispatch_criteria(&criteria),

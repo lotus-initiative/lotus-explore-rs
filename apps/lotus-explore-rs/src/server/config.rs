@@ -90,7 +90,7 @@ impl AppConfig {
 
         let port = parse_u16_env(get("PORT"), "PORT", 8787)?;
         let default_limit = parse_usize_env(get("DEFAULT_LIMIT"), "DEFAULT_LIMIT", 500)?
-            .clamp(1, lotus::models::TABLE_ROW_LIMIT);
+            .clamp(1, crate::table_budget::TABLE_ROW_LIMIT);
         let request_timeout_ms =
             parse_usize_env(get("REQUEST_TIMEOUT_MS"), "REQUEST_TIMEOUT_MS", 45_000)?
                 .clamp(1_000, 300_000);

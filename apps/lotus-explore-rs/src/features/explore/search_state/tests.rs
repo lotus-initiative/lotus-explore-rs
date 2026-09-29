@@ -19,7 +19,7 @@ fn search_requested_sets_loading_and_clears_result() {
     let next = reduce(
         state,
         ExploreAction::SearchRequested {
-            criteria_snapshot: SearchCriteria::default(),
+            criteria_snapshot: SearchCriteria::up_to_year(crate::models::current_year()),
             command: SearchCommand::Interactive,
         },
     );
@@ -39,7 +39,7 @@ fn search_requested_direct_download_flag_propagates() {
     let next = reduce(
         state,
         ExploreAction::SearchRequested {
-            criteria_snapshot: SearchCriteria::default(),
+            criteria_snapshot: SearchCriteria::up_to_year(crate::models::current_year()),
             command: SearchCommand::StartupDownload,
         },
     );
@@ -53,7 +53,7 @@ fn search_requested_increments_request_token() {
         state = reduce(
             state,
             ExploreAction::SearchRequested {
-                criteria_snapshot: SearchCriteria::default(),
+                criteria_snapshot: SearchCriteria::up_to_year(crate::models::current_year()),
                 command: SearchCommand::Interactive,
             },
         );

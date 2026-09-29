@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn toolbar_model_uses_hashes_for_metadata_filename_when_both_are_present() {
-        let criteria = SearchCriteria::default();
+        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
 
         let model = build_download_toolbar_model(
             &criteria,
@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn toolbar_model_falls_back_to_generated_metadata_filename_without_both_hashes() {
-        let criteria = SearchCriteria::default();
+        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
 
         let model =
             build_download_toolbar_model(&criteria, None, Some("{}"), Some("query123"), None);
@@ -197,7 +197,7 @@ mod tests {
 
     #[test]
     fn toolbar_model_leaves_exports_hidden_when_no_query_or_metadata_exist() {
-        let criteria = SearchCriteria::default();
+        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
 
         let model = build_download_toolbar_model(&criteria, None, None, None, None);
 
@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn toolbar_model_encodes_query_for_qlever_ui_link() {
-        let criteria = SearchCriteria::default();
+        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
         let query = "SELECT * WHERE { ?compound wdt:P31 \"natural product\" }";
 
         let model = build_download_toolbar_model(&criteria, Some(query), None, None, None);
@@ -220,7 +220,7 @@ mod tests {
 
     #[test]
     fn toolbar_model_encodes_query_for_wdqs_ui_link_when_endpoint_is_wdqs() {
-        let criteria = SearchCriteria::default();
+        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
         let query = "SELECT * WHERE { ?compound wdt:P31 \"natural product\" }";
 
         let model = build_download_toolbar_model_with_endpoint(
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn toolbar_model_shows_correct_endpoint_name() {
-        let criteria = SearchCriteria::default();
+        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
 
         let qlever_model = build_download_toolbar_model(
             &criteria,

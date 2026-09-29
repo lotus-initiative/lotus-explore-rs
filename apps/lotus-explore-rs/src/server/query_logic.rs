@@ -4,22 +4,22 @@
 //! This module bridges the HTTP request layer and the upstream SPARQL endpoint:
 //! More detail in the type and function docs below.
 
+use crate::models::{SearchCriteria, TaxonMatch};
 use crate::server::errors::ApiError;
 use crate::server::state::{AppState, taxon_cache_get, taxon_cache_put};
 use crate::server::types::SearchRequest;
+use crate::{queries, sparql};
 use flate2::{Compression, write::GzEncoder};
-use lotus::models::{SearchCriteria, TaxonMatch};
-use lotus::{queries, sparql};
 
 pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
     let mut c = SearchCriteria {
         taxon: req.taxon.clone().unwrap_or_default(),
-        smiles: req.smiles.clone().unwrap_or_default(),
-        ..Default::default()
+        structure: req.smiles.clone().unwrap_or_default(),
+        ..SearchCriteria::up_to_year(crate::models::current_year())
     };
 
     if let Some(v) = req.smiles_search_type {
-        c.smiles_search_type = v.into();
+        c.structure_search = v.into();
     }
     if let Some(v) = req.smiles_threshold {
         if v <= 0.0 {
@@ -27,7 +27,7 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
                 "smiles_threshold must be greater than 0",
             ));
         }
-        c.smiles_threshold = v.clamp(0.05, 1.0);
+        c.structure_threshold = v.clamp(0.05, 1.0);
     }
     if let Some(v) = req.mass_min {
         c.mass_min = v.max(0.0);
@@ -112,7 +112,7 @@ pub fn build_execution_query(
     criteria: &SearchCriteria,
     resolved_taxon_qid: Option<&str>,
 ) -> String {
-    let smiles = normalized_structure_input(&criteria.smiles);
+    let smiles = normalized_structure_input(&criteria.structure);
     let base_query = if smiles.is_empty() {
         match resolved_taxon_qid {
             Some("*") | None => queries::query_all_compounds(),
@@ -126,8 +126,8 @@ pub fn build_execution_query(
         };
         queries::query_sachem(
             &smiles,
-            criteria.smiles_search_type,
-            criteria.smiles_threshold,
+            criteria.structure_search,
+            criteria.structure_threshold,
             taxon_for_sachem,
         )
     };
@@ -184,7 +184,7 @@ async fn resolve_taxon_qid(
     let csv = sparql::execute_sparql_bytes(&query)
         .await
         .map_err(|e| ApiError::upstream(format!("taxon lookup failed: {e}")))?;
-    let matches = sparql::parse_taxon_csv_bytes(&csv)
+    let matches = crate::sparql::parse_taxon_csv(&csv)
         .map_err(|e| ApiError::upstream(format!("taxon parse failed: {e}")))?;
 
     if matches.is_empty() {

@@ -17,6 +17,7 @@ use axum::http::{Request, StatusCode, header};
 use tower::ServiceExt;
 use utoipa::OpenApi;
 
+use crate::queries::{self, ExportFormat};
 use crate::server::{
     ApiDoc, build_router,
     config::AppConfig,
@@ -26,7 +27,6 @@ use crate::server::{
     },
     types::{ExportUrlResponse, SearchRequest},
 };
-use lotus::export::{self, ExportFormat};
 
 fn map_provider(values: &[(&str, &str)]) -> HashMap<String, String> {
     values
@@ -59,9 +59,9 @@ fn content_type_header(response: &axum::response::Response) -> String {
 fn supports_u16_formula_ranges() {
     let req = SearchRequest {
         taxon: Some("*".to_string()),
-        smiles: None,
-        smiles_search_type: None,
-        smiles_threshold: None,
+        structure: None,
+        structure_search: None,
+        structure_threshold: None,
         mass_min: None,
         mass_max: None,
         year_min: None,
@@ -153,7 +153,7 @@ fn normalized_structure_preserves_multiline_molfile() {
 
 #[test]
 fn rdf_export_url_uses_construct_query_with_normalized_formula_binding() {
-    let select = lotus::queries::query_compounds_by_taxon("Q2382443");
+    let select = crate::queries::query_compounds_by_taxon("Q2382443");
     let url = export::qlever_export_url(&select, ExportFormat::Rdf);
 
     assert!(url.contains("action=turtle_export"));
@@ -612,9 +612,9 @@ fn sanitize_filename_empty_or_whitespace_returns_empty() {
 fn apply_request_rejects_inverted_element_ranges() {
     let req = SearchRequest {
         taxon: Some("*".to_string()),
-        smiles: None,
-        smiles_search_type: None,
-        smiles_threshold: None,
+        structure: None,
+        structure_search: None,
+        structure_threshold: None,
         mass_min: None,
         mass_max: None,
         year_min: None,
@@ -649,9 +649,9 @@ fn apply_request_clamps_similarity_threshold() {
     fn make_req(threshold: f64) -> SearchRequest {
         SearchRequest {
             taxon: Some("*".to_string()),
-            smiles: Some("c1ccccc1".to_string()),
-            smiles_search_type: None,
-            smiles_threshold: Some(threshold),
+            structure: Some("c1ccccc1".to_string()),
+            structure_search: None,
+            structure_threshold: Some(threshold),
             mass_min: None,
             mass_max: None,
             year_min: None,
@@ -687,13 +687,13 @@ fn apply_request_clamps_similarity_threshold() {
     // threshold = 2.0 is clamped to 1.0
     let c = apply_request(&make_req(2.0)).expect("over-one threshold");
     assert!(
-        c.smiles_threshold <= 1.0,
+        c.structure_threshold <= 1.0,
         "threshold should be clamped to maximum 1.0"
     );
 
     // threshold = 0.5 is within range
     let c = apply_request(&make_req(0.5)).expect("valid threshold");
-    assert!((c.smiles_threshold - 0.5).abs() < f64::EPSILON);
+    assert!((c.structure_threshold - 0.5).abs() < f64::EPSILON);
 }
 
 // ── lotus-api .expect() audit (#8) ─────────────────────────────────────────────

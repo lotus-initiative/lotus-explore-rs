@@ -2,11 +2,12 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use crate::download::DownloadFormat;
+use crate::download::ExportTimerLabel;
 use crate::perf;
 use crate::sparql;
-use lotus::queries::wdqs_download_query;
-use lotus::transport::ResponseFormat as LotusResponseFormat;
-use lotus::transport::WDQS_SCHOLARLY;
+use crate::sparql::ResponseFormat as LotusResponseFormat;
+use crate::sparql::WDQS_SCHOLARLY;
+use crate::sparql::wdqs_download_query;
 use std::sync::Arc;
 
 pub(super) async fn execute_download_with_fallback(
@@ -52,7 +53,7 @@ async fn execute_download_wdqs_endpoint(
         format,
         &prepared,
         endpoint,
-        format.wdqs_response_format(),
+        super::wdqs_response_format(format),
         filename,
         dl_timer,
     )
@@ -158,7 +159,7 @@ async fn execute_sparql_with_format_download(
     filename: &str,
     dl_timer: perf::TimerHandle,
 ) -> Result<(), String> {
-    use lotus::transport::execute_sparql_with_format as shared_execute;
+    use crate::sparql::execute_sparql_format_at as shared_execute;
 
     let body = shared_execute(query, endpoint, response_format)
         .await

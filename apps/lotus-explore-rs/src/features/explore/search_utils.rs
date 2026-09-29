@@ -48,7 +48,11 @@ pub fn compute_hashes(
     let _ = write!(query_source, "{normalized_qid}|{normalized_taxon}");
 
     // Build `|key=value&key=value&…` suffix without an intermediate Vec<String>.
-    for (i, (k, v)) in criteria.shareable_query_params().into_iter().enumerate() {
+    let params = crate::features::explore::url_codec::criteria_query_params(
+        criteria,
+        crate::models::current_year(),
+    );
+    for (i, (k, v)) in params.into_iter().enumerate() {
         if i == 0 {
             query_source.push('|');
         } else {
@@ -118,7 +122,7 @@ mod tests {
     fn hashes_depend_on_query_and_rows_only() {
         let crit = SearchCriteria {
             taxon: "*".into(),
-            ..SearchCriteria::default()
+            ..SearchCriteria::up_to_year(crate::models::current_year())
         };
         let row = CompoundEntry {
             compound_qid: Arc::from("Q1"),

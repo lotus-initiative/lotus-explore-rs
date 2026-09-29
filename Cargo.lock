@@ -2399,23 +2399,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3bd0dd2cd90571056fdb71f6275fada10131182f84899f4b2a916e565d81d86"
 
 [[package]]
-name = "lotus"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "csv",
- "js-sys",
- "log",
- "reqwest 0.13.5",
- "sha2 0.11.0",
- "tempfile",
- "tokio",
- "urlencoding",
- "wasm-bindgen",
- "web-sys",
-]
-
-[[package]]
 name = "lotus-cli"
 version = "0.1.0"
 dependencies = [
@@ -2450,7 +2433,9 @@ dependencies = [
  "gloo-timers",
  "js-sys",
  "log",
- "lotus",
+ "lotus-model",
+ "lotus-query",
+ "lotus-search",
  "reqwest 0.13.5",
  "serde",
  "serde_json",

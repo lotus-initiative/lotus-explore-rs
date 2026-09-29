@@ -18,12 +18,12 @@ use crate::i18n::{
     curation_note_existing_updates, curation_note_new_compound, curation_pending_reference,
     curation_pending_taxon,
 };
+use crate::sparql::wdqs_download_query;
+use crate::sparql::{FetchError, QLEVER_WIKIDATA, ResponseFormat};
 #[cfg(not(target_arch = "wasm32"))]
 use futures::future::BoxFuture;
 #[cfg(target_arch = "wasm32")]
 use futures::future::LocalBoxFuture;
-use lotus::queries::wdqs_download_query;
-use lotus::transport::{FetchError, QLEVER_WIKIDATA, ResponseFormat};
 
 mod chemical;
 mod enrichment;
@@ -71,7 +71,7 @@ pub async fn execute_sparql_with_wdqs_fallback(
     format: ResponseFormat,
 ) -> Result<String, FetchError> {
     execute_sparql_with_wdqs_fallback_with(query, format, |query, endpoint, format| {
-        Box::pin(lotus::transport::execute_sparql_with_format(
+        Box::pin(crate::sparql::execute_sparql_format_at(
             query, endpoint, format,
         ))
     })
@@ -100,7 +100,10 @@ where
 }
 
 fn should_fallback_to_wdqs(error: &FetchError) -> bool {
-    matches!(error, FetchError::Http(502, _) | FetchError::Network(_))
+    matches!(
+        error,
+        FetchError::Http { status: 502, .. } | FetchError::Network(_)
+    )
 }
 
 #[cfg(test)]
@@ -108,8 +111,8 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::*;
+    use crate::sparql::{QLEVER_WIKIDATA, WDQS_SCHOLARLY, WDQS_WIKIDATA};
     use futures::executor::block_on;
-    use lotus::transport::{QLEVER_WIKIDATA, WDQS_SCHOLARLY, WDQS_WIKIDATA};
     use std::sync::{Arc, Mutex};
 
     fn run_with_mock(
@@ -176,8 +179,11 @@ mod tests {
         ];
 
         for (query, expected_endpoint) in cases {
-            let (calls, result) =
-                run_with_mock(query, Err(FetchError::Http(502, "bad gateway".to_owned())));
+            let gateway = FetchError::Http {
+                status: 502,
+                message: "bad gateway".to_owned(),
+            };
+            let (calls, result) = run_with_mock(query, Err(gateway));
 
             assert!(result.is_ok());
             assert_eq!(calls.len(), 2);

@@ -7,7 +7,7 @@ use super::{
     CURATION_SPARQL_PREFIXES, CurationError, WD_OCCURS_IN_TAXON_PROP, WD_TAXON_QID,
     WikidataCompound,
 };
-use lotus::transport::{FetchError, ResponseFormat};
+use crate::sparql::{FetchError, ResponseFormat};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 

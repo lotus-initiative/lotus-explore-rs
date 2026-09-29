@@ -10,7 +10,7 @@ mod criteria;
 mod encode;
 mod startup;
 
-pub use criteria::parse_criteria_from_params;
+pub use criteria::{criteria_query_params, parse_criteria_from_params};
 pub use encode::build_shareable_url;
 pub use startup::{InitialDownloadState, parse_startup_action_from_params};
 

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Shared download helpers for browser/native targets, including format handling & deduplication.
 
-pub use lotus::export::ExportFormat as DownloadFormat;
+pub use crate::queries::ExportFormat as DownloadFormat;
 
 use std::sync::Arc;
 
@@ -47,6 +47,39 @@ pub fn trigger_download(filename: &str, mime: &str, content_or_url: &str) {
     {
         native::trigger_download(filename, mime, content_or_url);
     }
+}
+
+/// `perf` label for a download of this format.
+///
+/// A label rather than the format's own name because the perf panel groups by
+/// timer, and `"LOTUS:download_csv"` is what the existing dashboards key on.
+pub trait ExportTimerLabel {
+    /// The timer label for the download itself.
+    fn timer_label(&self) -> &'static str;
+    /// The timer label for the click that started it, which is a separate
+    /// measurement: a slow download and a slow render are different problems.
+    fn trigger_timer_label(&self) -> String;
+}
+
+impl ExportTimerLabel for lotus_query::ExportFormat {
+    fn timer_label(&self) -> &'static str {
+        match self {
+            Self::Csv => "LOTUS:download_csv",
+            Self::Json => "LOTUS:download_json",
+            Self::Rdf => "LOTUS:download_rdf",
+        }
+    }
+
+    fn trigger_timer_label(&self) -> String {
+        format!("{}_trigger", self.timer_label())
+    }
+}
+
+/// The response format to ask `WDQS` for when downloading this export.
+///
+/// The same choice seen from the transport's end.
+pub fn wdqs_response_format(format: lotus_query::ExportFormat) -> crate::sparql::ResponseFormat {
+    format.into()
 }
 
 #[cfg(test)]

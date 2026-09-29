@@ -374,7 +374,7 @@ mod tests {
 
     #[test]
     fn metadata_json_contains_schema_dataset() {
-        let criteria = SearchCriteria::default();
+        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
         let body = build_metadata_json(MetadataInputs {
             criteria: &criteria,
             qid: Some("Q42"),
@@ -389,7 +389,7 @@ mod tests {
 
     #[test]
     fn metadata_json_shows_wdqs_when_fallback_used() {
-        let criteria = SearchCriteria::default();
+        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
         let body = build_metadata_json(MetadataInputs {
             criteria: &criteria,
             qid: Some("Q42"),

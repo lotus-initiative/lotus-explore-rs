@@ -11,9 +11,9 @@ mod plan;
 use crate::features::explore::request::SearchRequest;
 use crate::features::explore::search_metrics::SearchMetrics;
 use crate::features::explore::types::{DomainError, QueryPhase, TaxonWarning};
+use crate::models::runtime_table_row_limit;
 use crate::models::{CompoundEntry, DatasetStats};
 use crate::repositories::LotusRepository;
-use lotus::models::runtime_table_row_limit;
 
 #[derive(Debug)]
 pub struct ResultsPipelineOutcome {
@@ -74,8 +74,8 @@ mod tests {
             let request = SearchRequest::new(
                 SearchCriteria {
                     taxon: String::new(),
-                    smiles: String::new(),
-                    ..SearchCriteria::default()
+                    structure: String::new(),
+                    ..SearchCriteria::up_to_year(crate::models::current_year())
                 },
                 SearchCommand::StartupDownload,
             );
@@ -98,8 +98,8 @@ mod tests {
             let request = SearchRequest::new(
                 SearchCriteria {
                     taxon: String::new(),
-                    smiles: String::new(),
-                    ..SearchCriteria::default()
+                    structure: String::new(),
+                    ..SearchCriteria::up_to_year(crate::models::current_year())
                 },
                 SearchCommand::Interactive,
             );

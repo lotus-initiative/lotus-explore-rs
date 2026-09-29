@@ -38,11 +38,11 @@ pub fn build_sparql_query(smiles: &str, crit: &SearchCriteria, taxon_qid: Option
         }
     } else {
         let effective_type = if (smiles.contains('\n') || smiles.contains('\r'))
-            && crit.smiles_search_type == SmilesSearchType::Similarity
+            && crit.structure_search == SmilesSearchType::Similarity
         {
             SmilesSearchType::Substructure
         } else {
-            crit.smiles_search_type
+            crit.structure_search
         };
         let taxon_for_sachem = match taxon_qid {
             Some("*") => Some("Q2382443"),
@@ -52,7 +52,7 @@ pub fn build_sparql_query(smiles: &str, crit: &SearchCriteria, taxon_qid: Option
         let q = queries::query_sachem(
             smiles,
             effective_type,
-            crit.smiles_threshold,
+            crit.structure_threshold,
             taxon_for_sachem,
         );
         telemetry::query_build_sachem_query_created(q.contains("SERVICE"));
@@ -78,7 +78,7 @@ mod tests {
 
     #[test]
     fn empty_smiles_and_no_taxon_returns_all_compounds_query() {
-        let crit = SearchCriteria::default();
+        let crit = SearchCriteria::up_to_year(crate::models::current_year());
         let q = build_sparql_query("", &crit, None);
         // All-compounds query should select without a FILTER for a specific taxon.
         assert!(
@@ -92,7 +92,7 @@ mod tests {
     fn taxon_qid_only_generates_by_taxon_query() {
         let crit = SearchCriteria {
             taxon: "Gentiana lutea".into(),
-            ..SearchCriteria::default()
+            ..SearchCriteria::up_to_year(crate::models::current_year())
         };
         let q = build_sparql_query("", &crit, Some("Q156598"));
         assert!(q.contains("Q156598"), "query must reference the taxon QID");
@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn wild_star_taxon_qid_generates_all_compounds_query() {
-        let crit = SearchCriteria::default();
+        let crit = SearchCriteria::up_to_year(crate::models::current_year());
         let q = build_sparql_query("", &crit, Some("*"));
         assert!(!q.contains("Q156598"), "wildcard must not filter by QID");
     }
@@ -108,9 +108,9 @@ mod tests {
     #[test]
     fn smiles_presence_generates_sachem_query() {
         let crit = SearchCriteria {
-            smiles: "c1ccccc1".into(),
-            smiles_search_type: SmilesSearchType::Substructure,
-            ..SearchCriteria::default()
+            structure: "c1ccccc1".into(),
+            structure_search: SmilesSearchType::Substructure,
+            ..SearchCriteria::up_to_year(crate::models::current_year())
         };
         let q = build_sparql_query("c1ccccc1", &crit, None);
         // Sachem queries always contain a SERVICE block.

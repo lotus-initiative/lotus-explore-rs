@@ -16,10 +16,12 @@
 #![warn(missing_docs)]
 
 mod error;
+mod export;
 mod parse;
 mod query;
 
 pub use error::ParseError;
+pub use export::{ExportFormat, sanitize_download_filename};
 pub use parse::{
     parse_compounds_csv, parse_compounds_csv_capped, parse_compounds_stream, parse_counts_csv,
     parse_taxon_csv,

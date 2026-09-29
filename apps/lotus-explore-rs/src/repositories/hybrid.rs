@@ -6,9 +6,8 @@ use crate::api;
 use crate::api::SearchResponse;
 use crate::models::SearchCriteria;
 use crate::repositories::{LotusRepository, RepositoryError};
-use crate::sparql;
-use lotus::queries::transform_query_for_wdqs;
-use lotus::transport::{self, FetchError, WDQS_WIKIDATA};
+use crate::sparql::transform_query_for_wdqs;
+use crate::sparql::{self, FetchError, WDQS_WIKIDATA};
 use std::cell::RefCell;
 
 thread_local! {
@@ -119,12 +118,12 @@ impl LotusRepository for HybridRepository {
     async fn sparql_body(
         &self,
         query: &str,
-    ) -> Result<lotus::transport::ResponseBody, RepositoryError> {
+    ) -> Result<crate::sparql::ResponseBody, RepositoryError> {
         match sparql::execute_sparql_body(query).await {
             Err(err) if is_qlever_unavailable(&err) => {
                 log::warn!("event=qlever_unavailable action=fallback_wdqs_scholarly");
                 let wdqs_query = prepare_wdqs_fallback_query(query);
-                transport::execute_sparql_body(&wdqs_query, WDQS_WIKIDATA)
+                sparql::execute_sparql_body_at(&wdqs_query, WDQS_WIKIDATA)
                     .await
                     .map_err(map_fetch_error)
             }
@@ -141,7 +140,7 @@ impl LotusRepository for HybridRepository {
             Err(err) if is_qlever_unavailable(&err) => {
                 log::warn!("event=qlever_unavailable action=fallback_wdqs_scholarly");
                 let wdqs_query = prepare_wdqs_fallback_query(query);
-                transport::execute_sparql_tempfile(&wdqs_query, WDQS_WIKIDATA)
+                sparql::execute_sparql_tempfile_at(&wdqs_query, WDQS_WIKIDATA)
                     .await
                     .map_err(map_fetch_error)
             }
@@ -154,12 +153,18 @@ impl LotusRepository for HybridRepository {
 /// The transport layer already retries transient failures, so reaching this layer means the
 /// in-endpoint attempts were exhausted.
 fn is_qlever_unavailable(err: &FetchError) -> bool {
-    matches!(err, FetchError::Http(502, _) | FetchError::Network(_))
+    matches!(
+        err,
+        FetchError::Http { status: 502, .. } | FetchError::Network(_)
+    )
 }
 
 fn map_fetch_error(err: FetchError) -> RepositoryError {
     match err {
-        FetchError::Http(status, body) => RepositoryError::Http { status, body },
+        FetchError::Http { status, message } => RepositoryError::Http {
+            status,
+            body: message,
+        },
         FetchError::Network(msg) => RepositoryError::network(msg),
         FetchError::Parse(msg) => RepositoryError::parse(msg),
         FetchError::Empty => RepositoryError::parse("query returned no results"),
@@ -206,7 +211,10 @@ mod tests {
 
     #[test]
     fn map_fetch_error_preserves_http_status_and_body() {
-        let mapped = map_fetch_error(FetchError::Http(400, "invalid query".to_string()));
+        let mapped = map_fetch_error(FetchError::Http {
+            status: 400,
+            message: "invalid query".to_string(),
+        });
         assert_eq!(
             mapped,
             RepositoryError::Http {
@@ -224,21 +232,22 @@ mod tests {
 
     #[test]
     fn qlever_unavailability_includes_502_and_network_failures() {
-        assert!(is_qlever_unavailable(&FetchError::Http(
-            502,
-            "upstream gateway error (HTML payload)".into()
-        )));
+        let gateway = FetchError::Http {
+            status: 502,
+            message: "upstream gateway error (HTML payload)".into(),
+        };
+        assert!(is_qlever_unavailable(&gateway));
         assert!(is_qlever_unavailable(&FetchError::Network(
             "connection failed".into()
         )));
-        assert!(!is_qlever_unavailable(&FetchError::Http(
-            500,
-            "boom".into()
-        )));
-        assert!(!is_qlever_unavailable(&FetchError::Http(
-            400,
-            "bad query".into()
-        )));
+        assert!(!is_qlever_unavailable(&FetchError::Http {
+            status: 500,
+            message: "boom".into()
+        }));
+        assert!(!is_qlever_unavailable(&FetchError::Http {
+            status: 400,
+            message: "bad query".into()
+        }));
         assert!(!is_qlever_unavailable(&FetchError::Empty));
     }
 }

@@ -19,9 +19,6 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-# The retry backoff needs a timer. wasm has no reactor, so it blocks instead
-# and does not need tokio at all -- which is what keeps this crate wasm-clean.
-tokio = { workspace = true, features = ["time"] }
 reqwest = {
   version = "0.13",
   default-features = false,
@@ -31,6 +28,9 @@ reqwest = {
   ],
   optional = true
 }
+# The retry backoff needs a timer. wasm has no reactor, so it blocks instead
+# and does not need tokio at all -- which is what keeps this crate wasm-clean.
+tokio = { workspace = true, features = ["time"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 reqwest = { version = "0.13", default-features = false, features = [], optional = true }

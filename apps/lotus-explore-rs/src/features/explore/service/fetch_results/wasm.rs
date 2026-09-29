@@ -5,11 +5,13 @@ use super::{FetchResult, PlannedResultsFetch};
 use crate::features::explore::search_metrics::SearchMetrics;
 use crate::features::explore::types::{DomainError, ParseFault, QueryStage};
 use crate::perf;
-use crate::queries;
 use crate::repositories::LotusRepository;
 use crate::repositories::RepositoryError;
 use crate::services::search_telemetry as telemetry;
-use crate::sparql;
+// Named at the use site rather than through the shared shims: only the wasm
+// fetch path needs these, and re-exporting them from `crate::queries` made them
+// look unused on the native build, where this file does not exist.
+use lotus_query::{counts_query, limit_query, parse_compounds_csv, parse_counts_csv};
 
 pub(super) async fn fetch_results<R: LotusRepository>(
     repo: &R,
@@ -17,18 +19,18 @@ pub(super) async fn fetch_results<R: LotusRepository>(
     metrics: &mut SearchMetrics,
     on_processing: &impl Fn(),
 ) -> Result<FetchResult, DomainError> {
-    let count_query = queries::query_counts_from_base(plan.execution_query);
-    let results_query = queries::query_with_limit(plan.execution_query, plan.display_limit);
+    let count_query = counts_query(plan.execution_query);
+    let results_query = limit_query(plan.execution_query, plan.display_limit);
 
     // Display query FIRST, alone — it is authoritative and its failure fails the
     // search (subject to backoff). Fetching it alone guarantees it can never
     // race the COUNT, which is what `try_join!` did (the 15:00 burst that 429'd).
     //
     // Cache: reuse a previously fetched page (back/repeat navigation) instead of
-    // re-hitting QLever. Keys come from `lotus::state::build_search_cache_key`,
+    // re-hitting QLever. Keys come from `crate::cache_key::build_search_cache_key`,
     // the same keys the native server uses, so both cache paths stay compatible.
     let results_key =
-        lotus::state::build_search_cache_key(plan.execution_query, plan.display_limit, true);
+        crate::cache_key::build_search_cache_key(plan.execution_query, plan.display_limit, true);
     let results_timer = perf::start_timer("LOTUS:results_page_query");
     let (results_csv, fetched_remote) = if let Some(cached) = crate::cache::get_cached(&results_key)
     {
@@ -49,8 +51,8 @@ pub(super) async fn fetch_results<R: LotusRepository>(
     on_processing();
 
     let results_parse_timer = perf::start_timer("LOTUS:results_page_parse");
-    let rows = sparql::parse_compounds_csv_display_bytes(&results_csv, plan.display_limit)
-        .map_err(results_csv_parse_error)?;
+    let rows =
+        parse_compounds_csv(&results_csv, plan.display_limit).map_err(results_csv_parse_error)?;
     let results_parse_elapsed = perf::end_timer("LOTUS:results_page_parse", results_parse_timer);
     metrics.add_parse(results_parse_elapsed);
 
@@ -69,7 +71,7 @@ pub(super) async fn fetch_results<R: LotusRepository>(
         .sparql_body(&count_query)
         .await
         .ok()
-        .and_then(|c| sparql::parse_counts_csv_bytes(&c).ok());
+        .and_then(|c| parse_counts_csv(&c).ok());
     let count_elapsed = perf::end_timer("LOTUS:results_count_query", count_timer);
     if total_stats.is_some() {
         metrics.add_network(count_elapsed);
@@ -129,11 +131,11 @@ mod tests {
 
     #[test]
     fn wasm_preview_rows_are_bounded() {
-        let csv = lotus::transport::ResponseBody::from_static(
+        let csv = crate::sparql::ResponseBody::from_static(
             b"compound,compoundLabel,taxon,ref_qid\nQ1,One,Q10,Q20\nQ2,Two,Q11,Q21\n",
         );
 
-        let rows = sparql::parse_compounds_csv_display_bytes(&csv, 1).expect("display parse");
+        let rows = parse_compounds_csv(&csv, 1).expect("display parse");
         assert_eq!(rows.len(), 1);
     }
 }

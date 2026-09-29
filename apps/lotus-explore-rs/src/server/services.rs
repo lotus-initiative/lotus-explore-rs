@@ -5,7 +5,7 @@ use crate::server::{
     errors::ApiError,
     types::{RowDto, SearchResponse, SearchStats},
 };
-use lotus::{models::DatasetStats, queries, sparql};
+use crate::{models::DatasetStats, sparql};
 
 pub async fn build_search_response(
     execution_query: &str,
@@ -14,23 +14,23 @@ pub async fn build_search_response(
     resolved_taxon_qid: Option<String>,
     warning: Option<String>,
 ) -> Result<SearchResponse, ApiError> {
-    let display_query = queries::query_with_limit(execution_query, limit);
+    let display_query = lotus_query::limit_query(execution_query, limit);
 
     let (rows, stats) = if include_counts {
-        let count_query = queries::query_counts_from_base(execution_query);
+        let count_query = lotus_query::counts_query(execution_query);
 
         let rows_future = async {
             let rows_bytes = sparql::execute_sparql_bytes(&display_query)
                 .await
                 .map_err(|e| ApiError::upstream(format!("display query failed: {e}")))?;
-            sparql::parse_compounds_csv_display_bytes(&rows_bytes, limit)
+            lotus_query::parse_compounds_csv(&rows_bytes, limit)
                 .map_err(|e| ApiError::upstream(format!("display parse failed: {e}")))
         };
         let stats_future = async {
             let count_bytes = sparql::execute_sparql_bytes(&count_query)
                 .await
                 .map_err(|e| ApiError::upstream(format!("count query failed: {e}")))?;
-            sparql::parse_counts_csv_bytes(&count_bytes)
+            lotus_query::parse_counts_csv(&count_bytes)
                 .map_err(|e| ApiError::upstream(format!("count parse failed: {e}")))
         };
 
@@ -51,7 +51,7 @@ pub async fn build_search_response(
         let rows_bytes = sparql::execute_sparql_bytes(&display_query)
             .await
             .map_err(|e| ApiError::upstream(format!("display query failed: {e}")))?;
-        let rows = sparql::parse_compounds_csv_display_bytes(&rows_bytes, limit)
+        let rows = lotus_query::parse_compounds_csv(&rows_bytes, limit)
             .map_err(|e| ApiError::upstream(format!("display parse failed: {e}")))?;
         let stats = DatasetStats::from_entries(&rows);
         (rows, stats)

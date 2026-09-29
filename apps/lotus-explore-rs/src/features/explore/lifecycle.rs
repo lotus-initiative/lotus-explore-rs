@@ -100,7 +100,7 @@ fn dispatch_error(explore: Signal<ExploreState>, error: DomainError, request: &S
     use crate::features::explore::service::build_query::normalize_smiles;
 
     // Try to build the query that was being attempted
-    let smiles = normalize_smiles(&request.criteria().smiles);
+    let smiles = normalize_smiles(&request.criteria().structure);
     let query = explore.peek().result.resolved_qid.as_deref().map_or_else(
         || Some(build_sparql_query(&smiles, request.criteria(), None)),
         |qid| Some(build_sparql_query(&smiles, request.criteria(), Some(qid))),

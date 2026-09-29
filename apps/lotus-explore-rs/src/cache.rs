@@ -4,7 +4,7 @@
 
 #[cfg(any(test, target_arch = "wasm32"))]
 mod cache_impl {
-    use lotus::transport::ResponseBody;
+    use crate::sparql::ResponseBody;
     #[cfg(target_arch = "wasm32")]
     use std::cell::RefCell;
     use std::collections::HashMap;
@@ -69,7 +69,7 @@ mod cache_impl {
         #![allow(clippy::expect_used)]
 
         use super::*;
-        use lotus::state::build_search_cache_key;
+        use crate::cache_key::build_search_cache_key;
 
         fn body() -> ResponseBody {
             ResponseBody::from_static(b"compound,compoundLabel\nQ1,One\n")
@@ -114,7 +114,7 @@ mod cache_impl {
             );
             assert_ne!(
                 build_search_cache_key(q, 100, true),
-                lotus::state::build_export_cache_key(q),
+                crate::cache_key::build_export_cache_key(q),
             );
         }
     }

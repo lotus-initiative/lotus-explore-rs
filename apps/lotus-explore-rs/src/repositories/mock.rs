@@ -11,7 +11,7 @@ use crate::repositories::{LotusRepository, RepositoryError};
 #[derive(Clone)]
 pub struct MockRepository {
     /// Fixed CSV response returned for every SPARQL call.
-    pub sparql_response: Result<lotus::transport::ResponseBody, RepositoryError>,
+    pub sparql_response: Result<crate::sparql::ResponseBody, RepositoryError>,
 }
 
 impl MockRepository {
@@ -43,7 +43,7 @@ impl LotusRepository for MockRepository {
     async fn sparql_body(
         &self,
         _query: &str,
-    ) -> Result<lotus::transport::ResponseBody, RepositoryError> {
+    ) -> Result<crate::sparql::ResponseBody, RepositoryError> {
         self.sparql_response.clone()
     }
 }

@@ -68,7 +68,7 @@ pub trait LotusRepository: Clone + 'static {
     async fn sparql_body(
         &self,
         query: &str,
-    ) -> Result<lotus::transport::ResponseBody, RepositoryError>;
+    ) -> Result<crate::sparql::ResponseBody, RepositoryError>;
 
     #[cfg(not(target_arch = "wasm32"))]
     async fn sparql_tempfile(

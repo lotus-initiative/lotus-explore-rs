@@ -10,7 +10,7 @@ struct CriteriaQueryDto {
     taxon: Option<String>,
     structure: Option<String>,
     structure_search_type: Option<SmilesSearchType>,
-    smiles_threshold: Option<f64>,
+    structure_threshold: Option<f64>,
     mass_filter: Option<RangeF64Dto>,
     year_filter: Option<RangeU16Dto>,
     formula_filter: Option<FormulaQueryDto>,
@@ -54,6 +54,81 @@ pub fn parse_criteria_from_params(params: &QueryParams) -> SearchCriteria {
     CriteriaQueryDto::parse(params).into_criteria()
 }
 
+/// Serialise criteria to query parameters, omitting anything left at its
+/// default so a shared URL stays short enough to paste into a message.
+///
+/// The inverse of [`parse_criteria_from_params`], and deliberately in the same
+/// place. The parameter names used to live on the model's own method while the
+/// parsing lived here, which meant a rename to either side silently broke
+/// every URL already in a browser's history and in someone's message. There is
+/// a round-trip test below to keep that from happening again.
+pub fn criteria_query_params(criteria: &SearchCriteria, year_max: u16) -> QueryParams {
+    let mut params = QueryParams::new();
+
+    let taxon = criteria.taxon.trim();
+    if !taxon.is_empty() {
+        params.insert("taxon".to_string(), taxon.to_string());
+    }
+
+    let structure = criteria.structure.trim();
+    if !structure.is_empty() {
+        params.insert("structure".to_string(), structure.to_string());
+        params.insert(
+            "structure_search_type".to_string(),
+            criteria.structure_search.as_str().to_string(),
+        );
+        if criteria.structure_search == SmilesSearchType::Similarity {
+            params.insert(
+                "smiles_threshold".to_string(),
+                format!("{:.2}", criteria.structure_threshold),
+            );
+        }
+    }
+
+    // A range that covers the whole domain carries no information, so it is
+    // left out rather than written out and read back.
+    if criteria.has_mass_filter() {
+        params.insert("mass_filter".to_string(), "true".to_string());
+        params.insert("mass_min".to_string(), format!("{}", criteria.mass_min));
+        params.insert("mass_max".to_string(), format!("{}", criteria.mass_max));
+    }
+
+    if criteria.has_year_filter(year_max) {
+        params.insert("year_filter".to_string(), "true".to_string());
+        params.insert("year_start".to_string(), format!("{}", criteria.year_min));
+        params.insert("year_end".to_string(), format!("{}", criteria.year_max));
+    }
+
+    if criteria.formula_enabled {
+        params.insert("formula_filter".to_string(), "true".to_string());
+        let exact = criteria.formula_exact.trim();
+        if !exact.is_empty() {
+            params.insert("formula_exact".to_string(), exact.to_string());
+        }
+        for (label, min, max, default_max) in criteria.element_ranges() {
+            let key = label.to_ascii_lowercase();
+            if min > 0 {
+                params.insert(format!("{key}_min"), min.to_string());
+            }
+            if max < default_max {
+                params.insert(format!("{key}_max"), max.to_string());
+            }
+        }
+        for (label, state) in [
+            ("f", criteria.f_state),
+            ("cl", criteria.cl_state),
+            ("br", criteria.br_state),
+            ("i", criteria.i_state),
+        ] {
+            if state != ElementState::Allowed {
+                params.insert(format!("{label}_state"), state.as_str().to_string());
+            }
+        }
+    }
+
+    params
+}
+
 impl CriteriaQueryDto {
     fn parse(params: &QueryParams) -> Self {
         let taxon = params.get("taxon").cloned();
@@ -69,7 +144,7 @@ impl CriteriaQueryDto {
                 .map(String::as_str)
                 .or_else(|| params.get("smiles_search_type").map(String::as_str))
                 .map(parse_search_type),
-            smiles_threshold: parse_positive_threshold(
+            structure_threshold: parse_positive_threshold(
                 params.get("smiles_threshold").map(String::as_str),
             ),
             mass_filter: RangeF64Dto::parse_when_enabled(
@@ -89,18 +164,18 @@ impl CriteriaQueryDto {
     }
 
     fn into_criteria(self) -> SearchCriteria {
-        let mut criteria = SearchCriteria::default();
+        let mut criteria = SearchCriteria::up_to_year(crate::models::current_year());
         if let Some(taxon) = self.taxon {
             criteria.taxon = taxon;
         }
         if let Some(structure) = self.structure {
-            criteria.smiles = structure;
+            criteria.structure = structure;
         }
         if let Some(search_type) = self.structure_search_type {
-            criteria.smiles_search_type = search_type;
+            criteria.structure_search = search_type;
         }
-        if let Some(threshold) = self.smiles_threshold {
-            criteria.smiles_threshold = threshold;
+        if let Some(threshold) = self.structure_threshold {
+            criteria.structure_threshold = threshold;
         }
         if let Some(range) = self.mass_filter {
             range.apply(
@@ -120,7 +195,7 @@ impl CriteriaQueryDto {
             formula.apply(&mut criteria);
         }
 
-        if criteria.smiles.trim().is_empty() || self.has_explicit_taxon {
+        if criteria.structure.trim().is_empty() || self.has_explicit_taxon {
             return criteria;
         }
 

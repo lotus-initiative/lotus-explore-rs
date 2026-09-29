@@ -50,9 +50,9 @@ pub enum FormAction {
 pub fn apply_form_action_mut(criteria: &mut SearchCriteria, action: FormAction) {
     match action {
         FormAction::Taxon(v) => criteria.taxon = v,
-        FormAction::Smiles(v) => criteria.smiles = v,
-        FormAction::SmilesSearchType(v) => criteria.smiles_search_type = v,
-        FormAction::SmilesThreshold(v) => criteria.smiles_threshold = v,
+        FormAction::Smiles(v) => criteria.structure = v,
+        FormAction::SmilesSearchType(v) => criteria.structure_search = v,
+        FormAction::SmilesThreshold(v) => criteria.structure_threshold = v,
         FormAction::MassMin(v) => criteria.mass_min = v,
         FormAction::MassMax(v) => criteria.mass_max = v,
         FormAction::YearMin(v) => criteria.year_min = v,
@@ -95,7 +95,7 @@ mod tests {
     fn form_action_mutates_taxon_field() {
         let crit = SearchCriteria {
             taxon: "original".to_string(),
-            ..SearchCriteria::default()
+            ..SearchCriteria::up_to_year(crate::models::current_year())
         };
         let result = apply_form_action(crit, FormAction::Taxon("updated".to_string()));
         assert_eq!(result.taxon, "updated");
@@ -107,36 +107,39 @@ mod tests {
     // meaningful assertion here.
     #[allow(clippy::float_cmp)]
     fn form_action_mutates_mass_range() {
-        let crit = SearchCriteria::default();
+        let crit = SearchCriteria::up_to_year(crate::models::current_year());
         let result = apply_form_action(crit, FormAction::MassMin(100.5));
         assert_eq!(result.mass_min, 100.5);
     }
 
     #[test]
     fn form_action_mutates_element_bounds() {
-        let crit = SearchCriteria::default();
+        let crit = SearchCriteria::up_to_year(crate::models::current_year());
         let result = apply_form_action(crit, FormAction::CMin(50));
         assert_eq!(result.c_min, 50);
     }
 
     #[test]
     fn form_action_mutates_halogen_states() {
-        let crit = SearchCriteria::default();
+        let crit = SearchCriteria::up_to_year(crate::models::current_year());
         let result = apply_form_action(crit, FormAction::FState(ElementState::Excluded));
         assert_eq!(result.f_state, ElementState::Excluded);
     }
 
     #[test]
     fn form_action_immutable_applies_to_copy() {
-        let original = SearchCriteria::default();
+        let original = SearchCriteria::up_to_year(crate::models::current_year());
         let _result = apply_form_action(original.clone(), FormAction::Taxon("test".into()));
         // Original unchanged
-        assert_eq!(original.taxon, SearchCriteria::default().taxon);
+        assert_eq!(
+            original.taxon,
+            SearchCriteria::up_to_year(crate::models::current_year()).taxon
+        );
     }
 
     #[test]
     fn form_action_mut_updates_existing_reference() {
-        let mut criteria = SearchCriteria::default();
+        let mut criteria = SearchCriteria::up_to_year(crate::models::current_year());
         apply_form_action_mut(&mut criteria, FormAction::FormulaEnabled(true));
         apply_form_action_mut(&mut criteria, FormAction::FormulaExact("C15H10O5".into()));
         assert!(criteria.formula_enabled);

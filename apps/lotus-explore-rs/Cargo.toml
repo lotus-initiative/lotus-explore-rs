@@ -27,7 +27,9 @@ path = "build_test.rs"
 dioxus = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
-lotus = { path = "../../crates/lotus", version = "0.1" }
+lotus-model = { workspace = true }
+lotus-query = { workspace = true }
+lotus-search = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

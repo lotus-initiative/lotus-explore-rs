@@ -4,7 +4,7 @@
 use crate::models::SearchCriteria;
 
 fn export_search_type_suffix(criteria: &SearchCriteria) -> Option<&'static str> {
-    (!criteria.smiles.trim().is_empty()).then(|| criteria.smiles_search_type.as_str())
+    (!criteria.structure.trim().is_empty()).then(|| criteria.structure_search.as_str())
 }
 
 pub fn now_iso8601() -> String {
@@ -88,7 +88,7 @@ pub fn generate_filename(criteria: &SearchCriteria, ext: &str) -> String {
         stem.push('_');
         stem.push_str(st);
     }
-    if criteria.has_effective_filters() {
+    if criteria.has_effective_filters(crate::models::current_year()) {
         stem.push_str("_filtered");
     }
     format!("{stem}.{ext}")
@@ -101,7 +101,10 @@ mod tests {
 
     #[test]
     fn export_filename_taxon_only_has_no_filtered_suffix() {
-        let criteria = SearchCriteria::default();
+        let criteria = SearchCriteria {
+            taxon: "Gentiana lutea".into(),
+            ..SearchCriteria::up_to_year(crate::models::current_year())
+        };
         let name = generate_filename(&criteria, "csv");
         assert!(!name.contains("_filtered."));
         assert!(name.ends_with("_Gentiana_lutea.csv"));
@@ -111,7 +114,7 @@ mod tests {
     fn export_filename_for_full_dataset_has_no_filtered_suffix() {
         let criteria = SearchCriteria {
             taxon: "*".into(),
-            ..SearchCriteria::default()
+            ..SearchCriteria::up_to_year(crate::models::current_year())
         };
         let name = generate_filename(&criteria, "csv");
         assert!(!name.contains("_filtered."));
@@ -122,10 +125,10 @@ mod tests {
     fn export_filename_with_structure_filter_keeps_search_type() {
         let mut criteria = SearchCriteria {
             taxon: "*".into(),
-            ..SearchCriteria::default()
+            ..SearchCriteria::up_to_year(crate::models::current_year())
         };
-        criteria.smiles = "c1ccccc1".into();
-        criteria.smiles_search_type = SmilesSearchType::Similarity;
+        criteria.structure = "c1ccccc1".into();
+        criteria.structure_search = SmilesSearchType::Similarity;
         let name = generate_filename(&criteria, "rdf");
         assert!(name.ends_with("_all_taxa_similarity_filtered.rdf"));
     }

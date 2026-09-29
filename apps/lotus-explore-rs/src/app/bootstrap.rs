@@ -49,7 +49,7 @@ mod tests {
     #[test]
     fn bootstrap_app_copies_startup_locale_and_download_state() {
         let startup = InitialUrlState {
-            criteria: SearchCriteria::default(),
+            criteria: SearchCriteria::up_to_year(crate::models::current_year()),
             locale: Locale::Fr,
             download: InitialDownloadState {
                 pending_format: Some(DownloadFormat::Csv),
@@ -81,7 +81,7 @@ mod tests {
         let startup = InitialUrlState {
             criteria: SearchCriteria {
                 taxon: "Rosa".into(),
-                ..SearchCriteria::default()
+                ..SearchCriteria::up_to_year(crate::models::current_year())
             },
             locale: Locale::En,
             download: InitialDownloadState::default(),

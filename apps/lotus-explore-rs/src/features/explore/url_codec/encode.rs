@@ -3,7 +3,7 @@
 
 use crate::models::SearchCriteria;
 pub fn build_shareable_url(criteria: &SearchCriteria) -> Option<String> {
-    let params = criteria.shareable_query_params();
+    let params = super::criteria_query_params(criteria, crate::models::current_year());
     if params.is_empty() {
         return None;
     }

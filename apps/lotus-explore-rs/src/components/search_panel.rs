@@ -90,9 +90,9 @@ fn StructureSection() -> Element {
     let c = ctx.criteria;
     let structure_fields = use_criteria_selector(c, |criteria| {
         (
-            criteria.smiles.clone(),
-            criteria.smiles_search_type,
-            criteria.smiles_threshold,
+            criteria.structure.clone(),
+            criteria.structure_search,
+            criteria.structure_threshold,
         )
     });
     let (smiles, smiles_search_type, smiles_threshold) = structure_fields.read().clone();

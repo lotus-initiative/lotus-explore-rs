@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn duplicate_search_is_suppressed_until_the_run_finishes() {
         let controller = SearchTaskController::new();
-        let criteria = SearchCriteria::default();
+        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
 
         let first = controller.try_begin(&criteria, SearchCommand::Interactive);
         assert!(first.is_some());
@@ -98,7 +98,7 @@ mod tests {
     #[test]
     fn a_different_command_starts_a_new_run() {
         let controller = SearchTaskController::new();
-        let criteria = SearchCriteria::default();
+        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
 
         assert!(
             controller
@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn a_stale_completion_does_not_clear_the_current_run() {
         let controller = SearchTaskController::new();
-        let criteria = SearchCriteria::default();
+        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
         let first = controller.try_begin(&criteria, SearchCommand::Interactive);
         let second = controller.try_begin(&criteria, SearchCommand::StartupDownload);
         assert!(first.is_some());

@@ -7,10 +7,11 @@ use axum::{
     http::{StatusCode, header},
     response::Response,
 };
-use lotus::models;
 use std::{sync::atomic::Ordering, time::Instant};
 use tokio::time::timeout;
 
+use crate::export;
+use crate::queries::ExportFormat;
 use crate::server::{
     errors::{ApiError, ErrorResponse, SharedApiError},
     query_logic::{apply_request, build_execution_query, gzip_bytes, resolve_taxon_qid_cached},
@@ -22,7 +23,6 @@ use crate::server::{
     },
     types::{ExportFileQuery, ExportUrlResponse, HealthResponse, SearchRequest, SearchResponse},
 };
-use lotus::export::{self, ExportFormat};
 
 #[utoipa::path(
     get,
@@ -62,7 +62,7 @@ async fn prepare_search_request(
     req: &SearchRequest,
 ) -> Result<PreparedSearchRequest, ApiError> {
     let mut criteria = apply_request(req)?;
-    if !criteria.is_valid() {
+    if !criteria.is_searchable() {
         return Err(ApiError::bad_request(
             "Either taxon or smiles/structure must be provided",
         ));
@@ -95,7 +95,7 @@ async fn prepare_search_request(
         limit: req
             .limit
             .unwrap_or(state.default_limit)
-            .clamp(1, models::TABLE_ROW_LIMIT),
+            .clamp(1, crate::table_budget::TABLE_ROW_LIMIT),
         include_counts: req.include_counts.unwrap_or(true),
     })
 }
@@ -192,7 +192,7 @@ async fn prepare_export_request(
     req: &SearchRequest,
 ) -> Result<PreparedExportRequest, ApiError> {
     let mut criteria = apply_request(req)?;
-    if !criteria.is_valid() {
+    if !criteria.is_searchable() {
         return Err(ApiError::bad_request(
             "Either taxon or smiles/structure must be provided",
         ));
@@ -430,9 +430,11 @@ pub async fn export_file(
     })?;
 
     let upstream_url = export::qlever_export_url(&cached.query, format);
+    let http = lotus_search::reqwest_client::ReqwestClient::new()
+        .map_err(|e| ApiError::upstream(format!("could not open the export client: {e}")))?;
     let raw_bytes = timeout(
         state.request_timeout,
-        lotus::transport::fetch_url_bytes(&upstream_url),
+        lotus_search::fetch_url(&http, &upstream_url, lotus_search::ResponseFormat::Csv),
     )
     .await
     .map_err(|_| {
@@ -449,7 +451,7 @@ pub async fn export_file(
     let requested_filename = params
         .filename
         .as_deref()
-        .map(export::sanitize_download_filename)
+        .map(crate::export::sanitize_download_filename)
         .filter(|name| !name.is_empty());
 
     let (body_bytes, content_type, attachment_name) = if let Some(filename) = requested_filename {

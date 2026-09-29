@@ -72,7 +72,7 @@ fn dispatch_phase_ready_when_all_preconditions_met() {
     explore.result.sparql_query = Some(std::sync::Arc::from("SELECT * WHERE {}"));
     explore.ui.executed_criteria = SearchCriteria {
         taxon: "Rosa".into(),
-        ..SearchCriteria::default()
+        ..SearchCriteria::up_to_year(crate::models::current_year())
     };
 
     let phase = classify_dispatch_phase(Some(DownloadFormat::Json), &explore);

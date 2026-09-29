@@ -186,7 +186,7 @@ outdated:
 readme:
 	@command -v cargo-readme >/dev/null 2>&1 || { echo "cargo-readme not installed; skipping"; exit 0; }
 	@command -v panache >/dev/null 2>&1 || { echo "panache not installed; skipping"; exit 0; }
-	@for d in crates/lotus/; do \
+	@for d in crates/lotus-model/ crates/lotus-query/ crates/lotus-search/ crates/lotus-jsonld/; do \
 	(cd $d && cargo readme -t README.tpl -o /tmp/readme_panache.md 2>/dev/null \
 	&& panache format /tmp/readme_panache.md >/dev/null \
 	&& panache lint /tmp/readme_panache.md \

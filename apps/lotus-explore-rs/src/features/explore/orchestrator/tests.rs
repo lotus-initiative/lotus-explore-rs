@@ -16,7 +16,10 @@ use crate::models::SearchCriteria;
 
 #[test]
 fn build_search_succeeded_action_applies_finalized_counts() {
-    let request = SearchRequest::new(SearchCriteria::default(), SearchCommand::Interactive);
+    let request = SearchRequest::new(
+        SearchCriteria::up_to_year(crate::models::current_year()),
+        SearchCommand::Interactive,
+    );
     let outcome = SearchOutcome {
         rows: Vec::new(),
         qid: Some("Q42".to_string()),
@@ -48,9 +51,9 @@ fn build_search_succeeded_action_applies_finalized_counts() {
 fn validate_search_criteria_rejects_empty_input() {
     let criteria = SearchCriteria {
         taxon: " ".into(),
-        smiles: "".into(),
+        structure: "".into(),
         formula_enabled: false,
-        ..SearchCriteria::default()
+        ..SearchCriteria::up_to_year(crate::models::current_year())
     };
 
     let result = validate_search_criteria_for_tests(&criteria);
@@ -64,9 +67,9 @@ fn validate_search_criteria_rejects_empty_input() {
 fn validate_search_criteria_accepts_formula_only_input() {
     let criteria = SearchCriteria {
         taxon: "".into(),
-        smiles: "".into(),
+        structure: "".into(),
         formula_enabled: true,
-        ..SearchCriteria::default()
+        ..SearchCriteria::up_to_year(crate::models::current_year())
     };
 
     assert_eq!(validate_search_criteria_for_tests(&criteria), Ok(()));
@@ -77,7 +80,7 @@ fn validate_search_criteria_maps_shared_mass_validation_fault() {
     let criteria = SearchCriteria {
         taxon: "Rosa".into(),
         mass_min: -1.0,
-        ..SearchCriteria::default()
+        ..SearchCriteria::up_to_year(crate::models::current_year())
     };
 
     assert_eq!(

@@ -135,6 +135,52 @@ impl std::fmt::Display for ElementState {
     }
 }
 
+impl DatasetStats {
+    /// The counts implied by a set of rows, without asking the endpoint.
+    ///
+    /// This is the same arithmetic as the `COUNT(DISTINCT …)` in the count
+    /// query, and it exists for the case where that query failed or was not
+    /// asked for: a page of results still has to say how big the result set is,
+    /// and answering "500 rows" when 12,000 matched is worse than saying
+    /// "at least 500".
+    ///
+    /// A row with no taxon or no reference still counts towards its compound,
+    /// but contributes no taxon and no reference: a compound with no
+    /// occurrence is not a taxon.
+    #[must_use]
+    pub fn from_entries(entries: &[CompoundEntry]) -> Self {
+        use std::collections::HashSet;
+
+        let mut compounds: HashSet<&str> = HashSet::with_capacity(entries.len());
+        let mut taxa: HashSet<&str> = HashSet::with_capacity(entries.len());
+        let mut references: HashSet<&str> = HashSet::with_capacity(entries.len());
+        let mut triples: HashSet<(&str, &str, &str)> = HashSet::with_capacity(entries.len());
+
+        for entry in entries {
+            compounds.insert(entry.compound_qid.as_ref());
+            if !entry.taxon_qid.is_empty() {
+                taxa.insert(entry.taxon_qid.as_ref());
+            }
+            if !entry.reference_qid.is_empty() {
+                references.insert(entry.reference_qid.as_ref());
+            }
+            triples.insert((
+                entry.compound_qid.as_ref(),
+                entry.taxon_qid.as_ref(),
+                entry.reference_qid.as_ref(),
+            ));
+        }
+
+        Self {
+            n_compounds: compounds.len(),
+            n_taxa: taxa.len(),
+            n_references: references.len(),
+            n_entries: entries.len(),
+            n_entries_unique: triples.len(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -202,5 +248,87 @@ mod tests {
             SmilesSearchType::Substructure
         );
         assert_eq!(ElementState::parse("maybe"), ElementState::Allowed);
+    }
+}
+
+impl std::str::FromStr for ElementState {
+    type Err = std::convert::Infallible;
+
+    /// Unknown text reads as [`ElementState::Allowed`], not as an error.
+    ///
+    /// This is a form control's value coming back from a URL, and a URL is
+    /// something a person can edit. Rejecting the whole search because
+    /// `f_state=maybe` is not one of three values would be a worse answer than
+    /// ignoring the part that is nonsense.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self::parse(s))
+    }
+}
+
+#[cfg(test)]
+mod from_entries_tests {
+    use super::*;
+
+    fn entry(compound: &str, taxon: &str, reference: &str) -> CompoundEntry {
+        CompoundEntry {
+            compound_qid: compound.into(),
+            taxon_qid: taxon.into(),
+            reference_qid: reference.into(),
+            ..CompoundEntry::default()
+        }
+    }
+
+    #[test]
+    fn counts_distinct_values_not_rows() {
+        let rows = vec![
+            entry("Q1", "Q10", "Q100"),
+            entry("Q1", "Q10", "Q100"),
+            entry("Q1", "Q11", "Q101"),
+        ];
+        let stats = DatasetStats::from_entries(&rows);
+        assert_eq!(stats.n_compounds, 1, "the same compound three times");
+        assert_eq!(stats.n_taxa, 2);
+        assert_eq!(stats.n_references, 2);
+        assert_eq!(stats.n_entries, 3, "rows are counted, not deduplicated");
+        assert_eq!(stats.n_entries_unique, 2, "the repeated triple is one");
+    }
+
+    #[test]
+    fn an_empty_row_contributes_no_taxon_or_reference() {
+        // A compound that matched with no occurrence and no citation is still a
+        // compound; counting it as a taxon or a reference would report a
+        // diversity the data does not have.
+        let rows = vec![entry("Q1", "", "")];
+        let stats = DatasetStats::from_entries(&rows);
+        assert_eq!(stats.n_compounds, 1);
+        assert_eq!(stats.n_taxa, 0);
+        assert_eq!(stats.n_references, 0);
+        assert_eq!(stats.n_entries_unique, 1);
+    }
+
+    #[test]
+    fn an_empty_slice_is_all_zero() {
+        let stats = DatasetStats::from_entries(&[]);
+        assert_eq!(stats.n_compounds, 0);
+        assert_eq!(stats.n_entries, 0);
+        assert_eq!(stats.n_entries_unique, 0);
+    }
+
+    #[test]
+    fn distinct_triples_can_exceed_distinct_values() {
+        // The same two compounds, two taxa and two references give four triples
+        // from four values; the two counts are not interchangeable, and an
+        // implementation that computed one from the other would be wrong here.
+        let rows = vec![
+            entry("Q1", "Q10", "Q100"),
+            entry("Q1", "Q11", "Q101"),
+            entry("Q2", "Q10", "Q100"),
+            entry("Q2", "Q11", "Q101"),
+        ];
+        let stats = DatasetStats::from_entries(&rows);
+        assert_eq!(stats.n_compounds, 2);
+        assert_eq!(stats.n_taxa, 2);
+        assert_eq!(stats.n_references, 2);
+        assert_eq!(stats.n_entries_unique, 4);
     }
 }

@@ -8,7 +8,6 @@
 
 use super::{FetchError, Http, HttpResponse, ResponseBody};
 use std::sync::OnceLock;
-use std::time::Duration;
 
 /// One client for the process, so that connections are pooled.
 ///
@@ -112,6 +111,7 @@ fn build() -> Result<reqwest::Client, String> {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
+        use std::time::Duration;
         reqwest::Client::builder()
             .connect_timeout(Duration::from_secs(8))
             .timeout(Duration::from_mins(2))

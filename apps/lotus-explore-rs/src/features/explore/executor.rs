@@ -45,7 +45,7 @@ where
         // search (and never triggers the "builder error" fallback storm).
         let api_enabled = crate::api::api_base_url().is_some_and(|b| !b.is_empty());
         let strategy = ExecutionStrategy::resolve(request.direct_download(), api_enabled);
-        let smiles = normalize_smiles(&request.criteria().smiles);
+        let smiles = normalize_smiles(&request.criteria().structure);
 
         match strategy {
             ExecutionStrategy::ApiFirst => {

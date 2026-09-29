@@ -39,7 +39,7 @@ fn parse_criteria_structure_without_explicit_taxon_clears_default_taxon() {
     params.insert("structure".into(), "CCO".into());
 
     let crit = parse_criteria_from_params(&params);
-    assert_eq!(crit.smiles, "CCO");
+    assert_eq!(crit.structure, "CCO");
     assert!(crit.taxon.is_empty());
 }
 
@@ -57,7 +57,7 @@ fn startup_action_execute_only() {
 fn share_params_roundtrip_for_advanced_filters() {
     let mut crit = SearchCriteria {
         taxon: "*".into(),
-        ..SearchCriteria::default()
+        ..SearchCriteria::up_to_year(crate::models::current_year())
     };
     crit.formula_enabled = true;
     crit.c_min = 15;
@@ -69,7 +69,7 @@ fn share_params_roundtrip_for_advanced_filters() {
     crit.br_state = ElementState::Excluded;
     crit.i_state = ElementState::Excluded;
 
-    let params: QueryParams = crit.shareable_query_params().into_iter().collect();
+    let params = super::criteria_query_params(&crit, crate::models::current_year());
     let reparsed = parse_criteria_from_params(&params);
     assert_eq!(reparsed.taxon, crit.taxon);
     assert_eq!(reparsed.c_min, crit.c_min);
@@ -87,10 +87,10 @@ fn share_params_keep_formula_toggle_but_omit_default_formula_bounds() {
     let crit = SearchCriteria {
         taxon: "Fungi".into(),
         formula_enabled: true,
-        ..SearchCriteria::default()
+        ..SearchCriteria::up_to_year(crate::models::current_year())
     };
 
-    let params: QueryParams = crit.shareable_query_params().into_iter().collect();
+    let params = super::criteria_query_params(&crit, crate::models::current_year());
     let reparsed = parse_criteria_from_params(&params);
 
     assert_eq!(params.get("taxon").map(String::as_str), Some("Fungi"));
@@ -102,9 +102,18 @@ fn share_params_keep_formula_toggle_but_omit_default_formula_bounds() {
     assert!(!params.contains_key("c_max"));
     assert!(!params.contains_key("cl_state"));
     assert!(reparsed.formula_enabled);
-    assert_eq!(reparsed.c_min, SearchCriteria::default().c_min);
-    assert_eq!(reparsed.c_max, SearchCriteria::default().c_max);
-    assert_eq!(reparsed.cl_state, SearchCriteria::default().cl_state);
+    assert_eq!(
+        reparsed.c_min,
+        SearchCriteria::up_to_year(crate::models::current_year()).c_min
+    );
+    assert_eq!(
+        reparsed.c_max,
+        SearchCriteria::up_to_year(crate::models::current_year()).c_max
+    );
+    assert_eq!(
+        reparsed.cl_state,
+        SearchCriteria::up_to_year(crate::models::current_year()).cl_state
+    );
 }
 
 #[test]
@@ -138,8 +147,8 @@ fn parse_criteria_rejects_non_positive_smiles_threshold() {
 
     let crit = parse_criteria_from_params(&params);
     assert_eq!(
-        crit.smiles_threshold,
-        SearchCriteria::default().smiles_threshold
+        crit.structure_threshold,
+        SearchCriteria::up_to_year(crate::models::current_year()).structure_threshold
     );
 }
 
@@ -149,16 +158,31 @@ fn parse_criteria_clamps_low_positive_smiles_threshold() {
     params.insert("smiles_threshold".into(), "0.01".into());
 
     let crit = parse_criteria_from_params(&params);
-    assert_eq!(crit.smiles_threshold, 0.05);
+    assert_eq!(crit.structure_threshold, 0.05);
 }
 
 #[test]
 fn shareable_search_urls_use_the_search_route() {
-    let criteria = SearchCriteria::default();
+    // The taxon is set explicitly. It used to be the value baked into
+    // `SearchCriteria::default()`, so this test passed without ever saying what
+    // it was about -- and a default criteria that quietly searches one species
+    // is a trap for whoever calls `default()` next.
+    let criteria = SearchCriteria {
+        taxon: "Gentiana lutea".into(),
+        ..SearchCriteria::up_to_year(crate::models::current_year())
+    };
     assert_eq!(
         build_shareable_url(&criteria),
         Some("/search?taxon=Gentiana%20lutea".to_string())
     );
+}
+
+#[test]
+fn criteria_with_nothing_set_have_no_shareable_url() {
+    // A URL that encodes no search is not a search, and offering one would put
+    // an empty query string in someone's address bar.
+    let empty = SearchCriteria::up_to_year(crate::models::current_year());
+    assert!(build_shareable_url(&empty).is_none());
 }
 
 #[test]

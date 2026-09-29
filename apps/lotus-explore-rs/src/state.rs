@@ -66,14 +66,14 @@ mod tests {
 
     #[test]
     fn apply_form_action_taxon_round_trips() {
-        let base = SearchCriteria::default();
+        let base = SearchCriteria::up_to_year(crate::models::current_year());
         let updated = apply_form_action(base, FormAction::Taxon("Rosa".into()));
         assert_eq!(updated.taxon, "Rosa");
     }
 
     #[test]
     fn apply_form_action_mass_range_round_trips() {
-        let base = SearchCriteria::default();
+        let base = SearchCriteria::up_to_year(crate::models::current_year());
         let updated = apply_form_action(base, FormAction::MassMin(50.0));
         assert!((updated.mass_min - 50.0).abs() < 1e-10);
     }
@@ -82,22 +82,22 @@ mod tests {
     fn form_action_all_element_bounds_round_trip() {
         use crate::models::ElementState;
 
-        let base = SearchCriteria::default();
+        let base = SearchCriteria::up_to_year(crate::models::current_year());
         let updated = apply_form_action(base, FormAction::CMin(6));
         assert_eq!(updated.c_min, 6);
 
-        let base = SearchCriteria::default();
+        let base = SearchCriteria::up_to_year(crate::models::current_year());
         let updated = apply_form_action(base, FormAction::HMax(20));
         assert_eq!(updated.h_max, 20);
 
-        let base = SearchCriteria::default();
+        let base = SearchCriteria::up_to_year(crate::models::current_year());
         let updated = apply_form_action(base, FormAction::FState(ElementState::Required));
         assert_eq!(updated.f_state, ElementState::Required);
     }
 
     #[test]
     fn form_action_formula_enabled_round_trips() {
-        let base = SearchCriteria::default();
+        let base = SearchCriteria::up_to_year(crate::models::current_year());
         assert!(!base.formula_enabled);
         let updated = apply_form_action(base, FormAction::FormulaEnabled(true));
         assert!(updated.formula_enabled);
@@ -106,20 +106,20 @@ mod tests {
     #[test]
     fn form_action_smiles_search_type_round_trips() {
         use crate::models::SmilesSearchType;
-        let base = SearchCriteria::default();
+        let base = SearchCriteria::up_to_year(crate::models::current_year());
         let updated = apply_form_action(
             base,
             FormAction::SmilesSearchType(SmilesSearchType::Similarity),
         );
-        assert_eq!(updated.smiles_search_type, SmilesSearchType::Similarity);
+        assert_eq!(updated.structure_search, SmilesSearchType::Similarity);
     }
 
     #[test]
     fn form_action_year_range_round_trips() {
-        let base = SearchCriteria::default();
+        let base = SearchCriteria::up_to_year(crate::models::current_year());
         let updated = apply_form_action(base, FormAction::YearMin(1990));
         assert_eq!(updated.year_min, 1990);
-        let base2 = SearchCriteria::default();
+        let base2 = SearchCriteria::up_to_year(crate::models::current_year());
         let updated = apply_form_action(base2, FormAction::YearMax(2025));
         assert_eq!(updated.year_max, 2025);
     }

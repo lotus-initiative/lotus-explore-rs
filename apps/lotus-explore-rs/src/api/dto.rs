@@ -2,11 +2,11 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Data Transfer Objects (DTOs) for the LOTUS API client.
 
+use crate::models::WIKIDATA_STATEMENT_BASE;
 use crate::{
     models::{CompoundEntry, DatasetStats, ElementState, SearchCriteria, SmilesSearchType},
     queries,
 };
-use lotus::models::WIKIDATA_STATEMENT_BASE;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -47,9 +47,9 @@ impl From<ElementState> for ApiElementState {
 #[derive(Debug, Serialize)]
 pub struct SearchRequest {
     taxon: Option<String>,
-    smiles: Option<String>,
-    smiles_search_type: Option<ApiSmilesSearchType>,
-    smiles_threshold: Option<f64>,
+    structure: Option<String>,
+    structure_search: Option<ApiSmilesSearchType>,
+    structure_threshold: Option<f64>,
     mass_min: Option<f64>,
     mass_max: Option<f64>,
     year_min: Option<u16>,
@@ -78,21 +78,25 @@ pub struct SearchRequest {
 impl SearchRequest {
     pub fn from_criteria(criteria: &SearchCriteria, limit: usize, include_counts: bool) -> Self {
         let taxon = criteria.taxon.trim();
-        let smiles = normalize_structure_for_api(&criteria.smiles);
+        let smiles = normalize_structure_for_api(&criteria.structure);
         let has_smiles = !smiles.is_empty();
         let formula_exact = criteria.formula_exact.trim();
 
         Self {
             taxon: (!taxon.is_empty()).then(|| taxon.to_string()),
-            smiles: has_smiles.then_some(smiles),
-            smiles_search_type: has_smiles.then_some(criteria.smiles_search_type.into()),
-            smiles_threshold: (criteria.smiles_search_type == SmilesSearchType::Similarity
+            structure: has_smiles.then_some(smiles),
+            structure_search: has_smiles.then_some(criteria.structure_search.into()),
+            structure_threshold: (criteria.structure_search == SmilesSearchType::Similarity
                 && has_smiles)
-                .then_some(criteria.smiles_threshold),
+                .then_some(criteria.structure_threshold),
             mass_min: criteria.has_mass_filter().then_some(criteria.mass_min),
             mass_max: criteria.has_mass_filter().then_some(criteria.mass_max),
-            year_min: criteria.has_year_filter().then_some(criteria.year_min),
-            year_max: criteria.has_year_filter().then_some(criteria.year_max),
+            year_min: criteria
+                .has_year_filter(crate::models::current_year())
+                .then_some(criteria.year_min),
+            year_max: criteria
+                .has_year_filter(crate::models::current_year())
+                .then_some(criteria.year_max),
             formula_exact: (!formula_exact.is_empty()).then(|| formula_exact.to_string()),
             c_min: criteria.formula_enabled.then_some(criteria.c_min),
             c_max: criteria.formula_enabled.then_some(criteria.c_max),
@@ -244,7 +248,7 @@ mod tests {
     fn request_builder_keeps_large_formula_ranges() {
         let mut criteria = SearchCriteria {
             taxon: "*".into(),
-            ..SearchCriteria::default()
+            ..SearchCriteria::up_to_year(crate::models::current_year())
         };
         criteria.formula_enabled = true;
         criteria.c_max = 300;
@@ -261,12 +265,12 @@ mod tests {
     fn request_builder_preserves_multiline_molfile_whitespace() {
         let criteria = SearchCriteria {
             taxon: "*".into(),
-            smiles: "\n  Mrv\n\n  0  0  0  0  0  0            999 V3000\nM  END\n".into(),
-            ..SearchCriteria::default()
+            structure: "\n  Mrv\n\n  0  0  0  0  0  0            999 V3000\nM  END\n".into(),
+            ..SearchCriteria::up_to_year(crate::models::current_year())
         };
 
         let request = SearchRequest::from_criteria(&criteria, 10, false);
-        let smiles = request.smiles.expect("smiles payload");
+        let smiles = request.structure.expect("smiles payload");
         assert!(smiles.starts_with('\n'));
         assert!(smiles.contains("V3000"));
     }

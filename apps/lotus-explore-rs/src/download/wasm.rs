@@ -3,11 +3,12 @@
 
 use crate::api;
 use crate::download::DownloadFormat;
+use crate::download::ExportTimerLabel;
 use crate::models::SearchCriteria;
 use crate::perf;
 use crate::repositories::is_wdqs_fallback_used;
-use lotus::queries::wdqs_download_query;
-use lotus::transport::QLEVER_WIKIDATA;
+use crate::sparql::QLEVER_WIKIDATA;
+use crate::sparql::wdqs_download_query;
 use std::sync::Arc;
 
 pub(super) async fn execute_download_wasm(
@@ -85,15 +86,14 @@ async fn execute_download_wasm_wdqs(
     let prepared_query = format.prepared_query(&wdqs_query);
 
     // Determine the WDQS response format
-    let response_format = format.wdqs_response_format();
+    let response_format = super::wdqs_response_format(format);
 
     // Fetch results from WDQS using POST with proper Accept header.
     // WDQS GET URL doesn't support format negotiation for CSV/Turtle.
     // POST with Accept header properly requests the right content type.
-    let body =
-        lotus::transport::execute_sparql_with_format(&prepared_query, endpoint, response_format)
-            .await
-            .map_err(|e| e.to_string())?;
+    let body = crate::sparql::execute_sparql_format_at(&prepared_query, endpoint, response_format)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let fetch_elapsed = perf::end_timer(format.timer_label(), dl_timer);
     perf::log_timing(

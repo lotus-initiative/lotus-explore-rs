@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
+pub use crate::cache_key::{build_export_cache_key, build_search_cache_key};
 use crate::server::{
     config::AppConfig,
     errors::ApiError,
     types::{ExportUrlResponse, HealthResponse, SearchResponse},
 };
-pub use lotus::state::{build_export_cache_key, build_search_cache_key};
 use std::{
     collections::HashMap,
     sync::{

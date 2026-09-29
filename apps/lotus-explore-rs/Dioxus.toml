@@ -23,7 +23,7 @@ title = ""
 [web.watcher]
 reload_html = true
 index_on_404 = true
-watch_path = ["index.html", "src", "public", "tailwind", "../../crates/lotus/src"]
+watch_path = ["index.html", "src", "public", "tailwind", "../../crates/lotus-model/src", "../../crates/lotus-query/src", "../../crates/lotus-search/src"]
 
 [[web.proxy]]
 # Proxy API requests to the in-package server backend to avoid CORS issues in development

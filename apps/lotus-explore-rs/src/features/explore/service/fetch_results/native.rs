@@ -9,7 +9,9 @@ use crate::models::{CompoundEntry, DatasetStats};
 use crate::perf;
 use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
-use crate::sparql;
+// Named here because only the native fetch path streams a file; going through the
+// shared shims made it look unused on the wasm build.
+use lotus_query::parse_compounds_stream;
 use std::io::{BufReader, Seek};
 use std::time::Duration;
 
@@ -87,10 +89,7 @@ fn process_full_results_csv(
                     details: format!("tempfile rewind failed: {e}"),
                 })
             })?;
-            sparql::parse_compounds_csv_capped_reader(
-                BufReader::new(file.as_file_mut()),
-                display_limit,
-            )
+            parse_compounds_stream(BufReader::new(file.as_file_mut()), display_limit)
         }
     }
     .map_err(results_csv_parse_error)?;

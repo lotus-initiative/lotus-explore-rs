@@ -70,7 +70,7 @@ mod tests {
         let request = SearchRequest::new(
             SearchCriteria {
                 taxon: "Fungi".to_string(),
-                ..SearchCriteria::default()
+                ..SearchCriteria::up_to_year(crate::models::current_year())
             },
             SearchCommand::StartupDownload,
         );

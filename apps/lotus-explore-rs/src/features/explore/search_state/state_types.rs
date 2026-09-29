@@ -76,9 +76,17 @@ impl Default for ResultDataState {
 
 /// UI chrome and the last-executed criteria snapshot. Changes here re-render
 /// the query toolbar.
-#[derive(Clone, PartialEq, Default)]
+#[derive(Clone, PartialEq)]
 pub struct UiChromeState {
     pub executed_criteria: SearchCriteria,
+}
+
+impl Default for UiChromeState {
+    fn default() -> Self {
+        Self {
+            executed_criteria: SearchCriteria::up_to_year(crate::models::current_year()),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Default)]

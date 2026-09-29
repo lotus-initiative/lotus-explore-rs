@@ -102,7 +102,7 @@ pub async fn resolve<R: LotusRepository>(
     metrics.add_network(taxon_elapsed);
     telemetry::taxon_sparql_done(taxon_elapsed);
 
-    let matches = sparql::parse_taxon_csv_bytes(csv.as_ref()).map_err(|e| {
+    let matches = sparql::parse_taxon_csv(csv.as_ref()).map_err(|e| {
         DomainError::Parse(ParseFault::TaxonCsv {
             details: e.to_string(),
         })
@@ -151,7 +151,7 @@ mod tests {
     /// Stub that always returns a fixed SPARQL CSV response; API not configured.
     #[derive(Clone)]
     struct StubRepo {
-        response: Result<lotus::transport::ResponseBody, RepositoryError>,
+        response: Result<crate::sparql::ResponseBody, RepositoryError>,
     }
 
     impl StubRepo {
@@ -180,7 +180,7 @@ mod tests {
         async fn sparql_body(
             &self,
             _: &str,
-        ) -> Result<lotus::transport::ResponseBody, RepositoryError> {
+        ) -> Result<crate::sparql::ResponseBody, RepositoryError> {
             self.response.clone()
         }
     }

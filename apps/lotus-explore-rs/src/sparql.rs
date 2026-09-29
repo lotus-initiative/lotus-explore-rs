@@ -1,4 +1,194 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-pub use lotus::sparql::*;
+//! Talking to a Wikidata endpoint.
+//!
+//! `lotus-search` takes the transport as a trait and the endpoint as a value,
+//! which is what lets its retry and fallback logic be tested against a scripted
+//! conversation. Those wrappers exist so the app can be written the other way
+//! round — "run this on that endpoint" — without every call site assembling a
+//! client and an [`Endpoint`] first. They all fail loudly rather than silently
+//! falling back, so a caller still chooses whether to try `WDQS` next.
+
+use lotus_search::reqwest_client::ReqwestClient;
+use lotus_search::{Endpoint, Service};
+
+pub use lotus_search::{
+    FetchError, HttpResponse, QLEVER_WIKIDATA, ResponseBody, ResponseFormat, WDQS_SCHOLARLY,
+    WDQS_WIKIDATA, execute,
+};
+
+// Reading the answer is part of talking to the endpoint, so these are reachable
+// from here too. They are implemented in `lotus-query`.
+pub use crate::queries::parse_taxon_csv;
+
+/// The endpoint for a service name, so a caller can pass a URL it already had.
+fn endpoint_for(url: &str) -> Endpoint {
+    if url == WDQS_WIKIDATA {
+        Endpoint::new(Service::Wdqs)
+    } else if url == WDQS_SCHOLARLY {
+        Endpoint::new(Service::Scholarly)
+    } else {
+        Endpoint::new(Service::Qlever)
+    }
+}
+
+/// Run a query on `QLever` and return the body as text.
+///
+/// # Errors
+/// Propagates any transport, status or decode failure, including after the
+/// built-in retries are exhausted.
+pub async fn execute_query(sparql: &str) -> Result<String, FetchError> {
+    let http = ReqwestClient::new()?;
+    let answer = execute(
+        &http,
+        Endpoint::new(Service::Qlever),
+        sparql,
+        ResponseFormat::Csv,
+    )
+    .await?;
+    answer.text()
+}
+
+/// Run a query on `QLever` and return the raw bytes, without decoding.
+///
+/// Used where the payload is an archive being streamed to disk or handed to the
+/// browser untouched.
+///
+/// # Errors
+/// Propagates any transport, status or decode failure.
+pub async fn execute_sparql_bytes(sparql: &str) -> Result<Vec<u8>, FetchError> {
+    let http = ReqwestClient::new()?;
+    let answer = execute(
+        &http,
+        Endpoint::new(Service::Qlever),
+        sparql,
+        ResponseFormat::Csv,
+    )
+    .await?;
+    Ok(answer.body)
+}
+
+/// Run a query on `QLever` and return the body undecoded.
+///
+/// # Errors
+/// Propagates any transport, status or decode failure.
+pub async fn execute_sparql_body(sparql: &str) -> Result<ResponseBody, FetchError> {
+    let http = ReqwestClient::new()?;
+    let answer = execute(
+        &http,
+        Endpoint::new(Service::Qlever),
+        sparql,
+        ResponseFormat::Csv,
+    )
+    .await?;
+    Ok(answer.body.into())
+}
+
+/// Run a query on `QLever`, asking for a specific representation.
+///
+/// # Errors
+/// Propagates any transport, status or decode failure.
+pub async fn execute_sparql_format(
+    sparql: &str,
+    format: ResponseFormat,
+) -> Result<String, FetchError> {
+    let http = ReqwestClient::new()?;
+    execute(&http, Endpoint::new(Service::Qlever), sparql, format)
+        .await?
+        .text()
+}
+
+/// Run a query on a named endpoint and return the body undecoded.
+///
+/// The endpoint is given as a URL so that a caller which already chose
+/// `WDQS` — because `QLever` was unreachable, or because the scholarly
+/// properties are the point — does not have to map it back to a [`Service`].
+///
+/// # Errors
+/// Propagates any transport, status or decode failure.
+pub async fn execute_sparql_body_at(sparql: &str, url: &str) -> Result<ResponseBody, FetchError> {
+    let http = ReqwestClient::new()?;
+    let answer = execute(&http, endpoint_for(url), sparql, ResponseFormat::Csv).await?;
+    Ok(answer.body.into())
+}
+
+/// Run a query and write the answer to a file, for an export.
+///
+/// # Errors
+/// Propagates transport failures and any problem creating or writing the file.
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn execute_sparql_tempfile_at(
+    sparql: &str,
+    url: &str,
+) -> Result<tempfile::NamedTempFile, FetchError> {
+    use std::io::Write as _;
+
+    let http = ReqwestClient::new()?;
+    let answer = execute(&http, endpoint_for(url), sparql, ResponseFormat::Csv).await?;
+    let mut file = tempfile::NamedTempFile::new()
+        .map_err(|e| FetchError::Network(format!("could not create a temporary file: {e}")))?;
+    file.write_all(&answer.body)
+        .map_err(|e| FetchError::Network(format!("could not write the export: {e}")))?;
+    file.flush()
+        .map_err(|e| FetchError::Network(format!("could not flush the export: {e}")))?;
+    Ok(file)
+}
+
+/// Run a query and write the answer to a file, on `QLever`.
+///
+/// # Errors
+/// Propagates transport failures and any problem creating or writing the file.
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn execute_sparql_tempfile(sparql: &str) -> Result<tempfile::NamedTempFile, FetchError> {
+    execute_sparql_tempfile_at(sparql, QLEVER_WIKIDATA).await
+}
+
+/// Run a query and return the answer as text, for an export.
+///
+/// The browser has no filesystem, so on wasm this is the decoded body and the
+/// caller writes it out through a blob. One name for the operation means the
+/// export path reads the same on both platforms.
+///
+/// # Errors
+/// Propagates transport or decode failures.
+#[cfg(target_arch = "wasm32")]
+pub async fn execute_sparql_tempfile(sparql: &str) -> Result<String, FetchError> {
+    execute_query(sparql).await
+}
+
+/// Rewrite a query for `WDQS`, returning the endpoint URL to send it to.
+///
+/// The download path needs the URL as a string because it is about to hand it
+/// to a browser's navigation or to a redirect, not to a client. The routing
+/// decision itself is `lotus_query::wdqs_fallback`'s; this resolves that service
+/// to a URL and so respects the endpoint overrides.
+#[must_use]
+pub fn wdqs_download_query(query: &str) -> (&'static str, String) {
+    let (service, rewritten) = lotus_query::wdqs_fallback(query);
+    let url = match service {
+        lotus_query::FallbackService::Scholarly => WDQS_SCHOLARLY,
+        lotus_query::FallbackService::Main => WDQS_WIKIDATA,
+    };
+    (url, rewritten)
+}
+
+/// Rewrite a query so `WDQS` answers it, keeping the main endpoint.
+#[must_use]
+pub fn transform_query_for_wdqs(query: &str) -> String {
+    wdqs_download_query(query).1
+}
+
+/// Run a query on a named endpoint, asking for a specific representation.
+///
+/// # Errors
+/// Propagates any transport, status or decode failure.
+pub async fn execute_sparql_format_at(
+    sparql: &str,
+    url: &str,
+    format: ResponseFormat,
+) -> Result<String, FetchError> {
+    let http = ReqwestClient::new()?;
+    let answer = execute(&http, endpoint_for(url), sparql, format).await?;
+    answer.text()
+}

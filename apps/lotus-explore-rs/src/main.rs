@@ -30,6 +30,8 @@ mod app_state;
 /// In-browser result cache (mirrors the native server's result cache).
 #[cfg(any(test, target_arch = "wasm32"))]
 mod cache;
+mod cache_key;
+mod clock;
 mod components;
 mod curation;
 mod document_head;
@@ -44,8 +46,10 @@ mod perf;
 mod queries;
 mod repositories;
 mod services;
+mod sort;
 mod sparql;
 mod state;
+mod table_budget;
 mod ui;
 mod upload;
 mod utils;

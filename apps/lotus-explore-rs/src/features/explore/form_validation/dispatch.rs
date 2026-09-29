@@ -34,7 +34,7 @@ fn validate_criteria(criteria: &SearchCriteria) -> Result<(), Vec<ValidationErro
     let mut errors = Vec::with_capacity(6);
 
     push_error(&mut errors, validate_taxon(&criteria.taxon));
-    push_error(&mut errors, validate_smiles(&criteria.smiles));
+    push_error(&mut errors, validate_smiles(&criteria.structure));
     push_error(
         &mut errors,
         validate_mass(criteria.mass_min, criteria.mass_min, criteria.mass_max),
@@ -49,7 +49,7 @@ fn validate_criteria(criteria: &SearchCriteria) -> Result<(), Vec<ValidationErro
     );
     push_error(
         &mut errors,
-        validate_similarity_threshold(criteria.smiles_search_type, criteria.smiles_threshold),
+        validate_similarity_threshold(criteria.structure_search, criteria.structure_threshold),
     );
 
     if errors.is_empty() {
@@ -61,7 +61,7 @@ fn validate_criteria(criteria: &SearchCriteria) -> Result<(), Vec<ValidationErro
 
 fn primary_filters_empty(criteria: &SearchCriteria) -> bool {
     criteria.taxon.trim().is_empty()
-        && criteria.smiles.trim().is_empty()
+        && criteria.structure.trim().is_empty()
         && !criteria.formula_enabled
 }
 
