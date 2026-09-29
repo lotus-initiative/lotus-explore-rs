@@ -22,9 +22,9 @@
   <!-- Relative hrefs below resolve correctly at parse time for a root deploy and
        for the /lotus-explore-rs/ subpath. setAssetBase rewrites them to absolute
        basePath URLs; these values only close the window where a link is empty or
-       root-relative. The manifest link is not here for the reason given below. -->
+       root-relative. The manifest and the stylesheet are created by the script
+       instead, for the reason given there. -->
   <link id="ai-catalog" rel="ai-catalog" href=".well-known/ai-catalog.json" type="application/json">
-  <link id="app-css" rel="stylesheet" href="assets/lotus-explore.css" media="print">
   <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -88,11 +88,20 @@
          iconBase('link[rel="icon"][sizes="any"]', "favicon.ico");
          var appleTouch = document.querySelector('link[rel="apple-touch-icon"]');
          if (appleTouch) appleTouch.href = basePath + "apple-touch-icon.png";
-         var css = document.getElementById("app-css");
-         if (css) {
-           css.href = basePath + "assets/lotus-explore.css";
-           css.addEventListener("load", function () { css.media = "all"; });
-         }
+          // Created here, not declared above, for the same reason as the
+          // manifest: a relative href resolves against the document URL, so on
+          // a trailing-slash route the browser asked for
+          // /curation/assets/lotus-explore.css, which 404s to the SPA
+          // index.html. `media="print"` keeps it off the critical path; the load
+          // event promotes it once the real sheet has parsed.
+          var css = document.createElement("link");
+          css.id = "app-css";
+          css.rel = "stylesheet";
+          css.media = "print";
+          css.addEventListener("load", function () { css.media = "all"; });
+          css.href = basePath + "assets/lotus-explore.css";
+          document.head.appendChild(css);
+
          var bootstrap = document.createElement("script");
          bootstrap.src = basePath + "assets/js/bootstrap.js";
          bootstrap.defer = true;

@@ -754,6 +754,32 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn index_html_declares_no_route_relative_manifest_or_stylesheet() -> Result<(), Box<dyn Error>>
+    {
+        // Both are created by the inline script with an absolute URL instead. A
+        // declared relative href resolves against the *document* URL, so on a
+        // trailing-slash route (/curation/) the browser asked for
+        // /curation/site.webmanifest and /curation/assets/lotus-explore.css.
+        // The host answers both with the SPA index.html: the manifest then fails
+        // to parse ("Line: 1, column: 1"), and the stylesheet request is wasted.
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("index.html");
+        let html = fs::read_to_string(path)?;
+        for (what, needle) in [
+            ("manifest", r#"<link rel="manifest""#),
+            ("stylesheet", r#"<link id="app-css""#),
+        ] {
+            assert!(
+                !html.contains(needle),
+                "index.html declares a {what} link with a relative href. Create it \
+                 in the inline script with the basePath URL instead, or a \
+                 trailing-slash route requests a URL that 404s to the SPA \
+                 index.html."
+            );
+        }
+        Ok(())
+    }
+
     /// Files allowed to name the live host, and why each is safe:
     /// the source; `index.html`, hand-written because dx serves it (guarded by
     /// `index_html_agrees_with_base_url`); documentation, where a measurement
