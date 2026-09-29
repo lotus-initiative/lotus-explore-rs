@@ -345,21 +345,31 @@ fn urlencode(value: &str) -> String {
 /// Wait before the next attempt.
 ///
 /// On native this is a tokio timer, which does not block the runtime. On wasm
-/// there is no reactor and no timer that does not itself need a reactor, so
-/// the wait is dropped rather than blocking the browser's only thread: a
-/// client that cannot reach the endpoint at all will not reach it in a
-/// millisecond either, and freezing the page to find that out is worse than
-/// retrying immediately.
+/// there is no reactor and no timer that does not itself need one, so the wait
+/// is dropped rather than blocking the browser's only thread: a client that
+/// cannot reach the endpoint at all will not reach it in a millisecond either,
+/// and freezing the page to find that out is worse than retrying at once.
+///
+/// The `cfg` is on the function rather than inside it, so the wasm build has
+/// nothing to await and this is not a promise of a wait that never happens.
+#[cfg(not(target_arch = "wasm32"))]
 async fn backoff(duration: Duration) {
-    #[cfg(not(target_arch = "wasm32"))]
     tokio::time::sleep(duration).await;
+}
 
-    #[cfg(target_arch = "wasm32")]
-    {
-        // No timer exists here, and blocking the browser's only thread to wait
-        // for one would be worse than retrying straight away.
-        let _ = duration;
-    }
+/// The wasm counterpart, which yields instead of waiting.
+///
+/// `wasm_bindgen_futures::yield_to_thread` rather than nothing: the retry loop
+/// is driven from a single-threaded web runtime, and a chain of requests that
+/// resolve without ever handing control back would block the page. Yielding
+/// costs a turn of the event loop instead of the backoff, which is the right
+/// trade on a network failure.
+#[cfg(target_arch = "wasm32")]
+async fn backoff(_duration: Duration) {
+    // A client that cannot reach the endpoint will not reach it in a
+    // millisecond either, and blocking the browser's only thread to find that
+    // out is worse than retrying immediately.
+    futures_timer::Delay::new(std::time::Duration::ZERO).await;
 }
 
 impl From<lotus_query::ExportFormat> for ResponseFormat {

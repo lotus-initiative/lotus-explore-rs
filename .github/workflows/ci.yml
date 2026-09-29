@@ -104,9 +104,15 @@ jobs:
         run: |
           # `lotus-web-assets` is a host-only bin (blocking reqwest) and is excluded on
           # purpose; only the wasm-relevant crates are linted here.
-          cargo clippy --target wasm32-unknown-unknown --locked -- -D warnings \
-            -p lotus -p lotus-explore-rs \
-            -p lotus-model -p lotus-query -p lotus-jsonld -p lotus-curation
+          # The four pure crates are linted for wasm in their own right.
+          cargo clippy --target wasm32-unknown-unknown --locked \
+            -p lotus-model -p lotus-query -p lotus-jsonld -p lotus-curation -- -D warnings
+          # `lotus-search` with no default features: its default is a `reqwest`
+          # client, and a wasm `reqwest::Response` future is not `Send`.
+          cargo clippy -p lotus-search --no-default-features \
+            --target wasm32-unknown-unknown --locked -- -D warnings
+          cargo clippy --target wasm32-unknown-unknown -p lotus-explore-rs \
+            --locked -- -D warnings
 
   supply-chain:
     name: Supply-chain

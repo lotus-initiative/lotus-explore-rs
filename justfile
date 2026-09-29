@@ -88,7 +88,15 @@ opt-levels:
 	exit $fail
 
 # One `cargo check -p <app>` per app keeps the wasm build green.
+# The four pure crates are checked for wasm *in their own right*, not only
+# because the app pulls them in: that is what keeps them free of IO. The app
+# would fail to build if any of them reached for a clock or a socket, but the
+# reverse is not true -- a crate can compile as part of the app while being
+# untestable in isolation, and the boundary is the point.
 wasm:
+	cargo check --target wasm32-unknown-unknown --locked \
+		-p lotus-model -p lotus-query -p lotus-jsonld -p lotus-curation
+	cargo check -p lotus-search --no-default-features --target wasm32-unknown-unknown --locked
 	cargo check -p lotus-explore-rs --target wasm32-unknown-unknown --locked
 
 # Per-package WASM clippy (NOT `--workspace --target wasm32`: `lotus-web-assets`
@@ -96,7 +104,15 @@ wasm:
 # workspace-wide wasm lint can never pass; only wasm-relevant crates are
 # linted here). Mirrors the Clippy-WASM step in .github/workflows/ci.yml.
 clippy-wasm:
-	cargo clippy --target wasm32-unknown-unknown -p lotus -p lotus-explore-rs --locked -- -D warnings
+	cargo clippy --target wasm32-unknown-unknown --locked \
+		-p lotus-model -p lotus-query -p lotus-jsonld -p lotus-curation -- -D warnings
+	# `lotus-search`'s default features are its `reqwest` client, and a
+	# `reqwest::Response` is not `Send` on wasm. The pure half is what has to be
+	# wasm-clean, so that is what gets linted here; the default build is linted
+	# for wasm in the app, which does use it.
+	cargo clippy -p lotus-search --no-default-features --target wasm32-unknown-unknown \
+		--locked -- -D warnings
+	cargo clippy --target wasm32-unknown-unknown -p lotus-explore-rs --locked -- -D warnings
 
 # ── Per-app dev servers / production builds ───────────────────────────────────
 # fetch-assets must run from the app crate dir so its relative asset
@@ -195,12 +211,27 @@ outdated:
 # file after `cargo readme` writes it, and raw output reported drift that does
 # not exist.
 readme:
-	@command -v cargo-readme >/dev/null 2>&1 || { echo "cargo-readme not installed; skipping"; exit 0; }
-	@command -v panache >/dev/null 2>&1 || { echo "panache not installed; skipping"; exit 0; }
-	@for d in crates/lotus-model/ crates/lotus-query/ crates/lotus-search/ crates/lotus-jsonld/; do \
-	(cd $d && cargo readme -t README.tpl -o /tmp/readme_panache.md 2>/dev/null \
-	&& panache format /tmp/readme_panache.md >/dev/null \
-	&& panache lint /tmp/readme_panache.md \
-	&& diff -q /tmp/readme_panache.md README.md >/dev/null 2>&1 \
-	|| { echo "README.md out of date for $d — run: (cd $d && cargo readme -t README.tpl -o README.md && panache format README.md)"; exit 1; }) || exit 1; \
+	#!/usr/bin/env bash
+	set -euo pipefail
+	command -v cargo-readme >/dev/null 2>&1 || { echo "cargo-readme not installed; skipping"; exit 0; }
+	command -v panache >/dev/null 2>&1 || { echo "panache not installed; skipping"; exit 0; }
+	# Any crate with a README.tpl has its README generated from its lib.rs docs
+	# and committed. A crate with no template has no README and is skipped, which
+	# is why this globs for templates rather than naming crates -- and why the
+	# no-templates case is a pass rather than a failure.
+	found=0
+	for template in crates/*/README.tpl; do
+	  [ -e "$template" ] || continue
+	  dir=$(dirname "$template")
+	  found=1
+	  if ! ( cd "$dir" \
+	         && cargo readme -t README.tpl -o /tmp/readme_panache.md 2>/dev/null \
+	         && panache format /tmp/readme_panache.md >/dev/null \
+	         && panache lint /tmp/readme_panache.md \
+	         && diff -q /tmp/readme_panache.md README.md >/dev/null 2>&1 ); then
+	    echo "README.md out of date for $dir" >&2
+	    echo "  run: (cd $dir && cargo readme -t README.tpl -o README.md && panache format README.md)" >&2
+	    exit 1
+	  fi
 	done
+	[ "$found" = 1 ] || echo "no crate READMEs to check"

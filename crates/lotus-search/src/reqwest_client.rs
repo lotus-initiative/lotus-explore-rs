@@ -6,6 +6,10 @@
 //! without any HTTP stack, which is how the parsing and query-building tests
 //! run with no network available at all.
 
+// As in `client`: a wasm `fetch` future is not `Send`, and the only thing using
+// this module on wasm is the browser, which has one thread by definition.
+#![cfg_attr(target_arch = "wasm32", allow(clippy::future_not_send))]
+
 use super::{FetchError, Http, HttpResponse, ResponseBody};
 use std::sync::OnceLock;
 
