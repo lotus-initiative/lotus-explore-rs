@@ -44,6 +44,21 @@ jobs:
             --build-arg DX_BASE_PATH="/${REPONAME}" \
              --output "_final_site" .
 
+      # A `dx build` that dies after emitting the module but before wasm-opt
+      # leaves the unoptimised intermediate in place, and the export stage copies
+      # the whole `public` tree — so a build that somehow completed with one
+      # would publish it. 65 MB of debug-info wasm has no business on the site.
+      - name: Verify no unoptimised wasm reached the export
+        run: |
+          test ! -e _final_site/wasm
+          big=$(find _final_site -name '*.wasm' -size +8M | head -5)
+          if [ -n "$big" ]; then
+            echo "::error::oversized wasm in the export:"
+            echo "$big"
+            exit 1
+          fi
+          find _final_site -name '*.wasm' -exec ls -l {} \;
+
       - name: Verify the exported site
         run: |
           test "$(find _final_site -type f -name lotus-explore.css | wc -l | tr -d ' ')" -eq 1
