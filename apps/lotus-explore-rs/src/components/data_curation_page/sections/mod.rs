@@ -15,6 +15,7 @@ use crate::i18n::{
     msg_delay_advice, msg_two_step_hint, placeholder_doi_optional, placeholder_molecule_name,
     placeholder_taxon_optional, t,
 };
+use crate::ui::prelude::{NoticeBar, NoticeTone};
 use crate::upload::{extract_blob_from_file_data, read_blob_string};
 use dioxus::prelude::*;
 use std::sync::Arc;
@@ -86,12 +87,15 @@ mod tests {
 #[component]
 pub fn StatusNotice(locale: Locale, message: Arc<str>) -> Element {
     rsx! {
-        div {
-            class: "flex flex-wrap items-center gap-2 rounded-xl border p-2.5 shadow-xs border-warning/35 bg-warning/10",
+        // The shared NoticeBar, not a hand-rolled copy: this one had drifted
+        // (no `notice-bar` class, so it missed the min-height reserve, and
+        // `font-semibold` where the shared badge is bold).
+        NoticeBar {
+            label: t(locale, TextKey::Notice).to_string(),
+            tone: NoticeTone::Warning,
             role: "status",
             aria_live: "polite",
-            span { class: "inline-flex items-center px-2 py-0.5 rounded-full font-semibold uppercase tracking-[0.08em] text-micro shrink-0 bg-warning/12 text-warning", "{t(locale, TextKey::Notice)}" }
-            span { class: "flex-1 min-w-0 text-ui break-words leading-snug text-warning", "{message}" }
+            span { class: "flex-1 min-w-0 text-ui text-warning break-words leading-snug", "{message}" }
         }
     }
 }
