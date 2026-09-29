@@ -20,7 +20,7 @@
 //! * `RDKIT_VERSION` — npm version or `latest` (default `latest`).
 //! * `CITATION_JS_REF` — Scholia branch, tag, or commit (default `main`).
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs;
 use std::io::{self, BufWriter, Cursor, Write};
@@ -196,6 +196,77 @@ fn resolve_github_ref(
         .ok_or_else(|| format!("GitHub ref {repository}/{requested} has no commit id").into())
 }
 
+/// One vendored family of third-party assets, checked, invalidated and logged
+/// on its own.
+///
+/// They used to share a single cache check and a single `remove_dir_all` of the
+/// whole curation root, so a change to either one invalidated both: bumping
+/// `CITATION_JS_REF` re-fetched 7.3 MB of `RDKit` in order to replace 2.1 MB of
+/// Citation.js, and the log could only report both present or neither.
+#[derive(Debug)]
+struct VendoredAsset {
+    /// Human-readable name, for the log.
+    name: &'static str,
+    /// Key this asset owns in the state file.
+    state_key: &'static str,
+    /// Directory under the curation root that this asset owns, and the only one
+    /// removed when this asset is stale.
+    dir: &'static str,
+    /// The resolved version or commit.
+    version: String,
+    /// `(url, path within `dir`)`. Licences are listed deliberately, so a
+    /// missing one invalidates the asset rather than shipping unlicensed bytes.
+    files: Vec<(String, String)>,
+}
+
+impl VendoredAsset {
+    /// Every file this asset must have on disk to count as cached.
+    fn paths(&self, root: &Path) -> Vec<PathBuf> {
+        self.files
+            .iter()
+            .map(|(_, relative)| root.join(self.dir).join(relative))
+            .collect()
+    }
+}
+
+/// Whether one vendored asset can be reused as-is.
+///
+/// `recorded` is what the state file holds for this asset, if anything.
+/// `all_files_present` is the file check. Both must hold: matching a version
+/// with a missing file is exactly the state a partial download leaves behind.
+#[must_use]
+fn asset_is_current(recorded: Option<&str>, version: &str, all_files_present: bool) -> bool {
+    recorded == Some(version) && all_files_present
+}
+
+/// Parse the `key=value` state file. One entry per line; unparsable lines are
+/// ignored rather than fatal, so a hand-edited file degrades to a re-fetch.
+fn parse_state(contents: &str) -> BTreeMap<String, String> {
+    contents
+        .lines()
+        .filter_map(|line| {
+            let (key, value) = line.split_once('=')?;
+            let key = key.trim();
+            if key.is_empty() {
+                return None;
+            }
+            Some((key.to_owned(), value.trim().to_owned()))
+        })
+        .collect()
+}
+
+/// Render the state file, keys sorted so the output is stable.
+fn render_state(state: &BTreeMap<String, String>) -> String {
+    let mut out = String::new();
+    for (key, value) in state {
+        out.push_str(key);
+        out.push('=');
+        out.push_str(value);
+        out.push('\n');
+    }
+    out
+}
+
 fn fetch_curation_assets(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
     let root = PathBuf::from(setting("CURATION_ASSET_DIR", DEFAULT_CURATION_DIR));
     let rdkit_version = resolve_rdkit_version(client)?;
@@ -204,63 +275,96 @@ fn fetch_curation_assets(client: &Client) -> Result<(), Box<dyn std::error::Erro
         SCHOLIA_REPO,
         &setting("CITATION_JS_REF", DEFAULT_CITATION_JS_REF),
     )?;
-    let state = format!("rdkit={rdkit_version}\nscholia={citation_commit}\n");
     let state_path = PathBuf::from(setting("CURATION_ASSET_STATE", DEFAULT_CURATION_STATE));
-    let required_paths = [
-        "rdkit/RDKit_minimal.js",
-        "rdkit/RDKit_minimal.wasm",
-        "rdkit/LICENSE.txt",
-        "citation-js/citation.js",
-        "citation-js/LICENSE.scholia.txt",
-        "citation-js/LICENSE.citation-js.txt",
-    ];
-    let cached = fs::read_to_string(&state_path).is_ok_and(|current| {
-        current == state && required_paths.iter().all(|path| root.join(path).is_file())
-    });
-    if cached {
-        println!("✓ RDKit {rdkit_version} and Scholia {citation_commit} already present");
-        return Ok(());
-    }
-
-    if root.exists() {
-        fs::remove_dir_all(&root)?;
-    }
-    fs::create_dir_all(&root)?;
+    let mut state =
+        fs::read_to_string(&state_path).map_or_else(|_| BTreeMap::new(), |raw| parse_state(&raw));
 
     let rdkit_dist = format!("https://unpkg.com/@rdkit/rdkit@{rdkit_version}/dist");
     let scholia = format!("{SCHOLIA_RAW_URL}/{citation_commit}");
     let assets = [
-        (
-            format!("{rdkit_dist}/RDKit_minimal.js"),
-            "rdkit/RDKit_minimal.js",
-        ),
-        (
-            format!("{rdkit_dist}/RDKit_minimal.wasm"),
-            "rdkit/RDKit_minimal.wasm",
-        ),
-        (RDKIT_LICENSE_URL.to_owned(), "rdkit/LICENSE.txt"),
-        (
-            format!("{scholia}/scholia/app/static/js/citation.js"),
-            "citation-js/citation.js",
-        ),
-        (
-            format!("{scholia}/LICENSE"),
-            "citation-js/LICENSE.scholia.txt",
-        ),
-        (
-            CITATION_LICENSE_URL.to_owned(),
-            "citation-js/LICENSE.citation-js.txt",
-        ),
+        VendoredAsset {
+            name: "RDKit",
+            state_key: "rdkit",
+            dir: "rdkit",
+            version: rdkit_version,
+            files: vec![
+                (
+                    format!("{rdkit_dist}/RDKit_minimal.js"),
+                    "RDKit_minimal.js".to_owned(),
+                ),
+                (
+                    format!("{rdkit_dist}/RDKit_minimal.wasm"),
+                    "RDKit_minimal.wasm".to_owned(),
+                ),
+                (RDKIT_LICENSE_URL.to_owned(), "LICENSE.txt".to_owned()),
+            ],
+        },
+        VendoredAsset {
+            name: "Scholia Citation.js",
+            state_key: "scholia",
+            dir: "citation-js",
+            version: citation_commit,
+            files: vec![
+                (
+                    format!("{scholia}/scholia/app/static/js/citation.js"),
+                    "citation.js".to_owned(),
+                ),
+                (
+                    format!("{scholia}/LICENSE"),
+                    "LICENSE.scholia.txt".to_owned(),
+                ),
+                (
+                    CITATION_LICENSE_URL.to_owned(),
+                    "LICENSE.citation-js.txt".to_owned(),
+                ),
+            ],
+        },
     ];
 
-    println!("Using RDKit {rdkit_version} and Scholia {citation_commit}");
-    for (url, relative_path) in assets {
-        fetch_file(client, &url, &root.join(relative_path))?;
+    for asset in &assets {
+        let all_present = asset.paths(&root).iter().all(|path| path.is_file());
+        if asset_is_current(
+            state.get(asset.state_key).map(String::as_str),
+            &asset.version,
+            all_present,
+        ) {
+            println!(
+                "✓ {} {} already present ({} files in {}/{})",
+                asset.name,
+                asset.version,
+                asset.files.len(),
+                root.display(),
+                asset.dir
+            );
+            continue;
+        }
+
+        // Only this asset's own directory goes, so a stale Citation.js never
+        // costs a re-download of RDKit and vice versa.
+        let dir = root.join(asset.dir);
+        if dir.exists() {
+            fs::remove_dir_all(&dir)?;
+        }
+        fs::create_dir_all(&dir)?;
+        println!(
+            "↓ {} {} is not cached — fetching {} files into {}/{}",
+            asset.name,
+            asset.version,
+            asset.files.len(),
+            root.display(),
+            asset.dir
+        );
+        for (url, relative_path) in &asset.files {
+            fetch_file(client, url, &dir.join(relative_path))?;
+        }
+        // Recorded only after every file landed, so an interrupted fetch is
+        // retried next time instead of being trusted.
+        state.insert(asset.state_key.to_owned(), asset.version.clone());
+        if let Some(parent) = state_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&state_path, render_state(&state))?;
     }
-    if let Some(parent) = state_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(state_path, state)?;
     Ok(())
 }
 
@@ -391,6 +495,57 @@ mod tests {
             "standalone/static/css/closable.9cca8bc6.css"
         ));
         assert!(!is_unused_entry("standalone/._duo.546fbaab.js"));
+    }
+
+    #[test]
+    fn state_round_trips_both_assets() {
+        let raw = "rdkit=2026.3.6\nscholia=1626b5e3\n";
+        let parsed = parse_state(raw);
+        assert_eq!(parsed.get("rdkit").map(String::as_str), Some("2026.3.6"));
+        assert_eq!(parsed.get("scholia").map(String::as_str), Some("1626b5e3"));
+        assert_eq!(
+            render_state(&parsed),
+            raw,
+            "format is unchanged, so no re-fetch"
+        );
+    }
+
+    #[test]
+    fn state_ignores_junk_lines_instead_of_failing() {
+        let parsed = parse_state("rdkit=1\nnot a pair\n=novalue\n\nscholia=2\n");
+        assert_eq!(parsed.len(), 2);
+        assert_eq!(parsed.get("rdkit").map(String::as_str), Some("1"));
+        assert_eq!(parsed.get("scholia").map(String::as_str), Some("2"));
+    }
+
+    #[test]
+    fn a_version_match_alone_is_not_enough() {
+        // A partial download leaves the recorded version in place but files
+        // missing, so both halves of the check have to hold.
+        assert!(!asset_is_current(Some("1.0"), "1.0", false));
+        assert!(asset_is_current(Some("1.0"), "1.0", true));
+    }
+
+    #[test]
+    fn one_stale_asset_leaves_the_other_current() {
+        let mut state = parse_state("rdkit=1\nscholia=1\n");
+        // Scholia moves; RDKit does not.
+        state.insert("scholia".to_owned(), "2".to_owned());
+        let rdkit = asset_is_current(state.get("rdkit").map(String::as_str), "1", true);
+        let scholia = asset_is_current(state.get("scholia").map(String::as_str), "1", true);
+        assert!(rdkit, "RDKit must stay cached when only Scholia changed");
+        assert!(!scholia, "the moved Scholia ref must be re-fetched");
+        assert_eq!(
+            render_state(&state),
+            "rdkit=1\nscholia=2\n",
+            "only the moved key is rewritten"
+        );
+    }
+
+    #[test]
+    fn an_unrecorded_asset_is_always_fetched() {
+        assert!(!asset_is_current(None, "1.0", true));
+        assert!(!asset_is_current(None, "1.0", false));
     }
 
     #[test]
