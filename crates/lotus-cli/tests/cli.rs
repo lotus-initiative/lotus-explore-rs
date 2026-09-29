@@ -251,7 +251,7 @@ fn the_manual_page_is_generated() {
 }
 
 #[test]
-fn curate_is_a_dry_run_unless_told_otherwise() {
+fn curate_says_that_nothing_was_submitted() {
     let tsv = "name\tsmiles\ttaxon\tdoi\nQuercetin\tCCO\tGentiana lutea\t10.1/a\n";
     let output = lotus()
         .args(["curate", "-"])
@@ -259,7 +259,81 @@ fn curate_is_a_dry_run_unless_told_otherwise() {
         .assert()
         .success();
     let stderr = String::from_utf8(output.get_output().stderr.clone()).expect("UTF-8");
-    assert!(stderr.contains("dry run"), "got: {stderr}");
+    assert!(
+        stderr.contains("nothing has been submitted"),
+        "the reminder is the only thing standing between this output and a \
+         reader believing it reached Wikidata: {stderr}"
+    );
+}
+
+#[test]
+fn curate_quiet_suppresses_the_reminder_and_nothing_else() {
+    // `--quiet` silences the reminder. It must not change the statements, or it
+    // would be a second, undocumented way to run the command.
+    let tsv = "name\tsmiles\ttaxon\tdoi\nQuercetin\tCCO\tGentiana lutea\t10.1/a\n";
+    let loud = lotus()
+        .args(["curate", "-"])
+        .write_stdin(tsv)
+        .assert()
+        .success();
+    let quiet = lotus()
+        .args(["curate", "-", "--quiet"])
+        .write_stdin(tsv.to_string())
+        .assert()
+        .success();
+    assert_eq!(
+        loud.get_output().stdout,
+        quiet.get_output().stdout,
+        "--quiet changed the output"
+    );
+    assert!(
+        String::from_utf8(quiet.get_output().stderr.clone())
+            .expect("UTF-8")
+            .is_empty(),
+        "--quiet left something on stderr"
+    );
+}
+
+#[test]
+fn curate_writes_the_occurrence_and_the_reference_as_separate_statements() {
+    // They are separate because a `QuickStatements` run stops at the first
+    // failure: an occurrence pointing at a taxon nobody has created would take
+    // down the compound statement in the same block.
+    let tsv = "name\tsmiles\ttaxon\tdoi\nQuercetin\tCCO\tGentiana lutea\t10.1/a\n";
+    let output = lotus()
+        .args(["curate", "-"])
+        .write_stdin(tsv)
+        .assert()
+        .success();
+    let stderr = String::from_utf8(output.get_output().stderr.clone()).expect("UTF-8");
+    assert!(stderr.contains("nothing has been submitted"), "{stderr}");
+    // `json` is the format that carries the statements; `table` appends them
+    // after the rows and `jsonl` is one row per line with no room for them.
+    let output = lotus()
+        .args(["curate", "-", "--format", "json"])
+        .write_stdin("name\tsmiles\ttaxon\tdoi\nQuercetin\tCCO\tGentiana lutea\t10.1/a\n")
+        .assert()
+        .success();
+    let stdout = String::from_utf8(output.get_output().stdout.clone()).expect("UTF-8");
+    assert!(stdout.contains("P233"), "canonical SMILES: {stdout}");
+    assert!(stdout.contains("P2017"), "isomeric SMILES: {stdout}");
+    assert!(stdout.contains("P703"), "occurrence: {stdout}");
+    assert!(stdout.contains("P248"), "reference: {stdout}");
+}
+
+#[test]
+fn curate_escapes_a_quote_in_a_name() {
+    // An unescaped quote ends the scalar early, and the rest of the value is
+    // then read as new properties -- so a compound called `Say "hi"` would emit
+    // a statement that writes `hi` as a property name.
+    let tsv = "name\tsmiles\nSay \"hi\"\tCCO\n";
+    let output = lotus()
+        .args(["curate", "-", "--format", "json"])
+        .write_stdin(tsv)
+        .assert()
+        .success();
+    let stdout = String::from_utf8(output.get_output().stdout.clone()).expect("UTF-8");
+    assert!(stdout.contains(r#"Say \"hi\""#), "not escaped: {stdout}");
 }
 
 #[test]
