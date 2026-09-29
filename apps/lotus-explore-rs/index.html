@@ -19,11 +19,10 @@
   <link rel="alternate" hreflang="de" href="">
   <link rel="alternate" hreflang="it" href="">
   <link rel="alternate" hreflang="x-default" href="">
-  <!-- Relative hrefs below, so each is already correct at parse time for a root
-       deploy and for the /lotus-explore-rs/ subpath. The inline setAssetBase
-       script still rewrites them to absolute basePath URLs on load; these values
-       only close the window where a link is empty or root-relative. -->
-  <link rel="manifest" href="site.webmanifest">
+  <!-- Relative hrefs below resolve correctly at parse time for a root deploy and
+       for the /lotus-explore-rs/ subpath. setAssetBase rewrites them to absolute
+       basePath URLs; these values only close the window where a link is empty or
+       root-relative. The manifest link is not here for the reason given below. -->
   <link id="ai-catalog" rel="ai-catalog" href=".well-known/ai-catalog.json" type="application/json">
   <link id="app-css" rel="stylesheet" href="assets/lotus-explore.css" media="print">
   <link rel="icon" href="favicon.ico" sizes="any">
@@ -68,9 +67,14 @@
        if (openGraphUrl) openGraphUrl.content = canonical;
         var setAssetBase = function (basePath) {
           document.documentElement.setAttribute("data-lotus-base-path", basePath);
-          var manifest = document.querySelector('link[rel="manifest"]');
-
-         if (manifest) manifest.href = basePath + "site.webmanifest";
+          // Created here, not declared above: a relative href resolves against
+          // the document URL, so on a trailing-slash route it asked for
+          // /curation/site.webmanifest, which 404s to the SPA index.html, and
+          // Chrome parsed "<!DOCTYPE html>" as JSON (error at 1:1).
+          var manifest = document.createElement("link");
+          manifest.rel = "manifest";
+          manifest.href = basePath + "site.webmanifest";
+          document.head.appendChild(manifest);
          var aiCatalog = document.getElementById("ai-catalog");
          if (aiCatalog) aiCatalog.href = basePath + ".well-known/ai-catalog.json";
          // Two rel="icon" links exist (.ico fallback, then .svg), so this has to
