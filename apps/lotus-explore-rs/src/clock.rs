@@ -38,17 +38,40 @@ pub fn current_year() -> u16 {
 #[cfg(target_arch = "wasm32")]
 #[must_use]
 pub fn current_year() -> u16 {
+    // `Date::now` is milliseconds since the epoch as an `f64`. It returns
+    // `NaN` rather than throwing when there is no working clock, and `NaN`
+    // would flow through the arithmetic below into a cast, which is defined to
+    // yield 0 -- and a day count of 0 reads as 1970, which rejects every
+    // reference as predating 1800 and returns an empty result set. That looks
+    // like correct behaviour, so the guard is here rather than at the call
+    // site.
     let millis = js_sys::Date::now();
-    // A browser without a working `Date` is not a browser this runs in, but
-    // `Date::now` returns `NaN` rather than throwing, and a NaN that reached
-    // the arithmetic below would become 0 and read as 1970 — which would reject
-    // every reference as "before 1800". A year in the future is the safe
-    // failure: it widens the search rather than emptying it.
-    if !millis.is_finite() || millis <= 0.0 {
+    if !millis.is_finite() || !(0.0..=MAX_MILLIS).contains(&millis) {
         return FALLBACK_YEAR;
     }
-    year_from_days_since_epoch((millis / 1000.0 / 86_400.0) as i64)
+    // Truncating is what we want, not rounding: the year is the year the current
+    // instant falls in, and an instant one second before midnight UTC is still
+    // the earlier year. The cast is guarded by the range check above, which puts
+    // the value inside the range a `f64` represents exactly at this magnitude.
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "guarded by the range check above; the fractional part is seconds"
+    )]
+    let days = (millis / 86_400_000.0) as i64;
+    year_from_days_since_epoch(days)
 }
+
+/// The largest millisecond timestamp the conversion above accepts.
+///
+/// Two bounds, and both matter. `f64` represents whole numbers exactly only
+/// below 2^53, so a larger timestamp is not an exact count of milliseconds. And
+/// the largest `i64` is about 9.2e18, which in milliseconds is 2.9e13 years --
+///
+/// far past any date a browser reports, so this is a guard against a tampered
+/// or polyfilled `Date` rather than a real limit. Exceeding it is handled by the
+/// fallback, which widens the search instead of emptying it.
+#[cfg(target_arch = "wasm32")]
+const MAX_MILLIS: f64 = 4_503_599_627_370_496.0; // 2^52
 
 /// Used only when the host has no usable clock at all.
 #[cfg(target_arch = "wasm32")]
