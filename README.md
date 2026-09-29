@@ -7,8 +7,10 @@ license](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://www.
 `lotus-explore-rs` --- LOTUS Explorer.
 
 A linked open data (LOD) explorer for the LOTUS compound-taxon-reference
-knowledge graph from Wikidata, queried via SPARQL. Powered by the `lotus` shared
-crate and the QLever SPARQL endpoint.
+knowledge graph from Wikidata, queried over SPARQL. The search, query-building
+and curation logic lives in the `lotus-*` crates below, which the web app, the
+`lotus` CLI and the tests all share, so a query the explorer runs and a query
+the CLI runs are the same query.
 
 ## Quick start
 
@@ -46,8 +48,13 @@ lotus-explore-rs/
 ├── Cargo.toml                ← workspace root
 ├── rust-toolchain.toml       ← pinned compiler, components, target
 ├── crates/                   ← shared library crates
-│   ├── lotus/                ← SPARQL client, LOTUS models, transport, export
-│   └── lotus-web-assets/         ← Host-only frontend asset fetcher
+│   ├── lotus-model/          ← Domain types, filter semantics, validation
+│   ├── lotus-query/          ← SPARQL construction and CSV parsing (pure)
+│   ├── lotus-search/         ← The search use case: resolve, run, fall back
+│   ├── lotus-curation/       ← The curation vocabulary and QuickStatements
+│   ├── lotus-jsonld/         ← Bioschemas JSON-LD, CodeMeta, CITATION.cff
+│   ├── lotus-cli/            ← The `lotus` binary
+│   └── lotus-web-assets/     ← Host-only frontend asset fetcher
 ├── apps/                     ← application crates
 │   └── lotus-explore-rs/     ← Main app: WASM client + optional native server
 │       ├── Cargo.toml
@@ -99,6 +106,8 @@ builds.
 - [`docs/DEPLOYMENT.md`](apps/lotus-explore-rs/docs/DEPLOYMENT.md) --- what the
   production host actually serves, and how to measure it locally
 - [`docs/ARCHITECTURE.md`](apps/lotus-explore-rs/docs/ARCHITECTURE.md)
+- [`docs/cli.md`](docs/cli.md) --- the `lotus` command, kept honest against
+  `--help` by a test
 
 ## Continuous integration
 
@@ -109,6 +118,8 @@ On every push to `main`:
 - `cargo clippy --workspace --all-targets --locked -- -D warnings`
 - `cargo test --workspace --all-targets --locked`
 - `cargo test -p lotus-explore-rs --features server --locked`
+- The three pure crates built for `wasm32` on their own
+- `codemeta.json` and `CITATION.cff` checked against the code
 - WASM build and deploy to GitHub Pages
 
 ## License
