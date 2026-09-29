@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use super::types::{ValidationCode, ValidationError, ValidationField, ValidationResult};
-use crate::models::SmilesSearchType;
+use lotus_model::SmilesSearchType;
 
 const MAX_TAXON_LEN: usize = 500;
 const MAX_STRUCTURE_LEN: usize = 10_000;
@@ -32,8 +32,8 @@ pub(super) fn validate_smiles(input: &str) -> ValidationResult<()> {
     let trimmed = input.trim();
     if trimmed.len() == 1
         && matches!(
-            crate::queries::classify_structure(trimmed),
-            crate::queries::StructureKind::Smiles
+            lotus_model::classify_structure(trimmed),
+            lotus_model::StructureKind::Smiles
         )
         && trimmed
             .chars()
@@ -77,7 +77,7 @@ pub(super) fn validate_mass_range(min: f64, max: f64) -> ValidationResult<()> {
 
 /// Validate that a year value is within reasonable range.
 pub(super) fn validate_year(value: u16) -> ValidationResult<()> {
-    let current_year = crate::models::current_year();
+    let current_year = crate::clock::current_year();
     if !(MIN_YEAR..=current_year).contains(&value) {
         return Err(ValidationError::new(
             ValidationField::Year,

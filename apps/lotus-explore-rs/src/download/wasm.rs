@@ -2,13 +2,13 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use crate::api;
-use crate::download::DownloadFormat;
 use crate::download::ExportTimerLabel;
-use crate::models::SearchCriteria;
 use crate::perf;
 use crate::repositories::is_wdqs_fallback_used;
-use crate::sparql::QLEVER_WIKIDATA;
 use crate::sparql::wdqs_download_query;
+use lotus_query::ExportFormat as DownloadFormat;
+use lotus_search::QLEVER_WIKIDATA;
+use lotus_search::SearchCriteria;
 use std::sync::Arc;
 
 pub(super) async fn execute_download_wasm(

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 use crate::features::explore::types::{DomainError, QueryPhase, TaxonWarning};
-use crate::models::{CompoundEntry, DatasetStats, Rows, SearchCriteria, SortState};
+use crate::sort::SortState;
+use lotus_model::{CompoundEntry, DatasetStats, Rows, SearchCriteria};
 use std::sync::Arc;
 
 /// Lifecycle-related fields: loading flag, current error, phase indicator,
@@ -84,7 +85,7 @@ pub struct UiChromeState {
 impl Default for UiChromeState {
     fn default() -> Self {
         Self {
-            executed_criteria: SearchCriteria::up_to_year(crate::models::current_year()),
+            executed_criteria: SearchCriteria::up_to_year(crate::clock::current_year()),
         }
     }
 }

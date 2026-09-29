@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use super::{QueryParams, is_true_flag};
-use crate::models::{ElementState, SearchCriteria, SmilesSearchType};
+use lotus_model::{ElementState, SearchCriteria, SmilesSearchType};
 use std::str::FromStr;
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -164,7 +164,7 @@ impl CriteriaQueryDto {
     }
 
     fn into_criteria(self) -> SearchCriteria {
-        let mut criteria = SearchCriteria::up_to_year(crate::models::current_year());
+        let mut criteria = SearchCriteria::up_to_year(crate::clock::current_year());
         if let Some(taxon) = self.taxon {
             criteria.taxon = taxon;
         }

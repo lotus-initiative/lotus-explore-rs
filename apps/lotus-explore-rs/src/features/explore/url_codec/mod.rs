@@ -3,7 +3,7 @@
 //! Pure URL codec for explore state.
 
 use crate::i18n::Locale;
-use crate::models::SearchCriteria;
+use lotus_search::SearchCriteria;
 use std::collections::BTreeMap;
 
 mod criteria;

@@ -3,9 +3,8 @@
 //! SPARQL query construction service.
 //! Pure, synchronous, zero-I/O — ideal for unit testing without stubs.
 
-use crate::models::{SearchCriteria, SmilesSearchType};
-use crate::queries;
 use crate::services::search_telemetry as telemetry;
+use lotus_model::{SearchCriteria, SmilesSearchType};
 
 /// Normalize a raw SMILES/Molfile string from the criteria.
 /// * Line endings are unified to `\n`.
@@ -16,10 +15,10 @@ pub fn normalize_smiles(raw: &str) -> String {
     } else {
         raw.to_owned()
     };
-    let kind = queries::classify_structure(&normalized);
+    let kind = lotus_model::classify_structure(&normalized);
     if matches!(
         kind,
-        queries::StructureKind::MolfileV2000 | queries::StructureKind::MolfileV3000
+        lotus_model::StructureKind::MolfileV2000 | lotus_model::StructureKind::MolfileV3000
     ) {
         normalized
     } else {
@@ -33,8 +32,8 @@ pub fn normalize_smiles(raw: &str) -> String {
 pub fn build_sparql_query(smiles: &str, crit: &SearchCriteria, taxon_qid: Option<&str>) -> String {
     if smiles.is_empty() {
         match taxon_qid {
-            Some(qid) if qid != "*" => queries::query_compounds_by_taxon(qid),
-            _ => queries::query_all_compounds(),
+            Some(qid) if qid != "*" => lotus_query::compounds_by_taxon_query(qid),
+            _ => lotus_query::all_compounds_query(),
         }
     } else {
         let effective_type = if (smiles.contains('\n') || smiles.contains('\r'))
@@ -49,7 +48,7 @@ pub fn build_sparql_query(smiles: &str, crit: &SearchCriteria, taxon_qid: Option
             Some(qid) => Some(qid),
             None => None,
         };
-        let q = queries::query_sachem(
+        let q = lotus_query::structure_search_query(
             smiles,
             effective_type,
             crit.structure_threshold,
@@ -62,7 +61,9 @@ pub fn build_sparql_query(smiles: &str, crit: &SearchCriteria, taxon_qid: Option
 
 /// Apply server-side filters and log the outcome.
 pub fn apply_server_filters(base_query: &str, crit: &SearchCriteria) -> String {
-    let execution_query = queries::query_with_server_filters(base_query, crit);
+    // `with_filters` takes the current year so that `lotus-query` stays pure and
+    // its tests can pin one. This is the app, which has a clock.
+    let execution_query = lotus_query::with_filters(base_query, crit, crate::clock::current_year());
 
     telemetry::query_build_after_server_filters(
         execution_query.contains("SERVICE"),
@@ -74,11 +75,11 @@ pub fn apply_server_filters(base_query: &str, crit: &SearchCriteria) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::SearchCriteria;
+    use lotus_search::SearchCriteria;
 
     #[test]
     fn empty_smiles_and_no_taxon_returns_all_compounds_query() {
-        let crit = SearchCriteria::up_to_year(crate::models::current_year());
+        let crit = SearchCriteria::up_to_year(crate::clock::current_year());
         let q = build_sparql_query("", &crit, None);
         // All-compounds query should select without a FILTER for a specific taxon.
         assert!(
@@ -92,7 +93,7 @@ mod tests {
     fn taxon_qid_only_generates_by_taxon_query() {
         let crit = SearchCriteria {
             taxon: "Gentiana lutea".into(),
-            ..SearchCriteria::up_to_year(crate::models::current_year())
+            ..SearchCriteria::up_to_year(crate::clock::current_year())
         };
         let q = build_sparql_query("", &crit, Some("Q156598"));
         assert!(q.contains("Q156598"), "query must reference the taxon QID");
@@ -100,7 +101,7 @@ mod tests {
 
     #[test]
     fn wild_star_taxon_qid_generates_all_compounds_query() {
-        let crit = SearchCriteria::up_to_year(crate::models::current_year());
+        let crit = SearchCriteria::up_to_year(crate::clock::current_year());
         let q = build_sparql_query("", &crit, Some("*"));
         assert!(!q.contains("Q156598"), "wildcard must not filter by QID");
     }
@@ -110,7 +111,7 @@ mod tests {
         let crit = SearchCriteria {
             structure: "c1ccccc1".into(),
             structure_search: SmilesSearchType::Substructure,
-            ..SearchCriteria::up_to_year(crate::models::current_year())
+            ..SearchCriteria::up_to_year(crate::clock::current_year())
         };
         let q = build_sparql_query("c1ccccc1", &crit, None);
         // Sachem queries always contain a SERVICE block.

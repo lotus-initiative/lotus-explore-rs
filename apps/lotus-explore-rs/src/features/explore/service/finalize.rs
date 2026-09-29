@@ -4,7 +4,7 @@
 
 use crate::export;
 use crate::features::explore::search_utils::compute_hashes;
-use crate::models::{CompoundEntry, DatasetStats, SearchCriteria};
+use lotus_model::{CompoundEntry, DatasetStats, SearchCriteria};
 use std::sync::Arc;
 
 /// Computed hashes and metadata JSON for a single search result.
@@ -65,11 +65,11 @@ pub fn finalize(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::SearchCriteria;
+    use lotus_search::SearchCriteria;
 
     #[test]
     fn download_only_suppresses_stats_and_matches() {
-        let crit = SearchCriteria::up_to_year(crate::models::current_year());
+        let crit = SearchCriteria::up_to_year(crate::clock::current_year());
         let m = finalize(
             &crit,
             None,
@@ -85,7 +85,7 @@ mod tests {
 
     #[test]
     fn normal_mode_fills_stats_and_matches() {
-        let crit = SearchCriteria::up_to_year(crate::models::current_year());
+        let crit = SearchCriteria::up_to_year(crate::clock::current_year());
         let m = finalize(
             &crit,
             None,
@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn hashes_are_deterministic() {
-        let crit = SearchCriteria::up_to_year(crate::models::current_year());
+        let crit = SearchCriteria::up_to_year(crate::clock::current_year());
         let m1 = finalize(
             &crit,
             Some("Q42"),
@@ -126,7 +126,7 @@ mod tests {
 
     #[test]
     fn metadata_json_is_non_empty() {
-        let crit = SearchCriteria::up_to_year(crate::models::current_year());
+        let crit = SearchCriteria::up_to_year(crate::clock::current_year());
         let m = finalize(
             &crit,
             None,

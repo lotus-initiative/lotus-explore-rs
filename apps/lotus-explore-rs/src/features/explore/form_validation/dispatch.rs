@@ -7,7 +7,7 @@ use super::rules::{
 };
 use super::types::ValidationError;
 use crate::features::explore::types::ValidationFault;
-use crate::models::SearchCriteria;
+use lotus_search::SearchCriteria;
 
 /// Validate criteria at the orchestration boundary.
 /// This validator returns domain-native `ValidationFault` so `start_search`

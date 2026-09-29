@@ -11,7 +11,6 @@ use std::{sync::atomic::Ordering, time::Instant};
 use tokio::time::timeout;
 
 use crate::export;
-use crate::queries::ExportFormat;
 use crate::server::{
     errors::{ApiError, ErrorResponse, SharedApiError},
     query_logic::{apply_request, build_execution_query, gzip_bytes, resolve_taxon_qid_cached},
@@ -23,6 +22,7 @@ use crate::server::{
     },
     types::{ExportFileQuery, ExportUrlResponse, HealthResponse, SearchRequest, SearchResponse},
 };
+use lotus_query::ExportFormat;
 
 #[utoipa::path(
     get,

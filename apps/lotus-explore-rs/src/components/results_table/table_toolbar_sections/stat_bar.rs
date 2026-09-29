@@ -3,9 +3,9 @@
 
 use crate::features::explore::use_toolbar_result_snapshot;
 use crate::i18n::{CountNoun, TextKey, count_label, format_count, t};
-use crate::models::DatasetStats;
 use crate::state::use_results_context;
 use dioxus::prelude::*;
+use lotus_model::DatasetStats;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StatStripe {

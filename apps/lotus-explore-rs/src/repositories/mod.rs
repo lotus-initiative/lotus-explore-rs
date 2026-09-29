@@ -12,7 +12,7 @@ pub use hybrid::{get_wdqs_transformed_query, is_wdqs_fallback_used, reset_wdqs_f
 pub use hybrid::HybridRepository;
 
 use crate::api::SearchResponse;
-use crate::models::SearchCriteria;
+use lotus_search::SearchCriteria;
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::{Seek, Write};
 use std::sync::Arc;
@@ -65,10 +65,8 @@ pub trait LotusRepository: Clone + 'static {
     ) -> Option<Result<SearchResponse, RepositoryError>>;
 
     /// Execute a SPARQL query and return the raw response body.
-    async fn sparql_body(
-        &self,
-        query: &str,
-    ) -> Result<crate::sparql::ResponseBody, RepositoryError>;
+    async fn sparql_body(&self, query: &str)
+    -> Result<lotus_search::ResponseBody, RepositoryError>;
 
     #[cfg(not(target_arch = "wasm32"))]
     async fn sparql_tempfile(

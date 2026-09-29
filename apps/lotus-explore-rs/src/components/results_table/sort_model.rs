@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::models::{CompoundEntry, SortColumn, SortDir, SortState};
+use crate::sort::{SortColumn, SortDir, SortState};
+use lotus_model::CompoundEntry;
 use std::cmp::Ordering;
 use std::sync::{Arc, Mutex};
 

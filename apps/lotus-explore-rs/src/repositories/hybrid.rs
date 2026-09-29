@@ -4,10 +4,10 @@
 
 use crate::api;
 use crate::api::SearchResponse;
-use crate::models::SearchCriteria;
 use crate::repositories::{LotusRepository, RepositoryError};
 use crate::sparql::transform_query_for_wdqs;
 use crate::sparql::{self, FetchError, WDQS_WIKIDATA};
+use lotus_search::SearchCriteria;
 use std::cell::RefCell;
 
 thread_local! {
@@ -118,7 +118,7 @@ impl LotusRepository for HybridRepository {
     async fn sparql_body(
         &self,
         query: &str,
-    ) -> Result<crate::sparql::ResponseBody, RepositoryError> {
+    ) -> Result<lotus_search::ResponseBody, RepositoryError> {
         match sparql::execute_sparql_body(query).await {
             Err(err) if is_qlever_unavailable(&err) => {
                 log::warn!("event=qlever_unavailable action=fallback_wdqs_scholarly");

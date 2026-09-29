@@ -4,7 +4,7 @@
 
 #[cfg(any(test, target_arch = "wasm32"))]
 mod cache_impl {
-    use crate::sparql::ResponseBody;
+    use lotus_search::ResponseBody;
     #[cfg(target_arch = "wasm32")]
     use std::cell::RefCell;
     use std::collections::HashMap;

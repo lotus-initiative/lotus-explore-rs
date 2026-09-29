@@ -4,9 +4,9 @@
 use crate::features::explore::form_actions::FormAction;
 use crate::features::explore::selectors::use_criteria_selector;
 use crate::i18n::{TextKey, t};
-use crate::models::ElementState;
 use crate::state::use_form_criteria_context;
 use dioxus::prelude::*;
+use lotus_model::ElementState;
 
 use super::shared::{FormulaSectionState, parse_u16_input};
 

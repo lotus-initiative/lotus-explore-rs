@@ -11,9 +11,9 @@ mod plan;
 use crate::features::explore::request::SearchRequest;
 use crate::features::explore::search_metrics::SearchMetrics;
 use crate::features::explore::types::{DomainError, QueryPhase, TaxonWarning};
-use crate::models::runtime_table_row_limit;
-use crate::models::{CompoundEntry, DatasetStats};
 use crate::repositories::LotusRepository;
+use crate::table_budget::runtime_table_row_limit;
+use lotus_model::{CompoundEntry, DatasetStats};
 
 #[derive(Debug)]
 pub struct ResultsPipelineOutcome {
@@ -65,8 +65,8 @@ mod tests {
     use super::*;
     use crate::features::explore::command::SearchCommand;
     use crate::features::explore::request::SearchRequest;
-    use crate::models::SearchCriteria;
     use crate::repositories::mock::MockRepository;
+    use lotus_search::SearchCriteria;
 
     #[test]
     fn download_only_builds_query_without_fetching_results() {
@@ -75,7 +75,7 @@ mod tests {
                 SearchCriteria {
                     taxon: String::new(),
                     structure: String::new(),
-                    ..SearchCriteria::up_to_year(crate::models::current_year())
+                    ..SearchCriteria::up_to_year(crate::clock::current_year())
                 },
                 SearchCommand::StartupDownload,
             );
@@ -99,7 +99,7 @@ mod tests {
                 SearchCriteria {
                     taxon: String::new(),
                     structure: String::new(),
-                    ..SearchCriteria::up_to_year(crate::models::current_year())
+                    ..SearchCriteria::up_to_year(crate::clock::current_year())
                 },
                 SearchCommand::Interactive,
             );

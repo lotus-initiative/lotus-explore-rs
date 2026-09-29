@@ -4,11 +4,11 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::indexing_slicing)]
 
-use crate::download::DownloadFormat;
 use crate::features::curation::state::page_controller::rows_to_tsv;
 use crate::features::explore::search_state::ExploreState;
 use crate::features::explore::selectors::toolbar_snapshot_from_result;
 use crate::ui::{ContentPhase, LifecycleBooleans};
+use lotus_query::ExportFormat as DownloadFormat;
 
 fn is_supported_download_format(fmt: &str) -> bool {
     DownloadFormat::parse(fmt).is_some()

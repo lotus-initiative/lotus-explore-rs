@@ -9,7 +9,7 @@ use crate::repositories::LotusRepository;
 use crate::repositories::RepositoryError;
 use crate::services::search_telemetry as telemetry;
 // Named at the use site rather than through the shared shims: only the wasm
-// fetch path needs these, and re-exporting them from `crate::queries` made them
+// fetch path needs these, and re-exporting them from a shared module made them
 // look unused on the native build, where this file does not exist.
 use lotus_query::{counts_query, limit_query, parse_compounds_csv, parse_counts_csv};
 
@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn wasm_preview_rows_are_bounded() {
-        let csv = crate::sparql::ResponseBody::from_static(
+        let csv = lotus_search::ResponseBody::from_static(
             b"compound,compoundLabel,taxon,ref_qid\nQ1,One,Q10,Q20\nQ2,Two,Q11,Q21\n",
         );
 

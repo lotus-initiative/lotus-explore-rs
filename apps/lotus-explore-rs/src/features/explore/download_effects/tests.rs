@@ -8,9 +8,9 @@ use super::dispatch::{DispatchPhase, classify_dispatch_phase};
 use super::metrics::{metrics_for_waiting_loading_phase, metrics_for_waiting_query_phase};
 use super::startup::{StartupTriggerMode, should_trigger_startup_search};
 use crate::app_state::MetricsState;
-use crate::download::DownloadFormat;
 use crate::features::explore::search_state::ExploreState;
-use crate::models::SearchCriteria;
+use lotus_query::ExportFormat as DownloadFormat;
+use lotus_search::SearchCriteria;
 
 #[test]
 fn should_trigger_startup_search_requires_all_conditions() {
@@ -72,7 +72,7 @@ fn dispatch_phase_ready_when_all_preconditions_met() {
     explore.result.sparql_query = Some(std::sync::Arc::from("SELECT * WHERE {}"));
     explore.ui.executed_criteria = SearchCriteria {
         taxon: "Rosa".into(),
-        ..SearchCriteria::up_to_year(crate::models::current_year())
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
 
     let phase = classify_dispatch_phase(Some(DownloadFormat::Json), &explore);

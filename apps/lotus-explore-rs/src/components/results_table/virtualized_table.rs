@@ -10,8 +10,8 @@ use super::virtualization_controller::use_results_table_virtualization;
 use crate::features::explore::interactions::use_explore_interactions;
 use crate::features::explore::selectors::ArcPtrEq;
 use crate::i18n::{TextKey, t};
-use crate::models::CompoundEntry;
 use dioxus::prelude::*;
+use lotus_model::CompoundEntry;
 
 #[component]
 pub(super) fn VirtualizedResultsTable(

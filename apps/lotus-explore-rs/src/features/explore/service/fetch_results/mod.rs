@@ -9,9 +9,9 @@ use crate::features::explore::search_metrics::SearchMetrics;
 use crate::features::explore::types::DomainError;
 #[cfg(target_arch = "wasm32")]
 use crate::features::explore::types::QueryStage;
-use crate::models::{CompoundEntry, DatasetStats};
 use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
+use lotus_model::{CompoundEntry, DatasetStats};
 
 #[cfg(not(target_arch = "wasm32"))]
 mod native;

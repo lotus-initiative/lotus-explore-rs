@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::models::SearchCriteria;
+use lotus_search::SearchCriteria;
 
 fn export_search_type_suffix(criteria: &SearchCriteria) -> Option<&'static str> {
     (!criteria.structure.trim().is_empty()).then(|| criteria.structure_search.as_str())
@@ -88,7 +88,7 @@ pub fn generate_filename(criteria: &SearchCriteria, ext: &str) -> String {
         stem.push('_');
         stem.push_str(st);
     }
-    if criteria.has_effective_filters(crate::models::current_year()) {
+    if criteria.has_effective_filters(crate::clock::current_year()) {
         stem.push_str("_filtered");
     }
     format!("{stem}.{ext}")
@@ -97,13 +97,13 @@ pub fn generate_filename(criteria: &SearchCriteria, ext: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::SmilesSearchType;
+    use lotus_model::SmilesSearchType;
 
     #[test]
     fn export_filename_taxon_only_has_no_filtered_suffix() {
         let criteria = SearchCriteria {
             taxon: "Gentiana lutea".into(),
-            ..SearchCriteria::up_to_year(crate::models::current_year())
+            ..SearchCriteria::up_to_year(crate::clock::current_year())
         };
         let name = generate_filename(&criteria, "csv");
         assert!(!name.contains("_filtered."));
@@ -114,7 +114,7 @@ mod tests {
     fn export_filename_for_full_dataset_has_no_filtered_suffix() {
         let criteria = SearchCriteria {
             taxon: "*".into(),
-            ..SearchCriteria::up_to_year(crate::models::current_year())
+            ..SearchCriteria::up_to_year(crate::clock::current_year())
         };
         let name = generate_filename(&criteria, "csv");
         assert!(!name.contains("_filtered."));
@@ -125,7 +125,7 @@ mod tests {
     fn export_filename_with_structure_filter_keeps_search_type() {
         let mut criteria = SearchCriteria {
             taxon: "*".into(),
-            ..SearchCriteria::up_to_year(crate::models::current_year())
+            ..SearchCriteria::up_to_year(crate::clock::current_year())
         };
         criteria.structure = "c1ccccc1".into();
         criteria.structure_search = SmilesSearchType::Similarity;

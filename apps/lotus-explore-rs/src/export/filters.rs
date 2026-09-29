@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::models::{ElementState, SearchCriteria, SmilesSearchType};
+use lotus_model::{ElementState, SearchCriteria, SmilesSearchType};
 use serde_json::{Map, Value, json};
 
 pub fn criteria_to_filters_value(criteria: &SearchCriteria) -> Value {
@@ -30,7 +30,7 @@ pub fn criteria_to_filters_value(criteria: &SearchCriteria) -> Value {
         );
     }
 
-    if criteria.has_year_filter(crate::models::current_year()) {
+    if criteria.has_year_filter(crate::clock::current_year()) {
         filters.insert(
             "publication_year".into(),
             json!({ "start": criteria.year_min, "end": criteria.year_max }),
@@ -49,37 +49,37 @@ pub fn criteria_to_filters_value(criteria: &SearchCriteria) -> Value {
                 "carbon",
                 criteria.c_min,
                 criteria.c_max,
-                crate::models::DEFAULT_C_MAX,
+                lotus_model::element_max::C,
             ),
             (
                 "hydrogen",
                 criteria.h_min,
                 criteria.h_max,
-                crate::models::DEFAULT_H_MAX,
+                lotus_model::element_max::H,
             ),
             (
                 "nitrogen",
                 criteria.n_min,
                 criteria.n_max,
-                crate::models::DEFAULT_N_MAX,
+                lotus_model::element_max::N,
             ),
             (
                 "oxygen",
                 criteria.o_min,
                 criteria.o_max,
-                crate::models::DEFAULT_O_MAX,
+                lotus_model::element_max::O,
             ),
             (
                 "phosphorus",
                 criteria.p_min,
                 criteria.p_max,
-                crate::models::DEFAULT_P_MAX,
+                lotus_model::element_max::P,
             ),
             (
                 "sulfur",
                 criteria.s_min,
                 criteria.s_max,
-                crate::models::DEFAULT_S_MAX,
+                lotus_model::element_max::S,
             ),
         ] {
             if min > 0 || max < default_max {

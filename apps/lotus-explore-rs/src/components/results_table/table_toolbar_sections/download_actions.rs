@@ -8,13 +8,14 @@ use super::super::download_model::{
     build_download_toolbar_model_with_endpoint,
 };
 use crate::components::ui::Button;
-use crate::download::{DownloadFormat, execute_download, trigger_download};
+use crate::download::{execute_download, trigger_download};
 use crate::features::explore::use_toolbar_result_snapshot;
 use crate::i18n::{TextKey, t};
-use crate::models::SearchCriteria;
 use crate::perf;
 use crate::state::use_results_context;
 use dioxus::prelude::*;
+use lotus_query::ExportFormat as DownloadFormat;
+use lotus_search::SearchCriteria;
 use std::sync::Arc;
 
 // ── private helpers ─────────────────────────────────────────────────────────

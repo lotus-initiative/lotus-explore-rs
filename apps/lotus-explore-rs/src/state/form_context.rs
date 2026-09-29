@@ -3,8 +3,8 @@
 //! Search-form context with dirty tracking and action-based updates.
 
 use crate::features::explore::form_actions::{FormAction, apply_form_action_mut};
-use crate::models::SearchCriteria;
 use dioxus::prelude::*;
+use lotus_search::SearchCriteria;
 
 #[derive(Clone, Copy)]
 pub struct FormCriteriaContext {

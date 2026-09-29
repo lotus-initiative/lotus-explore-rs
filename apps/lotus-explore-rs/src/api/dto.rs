@@ -2,11 +2,8 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Data Transfer Objects (DTOs) for the LOTUS API client.
 
-use crate::models::WIKIDATA_STATEMENT_BASE;
-use crate::{
-    models::{CompoundEntry, DatasetStats, ElementState, SearchCriteria, SmilesSearchType},
-    queries,
-};
+use lotus_model::WIKIDATA_STATEMENT_BASE;
+use lotus_model::{CompoundEntry, DatasetStats, ElementState, SearchCriteria, SmilesSearchType};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -92,10 +89,10 @@ impl SearchRequest {
             mass_min: criteria.has_mass_filter().then_some(criteria.mass_min),
             mass_max: criteria.has_mass_filter().then_some(criteria.mass_max),
             year_min: criteria
-                .has_year_filter(crate::models::current_year())
+                .has_year_filter(crate::clock::current_year())
                 .then_some(criteria.year_min),
             year_max: criteria
-                .has_year_filter(crate::models::current_year())
+                .has_year_filter(crate::clock::current_year())
                 .then_some(criteria.year_max),
             formula_exact: (!formula_exact.is_empty()).then(|| formula_exact.to_string()),
             c_min: criteria.formula_enabled.then_some(criteria.c_min),
@@ -127,8 +124,10 @@ fn normalize_structure_for_api(value: &str) -> String {
     } else {
         value.to_string()
     };
-    match queries::classify_structure(&normalized) {
-        queries::StructureKind::MolfileV2000 | queries::StructureKind::MolfileV3000 => normalized,
+    match lotus_model::classify_structure(&normalized) {
+        lotus_model::StructureKind::MolfileV2000 | lotus_model::StructureKind::MolfileV3000 => {
+            normalized
+        }
         _ => normalized.trim().to_string(),
     }
 }
@@ -248,7 +247,7 @@ mod tests {
     fn request_builder_keeps_large_formula_ranges() {
         let mut criteria = SearchCriteria {
             taxon: "*".into(),
-            ..SearchCriteria::up_to_year(crate::models::current_year())
+            ..SearchCriteria::up_to_year(crate::clock::current_year())
         };
         criteria.formula_enabled = true;
         criteria.c_max = 300;
@@ -266,7 +265,7 @@ mod tests {
         let criteria = SearchCriteria {
             taxon: "*".into(),
             structure: "\n  Mrv\n\n  0  0  0  0  0  0            999 V3000\nM  END\n".into(),
-            ..SearchCriteria::up_to_year(crate::models::current_year())
+            ..SearchCriteria::up_to_year(crate::clock::current_year())
         };
 
         let request = SearchRequest::from_criteria(&criteria, 10, false);

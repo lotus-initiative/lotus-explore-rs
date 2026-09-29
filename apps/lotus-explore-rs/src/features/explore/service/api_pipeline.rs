@@ -6,10 +6,10 @@
 use crate::features::explore::outcome::SearchOutcome;
 use crate::features::explore::request::SearchRequest;
 use crate::features::explore::search_metrics::SearchMetrics;
-use crate::models::runtime_table_row_limit;
 use crate::perf;
 use crate::repositories::{LotusRepository, RepositoryError};
 use crate::services::search_telemetry as telemetry;
+use crate::table_budget::runtime_table_row_limit;
 
 pub async fn try_execute<R: LotusRepository>(
     request: &SearchRequest,
@@ -60,7 +60,7 @@ mod tests {
     use super::*;
     use crate::api::SearchResponse;
     use crate::features::explore::command::SearchCommand;
-    use crate::models::SearchCriteria;
+    use lotus_search::SearchCriteria;
     use std::cell::RefCell;
     use std::rc::Rc;
 
@@ -100,7 +100,7 @@ mod tests {
         async fn sparql_body(
             &self,
             _: &str,
-        ) -> Result<crate::sparql::ResponseBody, RepositoryError> {
+        ) -> Result<lotus_search::ResponseBody, RepositoryError> {
             panic!("api fast-path tests should not hit SPARQL")
         }
     }
@@ -145,7 +145,7 @@ mod tests {
                 SearchCriteria {
                     taxon: "Rosa".into(),
                     structure: "raw smiles should be replaced".into(),
-                    ..SearchCriteria::up_to_year(crate::models::current_year())
+                    ..SearchCriteria::up_to_year(crate::clock::current_year())
                 },
                 SearchCommand::Interactive,
             );
@@ -172,7 +172,7 @@ mod tests {
         futures::executor::block_on(async {
             let repo = StubRepo::not_configured();
             let request = SearchRequest::new(
-                SearchCriteria::up_to_year(crate::models::current_year()),
+                SearchCriteria::up_to_year(crate::clock::current_year()),
                 SearchCommand::Interactive,
             );
             let mut metrics = SearchMetrics::default();

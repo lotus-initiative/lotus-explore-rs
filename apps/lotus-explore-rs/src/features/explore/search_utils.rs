@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::models::{CompoundEntry, SearchCriteria};
+use lotus_model::{CompoundEntry, SearchCriteria};
 use sha2::{Digest, Sha256};
 use std::borrow::Cow;
 use std::fmt::Write as _;
@@ -50,7 +50,7 @@ pub fn compute_hashes(
     // Build `|key=value&key=value&…` suffix without an intermediate Vec<String>.
     let params = crate::features::explore::url_codec::criteria_query_params(
         criteria,
-        crate::models::current_year(),
+        crate::clock::current_year(),
     );
     for (i, (k, v)) in params.into_iter().enumerate() {
         if i == 0 {
@@ -122,7 +122,7 @@ mod tests {
     fn hashes_depend_on_query_and_rows_only() {
         let crit = SearchCriteria {
             taxon: "*".into(),
-            ..SearchCriteria::up_to_year(crate::models::current_year())
+            ..SearchCriteria::up_to_year(crate::clock::current_year())
         };
         let row = CompoundEntry {
             compound_qid: Arc::from("Q1"),

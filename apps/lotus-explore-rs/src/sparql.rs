@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-//! Talking to a Wikidata endpoint.
+//! The app's HTTP layer.
 //!
-//! `lotus-search` takes the transport as a trait and the endpoint as a value,
-//! which is what lets its retry and fallback logic be tested against a scripted
-//! conversation. Those wrappers exist so the app can be written the other way
-//! round — "run this on that endpoint" — without every call site assembling a
-//! client and an [`Endpoint`] first. They all fail loudly rather than silently
-//! falling back, so a caller still chooses whether to try `WDQS` next.
+//! `lotus-search` takes a transport trait and an endpoint value, so that its
+//! retry and fallback logic can be tested against a scripted conversation with
+//! no network. That is the right shape for a library and the wrong shape for an
+//! application, where every call site wants to say "run this on that endpoint"
+//! and not assemble a client first. These wrappers are that sentence, and they
+//! are the only place the app names `reqwest`.
+//!
+//! They fail loudly rather than falling back, so choosing to try `WDQS` after a
+//! failure stays the caller's decision. The two WDQS helpers at the bottom are
+//! the exception: they resolve a query to the service that should answer it,
+//! which is routing rather than transport.
 
 use lotus_search::reqwest_client::ReqwestClient;
 use lotus_search::{Endpoint, Service};
@@ -20,7 +25,7 @@ pub use lotus_search::{
 
 // Reading the answer is part of talking to the endpoint, so these are reachable
 // from here too. They are implemented in `lotus-query`.
-pub use crate::queries::parse_taxon_csv;
+pub use lotus_query::parse_taxon_csv;
 
 /// The endpoint for a service name, so a caller can pass a URL it already had.
 fn endpoint_for(url: &str) -> Endpoint {

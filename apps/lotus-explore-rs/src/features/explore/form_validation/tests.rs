@@ -11,7 +11,7 @@ use super::rules::{
 };
 use super::types::{ValidationCode, ValidationField};
 use crate::features::explore::types::ValidationFault;
-use crate::models::{SearchCriteria, SmilesSearchType};
+use lotus_model::{SearchCriteria, SmilesSearchType};
 
 #[test]
 fn validate_taxon_accepts_empty_string() {
@@ -88,7 +88,7 @@ fn validate_dispatch_criteria_rejects_empty_primary_filters() {
         taxon: "   ".into(),
         structure: "".into(),
         formula_enabled: false,
-        ..SearchCriteria::up_to_year(crate::models::current_year())
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
     assert_eq!(
         validate_dispatch_criteria(&criteria),
@@ -102,7 +102,7 @@ fn validate_dispatch_criteria_accepts_formula_only_search() {
         taxon: "".into(),
         structure: "".into(),
         formula_enabled: true,
-        ..SearchCriteria::up_to_year(crate::models::current_year())
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
     assert_eq!(validate_dispatch_criteria(&criteria), Ok(()));
 }
@@ -112,7 +112,7 @@ fn validate_dispatch_criteria_maps_mass_out_of_range_to_domain_fault() {
     let criteria = SearchCriteria {
         taxon: "Rosa".into(),
         mass_min: -1.0,
-        ..SearchCriteria::up_to_year(crate::models::current_year())
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
 
     assert_eq!(
@@ -127,7 +127,7 @@ fn validate_dispatch_criteria_maps_year_range_to_domain_fault() {
         taxon: "Rosa".into(),
         year_min: 2025,
         year_max: 2020,
-        ..SearchCriteria::up_to_year(crate::models::current_year())
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
 
     assert_eq!(
@@ -158,7 +158,7 @@ fn validate_dispatch_criteria_rejects_zero_similarity_threshold() {
         structure: "c1ccccc1".into(),
         structure_search: SmilesSearchType::Similarity,
         structure_threshold: 0.0,
-        ..SearchCriteria::up_to_year(crate::models::current_year())
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
     assert_eq!(
         validate_dispatch_criteria(&criteria),
@@ -173,7 +173,7 @@ fn validate_dispatch_criteria_accepts_positive_similarity_threshold() {
         structure: "c1ccccc1".into(),
         structure_search: SmilesSearchType::Similarity,
         structure_threshold: 0.7,
-        ..SearchCriteria::up_to_year(crate::models::current_year())
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
     assert_eq!(validate_dispatch_criteria(&criteria), Ok(()));
 }
@@ -185,7 +185,7 @@ fn validate_dispatch_criteria_ignores_threshold_for_substructure() {
         structure: "c1ccccc1".into(),
         structure_search: SmilesSearchType::Substructure,
         structure_threshold: 0.0,
-        ..SearchCriteria::up_to_year(crate::models::current_year())
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
     assert_eq!(validate_dispatch_criteria(&criteria), Ok(()));
 }
@@ -196,7 +196,7 @@ fn validate_dispatch_criteria_rejects_malformed_single_letter_structure() {
         taxon: "Rosa".into(),
         structure: "d".into(),
         structure_search: SmilesSearchType::Substructure,
-        ..SearchCriteria::up_to_year(crate::models::current_year())
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
     assert_eq!(
         validate_dispatch_criteria(&criteria),

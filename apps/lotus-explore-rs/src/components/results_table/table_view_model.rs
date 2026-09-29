@@ -4,7 +4,8 @@
 
 use super::row_cells::{PreparedRow, prepare_rows};
 use super::sort_model::{SortIndexCache, build_sort_index_cache, indices_for_sort};
-use crate::models::{Rows, SortState};
+use crate::sort::SortState;
+use lotus_model::Rows;
 use std::sync::Arc;
 
 /// Complete prepared state for rendering a results table.
@@ -70,7 +71,8 @@ pub(super) fn apply_sort(state: &PreparedTableState, sort: SortState) -> TableVi
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{CompoundEntry, SortColumn, SortDir};
+    use crate::sort::{SortColumn, SortDir, SortState};
+    use lotus_model::CompoundEntry;
     use std::sync::Arc;
 
     fn test_entry(

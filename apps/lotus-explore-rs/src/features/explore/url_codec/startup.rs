@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use super::{QueryParams, is_true_flag};
-use crate::download::DownloadFormat;
+use lotus_query::ExportFormat as DownloadFormat;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct InitialDownloadState {

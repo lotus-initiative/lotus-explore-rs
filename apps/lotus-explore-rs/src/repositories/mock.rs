@@ -4,14 +4,14 @@
 //! Test-only mock repository used by explorer unit tests.
 
 use crate::api::SearchResponse;
-use crate::models::SearchCriteria;
 use crate::repositories::{LotusRepository, RepositoryError};
+use lotus_search::SearchCriteria;
 
 /// Test-only mock repository for unit tests without network dependencies.
 #[derive(Clone)]
 pub struct MockRepository {
     /// Fixed CSV response returned for every SPARQL call.
-    pub sparql_response: Result<crate::sparql::ResponseBody, RepositoryError>,
+    pub sparql_response: Result<lotus_search::ResponseBody, RepositoryError>,
 }
 
 impl MockRepository {
@@ -43,7 +43,7 @@ impl LotusRepository for MockRepository {
     async fn sparql_body(
         &self,
         _query: &str,
-    ) -> Result<crate::sparql::ResponseBody, RepositoryError> {
+    ) -> Result<lotus_search::ResponseBody, RepositoryError> {
         self.sparql_response.clone()
     }
 }

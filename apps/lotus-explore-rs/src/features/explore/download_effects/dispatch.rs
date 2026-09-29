@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::download::DownloadFormat;
 use crate::features::explore::search_state::ExploreState;
+use lotus_query::ExportFormat as DownloadFormat;
 #[cfg(target_arch = "wasm32")]
-use crate::models::SearchCriteria;
+use lotus_search::SearchCriteria;
 use std::sync::Arc;
 
 /// Narrow view of download readiness state to avoid repeating complex queries.

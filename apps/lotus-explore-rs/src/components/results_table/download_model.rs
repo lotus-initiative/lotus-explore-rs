@@ -2,10 +2,10 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Pure model helpers for results-toolbar download actions.
 
-use crate::download::DownloadFormat;
 use crate::export;
 use crate::i18n::TextKey;
-use crate::models::SearchCriteria;
+use lotus_query::ExportFormat as DownloadFormat;
+use lotus_search::SearchCriteria;
 
 const QLEVER_UI: &str = "https://qlever.dev/wikidata";
 const WDQS_UI: &str = "https://query.wikidata.org";
@@ -157,8 +157,8 @@ mod tests {
         DOWNLOAD_QUERY_CSV_SPEC, DOWNLOAD_QUERY_JSON_SPEC, DOWNLOAD_QUERY_RDF_SPEC,
         SparqlEndpointUI, build_download_toolbar_model, build_download_toolbar_model_with_endpoint,
     };
-    use crate::download::DownloadFormat;
-    use crate::models::SearchCriteria;
+    use lotus_query::ExportFormat as DownloadFormat;
+    use lotus_search::SearchCriteria;
 
     #[test]
     fn download_specs_keep_expected_formats() {
@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn toolbar_model_uses_hashes_for_metadata_filename_when_both_are_present() {
-        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
+        let criteria = SearchCriteria::up_to_year(crate::clock::current_year());
 
         let model = build_download_toolbar_model(
             &criteria,
@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn toolbar_model_falls_back_to_generated_metadata_filename_without_both_hashes() {
-        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
+        let criteria = SearchCriteria::up_to_year(crate::clock::current_year());
 
         let model =
             build_download_toolbar_model(&criteria, None, Some("{}"), Some("query123"), None);
@@ -197,7 +197,7 @@ mod tests {
 
     #[test]
     fn toolbar_model_leaves_exports_hidden_when_no_query_or_metadata_exist() {
-        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
+        let criteria = SearchCriteria::up_to_year(crate::clock::current_year());
 
         let model = build_download_toolbar_model(&criteria, None, None, None, None);
 
@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn toolbar_model_encodes_query_for_qlever_ui_link() {
-        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
+        let criteria = SearchCriteria::up_to_year(crate::clock::current_year());
         let query = "SELECT * WHERE { ?compound wdt:P31 \"natural product\" }";
 
         let model = build_download_toolbar_model(&criteria, Some(query), None, None, None);
@@ -220,7 +220,7 @@ mod tests {
 
     #[test]
     fn toolbar_model_encodes_query_for_wdqs_ui_link_when_endpoint_is_wdqs() {
-        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
+        let criteria = SearchCriteria::up_to_year(crate::clock::current_year());
         let query = "SELECT * WHERE { ?compound wdt:P31 \"natural product\" }";
 
         let model = build_download_toolbar_model_with_endpoint(
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn toolbar_model_shows_correct_endpoint_name() {
-        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
+        let criteria = SearchCriteria::up_to_year(crate::clock::current_year());
 
         let qlever_model = build_download_toolbar_model(
             &criteria,

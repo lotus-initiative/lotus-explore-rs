@@ -10,7 +10,7 @@
 
 use lotus_query::ExportFormat;
 
-use crate::sparql::QLEVER_WIKIDATA;
+use lotus_search::QLEVER_WIKIDATA;
 
 /// The `QLever` URL for a query in a format.
 ///

@@ -5,7 +5,7 @@
 use crate::app_state::{AppState, DownloadState};
 use crate::features::explore::{ExploreState, InitialUrlState};
 use crate::i18n::Locale;
-use crate::models::SearchCriteria;
+use lotus_search::SearchCriteria;
 
 // Name mirrors the Dioxus `App{…}` component it feeds; `AppBootstrap` reads
 // naturally and renaming would obscure the shared `App` prefix convention.
@@ -43,13 +43,13 @@ pub fn bootstrap_app(startup: InitialUrlState) -> AppBootstrap {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::download::DownloadFormat;
     use crate::features::explore::InitialDownloadState;
+    use lotus_query::ExportFormat as DownloadFormat;
 
     #[test]
     fn bootstrap_app_copies_startup_locale_and_download_state() {
         let startup = InitialUrlState {
-            criteria: SearchCriteria::up_to_year(crate::models::current_year()),
+            criteria: SearchCriteria::up_to_year(crate::clock::current_year()),
             locale: Locale::Fr,
             download: InitialDownloadState {
                 pending_format: Some(DownloadFormat::Csv),
@@ -81,7 +81,7 @@ mod tests {
         let startup = InitialUrlState {
             criteria: SearchCriteria {
                 taxon: "Rosa".into(),
-                ..SearchCriteria::up_to_year(crate::models::current_year())
+                ..SearchCriteria::up_to_year(crate::clock::current_year())
             },
             locale: Locale::En,
             download: InitialDownloadState::default(),

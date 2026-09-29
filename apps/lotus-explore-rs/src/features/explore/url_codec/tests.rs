@@ -4,8 +4,8 @@
 #![allow(clippy::float_cmp)]
 
 use super::*;
-use crate::download::DownloadFormat;
-use crate::models::{ElementState, SearchCriteria};
+use lotus_model::{ElementState, SearchCriteria};
+use lotus_query::ExportFormat as DownloadFormat;
 
 #[test]
 fn parse_criteria_supports_formula_and_halogens() {
@@ -57,7 +57,7 @@ fn startup_action_execute_only() {
 fn share_params_roundtrip_for_advanced_filters() {
     let mut crit = SearchCriteria {
         taxon: "*".into(),
-        ..SearchCriteria::up_to_year(crate::models::current_year())
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
     crit.formula_enabled = true;
     crit.c_min = 15;
@@ -69,7 +69,7 @@ fn share_params_roundtrip_for_advanced_filters() {
     crit.br_state = ElementState::Excluded;
     crit.i_state = ElementState::Excluded;
 
-    let params = super::criteria_query_params(&crit, crate::models::current_year());
+    let params = super::criteria_query_params(&crit, crate::clock::current_year());
     let reparsed = parse_criteria_from_params(&params);
     assert_eq!(reparsed.taxon, crit.taxon);
     assert_eq!(reparsed.c_min, crit.c_min);
@@ -87,10 +87,10 @@ fn share_params_keep_formula_toggle_but_omit_default_formula_bounds() {
     let crit = SearchCriteria {
         taxon: "Fungi".into(),
         formula_enabled: true,
-        ..SearchCriteria::up_to_year(crate::models::current_year())
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
 
-    let params = super::criteria_query_params(&crit, crate::models::current_year());
+    let params = super::criteria_query_params(&crit, crate::clock::current_year());
     let reparsed = parse_criteria_from_params(&params);
 
     assert_eq!(params.get("taxon").map(String::as_str), Some("Fungi"));
@@ -104,15 +104,15 @@ fn share_params_keep_formula_toggle_but_omit_default_formula_bounds() {
     assert!(reparsed.formula_enabled);
     assert_eq!(
         reparsed.c_min,
-        SearchCriteria::up_to_year(crate::models::current_year()).c_min
+        SearchCriteria::up_to_year(crate::clock::current_year()).c_min
     );
     assert_eq!(
         reparsed.c_max,
-        SearchCriteria::up_to_year(crate::models::current_year()).c_max
+        SearchCriteria::up_to_year(crate::clock::current_year()).c_max
     );
     assert_eq!(
         reparsed.cl_state,
-        SearchCriteria::up_to_year(crate::models::current_year()).cl_state
+        SearchCriteria::up_to_year(crate::clock::current_year()).cl_state
     );
 }
 
@@ -148,7 +148,7 @@ fn parse_criteria_rejects_non_positive_smiles_threshold() {
     let crit = parse_criteria_from_params(&params);
     assert_eq!(
         crit.structure_threshold,
-        SearchCriteria::up_to_year(crate::models::current_year()).structure_threshold
+        SearchCriteria::up_to_year(crate::clock::current_year()).structure_threshold
     );
 }
 
@@ -169,7 +169,7 @@ fn shareable_search_urls_use_the_search_route() {
     // is a trap for whoever calls `default()` next.
     let criteria = SearchCriteria {
         taxon: "Gentiana lutea".into(),
-        ..SearchCriteria::up_to_year(crate::models::current_year())
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
     assert_eq!(
         build_shareable_url(&criteria),
@@ -181,7 +181,7 @@ fn shareable_search_urls_use_the_search_route() {
 fn criteria_with_nothing_set_have_no_shareable_url() {
     // A URL that encodes no search is not a search, and offering one would put
     // an empty query string in someone's address bar.
-    let empty = SearchCriteria::up_to_year(crate::models::current_year());
+    let empty = SearchCriteria::up_to_year(crate::clock::current_year());
     assert!(build_shareable_url(&empty).is_none());
 }
 

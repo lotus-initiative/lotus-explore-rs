@@ -17,7 +17,6 @@ use axum::http::{Request, StatusCode, header};
 use tower::ServiceExt;
 use utoipa::OpenApi;
 
-use crate::queries::{self, ExportFormat};
 use crate::server::{
     ApiDoc, build_router,
     config::AppConfig,
@@ -27,6 +26,7 @@ use crate::server::{
     },
     types::{ExportUrlResponse, SearchRequest},
 };
+use lotus_query::{self, ExportFormat};
 
 fn map_provider(values: &[(&str, &str)]) -> HashMap<String, String> {
     values
@@ -153,7 +153,7 @@ fn normalized_structure_preserves_multiline_molfile() {
 
 #[test]
 fn rdf_export_url_uses_construct_query_with_normalized_formula_binding() {
-    let select = crate::queries::query_compounds_by_taxon("Q2382443");
+    let select = lotus_query::compounds_by_taxon_query("Q2382443");
     let url = export::qlever_export_url(&select, ExportFormat::Rdf);
 
     assert!(url.contains("action=turtle_export"));

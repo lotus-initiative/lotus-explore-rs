@@ -5,7 +5,7 @@
 use super::row_cells::PreparedRow;
 use super::table_view_model::TableViewModel;
 use crate::hooks::use_virtualization::VirtualizationState;
-use crate::models::SortState;
+use crate::sort::SortState;
 use std::sync::Arc;
 
 #[derive(Clone, PartialEq, Debug)]
@@ -52,7 +52,8 @@ mod tests {
     use super::super::row_cells::prepare_rows;
     use super::*;
     use crate::hooks::use_virtualization::VirtualizationState;
-    use crate::models::{CompoundEntry, Rows, SortColumn, SortDir};
+    use crate::sort::{SortColumn, SortDir, SortState};
+    use lotus_model::{CompoundEntry, Rows};
 
     fn test_entry(name: &str) -> CompoundEntry {
         CompoundEntry {

@@ -12,10 +12,10 @@ use crate::features::explore::request::SearchRequest;
 use crate::features::explore::search_state::{ExploreState, dispatch_explore_action};
 use crate::features::explore::service::finalize;
 use crate::features::explore::types::DomainError;
-use crate::models::SearchCriteria;
 use crate::repositories::{LotusRepository, reset_wdqs_fallback_flag};
 use crate::services::search_telemetry as telemetry;
 use dioxus::prelude::*;
+use lotus_search::SearchCriteria;
 use std::time::Duration;
 
 const MAX_RETRIES: u32 = 3;

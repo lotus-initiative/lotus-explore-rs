@@ -5,7 +5,8 @@
 use crate::export::SparqlEndpoint;
 use crate::features::explore::command::SearchCommand;
 use crate::features::explore::types::{DomainError, QueryPhase, TaxonWarning};
-use crate::models::{CompoundEntry, DatasetStats, SearchCriteria, SortColumn};
+use crate::sort::SortColumn;
+use lotus_model::{CompoundEntry, DatasetStats, SearchCriteria};
 use std::sync::Arc;
 
 /// All state transitions that can occur in the Explore feature.

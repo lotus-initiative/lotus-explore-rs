@@ -13,11 +13,11 @@ mod structure_model;
 use crate::components::form_inputs::SearchButton;
 use crate::features::explore::{use_explore_interactions, use_lifecycle_selector};
 use crate::i18n::{TextKey, t, threshold_label};
-use crate::models::SmilesSearchType;
-use crate::queries::classify_structure;
 use crate::state::{use_form_criteria_context, use_results_context};
 use crate::ui::a11y_contract::SEARCH_PANEL_BODY_ID;
 use dioxus::prelude::*;
+use lotus_model::SmilesSearchType;
+use lotus_model::classify_structure;
 
 /// JSON Schema for search form autofill / MCP tooling introspection.
 const SEARCH_SCHEMA: &str = r#"{"type":"object","properties":{"taxon":{"type":"string","description":"Taxon name, Wikidata QID, or * for all taxa"},"smiles":{"type":"string","description":"SMILES or Molfile input"},"mass_min":{"type":"number","description":"Minimum molecular mass in Da"},"mass_max":{"type":"number","description":"Maximum molecular mass in Da"},"year_min":{"type":"integer","description":"Minimum publication year"},"year_max":{"type":"integer","description":"Maximum publication year"},"formula_exact":{"type":"string","description":"Exact molecular formula filter, e.g. C7H5O5N"},"formula_enabled":{"type":"boolean","description":"Whether the formula filter is applied"},"stype":{"type":"string","enum":["substructure","similarity"],"description":"Structure search mode"}},"additionalProperties":true}"#;

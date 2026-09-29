@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::models::ElementState;
+use lotus_model::ElementState;
 
 #[derive(Clone, PartialEq)]
 pub(super) struct FormulaSectionState {
@@ -35,7 +35,7 @@ pub(super) fn parse_u16_input(raw: &str) -> Option<u16> {
 
 #[must_use]
 pub(super) fn normalized_year_input_max(current_year: u16) -> u16 {
-    current_year.max(crate::models::DEFAULT_YEAR_MIN)
+    current_year.max(lotus_model::YEAR_MIN)
 }
 
 #[cfg(test)]
@@ -61,12 +61,9 @@ mod tests {
     fn normalized_year_input_max_never_drops_below_default_floor() {
         assert_eq!(normalized_year_input_max(2030), 2030);
         assert_eq!(
-            normalized_year_input_max(crate::models::DEFAULT_YEAR_MIN),
-            crate::models::DEFAULT_YEAR_MIN
+            normalized_year_input_max(lotus_model::YEAR_MIN),
+            lotus_model::YEAR_MIN
         );
-        assert_eq!(
-            normalized_year_input_max(1700),
-            crate::models::DEFAULT_YEAR_MIN
-        );
+        assert_eq!(normalized_year_input_max(1700), lotus_model::YEAR_MIN);
     }
 }

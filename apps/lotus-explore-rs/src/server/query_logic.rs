@@ -4,18 +4,19 @@
 //! This module bridges the HTTP request layer and the upstream SPARQL endpoint:
 //! More detail in the type and function docs below.
 
-use crate::models::{SearchCriteria, TaxonMatch};
 use crate::server::errors::ApiError;
 use crate::server::state::{AppState, taxon_cache_get, taxon_cache_put};
 use crate::server::types::SearchRequest;
-use crate::{queries, sparql};
+use crate::sparql;
 use flate2::{Compression, write::GzEncoder};
+use lotus_model::classify_structure;
+use lotus_model::{SearchCriteria, TaxonMatch};
 
 pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
     let mut c = SearchCriteria {
         taxon: req.taxon.clone().unwrap_or_default(),
         structure: req.smiles.clone().unwrap_or_default(),
-        ..SearchCriteria::up_to_year(crate::models::current_year())
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
 
     if let Some(v) = req.smiles_search_type {
@@ -115,8 +116,8 @@ pub fn build_execution_query(
     let smiles = normalized_structure_input(&criteria.structure);
     let base_query = if smiles.is_empty() {
         match resolved_taxon_qid {
-            Some("*") | None => queries::query_all_compounds(),
-            Some(qid) => queries::query_compounds_by_taxon(qid),
+            Some("*") | None => lotus_query::all_compounds_query(),
+            Some(qid) => lotus_query::compounds_by_taxon_query(qid),
         }
     } else {
         let taxon_for_sachem = match resolved_taxon_qid {
@@ -124,7 +125,7 @@ pub fn build_execution_query(
             Some(qid) => Some(qid),
             None => None,
         };
-        queries::query_sachem(
+        lotus_query::structure_search_query(
             &smiles,
             criteria.structure_search,
             criteria.structure_threshold,
@@ -132,7 +133,7 @@ pub fn build_execution_query(
         )
     };
 
-    queries::query_with_server_filters(&base_query, criteria)
+    lotus_query::with_filters(&base_query, criteria, crate::clock::current_year())
 }
 
 pub fn normalized_structure_input(value: &str) -> String {
@@ -141,8 +142,10 @@ pub fn normalized_structure_input(value: &str) -> String {
     } else {
         value.to_string()
     };
-    match queries::classify_structure(&normalized) {
-        queries::StructureKind::MolfileV2000 | queries::StructureKind::MolfileV3000 => normalized,
+    match classify_structure(&normalized) {
+        lotus_model::StructureKind::MolfileV2000 | lotus_model::StructureKind::MolfileV3000 => {
+            normalized
+        }
         _ => normalized.trim().to_string(),
     }
 }
@@ -180,11 +183,11 @@ async fn resolve_taxon_qid(
     }
 
     let sanitized = sanitize_taxon_input(taxon);
-    let query = queries::query_taxon_search(&sanitized);
+    let query = lotus_query::taxon_lookup_query(&sanitized);
     let csv = sparql::execute_sparql_bytes(&query)
         .await
         .map_err(|e| ApiError::upstream(format!("taxon lookup failed: {e}")))?;
-    let matches = crate::sparql::parse_taxon_csv(&csv)
+    let matches = lotus_query::parse_taxon_csv(&csv)
         .map_err(|e| ApiError::upstream(format!("taxon parse failed: {e}")))?;
 
     if matches.is_empty() {

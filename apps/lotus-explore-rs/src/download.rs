@@ -2,14 +2,14 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Shared download helpers for browser/native targets, including format handling & deduplication.
 
-pub use crate::queries::ExportFormat as DownloadFormat;
+use lotus_query::ExportFormat as DownloadFormat;
 
 use std::sync::Arc;
 
 use crate::perf;
 
 #[cfg(target_arch = "wasm32")]
-use crate::models::SearchCriteria;
+use lotus_search::SearchCriteria;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod native;
@@ -78,7 +78,7 @@ impl ExportTimerLabel for lotus_query::ExportFormat {
 /// The response format to ask `WDQS` for when downloading this export.
 ///
 /// The same choice seen from the transport's end.
-pub fn wdqs_response_format(format: lotus_query::ExportFormat) -> crate::sparql::ResponseFormat {
+pub fn wdqs_response_format(format: lotus_query::ExportFormat) -> lotus_search::ResponseFormat {
     format.into()
 }
 

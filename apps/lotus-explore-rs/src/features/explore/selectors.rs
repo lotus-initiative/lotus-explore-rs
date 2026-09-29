@@ -5,8 +5,8 @@
 use crate::features::explore::search_state::{
     ExploreState, ResultDataState, SearchLifecycleState, UiChromeState,
 };
-use crate::models::{DatasetStats, SearchCriteria};
 use dioxus::prelude::*;
+use lotus_model::{DatasetStats, SearchCriteria};
 use std::sync::Arc;
 
 /// Wrapper around `Arc<T>` that compares by pointer identity.

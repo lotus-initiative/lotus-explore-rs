@@ -5,10 +5,10 @@
 use super::{FetchResult, PlannedResultsFetch};
 use crate::features::explore::search_metrics::SearchMetrics;
 use crate::features::explore::types::{DomainError, ParseFault, QueryStage};
-use crate::models::{CompoundEntry, DatasetStats};
 use crate::perf;
 use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
+use lotus_model::{CompoundEntry, DatasetStats};
 // Named here because only the native fetch path streams a file; going through the
 // shared shims made it look unused on the wasm build.
 use lotus_query::parse_compounds_stream;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::models::SearchCriteria;
+use lotus_search::SearchCriteria;
 pub fn build_shareable_url(criteria: &SearchCriteria) -> Option<String> {
-    let params = super::criteria_query_params(criteria, crate::models::current_year());
+    let params = super::criteria_query_params(criteria, crate::clock::current_year());
     if params.is_empty() {
         return None;
     }

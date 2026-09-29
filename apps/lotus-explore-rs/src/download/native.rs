@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::download::DownloadFormat;
 use crate::download::ExportTimerLabel;
 use crate::perf;
 use crate::sparql;
-use crate::sparql::ResponseFormat as LotusResponseFormat;
-use crate::sparql::WDQS_SCHOLARLY;
 use crate::sparql::wdqs_download_query;
+use lotus_query::ExportFormat as DownloadFormat;
+use lotus_search::ResponseFormat as LotusResponseFormat;
+use lotus_search::WDQS_SCHOLARLY;
 use std::sync::Arc;
 
 pub(super) async fn execute_download_with_fallback(

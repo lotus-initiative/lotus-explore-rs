@@ -6,10 +6,11 @@ use crate::features::explore::actions::ExploreAction;
 use crate::features::explore::command::SearchCommand;
 use crate::features::explore::orchestrator::{SearchTaskController, start_search};
 use crate::features::explore::search_state::{ExploreState, dispatch_explore_action};
-use crate::models::{SearchCriteria, SortColumn};
 use crate::repositories::HybridRepository;
+use crate::sort::SortColumn;
 use crate::state::FormCriteriaContext;
 use dioxus::prelude::*;
+use lotus_model::SearchCriteria;
 
 #[derive(Clone)]
 pub struct ExploreInteractions {

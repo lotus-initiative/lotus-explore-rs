@@ -3,8 +3,8 @@
 //! Pure presentation helpers for the structure section of the search panel.
 
 use crate::i18n::TextKey;
-use crate::models::SmilesSearchType;
-use crate::queries::StructureKind;
+use lotus_model::SmilesSearchType;
+use lotus_model::StructureKind;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct StructureSectionModel {
@@ -49,8 +49,8 @@ const fn kind_note_key(kind: StructureKind) -> Option<TextKey> {
 mod tests {
     use super::build_structure_section_model;
     use crate::i18n::TextKey;
-    use crate::models::SmilesSearchType;
-    use crate::queries::StructureKind;
+    use lotus_model::SmilesSearchType;
+    use lotus_model::StructureKind;
 
     #[test]
     fn empty_structure_shows_empty_hint_state_without_threshold() {

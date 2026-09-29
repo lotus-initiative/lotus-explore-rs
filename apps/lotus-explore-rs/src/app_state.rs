@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Consolidated app-level state for download orchestration and render telemetry.
 
-use crate::download::DownloadFormat;
+use lotus_query::ExportFormat as DownloadFormat;
 
 /// App-level state.  One signal of this type lives at the root of `App`.
 /// Scope is deliberately narrow:

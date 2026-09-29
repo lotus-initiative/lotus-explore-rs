@@ -12,12 +12,12 @@ use crate::features::explore::command::SearchCommand;
 use crate::features::explore::outcome::SearchOutcome;
 use crate::features::explore::request::SearchRequest;
 use crate::features::explore::types::{DomainError, ValidationFault};
-use crate::models::SearchCriteria;
+use lotus_search::SearchCriteria;
 
 #[test]
 fn build_search_succeeded_action_applies_finalized_counts() {
     let request = SearchRequest::new(
-        SearchCriteria::up_to_year(crate::models::current_year()),
+        SearchCriteria::up_to_year(crate::clock::current_year()),
         SearchCommand::Interactive,
     );
     let outcome = SearchOutcome {
@@ -53,7 +53,7 @@ fn validate_search_criteria_rejects_empty_input() {
         taxon: " ".into(),
         structure: "".into(),
         formula_enabled: false,
-        ..SearchCriteria::up_to_year(crate::models::current_year())
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
 
     let result = validate_search_criteria_for_tests(&criteria);
@@ -69,7 +69,7 @@ fn validate_search_criteria_accepts_formula_only_input() {
         taxon: "".into(),
         structure: "".into(),
         formula_enabled: true,
-        ..SearchCriteria::up_to_year(crate::models::current_year())
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
 
     assert_eq!(validate_search_criteria_for_tests(&criteria), Ok(()));
@@ -80,7 +80,7 @@ fn validate_search_criteria_maps_shared_mass_validation_fault() {
     let criteria = SearchCriteria {
         taxon: "Rosa".into(),
         mass_min: -1.0,
-        ..SearchCriteria::up_to_year(crate::models::current_year())
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
 
     assert_eq!(

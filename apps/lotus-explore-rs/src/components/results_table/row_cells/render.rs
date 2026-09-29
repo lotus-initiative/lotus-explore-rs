@@ -3,8 +3,8 @@
 //! Row-level render orchestration.
 
 use crate::i18n::Locale;
-use crate::models::CompoundEntry;
 use dioxus::prelude::*;
+use lotus_model::CompoundEntry;
 use std::sync::Arc;
 
 use super::PreparedRow;

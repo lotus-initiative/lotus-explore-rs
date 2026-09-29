@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::download::DownloadFormat;
+use lotus_query::ExportFormat as DownloadFormat;
 
 /// Check if startup effect should trigger based on download state and search history.
 /// Returns `true` when all preconditions are met:

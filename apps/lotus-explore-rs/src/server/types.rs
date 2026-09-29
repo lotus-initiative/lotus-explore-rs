@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::models::{CompoundEntry, DatasetStats, SmilesSearchType};
+use lotus_model::{CompoundEntry, DatasetStats, SmilesSearchType};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -45,7 +45,7 @@ pub enum ApiElementState {
     Excluded,
 }
 
-impl From<ApiElementState> for crate::models::ElementState {
+impl From<ApiElementState> for lotus_model::ElementState {
     fn from(value: ApiElementState) -> Self {
         match value {
             ApiElementState::Allowed => Self::Allowed,

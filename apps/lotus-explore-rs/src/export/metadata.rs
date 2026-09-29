@@ -3,7 +3,7 @@
 
 use super::filename::now_iso8601;
 use super::filters::criteria_to_filters_value;
-use crate::models::SearchCriteria;
+use lotus_search::SearchCriteria;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
 
@@ -374,7 +374,7 @@ mod tests {
 
     #[test]
     fn metadata_json_contains_schema_dataset() {
-        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
+        let criteria = SearchCriteria::up_to_year(crate::clock::current_year());
         let body = build_metadata_json(MetadataInputs {
             criteria: &criteria,
             qid: Some("Q42"),
@@ -389,7 +389,7 @@ mod tests {
 
     #[test]
     fn metadata_json_shows_wdqs_when_fallback_used() {
-        let criteria = SearchCriteria::up_to_year(crate::models::current_year());
+        let criteria = SearchCriteria::up_to_year(crate::clock::current_year());
         let body = build_metadata_json(MetadataInputs {
             criteria: &criteria,
             qid: Some("Q42"),

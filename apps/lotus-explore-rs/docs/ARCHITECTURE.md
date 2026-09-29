@@ -51,17 +51,24 @@ src/
   repositories/ data access (maps DTOs to domain types)
   clock.rs      the one place that reads a clock
   cache_key.rs  cache keys shared by the client and the server
+  sort.rs       how the results table is ordered
   table_budget.rs  how many rows this machine will render
-  models.rs     the app's view of the domain
-  sparql.rs     the app's view of talking to an endpoint
-  queries.rs    the app's view of building a query
+  sparql.rs     the app's HTTP layer: the only place that names reqwest
   download/     download effects (wasm + native)
   export/       export metadata and filename resolution
 ```
 
-`models.rs`, `sparql.rs` and `queries.rs` are deliberately thin: they re-export
-the crates under the names the app grew up with, and add a little. What they add
-is the app's clock, which the pure crates require as an argument.
+There are no re-export shims. A call site that needs a domain type writes
+`lotus_model::` and one that needs a query builder writes `lotus_query::`, so the
+crate a symbol comes from is visible where it is used. The app used to have
+`models.rs` and `queries.rs` re-exporting both crates under names the app had
+grown up with, which meant a reader could not tell from a call site whether a
+type came from the domain or was a presentation wrapper, and a rename had to be
+made in two places.
+
+`sparql.rs` is the one module that keeps its own name, because it is not a
+re-export: it is the layer that turns "run this on that endpoint" into a request,
+and it is the only place in the app that names `reqwest`.
 
 `runtime_table_row_limit` reads `navigator.deviceMemory` and sniffs the user
 agent. That is a question about the machine asked by a browser, so it is in the

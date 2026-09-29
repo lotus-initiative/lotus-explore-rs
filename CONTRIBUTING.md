@@ -53,6 +53,11 @@ yourself wanting a clock in one of them, the year is meant to be an argument.
 value *plus a year*, so the constructor is `SearchCriteria::up_to_year(year)`.
 Use the year your caller has.
 
+**Name the crate, not a shim.** There are no `models.rs` or `queries.rs`
+re-exports. `lotus_model::SearchCriteria` at a call site says where the type
+lives; `crate::models::SearchCriteria` says only that the app once had a file
+called `models.rs`.
+
 **Half a serialisation contract is worse than none of it.** The URL parameter
 names used to be built by a model method and parsed by a DTO in a different
 crate, and a rename broke every link already in a browser's history with nothing

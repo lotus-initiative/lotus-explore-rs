@@ -3,10 +3,11 @@
 
 use crate::export::SparqlEndpoint;
 use crate::features::explore::types::TaxonWarning;
-use crate::models::{CompoundEntry, DatasetStats, SortColumn, SortDir};
+use crate::sort::{SortColumn, SortDir};
 use std::sync::Arc;
 
 use super::super::ResultDataState;
+use lotus_model::{CompoundEntry, DatasetStats};
 
 pub(super) struct SearchSuccessPayload {
     pub rows: Vec<CompoundEntry>,

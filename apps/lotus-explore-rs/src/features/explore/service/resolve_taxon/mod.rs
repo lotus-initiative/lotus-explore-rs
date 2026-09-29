@@ -11,7 +11,6 @@ use crate::features::explore::types::{
 };
 use crate::features::explore::{search_utils::sanitize_taxon_input, taxon_cache};
 use crate::perf;
-use crate::queries;
 use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
 use crate::sparql;
@@ -86,7 +85,7 @@ pub async fn resolve<R: LotusRepository>(
     }
 
     // Slow path: SPARQL query.
-    let query = queries::query_taxon_search(&sanitized);
+    let query = lotus_query::taxon_lookup_query(&sanitized);
     let csv = match repo.sparql_body(&query).await {
         Ok(csv) => csv,
         Err(error) => {
@@ -145,13 +144,13 @@ mod tests {
 
     use super::*;
     use crate::api::SearchResponse;
-    use crate::models::SearchCriteria;
     use crate::repositories::{LotusRepository, RepositoryError};
+    use lotus_search::SearchCriteria;
 
     /// Stub that always returns a fixed SPARQL CSV response; API not configured.
     #[derive(Clone)]
     struct StubRepo {
-        response: Result<crate::sparql::ResponseBody, RepositoryError>,
+        response: Result<lotus_search::ResponseBody, RepositoryError>,
     }
 
     impl StubRepo {
@@ -180,7 +179,7 @@ mod tests {
         async fn sparql_body(
             &self,
             _: &str,
-        ) -> Result<crate::sparql::ResponseBody, RepositoryError> {
+        ) -> Result<lotus_search::ResponseBody, RepositoryError> {
             self.response.clone()
         }
     }

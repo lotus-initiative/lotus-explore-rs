@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use crate::features::explore::types::{DomainError, ParseFault, TaxonWarning};
-use crate::models::TaxonMatch;
+use lotus_model::TaxonMatch;
 
 fn eq_casefold(a: &str, b: &str) -> bool {
     if a.is_ascii() && b.is_ascii() {

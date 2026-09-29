@@ -17,7 +17,6 @@ use crate::features::explore::{
 };
 use crate::hooks::LocaleProvider;
 use crate::i18n::{Locale, TextKey, t};
-use crate::models::SearchCriteria;
 use crate::services::AppServices;
 use crate::state::{
     AppStateContext, FormCriteriaContext, ResultsContext, use_app_state_context,
@@ -25,6 +24,7 @@ use crate::state::{
 };
 use crate::ui::a11y_contract::{MAIN_PANEL_ID, PAGE_TITLE_ID, SKIP_TO_RESULTS_HREF};
 use dioxus::prelude::*;
+use lotus_search::SearchCriteria;
 use std::sync::Arc;
 
 #[cfg(target_arch = "wasm32")]

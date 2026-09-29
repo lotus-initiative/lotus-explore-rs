@@ -5,7 +5,7 @@
 use crate::api::SearchResponse;
 use crate::features::explore::service::results_pipeline::ResultsPipelineOutcome;
 use crate::features::explore::types::TaxonWarning;
-use crate::models::{CompoundEntry, DatasetStats};
+use lotus_model::{CompoundEntry, DatasetStats};
 
 /// The raw outcome from a completed search execution.
 pub struct SearchOutcome {

@@ -4,7 +4,7 @@
 use crate::api::config::api_base_url;
 use crate::api::dto::{SearchRequest, SearchResponse};
 use crate::api::error::ApiClientError;
-use crate::models::SearchCriteria;
+use lotus_search::SearchCriteria;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 #[cfg(not(target_arch = "wasm32"))]

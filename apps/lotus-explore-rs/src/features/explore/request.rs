@@ -4,7 +4,7 @@
 
 use crate::features::explore::actions::ExploreAction;
 use crate::features::explore::command::SearchCommand;
-use crate::models::SearchCriteria;
+use lotus_search::SearchCriteria;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SearchRequest {
@@ -63,14 +63,14 @@ mod tests {
 
     use super::SearchRequest;
     use crate::features::explore::command::SearchCommand;
-    use crate::models::SearchCriteria;
+    use lotus_search::SearchCriteria;
 
     #[test]
     fn action_preserves_criteria_and_command() {
         let request = SearchRequest::new(
             SearchCriteria {
                 taxon: "Fungi".to_string(),
-                ..SearchCriteria::up_to_year(crate::models::current_year())
+                ..SearchCriteria::up_to_year(crate::clock::current_year())
             },
             SearchCommand::StartupDownload,
         );

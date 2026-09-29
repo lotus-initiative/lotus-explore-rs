@@ -130,13 +130,11 @@ pub fn MassRangeInput() -> Element {
 
 #[component]
 pub fn YearRangeInput() -> Element {
-    use crate::models::DEFAULT_YEAR_MIN;
-
     let locale = crate::hooks::use_locale();
     let ctx = use_form_criteria_context();
     let year_range = use_criteria_selector(ctx.criteria, |c| (c.year_min, c.year_max));
     let (min_value, max_value) = *year_range.read();
-    let current = normalized_year_input_max(crate::models::current_year());
+    let current = normalized_year_input_max(crate::clock::current_year());
 
     rsx! {
         div {
@@ -157,7 +155,7 @@ pub fn YearRangeInput() -> Element {
                         "toolparamdescription": "Minimum publication year.",
                         r#type: "number",
                         autocomplete: "off",
-                        min: "{DEFAULT_YEAR_MIN}",
+                        min: "{lotus_model::YEAR_MIN}",
                         max: "{current}",
                         step: "1",
                         value: "{min_value}",
@@ -182,7 +180,7 @@ pub fn YearRangeInput() -> Element {
                         "toolparamdescription": "Maximum publication year.",
                         r#type: "number",
                         autocomplete: "off",
-                        min: "{DEFAULT_YEAR_MIN}",
+                        min: "{lotus_model::YEAR_MIN}",
                         max: "{current}",
                         step: "1",
                         value: "{max_value}",

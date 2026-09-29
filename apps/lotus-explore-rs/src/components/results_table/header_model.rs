@@ -4,7 +4,7 @@
 
 use super::sort_helpers::{aria_sort_for, sort_icon_for};
 use crate::i18n::TextKey;
-use crate::models::{SortColumn, SortDir, SortState};
+use crate::sort::{SortColumn, SortDir, SortState};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct SortableHeaderModel {

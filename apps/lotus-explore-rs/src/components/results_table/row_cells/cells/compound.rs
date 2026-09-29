@@ -6,8 +6,8 @@
 use crate::components::results_table::row_cells::prepared::PreparedRow;
 use crate::components::results_table::row_cells::row_text::RowText;
 use crate::i18n::{Locale, TextKey, aria_search_inchikey, t};
-use crate::models::CompoundEntry;
 use dioxus::prelude::*;
+use lotus_model::CompoundEntry;
 
 pub(in crate::components::results_table::row_cells) fn compound_cell(
     locale: Locale,

@@ -12,10 +12,10 @@ use crate::features::explore::download_effects::{self, DispatchPhase, StartupTri
 use crate::features::explore::orchestrator::{SearchTaskController, start_search};
 use crate::features::explore::search_state::{ExploreState, dispatch_explore_action};
 use crate::features::explore::types::{DomainError, ValidationFault};
-use crate::models::SearchCriteria;
 use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
 use dioxus::prelude::*;
+use lotus_search::SearchCriteria;
 
 pub fn use_startup_effect<R: LotusRepository>(
     mut app_state: Signal<AppState>,
