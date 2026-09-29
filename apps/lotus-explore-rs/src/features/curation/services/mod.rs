@@ -6,13 +6,6 @@
 // backticks or re-wording.
 #![allow(clippy::doc_markdown)]
 
-#[cfg(not(target_arch = "wasm32"))]
-pub(super) use crate::features::curation::domain::NATPROD_API_BASE;
-pub(super) use crate::features::curation::domain::{
-    CURATION_SPARQL_PREFIXES, CurationError, CurationInputRow, CurationResultRow, CurationStatus,
-    DependencyResolution, MassResolution, WD_CHEMICAL_COMPOUND_QID, WD_OCCURS_IN_TAXON_PROP,
-    WD_STEREOISOMER_GROUP_QID, WD_TAXON_QID, WD_TYPE_CHEMICAL_ENTITY_QID, WikidataCompound,
-};
 use crate::i18n::{
     curation_note_dependencies_pending, curation_note_existing_complete,
     curation_note_existing_updates, curation_note_new_compound, curation_pending_reference,
@@ -24,6 +17,13 @@ use crate::sparql::{FetchError, QLEVER_WIKIDATA, ResponseFormat};
 use futures::future::BoxFuture;
 #[cfg(target_arch = "wasm32")]
 use futures::future::LocalBoxFuture;
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) use lotus_curation::NATPROD_API_BASE;
+pub(super) use lotus_curation::{
+    CURATION_SPARQL_PREFIXES, CurationError, CurationInputRow, CurationResultRow, CurationStatus,
+    DependencyResolution, MassResolution, WD_CHEMICAL_COMPOUND_QID, WD_OCCURS_IN_TAXON_PROP,
+    WD_STEREOISOMER_GROUP_QID, WD_TAXON_QID, WD_TYPE_CHEMICAL_ENTITY_QID, WikidataCompound,
+};
 
 mod chemical;
 mod enrichment;

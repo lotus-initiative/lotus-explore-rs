@@ -2408,6 +2408,7 @@ dependencies = [
  "clap_complete",
  "clap_mangen",
  "insta",
+ "lotus-curation",
  "lotus-jsonld",
  "lotus-model",
  "lotus-search",
@@ -2417,6 +2418,14 @@ dependencies = [
  "sha2 0.11.0",
  "tempfile",
  "tokio",
+]
+
+[[package]]
+name = "lotus-curation"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -2433,6 +2442,7 @@ dependencies = [
  "gloo-timers",
  "js-sys",
  "log",
+ "lotus-curation",
  "lotus-model",
  "lotus-query",
  "lotus-search",

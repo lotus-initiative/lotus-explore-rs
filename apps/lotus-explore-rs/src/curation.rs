@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::features::curation::domain;
 use crate::features::curation::repositories::{
     CurationKnowledgeRepository, WikidataKnowledgeRepository,
 };
@@ -13,9 +12,10 @@ use crate::features::curation::services::{
     qs_mass_statement,
 };
 use crate::i18n::Locale;
+use lotus_curation as domain;
 use std::sync::{Arc, Mutex};
 
-pub use domain::{
+pub use lotus_curation::{
     CurationError, CurationErrorKind, CurationInputRow, CurationResultRow, CurationStatus,
     QuickStatementsBundle,
 };
@@ -131,16 +131,16 @@ mod tests {
     }
 
     #[test]
-    fn row_key_normalizes_taxon_and_doi() {
+    fn row_key_normalizes_structure_taxon_and_doi() {
         let row = CurationInputRow {
             name: "compound A".to_string(),
-            smiles: " CCO ".to_string(),
+            smiles: " cco ".to_string(),
             taxon: Some("  Voacanga africana ".to_string()),
             doi: Some("https://doi.org/10.1000/abc".to_string()),
         };
         assert_eq!(
             row_uniqueness_key(&row),
-            "CCO\tvoacanga africana\t10.1000/ABC"
+            "CCO\tvoacanga africana\t10.1000/abc"
         );
     }
 

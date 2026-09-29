@@ -54,13 +54,10 @@ pub enum LogLevel {
 }
 
 /// One row of the input file.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub struct Finding {
-    pub name: String,
-    pub smiles: String,
-    pub taxon: Option<String>,
-    pub doi: Option<String>,
-}
+///
+/// The curation vocabulary lives in `lotus-curation`, because the web client
+/// curates from the same file and the two used to parse it differently.
+pub use lotus_curation::CurationInputRow as Finding;
 
 /// Parse a TSV by column name.
 ///
@@ -68,86 +65,14 @@ pub struct Finding {
 /// spreadsheet carries whatever else it has and a caller should not have to
 /// strip it first.
 pub fn parse_tsv(tsv: &str) -> Result<Vec<Finding>, String> {
-    let mut lines = tsv
-        .lines()
-        .map(str::trim_end)
-        .filter(|l| !l.trim().is_empty());
-    let Some(header) = lines.next() else {
-        return Ok(Vec::new());
-    };
-
-    let columns: Vec<String> = header.split('\t').map(normalize_header).collect();
-    let name_at = required(&columns, "name")?;
-    let smiles_at = required(&columns, "smiles")?;
-    let taxon_at = columns
-        .iter()
-        .position(|c| matches!(c.as_str(), "taxon" | "organism"));
-    let doi_at = columns.iter().position(|c| c == "doi");
-
-    let mut findings = Vec::new();
-    for line in lines {
-        // Split before trimming, so that a row whose first cell is empty keeps
-        // its columns aligned.
-        let cells: Vec<&str> = line.split('\t').collect();
-        let name = cells.get(name_at).copied().unwrap_or_default().trim();
-        let smiles = cells.get(smiles_at).copied().unwrap_or_default().trim();
-        if name.is_empty() || smiles.is_empty() {
-            continue;
-        }
-        findings.push(Finding {
-            name: name.to_string(),
-            smiles: smiles.to_string(),
-            taxon: taxon_at
-                .and_then(|i| cells.get(i))
-                .map(|c| c.trim())
-                .filter(|t| !t.is_empty())
-                .map(ToOwned::to_owned),
-            doi: doi_at
-                .and_then(|i| cells.get(i))
-                .map(|c| c.trim())
-                .filter(|t| !t.is_empty())
-                .map(|d| normalize_doi(d).to_ascii_uppercase())
-                .filter(|d| !d.is_empty()),
-        });
-    }
-    Ok(findings)
-}
-
-fn required(columns: &[String], name: &str) -> Result<usize, String> {
-    columns
-        .iter()
-        .position(|c| c == name)
-        .ok_or_else(|| format!("the TSV needs a {name:?} column"))
-}
-
-fn normalize_header(value: &str) -> String {
-    value.trim().to_ascii_lowercase().replace(' ', "_")
-}
-
-/// Wikidata stores P356 upper-cased and unprefixed, so a DOI is stored that way
-/// here too: a query that would not match is worse than a reformatted one.
-fn normalize_doi(value: &str) -> String {
-    value.to_ascii_lowercase().find("doi.org/").map_or_else(
-        || value.to_string(),
-        |idx| value[idx + "doi.org/".len()..].to_string(),
-    )
+    lotus_curation::parse_tsv(tsv).map_err(|e| e.to_string())
 }
 
 /// The two findings that name the same compound in the same taxon with the same
 /// reference are the same finding, whatever they were called.
 #[must_use]
 pub fn identity_key(finding: &Finding) -> String {
-    // Every part is compared case-insensitively: a spreadsheet has no opinion
-    // about capitalisation, and `CCO` and `cco` are the same molecule.
-    let structure = finding.smiles.trim().to_ascii_uppercase();
-    let taxon = finding
-        .taxon
-        .as_deref()
-        .unwrap_or_default()
-        .trim()
-        .to_ascii_lowercase();
-    let doi = finding.doi.as_deref().unwrap_or_default().trim();
-    format!("{structure}\t{taxon}\t{doi}")
+    lotus_curation::row_uniqueness_key(finding)
 }
 
 pub fn run(args: &CurateArgs) -> anyhow::Result<ExitCode> {

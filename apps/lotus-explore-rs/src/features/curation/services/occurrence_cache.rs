@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 #![allow(clippy::future_not_send)]
 
-use crate::features::curation::domain::CurationError;
 use crate::features::curation::repositories::CurationKnowledgeRepository;
+use lotus_curation::CurationError;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -89,9 +89,9 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::*;
-    use crate::features::curation::domain::WikidataCompound;
     use crate::features::curation::repositories::{BoxedFuture, ResolveTaxonResult};
     use futures::executor::block_on;
+    use lotus_curation::WikidataCompound;
 
     #[derive(Default)]
     struct MockRepo {

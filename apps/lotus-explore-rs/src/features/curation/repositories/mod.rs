@@ -3,7 +3,7 @@
 
 mod wikidata;
 
-use crate::features::curation::domain::{CurationError, WikidataCompound};
+use lotus_curation::{CurationError, WikidataCompound};
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;

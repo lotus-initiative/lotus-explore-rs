@@ -27,6 +27,7 @@ path = "build_test.rs"
 dioxus = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
+lotus-curation = { workspace = true }
 lotus-model = { workspace = true }
 lotus-query = { workspace = true }
 lotus-search = { workspace = true }

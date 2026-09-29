@@ -1,9 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use super::{CurationResultRow, QuickStatementsBundle};
+use crate::{CurationResultRow, QuickStatementsBundle};
 use std::collections::HashSet;
 
+/// Bundle a batch of curated rows into statements ready to paste.
+///
+/// Dependencies are deduplicated and separated from the rows that need them,
+/// because a `QuickStatements` run stops at the first failure: a taxon that has
+/// to exist before the occurrence statement cannot be submitted in the same
+/// block as the statement that uses it.
+#[must_use]
 pub fn build_quickstatements_bundle(results: &[CurationResultRow]) -> QuickStatementsBundle {
     let mut seen_dependency_blocks = HashSet::<&str>::with_capacity(results.len());
     let mut dependencies = Vec::with_capacity(results.len());
@@ -31,7 +38,7 @@ pub fn build_quickstatements_bundle(results: &[CurationResultRow]) -> QuickState
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::curation::domain::{CurationInputRow, CurationStatus};
+    use crate::{CurationInputRow, CurationStatus};
 
     #[test]
     fn deduplicates_dependencies_and_joins_sections() {

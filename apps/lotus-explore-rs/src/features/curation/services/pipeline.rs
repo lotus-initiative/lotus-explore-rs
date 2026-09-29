@@ -2,11 +2,11 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 #![allow(clippy::future_not_send)]
 
-use crate::features::curation::domain::{
+use crate::i18n::Locale;
+use lotus_curation::{
     CurationError, CurationInputRow, CurationResultRow, QuickStatementsBundle,
     build_quickstatements_bundle,
 };
-use crate::i18n::Locale;
 use std::future::Future;
 
 // Curation drives Qlever with several POSTs per row (compound fetch, ASK, ...).
@@ -43,8 +43,8 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::*;
-    use crate::features::curation::domain::{CurationInputRow, CurationStatus};
     use futures::executor::block_on;
+    use lotus_curation::{CurationInputRow, CurationStatus};
 
     fn key(row: &CurationInputRow) -> String {
         row.smiles.to_ascii_lowercase()

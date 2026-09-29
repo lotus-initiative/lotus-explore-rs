@@ -167,9 +167,12 @@ fn row_identity_is_smiles_taxon_doi_with_taxon_and_doi_normalised() {
         row_uniqueness_key(&b),
         "name is not part of the identity: the same finding is the same row"
     );
+    // The DOI is folded to lower case as well. It used to be asserted as
+    // `10.1000/ABC`, which pinned a key where `10.1/A` and `10.1/a` were two
+    // different findings -- the web side of the bug the CLI had already fixed.
     assert_eq!(
         row_uniqueness_key(&a),
-        "CCO\tvoacanga africana\t10.1000/ABC"
+        "CCO\tvoacanga africana\t10.1000/abc"
     );
 }
 

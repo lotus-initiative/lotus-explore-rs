@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use super::CurationKnowledgeRepository;
-use crate::features::curation::domain::{CurationError, WikidataCompound};
 use crate::features::curation::services::wikidata;
+use lotus_curation::{CurationError, WikidataCompound};
 use std::collections::HashMap;
 
 use super::ResolveTaxonResult;

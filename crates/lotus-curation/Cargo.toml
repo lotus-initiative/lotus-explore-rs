@@ -1,0 +1,17 @@
+[package]
+name = "lotus-curation"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+description = "The LOTUS curation vocabulary: what a curation row is, what a result is, and how QuickStatements are bundled for submission. Pure: no HTTP, no clock."
+license = "AGPL-3.0-only"
+keywords = ["bioinformatics", "curation", "lotus", "quickstatements", "wikidata"]
+categories = ["science", "web-programming"]
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

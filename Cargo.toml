@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "apps/lotus-explore-rs",
   "crates/lotus-cli",
+  "crates/lotus-curation",
   "crates/lotus-jsonld",
   "crates/lotus-model",
   "crates/lotus-query",
@@ -33,6 +34,7 @@ insta = "1"
 js-sys = "0.3"
 log = "0.4"
 lotus-cli = { path = "crates/lotus-cli", version = "0.1" }
+lotus-curation = { path = "crates/lotus-curation", version = "0.1" }
 lotus-jsonld = { path = "crates/lotus-jsonld", version = "0.1" }
 lotus-model = { path = "crates/lotus-model", version = "0.1" }
 lotus-query = { path = "crates/lotus-query", version = "0.1" }

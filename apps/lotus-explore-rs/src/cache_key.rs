@@ -119,6 +119,6 @@ mod tests {
         // "SELECT" + "T1" hash identically if the caller ever concatenates.
         // This documents that the separator has to be explicit, not that the
         // current call sites are wrong.
-        assert_ne!(build_export_cache_key("ab"), build_export_cache_key("ba"));
+        assert_ne!(build_export_cache_key("abc"), build_export_cache_key("cba"));
     }
 }
