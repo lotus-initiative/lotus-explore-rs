@@ -221,3 +221,60 @@ mod ai_catalog {
         }
     }
 }
+
+/// The pre-stylesheet paint, which has to stand on its own.
+///
+/// `index.html` carries an inline `<style>` that runs before
+/// `lotus-explore.css` is fetched and applied. Its `body` rule reads
+/// `var(--shell-page-bg, #f2f5f8)`, and that custom property is defined in the
+/// stylesheet — so the fallback is what paints first, and it was the light page
+/// colour for everyone. A dark-mode visitor got a light page with near-black
+/// text until the stylesheet arrived, which on a real link is the whole boot
+/// window. The `@media (prefers-color-scheme: dark)` block fixes it; these
+/// assertions keep the two colour sets in step with `tailwind/styles.css`.
+mod boot_paint {
+    const INDEX: &str = include_str!("../index.html");
+    const STYLES: &str = include_str!("../tailwind/styles.css");
+
+    /// Does `styles.css` declare `--name` with this value inside the dark block?
+    fn dark_token(name: &str, value: &str) -> bool {
+        let dark = STYLES
+            .split_once("(prefers-color-scheme: dark)")
+            .map_or(STYLES, |(_, rest)| rest);
+        dark.lines().any(|line| {
+            let line = line.trim();
+            line.starts_with(&format!("--{name}:")) && line.contains(value)
+        })
+    }
+
+    #[test]
+    fn inline_style_has_a_dark_scheme_block() {
+        assert!(
+            INDEX.contains("@media (prefers-color-scheme: dark)"),
+            "the pre-stylesheet paint must handle dark mode, or it paints light \
+             backgrounds with dark text"
+        );
+    }
+
+    #[test]
+    fn inline_fallbacks_match_the_theme_tokens() {
+        // The values the browser actually uses before the stylesheet arrives.
+        for (name, value) in [("shell-page-bg", "#0a0f19"), ("text", "#eef4fb")] {
+            assert!(
+                dark_token(name, value),
+                "--{name}: {value} must exist in the dark block of tailwind/styles.css \
+                 and be mirrored in the inline style in index.html"
+            );
+            assert!(
+                INDEX.contains(value),
+                "index.html inline style is missing {value} for --{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_light_fallback_is_still_the_light_token() {
+        assert!(INDEX.contains("#f2f5f8"), "light page fallback");
+        assert!(dark_token("shell-page-bg", "#0a0f19"));
+    }
+}

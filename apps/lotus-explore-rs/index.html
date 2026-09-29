@@ -106,6 +106,16 @@
   <style>
     html, body, #main { margin: 0; min-height: 100%; }
     body { background: var(--shell-page-bg, #f2f5f8); color: var(--text, #111827); font-family: var(--font-sans, system-ui, sans-serif); }
+    /* The custom properties above are defined in lotus-explore.css, which is
+       fetched and applied after this block. Without this the fallback is always
+       the light page colour, so a dark-mode visitor gets a light page with
+       near-black text until the stylesheet lands — measured at a light
+       rgb(242, 245, 248) background surviving a 2500 ms stylesheet delay, while
+       the app itself is still booting for seconds on a slow link. The values
+       here must track --shell-page-bg and --text in tailwind/styles.css. */
+    @media (prefers-color-scheme: dark) {
+      body { background: #0a0f19; color: #eef4fb; }
+    }
     .boot-shell { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 2rem; box-sizing: border-box; }
     .boot-shell__inner { max-width: 32rem; text-align: center; }
     .boot-shell h1 { margin: 0 0 .75rem; font-size: clamp(1.25rem, 4vw, 2rem); }
