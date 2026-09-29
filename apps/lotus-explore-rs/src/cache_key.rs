@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn a_byte_boundary_cannot_paste_two_inputs_together() {
         // `update` without a length prefix means "SELECT" + "1" and
-        // "SELEC" + "T1" hash identically if the caller ever concatenates.
+        // "SELECT" + "T1" hash identically if the caller ever concatenates.
         // This documents that the separator has to be explicit, not that the
         // current call sites are wrong.
         assert_ne!(build_export_cache_key("ab"), build_export_cache_key("ba"));

@@ -8,6 +8,7 @@ use crate::components::layout::footer::Footer;
 use crate::components::layout::header_meta::HeaderMetaSection;
 use crate::components::layout::notices::{ErrorNotice, ShareNotice, TaxonNotice};
 use crate::components::layout::page_header::PageHeader;
+use crate::components::layout::structured_data::StructuredDataHead;
 use crate::components::results_viewport::ResultsViewport;
 use crate::components::welcome::SearchExamples;
 use crate::features::explore::{
@@ -232,6 +233,10 @@ pub(crate) fn ExplorePage() -> Element {
                         ShareNotice { shareable_url }
                         HeaderMetaSection {}
                     }
+                    // Outside the `searched_once` branch: the component renders
+                    // nothing without a result set, and gating it here would
+                    // also hide it during the first search.
+                    StructuredDataHead {}
                     ResultsViewport {}
                 }
             }

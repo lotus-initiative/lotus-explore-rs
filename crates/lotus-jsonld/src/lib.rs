@@ -26,6 +26,27 @@ use lotus_model::CompoundEntry;
 /// The `@context` every document here shares.
 pub const CONTEXT: &str = "https://schema.org/";
 
+/// Stamps `@context` and `dct:conformsTo` onto a node.
+///
+/// Both together, because a JSON-LD document that carries a context but does not
+/// say which profile it claims is not checkable: a validator has no way to know
+/// which set of required properties applies. Bioschemas lists `dct:conformsTo`
+/// as mandatory for this reason, and the previous version of this crate emitted
+/// the context without it.
+///
+/// The value is the profile's own `@id`, so a consumer can resolve the exact
+/// profile version rather than guessing from the shape of the document.
+pub(crate) fn stamp(mut node: serde_json::Value, profile: Profile) -> serde_json::Value {
+    // A no-op for a document that is not an object, rather than a panic:
+    // indexing a `Value` panics on a non-object, and this is called on
+    // whatever a caller built.
+    if let Some(object) = node.as_object_mut() {
+        object.insert("@context".into(), CONTEXT.into());
+        object.insert("dct:conformsTo".into(), profile.id().into());
+    }
+    node
+}
+
 /// The Wikidata entity URI for a QID.
 #[must_use]
 pub fn wikidata_uri(qid: &str) -> String {

@@ -9,7 +9,7 @@
 //! before — is indexable and useless, so the distribution here is a description
 //! of how to obtain the data rather than a fake file.
 
-use crate::{CONTEXT, SOFTWARE, doi_uri, property_value, result_dataset_url, wikidata_uri};
+use crate::{Profile, SOFTWARE, doi_uri, property_value, result_dataset_url, wikidata_uri};
 use serde_json::{Value, json};
 
 /// What a result set is, and how to describe it.
@@ -54,7 +54,6 @@ pub fn result_set_jsonld(set: &ResultSet<'_>) -> Value {
     let url = result_dataset_url(&taxon_slug, set.query_hash);
 
     let mut node = json!({
-        "@context": CONTEXT,
         "@type": "Dataset",
         "@id": url,
         "name": format!("LOTUS occurrences — {}", display_taxon(set.taxon)),
@@ -133,14 +132,14 @@ pub fn result_set_jsonld(set: &ResultSet<'_>) -> Value {
             )),
         );
     }
-    node
+    crate::stamp(node, Profile::Dataset)
 }
 
 /// The `LOTUS` knowledge graph itself, as a `Dataset` in its own right.
 #[must_use]
 pub fn dataset_jsonld() -> Value {
-    json!({
-        "@context": CONTEXT,
+    crate::stamp(
+        json!({
         "@type": "Dataset",
         "@id": "https://lotus.naturalproducts.net/",
         "name": "LOTUS",
@@ -181,7 +180,9 @@ pub fn dataset_jsonld() -> Value {
             "name": "LOTUS",
             "url": "https://lotus.naturalproducts.net/",
         },
-    })
+        }),
+        Profile::Dataset,
+    )
 }
 
 fn display_taxon(taxon: &str) -> String {

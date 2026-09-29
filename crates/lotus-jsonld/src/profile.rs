@@ -63,7 +63,7 @@ impl Profile {
     pub const fn required(self) -> &'static [&'static str] {
         match self {
             Self::MolecularEntity => &["identifier", "name", "url"],
-            Self::Taxon => &["name", "taxonRank"],
+            Self::Taxon => &["name"],
             Self::Dataset => &[
                 "description",
                 "identifier",
@@ -89,7 +89,7 @@ impl Profile {
                 "molecularWeight",
                 "smiles",
             ],
-            Self::Taxon => &["parentTaxon", "sameAs", "url"],
+            Self::Taxon => &["sameAs", "taxonRank", "url"],
             Self::Dataset => &[
                 "citation",
                 "creator",
@@ -156,9 +156,12 @@ pub struct ValidationIssue {
 
 /// Check a JSON-LD document against a profile.
 ///
-/// The `@context` and `dct:conformsTo` are assumed: a caller that produced the
-/// document with this crate has set both, and re-checking them here would make
-/// every caller pass the same constant back in.
+/// `@context` and `dct:conformsTo` are checked rather than assumed. They used to
+/// be assumed on the grounds that this crate's own builders always set them,
+/// which is true and useless: the interesting case for a validator is a
+/// document from somewhere else, and a document that does not declare its
+/// profile is the one most worth complaining about. Bioschemas requires the
+/// property for exactly this reason.
 #[must_use]
 pub fn check(document: &serde_json::Value, profile: Profile) -> Vec<ValidationIssue> {
     let Some(object) = document.as_object() else {
@@ -184,6 +187,38 @@ pub fn check(document: &serde_json::Value, profile: Profile) -> Vec<ValidationIs
     }
 
     let present = property_names(object);
+
+    // `property_names` deliberately skips `@`-prefixed keys, because they are
+    // JSON-LD syntax rather than schema.org properties. These two are the
+    // exception: they are the document's own metadata and they are checked here.
+    if object.get("@context").is_none() {
+        issues.push(ValidationIssue {
+            property: "@context".into(),
+            severity: "Violation",
+            message: "JSON-LD needs a @context to mean anything".into(),
+        });
+    }
+
+    match object.get("dct:conformsTo") {
+        None => issues.push(ValidationIssue {
+            property: "dct:conformsTo".into(),
+            severity: "Violation",
+            message: format!(
+                "a document claiming {} must say so with dct:conformsTo",
+                profile.id()
+            ),
+        }),
+        Some(declared) if declared.as_str() == Some(profile.id()) => {}
+        Some(declared) => issues.push(ValidationIssue {
+            property: "dct:conformsTo".into(),
+            severity: "Violation",
+            message: format!(
+                "claims profile {declared} but was checked against {}",
+                profile.id()
+            ),
+        }),
+    }
+
     for required in profile.required() {
         if !present.contains(*required) {
             issues.push(ValidationIssue {
@@ -246,7 +281,7 @@ mod tests {
         for property in profile.required().iter().chain(profile.recommended()) {
             object.insert((*property).into(), json!("x"));
         }
-        serde_json::Value::Object(object)
+        crate::stamp(serde_json::Value::Object(object), profile)
     }
 
     #[test]
@@ -271,6 +306,59 @@ mod tests {
             .find(|i| i.property == "license")
             .expect("reported");
         assert_eq!(licence.severity, "Violation");
+    }
+
+    #[test]
+    fn a_document_must_declare_the_profile_it_claims() {
+        // This is the check that was missing, and it is the one that matters
+        // for a document from outside this crate: without `dct:conformsTo` a
+        // consumer cannot tell which profile's required properties apply, so it
+        // cannot check anything.
+        let mut document = conforming(Profile::MolecularEntity);
+        document
+            .as_object_mut()
+            .expect("an object")
+            .remove("dct:conformsTo");
+
+        let issues = check(&document, Profile::MolecularEntity);
+        let declared = issues
+            .iter()
+            .find(|i| i.property == "dct:conformsTo")
+            .expect("reported");
+        assert_eq!(declared.severity, "Violation");
+    }
+
+    #[test]
+    fn a_document_claiming_a_different_profile_is_reported() {
+        let mut document = conforming(Profile::MolecularEntity);
+        document["dct:conformsTo"] = json!(Profile::Dataset.id());
+
+        let issues = check(&document, Profile::MolecularEntity);
+        let declared = issues
+            .iter()
+            .find(|i| i.property == "dct:conformsTo")
+            .expect("reported");
+        assert_eq!(declared.severity, "Violation");
+        assert!(
+            declared.message.contains(Profile::Dataset.id()),
+            "the message should name the profile claimed: {}",
+            declared.message
+        );
+    }
+
+    #[test]
+    fn a_document_without_a_context_is_reported() {
+        let mut document = conforming(Profile::MolecularEntity);
+        document
+            .as_object_mut()
+            .expect("an object")
+            .remove("@context");
+
+        let issues = check(&document, Profile::MolecularEntity);
+        assert!(
+            issues.iter().any(|i| i.property == "@context"),
+            "a JSON-LD document with no context means nothing: {issues:?}"
+        );
     }
 
     #[test]

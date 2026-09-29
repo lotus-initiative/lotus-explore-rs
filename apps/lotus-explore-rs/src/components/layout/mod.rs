@@ -7,4 +7,5 @@ pub mod header_meta;
 pub mod lang_switch;
 pub mod notices;
 pub mod page_header;
+pub mod structured_data;
 pub mod view_switch;

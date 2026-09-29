@@ -138,6 +138,12 @@ pub struct HeaderMetaSnapshot {
     pub resolved_qid: Option<Arc<str>>,
     pub query_hash: Option<Arc<str>>,
     pub result_hash: Option<Arc<str>>,
+    /// The JSON-LD for this result set, if a search has produced one.
+    ///
+    /// Carried here rather than read separately because it is derived from the
+    /// same result: a snapshot that could show a hash but not the markup would
+    /// be describing a page state that does not exist.
+    pub metadata_json: Option<Arc<str>>,
 }
 
 pub fn header_meta_snapshot_from_result(result: &ResultDataState) -> HeaderMetaSnapshot {
@@ -145,6 +151,7 @@ pub fn header_meta_snapshot_from_result(result: &ResultDataState) -> HeaderMetaS
         resolved_qid: result.resolved_qid.clone(),
         query_hash: result.query_hash.clone(),
         result_hash: result.result_hash.clone(),
+        metadata_json: result.metadata_json.clone(),
     }
 }
 

@@ -3,7 +3,7 @@
 //! The project itself, as a Bioschemas `SoftwareApplication`, plus the two
 //! citation files that say the same thing in the formats registries read.
 
-use crate::{CONTEXT, doi_uri, property_value};
+use crate::{Profile, doi_uri, property_value};
 use serde_json::{Value, json};
 
 /// What the software is called, and how to cite it.
@@ -23,7 +23,6 @@ pub struct Software {
 #[must_use]
 pub fn software_jsonld(software: &Software) -> Value {
     let mut object = serde_json::Map::new();
-    object.insert("@context".into(), json!(CONTEXT));
     object.insert("@type".into(), json!("SoftwareApplication"));
     object.insert("@id".into(), json!(software.url));
     object.insert("name".into(), json!(software.name));
@@ -62,7 +61,7 @@ pub fn software_jsonld(software: &Software) -> Value {
         object.insert("citation".into(), lotus_paper(doi));
     }
 
-    Value::Object(object)
+    crate::stamp(Value::Object(object), Profile::SoftwareApplication)
 }
 
 /// The LOTUS paper, as a `ScholarlyArticle` citation.

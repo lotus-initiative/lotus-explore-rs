@@ -6,7 +6,7 @@
 //! and label, and Wikidata knows its QID. That is enough for the profile's four
 //! required properties, which is why this builds from a result row directly.
 
-use crate::{CONTEXT, doi_uri, property_value, pubchem_uri, wikidata_uri};
+use crate::{Profile, doi_uri, property_value, pubchem_uri, wikidata_uri};
 use lotus_model::CompoundEntry;
 use serde_json::{Value, json};
 
@@ -46,7 +46,6 @@ pub fn compound_jsonld(entry: &CompoundEntry) -> Value {
     let entity = wikidata_uri(qid);
 
     let mut object = serde_json::Map::new();
-    object.insert("@context".into(), json!(CONTEXT));
     object.insert("@type".into(), json!("MolecularEntity"));
     object.insert("@id".into(), json!(entity));
     object.insert(
@@ -82,7 +81,7 @@ pub fn compound_jsonld(entry: &CompoundEntry) -> Value {
         object.insert("citation".into(), json!(doi_uri(doi)));
     }
 
-    Value::Object(object)
+    crate::stamp(Value::Object(object), Profile::MolecularEntity)
 }
 
 #[cfg(test)]
