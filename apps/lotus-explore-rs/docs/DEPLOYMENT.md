@@ -39,6 +39,38 @@ Worth keeping in mind when reading a canonical URL from this repo: the
 hop, and anything that treats it as the site's identity (a sitemap, an agent
 catalog, a citation) points at the wrong origin.
 
+### Changing the CNAME
+
+One edit: `base_url` in `metadata/site-metadata.json`. Everything else follows.
+
+`build.rs` derives the host from that field and generates every artefact that
+carries an absolute URL — `llms.txt`, `humans.txt`, `robots.txt`, `sitemap.xml`,
+`security.txt`, `ai-catalog.json`, and `_redirects` — so none of them restate a
+hostname. `lotus_home_url` was a second field naming the same host; it is now
+optional and defaults to the origin of `base_url`, so it only needs setting if
+the initiative ever moves to a host of its own.
+
+`index.html` is the one exception. It is the file dx serves, not a generated
+artefact, so its `og:url` and JSON-LD `url` are maintained by hand. Generating
+it from build.rs would fight the dev server's `watch_path` on `index.html`.
+Instead, a test asserts both match `base_url`, so a CNAME change that misses it
+fails `cargo test` with a message naming the field to update — verified by
+changing `base_url` alone and watching that test fail.
+
+```sh
+# 1. change base_url in metadata/site-metadata.json
+# 2. regenerate + check everything followed
+cargo build -p lotus-explore-rs
+cargo test -p lotus-explore-rs --test buildrs
+# 3. if the test names index.html, update those two URLs there too
+```
+
+The `buildrs` test target exists because `cargo test` does not compile
+`build.rs` as a test target, so tests written there are silently never run —
+verified, a `#[test]` in build.rs reports "0 passed" under `cargo test
+--all-targets`. The target is declared in `apps/lotus-explore-rs/Cargo.toml`
+and CI's `cargo test --workspace --all-targets` picks it up with no change.
+
 ## Plain HTTP is served, not redirected
 
 Lighthouse (and several security scanners) report "Redirects HTTP traffic to
