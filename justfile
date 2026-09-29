@@ -84,6 +84,13 @@ preview app="lotus-explore-rs":
 build app="lotus-explore-rs":
 	cd apps/{{app}} && cargo run --locked -p lotus-deploy --bin fetch-assets
 	cd apps/{{app}} && BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx build --release --package {{app}} --locked --debug-symbols=false --rustc-args=-Copt-level=z
+	just preload-wasm
+
+# The module is content-hashed, so only a post-build step can name it. Without
+# this the 1.4 MiB module is fetched *after* the 45 KiB JS glue has downloaded,
+# parsed and executed; measured, that serialisation cost ~120 ms of LCP.
+preload-wasm:
+	cargo run --locked --release -p lotus-deploy --bin inject-wasm-preload
 
 # One number per transfer encoding, so a profile experiment is comparable with
 # the one before it instead of eyeballed. `raw` is what the linker emitted,

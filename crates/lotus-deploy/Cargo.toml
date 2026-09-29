@@ -16,6 +16,12 @@ publish = false
 name = "fetch-assets"
 path = "src/fetch_assets.rs"
 
+# Injects `<link rel="preload" as="fetch">` for the content-hashed wasm module
+# into the built index.html, so the module is not fetched behind the JS glue.
+[[bin]]
+name = "inject-wasm-preload"
+path = "src/inject_wasm_preload.rs"
+
 [dependencies]
 reqwest = { version = "0.13", features = ["blocking", "gzip"] }
 serde_json = { workspace = true }
