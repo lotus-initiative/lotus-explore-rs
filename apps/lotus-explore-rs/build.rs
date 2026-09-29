@@ -201,6 +201,9 @@ fn write_if_changed(path: PathBuf, contents: String) -> Result<(), Box<dyn Error
     Ok(())
 }
 
+/// Route URLs carry a trailing slash: the host 301s `/search` to `/search/`, so
+/// advertising the slashless form made every sitemap URL but the root cost a
+/// redirect (Lighthouse's `redirects` audit, ~800 ms).
 fn build_sitemap_xml(meta: &Metadata) -> String {
     let base = meta.site.base_url.trim_end_matches('/');
     format!(
@@ -212,17 +215,17 @@ fn build_sitemap_xml(meta: &Metadata) -> String {
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>{base}/search</loc>
+    <loc>{base}/search/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>{base}/curation</loc>
+    <loc>{base}/curation/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>{base}/draw</loc>
+    <loc>{base}/draw/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
