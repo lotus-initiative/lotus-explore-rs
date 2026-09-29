@@ -56,10 +56,10 @@ Each of these was built and measured rather than reasoned about. Sizes are
   | `+ panic = "abort"`                   | 1465621 | 466744  | 598085  | **no-op**, +13 B raw           |
   | `dioxus/devtools` off                 | 1463423 | 465709  | 597095  | **no-op**, ±0.03 %             |
 
-All of the above were taken with a bare `dx build`. `just build` --- the path the
-Dockerfile runs --- was compiling at `opt-level=s` for part of this work, so its
-outputs came out 185300 raw bytes larger. The `opt-level=z` row is the one that
-ships, and `just opt-levels` now keeps the three declarations in agreement.
+All of the above were taken with a bare `dx build`. `just build` --- the path
+the Dockerfile runs --- was compiling at `opt-level=s` for part of this work, so
+its outputs came out 185300 raw bytes larger. The `opt-level=z` row is the one
+that ships, and `just opt-levels` now keeps the three declarations in agreement.
 
 ### `opt-level = "s"` is not the counter-intuitive win it is claimed to be
 
@@ -143,31 +143,32 @@ html -> glue js (45 KiB) -> fetch(module 1.4 MiB) -> instantiate -> mount
 
 A `<link rel="preload" as="fetch" type="application/wasm" crossorigin>` in the
 built `index.html` takes it off that chain. `crossorigin` is not optional:
-`instantiateStreaming` fetches in CORS mode, and without it the preload sits in a
-different cache slot and the module is fetched twice.
+`instantiateStreaming` fetches in CORS mode, and without it the preload sits in
+a different cache slot and the module is fetched twice.
 
-Measured from the real request timings, Lighthouse `devtools` throttling at
-1.6 Mbit/s / 150 ms:
+Measured from the real request timings, Lighthouse `devtools` throttling at 1.6
+Mbit/s / 150 ms:
 
-| | before | after |
-| --- | --- | --- |
-| module request starts | 520252 ms after the document | 220055 ms after the document |
-| observed LCP | 3114 ms | 2940 ms |
-| simulated LCP, 5 rounds | 3752 ms | 3606 ms light / 3624 ms dark |
-| perf mobile, 5 rounds | 89 | 90 light / 90 dark |
-| TBT mobile | 37 / 17 ms | 11 / 0 ms |
+  |                         | before                       | after                        |
+  | ---                     | ---                          | ---                          |
+  | module request starts   | 520252 ms after the document | 220055 ms after the document |
+  | observed LCP            | 3114 ms                      | 2940 ms                      |
+  | simulated LCP, 5 rounds | 3752 ms                      | 3606 ms light / 3624 ms dark |
+  | perf mobile, 5 rounds   | 89                           | 90 light / 90 dark           |
+  | TBT mobile              | 37 / 17 ms                   | 11 / 0 ms                    |
 
-The module now starts in the same ~9 ms window as the CSS and the glue instead of
-300 s behind them. This is the only LCP win in this document that came from
+The module now starts in the same ~9 ms window as the CSS and the glue instead
+of 300 s behind them. This is the only LCP win in this document that came from
 request scheduling rather than from making the module smaller.
 
 Because the module name is content-hashed, this cannot be written by hand in the
 source `index.html`; `inject-wasm-preload` (a second `lotus-deploy` bin, run by
 both `just build` and the Dockerfile) injects it after the bundle is emitted. It
-copies the asset prefix out of the preload `dx` already wrote, so a `--base-path`
-build works without the tool knowing about base paths. It reads the module name
-out of the glue rather than listing `assets/`, because `dx` leaves a superseded
-module behind on a hash change and guessing wrong costs a wasted 1.4 MiB fetch.
+copies the asset prefix out of the preload `dx` already wrote, so a
+`--base-path` build works without the tool knowing about base paths. It reads
+the module name out of the glue rather than listing `assets/`, because `dx`
+leaves a superseded module behind on a hash change and guessing wrong costs a
+wasted 1.4 MiB fetch.
 
 ## Three copies of one setting, and nothing comparing them
 
@@ -176,10 +177,10 @@ The optimisation level is declared in three places: `[profile.release]`
 `--rustc-args=-Copt-level=` on every `dx` invocation in the justfile. `dx`
 appends `--rustc-args` last, so the justfile wins and the profile is decorative.
 
-They drifted: the justfile said `s`, the profile said `z`, and every `just build`
-shipped a module 185300 raw / 27843 brotli bytes larger than intended. CI stayed
-green, because each file was individually valid and nothing compared them.
-`just opt-levels` now runs in `ci` and fails on any disagreement.
+They drifted: the justfile said `s`, the profile said `z`, and every
+`just build` shipped a module 185300 raw / 27843 brotli bytes larger than
+intended. CI stayed green, because each file was individually valid and nothing
+compared them. `just opt-levels` now runs in `ci` and fails on any disagreement.
 
 The cost was not only the bytes. A bare `dx build` and a `just build` were
 compiling at different levels from identical source, so they produced different
@@ -189,18 +190,18 @@ Measure through the shipping path, and not by invoking `dx` by hand.
 ## The dev server is not a measurement target
 
 `just serve` (and `dx serve` generally) reports an enormous payload, and it is
-not a bug in the app. A Lighthouse run against it shows roughly 65 MB, almost all
-of it one request to `/wasm/lotus-explore-rs_bg.wasm` — the debug module,
+not a bug in the app. A Lighthouse run against it shows roughly 65 MB, almost
+all of it one request to `/wasm/lotus-explore-rs_bg.wasm` --- the debug module,
 served unhashed alongside the Dioxus JS interpreter snippets.
 
 Measured on this workspace, dev wasm from identical source:
 
-| dev rustc args | dev wasm | build |
-| --- | --- | --- |
-| default | 63.6 MiB | 42 s |
-| `-Copt-level=1` | 60.1 MiB | 14 s |
-| `-Cdebuginfo=0` | 37.5 MiB | 12 s |
-| `-Cdebuginfo=0 -Cstrip=debuginfo` | **6.4 MiB** | **6 s** |
+  | dev rustc args                    | dev wasm    | build   |
+  | --------------------------------- | ----------- | ------- |
+  | default                           | 63.6 MiB    | 42 s    |
+  | `-Copt-level=1`                   | 60.1 MiB    | 14 s    |
+  | `-Cdebuginfo=0`                   | 37.5 MiB    | 12 s    |
+  | `-Cdebuginfo=0 -Cstrip=debuginfo` | **6.4 MiB** | **6 s** |
 
 Optimising barely moves it; the debug sections are the entire cost, and writing
 them is most of the build time. `just serve` now strips them, which is a 10x

@@ -25,10 +25,9 @@ serve the output:
 just build
 ```
 
-That writes the real bundle to
-`target/dx/lotus-explore-rs/release/web/public`, which is what the deploy
-publishes. The module there is 1.4 MiB raw / 456 KiB brotli, against the dev
-server's 6.4 MiB.
+That writes the real bundle to `target/dx/lotus-explore-rs/release/web/public`,
+which is what the deploy publishes. The module there is 1.4 MiB raw / 456 KiB
+brotli, against the dev server's 6.4 MiB.
 
 To also run the optional API:
 
