@@ -12,8 +12,8 @@
 #![allow(unused_crate_dependencies)]
 #![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
 
-use lotus_core::SearchCriteria;
-use lotus_sparql::{Http, HttpResponse, SearchRequest, search};
+use lotus_model::SearchCriteria;
+use lotus_search::{Http, HttpResponse, SearchRequest, search};
 use std::sync::{Arc, Mutex};
 
 const NOW: u16 = 2026;
@@ -111,7 +111,7 @@ impl Http for Scripted {
         endpoint: &str,
         _accept: &str,
         body: String,
-    ) -> Result<Self::Response, lotus_sparql::FetchError> {
+    ) -> Result<Self::Response, lotus_search::FetchError> {
         self.record(endpoint, &body);
 
         let reply = self
@@ -125,7 +125,7 @@ impl Http for Scripted {
             });
 
         if reply.status == 0 {
-            return Err(lotus_sparql::FetchError::Network(
+            return Err(lotus_search::FetchError::Network(
                 "connection refused".into(),
             ));
         }
@@ -136,8 +136,8 @@ impl Http for Scripted {
         &self,
         _url: &str,
         _accept: &str,
-    ) -> Result<Self::Response, lotus_sparql::FetchError> {
-        Err(lotus_sparql::FetchError::Network("not scripted".into()))
+    ) -> Result<Self::Response, lotus_search::FetchError> {
+        Err(lotus_search::FetchError::Network("not scripted".into()))
     }
 }
 
@@ -175,17 +175,17 @@ impl HttpResponse for ScriptedResponse {
         self.0.status
     }
 
-    async fn bytes(self) -> Result<lotus_sparql::ResponseBody, lotus_sparql::FetchError> {
+    async fn bytes(self) -> Result<lotus_search::ResponseBody, lotus_search::FetchError> {
         Ok(bytes::Bytes::from(self.0.body.as_bytes().to_vec()))
     }
 
-    async fn text(self) -> Result<String, lotus_sparql::FetchError> {
+    async fn text(self) -> Result<String, lotus_search::FetchError> {
         Ok(self.0.body.to_string())
     }
 
     async fn chunk(
         &mut self,
-    ) -> Result<Option<lotus_sparql::ResponseBody>, lotus_sparql::FetchError> {
+    ) -> Result<Option<lotus_search::ResponseBody>, lotus_search::FetchError> {
         Ok(None)
     }
 }
@@ -265,12 +265,12 @@ async fn a_bare_qid_skips_the_lookup_entirely() {
 async fn a_lone_q_is_a_search_term_not_an_identifier() {
     // A QID has digits. Treating a bare `Q` as one would send a query the
     // endpoint cannot answer.
-    assert!(!lotus_sparql::is_qid("Q"));
-    assert!(!lotus_sparql::is_qid("q"));
-    assert!(lotus_sparql::is_qid("Q1"));
-    assert!(lotus_sparql::is_qid("q16521"));
-    assert!(!lotus_sparql::is_qid("Q12a3"));
-    assert!(!lotus_sparql::is_qid("Gentiana lutea"));
+    assert!(!lotus_search::is_qid("Q"));
+    assert!(!lotus_search::is_qid("q"));
+    assert!(lotus_search::is_qid("Q1"));
+    assert!(lotus_search::is_qid("q16521"));
+    assert!(!lotus_search::is_qid("Q12a3"));
+    assert!(!lotus_search::is_qid("Gentiana lutea"));
 }
 
 #[tokio::test]
@@ -282,7 +282,7 @@ async fn a_molfile_asked_for_as_similarity_is_run_as_a_substructure_search() {
     let request = SearchRequest::new(
         SearchCriteria {
             structure: MOLFILE.into(),
-            structure_search: lotus_sparql::SmilesSearchType::Similarity,
+            structure_search: lotus_search::SmilesSearchType::Similarity,
             ..criteria("")
         },
         NOW,
@@ -304,7 +304,7 @@ async fn a_smiles_asked_for_as_similarity_keeps_its_cutoff() {
     let request = SearchRequest::new(
         SearchCriteria {
             structure: "c1ccccc1".into(),
-            structure_search: lotus_sparql::SmilesSearchType::Similarity,
+            structure_search: lotus_search::SmilesSearchType::Similarity,
             structure_threshold: 0.75,
             ..criteria("")
         },
@@ -356,7 +356,7 @@ async fn invalid_filters_are_rejected_before_anything_is_sent() {
         .expect_err("an inverted range is invalid");
 
     assert!(
-        matches!(err, lotus_sparql::SearchError::Invalid(_)),
+        matches!(err, lotus_search::SearchError::Invalid(_)),
         "got: {err}"
     );
     assert_eq!(http.call_count(), 0, "no request was made");
@@ -427,10 +427,10 @@ impl Http for Failing {
         endpoint: &str,
         accept: &str,
         body: String,
-    ) -> Result<Self::Response, lotus_sparql::FetchError> {
+    ) -> Result<Self::Response, lotus_search::FetchError> {
         if endpoint == self.failing_endpoint {
             self.inner.record(endpoint, &body);
-            return Err(lotus_sparql::FetchError::Network(
+            return Err(lotus_search::FetchError::Network(
                 "connection refused".into(),
             ));
         }
@@ -441,7 +441,7 @@ impl Http for Failing {
         &self,
         url: &str,
         accept: &str,
-    ) -> Result<Self::Response, lotus_sparql::FetchError> {
+    ) -> Result<Self::Response, lotus_search::FetchError> {
         self.inner.get(url, accept).await
     }
 }

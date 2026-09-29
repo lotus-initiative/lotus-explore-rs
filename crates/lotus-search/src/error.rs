@@ -28,6 +28,14 @@ pub enum FetchError {
     Empty,
 }
 
+impl From<lotus_query::ParseError> for FetchError {
+    /// A payload the pure parser rejected is a bad answer, not a bad request,
+    /// so it becomes the same variant a decoder failure would.
+    fn from(err: lotus_query::ParseError) -> Self {
+        Self::Parse(err.message().to_string())
+    }
+}
+
 impl FetchError {
     /// Whether a request that failed this way could succeed if sent again.
     ///

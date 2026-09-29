@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use lotus_core::{CompoundEntry, DatasetStats, Rows, SearchCriteria};
+use lotus_model::{CompoundEntry, DatasetStats, Rows, SearchCriteria};
 
 /// A resolved search: the rows, what the endpoint said about the whole result
 /// set, and how the taxon was resolved.

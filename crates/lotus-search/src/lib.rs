@@ -1,40 +1,34 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! SPARQL query construction and result parsing for LOTUS.
+//! The LOTUS search use case.
 //!
-//! Two halves, and neither one has to know about HTTP to be used:
+//! This is the layer the CLI, the web client and the API server all call: give
+//! it a [`SearchCriteria`] and a taxon string, get back a [`SearchResult`] with
+//! rows, a count, and notes about anything that had to be adjusted on the way.
 //!
-//! - [`query`] builds query strings. Pure string manipulation.
-//! - [`parse`] turns a `text/csv` payload into [`lotus_core`] types.
+//! It is split from `lotus-query` on purpose. Query construction and CSV
+//! parsing are pure and worth testing by string comparison; this layer owns the
+//! decisions -- which endpoint to use, when to fall back, whether a taxon string
+//! is a name or a `QID`, whether a structure search can run at all -- and those
+//! decisions are worth testing through a recorded HTTP conversation instead.
 //!
-//! Talking to an endpoint goes through [`Http`], a two-method trait. A caller
-//! can satisfy it with `reqwest` (the [`reqwest_client`] module, on by default),
-//! with a recorded fixture, or with whatever HTTP the platform already has —
-//! which is what makes the web app, the CLI and the tests share this crate
-//! unchanged.
+//! All IO goes through [`Http`], a two-method trait. [`reqwest_client`] satisfies
+//! it for a real endpoint and is on by default; the tests satisfy it with a
+//! script of canned answers. That is what lets the whole use case be tested
+//! offline, including the fallback path, which is otherwise nearly impossible to
+//! provoke.
 
 #![warn(missing_docs)]
 
 mod client;
 mod error;
 mod execute;
-mod parse;
-mod query;
 mod result;
 mod search;
 
 pub use client::{Http, HttpResponse, ResponseBody};
 pub use error::{FetchError, ResponseFormat, is_retryable_status};
 pub use execute::{Answer, Endpoint, Service, execute, execute_with_fallback, fetch_url};
-pub use parse::{
-    parse_compounds_csv, parse_compounds_csv_capped, parse_compounds_stream, parse_counts_csv,
-    parse_taxon_csv,
-};
-pub use query::{
-    all_compounds_query, compounds_by_taxon_query, construct_from_select, counts_query,
-    escape_sparql_string, escape_structure_literal, export_query, is_reference_lookup, limit_query,
-    normalize_digits_expr, structure_search_query, taxon_lookup_query, wdqs_fallback, with_filters,
-};
 pub use result::{SearchRequest, SearchResult, TaxonNote, TaxonResolution};
 pub use search::{
     DEFAULT_ROW_LIMIT, SearchError, StructurePlan, build_base_query, build_execution_query, counts,
@@ -44,7 +38,7 @@ pub use search::{
 #[cfg(feature = "reqwest")]
 pub mod reqwest_client;
 
-pub use lotus_core::*;
+pub use lotus_model::*;
 
 /// `QLever`'s Wikidata endpoint. Faster than WDQS, and the default.
 pub const QLEVER_WIKIDATA: &str = "https://qlever.dev/api/wikidata";

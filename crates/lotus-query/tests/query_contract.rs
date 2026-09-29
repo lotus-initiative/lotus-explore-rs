@@ -11,8 +11,8 @@
 #![allow(unused_crate_dependencies)]
 #![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
 
-use lotus_core::{ElementState, SearchCriteria, SmilesSearchType};
-use lotus_sparql::{
+use lotus_model::{ElementState, SearchCriteria, SmilesSearchType};
+use lotus_query::{
     all_compounds_query, compounds_by_taxon_query, construct_from_select, counts_query,
     export_query, limit_query, structure_search_query, taxon_lookup_query, with_filters,
 };

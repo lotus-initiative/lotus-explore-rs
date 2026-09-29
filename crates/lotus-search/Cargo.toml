@@ -1,9 +1,9 @@
 [package]
-name = "lotus-sparql"
+name = "lotus-search"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.97"
-description = "SPARQL query construction, result parsing and search execution for LOTUS, over a pluggable HTTP transport"
+description = "The LOTUS search use case: resolve a taxon, build a query, run it against an endpoint, and return rows, over a pluggable HTTP transport"
 license = "AGPL-3.0-only"
 keywords = ["bioinformatics", "lotus", "sparql", "wikidata"]
 categories = ["science", "web-programming"]
@@ -11,15 +11,17 @@ publish = false
 
 [dependencies]
 bytes = "1.12"
-csv = "1.4"
-lotus-core = { path = "../lotus-core", version = "0.1" }
+lotus-model = { workspace = true }
+lotus-query = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-bytes = "1.12"
 tokio = { workspace = true, features = ["macros", "rt"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# The retry backoff needs a timer. wasm has no reactor, so it blocks instead
+# and does not need tokio at all -- which is what keeps this crate wasm-clean.
+tokio = { workspace = true, features = ["time"] }
 reqwest = {
   version = "0.13",
   default-features = false,
@@ -29,16 +31,13 @@ reqwest = {
   ],
   optional = true
 }
-# The retry backoff needs a timer.
-tokio = { workspace = true, features = ["time"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 reqwest = { version = "0.13", default-features = false, features = [], optional = true }
 
 # `reqwest` is the only place this workspace knows about HTTP. With the feature
-# off the crate still builds, and its query-building and parsing halves are
-# usable against recorded fixtures — which is how the tests run, and how the
-# core is checked for `wasm32` without an HTTP stack in the way.
+# off the crate still builds, and the search is testable against a two-method
+# trait instead -- which is how `tests/search_pipeline.rs` runs with no network.
 [features]
 default = ["reqwest"]
 reqwest = ["dep:reqwest"]

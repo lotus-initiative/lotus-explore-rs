@@ -8,8 +8,8 @@
 use std::io::Write;
 
 use clap::ValueEnum;
-use lotus_core::CompoundEntry;
-use lotus_sparql::SearchResult;
+use lotus_model::CompoundEntry;
+use lotus_search::SearchResult;
 use sha2::Digest;
 
 /// The columns a table or a delimited file carries, in order.
@@ -212,12 +212,12 @@ fn write_jsonld<W: Write>(out: &mut W, result: &SearchResult) -> anyhow::Result<
     let document = serde_json::json!({
         "@context": "https://schema.org/",
         "@graph": [
-            lotus_schema::result_set_jsonld(&lotus_schema::ResultSet {
+            lotus_jsonld::result_set_jsonld(&lotus_jsonld::ResultSet {
                 query: &result.query,
                 taxon: result
                     .taxon
                     .as_ref()
-                    .and_then(lotus_sparql::TaxonResolution::looked_up_name)
+                    .and_then(lotus_search::TaxonResolution::looked_up_name)
                     .unwrap_or_default(),
                 query_hash: &query_hash,
                 result_hash: &result_hash,
@@ -227,12 +227,12 @@ fn write_jsonld<W: Write>(out: &mut W, result: &SearchResult) -> anyhow::Result<
                     .map_or(result.rows.len(), |s| s.n_entries),
                 generated: &generated,
             }),
-            lotus_schema::dataset_jsonld(),
+            lotus_jsonld::dataset_jsonld(),
         ],
         "mainEntity": result
             .rows
             .iter()
-            .map(lotus_schema::compound_jsonld)
+            .map(lotus_jsonld::compound_jsonld)
             .filter(|v| !v.is_null())
             .collect::<Vec<_>>(),
     });

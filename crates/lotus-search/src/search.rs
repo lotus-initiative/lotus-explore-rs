@@ -12,13 +12,13 @@
 
 use crate::client::Http;
 use crate::error::{FetchError, ResponseFormat};
-use crate::parse::{parse_compounds_csv_capped, parse_counts_csv, parse_taxon_csv};
-use crate::query::{
+use crate::result::{SearchRequest, SearchResult, TaxonNote, TaxonResolution};
+use lotus_model::{DatasetStats, SearchCriteria, SmilesSearchType, ValidationError};
+use lotus_query::{
     all_compounds_query, compounds_by_taxon_query, counts_query, limit_query,
     structure_search_query, taxon_lookup_query, with_filters,
 };
-use crate::result::{SearchRequest, SearchResult, TaxonNote, TaxonResolution};
-use lotus_core::{DatasetStats, SearchCriteria, SmilesSearchType, ValidationError};
+use lotus_query::{parse_compounds_csv_capped, parse_counts_csv, parse_taxon_csv};
 
 /// How a structure search should be run, once the structure is known.
 #[derive(Debug, Clone, PartialEq)]
@@ -42,7 +42,7 @@ impl StructurePlan {
         if structure.is_empty() {
             return None;
         }
-        let is_molfile = lotus_core::classify_structure(&structure).is_molfile();
+        let is_molfile = lotus_model::classify_structure(&structure).is_molfile();
         let search = if is_molfile {
             SmilesSearchType::Substructure
         } else {
@@ -65,7 +65,7 @@ pub fn normalize_structure(value: &str) -> String {
     } else {
         value.to_string()
     };
-    if lotus_core::classify_structure(&unified).is_molfile() {
+    if lotus_model::classify_structure(&unified).is_molfile() {
         unified
     } else {
         unified.trim().to_string()
@@ -198,7 +198,7 @@ pub fn standardize_taxon_name(input: &str) -> String {
 
 /// The QID to filter on: an exact name match if there is one, else the first
 /// candidate the endpoint returned.
-fn pick_match(wanted: &str, candidates: &[lotus_core::TaxonMatch]) -> Option<String> {
+fn pick_match(wanted: &str, candidates: &[lotus_model::TaxonMatch]) -> Option<String> {
     if candidates.is_empty() {
         return None;
     }
@@ -211,7 +211,7 @@ fn pick_match(wanted: &str, candidates: &[lotus_core::TaxonMatch]) -> Option<Str
 
 /// Whether the answer is ambiguous: several exact names, or several candidates
 /// and none of them the name that was asked for.
-const fn is_ambiguous(candidates: &[lotus_core::TaxonMatch]) -> bool {
+const fn is_ambiguous(candidates: &[lotus_model::TaxonMatch]) -> bool {
     candidates.len() > 1
 }
 
@@ -227,7 +227,7 @@ pub async fn search<H: Http>(
     request: &SearchRequest,
 ) -> Result<SearchResult, SearchError> {
     let year_max = request.year_max;
-    lotus_core::validate_criteria(&request.criteria, year_max).map_err(SearchError::Invalid)?;
+    lotus_model::validate_criteria(&request.criteria, year_max).map_err(SearchError::Invalid)?;
 
     let taxon = resolve_taxon(http, &request.criteria.taxon)
         .await
@@ -255,7 +255,7 @@ pub async fn search<H: Http>(
     let (rows, stats, truncated) =
         parse_compounds_csv_capped(csv.as_bytes(), limit).map_err(|e| SearchError::Transport {
             stage: "results",
-            source: e,
+            source: e.into(),
         })?;
 
     // The count query is the expensive one, so it is the one that gets
@@ -279,11 +279,9 @@ pub async fn search<H: Http>(
 /// that already has the rows should treat this as advisory.
 pub async fn counts<H: Http>(http: &H, query: &str) -> Result<DatasetStats, FetchError> {
     let csv = crate::execute_with_fallback(http, &counts_query(query), ResponseFormat::Csv)
-        .await
-        .map_err(|e| FetchError::Parse(e.to_string()))?
-        .text()
-        .map_err(|e| FetchError::Parse(e.to_string()))?;
-    parse_counts_csv(csv.as_bytes())
+        .await?
+        .text()?;
+    Ok(parse_counts_csv(csv.as_bytes())?)
 }
 
 /// How many rows a search returns when the caller does not say.

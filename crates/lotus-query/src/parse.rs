@@ -7,8 +7,8 @@
 //! emptier columns rather than failing: a search that has already returned
 //! usable rows should not be thrown away because one cell was unparsable.
 
-use crate::error::FetchError;
-use lotus_core::{
+use crate::error::ParseError;
+use lotus_model::{
     CompoundEntry, DatasetStats, TaxonMatch, non_empty, normalize_doi, normalize_qid,
 };
 use std::collections::HashSet;
@@ -130,12 +130,12 @@ impl Interners {
 /// Parse rows, deduplicating on the compound-taxon-reference triple.
 ///
 /// # Errors
-/// Returns [`FetchError::Parse`] if the payload cannot be read as CSV. A payload
+/// Returns [`ParseError`] if the payload cannot be read as CSV. A payload
 /// that reads but has the wrong shape does not: missing columns become empty.
 pub fn parse_compounds_csv(
     bytes: &[u8],
     max_rows: usize,
-) -> Result<Vec<CompoundEntry>, FetchError> {
+) -> Result<Vec<CompoundEntry>, ParseError> {
     let (rows, _, _) = parse_compounds_csv_capped(bytes, max_rows)?;
     Ok(rows)
 }
@@ -148,20 +148,17 @@ pub fn parse_compounds_csv(
 /// deduplication happens during parsing.
 ///
 /// # Errors
-/// Returns [`FetchError::Parse`] if the payload cannot be read as CSV.
+/// Returns [`ParseError`] if the payload cannot be read as CSV.
 pub fn parse_compounds_csv_capped(
     bytes: &[u8],
     max_rows: usize,
-) -> Result<(Vec<CompoundEntry>, DatasetStats, bool), FetchError> {
+) -> Result<(Vec<CompoundEntry>, DatasetStats, bool), ParseError> {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
         .flexible(true)
         .from_reader(bytes);
 
-    let headers = reader
-        .byte_headers()
-        .map_err(|e| FetchError::Parse(e.to_string()))?
-        .clone();
+    let headers = reader.byte_headers().map_err(ParseError::new)?.clone();
     let columns = Columns::detect(&headers);
 
     let capacity = max_rows.min(2048);
@@ -177,7 +174,7 @@ pub fn parse_compounds_csv_capped(
     let mut record = csv::ByteRecord::new();
     while reader
         .read_byte_record(&mut record)
-        .map_err(|e| FetchError::Parse(e.to_string()))?
+        .map_err(ParseError::new)?
     {
         // Owned, because `record` is reused by the next read.
         let compound = field(&record, columns.compound).to_string();
@@ -277,25 +274,22 @@ fn optional(value: Arc<str>) -> Option<Arc<str>> {
 /// lesser wrong answer.
 ///
 /// # Errors
-/// Returns [`FetchError::Parse`] if the payload has no data row, because there
+/// Returns [`ParseError`] if the payload has no data row, because there
 /// is then nothing to fall back on: a total cannot be invented.
-pub fn parse_counts_csv(bytes: &[u8]) -> Result<DatasetStats, FetchError> {
+pub fn parse_counts_csv(bytes: &[u8]) -> Result<DatasetStats, ParseError> {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
         .flexible(true)
         .from_reader(bytes);
 
-    let headers = reader
-        .headers()
-        .map_err(|e| FetchError::Parse(e.to_string()))?
-        .clone();
+    let headers = reader.headers().map_err(ParseError::new)?.clone();
     let index = |name: &str| headers.iter().position(|h| h == name);
 
     let mut records = reader.records();
     let record = match records.next() {
         Some(Ok(r)) => r,
-        Some(Err(e)) => return Err(FetchError::Parse(e.to_string())),
-        None => return Err(FetchError::Parse("the count query returned no row".into())),
+        Some(Err(e)) => return Err(ParseError::new(e)),
+        None => return Err(ParseError::new("the count query returned no row")),
     };
     let read = |name: &str| -> usize {
         index(name)
@@ -324,23 +318,20 @@ pub fn parse_counts_csv(bytes: &[u8]) -> Result<DatasetStats, FetchError> {
 /// Parse taxon lookup rows, dropping any that has no QID or no name.
 ///
 /// # Errors
-/// Returns [`FetchError::Parse`] if the payload cannot be read as CSV.
-pub fn parse_taxon_csv(bytes: &[u8]) -> Result<Vec<TaxonMatch>, FetchError> {
+/// Returns [`ParseError`] if the payload cannot be read as CSV.
+pub fn parse_taxon_csv(bytes: &[u8]) -> Result<Vec<TaxonMatch>, ParseError> {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
         .flexible(true)
         .from_reader(bytes);
 
-    let headers = reader
-        .headers()
-        .map_err(|e| FetchError::Parse(e.to_string()))?
-        .clone();
+    let headers = reader.headers().map_err(ParseError::new)?.clone();
     let qid_at = headers.iter().position(|h| h == "taxon");
     let name_at = headers.iter().position(|h| h == "taxon_name");
 
     let mut matches = Vec::new();
     for record in reader.records() {
-        let record = record.map_err(|e| FetchError::Parse(e.to_string()))?;
+        let record = record.map_err(ParseError::new)?;
         let qid = normalize_qid(record.get(qid_at.unwrap_or(usize::MAX)).unwrap_or(""));
         let name = record
             .get(name_at.unwrap_or(usize::MAX))
@@ -362,7 +353,7 @@ fn field(record: &csv::ByteRecord, at: Option<usize>) -> &str {
 
 fn normalize_statement(value: &str) -> Option<&str> {
     non_empty(value).map(|v| {
-        v.strip_prefix(lotus_core::WIKIDATA_STATEMENT_BASE)
+        v.strip_prefix(lotus_model::WIKIDATA_STATEMENT_BASE)
             .unwrap_or(v)
     })
 }
@@ -370,16 +361,14 @@ fn normalize_statement(value: &str) -> Option<&str> {
 /// Read rows from a stream, for a result too large to hold in memory.
 ///
 /// # Errors
-/// Returns [`FetchError::Parse`] if the stream cannot be read, or if what it
+/// Returns [`ParseError`] if the stream cannot be read, or if what it
 /// holds cannot be read as CSV.
 pub fn parse_compounds_stream<R: Read>(
     mut reader: R,
     max_rows: usize,
-) -> Result<(Vec<CompoundEntry>, DatasetStats, bool), FetchError> {
+) -> Result<(Vec<CompoundEntry>, DatasetStats, bool), ParseError> {
     let mut buf = Vec::new();
-    reader
-        .read_to_end(&mut buf)
-        .map_err(|e| FetchError::Parse(e.to_string()))?;
+    reader.read_to_end(&mut buf).map_err(ParseError::new)?;
     parse_compounds_csv_capped(&buf, max_rows)
 }
 
@@ -392,7 +381,7 @@ mod tests {
     #![allow(clippy::format_collect)]
 
     use super::*;
-    use lotus_core::WIKIDATA_STATEMENT_BASE;
+    use lotus_model::WIKIDATA_STATEMENT_BASE;
 
     const HEADER: &str = "compound,compoundLabel,compound_inchikey,compound_smiles_conn,compound_smiles_iso,compound_mass,compound_formula,taxon,taxon_name,ref_qid,ref_title,ref_doi,ref_date,statement";
 
@@ -515,7 +504,7 @@ mod tests {
         // Unlike a row payload, there is nothing to fall back on: a total
         // cannot be invented.
         let err = parse_counts_csv(b"n_entries\n").expect_err("header only");
-        assert!(matches!(err, FetchError::Parse(_)));
+        assert!(err.message().contains("count"), "{err}");
     }
 
     #[test]

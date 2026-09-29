@@ -17,7 +17,7 @@
 // has no feature-gated dev-dependencies, so `unused_crate_dependencies`
 // false-positives on default-features builds (the canonical `just clippy`
 // invocation). The lint stays enabled workspace-wide and remains effective
-// for the feature-less `lotus`/`lotus-deploy` crates.
+// for the feature-less `lotus`/`lotus-web-assets` crates.
 #![allow(unused_crate_dependencies)]
 #![allow(dead_code, unreachable_pub, clippy::missing_const_for_fn)]
 //! `lotus-explore-rs` — LOTUS Explorer.

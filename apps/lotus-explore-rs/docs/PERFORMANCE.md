@@ -162,9 +162,9 @@ of 300 s behind them. This is the only LCP win in this document that came from
 request scheduling rather than from making the module smaller.
 
 Because the module name is content-hashed, this cannot be written by hand in the
-source `index.html`; `inject-wasm-preload` (a second `lotus-deploy` bin, run by
-both `just build` and the Dockerfile) injects it after the bundle is emitted. It
-copies the asset prefix out of the preload `dx` already wrote, so a
+source `index.html`; `inject-wasm-preload` (a second `lotus-web-assets` bin, run
+by both `just build` and the Dockerfile) injects it after the bundle is emitted.
+It copies the asset prefix out of the preload `dx` already wrote, so a
 `--base-path` build works without the tool knowing about base paths. It reads
 the module name out of the glue rather than listing `assets/`, because `dx`
 leaves a superseded module behind on a hash change and guessing wrong costs a

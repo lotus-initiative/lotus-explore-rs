@@ -104,7 +104,7 @@ Ketcher and the curation assets must be fetched before serving or deploying:
 
 ```bash
 cd apps/lotus-explore-rs   # from repo root
-cargo run -p lotus-deploy --bin fetch-assets
+cargo run -p lotus-web-assets --bin fetch-assets
 ```
 
 Or simply use the `just` recipes, which fetch the assets automatically:

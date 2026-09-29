@@ -199,7 +199,7 @@ mod tests {
     use super::*;
     use crate::Profile;
     use crate::profile::check;
-    use lotus_core::CompoundEntry;
+    use lotus_model::CompoundEntry;
     use std::sync::Arc;
 
     fn rows() -> Vec<CompoundEntry> {

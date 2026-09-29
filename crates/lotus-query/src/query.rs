@@ -8,7 +8,7 @@
 //! `tests/query_contract.rs`; the tests live with the builders' behaviour rather
 //! than their bytes, so whitespace may change but structure may not.
 
-use lotus_core::{ElementState, SearchCriteria, SmilesSearchType, classify_structure};
+use lotus_model::{ElementState, SearchCriteria, SmilesSearchType, classify_structure};
 use std::fmt::Write as _;
 
 const PREFIXES: &str = "\
@@ -547,16 +547,30 @@ CONSTRUCT {{
     )
 }
 
-/// Route a query to `WDQS` after `QLever` failed, returning the endpoint to use.
+/// Which Wikidata service a fallback query needs.
+///
+/// This is a routing decision about the query, not about the network, so it
+/// belongs here rather than in the crate that holds the URLs. Naming the
+/// service instead of the endpoint also means the URLs stay overridable: a
+/// caller running its own mirror picks the URL and still gets the right
+/// rewrite.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FallbackService {
+    /// The main `WDQS` endpoint.
+    Main,
+    /// The scholarly subgraph, which answers `P356` quickly.
+    Scholarly,
+}
+
+/// Route a query to `WDQS` after `QLever` failed, returning the service to use
+/// and the rewritten query.
 ///
 /// Reference lookups go to the scholarly subgraph, which is the only WDQS
 /// service that answers P356 quickly; everything else goes to the main
 /// endpoint with its reference `OPTIONAL`s moved inside a `SERVICE` block, so
 /// that the bibliographic properties are still fetched.
 #[must_use]
-pub fn wdqs_fallback(query: &str) -> (&'static str, String) {
-    use crate::{WDQS_SCHOLARLY, WDQS_WIKIDATA};
-
+pub fn wdqs_fallback(query: &str) -> (FallbackService, String) {
     const SCHOLARLY_REF: &str = "
   SERVICE <https://query-scholarly.wikidata.org/sparql> {
     OPTIONAL { ?r wdt:P1476 ?ref_title. }
@@ -567,7 +581,7 @@ pub fn wdqs_fallback(query: &str) -> (&'static str, String) {
 
     if is_reference_lookup(query) {
         (
-            WDQS_SCHOLARLY,
+            FallbackService::Scholarly,
             query.replace("{CURATION_SPARQL_PREFIXES}\n", ""),
         )
     } else {
@@ -577,7 +591,7 @@ pub fn wdqs_fallback(query: &str) -> (&'static str, String) {
                 &REFERENCE_METADATA.replace("?r ", "?ref "),
             )
             .replace(REFERENCE_METADATA, SCHOLARLY_REF);
-        (WDQS_WIKIDATA, rewritten)
+        (FallbackService::Main, rewritten)
     }
 }
 

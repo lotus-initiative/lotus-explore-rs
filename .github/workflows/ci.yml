@@ -90,12 +90,21 @@ jobs:
         with: { targets: wasm32-unknown-unknown, components: clippy }
       - name: Check WASM
         run: |
+          # The three pure crates must build for wasm on their own, not only
+          # because the app happens to pull them in: that is what keeps them
+          # free of IO. `lotus-search` builds with no default features, since
+          # its native default pulls in an HTTP stack and a reactor.
+          cargo check --target wasm32-unknown-unknown --locked \
+            -p lotus-model -p lotus-query -p lotus-jsonld \
+            -p lotus-search --no-default-features
           cargo check -p lotus-explore-rs --target wasm32-unknown-unknown --locked
       - name: Clippy WASM
         run: |
-          # `lotus-deploy` is a host-only bin (blocking reqwest) and is excluded on
+          # `lotus-web-assets` is a host-only bin (blocking reqwest) and is excluded on
           # purpose; only the wasm-relevant crates are linted here.
-          cargo clippy --target wasm32-unknown-unknown -p lotus -p lotus-explore-rs --locked -- -D warnings
+          cargo clippy --target wasm32-unknown-unknown --locked -- -D warnings \
+            -p lotus -p lotus-explore-rs \
+            -p lotus-model -p lotus-query -p lotus-jsonld
 
   supply-chain:
     name: Supply-chain

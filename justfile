@@ -80,7 +80,7 @@ opt-levels:
 wasm:
 	cargo check -p lotus-explore-rs --target wasm32-unknown-unknown --locked
 
-# Per-package WASM clippy (NOT `--workspace --target wasm32`: `lotus-deploy`
+# Per-package WASM clippy (NOT `--workspace --target wasm32`: `lotus-web-assets`
 # is a host-only bin — `reqwest::blocking` cannot exist on wasm — so a
 # workspace-wide wasm lint can never pass; only wasm-relevant crates are
 # linted here). Mirrors the Clippy-WASM step in .github/workflows/ci.yml.
@@ -108,15 +108,15 @@ clippy-wasm:
 # unhashed bundle and the Dioxus JS interpreter, not the shipped artefact. See
 # docs/PERFORMANCE.md.
 serve app="lotus-explore-rs":
-	cd apps/{{app}} && cargo run --locked -p lotus-deploy --bin fetch-assets
+	cd apps/{{app}} && cargo run --locked -p lotus-web-assets --bin fetch-assets
 	dx serve --package {{app}} --platform web --locked --open=false --rustc-args="-Cdebuginfo=0 -Cstrip=debuginfo"
 
 preview app="lotus-explore-rs":
-	cd apps/{{app}} && cargo run --locked -p lotus-deploy --bin fetch-assets
+	cd apps/{{app}} && cargo run --locked -p lotus-web-assets --bin fetch-assets
 	cd apps/{{app}} && BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx serve --package {{app}} --platform web --release --debug-symbols=false --locked --rustc-args=-Copt-level=z --open=false
 
 build app="lotus-explore-rs":
-	cd apps/{{app}} && cargo run --locked -p lotus-deploy --bin fetch-assets
+	cd apps/{{app}} && cargo run --locked -p lotus-web-assets --bin fetch-assets
 	cd apps/{{app}} && BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx build --release --package {{app}} --locked --debug-symbols=false --rustc-args=-Copt-level=z
 	just preload-wasm
 
@@ -124,7 +124,7 @@ build app="lotus-explore-rs":
 # this the 1.4 MiB module is fetched *after* the 45 KiB JS glue has downloaded,
 # parsed and executed; measured, that serialisation cost ~120 ms of LCP.
 preload-wasm:
-	cargo run --locked --release -p lotus-deploy --bin inject-wasm-preload
+	cargo run --locked --release -p lotus-web-assets --bin inject-wasm-preload
 
 # One number per transfer encoding, so a profile experiment is comparable with
 # the one before it instead of eyeballed. `raw` is what the linker emitted,

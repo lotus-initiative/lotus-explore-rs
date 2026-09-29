@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! `lotus` — search the LOTUS knowledge graph from a terminal.
 //!
-//! A thin layer over `lotus-core` (filters), `lotus-sparql` (the search
-//! sequence) and `lotus-schema` (JSON-LD). Every semantic decision lives in
+//! A thin layer over `lotus-model` (filters), `lotus-search` (the search
+//! sequence) and `lotus-jsonld` (JSON-LD). Every semantic decision lives in
 //! those crates, so the CLI and the web app cannot drift apart.
 
 // `cargo test` builds this binary twice: once as the shipped artifact, and once
@@ -151,7 +151,7 @@ enum StructureSearch {
     Similarity,
 }
 
-impl From<StructureSearch> for lotus_core::SmilesSearchType {
+impl From<StructureSearch> for lotus_model::SmilesSearchType {
     fn from(value: StructureSearch) -> Self {
         match value {
             StructureSearch::Substructure => Self::Substructure,
@@ -167,7 +167,7 @@ enum Presence {
     Excluded,
 }
 
-impl From<Presence> for lotus_core::ElementState {
+impl From<Presence> for lotus_model::ElementState {
     fn from(value: Presence) -> Self {
         match value {
             Presence::Allowed => Self::Allowed,
@@ -277,7 +277,7 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
 
 async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
     let year_max = args.year_max.unwrap_or_else(current_year);
-    let mut criteria = lotus_core::SearchCriteria::up_to_year(year_max);
+    let mut criteria = lotus_model::SearchCriteria::up_to_year(year_max);
 
     criteria.taxon = args.taxon;
     criteria.structure = args.structure;
@@ -310,26 +310,26 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
             .element_ranges()
             .iter()
             .any(|(_, min, max, default_max)| *min > 0 || *max < *default_max)
-        || criteria.f_state != lotus_core::ElementState::Allowed
-        || criteria.cl_state != lotus_core::ElementState::Allowed
-        || criteria.br_state != lotus_core::ElementState::Allowed
-        || criteria.i_state != lotus_core::ElementState::Allowed;
+        || criteria.f_state != lotus_model::ElementState::Allowed
+        || criteria.cl_state != lotus_model::ElementState::Allowed
+        || criteria.br_state != lotus_model::ElementState::Allowed
+        || criteria.i_state != lotus_model::ElementState::Allowed;
 
-    lotus_core::validate_criteria(&criteria, year_max)?;
+    lotus_model::validate_criteria(&criteria, year_max)?;
 
     let request =
-        lotus_sparql::SearchRequest::new(criteria.clone(), year_max).with_limit(args.limit);
+        lotus_search::SearchRequest::new(criteria.clone(), year_max).with_limit(args.limit);
 
     if args.explain {
         // The point of `--explain` is to see the query without waiting for an
         // endpoint, so it must not touch the network even to resolve a taxon.
-        let query = lotus_sparql::build_execution_query(&request, None);
+        let query = lotus_search::build_execution_query(&request, None);
         println!("{query}");
         return Ok(ExitCode::SUCCESS);
     }
 
-    let http = lotus_sparql::reqwest_client::ReqwestClient::new()?;
-    let result = lotus_sparql::search(&http, &request).await?;
+    let http = lotus_search::reqwest_client::ReqwestClient::new()?;
+    let result = lotus_search::search(&http, &request).await?;
 
     if let Some(taxon) = &result.taxon {
         for note in &taxon.notes {
@@ -344,7 +344,7 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
 }
 
 fn apply_ranges(
-    criteria: &mut lotus_core::SearchCriteria,
+    criteria: &mut lotus_model::SearchCriteria,
     carbon: Option<Range>,
     hydrogen: Option<Range>,
     nitrogen: Option<Range>,
@@ -366,43 +366,43 @@ fn apply_ranges(
         carbon,
         &mut criteria.c_min,
         &mut criteria.c_max,
-        lotus_core::element_max::C,
+        lotus_model::element_max::C,
     );
     set(
         hydrogen,
         &mut criteria.h_min,
         &mut criteria.h_max,
-        lotus_core::element_max::H,
+        lotus_model::element_max::H,
     );
     set(
         nitrogen,
         &mut criteria.n_min,
         &mut criteria.n_max,
-        lotus_core::element_max::N,
+        lotus_model::element_max::N,
     );
     set(
         oxygen,
         &mut criteria.o_min,
         &mut criteria.o_max,
-        lotus_core::element_max::O,
+        lotus_model::element_max::O,
     );
     set(
         phosphorus,
         &mut criteria.p_min,
         &mut criteria.p_max,
-        lotus_core::element_max::P,
+        lotus_model::element_max::P,
     );
     set(
         sulfur,
         &mut criteria.s_min,
         &mut criteria.s_max,
-        lotus_core::element_max::S,
+        lotus_model::element_max::S,
     );
 }
 
 /// The current calendar year, for the default upper year bound.
 ///
-/// `lotus-core` takes the year as an argument rather than reading a clock, so
+/// `lotus-model` takes the year as an argument rather than reading a clock, so
 /// that it stays pure; a binary is where a clock belongs.
 #[must_use]
 pub fn current_year() -> u16 {

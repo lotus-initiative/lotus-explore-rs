@@ -1,17 +1,17 @@
 [package]
-name = "lotus-deploy"
+name = "lotus-web-assets"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.97"
-description = "Host-only deploy helpers for lotus-explore-rs: fetch frontend assets and slim the Ketcher editor bundle"
+description = "Vendors the web client's third-party frontend assets (Ketcher, RDKit, citation.js) and preloads the built wasm module"
 repository = "https://github.com/lotusnprod/lotus-explore-rs"
 license = "AGPL-3.0-only"
-keywords = ["deploy", "dioxus", "i18n", "ketcher", "lotus"]
+keywords = ["assets", "dioxus", "ketcher", "rdkit", "vendoring"]
 categories = ["development-tools::build-utils", "web-programming"]
 publish = false
 
 # Independent host-only binary; build with
-# `cargo build --release -p lotus-deploy --bin fetch-assets`.
+# `cargo build --release -p lotus-web-assets --bin fetch-assets`.
 [[bin]]
 name = "fetch-assets"
 path = "src/fetch_assets.rs"

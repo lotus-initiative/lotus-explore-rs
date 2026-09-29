@@ -4,10 +4,11 @@ members = [
   "apps/lotus-explore-rs",
   "crates/lotus",
   "crates/lotus-cli",
-  "crates/lotus-core",
-  "crates/lotus-deploy",
-  "crates/lotus-schema",
-  "crates/lotus-sparql",
+  "crates/lotus-jsonld",
+  "crates/lotus-model",
+  "crates/lotus-query",
+  "crates/lotus-search",
+  "crates/lotus-web-assets",
 ]
 
 [workspace.package]
@@ -33,9 +34,10 @@ insta = "1"
 js-sys = "0.3"
 log = "0.4"
 lotus-cli = { path = "crates/lotus-cli", version = "0.1" }
-lotus-core = { path = "crates/lotus-core", version = "0.1" }
-lotus-schema = { path = "crates/lotus-schema", version = "0.1" }
-lotus-sparql = { path = "crates/lotus-sparql", version = "0.1" }
+lotus-jsonld = { path = "crates/lotus-jsonld", version = "0.1" }
+lotus-model = { path = "crates/lotus-model", version = "0.1" }
+lotus-query = { path = "crates/lotus-query", version = "0.1" }
+lotus-search = { path = "crates/lotus-search", version = "0.1" }
 predicates = "3"
 reqwest = { version = "0.13", default-features = false }
 serde = { version = "1.0", features = ["derive", "rc"] }

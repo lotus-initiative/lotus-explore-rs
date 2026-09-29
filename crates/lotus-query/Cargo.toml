@@ -1,0 +1,18 @@
+[package]
+name = "lotus-query"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+description = "SPARQL query construction and result parsing for LOTUS. Pure: no HTTP, no runtime, no clock."
+license = "AGPL-3.0-only"
+keywords = ["bioinformatics", "lotus", "sparql", "wikidata"]
+categories = ["science", "web-programming"]
+publish = false
+
+[dependencies]
+csv = "1.4"
+lotus-model = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

@@ -7,7 +7,7 @@
 //! required properties, which is why this builds from a result row directly.
 
 use crate::{CONTEXT, doi_uri, property_value, pubchem_uri, wikidata_uri};
-use lotus_core::CompoundEntry;
+use lotus_model::CompoundEntry;
 use serde_json::{Value, json};
 
 /// The identifiers a row contributes, as `identifier` and `sameAs` values.

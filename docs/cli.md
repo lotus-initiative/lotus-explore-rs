@@ -1,4 +1,4 @@
-# lotus — the command line
+# lotus --- the command line
 
 Search the LOTUS knowledge graph: chemical compounds, the organisms they occur
 in, and the references that report them. The data is the Wikidata projection of
@@ -37,21 +37,21 @@ lotus search --taxon "Isaria cicadae" --year-min 2015 --year-max 2024
 
 ### Filters
 
-| Flag | Meaning |
-|---|---|
-| `--taxon` | Scientific name, Wikidata QID, or `*` for every organism |
-| `--structure` | SMILES, or an MDL molfile (V2000/V3000) |
-| `--structure-search` | `substructure` or `similarity` |
-| `--threshold` | Tanimoto cutoff for a similarity search, 0 to 1 |
-| `--mass-min`, `--mass-max` | Molecular mass range, in daltons |
-| `--year-min`, `--year-max` | Publication year range |
-| `--formula` | Exact molecular formula; subscripts are accepted |
-| `--limit` | How many rows to return. The counts still describe the whole set |
-| `--format` | How to write the rows; see below |
-| `--log` | Verbosity on stderr: `error`, `warn`, `info`, `debug` |
-| `--explain` | Print the SPARQL and send nothing |
-| `--carbon`, `--hydrogen`, `--nitrogen`, `--oxygen`, `--phosphorus`, `--sulfur` | Atom-count range, e.g. `10..20` |
-| `--fluorine`, `--chlorine`, `--bromine`, `--iodine` | Halogen presence: `allowed`, `required`, `excluded` |
+  | Flag                                                                           | Meaning                                                          |
+  | ---                                                                            | ---                                                              |
+  | `--taxon`                                                                      | Scientific name, Wikidata QID, or `*` for every organism         |
+  | `--structure`                                                                  | SMILES, or an MDL molfile (V2000/V3000)                          |
+  | `--structure-search`                                                           | `substructure` or `similarity`                                   |
+  | `--threshold`                                                                  | Tanimoto cutoff for a similarity search, 0 to 1                  |
+  | `--mass-min`, `--mass-max`                                                     | Molecular mass range, in daltons                                 |
+  | `--year-min`, `--year-max`                                                     | Publication year range                                           |
+  | `--formula`                                                                    | Exact molecular formula; subscripts are accepted                 |
+  | `--limit`                                                                      | How many rows to return. The counts still describe the whole set |
+  | `--format`                                                                     | How to write the rows; see below                                 |
+  | `--log`                                                                        | Verbosity on stderr: `error`, `warn`, `info`, `debug`            |
+  | `--explain`                                                                    | Print the SPARQL and send nothing                                |
+  | `--carbon`, `--hydrogen`, `--nitrogen`, `--oxygen`, `--phosphorus`, `--sulfur` | Atom-count range, e.g. `10..20`                                  |
+  | `--fluorine`, `--chlorine`, `--bromine`, `--iodine`                            | Halogen presence: `allowed`, `required`, `excluded`              |
 
 An element range is written `MIN..MAX`, and either end may be omitted:
 `--carbon ..20` is at most 20 carbons, `--carbon 5..` is at least 5. A bare
@@ -73,7 +73,7 @@ lotus search --taxon "Gentiana lutea" --format jsonl | jq -r .name
 ```
 
 - `table` is aligned for a terminal and is not meant for parsing. It omits the
-  structure column, which is too wide to read and too useful to lose — use
+  structure column, which is too wide to read and too useful to lose --- use
   `--format json` when you want it.
 - `tsv` and `csv` are one header row followed by the rows, with values quoted
   when they contain the separator.
@@ -81,7 +81,7 @@ lotus search --taxon "Gentiana lutea" --format jsonl | jq -r .name
   flag. `jsonl` is one row per line, for streaming.
 - `jsonld` is Bioschemas JSON-LD: a `Dataset` for the result set, the LOTUS
   source, and a `MolecularEntity` per compound. See
-  [`lotus-schema`](../crates/lotus-schema).
+  [`lotus-jsonld`](../crates/lotus-jsonld).
 - `query` prints the SPARQL and no rows.
 
 ### Looking at the query without running it
@@ -117,8 +117,8 @@ The input is a TSV with `name` and `smiles` columns, and optionally `taxon` and
 are ignored rather than shifting everything:
 
 ```tsv
-name	smiles	taxon	doi
-Quercetin	O=c1c(O)c(-c2ccc(O)c(O)c2)oc2cc(O)cc(O)c12	Gentiana lutea	10.7554/eLife.70780
+name    smiles  taxon   doi
+Quercetin   O=c1c(O)c(-c2ccc(O)c(O)c2)oc2cc(O)cc(O)c12  Gentiana lutea  10.7554/eLife.70780
 ```
 
 Pass `-` or nothing to read stdin. `--format` takes `table`, `tsv`, `json` or
@@ -148,11 +148,11 @@ lotus man | man -l -
 
 ## Exit codes
 
-| Code | Meaning |
-|---|---|
-| 0 | Success |
-| 1 | The search or curation could not be completed |
-| 2 | The arguments were not valid |
+  | Code | Meaning                                       |
+  | ---- | --------------------------------------------- |
+  | 0    | Success                                       |
+  | 1    | The search or curation could not be completed |
+  | 2    | The arguments were not valid                  |
 
 ## Endpoints
 

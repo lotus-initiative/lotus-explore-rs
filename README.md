@@ -47,7 +47,7 @@ lotus-explore-rs/
 ├── rust-toolchain.toml       ← pinned compiler, components, target
 ├── crates/                   ← shared library crates
 │   ├── lotus/                ← SPARQL client, LOTUS models, transport, export
-│   └── lotus-deploy/         ← Host-only frontend asset fetcher
+│   └── lotus-web-assets/         ← Host-only frontend asset fetcher
 ├── apps/                     ← application crates
 │   └── lotus-explore-rs/     ← Main app: WASM client + optional native server
 │       ├── Cargo.toml

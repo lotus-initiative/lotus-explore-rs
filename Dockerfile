@@ -61,9 +61,9 @@ ARG DX_BASE_PATH="/"
 # fetch-assets runs from apps/lotus-explore-rs/ so its relative asset
 # directories land inside the app crate's public/ dir.
 RUN cd apps/lotus-explore-rs && \
-    cargo run --release -p lotus-deploy --bin fetch-assets && \
+    cargo run --release -p lotus-web-assets --bin fetch-assets && \
     BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx build --release --platform web --base-path "${DX_BASE_PATH}" --package lotus-explore-rs --locked --debug-symbols=false --rustc-args=-Copt-level=z && \
-    cd /build && cargo run --release -p lotus-deploy --bin inject-wasm-preload
+    cd /build && cargo run --release -p lotus-web-assets --bin inject-wasm-preload
 
 # ── Stage 3: export (for CI artifact extraction) ────────────────────────────────
 # Exposes the built web bundle via a scratch image so CI can extract it with

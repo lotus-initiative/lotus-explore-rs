@@ -18,9 +18,9 @@ anyhow = { workspace = true }
 clap = { workspace = true }
 clap_complete = { workspace = true }
 clap_mangen = { workspace = true }
-lotus-core = { workspace = true }
-lotus-schema = { workspace = true }
-lotus-sparql = { workspace = true }
+lotus-jsonld = { workspace = true }
+lotus-model = { workspace = true }
+lotus-search = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

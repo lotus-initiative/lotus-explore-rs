@@ -12,8 +12,8 @@
 #![allow(unused_crate_dependencies)]
 #![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
 
-use lotus_core::DatasetStats;
-use lotus_sparql::{
+use lotus_model::DatasetStats;
+use lotus_query::{
     parse_compounds_csv, parse_compounds_csv_capped, parse_counts_csv, parse_taxon_csv,
 };
 

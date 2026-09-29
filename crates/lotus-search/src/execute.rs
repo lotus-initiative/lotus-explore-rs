@@ -8,6 +8,7 @@
 use crate::client::{Http, HttpResponse};
 use crate::error::{FetchError, ResponseFormat};
 use crate::{QLEVER_WIKIDATA, WDQS_SCHOLARLY, WDQS_WIKIDATA};
+use lotus_query::FallbackService;
 use std::fmt::Write as _;
 use std::time::Duration;
 
@@ -190,11 +191,10 @@ pub async fn execute_with_fallback<H: Http>(
     match execute(http, Endpoint::new(Service::Qlever), query, format).await {
         Ok(answer) => Ok(answer),
         Err(err) if err.is_endpoint_unavailable() => {
-            let (service, rewritten) = crate::wdqs_fallback(query);
-            let service = if service == WDQS_SCHOLARLY {
-                Service::Scholarly
-            } else {
-                Service::Wdqs
+            let (service, rewritten) = lotus_query::wdqs_fallback(query);
+            let service = match service {
+                FallbackService::Scholarly => Service::Scholarly,
+                FallbackService::Main => Service::Wdqs,
             };
             execute(http, Endpoint::new(service), &rewritten, format).await
         }
@@ -345,14 +345,17 @@ fn urlencode(value: &str) -> String {
 /// Wait before the next attempt.
 ///
 /// On native this is a tokio timer, which does not block the runtime. On wasm
-/// there is no reactor, so it blocks the single browser thread — acceptable
-/// because the backoff is short and a wasm client has nothing else to do.
+/// there is no reactor and no timer that does not itself need a reactor, so
+/// the wait is dropped rather than blocking the browser's only thread: a
+/// client that cannot reach the endpoint at all will not reach it in a
+/// millisecond either, and freezing the page to find that out is worse than
+/// retrying immediately.
 async fn backoff(duration: Duration) {
     #[cfg(not(target_arch = "wasm32"))]
-    tokio::time::sleep(duration).await;
-
-    #[cfg(target_arch = "wasm32")]
-    std::thread::sleep(duration);
+    {
+        let _ = duration;
+        tokio::time::sleep(duration).await;
+    }
 }
 
 #[cfg(test)]

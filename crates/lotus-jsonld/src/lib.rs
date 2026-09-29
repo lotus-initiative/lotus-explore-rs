@@ -21,7 +21,7 @@ pub use profile::{Profile, ValidationIssue, check};
 pub use software::{citation_cff, codemeta, software_jsonld};
 pub use taxon::taxon_jsonld;
 
-use lotus_core::CompoundEntry;
+use lotus_model::CompoundEntry;
 
 /// The `@context` every document here shares.
 pub const CONTEXT: &str = "https://schema.org/";
