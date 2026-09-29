@@ -16,6 +16,20 @@ crate and the QLever SPARQL endpoint.
 just serve
 ```
 
+This is a development server: it serves an unhashed bundle plus the Dioxus JS
+interpreter, and it is **not** what ships. Do not run Lighthouse or measure
+transfer size against it. For anything you intend to publish, build first and
+serve the output:
+
+```bash
+just build
+```
+
+That writes the real bundle to
+`target/dx/lotus-explore-rs/release/web/public`, which is what the deploy
+publishes. The module there is 1.4 MiB raw / 456 KiB brotli, against the dev
+server's 6.4 MiB.
+
 To also run the optional API:
 
 ```bash

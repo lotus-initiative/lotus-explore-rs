@@ -186,6 +186,32 @@ compiling at different levels from identical source, so they produced different
 binaries and every comparison between them was meaningless until this was found.
 Measure through the shipping path, and not by invoking `dx` by hand.
 
+## The dev server is not a measurement target
+
+`just serve` (and `dx serve` generally) reports an enormous payload, and it is
+not a bug in the app. A Lighthouse run against it shows roughly 65 MB, almost all
+of it one request to `/wasm/lotus-explore-rs_bg.wasm` — the debug module,
+served unhashed alongside the Dioxus JS interpreter snippets.
+
+Measured on this workspace, dev wasm from identical source:
+
+| dev rustc args | dev wasm | build |
+| --- | --- | --- |
+| default | 63.6 MiB | 42 s |
+| `-Copt-level=1` | 60.1 MiB | 14 s |
+| `-Cdebuginfo=0` | 37.5 MiB | 12 s |
+| `-Cdebuginfo=0 -Cstrip=debuginfo` | **6.4 MiB** | **6 s** |
+
+Optimising barely moves it; the debug sections are the entire cost, and writing
+them is most of the build time. `just serve` now strips them, which is a 10x
+smaller payload and a 7x faster dev build, and neither flag changes codegen so
+hot reload is unaffected. What it costs is line numbers in panic backtraces.
+
+The remaining gap between 6.4 MiB and the shipped 456 KiB brotli is the
+difference between a debug server and a release build. Take numbers from
+`just build` and a static server that negotiates the precompressed `.br`
+siblings, never from `dx serve`.
+
 ## A measurement trap worth recording
 
 A test server that sends `Cache-Control: no-cache` **without** a validator (ETag

@@ -73,9 +73,25 @@ clippy-wasm:
 # fetch-assets must run from the app crate dir so its relative asset
 # directories land inside apps/<app>/public, not at the repo-root public/.
 
+# The dev server's payload is dominated by debug info, not by code. Measured on
+# this workspace, dev wasm, same source:
+#
+#   (default)                    63.6 MiB   build 42s
+#   -Copt-level=1                60.1 MiB   build 14s
+#   -Cdebuginfo=0                37.5 MiB   build 12s
+#   -Cdebuginfo=0 -Cstrip=debuginfo  6.4 MiB   build  6s
+#
+# Optimising barely moves it; emitting the debug sections is the whole cost, and
+# writing them is also most of the build time. Stripping them is a 10x smaller
+# payload and a 7x faster dev build, for the loss of line numbers in panic
+# backtraces. Neither flag changes codegen, so hot reload is unaffected.
+#
+# Never measure Lighthouse against this: it is a dev server serving an
+# unhashed bundle and the Dioxus JS interpreter, not the shipped artefact. See
+# docs/PERFORMANCE.md.
 serve app="lotus-explore-rs":
 	cd apps/{{app}} && cargo run --locked -p lotus-deploy --bin fetch-assets
-	dx serve --package {{app}} --platform web --locked --open=false
+	dx serve --package {{app}} --platform web --locked --open=false --rustc-args="-Cdebuginfo=0 -Cstrip=debuginfo"
 
 preview app="lotus-explore-rs":
 	cd apps/{{app}} && cargo run --locked -p lotus-deploy --bin fetch-assets
