@@ -9,7 +9,7 @@ neither the `.br` files nor `_headers` and therefore overstates every transfer.
 
 On `/` at mobile throttling, the LCP element is the welcome paragraph.
 Lighthouse attributes 2.6 ms to time-to-first-byte and 146 ms to element render
-delay, so the element itself is cheap. The remaining ~3.4 s sits between first
+delay, so the element itself is cheap. The remaining \~3.4 s sits between first
 paint (751 ms) and the app mounting: the module crossing the link, then
 compiling.
 
@@ -17,15 +17,15 @@ LCP 3752 ms = FCP 751 ms + 456 KiB over a simulated 1.6 Mbit/s link + compile
 
 That is the whole story. LCP here is a payload-and-compile problem, and no
 amount of DOM or CSS work touches it. The main thread is not the constraint:
-total scripting is ~430 ms and total blocking time is 20--45 ms.
+total scripting is \~430 ms and total blocking time is 20--45 ms.
 
 ## What shipped
 
-  | Change                     | wasm raw | wasm br  | wasm gzip | transfer |
-  | -------------------------  | -------- | -------- | --------- | -------- |
-  | `codegen-units = 16`       | 1533738  | 485247   | 627861    | 518.4 KB |
-  | `codegen-units = 1`        | 1468720  | 467094   | 599227    | 499.5 KB |
-  |                            | −4.24 %  | −3.74 %  | −4.56 %   | −3.6 %   |
+  | Change               | wasm raw | wasm br | wasm gzip | transfer |
+  | -------------------- | -------- | ------- | --------- | -------- |
+  | `codegen-units = 16` | 1533738  | 485247  | 627861    | 518.4 KB |
+  | `codegen-units = 1`  | 1468720  | 467094  | 599227    | 499.5 KB |
+  |                      | −4.24 %  | −3.74 % | −4.56 %   | −3.6 %   |
 
 Cost: `dx build` goes from 103 s to 128 s.
 
@@ -40,7 +40,7 @@ Lighthouse, mobile and desktop, light and dark, 3 rounds each, median:
   | TBT mobile   | 45/54 ms | 42/21 ms |
 
 The performance score does not move, and this document does not pretend
-otherwise. 3.7 % off the payload is ~80 ms of transfer, which is inside the
+otherwise. 3.7 % off the payload is \~80 ms of transfer, which is inside the
 run-to-run spread of a metric whose dominant term is a 2.3 s download.
 
 ## What was tried and rejected
@@ -48,13 +48,13 @@ run-to-run spread of a metric whose dominant term is a 2.3 s download.
 Each of these was built and measured rather than reasoned about. Sizes are
 `just web-bytes` output for a release `dx build`.
 
-  | Experiment                            | raw     | br      | gz      | verdict                        |
-  | ------------------------------------- | ------- | ------- | ------- | -----------------------------  |
-  | baseline: `opt-level=z`, `cgu=16`     | 1529038 | 484149  | 624171  | reference                      |
-  | `opt-level=s`, `cgu=16`               | 1684551 | 504455  | 665153  | **worse**, +4.2 % brotli       |
-  | `opt-level=z`, `cgu=1`                | 1463410 | 465858  | 597064  | **kept**                       |
-  | `+ panic = "abort"`                   | 1465621 | 466744  | 598085  | **no-op**, +13 B raw           |
-  | `dioxus/devtools` off                 | 1463423 | 465709  | 597095  | **no-op**, ±0.03 %             |
+  | Experiment                        | raw     | br     | gz     | verdict                  |
+  | --------------------------------- | ------- | ------ | ------ | ------------------------ |
+  | baseline: `opt-level=z`, `cgu=16` | 1529038 | 484149 | 624171 | reference                |
+  | `opt-level=s`, `cgu=16`           | 1684551 | 504455 | 665153 | **worse**, +4.2 % brotli |
+  | `opt-level=z`, `cgu=1`            | 1463410 | 465858 | 597064 | **kept**                 |
+  | `+ panic = "abort"`               | 1465621 | 466744 | 598085 | **no-op**, +13 B raw     |
+  | `dioxus/devtools` off             | 1463423 | 465709 | 597095 | **no-op**, ±0.03 %       |
 
 All of the above were taken with a bare `dx build`. `just build` --- the path
 the Dockerfile runs --- was compiling at `opt-level=s` for part of this work, so
@@ -66,7 +66,7 @@ that ships, and `just opt-levels` now keeps the three declarations in agreement.
 The expectation is that `s` lets LLVM inline and vectorise before
 `wasm-opt -Oz`, producing output that is both smaller and faster. On this
 workspace it produces a binary 10.2 % larger raw and 4.2 % larger brotli. Since
-LCP is transfer-bound and the last 4 % of transfer is worth ~80 ms, the larger
+LCP is transfer-bound and the last 4 % of transfer is worth \~80 ms, the larger
 binary is simply worse on the only axis that matters. `opt-level = "z"` stays,
 in `Cargo.toml`, in `Dioxus.toml`'s `wasm_opt.level`, and in the `--rustc-args`
 of every `just` recipe, so all three entry points agree.
@@ -150,14 +150,14 @@ Measured from the real request timings, Lighthouse `devtools` throttling at 1.6
 Mbit/s / 150 ms:
 
   |                         | before                       | after                        |
-  | ---                     | ---                          | ---                          |
+  | ----------------------- | ---------------------------- | ---------------------------- |
   | module request starts   | 520252 ms after the document | 220055 ms after the document |
   | observed LCP            | 3114 ms                      | 2940 ms                      |
   | simulated LCP, 5 rounds | 3752 ms                      | 3606 ms light / 3624 ms dark |
   | perf mobile, 5 rounds   | 89                           | 90 light / 90 dark           |
   | TBT mobile              | 37 / 17 ms                   | 11 / 0 ms                    |
 
-The module now starts in the same ~9 ms window as the CSS and the glue instead
+The module now starts in the same \~9 ms window as the CSS and the glue instead
 of 300 s behind them. This is the only LCP win in this document that came from
 request scheduling rather than from making the module smaller.
 
@@ -244,9 +244,50 @@ Two per-render allocations were removed, both real and both invisible to a
   template is built rather than on the click. Now taken on click.
 
 Both are documented as allocation fixes, not speedups, because that is what the
-measurements support: at 100 queued rows the deep copy costs ~42 µs against a
+measurements support: at 100 queued rows the deep copy costs \~42 µs against a
 16,700 µs frame budget, and long-task time while typing was 0 ms before and
 after.
+
+## What is left in the module, and why nothing is left to tune
+
+Profiled with `twiggy` against an unstripped build (`RUSTFLAGS=-Cstrip=none`),
+then attributed by parsing the name section against the code section. The
+shipped 1.4 MB module is 74.5 % code and 23.8 % data across \~6,500 functions.
+Split by area:
+
+  | Area                              | Bytes     | Share  |
+  | --------------------------------- | --------- | ------ |
+  | Curation page and its services    | 149,130   | 10.9 % |
+  | Results table and viewport        | 116,070   | 8.5 %  |
+  | Search panel and form             | 75,721    | 5.6 %  |
+  | Draw page / Ketcher panel         | 267       | 0.0 %  |
+  | Shared framework, std, i18n, rest | 1,026,281 | 75.3 % |
+
+Three quarters of the module is the floor under the app: dioxus, web-sys,
+reqwest, serde, std and the four locale tables. The largest single feature, the
+whole curation page, is 10.9 %. Dropping it to shrink the bundle is a product
+decision, not an optimisation, and the draw page is already almost free because
+Ketcher loads as a same-origin iframe rather than into the module.
+
+The tuning levers are exhausted, each measured rather than assumed:
+
+- **`wasm-opt`** is already at the floor. `-Oz --converge` is what ships, and
+  adding `--vacuum` and `--remove-unused-names` by hand changes the brotli size
+  by 50 bytes out of 467,133, because `-Oz` already runs them.
+- **No stray sections ship.** The unstripped build carries a 534 KB
+  `__wasm_bindgen_unstable` section and a 921 KB name section; `wasm-opt`
+  removes both, and the shipped module contains only `target_features` (157
+  bytes).
+- **`reqwest` is already minimal for wasm**: `default-features = false`, and no
+  `hyper`, `native-tls` or `rustls` rlib is built for the target.
+- **`panic = "abort"` and `dioxus/devtools`** were already measured as no-ops
+  above; `wasm32-unknown-unknown` aborts by default and the devtools module is
+  gated on `debug_assertions`.
+
+So the remaining reduction is a product or architecture decision -- fewer
+locales, dropping a route, or code-splitting the module, which would mean
+multi-module dynamic loading that this build does not currently do -- not a knob
+left to turn.
 
 ## Source maps
 
@@ -276,7 +317,7 @@ Every entry it currently lists is one the app cannot act on:
   the audit applies and is therefore never listed.
 
 Our own glue emits no `sourceMappingURL` and has no map, so there is also no
-dangling 404 to chase. A map for it would be ~1.4 MB against a 45 KiB payload ---
+dangling 404 to chase. A map for it would be \~1.4 MB against a 45 KiB payload ---
 a real transfer cost, paid by anyone whose browser fetches it, in exchange for
 an unscored audit. Debugging the release build is what `--debug-symbols` and the
 local `just serve` profile are for.
