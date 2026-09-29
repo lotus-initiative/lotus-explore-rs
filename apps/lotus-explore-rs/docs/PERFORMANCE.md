@@ -250,7 +250,33 @@ after.
 
 ## Source maps
 
-`valid-source-maps` is 0 by design. No source map is emitted, so no
-`sourceMappingURL` is emitted either, and there is no 404 to fix. This is
-deliberate: a source map would be a second multi-megabyte artifact served to
-nobody, in exchange for points on an audit that the app cannot act on.
+Emitting no source map is deliberate, so this audit is expected to fail.
+
+The audit that reports this is `missing-source-maps` ("Large JavaScript file is
+missing a source map"), which is **unscored** --- it cannot move the performance
+score, and Lighthouse's own copy notes it is offered for the debugging insight
+rather than as a metric. Nothing here is a regression to fix.
+
+Every entry it currently lists is one the app cannot act on:
+
+- `assets/lotus-explore-rs_bg-<hash>.wasm` and
+  `assets/vendor/rdkit/RDKit_minimal.wasm` are **WebAssembly, not JavaScript**.
+  They are listed because the audit inspects the script-type requests the
+  bundler and the Dioxus glue make; there is no JavaScript to map back to.
+  Shipping `--debug-symbols` DWARF would cost far more than a `.map` --- the 65
+  MB debug module is exactly what the deploy guard exists to catch.
+- `assets/vendor/citation-js/citation.js` is a vendored **third-party** minified
+  bundle, pinned by commit in `fetch-assets`. Upstream publishes no map:
+  `citation.js.map` is a 404 at the pinned Scholia ref, and neither does RDKit
+  (`RDKit_minimal.js.map` is a 404 on unpkg). The only way to produce one would
+  be to minify from source ourselves, which would mean vendoring a build
+  toolchain to reconstruct someone else's bundle.
+- The **first-party** JavaScript is the 45 KiB Dioxus glue
+  (`assets/lotus-explore-rs-dxh<hash>.js`), which is under the size threshold
+  the audit applies and is therefore never listed.
+
+Our own glue emits no `sourceMappingURL` and has no map, so there is also no
+dangling 404 to chase. A map for it would be ~1.4 MB against a 45 KiB payload ---
+a real transfer cost, paid by anyone whose browser fetches it, in exchange for
+an unscored audit. Debugging the release build is what `--debug-symbols` and the
+local `just serve` profile are for.
