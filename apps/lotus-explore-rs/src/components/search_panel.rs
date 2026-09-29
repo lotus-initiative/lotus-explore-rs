@@ -137,11 +137,14 @@ fn StructureSection() -> Element {
             }
 
             fieldset { class: "m-0 flex flex-wrap gap-3 border-0 p-0",
+                // On the fieldset, not on each radio: WebMCP describes a radio
+                // group as one parameter, and repeating it on both controls
+                // synthesises a conflicting property and fails schema validation.
+                "toolparamdescription": "Structure search mode: substructure or similarity.",
                 legend { class: "sr-only", "{t(locale, TextKey::StructureSearchMode)}" }
                 label { class: "inline-flex items-center gap-1.5 text-ui text-muted",
                     input {
                         r#type: "radio",
-                        "toolparamdescription": "Structure search mode: substructure or similarity.",
                         id: "smiles-search-type-substructure",
                         name: "stype",
                         autocomplete: "off",
@@ -156,7 +159,6 @@ fn StructureSection() -> Element {
                 label { class: "inline-flex items-center gap-1.5 text-ui text-muted",
                     input {
                         r#type: "radio",
-                        "toolparamdescription": "Structure search mode: substructure or similarity.",
                         id: "smiles-search-type-similarity",
                         name: "stype",
                         autocomplete: "off",
