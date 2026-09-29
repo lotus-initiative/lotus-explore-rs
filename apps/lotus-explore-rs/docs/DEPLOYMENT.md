@@ -122,20 +122,21 @@ repository does not publish to, so the 404 body is that site's HTML. The file
 this repo generates is served correctly and does have an H1 on line 1, a
 blockquote summary, H2 sections and absolute Markdown links.
 
-There are two ways an audit can find the file, and both are closed here:
+The audit is marked **not applicable**, not failed, which is Chrome's documented
+behaviour for a 404, and `agentic-browsing` scores 100 with it in that state.
+Nothing is being penalised; the "should contain an H1" wording is the audit's
+boilerplate description, not a finding about this file.
+
+There are two ways an audit can find the file, and the second is now correct:
 
 1. **`/llms.txt` at the origin** --- needs a file at the root of the CNAME,
-   which is the other site's repository.
-2. **A `Link` header advertising it** --- `_headers` already asks for
-   `Link: </llms.txt>; rel="http://llmstxt.org/llms.txt"`, and GitHub Pages
-   ignores `_headers`, so no `Link` header is sent at all. Measured on the live
-   host: none. Note this rule is also root-relative, so it would need rewriting
-   to the subpath even on a host that honoured it.
-
-So there is nothing to change in this repository, and the audit will keep
-reporting until the root site serves an `llms.txt` or sends the `Link` header.
-Agents that follow the `Link` relation advertised in `_headers` once a host
-honours it, and anything reading the subpath URL directly gets the right file.
+   which is the other site's repository. Not reachable from here.
+2. **A `Link` header advertising it** --- emitted by `_headers`, which GitHub
+   Pages ignores, so nothing is sent on the live host. Measured: no `Link`
+   header at all. These targets used to be root-relative, which resolved to the
+   domain root and 404'd on the subpath deploy; they are now absolute from
+   `base_url`, so they are correct on any host that honours `_headers`, and all
+   seven are verified 200 against the live host.
 
 ## Plain HTTP is served, not redirected
 
