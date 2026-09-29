@@ -38,6 +38,16 @@ license-headers:
 # `just ci`. Each step reuses a recipe above (single source of truth). Supply-chain
 # tools that may be absent locally are skipped by their own recipes.
 
+# The committed citation metadata must match what the code describes. A version
+# bump that forgets to regenerate it would otherwise publish a stale citation.
+metadata:
+	cargo run --locked -q -p lotus-jsonld --bin emit-metadata -- --check
+
+# Rewrite the committed citation metadata from the single description in
+# `lotus-jsonld`.
+metadata-write:
+	cargo run --locked -q -p lotus-jsonld --bin emit-metadata
+
 ci:
 	just fmt
 	just check
@@ -45,6 +55,7 @@ ci:
 	just test
 	just doc
 	just license-headers
+	just metadata
 	just wasm
 	just clippy-wasm
 	just machete

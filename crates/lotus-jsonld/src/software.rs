@@ -130,8 +130,20 @@ pub fn citation_cff(software: &Software) -> String {
         fields.push(format!("doi: {}", yaml_scalar(&doi_uri(doi))));
     }
 
-    for keyword in software.keywords {
-        fields.push(format!("keywords:\n  - {}", yaml_scalar(keyword)));
+    // One `keywords:` key with every value under it. Emitting a key per keyword
+    // parses as valid YAML and silently keeps only the last one, so a document
+    // listing five keywords described the software by one of them.
+    if !software.keywords.is_empty() {
+        // The key carries its own newline, so the first list item starts on its
+        // own line rather than continuing the key's.
+        let mut list = String::from("keywords:\n");
+        for keyword in software.keywords {
+            use std::fmt::Write as _;
+            // Writing into the buffer rather than allocating a `String` per
+            // keyword: this runs on every CI check.
+            let _ = writeln!(list, "  - {}", yaml_scalar(keyword));
+        }
+        fields.push(list);
     }
 
     let authors = "authors:\n  - name: \"The LOTUS consortium\"\n    website: \"https://www.wikidata.org/wiki/Q104225190\"";
@@ -160,8 +172,8 @@ mod tests {
     #![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
 
     use super::*;
-    use crate::Profile;
     use crate::profile::check;
+    use crate::{Profile, SOFTWARE};
 
     #[test]
     fn the_software_conforms_on_the_bioschemas_profile() {
@@ -207,5 +219,27 @@ mod tests {
     #[test]
     fn the_citation_names_the_lotus_paper_when_there_is_one() {
         assert!(citation_cff(&crate::SOFTWARE).contains("10.7554/eLife.70780"));
+    }
+
+    #[test]
+    fn every_keyword_survives_as_a_list() {
+        // A YAML mapping with `keywords:` repeated keeps only the last value.
+        // The document named five keywords and described the software by one.
+        let cff = citation_cff(&SOFTWARE);
+        assert_eq!(
+            cff.matches("keywords:").count(),
+            1,
+            "a repeated key silently drops the earlier values:\n{cff}"
+        );
+        // Count the indented list items that follow the key. `skip_while`
+        // rather than `position`, so an empty list does not silently count the
+        // next section's items.
+        let mut lines = cff.lines().skip_while(|l| !l.starts_with("keywords:"));
+        lines.next();
+        let entries = lines.take_while(|l| l.starts_with("  - ")).count();
+        assert_eq!(entries, SOFTWARE.keywords.len(), "{cff}");
+        for keyword in SOFTWARE.keywords {
+            assert!(cff.contains(keyword), "{keyword} missing from:\n{cff}");
+        }
     }
 }

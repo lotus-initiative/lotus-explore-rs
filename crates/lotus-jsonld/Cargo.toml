@@ -9,6 +9,12 @@ keywords = ["bioschemas", "json-ld", "linked-data", "lotus", "schema.org"]
 categories = ["science", "web-programming"]
 publish = false
 
+[[bin]]
+# Writes the repository's `codemeta.json` and `CITATION.cff` from the single
+# description in `lib.rs`, so the two cannot drift apart.
+name = "emit-metadata"
+path = "src/bin/emit-metadata.rs"
+
 [dependencies]
 lotus-model = { workspace = true }
 serde_json = { workspace = true }

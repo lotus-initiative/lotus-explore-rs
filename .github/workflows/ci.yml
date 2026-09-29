@@ -95,16 +95,18 @@ jobs:
           # free of IO. `lotus-search` builds with no default features, since
           # its native default pulls in an HTTP stack and a reactor.
           cargo check --target wasm32-unknown-unknown --locked \
-            -p lotus-model -p lotus-query -p lotus-jsonld \
+            -p lotus-model -p lotus-query -p lotus-jsonld -p lotus-curation \
             -p lotus-search --no-default-features
           cargo check -p lotus-explore-rs --target wasm32-unknown-unknown --locked
+      - name: Citation metadata is current
+        run: cargo run --locked -q -p lotus-jsonld --bin emit-metadata -- --check
       - name: Clippy WASM
         run: |
           # `lotus-web-assets` is a host-only bin (blocking reqwest) and is excluded on
           # purpose; only the wasm-relevant crates are linted here.
           cargo clippy --target wasm32-unknown-unknown --locked -- -D warnings \
             -p lotus -p lotus-explore-rs \
-            -p lotus-model -p lotus-query -p lotus-jsonld
+            -p lotus-model -p lotus-query -p lotus-jsonld -p lotus-curation
 
   supply-chain:
     name: Supply-chain

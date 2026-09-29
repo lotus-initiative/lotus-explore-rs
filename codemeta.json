@@ -1,0 +1,22 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "applicationCategory": "scientific data analysis",
+  "buildInstructions": "cargo build --release -p lotus-cli",
+  "codeRepository": "https://github.com/lotusnprod/lotus-explore-rs",
+  "description": "A linked open data explorer for the LOTUS compound-taxon-reference knowledge graph in Wikidata, queried over SPARQL.",
+  "identifier": "https://doi.org/10.7554/eLife.70780",
+  "keywords": [
+    "natural products",
+    "linked open data",
+    "SPARQL",
+    "bioinformatics",
+    "chemical structure"
+  ],
+  "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+  "name": "LOTUS Explorer",
+  "operatingSystem": "any",
+  "programmingLanguage": "Rust",
+  "url": "https://lotus.naturalproducts.net",
+  "version": "0.1.0"
+}
