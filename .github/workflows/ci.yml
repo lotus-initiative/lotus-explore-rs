@@ -34,6 +34,16 @@ jobs:
         with: { components: rustfmt }
       - run: cargo fmt --all -- --check
 
+  license-headers:
+    name: License headers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - name: Every .rs file carries both AGPL headers on lines 1 and 2
+        run: just license-headers
+
   clippy:
     name: Clippy
     runs-on: ubuntu-latest

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Characterization tests: what the CSV parsers produce, on recorded `QLever`
 //! output. These are the load-bearing assertions of the refactor: every
 //! downstream surface (table, CSV/JSON export, JSON-LD, CLI) reads these types.

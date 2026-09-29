@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Characterization tests for the two search paths that were written twice.
 //!
 //! The web pipeline and the `/v1` API each build a query and each resolve a

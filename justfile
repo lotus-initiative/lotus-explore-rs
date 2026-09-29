@@ -18,6 +18,22 @@ test:
 doc:
 	cargo doc --workspace --no-deps --locked
 
+# Every .rs file must carry both AGPL-3.0-only headers on lines 1 and 2.
+# `target/`, `.opencode/` and `graphify-out/` are build output, vendored config
+# and generated graph data respectively — none of them is source.
+license-headers:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	missing=0
+	while IFS= read -r f; do
+	  if ! head -1 "$f" | grep -qxF '// SPDX-License-Identifier: AGPL-3.0-only' \
+	     || ! head -2 "$f" | tail -1 | grep -qxF '// SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project'; then
+	    echo "missing or misplaced SPDX header: $f" >&2
+	    missing=1
+	  fi
+	done < <(find . \( -name target -o -name .opencode -o -name graphify-out -o -name .git \) -prune -o -name '*.rs' -print)
+	exit $missing
+
 # ── Full CI gate (every check the pipeline runs, in order) ────────────────────
 # `just ci`. Each step reuses a recipe above (single source of truth). Supply-chain
 # tools that may be absent locally are skipped by their own recipes.
@@ -28,6 +44,7 @@ ci:
 	just clippy
 	just test
 	just doc
+	just license-headers
 	just wasm
 	just clippy-wasm
 	just machete

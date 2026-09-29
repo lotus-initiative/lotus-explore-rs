@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Characterization tests: the behaviour the refactor must preserve.
 //!
 //! These assert the *contract* of each builder (subquery nesting, where each
