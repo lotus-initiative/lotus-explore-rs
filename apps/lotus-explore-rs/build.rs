@@ -28,6 +28,13 @@ struct Site {
     name: String,
     short_name: String,
     description: String,
+    /// The site's canonical URL, including the subpath it is served from.
+    ///
+    /// **This is the single source of the canonical host.** Every generated file
+    /// derives its absolute URLs from here, so a CNAME change is this field plus
+    /// the two hand-written URLs in `index.html` (`og:url` and the JSON-LD
+    /// `url`), which a test ties back to this value. Nothing else in the tree
+    /// stores the host as a value. See docs/DEPLOYMENT.md, "Changing the CNAME".
     base_url: String,
     repo_url: String,
     issues_url: String,
@@ -646,6 +653,7 @@ fn hostname(meta: &Metadata) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     /// Load the real `site-metadata.json`, so these tests exercise the file the
     /// build actually uses rather than a hand-built copy that could drift from
@@ -804,6 +812,103 @@ mod tests {
             );
         }
         Ok(())
+    }
+
+    /// Files under the app that are allowed to name the live host, and why.
+    ///
+    /// Files under the app that may name the live host, and why each is safe.
+    ///
+    /// - `metadata/site-metadata.json` -- the single source. A CNAME change
+    ///   edits this and nothing else.
+    /// - `index.html` -- the one hand-written URL, because dx serves it rather
+    ///   than build.rs generating it. Guarded by `index_html_agrees_with_base_url`,
+    ///   which fails if it drifts from `base_url`.
+    /// - `docs/DEPLOYMENT.md` -- prose recording measured responses. A
+    ///   measurement of the old host is history, not a value to keep in sync.
+    /// - `build.rs` -- only the test fixtures below, which are deliberately
+    ///   pinned to the real host so the tests exercise the shipped values
+    ///   rather than synthetic ones. They are inputs to assertions, not output.
+    ///   `every_host_bearing_artefact_follows_base_url` already proves those
+    ///   fixtures are not load-bearing for the generated files.
+    const HOST_BEARING_SOURCES: [&str; 4] = [
+        "metadata/site-metadata.json",
+        "index.html",
+        "docs/DEPLOYMENT.md",
+        "build.rs",
+    ];
+
+    #[test]
+    fn only_the_documented_files_name_the_live_host() -> Result<(), Box<dyn Error>> {
+        // The point of generating the metadata is that grepping the tree for the
+        // host finds one source, not twenty. That only stays true if a new
+        // hardcoded copy is a test failure rather than something a future CNAME
+        // change silently misses -- which is exactly how the last one shipped.
+        //
+        // The generated files under public/ are committed, so they legitimately
+        // contain the host; they are excluded by GENERATED_METADATA, and the
+        // test below asserts that list stays in sync with what is written.
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let meta = real_metadata()?;
+        let host = hostname(&meta).to_owned();
+
+        let mut sources = Vec::new();
+        let mut generated_with_host = Vec::new();
+        for entry in walk(&root)? {
+            let path = entry?;
+            let rel = path
+                .strip_prefix(&root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
+            if rel.starts_with("target/") || rel.contains("/target/") {
+                continue;
+            }
+            let Ok(text) = fs::read_to_string(&path) else {
+                continue;
+            };
+            if !text.contains(&host) {
+                continue;
+            }
+            if rel.starts_with("public/")
+                && GENERATED_METADATA.contains(&rel["public/".len()..].as_ref())
+            {
+                generated_with_host.push(rel);
+            } else if !HOST_BEARING_SOURCES.contains(&rel.as_ref()) {
+                sources.push(rel);
+            }
+        }
+
+        assert!(
+            sources.is_empty(),
+            "these files name the live host but are neither generated nor an \
+             documented exception, so a CNAME change would miss them: {sources:?}. \
+             Add the host to site-metadata.json and generate the file, or list it \
+             in HOST_BEARING_SOURCES in build.rs if it is genuinely hand-written."
+        );
+        // Sanity-check the exclusion is still doing something: if GENERATED_METADATA
+        // drifted from what the script writes, the loop above would quietly stop
+        // recognising generated files and this would come back empty.
+        assert!(
+            !generated_with_host.is_empty(),
+            "no generated file contained the host, so the generated-file exclusion \
+             is not matching anything - GENERATED_METADATA has drifted from what \
+             build.rs actually writes"
+        );
+        Ok(())
+    }
+
+    /// Minimal recursive walk; `walkdir` is not a dependency of the build script.
+    fn walk(dir: &Path) -> Result<Vec<std::io::Result<PathBuf>>, Box<dyn Error>> {
+        let mut out = Vec::new();
+        for entry in std::fs::read_dir(dir)? {
+            let path = entry?.path();
+            if path.is_dir() {
+                out.extend(walk(&path)?);
+            } else {
+                out.push(Ok(path));
+            }
+        }
+        Ok(out)
     }
 
     #[test]

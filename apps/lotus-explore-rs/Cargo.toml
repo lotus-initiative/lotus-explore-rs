@@ -21,9 +21,9 @@ path = "src/main.rs"
 # invocation guessing at rlib hashes. build.rs generates every host-bearing
 # file, so these are the tests that guard a CNAME change.
 [[test]]
+harness = true
 name = "buildrs"
 path = "build.rs"
-harness = true
 
 [dependencies]
 dioxus = { workspace = true }
