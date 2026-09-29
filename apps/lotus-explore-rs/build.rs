@@ -80,6 +80,18 @@ struct Shortcut {
     icons: Vec<Icon>,
 }
 
+/// The files this build script generates into `public/`, relative to it.
+/// `clean_dx_output` removes exactly these from `dx`'s output, and nothing else.
+const GENERATED_METADATA: [&str; 7] = [
+    "llms.txt",
+    "humans.txt",
+    "robots.txt",
+    "sitemap.xml",
+    "site.webmanifest",
+    "_headers",
+    ".well-known/ai-catalog.json",
+];
+
 fn main() -> Result<(), Box<dyn Error>> {
     let manifest_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?);
     let metadata_path = manifest_dir.join("metadata/site-metadata.json");
@@ -124,6 +136,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Remove the previously-generated metadata files from `dx`'s output tree.
+///
+/// This runs on every wasm compile of the app, including the `cargo check`
+/// inside `just ci`, so it has to be surgical. It used to delete the whole
+/// `public` directory, which meant any running `dx serve` or `dx preview` lost
+/// the bundle it was serving and answered every request with
+///
+///     Err 404 - dioxus is not currently serving a web app
+///
+/// — over HTTP **200**, so nothing in the browser flags it, and it does not
+/// recover even after a later successful rebuild. Only restarting the server
+/// helps. Deleting instead only the files this build script owns is enough to
+/// force `dx` to re-bundle them, and leaves the module, the stylesheet, the
+/// bridges and `index.html` in place.
 fn clean_dx_output() -> Result<(), Box<dyn Error>> {
     let Ok(target) = std::env::var("TARGET") else {
         return Ok(());
@@ -147,8 +173,14 @@ fn clean_dx_output() -> Result<(), Box<dyn Error>> {
         .join(profile)
         .join("web")
         .join("public");
-    if output.exists() {
-        fs::remove_dir_all(output)?;
+    if !output.is_dir() {
+        return Ok(());
+    }
+    for name in GENERATED_METADATA {
+        let path = output.join(name);
+        if path.is_file() {
+            fs::remove_file(&path)?;
+        }
     }
     Ok(())
 }
