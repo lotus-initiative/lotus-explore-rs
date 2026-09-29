@@ -99,6 +99,9 @@ const CHUNK_SIZE: usize = 16 * 1024 * 1024;
 #[derive(Debug)]
 pub struct UploadBlobLines {
     blob: UploadBlob,
+    /// The blob's size, which bounds the chunk reads. Not exposed: nothing
+    /// outside this module reads it, and an accessor nobody calls is an
+    /// accessor someone has to keep correct.
     total_bytes: u64,
     offset: u64,
     buffer: Vec<u8>,
@@ -120,12 +123,6 @@ impl UploadBlobLines {
             buffer: Vec::with_capacity(CHUNK_SIZE),
             buf_start: 0,
         }
-    }
-
-    /// Total blob size.
-    #[must_use]
-    pub const fn total_bytes(&self) -> u64 {
-        self.total_bytes
     }
 
     /// Next line, or `Ok(None)` at end of stream.
@@ -205,11 +202,6 @@ impl UploadBlobLines {
     #[must_use]
     pub fn new(_blob: &UploadBlob) -> Self {
         Self
-    }
-
-    #[must_use]
-    pub const fn total_bytes(&self) -> u64 {
-        0
     }
 
     pub async fn next_line(&mut self) -> Result<Option<String>, UploadError> {

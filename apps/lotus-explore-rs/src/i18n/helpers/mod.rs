@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! Secondary i18n helpers split out of `i18n.rs` for maintainability.
+//! Secondary i18n helpers: the messages that describe an outcome rather than
+//! label a control. Split from `i18n/mod.rs`, which holds the locale itself and
+//! the control labels.
 
 use super::{CountNoun, Locale};
 

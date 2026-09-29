@@ -5,7 +5,7 @@
 //! Every query this crate builds is a `SELECT` over the LOTUS projection in
 //! Wikidata, shaped as nested subqueries so that `QLever` can filter before it
 //! enriches. The nesting is load-bearing and is asserted in
-//! `tests/query_contract.rs`; the tests live with the builders' behaviour rather
+//! `tests/query_contract.rs`; those tests assert the builders' behaviour rather
 //! than their bytes, so whitespace may change but structure may not.
 
 use lotus_model::{ElementState, SearchCriteria, SmilesSearchType, classify_structure};
