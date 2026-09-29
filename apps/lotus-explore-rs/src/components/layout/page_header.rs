@@ -78,7 +78,22 @@ pub fn PageHeader() -> Element {
                 }
             }
             p {
-                class: "mt-3 line-clamp-2 break-words pb-2 text-sm leading-6 text-critical-muted sm:max-w-[72ch] sm:line-clamp-none",
+                // `line-clamp-3`, not 2: the German subtitle needs three lines
+                // down to 320px (114 chars), French three down to 360px (108),
+                // and three still at 390px for German. At two they were cut
+                // with an ellipsis while English (93 chars) and Italian fit,
+                // so the truncation only ever hit two of the four locales.
+                // Three is the measured maximum across all four below 430px,
+                // so nothing is cropped and short locales still take two.
+                //
+                // `mb-2`, not `pb-2`: the clamp's `overflow: hidden` cuts at
+                // the *padding* box, so padding underneath a clamped element
+                // opens an 8px band inside the clip. The next line's ink starts
+                // 4px into that band and got sliced off horizontally, which
+                // read as half-cut letters rather than a clean ellipsis. A
+                // bottom margin sits outside the clip, so the clearance is
+                // unchanged and nothing bleeds.
+                class: "mt-3 line-clamp-3 break-words mb-2 text-sm leading-6 text-critical-muted sm:max-w-[72ch] sm:line-clamp-none",
                 "{t(locale, TextKey::PageSubtitle)}"
             }
         }
