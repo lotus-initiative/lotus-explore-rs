@@ -21,10 +21,10 @@ Measured on the live host:
 GitHub Pages, and GitHub Pages does not implement `_redirects`. Two independent
 measurements confirm the file is inert there:
 
-  | Probe                                                        | Expected if honoured | Actual |
-  | ------------------------------------------------------------ | -------------------- | ------ |
-  | `/lotus-explore-rs/no-such-route` (the `/* 200` SPA rewrite)  | 200                  | **404** |
-  | `Strict-Transport-Security` from `_headers`                    | present              | absent |
+  | Probe                                                          | Expected if honoured | Actual  |
+  | ------------------------------------------------------------   | -------------------- | ------  |
+  | `/lotus-explore-rs/no-such-route` (the `/* 200` SPA rewrite)   | 200                  | **404** |
+  | `Strict-Transport-Security` from `_headers`                    | present              | absent  |
 
 The redirect is a repository setting, not a file: **Settings → Pages → Enforce
 HTTPS**. It is off, which is why HTTP is answered with `200` instead of `301`.
@@ -40,6 +40,33 @@ http://lotus.nprod.net/*  https://lotus.nprod.net/:splat  301!
 ```
 
 Moving to Cloudflare Pages or Netlify activates that, and `_headers`, unchanged.
+
+## No `Cross-Origin-Opener-Policy` is delivered
+
+Scanners also report "Ensure proper origin isolation with COOP", unscored. Same
+root cause as the redirect above, and same conclusion: not fixable from this
+repository. Measured on the live host, **no `cross-origin-*` header is sent at
+all** --- not `Cross-Origin-Opener-Policy`, not `Cross-Origin-Embedder-Policy`,
+not `Cross-Origin-Resource-Policy` --- even though `_headers` requests all
+three. GitHub Pages ignores the file.
+
+What is worth recording is that turning COOP on is **safe for this app**, since
+that is the usual reason it stays off. The three things that break under
+`same-origin` were each checked:
+
+  | Risk under COOP                                                                | This app                                                                                                                                            |
+  | ---------------                                                                | --------                                                                                                                                            |
+  | A popup that writes back through `window.opener`                               | No read of `window.opener` anywhere. The two `open_with_url*` call sites are download triggers, where severing the opener is the desired behaviour. |
+  | `target="_blank"` links losing their opener                                    | Every one already carries `rel="noopener noreferrer"`, so the protection COOP adds is already in place per-link.                                    |
+  | COOP+COEP together setting `crossOriginIsolated`, which some apps then require | No `SharedArrayBuffer`, no `Atomics`, no `crossOriginIsolated` check. The wasm module needs neither.                                                |
+
+The Ketcher iframe at `assets/ketcher/index.html` is same-origin, so it is
+unaffected by COEP `credentialless`, and COOP does not gate iframes at all.
+
+So `same-origin` plus `credentialless` is available as pure hardening at no
+functional cost. Like the HTTPS redirect, it needs a host that honours the
+headers --- on the present one, that means moving off GitHub Pages or fronting
+it with a CDN that sets them.
 
 ## `_headers` is not honoured on the production path
 
