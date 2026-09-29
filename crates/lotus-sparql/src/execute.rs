@@ -19,11 +19,14 @@ const MAX_ATTEMPTS: u32 = 2;
 /// How long to wait between attempts.
 const RETRY_BACKOFF: Duration = Duration::from_millis(400);
 
-/// Which endpoint answered, and therefore what the provenance should say.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Endpoint {
+/// Which service answered, and therefore what the provenance should say.
+///
+/// The three variants are the public services. Any of them can be pointed
+/// elsewhere by an environment variable, which is how someone runs the CLI
+/// against their own `QLever` or a mirror.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Service {
     /// The default, and much the fastest.
-    #[default]
     Qlever,
     /// The main Wikidata Query Service.
     Wdqs,
@@ -31,8 +34,8 @@ pub enum Endpoint {
     Scholarly,
 }
 
-impl Endpoint {
-    /// The service URL to POST to.
+impl Service {
+    /// The public URL for this service.
     #[must_use]
     pub const fn url(self) -> &'static str {
         match self {
@@ -42,7 +45,26 @@ impl Endpoint {
         }
     }
 
-    /// How to name the endpoint in provenance metadata.
+    /// The environment variable that overrides this service's URL.
+    const fn variable(self) -> &'static str {
+        match self {
+            Self::Qlever => "LOTUS_QLEVER_ENDPOINT",
+            Self::Wdqs => "LOTUS_WDQS_ENDPOINT",
+            Self::Scholarly => "LOTUS_WDQS_SCHOLARLY_ENDPOINT",
+        }
+    }
+
+    /// The URL to POST to: the override if one is set, else the public one.
+    #[must_use]
+    pub fn target(self) -> String {
+        std::env::var(self.variable())
+            .ok()
+            .map(|url| url.trim().to_string())
+            .filter(|url| !url.is_empty())
+            .unwrap_or_else(|| self.url().to_string())
+    }
+
+    /// How to name the service in provenance metadata.
     #[must_use]
     pub const fn name(self) -> &'static str {
         match self {
@@ -53,9 +75,47 @@ impl Endpoint {
     }
 }
 
-impl std::fmt::Display for Endpoint {
+impl std::fmt::Display for Service {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.name())
+    }
+}
+
+/// A [`Service`] and the URL actually used, so a caller can report which one
+/// answered without re-reading the environment.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Endpoint {
+    service: Service,
+    url: String,
+}
+
+impl Endpoint {
+    /// Resolve a service to the URL that will actually be used, honouring an
+    /// environment override.
+    #[must_use]
+    pub fn new(service: Service) -> Self {
+        Self {
+            service,
+            url: service.target(),
+        }
+    }
+
+    /// The service this is.
+    #[must_use]
+    pub const fn service(&self) -> Service {
+        self.service
+    }
+
+    /// The URL that queries are posted to.
+    #[must_use]
+    pub fn url(&self) -> &str {
+        &self.url
+    }
+}
+
+impl Default for Endpoint {
+    fn default() -> Self {
+        Self::new(Service::Qlever)
     }
 }
 
@@ -95,8 +155,9 @@ pub async fn execute<H: Http>(
 ) -> Result<Answer, FetchError> {
     let mut last = None;
 
+    let target = endpoint.url().to_string();
     for attempt in 1..=MAX_ATTEMPTS {
-        match send(http, endpoint.url(), query, format).await {
+        match send(http, &target, query, format).await {
             Ok(body) => return Ok(Answer { endpoint, body }),
             Err(err) => {
                 let worth_retrying = err.is_retryable() && attempt < MAX_ATTEMPTS;
@@ -126,16 +187,16 @@ pub async fn execute_with_fallback<H: Http>(
     query: &str,
     format: ResponseFormat,
 ) -> Result<Answer, FetchError> {
-    match execute(http, Endpoint::Qlever, query, format).await {
+    match execute(http, Endpoint::new(Service::Qlever), query, format).await {
         Ok(answer) => Ok(answer),
         Err(err) if err.is_endpoint_unavailable() => {
-            let (endpoint, rewritten) = crate::wdqs_fallback(query);
-            let endpoint = if endpoint == WDQS_SCHOLARLY {
-                Endpoint::Scholarly
+            let (service, rewritten) = crate::wdqs_fallback(query);
+            let service = if service == WDQS_SCHOLARLY {
+                Service::Scholarly
             } else {
-                Endpoint::Wdqs
+                Service::Wdqs
             };
-            execute(http, endpoint, &rewritten, format).await
+            execute(http, Endpoint::new(service), &rewritten, format).await
         }
         Err(err) => Err(err),
     }
@@ -338,9 +399,16 @@ mod tests {
     }
 
     #[test]
-    fn the_endpoints_are_the_three_public_services() {
-        assert!(Endpoint::Qlever.url().contains("qlever"));
-        assert!(Endpoint::Wdqs.url().contains("query.wikidata.org"));
-        assert!(Endpoint::Scholarly.url().contains("query-scholarly"));
+    fn the_services_are_the_three_public_endpoints() {
+        assert!(Service::Qlever.url().contains("qlever"));
+        assert!(Service::Wdqs.url().contains("query.wikidata.org"));
+        assert!(Service::Scholarly.url().contains("query-scholarly"));
+    }
+
+    #[test]
+    fn an_endpoint_reports_the_url_it_will_use() {
+        let endpoint = Endpoint::new(Service::Qlever);
+        assert_eq!(endpoint.url(), Service::Qlever.url());
+        assert_eq!(endpoint.service(), Service::Qlever);
     }
 }

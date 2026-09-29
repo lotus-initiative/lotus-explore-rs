@@ -7,7 +7,7 @@ use std::sync::Arc;
 ///
 /// Every field is an `Arc<str>` so a row clones cheaply: the table renders and
 /// re-sorts the same set many times, and a result set holds millions of rows.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize)]
 pub struct CompoundEntry {
     /// Wikidata QID of the compound.
     pub compound_qid: Arc<str>,
@@ -43,7 +43,7 @@ pub struct CompoundEntry {
 pub type Rows = Arc<[CompoundEntry]>;
 
 /// One hit from a taxon name lookup.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TaxonMatch {
     /// Wikidata QID.
     pub qid: String,

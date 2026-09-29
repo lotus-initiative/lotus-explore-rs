@@ -25,7 +25,7 @@ mod search;
 
 pub use client::{Http, HttpResponse, ResponseBody};
 pub use error::{FetchError, ResponseFormat, is_retryable_status};
-pub use execute::{Answer, Endpoint, execute, execute_with_fallback, fetch_url};
+pub use execute::{Answer, Endpoint, Service, execute, execute_with_fallback, fetch_url};
 pub use parse::{
     parse_compounds_csv, parse_compounds_csv_capped, parse_compounds_stream, parse_counts_csv,
     parse_taxon_csv,

@@ -110,9 +110,9 @@ dependencies = [
 
 [[package]]
 name = "async-compression"
-version = "0.4.48"
+version = "0.4.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb61aea1a7def73ee7c350a184f0e70b32c182344e2e75bf70c9b621b83417fd"
+checksum = "a3789ca2cd1c4e8ce71fe9bd6312566014e20ff3016fc87bc71c59ff93b5fa61"
 dependencies = [
  "compression-codecs",
  "compression-core",
@@ -538,9 +538,9 @@ dependencies = [
 
 [[package]]
 name = "compression-codecs"
-version = "0.4.43"
+version = "0.4.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bef16c47ba2797aa6a909cc37d39911f3a6743811fe7408ac0b0cc0276b656e9"
+checksum = "5f018b36ac50598f7bfb0aa6094281e253e6b3cbc507a69652d2fb963a326d8d"
 dependencies = [
  "compression-core",
  "flate2",
@@ -2431,6 +2431,7 @@ dependencies = [
  "predicates",
  "serde",
  "serde_json",
+ "sha2 0.11.0",
  "tempfile",
  "tokio",
 ]
@@ -2439,6 +2440,7 @@ dependencies = [
 name = "lotus-core"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "thiserror 2.0.21",
 ]
 
@@ -4667,9 +4669,9 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 
 [[package]]
 name = "xxhash-rust"
-version = "0.8.18"
+version = "0.8.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aee1b19627c7c60102ab80d3a9cbe18de90bfe03bfa6c3715447681f0e8c8af6"
+checksum = "550a2b930b62486a393c52d5c3b84bff264b28aa437ed64694d31e93b1757af7"
 
 [[package]]
 name = "yoke"

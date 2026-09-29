@@ -34,7 +34,8 @@ impl SearchResult {
 pub struct TaxonResolution {
     /// The QID to filter on, or `None` for every taxon.
     pub qid: Option<String>,
-    /// The text that was looked up.
+    /// The text that was looked up, which is the taxon's display name when the
+    /// input was a name, and its QID when the input was one.
     pub looked_up: String,
     /// Things worth telling the user about how it was interpreted. Both
     /// together are possible: an input that was both rewritten and ambiguous.
@@ -46,6 +47,12 @@ impl TaxonResolution {
     #[must_use]
     pub const fn is_all_taxa(&self) -> bool {
         self.qid.is_none()
+    }
+
+    /// The taxon's display name, when the lookup reported one.
+    #[must_use]
+    pub fn looked_up_name(&self) -> Option<&str> {
+        (!self.looked_up.is_empty()).then_some(self.looked_up.as_str())
     }
 }
 
@@ -64,6 +71,26 @@ pub enum TaxonNote {
         /// `"Name (QID)"` for each candidate considered.
         candidates: Vec<String>,
     },
+}
+
+impl std::fmt::Display for TaxonNote {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Standardized {
+                original,
+                looked_up,
+            } => {
+                write!(f, "taxon {original:?} was read as {looked_up:?}")
+            }
+            Self::Ambiguous { candidates } => {
+                write!(
+                    f,
+                    "several taxa matched; using the first of {}",
+                    candidates.join(", ")
+                )
+            }
+        }
+    }
 }
 
 /// The input to a search, before resolution.

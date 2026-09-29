@@ -6,7 +6,7 @@ use std::collections::HashSet;
 
 /// Counts describing a result set, computed either by the endpoint's `COUNT`
 /// query or locally from the rows.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize)]
 pub struct DatasetStats {
     /// Distinct compounds.
     pub n_compounds: usize,
@@ -56,7 +56,7 @@ impl DatasetStats {
 }
 
 /// How a structure string is matched against the endpoint's index.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize)]
 pub enum SmilesSearchType {
     /// The query structure is a substructure of the indexed compound.
     #[default]
@@ -96,7 +96,7 @@ impl std::fmt::Display for SmilesSearchType {
 }
 
 /// Whether an optional element may, must, or must not appear.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize)]
 pub enum ElementState {
     /// Unconstrained.
     #[default]

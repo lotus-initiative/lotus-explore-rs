@@ -16,7 +16,7 @@ mod software;
 mod taxon;
 
 pub use compound::compound_jsonld;
-pub use dataset::{dataset_jsonld, result_set_jsonld};
+pub use dataset::{ResultSet, dataset_jsonld, result_set_jsonld};
 pub use profile::{Profile, ValidationIssue, check};
 pub use software::{citation_cff, codemeta, software_jsonld};
 pub use taxon::taxon_jsonld;
