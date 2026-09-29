@@ -40,7 +40,7 @@ impl StructureKind {
 ///
 /// A molfile is recognised by its `M  END` terminator together with a version
 /// tag; anything else is treated as SMILES. Falling through to SMILES rather
-/// than to an error is deliberate: the endpoint will reject an unparseable
+/// than to an error is deliberate: the endpoint will reject an unparsable
 /// structure with a message about the structure, which beats a rejection about
 /// the request.
 #[must_use]

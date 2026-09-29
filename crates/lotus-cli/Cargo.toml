@@ -1,0 +1,35 @@
+[package]
+name = "lotus-cli"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+description = "Search LOTUS from a terminal, and export the result"
+license = "AGPL-3.0-only"
+keywords = ["lotus", "cli", "sparql", "bioinformatics", "natural-products"]
+categories = ["command-line-utilities", "science"]
+publish = false
+
+[[bin]]
+name = "lotus"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+clap_complete = { workspace = true }
+clap_mangen = { workspace = true }
+lotus-core = { workspace = true }
+lotus-sparql = { workspace = true }
+lotus-schema = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal"] }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+insta = { workspace = true }
+predicates = { workspace = true }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

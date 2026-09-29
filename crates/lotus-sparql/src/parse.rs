@@ -5,7 +5,7 @@
 //! The parsers are deliberately forgiving. `flexible(true)` plus per-field
 //! defaulting means a truncated or oddly-shaped payload degrades to fewer or
 //! emptier columns rather than failing: a search that has already returned
-//! usable rows should not be thrown away because one cell was unparseable.
+//! usable rows should not be thrown away because one cell was unparsable.
 
 use crate::error::FetchError;
 use lotus_core::{

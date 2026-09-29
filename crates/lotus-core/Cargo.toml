@@ -5,7 +5,7 @@ edition = "2024"
 rust-version = "1.97"
 description = "LOTUS domain types, validation, and filter semantics. No IO, no runtime."
 license = "AGPL-3.0-only"
-keywords = ["lotus", "natural-products", "bioinformatics"]
+keywords = ["bioinformatics", "lotus", "natural-products"]
 categories = ["science"]
 publish = false
 

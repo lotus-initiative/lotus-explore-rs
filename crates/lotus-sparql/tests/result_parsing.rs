@@ -191,7 +191,7 @@ fn a_row_without_a_compound_id_is_not_a_result() {
 fn a_payload_the_endpoint_mangled_still_parses() {
     // `flexible(true)` plus per-field defaulting means an odd payload degrades
     // to emptier columns. A search that has usable rows should not be discarded
-    // because one cell is unparseable.
+    // because one cell is unparsable.
     for (name, payload) in [
         (
             "unterminated quote",
