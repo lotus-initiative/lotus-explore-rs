@@ -44,7 +44,7 @@ jobs:
             --build-arg DX_BASE_PATH="/${REPONAME}" \
              --output "_final_site" .
 
-      - name: Verify single minified production CSS
+      - name: Verify the exported site
         run: |
           test "$(find _final_site -type f -name lotus-explore.css | wc -l | tr -d ' ')" -eq 1
           test "$(wc -l < _final_site/assets/lotus-explore.css | tr -d ' ')" -le 2
@@ -59,10 +59,52 @@ jobs:
           test ! -e _final_site/assets/styles.css
           ! grep -Eq '(@import "tailwindcss"|@source)' _final_site/assets/lotus-explore.css
 
+      # Agent discoverability lives entirely in this one directory, and the
+      # upload step strips dot-directories by default (see include-hidden-files
+      # below). Every file here 404'd for exactly that reason, which is what an
+      # ARD registry reports as "catalog file could not be loaded". Assert them
+      # in the exported tree so that class of regression is a red build.
+      - name: Verify agent-discovery manifests are exported
+        run: |
+          for f in ai-catalog.json api-catalog.json agent-skills.json security.txt; do
+            test -f "_final_site/.well-known/$f" || {
+              echo "::error::missing .well-known/$f from the export"; exit 1; }
+          done
+          python3 -c "import json,sys;json.load(open('_final_site/.well-known/ai-catalog.json'))"
+
+      # `.DS_Store` is not tracked, so a clean checkout has none — but a local
+      # `dx build` copies any that sit in the source `public/` into the bundle,
+      # and the export runs on a machine that may have them. The upload now
+      # includes dotfiles, so strip the junk here rather than publish it.
+      - name: Strip editor and OS junk from the export
+        run: find _final_site -name '.DS_Store' -delete
+
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
 
         with:
           path: _final_site
+          # Defaults to false, which tars the bundle with `--exclude=.[^/]*` and
+          # silently drops `.well-known/` — the entire agent-discovery surface.
+          # `.git` and `.github` stay excluded regardless.
+          include-hidden-files: true
 
       - uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346
         id: deployment
+
+      # The thing that actually matters is the catalog being fetchable, which no
+      # amount of inspecting the export can prove. Pages can take a moment to
+      # propagate, so retry before failing the deploy.
+      - name: Verify the deployed catalog is fetchable
+        run: |
+          url="${{ steps.deployment.outputs.page_url }}/.well-known/ai-catalog.json"
+          for attempt in 1 2 3 4 5 6; do
+            code=$(curl -sL -o /dev/null -w '%{http_code}' "$url" || true)
+            if [ "$code" = "200" ]; then
+              echo "catalog reachable at $url"
+              exit 0
+            fi
+            echo "attempt $attempt: HTTP $code from $url"
+            sleep 10
+          done
+          echo "::error::ai-catalog.json is not fetchable from the deployed site ($url)"
+          exit 1

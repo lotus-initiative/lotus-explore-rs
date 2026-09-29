@@ -2,3 +2,7 @@ apps/lotus-explore-rs/public/assets/ketcher/
 apps/lotus-explore-rs/public/assets/vendor/
 target/
 graphify-out/
+
+# macOS Finder junk; it is not tracked but a local `dx build` copies anything
+# sitting in the source public/ tree into the bundle.
+.DS_Store
