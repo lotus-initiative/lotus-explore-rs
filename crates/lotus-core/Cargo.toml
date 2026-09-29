@@ -1,0 +1,16 @@
+[package]
+name = "lotus-core"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+description = "LOTUS domain types, validation, and filter semantics. No IO, no runtime."
+license = "AGPL-3.0-only"
+keywords = ["lotus", "natural-products", "bioinformatics"]
+categories = ["science"]
+publish = false
+
+[dependencies]
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

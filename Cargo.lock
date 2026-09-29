@@ -2327,6 +2327,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "lotus-core"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "lotus-deploy"
 version = "0.1.0"
 dependencies = [
@@ -2366,6 +2373,18 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "lotus-sparql"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "csv",
+ "lotus-core",
+ "reqwest 0.13.5",
+ "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]

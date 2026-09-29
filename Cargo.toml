@@ -3,6 +3,8 @@ resolver = "2"
 members = [
   "apps/lotus-explore-rs",
   "crates/lotus",
+  "crates/lotus-core",
+  "crates/lotus-sparql",
   "crates/lotus-deploy",
 ]
 
