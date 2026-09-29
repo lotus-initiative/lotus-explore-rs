@@ -4,14 +4,8 @@
 //! Generates site metadata files (llms.txt, robots.txt, sitemap.xml, etc.)
 //! from the site-metadata.json configuration.
 
-// Build script only: private `fn main` + toolchain-internal structs whose
-// fields exist purely to mirror site-metadata.json; cargo does not surface
-// doc warnings here, and there is no consuming API to document.
-#![allow(missing_docs)]
-// Also built as the `buildrs` test target, which links the full dependency list
-// but uses only serde/serde_json. Crate level: this lint is ignored in a module.
-#![cfg_attr(test, allow(unused_crate_dependencies))]
-
+// No `pub` items here, so `missing_docs` cannot fire; the crate-level allows
+// for the `buildrs` test target live in build_test.rs.
 use serde::{Deserialize, Serialize};
 use std::{error::Error, fs, path::PathBuf};
 

@@ -15,11 +15,13 @@ name = "lotus-explore-rs"
 path = "src/main.rs"
 
 # `cargo test` does not compile build.rs as a test target, so its `#[test]`s are
-# silently never run. These guard a CNAME change; see build.rs.
+# silently never run. These guard a CNAME change; see build.rs. The target is
+# `build_test.rs`, not `build.rs`: naming the same file as a target path and a
+# build script makes cargo warn about a file in multiple build targets.
 [[test]]
 harness = true
 name = "buildrs"
-path = "build.rs"
+path = "build_test.rs"
 
 [dependencies]
 dioxus = { workspace = true }
