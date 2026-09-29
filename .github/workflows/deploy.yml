@@ -75,9 +75,10 @@ jobs:
       # `.DS_Store` is not tracked, so a clean checkout has none — but a local
       # `dx build` copies any that sit in the source `public/` into the bundle,
       # and the export runs on a machine that may have them. The upload now
-      # includes dotfiles, so strip the junk here rather than publish it.
+      # includes dotfiles, so strip the junk here rather than publish it. The
+      # glob also catches `.DS_Store.br`, the precompressed sibling `dx` emits.
       - name: Strip editor and OS junk from the export
-        run: find _final_site -name '.DS_Store' -delete
+        run: find _final_site -name '.DS_Store*' -delete
 
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
 
