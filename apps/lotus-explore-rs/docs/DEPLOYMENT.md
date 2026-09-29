@@ -105,6 +105,38 @@ There is no separate step for these: the `buildrs` target is declared in
 written there are silently never run (verified: one reports "0 passed" under
 `cargo test --all-targets`).
 
+## `llms.txt` fails the Lighthouse audit, and the file is fine
+
+Lighthouse reports "llms.txt does not follow recommendations -- The llms.txt
+file should be a Markdown file containing at least one H1 header", unscored. The
+description is generic; the actual failure is that **Lighthouse fetches
+`/llms.txt` at the origin root, and this app is served from a subpath.**
+
+  | Request                                             | Result                       |
+  | --------------------------------------------------- | ---------------------------- |
+  | `https://lotus.nprod.net/llms.txt`                  | **404** `text/html`, 14390 B |
+  | `https://lotus.nprod.net/lotus-explore-rs/llms.txt` | 200 `text/plain`, 3501 B     |
+
+The origin root is the **LOTUS home site**, a different deployment that this
+repository does not publish to, so the 404 body is that site's HTML. The file
+this repo generates is served correctly and does have an H1 on line 1, a
+blockquote summary, H2 sections and absolute Markdown links.
+
+There are two ways an audit can find the file, and both are closed here:
+
+1. **`/llms.txt` at the origin** --- needs a file at the root of the CNAME,
+   which is the other site's repository.
+2. **A `Link` header advertising it** --- `_headers` already asks for
+   `Link: </llms.txt>; rel="http://llmstxt.org/llms.txt"`, and GitHub Pages
+   ignores `_headers`, so no `Link` header is sent at all. Measured on the live
+   host: none. Note this rule is also root-relative, so it would need rewriting
+   to the subpath even on a host that honoured it.
+
+So there is nothing to change in this repository, and the audit will keep
+reporting until the root site serves an `llms.txt` or sends the `Link` header.
+Agents that follow the `Link` relation advertised in `_headers` once a host
+honours it, and anything reading the subpath URL directly gets the right file.
+
 ## Plain HTTP is served, not redirected
 
 Lighthouse (and several security scanners) report "Redirects HTTP traffic to
