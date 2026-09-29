@@ -34,6 +34,7 @@ ci:
 	just audit
 	just deny
 	just opt-levels
+	just readme
 
 # The optimisation level is declared in three places, and `dx` passes
 # `--rustc-args=-Copt-level=` last, so the justfile silently wins over the
