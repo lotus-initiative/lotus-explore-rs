@@ -223,6 +223,21 @@ kept because it is correct and costs nothing, and because the Ketcher iframe
 rule in it is the only place the `frame-ancestors` conflict is resolved in
 writing --- but do not read it as a claim about production.
 
+The cache rule is the one that costs performance rather than just posture.
+Lighthouse reports it as `cache-insight` ("Use efficient cache lifetimes"), and
+it is the largest remaining host-level win: the content-hashed glue and the 1.4
+MB module are immutable by construction, yet every returning visitor revalidates
+both after 600 s.
+
+  | Asset                                       | `_headers` asks for           | Actually sent |
+  | ------------------------------------------- | ----------------------------- | ------------- |
+  | `assets/lotus-explore-rs-dxh<hash>.js`      | `max-age=31536000, immutable` | `max-age=600` |
+  | `assets/lotus-explore-rs_bg-dxh<hash>.wasm` | `max-age=31536000, immutable` | `max-age=600` |
+
+The rules are already written and correct; they activate on a CDN host. Until
+then this is a deployment decision (move off GitHub Pages or front it), not
+something a change to this repository can fix.
+
 ## `.br` files are uploaded and never served
 
 `pre_compress = true` in `Dioxus.toml` makes `dx` emit a `.br` sibling for
