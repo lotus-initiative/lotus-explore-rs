@@ -89,7 +89,7 @@ pub fn property_value(
 /// The `Dataset` every result belongs to, given a result set's identity.
 #[must_use]
 pub fn result_dataset_url(name_slug: &str, query_hash: &str) -> String {
-    format!("https://lotus.naturalproducts.net/dataset/{name_slug}/{query_hash}")
+    format!("https://lotus.nprod.net/lotus-explore-rs/dataset/{name_slug}/{query_hash}")
 }
 
 /// The project itself, for a page that describes the software.
@@ -97,7 +97,7 @@ pub const SOFTWARE: crate::software::Software = crate::software::Software {
     name: "LOTUS Explorer",
     description: "A linked open data explorer for the LOTUS compound-taxon-reference \
                   knowledge graph in Wikidata, queried over SPARQL.",
-    url: "https://lotus.naturalproducts.net",
+    url: "https://lotus.nprod.net/lotus-explore-rs",
     repository: "https://github.com/lotusnprod/lotus-explore-rs",
     doi: Some("10.7554/eLife.70780"),
     version: env!("CARGO_PKG_VERSION"),

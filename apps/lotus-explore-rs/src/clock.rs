@@ -5,27 +5,82 @@
 //!
 //! `lotus-model` is pure and takes the year as an argument, which is what lets
 //! its tests pin a year instead of freezing time. Something has to supply the
-//! real one, and a binary is that something.
+//! real one, and the app is that something.
+//!
+//! Two implementations, because the two hosts do not have the same clock.
+//! `std::time::SystemTime` compiles for `wasm32-unknown-unknown` and panics
+//! when it is called — `time not implemented on this platform` — which is not
+//! visible from a build and takes the whole app down on first render. The
+//! browser has `Date`, and that is what the wasm build reads.
+//!
+//! The build succeeded and the app was broken. That is what the wasm job in CI
+//! cannot catch and a browser can, and it is why the two are separate functions
+//! rather than one behind a runtime check: a runtime check would still compile
+//! the branch that panics.
 
 /// The current calendar year.
 ///
 /// Used for the default upper year bound on a publication date, so a reference
-/// dated next year is not rejected before it is published.
+/// dated next year is not rejected before it is published, and as the upper
+/// bound when deciding whether a year filter is doing anything.
+#[cfg(not(target_arch = "wasm32"))]
 #[must_use]
 pub fn current_year() -> u16 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    let days = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
+    let days = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
         .map_or(0_i64, |d| {
             i64::try_from(d.as_secs()).unwrap_or(i64::MAX) / 86_400
         });
-    // Days since the epoch to a civil year, by Howard Hinnant's algorithm.
+    year_from_days_since_epoch(days)
+}
+
+/// The current calendar year, from the browser's clock.
+#[cfg(target_arch = "wasm32")]
+#[must_use]
+pub fn current_year() -> u16 {
+    let millis = js_sys::Date::now();
+    // A browser without a working `Date` is not a browser this runs in, but
+    // `Date::now` returns `NaN` rather than throwing, and a NaN that reached
+    // the arithmetic below would become 0 and read as 1970 — which would reject
+    // every reference as "before 1800". A year in the future is the safe
+    // failure: it widens the search rather than emptying it.
+    if !millis.is_finite() || millis <= 0.0 {
+        return FALLBACK_YEAR;
+    }
+    year_from_days_since_epoch((millis / 1000.0 / 86_400.0) as i64)
+}
+
+/// Used only when the host has no usable clock at all.
+#[cfg(target_arch = "wasm32")]
+const FALLBACK_YEAR: u16 = 9999;
+
+/// Days since the Unix epoch to the calendar year that day falls in.
+///
+/// Howard Hinnant's `civil_from_days`, which is exact for every day in the
+/// proleptic Gregorian calendar and needs no lookup table. The full function is
+/// used rather than a year-only variant: the year-only version answers "which
+/// year contains the day *before* this one", which is right for 364 days a year
+/// and wrong on 1 January. That is the kind of bug that reads as correct for a
+/// long time.
+fn year_from_days_since_epoch(days: i64) -> u16 {
+    // Shift the epoch to 0000-03-01 so that a leap day lands at the end of the
+    // 400-year era rather than in the middle of it.
     let z = days + 719_468;
     let era = z.div_euclid(146_097);
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
-    u16::try_from(yoe + era * 400).unwrap_or(u16::MAX)
+    let day_of_era = z - era * 146_097;
+    let year_of_era =
+        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let year = year_of_era + era * 400;
+
+    // The year so far is the year the *March* falls in. January and February
+    // have not happened yet in that year, so they belong to the next one, and
+    // the only way to tell is to work out the month -- which is what this step
+    // is for. Skipping it and returning `year` is right for 364 days a year.
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let month_prime = (5 * day_of_year + 2) / 153;
+    let year = if month_prime >= 10 { year + 1 } else { year };
+
+    u16::try_from(year).unwrap_or(u16::MAX)
 }
 
 #[cfg(test)]
@@ -34,9 +89,44 @@ mod tests {
 
     #[test]
     fn the_year_is_this_century() {
-        // A wide band: the point is to catch an arithmetic slip, not to fail
-        // in 2099.
+        // A wide band: the point is to catch an arithmetic slip, not to fail in
+        // 2099. On a host with no clock this is the fallback, which is also
+        // checked below.
         let year = current_year();
         assert!((2020..=2100).contains(&year), "{year}");
+    }
+
+    #[test]
+    fn known_days_map_to_known_years() {
+        // Pinned against published values rather than the implementation, so
+        // this fails if the arithmetic changes rather than if it changes the
+        // same way twice.
+        for (days, year) in [
+            (0_i64, 1_970_u16), // the epoch itself
+            (11_016, 2_000),    // 1 Jan 2000
+            (19_723, 2_024),    // 1 Jan 2024, a leap year
+            (-2_556, 1_963),    // before the epoch
+            (45_999, 2_095),    // a century on
+        ] {
+            assert_eq!(year_from_days_since_epoch(days), year, "{days} days");
+        }
+    }
+
+    #[test]
+    fn a_leap_day_belongs_to_its_own_year() {
+        // 29 Feb 2024 is 19_782 days after the epoch and 1 Mar is 19_783.
+        // Getting this wrong is a one-day error, which is invisible at a
+        // December-to-January boundary and wrong at a February one.
+        assert_eq!(year_from_days_since_epoch(19_782), 2_024);
+        assert_eq!(year_from_days_since_epoch(19_783), 2_024);
+        assert_eq!(year_from_days_since_epoch(20_089), 2_025);
+    }
+
+    #[test]
+    fn a_century_boundary_is_not_a_leap_year() {
+        // 1900 was not a leap year and 2000 was. The algorithm has to get both
+        // right or the day count drifts by one every 100 years.
+        assert_eq!(year_from_days_since_epoch(-25_567), 1_900);
+        assert_eq!(year_from_days_since_epoch(10_957), 2_000);
     }
 }

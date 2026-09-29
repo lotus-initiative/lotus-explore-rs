@@ -31,22 +31,21 @@ just metadata-write   # regenerate codemeta.json and CITATION.cff
 
 ## Where a change goes
 
-| You are changing | It belongs in |
-|---|---|
-| A domain type, a filter rule, validation | `lotus-model` |
-| A SPARQL string, a CSV column, an export format | `lotus-query` |
-| Which endpoint, when to retry, taxon resolution | `lotus-search` |
-| A curation row, a statement, the TSV reader | `lotus-curation` |
-| JSON-LD, CodeMeta, CITATION | `lotus-jsonld` |
-| A flag, an output format, an exit code | `lotus-cli` |
-| How many rows this machine renders, the clock, cache keys | the app |
-| Anything a person sees | the app |
+  | You are changing | It belongs in |
+  | --- | --- |
+  | A domain type, a filter rule, validation | `lotus-model` |
+  | A SPARQL string, a CSV column, an export format | `lotus-query` |
+  | Which endpoint, when to retry, taxon resolution | `lotus-search` |
+  | A curation row, a statement, the TSV reader | `lotus-curation` |
+  | JSON-LD, CodeMeta, CITATION | `lotus-jsonld` |
+  | A flag, an output format, an exit code | `lotus-cli` |
+  | How many rows this machine renders, the clock, cache keys | the app |
+  | Anything a person sees | the app |
 
-The rule behind the table: **a crate that can be pure is pure.**
-`lotus-model`, `lotus-query`, `lotus-curation` and `lotus-jsonld` have no HTTP,
-no clock and no async runtime, and CI builds them for `wasm32` in their own
-right. If you find yourself wanting a clock in one of them, the year is meant to
-be an argument.
+The rule behind the table: **a crate that can be pure is pure.** `lotus-model`,
+`lotus-query`, `lotus-curation` and `lotus-jsonld` have no HTTP, no clock and no
+async runtime, and CI builds them for `wasm32` in their own right. If you find
+yourself wanting a clock in one of them, the year is meant to be an argument.
 
 ## Two things that will bite you
 
@@ -67,7 +66,8 @@ test to keep them together. If you add a parameter, add it there.
   exact bytes.
 - Prefer a fixture over a mock where a fixture will do.
 - When behaviour changes on purpose, say in the commit message what the old
-  behaviour was. `git log` is the only record of why a test asserts what it does.
+  behaviour was. `git log` is the only record of why a test asserts what it
+  does.
 - `docs/cli.md` is checked against `--help` in both directions and every
   documented example is run with `--explain`. If you change a flag, that test
   tells you.

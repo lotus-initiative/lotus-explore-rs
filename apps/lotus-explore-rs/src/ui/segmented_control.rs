@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! Shared segmented button group.
+//! A group of buttons, one of which is selected.
+//!
+//! This is a `role="group"`, not a navigation landmark, and the two callers
+//! each wrap it in a `nav`. It used to carry its own `aria-label` as well,
+//! which gave the header two nested landmarks with the same accessible name --
+//! a screen reader announced "Search Curation Structure editor" twice. The
+//! label is still required here, on the group, because the group's name is what
+//! distinguishes it from the other group in the header once both are inside
+//! their own `nav`.
 
 use dioxus::prelude::*;
 
@@ -14,6 +22,12 @@ pub struct SegmentedControlItem {
 /// Properties for the [`SegmentedControl`] component.
 #[derive(Clone, Props, Debug, PartialEq)]
 pub struct SegmentedControlProps {
+    /// The group's accessible name.
+    ///
+    /// Pass an empty string when the caller already labels the surrounding
+    /// landmark: two nested elements with the same name are announced twice,
+    /// and a screen-reader user hears the header's section switcher listed
+    /// under two identical headings.
     pub aria_label: &'static str,
     pub selected_value: &'static str,
     pub items: Vec<SegmentedControlItem>,
@@ -37,7 +51,9 @@ pub fn SegmentedControl(props: SegmentedControlProps) -> Element {
     rsx! {
         div {
             role: "group",
-            aria_label: props.aria_label,
+            // An empty name is not a name: `aria-label=""` is what removes one,
+            // where a missing attribute would fall back to the contents.
+            aria_label: if props.aria_label.is_empty() { None } else { Some(props.aria_label) },
             class: if wrap {
                 "inline-flex flex-wrap items-center gap-1 shrink-0"
             } else {

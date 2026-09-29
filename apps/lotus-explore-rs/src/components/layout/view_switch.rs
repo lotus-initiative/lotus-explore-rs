@@ -26,7 +26,7 @@ pub fn ViewSwitch() -> Element {
     rsx! {
         nav { class: "view-switch flex flex-wrap items-center rounded-full overflow-hidden border border-border bg-surface shadow-xs", aria_label: "{view_switch_aria(locale)}",
             SegmentedControl {
-                aria_label: view_switch_aria(locale),
+                aria_label: "",
                 selected_value: route.view_key(),
                 dark: dark_mode,
                 wrap: true,

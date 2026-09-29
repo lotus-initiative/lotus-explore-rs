@@ -107,8 +107,8 @@ builds.
   production host actually serves, and how to measure it locally
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) --- the crates, and why the
   boundary is where it is
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) --- how to build, test, and where a change
-  belongs
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) --- how to build, test, and where a
+  change belongs
 - [`docs/ARCHITECTURE.md`](apps/lotus-explore-rs/docs/ARCHITECTURE.md) --- the
   application side
 - [`docs/cli.md`](docs/cli.md) --- the `lotus` command, kept honest against

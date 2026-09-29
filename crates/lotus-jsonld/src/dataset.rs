@@ -112,9 +112,9 @@ pub fn result_set_jsonld(set: &ResultSet<'_>) -> Value {
         ],
         "includedInDataCatalog": {
             "@type": "DataCatalog",
-            "@id": "https://lotus.naturalproducts.net/",
+            "@id": "https://lotus.nprod.net/lotus-explore-rs",
             "name": "LOTUS",
-            "url": "https://lotus.naturalproducts.net/",
+            "url": "https://lotus.nprod.net/lotus-explore-rs",
         },
     });
 
@@ -141,11 +141,11 @@ pub fn dataset_jsonld() -> Value {
     crate::stamp(
         json!({
         "@type": "Dataset",
-        "@id": "https://lotus.naturalproducts.net/",
+        "@id": "https://lotus.nprod.net/lotus-explore-rs",
         "name": "LOTUS",
         "description": "The LOTUS knowledge base of chemical structures and biological \
                         sources, stored in Wikidata and queried over SPARQL.",
-        "url": "https://lotus.naturalproducts.net/",
+        "url": "https://lotus.nprod.net/lotus-explore-rs",
         "identifier": [
             property_value(
                 "wikidata",
@@ -176,9 +176,9 @@ pub fn dataset_jsonld() -> Value {
         ],
         "includedInDataCatalog": {
             "@type": "DataCatalog",
-            "@id": "https://lotus.naturalproducts.net/",
+            "@id": "https://lotus.nprod.net/lotus-explore-rs",
             "name": "LOTUS",
-            "url": "https://lotus.naturalproducts.net/",
+            "url": "https://lotus.nprod.net/lotus-explore-rs",
         },
         }),
         Profile::Dataset,
@@ -269,7 +269,7 @@ mod tests {
         let node = result_set_jsonld(&set(&rows, "SELECT ?s WHERE {}"));
         assert_eq!(
             node["@id"],
-            json!("https://lotus.naturalproducts.net/dataset/gentiana-lutea/abc")
+            json!("https://lotus.nprod.net/lotus-explore-rs/dataset/gentiana-lutea/abc")
         );
     }
 
@@ -287,7 +287,7 @@ mod tests {
         );
         assert_eq!(
             node["@id"],
-            json!("https://lotus.naturalproducts.net/dataset/all-taxa/abc")
+            json!("https://lotus.nprod.net/lotus-explore-rs/dataset/all-taxa/abc")
         );
     }
 

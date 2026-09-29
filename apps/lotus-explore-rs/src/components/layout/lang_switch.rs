@@ -23,9 +23,12 @@ pub fn LangSwitch() -> Element {
     rsx! {
         nav {
             class: "lang-switch inline-flex items-center rounded-full overflow-hidden border border-border bg-surface shadow-xs",
-            aria_label: t(locale, TextKey::Language).to_string(),
+            // The landmark owns the name; the group inside it does not repeat
+            // it. Two nested elements with the same accessible name are
+            // announced twice.
+            aria_label: t(locale, TextKey::Language),
             SegmentedControl {
-                aria_label: t(locale, TextKey::Language),
+                aria_label: "",
                 selected_value: locale.lang_code(),
                 dark: dark_mode,
                 wrap: false,

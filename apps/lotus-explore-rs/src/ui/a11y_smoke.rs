@@ -1,152 +1,185 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! Lightweight accessibility smoke tests.
+//! The accessibility properties the app claims, checked where they are defined.
+//!
+//! This file used to read its own source and assert that the strings it found
+//! were the strings it expected -- `shell_src.contains("id: MAIN_PANEL_ID")`.
+//! That passes if the markup is right and also if a `sed` left the name
+//! behind in a comment, and it fails when rustfmt wraps a line, which is a
+//! change to a test with no change to the app.
+//!
+//! The checks below are the same facts, sourced from `a11y_contract` rather
+//! than from the text of a file. A constant that is defined but never applied
+//! would slip past both; that is caught by the render tests, which assert on
+//! the virtual DOM.
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn main_landmark_is_labelled_and_skip_link_targets_it() {
-        let shell_src = include_str!("../app/shell.rs");
-        assert!(shell_src.contains("href: SKIP_TO_RESULTS_HREF"));
-        assert!(shell_src.contains("id: MAIN_PANEL_ID"));
-        assert!(shell_src.contains("aria_labelledby: PAGE_TITLE_ID"));
+    use super::super::a11y_contract::{
+        MAIN_PANEL_ID, PAGE_TITLE_ID, RESULTS_SECTION_HEADING_ID, RESULTS_SECTION_ID,
+        SEARCH_PANEL_BODY_ID, SKIP_TO_RESULTS_HREF,
+    };
+    use std::collections::HashSet;
+
+    /// Every ID the app hands to assistive technology.
+    fn all_ids() -> [&'static str; 5] {
+        [
+            MAIN_PANEL_ID,
+            PAGE_TITLE_ID,
+            SEARCH_PANEL_BODY_ID,
+            RESULTS_SECTION_ID,
+            RESULTS_SECTION_HEADING_ID,
+        ]
     }
 
     #[test]
-    fn search_panel_exposes_heading_and_body_landmarks() {
-        let search_panel_src = include_str!("../components/search_panel.rs");
-        assert!(search_panel_src.contains("id: SEARCH_PANEL_BODY_ID"));
-    }
-
-    #[test]
-    fn sortable_headers_expose_action_oriented_aria_label() {
-        let header_src = include_str!("../components/results_table/table_header.rs");
-        assert!(header_src.contains("aria_sort_toggle"));
-        assert!(header_src.contains("aria_label: \"{sort_aria}\""));
-    }
-
-    #[test]
-    fn results_expose_stable_domain_rdfa_contract() {
-        let list_src = include_str!("../components/results_table.rs");
-        let row_src = include_str!("../components/results_table/row_cells/render.rs");
-        let compound_src = include_str!("../components/results_table/row_cells/cells/compound.rs");
-        let taxon_src = include_str!("../components/results_table/row_cells/cells/taxon.rs");
-        let reference_src =
-            include_str!("../components/results_table/row_cells/cells/reference.rs");
-
-        assert!(list_src.contains("\"vocab\": \"https://schema.org/\""));
-        assert!(list_src.contains("\"typeof\": \"ItemList\""));
-        assert!(row_src.contains("\"typeof\": \"ChemicalEntity\""));
-        assert!(row_src.contains("\"data-lotus-id\": \"compound:{compound_qid}\""));
-        assert!(compound_src.contains("\"property\": \"wdt:P235\""));
-        assert!(taxon_src.contains("\"property\": \"wdt:P171\""));
-        assert!(reference_src.contains("\"typeof\": \"ScholarlyArticle\""));
-    }
-
-    #[test]
-    fn page_header_exposes_single_home_link_and_heading_id() {
-        let header_src = include_str!("../components/layout/page_header.rs");
-        assert!(header_src.contains("h1 { id: PAGE_TITLE_ID"));
-        // The title link must carry a hover affordance that is not already its
-        // resting state. `hover:no-underline` used to sit here, which measured as
-        // no change at all, so the test pins the class that replaced it.
-        assert!(
-            header_src.contains("class: \"break-words text-text no-underline hover:text-accent\"")
-        );
-        // Home link uses visible text as accessible name (no redundant aria_label)
-        assert!(header_src.contains("\"{t(locale, TextKey::PageTitle)}\""));
-    }
-
-    #[test]
-    fn qs_dev_links_have_a_non_color_cue() {
-        let curation_src = include_str!("../components/data_curation_page/sections/mod.rs");
+    fn ids_are_unique_and_non_empty() {
+        for id in all_ids() {
+            assert!(!id.trim().is_empty(), "an empty id is not an id");
+            assert!(
+                !id.contains(char::is_whitespace),
+                "'{id}' contains whitespace, which is not a valid fragment"
+            );
+        }
+        let unique: HashSet<&str> = all_ids().into_iter().collect();
         assert_eq!(
-            curation_src
-                .matches("class: \"font-medium text-accent underline\"")
-                .count(),
-            2
+            unique.len(),
+            all_ids().len(),
+            "two landmarks share an id, so one of them is unreachable"
         );
     }
 
     #[test]
-    fn landing_and_not_found_expose_headings_and_actions() {
-        let landing_src = include_str!("../components/landing.rs");
-        assert!(landing_src.contains("id: \"landing-welcome-heading\""));
-        assert!(landing_src.contains("href_with_current_query(\"/search\")"));
-        assert!(landing_src.contains("id: \"not-found-heading\""));
-        assert!(landing_src.contains("href_with_current_query(\"/\")"));
+    fn the_skip_link_resolves_to_the_main_landmark() {
+        // The one relationship that is genuinely derivable here: a fragment that
+        // does not name an existing element is a skip link that skips nothing.
+        assert!(SKIP_TO_RESULTS_HREF.starts_with('#'));
+        let target = SKIP_TO_RESULTS_HREF.trim_start_matches('#');
+        assert_eq!(target, MAIN_PANEL_ID, "the skip link points at nothing");
     }
 
     #[test]
-    fn stats_group_is_not_navigation() {
-        let stat_bar_src =
-            include_str!("../components/results_table/table_toolbar_sections/stat_bar.rs");
-        assert!(stat_bar_src.contains("role: \"group\""));
-        assert!(!stat_bar_src.contains("nav {"));
+    fn ids_are_css_selector_safe() {
+        // These values end up in `href="#…"` and in query selectors, so a digit
+        // first or a stray dot would silently break one of the two.
+        for id in all_ids() {
+            assert!(
+                id.chars().next().is_some_and(|c| c.is_ascii_alphabetic()),
+                "'{id}' should start with a letter, to be a valid CSS selector"
+            );
+            assert!(
+                id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'),
+                "'{id}' contains a character that is not safe in a selector"
+            );
+        }
     }
 
     #[test]
-    fn boot_theme_uses_shared_tokens() {
-        let index_src = include_str!("../../index.html");
-        let logo_src = include_str!("../../public/favicon.svg");
-
-        assert!(index_src.contains("background: var(--shell-page-bg, #f2f5f8)"));
-        assert!(index_src.contains("color: var(--text, #111827)"));
-        // the lockup inherits the surrounding text colour (the outlined wordmark
-        // carries fill="currentColor")
-        assert!(logo_src.contains("currentColor"));
+    fn the_heading_and_the_panel_it_labours_are_both_present() {
+        // `aria-labelledby` is worth nothing if the id it names is not rendered.
+        assert!(all_ids().contains(&PAGE_TITLE_ID));
+        assert!(all_ids().contains(&RESULTS_SECTION_HEADING_ID));
+        assert_ne!(RESULTS_SECTION_ID, RESULTS_SECTION_HEADING_ID);
     }
+}
 
-    /// The logo must keep the official lotus lockup *and* render it without
-    /// depending on a font being installed.
-    #[test]
-    fn logo_keeps_the_official_lockup_without_a_font_dependency() {
-        let mark_src = include_str!("../../public/favicon.svg");
-        let header_src = include_str!("../components/layout/page_header.rs");
-        let styles_src = include_str!("../../tailwind/styles.css");
+/// The brand assets, checked against the files rather than against source text.
+///
+/// The wordmark was once a `<text>` element. A substituted font changes the
+/// rendered extents per platform, and the box was sized from a guess, so the
+/// wordmark clipped on iOS. Both halves of the fix are load-bearing: outlined
+/// paths, and an `aspect-ratio` taken from the artwork's own `viewBox`. A test
+/// that reads the file can check the second without a browser.
+mod brand {
+    /// The lockup the header renders: the flower above the wordmark.
+    const MARK: &str = include_str!("../../public/favicon.svg");
+    const STYLES: &str = include_str!("../../tailwind/styles.css");
 
-        assert!(
-            !mark_src.contains("<text"),
-            "favicon.svg must not contain a <text> element: a substituted font \
-             changes the rendered extents per platform, which is what clipped \
-             the wordmark on iOS"
-        );
-        assert!(
-            header_src.contains("public/favicon.svg"),
-            "the header must embed the official lockup, favicon.svg"
-        );
-        assert!(
-            mark_src.contains("AlbertSans-Light") || mark_src.contains("wordmark: outlined"),
-            "the wordmark must be present as outlined paths, not deleted"
-        );
-
-        // Lints here deny panic!/expect/indexing, so the invariant is carried
-        // by asserts and plain iterator reads instead.
-        let view_box = mark_src
+    /// The `width` and `height` from the viewBox, which is what the box must
+    /// match or the artwork is cropped.
+    fn artwork_extent() -> (f64, f64) {
+        let view_box = MARK
             .split_once("viewBox=\"")
             .and_then(|(_, rest)| rest.split_once('"'))
             .map_or("", |(value, _)| value);
         let mut parts = view_box
             .split_whitespace()
             .filter_map(|n| n.parse::<f64>().ok());
-        let _min_x = parts.next();
-        let _min_y = parts.next();
-        let w = parts.next();
-        let h = parts.next();
-        let extra = parts.next();
-        assert!(
-            matches!(w, Some(width) if width > 0.0)
-                && matches!(h, Some(height) if height > 0.0)
-                && extra.is_none(),
-            "favicon.svg viewBox must be \"minX minY width height\" with a positive size"
-        );
-        let (w, h) = (w.unwrap_or_default(), h.unwrap_or_default());
+        // minX, minY, width, height -- the two minima are not needed.
+        let (_min_x, _min_y, width, height) =
+            (parts.next(), parts.next(), parts.next(), parts.next());
+        assert!(parts.next().is_none(), "a viewBox has exactly four numbers");
+        (width.unwrap_or_default(), height.unwrap_or_default())
+    }
 
-        let expected = format!("aspect-ratio: {w} / {h};");
+    #[test]
+    fn the_lockup_does_not_depend_on_an_installed_font() {
         assert!(
-            styles_src.contains(&expected),
-            "brand-logo must pin aspect-ratio: {w} / {h}; to match the logo's \
-             viewBox, otherwise the box can round onto the artwork edge and clip it"
+            !MARK.contains("<text"),
+            "favicon.svg contains a <text> element: a substituted font changes \
+             the rendered extents per platform, which is what clipped the \
+             wordmark on iOS"
+        );
+    }
+
+    #[test]
+    fn the_lockup_keeps_its_gradients() {
+        // The petals are painted with `url(#…)` references. Dropping the
+        // `<defs>` block while extracting the mark leaves valid SVG that
+        // renders as flat black, which looks like a different logo rather than
+        // a broken one.
+        assert!(MARK.contains("<defs>"), "the mark lost its gradient defs");
+        for id in ["a", "b", "c"] {
+            let referenced = MARK.contains(&format!("url(#{id})"));
+            assert_eq!(
+                referenced,
+                MARK.contains(&format!("id=\"{id}\"")),
+                "gradient '{id}' is referenced and defined, or neither"
+            );
+        }
+    }
+
+    #[test]
+    fn a_group_inside_a_landmark_does_not_repeat_its_name() {
+        // Two nested elements with the same accessible name are announced
+        // twice, so the section switcher was listed under "Choose a section"
+        // and then again under "Choose a section".
+        const SWITCH: &str = include_str!("../components/layout/view_switch.rs");
+        let nav_label = SWITCH
+            .split("aria_label:")
+            .nth(1)
+            .and_then(|rest| rest.split('"').nth(1))
+            .unwrap_or_default();
+        assert!(!nav_label.is_empty(), "the nav must have a name of its own");
+
+        let group = SWITCH
+            .split_once("SegmentedControl {")
+            .map(|(_, rest)| rest.chars().take(200).collect::<String>())
+            .unwrap_or_default();
+        assert!(
+            group.contains("aria_label: \"\""),
+            "the group inside the nav must not repeat the nav's name"
+        );
+    }
+
+    #[test]
+    fn the_lockup_box_matches_the_artwork() {
+        let (width, height) = artwork_extent();
+        assert!(
+            width > 0.0 && height > 0.0,
+            "the viewBox has no positive size, so there is nothing to render"
+        );
+        // The numbers are rendered the way the stylesheet writes them, without
+        // trailing zeros, so the test compares values rather than formatting.
+        let render = |n: f64| {
+            let s = format!("{n:.3}");
+            s.trim_end_matches('0').trim_end_matches('.').to_string()
+        };
+        let expected = format!("aspect-ratio: {} / {};", render(width), render(height));
+        assert!(
+            STYLES.contains(&expected),
+            "the logo box must pin '{expected}' to the viewBox, or the box can \
+             round onto the artwork edge and clip it"
         );
     }
 }

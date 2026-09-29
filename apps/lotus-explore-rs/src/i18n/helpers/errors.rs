@@ -8,9 +8,13 @@ mod en;
 mod fr;
 mod it;
 
+/// Each generated wrapper is the only path to its per-locale functions, so the
+/// dead-code lint cannot see the use. Scoped to the macro's output rather than
+/// the crate root.
 macro_rules! dispatch {
     // no args → String
     ($name:ident) => {
+        #[allow(dead_code)]
         pub fn $name(locale: Locale) -> String {
             match locale {
                 Locale::En => en::$name(),
@@ -23,6 +27,7 @@ macro_rules! dispatch {
     // no args → String (with cfg)
     ($name:ident with_cfg $cfg:literal) => {
         #[$cfg]
+        #[allow(dead_code)]
         pub fn $name(locale: Locale) -> String {
             match locale {
                 Locale::En => en::$name(),
@@ -34,6 +39,7 @@ macro_rules! dispatch {
     };
     // one &str arg → String
     ($name:ident, $arg:ident: &str) => {
+        #[allow(dead_code)]
         pub fn $name(locale: Locale, $arg: &str) -> String {
             match locale {
                 Locale::En => en::$name($arg),
@@ -45,6 +51,7 @@ macro_rules! dispatch {
     };
     // two &str args → String
     ($name:ident, $a:ident: &str, $b:ident: &str) => {
+        #[allow(dead_code)]
         pub fn $name(locale: Locale, $a: &str, $b: &str) -> String {
             match locale {
                 Locale::En => en::$name($a, $b),
@@ -56,6 +63,7 @@ macro_rules! dispatch {
     };
     // three &str args → String
     ($name:ident, $a:ident: &str, $b:ident: &str, $c:ident: &str) => {
+        #[allow(dead_code)]
         pub fn $name(locale: Locale, $a: &str, $b: &str, $c: &str) -> String {
             match locale {
                 Locale::En => en::$name($a, $b, $c),

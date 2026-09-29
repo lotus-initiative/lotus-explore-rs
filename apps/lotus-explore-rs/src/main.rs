@@ -10,6 +10,15 @@
 // UI/i18n locale-dispatch code where const-ness has no material benefit (the
 // dispatchers cannot be `const` without const-cascading into all four locale
 // table files, and UI helpers run at runtime only).
+// `dead_code` is allowed because the lint does not follow Dioxus's macro output.
+// `#[component]` and `#[derive(Routable)]` generate the calls that reach the app
+// -- `main` -> `AppBootstrap` -> `AppShell` -> `Route` -> every screen -- and
+// rustc's reachability pass works on the un-expanded source. Without this it
+// reports `enum Route is never used` and 540-odd others, all of which the
+// compiler would reject if they really were unreachable. It is a false positive
+// about generated code, not a licence to leave unused helpers behind: the
+// `#[allow(dead_code)]`s inside the i18n dispatch macros are scoped to what
+// those macros generate, which is the only place it is needed.
 // NOTE: `clippy::module_name_repetitions` is deliberately NOT allowed here;
 // the few `App*`/`Export*` names that need it carry item-level allows instead.
 #![cfg_attr(target_arch = "wasm32", allow(clippy::future_not_send))]

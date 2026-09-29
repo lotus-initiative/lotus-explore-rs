@@ -11,9 +11,16 @@ mod it;
 /// Generates a locale-dispatch wrapper that forwards to each per-locale
 /// submodule function.  Handles the four arity/return-type combinations used
 /// by the curation i18n tables.
+///
+/// The per-locale functions are `pub(super)` and only reachable through the
+/// wrapper this macro generates, so without the allow below the dead-code lint
+/// reports every one of them in all four locales -- 240 findings for 60 strings
+/// that are all used. The allow is on the macro rather than at the crate root
+/// so it covers exactly what the macro produces and nothing else.
 macro_rules! dispatch {
     // no args → &'static str
     ($name:ident) => {
+        #[allow(dead_code)]
         pub fn $name(locale: Locale) -> &'static str {
             match locale {
                 Locale::En => en::$name(),
@@ -25,6 +32,7 @@ macro_rules! dispatch {
     };
     // no args → String
     ($name:ident => String) => {
+        #[allow(dead_code)]
         pub fn $name(locale: Locale) -> String {
             match locale {
                 Locale::En => en::$name(),
@@ -36,6 +44,7 @@ macro_rules! dispatch {
     };
     // one &str arg → String
     ($name:ident, $arg:ident: &str -> String) => {
+        #[allow(dead_code)]
         pub fn $name(locale: Locale, $arg: &str) -> String {
             match locale {
                 Locale::En => en::$name($arg),
@@ -47,6 +56,7 @@ macro_rules! dispatch {
     };
     // one &str arg → &'static str
     ($name:ident, $arg:ident: &str -> &'static str) => {
+        #[allow(dead_code)]
         pub fn $name(locale: Locale, $arg: &str) -> &'static str {
             match locale {
                 Locale::En => en::$name($arg),

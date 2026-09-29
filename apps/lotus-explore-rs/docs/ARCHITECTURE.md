@@ -3,8 +3,7 @@
 ## The crates
 
 Six library crates and one application. The crates are arranged so that
-everything which can be pure is, and everything which makes a decision is
-named.
+everything which can be pure is, and everything which makes a decision is named.
 
 ```
 crates/lotus-model      Domain types, filter semantics, validation
@@ -23,10 +22,10 @@ right, not only because the app happens to pull them in, and that is what keeps
 them free of IO: a crate that cannot read a clock cannot read the current year
 by accident, so it takes the year as an argument and its tests pin one.
 
-`lotus-search` owns the decisions — which endpoint, when to fall back, whether a
-taxon string is a name or a QID — and takes its transport as a two-method trait.
-The whole use case, including the QLever-to-WDQS fallback, is tested against a
-scripted HTTP conversation with no network at all.
+`lotus-search` owns the decisions --- which endpoint, when to fall back, whether
+a taxon string is a name or a QID --- and takes its transport as a two-method
+trait. The whole use case, including the QLever-to-WDQS fallback, is tested
+against a scripted HTTP conversation with no network at all.
 
 The web app and the CLI both call `lotus-search` and `lotus-curation`, so a
 query the explorer runs and a query `lotus search` runs are the same query, and
@@ -70,11 +69,11 @@ app rather than in a crate a query library depends on.
 
 ## Rules
 
-- Components render and dispatch — no business logic.
+- Components render and dispatch --- no business logic.
 - Feature internals are private; each feature exposes a typed facade via
   `mod.rs`.
 - API DTOs stop at repository boundaries and never reach components.
-- State subscriptions are narrow — components read only the slices they use.
+- State subscriptions are narrow --- components read only the slices they use.
 - Every async path has a stable token; stale completions are discarded before
   state commit.
 - Typed errors (`thiserror`) at all boundaries; user messages are derived
@@ -96,5 +95,5 @@ On the server the same path runs with the app's own HTTP client in place of the
 
 ## Agent tooling
 
-- `.github/ai/` — AI collaboration guides, the contribution protocol, and the
+- `.github/ai/` --- AI collaboration guides, the contribution protocol, and the
   incident postmortem for the lotus-explore Qlever 429-storm fix.
