@@ -162,9 +162,26 @@ outdated:
 
 # README sync: regenerate each crate README from README.tpl + source `//!`
 # doc comments, lint, and diff against the checked-in README.md.
+#
+# Two bugs, both of which made this recipe fail on every run. It is a pre-push
+# hook (prek.toml), so either one blocks the push.
+#
+# 1. `$d` is single-dollar deliberately. just interpolates `$name` in recipe
+#    bodies before the shell sees them, so `$$d` arrived as a literal `$d`
+#    expanded by whichever shell ran it: `cd: 68631d: No such file or
+#    directory`. Reproduced with a two-line justfile.
+# 2. The diff runs against `panache format`ed output, not raw `cargo readme`
+#    output. `panache-format` is a separate pre-commit hook that reformats the
+#    file afterwards, so diffing the raw generator output reported 27 lines of
+#    drift that do not exist. Formatting first makes the comparison match what
+#    is actually committed, and `panache lint` then checks the final text.
 readme:
 	@command -v cargo-readme >/dev/null 2>&1 || { echo "cargo-readme not installed; skipping"; exit 0; }
 	@command -v panache >/dev/null 2>&1 || { echo "panache not installed; skipping"; exit 0; }
 	@for d in crates/lotus/; do \
-	(cd $$d && cargo readme -t README.tpl -o /tmp/readme_panache.md 2>/dev/null && panache lint /tmp/readme_panache.md && diff -q /tmp/readme_panache.md README.md > /dev/null 2>&1 || { echo "README.md out of date for $$d — run: (cd $$d && cargo readme -t README.tpl -o README.md)"; exit 1; }) || exit 1; \
+	(cd $d && cargo readme -t README.tpl -o /tmp/readme_panache.md 2>/dev/null \
+	&& panache format /tmp/readme_panache.md >/dev/null \
+	&& panache lint /tmp/readme_panache.md \
+	&& diff -q /tmp/readme_panache.md README.md >/dev/null 2>&1 \
+	|| { echo "README.md out of date for $d — run: (cd $d && cargo readme -t README.tpl -o README.md && panache format README.md)"; exit 1; }) || exit 1; \
 	done
