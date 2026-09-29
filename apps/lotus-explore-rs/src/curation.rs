@@ -20,6 +20,9 @@ pub use domain::{
     QuickStatementsBundle,
 };
 
+#[cfg(test)]
+mod contract_tests;
+
 #[path = "curation/share_links.rs"]
 mod share_links;
 #[cfg(test)]

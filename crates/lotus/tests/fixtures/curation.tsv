@@ -1,0 +1,5 @@
+name	smiles	taxon	doi
+Quercetin	O=c1c(O)c(-c2ccc(O)c(O)c2)oc2cc(O)cc(O)c12	Gentiana lutea	https://doi.org/10.1/A
+Thymine	CC1=CN(C(=O)NC1=O)C	Gentiana lutea	10.1/B
+NoSmiles		Gentiana lutea	10.1/C
+Adenosine	C1=NC(=C2C(=N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)CO)O)O)N	Isaria cicadae	
