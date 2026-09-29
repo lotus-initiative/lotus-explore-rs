@@ -5,6 +5,40 @@ The site is published by `.github/workflows/deploy.yml` with
 `https://lotus.nprod.net/lotus-explore-rs/`. Everything below was measured
 against the live host with `curl`, not inferred from the configuration.
 
+## The canonical host is `lotus.nprod.net`
+
+`lotus.nprod.net` is a CNAME to `lotusnprod.github.io`, and GitHub Pages 301s
+the `github.io` name to the custom domain. So `github.io` is not an alternative
+address for this site, it is a redirect away from it. Measured:
+
+  | Request                                           | Result                                                 |
+  | ---------------------------------------------     | -----------------------------------                    |
+  | `https://lotusnprod.github.io/lotus-explore-rs/`  | **301** -> `https://lotus.nprod.net/lotus-explore-rs/` |
+  | `https://lotusnprod.github.io/`                   | **301** -> `https://lotus.nprod.net/`                  |
+  | `https://lotus.nprod.net/lotus-explore-rs/`       | 200                                                    |
+  | `https://lotus.nprod.net/`                        | 200                                                    |
+
+`base_url` in `metadata/site-metadata.json` was still the `github.io` form,
+which put the retired host into every generated artefact: `llms.txt`,
+`robots.txt`'s `Sitemap:`, `sitemap.xml`, `humans.txt`, `security.txt`'s
+`Canonical:`, and the `ai-catalog.json` `documentationUrl`, `logoUrl` and
+per-tool `url` fields. An agent that fetched `documentationUrl` was sent to a
+host that redirects, and `sitemap.xml` advertised redirect URLs to crawlers. All
+of them now use `lotus.nprod.net`; `lotus_home_url` moves with it, since the
+LOTUS initiative home is the same site at the root.
+
+`index.html` is hand-maintained rather than generated, so its `og:url` and the
+JSON-LD `url` are set by hand to match. Note the contrast with `rel=canonical`:
+that one is empty in the source and rewritten at runtime from
+`window.location.origin`, so it was always correct and never named the wrong
+host. `og:url` and JSON-LD have no such fallback, which is exactly why they were
+the ones that went stale.
+
+Worth keeping in mind when reading a canonical URL from this repo: the
+`github.io` name is a redirect, not a synonym. Anything that hardcodes it adds a
+hop, and anything that treats it as the site's identity (a sitemap, an agent
+catalog, a citation) points at the wrong origin.
+
 ## Plain HTTP is served, not redirected
 
 Lighthouse (and several security scanners) report "Redirects HTTP traffic to
