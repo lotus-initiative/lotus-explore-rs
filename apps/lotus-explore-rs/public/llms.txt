@@ -2,64 +2,74 @@
 
 > Explore LOTUS with taxon filters, structure search, and Wikidata curation workflows.
 
+All URLs below are absolute: the app is served from a subpath, so a
+root-relative link resolves to the domain root and 404s.
+
 ## Core information
 
 - **Official name**: LOTUS Explore-rs
 - **Short name**: LOTUS-rs
-- **Purpose**: Interactive exploration of chemical entities occurrence data
+- **Purpose**: Interactive exploration of chemical entity occurrence data
 - **Data domain**: Natural products, chemical compounds, taxonomy, scientific references
 - **Access model**: Free, web-based, no authentication required
+- **Interface**: Four locales (en, fr, de, it); light and dark themes
+- **Machine interface**: A WebMCP tool surface, see Discovery
 
 ## Features
 
 - Search by taxon filters and structure input (SMILES or Molfile V2000/V3000)
-- Use Ketcher to draw structures, then copy Daylight SMILES or MOL V3000 back into search
-- Filter by mass, year, and formula
-- Browse taxonomy and references
-- Export CSV, JSON, and SPARQL results for downstream analysis
+- Draw a structure in the embedded Ketcher editor, then copy Daylight SMILES or MOL V3000 back into search
+- Filter by mass range, publication year, and formula presence
+- Browse taxonomy and references for each result
+- Export results as CSV, JSON, RDF, or SPARQL
 - Import TSV rows and generate QuickStatements for Wikidata curation
 
-## Links
+## Docs
 
-- [Home page](https://lotusnprod.github.io/lotus-explore-rs/)
-- [Repository](https://github.com/lotusnprod/lotus-explore-rs)
-- [Source path](https://github.com/lotusnprod/lotus-explore-rs)
-- [Paper landing page](https://elifesciences.org/articles/70780)
-- [Paper DOI](https://doi.org/10.7554/eLife.70780)
-- [BibTeX references](/docs/references.bib)
-- [LOTUS initiative](https://lotusnprod.github.io)
-- [Agent skills](/.well-known/agent-skills.json)
-- [API catalog](/.well-known/api-catalog.json)
-- [AI capability catalog](/.well-known/ai-catalog.json)
+In the repository. These are design and operations notes rather than user
+documentation, and are not served from the site itself.
 
-## Data sources
-
-- [Wikidata SPARQL](https://query.wikidata.org/)
-- [QLever](https://qlever.cs.uni-freiburg.de/wikidata)
-- [DOI metadata](https://doi.org/)
-- [LOTUS initiative](https://lotusnprod.github.io)
+- [Architecture](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/ARCHITECTURE.md)
+- [Design system](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/DESIGN_SYSTEM.md)
+- [Performance](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/PERFORMANCE.md)
+- [Deployment](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/DEPLOYMENT.md)
+- [Citation](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/CITATION.md)
+- [Curation share links](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/CURATION_SHARE_LINKS.md)
 
 ## Discovery
 
-- [Agent skills](/.well-known/agent-skills.json)
-- [API catalog](/.well-known/api-catalog.json)
-- [AI capability catalog](/.well-known/ai-catalog.json)
-- Structured data: JSON-LD in page head
-- Link headers: advertise llms, robots, security, sitemap
+Machine-readable descriptions of this app, for agents.
+
+- [AI capability catalog](https://lotusnprod.github.io/lotus-explore-rs/.well-known/ai-catalog.json)
+- [API catalog](https://lotusnprod.github.io/lotus-explore-rs/.well-known/api-catalog.json)
+- [Agent skills](https://lotusnprod.github.io/lotus-explore-rs/.well-known/agent-skills.json)
+- [Security policy](https://lotusnprod.github.io/lotus-explore-rs/.well-known/security.txt)
+- [robots.txt](https://lotusnprod.github.io/lotus-explore-rs/robots.txt)
+- [sitemap.xml](https://lotusnprod.github.io/lotus-explore-rs/sitemap.xml)
+- Structured data: JSON-LD in the page head
+- Link headers on the document advertise llms.txt, robots.txt, security.txt and sitemap.xml
+
+## Data sources
+
+- [Wikidata Query Service](https://query.wikidata.org/)
+- [QLever Wikidata endpoint](https://qlever.cs.uni-freiburg.de/wikidata)
+- [DOI metadata](https://doi.org/)
+- [LOTUS initiative](https://lotusnprod.github.io)
 
 ## Citation
 
-- [Paper DOI](https://doi.org/10.7554/eLife.70780)
-- [Paper landing page](https://elifesciences.org/articles/70780)
-- [BibTeX](/docs/references.bib)
+- [Paper](https://elifesciences.org/articles/70780)
+- [DOI](https://doi.org/10.7554/eLife.70780)
+- [BibTeX](https://lotusnprod.github.io/lotus-explore-rs/docs/references.bib)
 
 ## Licensing
 
-- [App license](https://www.gnu.org/licenses/agpl-3.0.html) (AGPL-3.0)
-- [Data license](https://creativecommons.org/publicdomain/zero/1.0/) (CC0 1.0)
-- [Source path](https://github.com/lotusnprod/lotus-explore-rs)
+- App: [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html)
+- Data: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)
 
-## Contact
+## Project
 
+- [App](https://lotusnprod.github.io/lotus-explore-rs/)
+- [Repository and source](https://github.com/lotusnprod/lotus-explore-rs)
 - [Issues](https://github.com/lotusnprod/lotus-explore-rs/issues)
 - [Discussions](https://github.com/lotusnprod/lotus-explore-rs/discussions)

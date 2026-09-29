@@ -30,7 +30,6 @@ struct Site {
     lotus_home_url: String,
     paper_doi_url: String,
     paper_landing_url: String,
-    bibtex_path: String,
     app_license_url: String,
     data_license_url: String,
     security_contact_url: String,
@@ -301,69 +300,84 @@ fn build_ai_catalog(meta: &Metadata) -> Result<String, Box<dyn Error>> {
 
 fn build_llms_txt(meta: &Metadata) -> String {
     let s = &meta.site;
+    // The app is served from a subpath, so a root-relative link such as
+    // /.well-known/ai-catalog.json resolves to the domain root and 404s. Every
+    // URL below is absolute for that reason. `base_url` already ends in "/",
+    // which is what makes `{base}docs/references.bib` correct.
+    let well_known = |file: &str| format!("{}.well-known/{}", s.base_url, file);
     format!(
         "# {name}\n\n\
         > {description}\n\n\
+        All URLs below are absolute: the app is served from a subpath, so a\n\
+        root-relative link resolves to the domain root and 404s.\n\n\
         ## Core information\n\n\
         - **Official name**: {name}\n\
         - **Short name**: {short_name}\n\
-        - **Purpose**: Interactive exploration of chemical entities occurrence data\n\
+        - **Purpose**: Interactive exploration of chemical entity occurrence data\n\
         - **Data domain**: Natural products, chemical compounds, taxonomy, scientific references\n\
-        - **Access model**: Free, web-based, no authentication required\n\n\
+        - **Access model**: Free, web-based, no authentication required\n\
+        - **Interface**: Four locales (en, fr, de, it); light and dark themes\n\
+        - **Machine interface**: A WebMCP tool surface, see Discovery\n\n\
         ## Features\n\n\
         - Search by taxon filters and structure input (SMILES or Molfile V2000/V3000)\n\
-        - Use Ketcher to draw structures, then copy Daylight SMILES or MOL V3000 back into search\n\
-        - Filter by mass, year, and formula\n\
-        - Browse taxonomy and references\n\
-        - Export CSV, JSON, and SPARQL results for downstream analysis\n\
+        - Draw a structure in the embedded Ketcher editor, then copy Daylight SMILES or MOL V3000 back into search\n\
+        - Filter by mass range, publication year, and formula presence\n\
+        - Browse taxonomy and references for each result\n\
+        - Export results as CSV, JSON, RDF, or SPARQL\n\
         - Import TSV rows and generate QuickStatements for Wikidata curation\n\n\
-        ## Links\n\n\
-        - [Home page]({base_url})\n\
-        - [Repository]({repo_url})\n\
-        - [Source path]({source_path})\n\
-        - [Paper landing page]({paper_landing_url})\n\
-        - [Paper DOI]({paper_doi_url})\n\
-        - [BibTeX references]({bibtex_path})\n\
-        - [LOTUS initiative]({lotus_home_url})\n\
-        - [Agent skills](/.well-known/agent-skills.json)\n\
-        - [API catalog](/.well-known/api-catalog.json)\n\
-        - [AI capability catalog](/.well-known/ai-catalog.json)\n\n\
+        ## Docs\n\n\
+        In the repository. These are design and operations notes rather than user\n\
+        documentation, and are not served from the site itself.\n\n\
+        - [Architecture]({repo_url}/blob/main/apps/lotus-explore-rs/docs/ARCHITECTURE.md)\n\
+        - [Design system]({repo_url}/blob/main/apps/lotus-explore-rs/docs/DESIGN_SYSTEM.md)\n\
+        - [Performance]({repo_url}/blob/main/apps/lotus-explore-rs/docs/PERFORMANCE.md)\n\
+        - [Deployment]({repo_url}/blob/main/apps/lotus-explore-rs/docs/DEPLOYMENT.md)\n\
+        - [Citation]({repo_url}/blob/main/apps/lotus-explore-rs/docs/CITATION.md)\n\
+        - [Curation share links]({repo_url}/blob/main/apps/lotus-explore-rs/docs/CURATION_SHARE_LINKS.md)\n\n\
+        ## Discovery\n\n\
+        Machine-readable descriptions of this app, for agents.\n\n\
+        - [AI capability catalog]({ai_catalog})\n\
+        - [API catalog]({api_catalog})\n\
+        - [Agent skills]({agent_skills})\n\
+        - [Security policy]({security_txt})\n\
+        - [robots.txt]({base}robots.txt)\n\
+        - [sitemap.xml]({base}sitemap.xml)\n\
+        - Structured data: JSON-LD in the page head\n\
+        - Link headers on the document advertise llms.txt, robots.txt, security.txt and sitemap.xml\n\n\
         ## Data sources\n\n\
-        - [Wikidata SPARQL](https://query.wikidata.org/)\n\
-        - [QLever](https://qlever.cs.uni-freiburg.de/wikidata)\n\
+        - [Wikidata Query Service](https://query.wikidata.org/)\n\
+        - [QLever Wikidata endpoint](https://qlever.cs.uni-freiburg.de/wikidata)\n\
         - [DOI metadata](https://doi.org/)\n\
         - [LOTUS initiative]({lotus_home_url})\n\n\
-        ## Discovery\n\n\
-        - [Agent skills](/.well-known/agent-skills.json)\n\
-        - [API catalog](/.well-known/api-catalog.json)\n\
-        - [AI capability catalog](/.well-known/ai-catalog.json)\n\
-        - Structured data: JSON-LD in page head\n\
-        - Link headers: advertise llms, robots, security, sitemap\n\n\
         ## Citation\n\n\
-        - [Paper DOI]({paper_doi_url})\n\
-        - [Paper landing page]({paper_landing_url})\n\
-        - [BibTeX]({bibtex_path})\n\n\
+        - [Paper]({paper_landing_url})\n\
+        - [DOI]({paper_doi_url})\n\
+        - [BibTeX]({base}docs/references.bib)\n\n\
         ## Licensing\n\n\
-        - [App license]({app_license_url}) (AGPL-3.0)\n\
-        - [Data license]({data_license_url}) (CC0 1.0)\n\
-        - [Source path]({source_path})\n\n\
-        ## Contact\n\n\
+        - App: [AGPL-3.0]({app_license_url})\n\
+        - Data: [CC0 1.0]({data_license_url})\n\n\
+        ## Project\n\n\
+        - [App]({base_url})\n\
+        - [Repository and source]({repo_url})\n\
         - [Issues]({issues_url})\n\
         - [Discussions]({discussions_url})\n",
         name = s.name,
         short_name = s.short_name,
         description = s.description,
         base_url = s.base_url,
+        base = s.base_url,
         repo_url = s.repo_url,
         issues_url = s.issues_url,
         discussions_url = s.discussions_url,
         lotus_home_url = s.lotus_home_url,
-        paper_doi_url = s.paper_doi_url,
         paper_landing_url = s.paper_landing_url,
-        bibtex_path = s.bibtex_path,
+        paper_doi_url = s.paper_doi_url,
         app_license_url = s.app_license_url,
         data_license_url = s.data_license_url,
-        source_path = s.source_path,
+        ai_catalog = well_known("ai-catalog.json"),
+        api_catalog = well_known("api-catalog.json"),
+        agent_skills = well_known("agent-skills.json"),
+        security_txt = well_known("security.txt"),
     )
 }
 
