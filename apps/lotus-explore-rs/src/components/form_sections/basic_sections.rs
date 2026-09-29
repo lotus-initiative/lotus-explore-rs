@@ -28,6 +28,7 @@ pub fn TaxonInput() -> Element {
             input {
                 id: "taxon-input",
                 name: "taxon",
+                "toolparamdescription": "Taxon name, Wikidata QID, or * for all taxa.",
                 r#type: "text",
                 autocomplete: "off",
                 spellcheck: "false",
@@ -82,6 +83,7 @@ pub fn MassRangeInput() -> Element {
                     input {
                         id: "mass-min",
                         name: "mass_min",
+                        "toolparamdescription": "Minimum molecular mass in Da.",
                         r#type: "number",
                          autocomplete: "off",
                         min: "0",
@@ -106,6 +108,7 @@ pub fn MassRangeInput() -> Element {
                     input {
                         id: "mass-max",
                         name: "mass_max",
+                        "toolparamdescription": "Maximum molecular mass in Da.",
                         r#type: "number",
                         autocomplete: "off",
                         min: "0",
@@ -151,6 +154,7 @@ pub fn YearRangeInput() -> Element {
                     input {
                         id: "year-min",
                         name: "year_min",
+                        "toolparamdescription": "Minimum publication year.",
                         r#type: "number",
                         autocomplete: "off",
                         min: "{DEFAULT_YEAR_MIN}",
@@ -175,6 +179,7 @@ pub fn YearRangeInput() -> Element {
                     input {
                         id: "year-max",
                         name: "year_max",
+                        "toolparamdescription": "Maximum publication year.",
                         r#type: "number",
                         autocomplete: "off",
                         min: "{DEFAULT_YEAR_MIN}",

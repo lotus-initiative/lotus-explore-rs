@@ -111,6 +111,11 @@ pub fn AddRowCard(
     rsx! {
         form {
             id: "lotus-curation-add-row-form",
+            // WebMCP declarative registration; see the note in search_panel.rs.
+            // Deliberately no `toolautosubmit`: this form changes the curation
+            // queue, so the user should press the button.
+            "toolname": "add_curation_row",
+            "tooldescription": "Add a single curated chemical compound record with a name, SMILES, taxon, and DOI.",
             "data-webmcp-id": "lotus-curation-add-row-form",
             "data-webmcp-type": "form",
             "data-webmcp-name": "LOTUS curation add-row form",
@@ -134,6 +139,7 @@ pub fn AddRowCard(
                 input {
                     id: "curation-name-input",
                     name: "name",
+                    "toolparamdescription": "Compound name.",
                     autocomplete: "off",
                     class: "form-input w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                     r#type: "text",
@@ -149,6 +155,7 @@ pub fn AddRowCard(
                 input {
                     id: "curation-smiles-input",
                     name: "smiles",
+                    "toolparamdescription": "SMILES representation of the structure.",
                     autocomplete: "off",
                     class: "form-input w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                     r#type: "text",
@@ -164,6 +171,7 @@ pub fn AddRowCard(
                 input {
                     id: "curation-taxon-input",
                     name: "taxon",
+                    "toolparamdescription": "Taxon name or identifier the compound was reported for.",
                     autocomplete: "off",
                     class: "form-input w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                     r#type: "text",
@@ -177,6 +185,7 @@ pub fn AddRowCard(
                 input {
                     id: "curation-doi-input",
                     name: "doi",
+                    "toolparamdescription": "Optional DOI of the source publication.",
                     autocomplete: "off",
                     class: "form-input w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                     r#type: "text",
@@ -217,6 +226,9 @@ pub fn TsvImportCard(
     rsx! {
         form {
             id: "lotus-curation-tsv-form",
+            // No `toolautosubmit` here either, for the same reason.
+            "toolname": "import_curation_tsv",
+            "tooldescription": "Paste or upload a TSV file of curated compound rows to import into the queue.",
             "data-webmcp-id": "lotus-curation-tsv-form",
             "data-webmcp-type": "form",
             "data-webmcp-name": "LOTUS TSV import form",
@@ -240,6 +252,7 @@ pub fn TsvImportCard(
             textarea {
                 id: "curation-tsv-input",
                 name: "tsv",
+                "toolparamdescription": "TSV rows with name, SMILES, taxon, and DOI columns.",
                 autocomplete: "off",
                 class: "form-textarea mono w-full min-h-[130px] rounded-xl border border-border bg-surface p-2.5 font-mono text-body text-text shadow-xs focus:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                 aria_describedby: "curation-tsv-hint",
@@ -259,6 +272,7 @@ pub fn TsvImportCard(
                 input {
                     id: "curation-tsv-file-input",
                     name: "tsv_file",
+                    "toolparamdescription": "Upload a TSV file instead of pasting. An agent cannot set a file input, so it should use the tsv property instead.",
                     autocomplete: "off",
                     class: "curation-file-input w-full max-w-full cursor-pointer rounded-xl border border-border bg-surface px-3 py-2 text-ui text-muted shadow-xs transition-colors hover:border-accent/50 hover:bg-bg focus:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-ui file:font-semibold file:text-bg hover:file:bg-accent-2",
                     aria_label: "TSV file upload",

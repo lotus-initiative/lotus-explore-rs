@@ -107,8 +107,34 @@ headings; `header`, `nav`, `main`, `section`, `footer`, `table`, `time`, labels,
 and native controls are preferred over ARIA replacements. Visible text is the
 accessible name; use `aria-label` only for icon-only controls. Stable automation
 hooks are `data-lotus-id` for domain entities and `data-segmented-value` for
-segmented controls; existing `data-mcp-*` hooks remain the schema-oriented form
-API.
+segmented controls.
+
+## Agent-facing forms: two different attribute families
+
+A `<form>` that agents can drive carries **two unrelated sets of attributes**,
+and conflating them is the trap:
+
+  | Family                | Attributes                                                                                          | Read by                  | Purpose                                                                                                                          |
+  | ---                   | ---                                                                                                 | ---                      | ---                                                                                                                              |
+  | WebMCP (the standard) | `toolname`, `tooldescription`, `toolautosubmit` on the form; `toolparamdescription` on each control | a WebMCP-capable browser | actually registers the form as a tool; the browser synthesises the input schema from the controls' `name`, `type` and `required` |
+  | in-house hooks        | `data-webmcp-*` and `data-mcp-*`                                                                    | nothing in the browser   | a parallel, explicit description for tooling that reads them directly                                                            |
+
+The `data-*` hooks predate WebMCP and register **nothing** on their own. A form
+with only those attributes is invisible to WebMCP. Keep both, but a new form
+needs the `tool*` attributes to be discoverable, and its `data-webmcp-schema`
+should stay consistent with the real control names --- that schema is what a
+non-browser consumer reads, and when the two disagree the agent sends a property
+no field exists for. (`SEARCH_SCHEMA` declared `formula` while the control is
+`formula_exact`, so a consumer using it had its filter silently dropped.)
+
+`toolautosubmit` is the difference between "an agent can fill this in" and "an
+agent can submit this without you". It is on the search form, which only reads.
+It is deliberately absent from both curation forms, which mutate the curation
+queue.
+
+Controls whose names are generated at runtime (the per-element formula
+min/maximums) get no `toolparamdescription`; the browser still synthesises the
+property, it just carries no description.
 
 Declare `vocab="https://schema.org/"` at the domain-content scope. Use canonical
 Wikidata resources for QIDs and established schema.org terms only:

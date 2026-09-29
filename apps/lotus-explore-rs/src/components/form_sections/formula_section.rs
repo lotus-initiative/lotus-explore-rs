@@ -134,6 +134,7 @@ pub fn FormulaSection() -> Element {
                     r#type: "checkbox",
                     id: "formula-enabled",
                     name: "formula_enabled",
+                    "toolparamdescription": "Whether the formula filter is applied.",
                     autocomplete: "off",
                     class: "accent-accent cursor-pointer",
                     checked: enabled,
@@ -151,6 +152,7 @@ pub fn FormulaSection() -> Element {
                         input {
                             id: "formula-exact",
                             name: "formula_exact",
+                            "toolparamdescription": "Exact molecular formula filter, e.g. C7H5O5N.",
                             r#type: "text",
                             class: "w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                             autocomplete: "off",
