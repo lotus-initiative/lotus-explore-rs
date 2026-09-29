@@ -5,6 +5,42 @@ The site is published by `.github/workflows/deploy.yml` with
 `https://lotus.nprod.net/lotus-explore-rs/`. Everything below was measured
 against the live host with `curl`, not inferred from the configuration.
 
+## Plain HTTP is served, not redirected
+
+Lighthouse (and several security scanners) report "Redirects HTTP traffic to
+HTTPS". The finding is correct and it is **not fixable from this repository**.
+
+Measured on the live host:
+
+  | Request                                       | Result                          |
+  | --------------------------------------------- | ------------------------------- |
+  | `http://lotus.nprod.net/lotus-explore-rs/`    | **200 OK** over plain HTTP      |
+  | `https://lotus.nprod.net/lotus-explore-rs/`   | 200                             |
+
+`lotus.nprod.net` is a CNAME to `lotusnprod.github.io`, so the site is served by
+GitHub Pages, and GitHub Pages does not implement `_redirects`. Two independent
+measurements confirm the file is inert there:
+
+  | Probe                                                        | Expected if honoured | Actual |
+  | ------------------------------------------------------------ | -------------------- | ------ |
+  | `/lotus-explore-rs/no-such-route` (the `/* 200` SPA rewrite)  | 200                  | **404** |
+  | `Strict-Transport-Security` from `_headers`                    | present              | absent |
+
+The redirect is a repository setting, not a file: **Settings → Pages → Enforce
+HTTPS**. It is off, which is why HTTP is answered with `200` instead of `301`.
+Note that GitHub Pages also does not send the HSTS header `_headers` asks for,
+so even once HTTPS is enforced the preload directive has to come from somewhere
+else; the `max-age=63072000` in `_headers` is intent for a future CDN.
+
+For a host that does honour these files, `_redirects` now carries a real
+host-level rule ahead of the SPA rewrite:
+
+```
+http://lotus.nprod.net/*  https://lotus.nprod.net/:splat  301!
+```
+
+Moving to Cloudflare Pages or Netlify activates that, and `_headers`, unchanged.
+
 ## `_headers` is not honoured on the production path
 
 `apps/lotus-explore-rs/build.rs` generates `public/_headers` with a full policy:
