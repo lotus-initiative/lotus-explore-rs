@@ -120,12 +120,9 @@ web-bytes:
 	  echo "no build at $out — run 'just build' first" >&2
 	  exit 1
 	fi
-	# `dx build` does not prune a hashed asset whose name changed, so a rebuilt
-	# tree keeps the superseded bundle next to the current one. Summing both
-	# inflates the table, so drop every hashed asset index.html does not
-	# reference *before* measuring. Pruning here rather than warning and asking
-	# for a re-run is the point: a number that needs a second invocation to
-	# become correct is a number that eventually gets misread.
+	# `dx build` leaves a superseded bundle beside the current one, which
+	# inflates the table. Prune before measuring, not after: a number that
+	# needs a second run to become correct eventually gets misread.
 	for asset in "$out"/assets/*.js "$out"/assets/*.wasm "$out"/assets/*.css; do
 	  [ -f "$asset" ] || continue
 	  case "$asset" in *.br) continue ;; esac
@@ -160,21 +157,14 @@ deny:
 outdated:
 	@command -v cargo-outdated >/dev/null 2>&1 && cargo outdated --workspace --exit-code 1 || echo "cargo-outdated not installed; skipping"
 
-# README sync: regenerate each crate README from README.tpl + source `//!`
-# doc comments, lint, and diff against the checked-in README.md.
+# README sync: regenerate each crate README from README.tpl + source `//!` doc
+# comments, lint, and diff against the checked-in README.md. A pre-push hook.
 #
-# Two bugs, both of which made this recipe fail on every run. It is a pre-push
-# hook (prek.toml), so either one blocks the push.
-#
-# 1. `$d` is single-dollar deliberately. just interpolates `$name` in recipe
-#    bodies before the shell sees them, so `$$d` arrived as a literal `$d`
-#    expanded by whichever shell ran it: `cd: 68631d: No such file or
-#    directory`. Reproduced with a two-line justfile.
-# 2. The diff runs against `panache format`ed output, not raw `cargo readme`
-#    output. `panache-format` is a separate pre-commit hook that reformats the
-#    file afterwards, so diffing the raw generator output reported 27 lines of
-#    drift that do not exist. Formatting first makes the comparison match what
-#    is actually committed, and `panache lint` then checks the final text.
+# `$d` is single-dollar because just interpolates `$name` before the shell sees
+# it, so `$$d` became a literal `$d`: `cd: 68631d: No such file or directory`.
+# The diff compares formatted output because a pre-commit hook reformats the
+# file after `cargo readme` writes it, and raw output reported drift that does
+# not exist.
 readme:
 	@command -v cargo-readme >/dev/null 2>&1 || { echo "cargo-readme not installed; skipping"; exit 0; }
 	@command -v panache >/dev/null 2>&1 || { echo "panache not installed; skipping"; exit 0; }

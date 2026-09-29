@@ -39,13 +39,10 @@ pub fn asset_url(_path: &str) -> String {
     String::new()
 }
 
-/// Injects the curation bridge JS into the document `<head>`.
-///
-/// Mounted once, from the curation page. Verified not to duplicate on a full
-/// load, on SPA navigation to and away from `/curation`, or on re-render of the
-/// page's own inputs, so the `document::Script` nodes are not re-added. The
-/// bridge files are still written to tolerate a second injection, since that is
-/// a browser-level behaviour this component does not control.
+/// Injects the curation bridge JS into the document `<head>`, once. Verified not
+/// to duplicate on a full load, on SPA navigation to and away from `/curation`,
+/// or on re-render of the page's own inputs. The bridge files still tolerate a
+/// second injection, which is browser behaviour this component does not control.
 #[component]
 pub fn CurationScripts() -> Element {
     rsx! {

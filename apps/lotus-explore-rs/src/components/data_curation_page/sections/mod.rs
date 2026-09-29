@@ -87,9 +87,8 @@ mod tests {
 #[component]
 pub fn StatusNotice(locale: Locale, message: Arc<str>) -> Element {
     rsx! {
-        // The shared NoticeBar, not a hand-rolled copy: this one had drifted
-        // (no `notice-bar` class, so it missed the min-height reserve, and
-        // `font-semibold` where the shared badge is bold).
+        // The shared NoticeBar: the hand-rolled copy this replaced had drifted
+        // out of its min-height reserve and its badge weight.
         NoticeBar {
             label: t(locale, TextKey::Notice).to_string(),
             tone: NoticeTone::Warning,

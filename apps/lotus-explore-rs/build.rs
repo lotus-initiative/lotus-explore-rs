@@ -8,10 +8,8 @@
 // fields exist purely to mirror site-metadata.json; cargo does not surface
 // doc warnings here, and there is no consuming API to document.
 #![allow(missing_docs)]
-// Also compiled as the `buildrs` test target (see Cargo.toml), where the crate
-// gets the full dependency list even though the tests use only serde and
-// serde_json. Crate level because `unused_crate_dependencies` is ignored inside
-// a module; the real build script uses serde/serde_json, so nothing is masked.
+// Also built as the `buildrs` test target, which links the full dependency list
+// but uses only serde/serde_json. Crate level: this lint is ignored in a module.
 #![cfg_attr(test, allow(unused_crate_dependencies))]
 
 use serde::{Deserialize, Serialize};
@@ -28,20 +26,14 @@ struct Site {
     name: String,
     short_name: String,
     description: String,
-    /// The site's canonical URL, including the subpath it is served from.
-    ///
-    /// **This is the single source of the canonical host.** Every generated file
-    /// derives its absolute URLs from here, so a CNAME change is this field plus
-    /// the two hand-written URLs in `index.html` (`og:url` and the JSON-LD
-    /// `url`), which a test ties back to this value. Nothing else in the tree
-    /// stores the host as a value. See docs/DEPLOYMENT.md, "Changing the CNAME".
+    /// The site's canonical URL including its subpath, and the single source of
+    /// the host. `index.html` holds two hand-written copies of it that a test
+    /// ties back here. See docs/DEPLOYMENT.md, "Changing the CNAME".
     base_url: String,
     repo_url: String,
     issues_url: String,
     discussions_url: String,
-    /// Where the wider LOTUS initiative lives. `None` means "this same host, at
-    /// the root", which is what it is today; set it only if that ever stops
-    /// being true, so a CNAME change does not have to touch two fields.
+    /// Where the wider LOTUS initiative lives; defaults to this site's origin.
     #[serde(default)]
     lotus_home_url: Option<String>,
     paper_doi_url: String,
@@ -556,23 +548,12 @@ fn build_headers_txt() -> String {
         .to_string()
 }
 
-/// Generate `_redirects` from the canonical host in `site-metadata.json`.
-///
-/// This file used to be hand-maintained, which made the canonical host the one
-/// value in the repo that had to be edited by hand in two places. It was the
-/// reason a CNAME change was not a one-field change: `base_url` moved the
-/// generated metadata, and this file silently kept the old host in its
-/// HTTP -> HTTPS rule. The rule is inert on GitHub Pages (which ignores the
-/// whole file) and live on Cloudflare/Netlify, so a stale host there would
-/// have redirected to a domain that redirects back here.
-///
-/// `host()` is the single source of truth for the origin; every generated
-/// file derives its URLs from it.
+/// `_redirects` is generated so the host lives only in `base_url`. The file is
+/// inert on GitHub Pages but live on Cloudflare/Netlify, so a hand-kept host
+/// there would have redirected to a domain that redirects back here.
 fn build_redirects_txt(meta: &Metadata) -> String {
-    // The rule is `http://HOST/*`, so this needs the bare hostname. Using the
-    // full origin here produced `http://https://host/*`, which is not a valid
-    // redirect target and would have silently failed on the one host that
-    // actually honours this file.
+    // `http://HOST/*` needs the bare host; the full origin gives
+    // `http://https://host/*`, which is not a valid target.
     let hostname = hostname(meta);
     format!(
         "# Netlify / Cloudflare Pages / compatible CDN \u{2014} HTTP redirect rules\n\
@@ -606,29 +587,17 @@ fn build_redirects_txt(meta: &Metadata) -> String {
     )
 }
 
-/// The origin (`scheme://host[:port]`) that `base_url` sits on.
+/// The origin (`scheme://host[:port]`) `base_url` sits on, subpath stripped.
 ///
-/// This is the single source of truth for the canonical host. `base_url` is the
-/// app's full canonical URL including its subpath, which is what nearly every
-/// generated file wants; the few places that need the bare origin (the
-/// `_redirects` host rule) derive it here rather than restating a hostname, so a
-/// CNAME change is one edit to `base_url`.
-///
-/// Deliberately not a parsed `Url`: the value is only ever formatted into a
-/// string, and pulling in a URL parser to read one field of it would be more
-/// machinery than the extraction is worth.
+/// Not a parsed `Url`: the value is only ever formatted into a string, and a
+/// parser to read one field of it is more machinery than the extraction.
 fn host(meta: &Metadata) -> String {
     let base = meta.site.base_url.trim_end_matches('/');
     let scheme = base.split_once("://").map_or("https", |(scheme, _)| scheme);
     format!("{scheme}://{}", hostname(meta))
 }
 
-/// The LOTUS initiative home: an explicit override, else this site's own origin.
-///
-/// The initiative page is the same host at the root, which is the case that
-/// makes a CNAME change a one-field change. The override exists so that if the
-/// initiative ever moves to a host of its own, that is a deliberate metadata
-/// edit rather than an assumption baked into the generator.
+/// The LOTUS initiative home: an override if set, else this site's own origin.
 fn lotus_home(meta: &Metadata) -> String {
     meta.site
         .lotus_home_url
@@ -636,11 +605,7 @@ fn lotus_home(meta: &Metadata) -> String {
         .unwrap_or_else(|| host(meta))
 }
 
-/// The bare hostname (with port, if any) from `base_url`, without the scheme.
-///
-/// `_redirects` rules are written as `http://HOST/*` and `https://HOST/*`, so
-/// they need the authority alone. Passing the full origin here yields
-/// `http://https://HOST/*`, which is not a valid redirect target.
+/// The authority (host plus any port) from `base_url`, without the scheme.
 fn hostname(meta: &Metadata) -> &str {
     let base = meta.site.base_url.trim_end_matches('/');
     let rest = base.split_once("://").map_or(base, |(_, rest)| rest);
@@ -655,20 +620,13 @@ mod tests {
     use super::*;
     use std::path::Path;
 
-    /// Load the real `site-metadata.json`, so these tests exercise the file the
-    /// build actually uses rather than a hand-built copy that could drift from
-    /// it. `CARGO_MANIFEST_DIR` is set by the `buildrs` test target.
-    ///
-    /// Returns a `Result` rather than panicking on load: the workspace denies
-    /// `expect_used` and `panic`, and a test that cannot read the metadata has
-    /// nothing useful to say.
+    /// The real `site-metadata.json`, so these tests cannot drift from it.
     fn real_metadata() -> Result<Metadata, Box<dyn Error>> {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("metadata/site-metadata.json");
         Ok(serde_json::from_str(&fs::read_to_string(path)?)?)
     }
 
-    /// A `Metadata` with `base_url` swapped, keeping the real file's shape. This
-    /// is how a CNAME change is simulated.
+    /// A `Metadata` with `base_url` swapped: how a CNAME change is simulated.
     fn with_base_url(base_url: &str) -> Result<Metadata, Box<dyn Error>> {
         let mut meta = real_metadata()?;
         meta.site.base_url = base_url.to_owned();
@@ -694,9 +652,7 @@ mod tests {
 
     #[test]
     fn every_host_bearing_artefact_follows_base_url() -> Result<(), Box<dyn Error>> {
-        // The property that makes a CNAME swap maintainable: change `base_url`
-        // and no generated file keeps the old host. This is the test that would
-        // have caught the two-field drift that shipped once already.
+        // Change `base_url` and no generated file may keep the old host.
         for base in [
             "https://lotus.nprod.net/lotus-explore-rs/",
             "https://lotus.example.org/explorer/",
@@ -704,8 +660,7 @@ mod tests {
         ] {
             let meta = with_base_url(base)?;
             let expected = hostname(&meta);
-            // Any host that is not this one is stale for this base_url, so the
-            // assertion does not itself have to be updated when the CNAME does.
+            // Any host that is not this one is stale for this base_url.
             let stale = ["nprod.net", "example.org", "github.io", "localhost"];
 
             let redirects = build_redirects_txt(&meta);
@@ -715,14 +670,11 @@ mod tests {
                 )),
                 "redirect rule did not follow base_url for {base}"
             );
-            // The regression that motivated generating _redirects at all: a full
-            // origin here produces `http://https://host/*`, not a valid target.
             assert!(
                 !redirects.contains("http://https://"),
                 "redirect rule has a doubled scheme for {base}"
             );
 
-            // Every generated artefact that carries an absolute URL.
             for (name, contents) in [
                 ("llms.txt", build_llms_txt(&meta)),
                 ("humans.txt", build_humans_txt(&meta)),
@@ -773,8 +725,7 @@ mod tests {
             "the port is part of the authority"
         );
 
-        // A schemeless base_url is treated as https rather than producing
-        // "://host", which would be silently wrong in every generated file.
+        // A schemeless base_url must not yield "://host".
         let meta = with_base_url("lotus.example.org/lotus-explore-rs/")?;
         assert_eq!(
             host(&meta),
@@ -786,16 +737,11 @@ mod tests {
 
     #[test]
     fn index_html_agrees_with_base_url() -> Result<(), Box<dyn Error>> {
-        // `index.html` is the one host-bearing file that is NOT generated: dx
-        // serves it from the app root, and build.rs writing into it would fight
-        // the dev server's `watch_path`. Its `og:url` and JSON-LD `url` are
-        // therefore maintained by hand, and they are the two that have no
-        // runtime fallback (`rel=canonical` and the hreflang alternates are
-        // rewritten from `window.location.origin`, so they cannot go stale).
-        //
-        // This test is the substitute for generating them: a CNAME change that
-        // forgets index.html now fails the build instead of shipping a
-        // self-inconsistent page.
+        // `index.html` is the one host-bearing file build.rs does not generate
+        // (dx serves it, and writing into it would fight `watch_path`), so this
+        // test stands in for generating it. `og:url` and the JSON-LD `url` are
+        // the fields with no runtime fallback: `rel=canonical` and the hreflang
+        // alternates are rewritten from `location.origin`.
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("index.html");
         let html = fs::read_to_string(path)?;
         let base = real_metadata()?.site.base_url;
@@ -814,22 +760,11 @@ mod tests {
         Ok(())
     }
 
-    /// Files under the app that are allowed to name the live host, and why.
-    ///
-    /// Files under the app that may name the live host, and why each is safe.
-    ///
-    /// - `metadata/site-metadata.json` -- the single source. A CNAME change
-    ///   edits this and nothing else.
-    /// - `index.html` -- the one hand-written URL, because dx serves it rather
-    ///   than build.rs generating it. Guarded by `index_html_agrees_with_base_url`,
-    ///   which fails if it drifts from `base_url`.
-    /// - `docs/DEPLOYMENT.md` -- prose recording measured responses. A
-    ///   measurement of the old host is history, not a value to keep in sync.
-    /// - `build.rs` -- only the test fixtures below, which are deliberately
-    ///   pinned to the real host so the tests exercise the shipped values
-    ///   rather than synthetic ones. They are inputs to assertions, not output.
-    ///   `every_host_bearing_artefact_follows_base_url` already proves those
-    ///   fixtures are not load-bearing for the generated files.
+    /// Files allowed to name the live host, and why each is safe:
+    /// the source; `index.html`, hand-written because dx serves it (guarded by
+    /// `index_html_agrees_with_base_url`); documentation, where a measurement
+    /// of the old host is history; and this file's own test fixtures, which are
+    /// pinned to the real host on purpose.
     const HOST_BEARING_SOURCES: [&str; 4] = [
         "metadata/site-metadata.json",
         "index.html",
@@ -839,14 +774,11 @@ mod tests {
 
     #[test]
     fn only_the_documented_files_name_the_live_host() -> Result<(), Box<dyn Error>> {
-        // The point of generating the metadata is that grepping the tree for the
-        // host finds one source, not twenty. That only stays true if a new
-        // hardcoded copy is a test failure rather than something a future CNAME
-        // change silently misses -- which is exactly how the last one shipped.
-        //
-        // The generated files under public/ are committed, so they legitimately
-        // contain the host; they are excluded by GENERATED_METADATA, and the
-        // test below asserts that list stays in sync with what is written.
+        // Grepping the tree for the host must find one source, not twenty; a
+        // new hardcoded copy has to fail the build rather than be missed by the
+        // next CNAME change. Generated files under public/ are committed, so
+        // they legitimately contain the host and are excluded by
+        // GENERATED_METADATA (asserted still in sync below).
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let meta = real_metadata()?;
         let host = hostname(&meta).to_owned();
@@ -885,9 +817,8 @@ mod tests {
              Add the host to site-metadata.json and generate the file, or list it \
              in HOST_BEARING_SOURCES in build.rs if it is genuinely hand-written."
         );
-        // Sanity-check the exclusion is still doing something: if GENERATED_METADATA
-        // drifted from what the script writes, the loop above would quietly stop
-        // recognising generated files and this would come back empty.
+        // If GENERATED_METADATA drifted, the loop above would stop recognising
+        // generated files and this would pass on an empty set.
         assert!(
             !generated_with_host.is_empty(),
             "no generated file contained the host, so the generated-file exclusion \
@@ -913,9 +844,8 @@ mod tests {
 
     #[test]
     fn generated_metadata_list_covers_everything_the_script_writes() {
-        // `clean_dx_output` prunes exactly this list from dx's output tree, so a
-        // generated file missing from it is a file that can survive a rename and
-        // ship stale. security.txt was written but absent until this was added.
+        // A generated file missing from this list can survive a rename and ship
+        // stale, which is how security.txt was missed.
         for name in [
             "llms.txt",
             "humans.txt",
