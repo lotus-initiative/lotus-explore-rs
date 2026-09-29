@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Typed commands for search entry points.
-//!
-//! Replaces boolean flags at the orchestration boundary so call sites communicate
-//! intent explicitly and reducers can derive runtime behavior from a single type.
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SearchCommand {

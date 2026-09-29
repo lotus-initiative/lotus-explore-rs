@@ -4,7 +4,6 @@
 use crate::app_state::MetricsState;
 
 /// Metrics state after a waiting-for-loading dispatch tick.
-///
 /// `logged_waiting_loading` must be `true` only when telemetry was emitted
 /// during this tick; this keeps the guard aligned with log side effects.
 #[must_use]
@@ -19,7 +18,6 @@ pub const fn metrics_for_waiting_loading_phase(
 }
 
 /// Metrics state after a waiting-for-query dispatch tick.
-///
 /// `logged_waiting_query` must be `true` only when telemetry was emitted
 /// during this tick; this keeps the guard aligned with log side effects.
 #[must_use]

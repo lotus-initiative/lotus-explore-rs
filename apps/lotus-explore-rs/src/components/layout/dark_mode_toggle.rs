@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Light / dark theme toggle in the page header.
 
 use crate::app::routes::Route;

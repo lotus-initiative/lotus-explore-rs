@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Result finalization service.
-//!
-//! Assembles query/result hashes and metadata JSON from the raw search
-//! outcome.  Pure and synchronous — no I/O, no Dioxus.
 
 use crate::export;
 use crate::features::explore::search_utils::compute_hashes;
@@ -25,10 +21,7 @@ pub struct FinalizedMeta {
 }
 
 /// Assemble [`FinalizedMeta`] from the raw outcome parts.
-///
 /// `direct_download_mode` suppresses stats/counts (they were never fetched).
-/// `endpoint` indicates which SPARQL endpoint was used (Qlever by default,
-/// WDQS on fallback due to 502 errors).
 pub fn finalize(
     crit: &SearchCriteria,
     qid: Option<&str>,

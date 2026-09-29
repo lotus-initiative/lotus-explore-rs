@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! UI components and contracts for the application.
 
 pub mod a11y_contract;

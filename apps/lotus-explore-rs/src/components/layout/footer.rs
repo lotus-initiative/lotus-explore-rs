@@ -4,7 +4,6 @@
 // Dioxus's `asset!` macro resolves to `&[u8]`, flagged by `volatile_composites`
 // at every call site; the value type is fixed by the framework.
 #![allow(clippy::volatile_composites)]
-
 //! Site footer component shared across pages.
 
 use crate::hooks::use_locale;

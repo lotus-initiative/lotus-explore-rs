@@ -23,7 +23,6 @@ pub enum DispatchPhase {
     /// All preconditions met — ready to dispatch download.
     Ready {
         /// Criteria snapshot embedded in download metadata.
-        ///
         /// Only materialized on WASM targets — desktop builds don't embed
         /// metadata in files so the clone is skipped entirely.
         #[cfg(target_arch = "wasm32")]
@@ -38,10 +37,6 @@ pub enum DispatchPhase {
 }
 
 /// Determine the current dispatch phase based on download and result state.
-///
-/// This pure function centralizes the decision tree that determines what the
-/// download dispatch effect should do on each render. No side effects here —
-/// just data transformation from signals to a single phase enum.
 #[must_use]
 pub fn classify_dispatch_phase(
     pending_format: Option<DownloadFormat>,

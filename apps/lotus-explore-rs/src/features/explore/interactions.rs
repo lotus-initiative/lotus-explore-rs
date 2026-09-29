@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Typed interaction boundary for the Explore feature.
-//!
-//! UI components should invoke these methods instead of importing reducer or
-//! orchestration details directly. This keeps side effects and state mutations in
-//! one place and makes the view tree easier to evolve.
 
 use crate::features::explore::actions::ExploreAction;
 use crate::features::explore::command::SearchCommand;

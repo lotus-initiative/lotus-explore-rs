@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 #![allow(clippy::future_not_send)]
-
 //! Taxon resolution service — maps a free-text name to a Wikidata QID.
-//!
-//! This module has **no dependency on the Dioxus runtime** and carries **no
-//! locale strings**, making every function directly unit-testable.
 
 mod match_selection;
 
@@ -47,14 +43,7 @@ pub fn requires_remote_lookup(taxon: &str) -> bool {
 }
 
 /// Resolve a free-text taxon name (or QID, or wildcard) to a Wikidata QID.
-///
 /// Returns:
-/// * `Ok(TaxonResolution { qid: None, .. })` — taxon was blank.
-/// * `Ok(TaxonResolution { qid: Some("*"), .. })` — wildcard `"*"` passed through.
-/// * `Ok(TaxonResolution { qid: Some(q), .. })` — successfully resolved.
-/// * `Err(DomainError::Validation(_))` — taxon not found in Wikidata.
-/// * `Err(DomainError::Transport { .. })` — network error during SPARQL lookup.
-/// * `Err(DomainError::Parse(_))` — CSV response could not be parsed.
 pub async fn resolve<R: LotusRepository>(
     taxon: &str,
     repo: &R,

@@ -1,20 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Minimal i18n helpers for user-facing labels and status text.
-//!
-//! Keep this intentionally small: one locale switch and a couple of
-//! localized labels. It is easy to extend without introducing a full
-//! translation framework.
-//!
-//! Two main systems:
-//! - [`TextKey`] — Enumerated UI labels (returns `&'static str`)
-//!
-//! Translation tables live in per-locale submodules:
-//! - [`en`] — English
-//! - [`fr`] — French (with accents)
-//! - [`de`] — German (with umlauts)
-//! - [`it`] — Italian (with accents)
 
 mod curation;
 pub use curation::*;
@@ -254,7 +240,6 @@ pub enum TextKey {
 }
 
 /// Resolve a [`TextKey`] for the given [`Locale`].
-///
 /// Delegates to the per-locale submodule functions so each translation table
 /// lives in its own file and can be edited independently.
 pub fn t(locale: Locale, key: TextKey) -> &'static str {

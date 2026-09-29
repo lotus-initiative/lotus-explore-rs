@@ -1,36 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Preload the WebAssembly module in the built `index.html`.
-//!
-//! `dx` already emits `<link rel="preload" as="script">` for the JS glue, but
-//! nothing preloads the module itself, and the glue cannot start the module
-//! fetch until it has been downloaded, parsed and executed:
-//!
-//! ```text
-//! html -> glue js (45 KiB) -> fetch(wasm) -> instantiateStreaming -> mount
-//! ```
-//!
-//! That serialises the largest response on the page behind a response that is
-//! two orders of magnitude smaller. Measured with Lighthouse's `devtools`
-//! throttling on a simulated 1.6 Mbit/s / 150 ms link, the module request used
-//! to start 520252 ms after the document and now starts 220055 ms after it —
-//! in the same ~9 ms window as the CSS and the glue, instead of 300 s behind
-//! them. Observed LCP 3114 ms -> 2940 ms; simulated LCP 3753 ms -> 3630 ms.
-//!
-//! The module name is content-hashed, so the link cannot be written by hand in
-//! the source `index.html`; it has to be injected after the bundle is emitted.
-//! The asset prefix is copied from the preload `dx` already emitted, so a
-//! `--base-path` build keeps working without this tool knowing about base paths.
-//!
-//! Run after `dx build`, from the repository root or anywhere:
-//!
-//! ```text
-//! cargo run --release -p lotus-deploy --bin inject-wasm-preload -- <web-public-dir>
-//! ```
-//!
-//! The directory defaults to the standard `dx` output path. Running it twice is
-//! a no-op.
 
 use std::env;
 use std::error::Error;
@@ -113,16 +83,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 /// The exact module the shipped glue will fetch.
-///
-/// The bundle is content-hashed, and `dx` leaves a superseded module behind
-/// whenever a rebuild changes the hash, so `assets/` can hold more than one
-/// `.wasm`. Picking by modification time gets this wrong — it once preloaded a
-/// stale module, and Chrome reported "preloaded using link but not used",
-/// which costs a wasted 1.4 MiB fetch and is worse than not preloading at all.
-///
-/// The glue is the ground truth: it contains the hashed module name verbatim.
-/// Combine that with "and it is actually on disk", and refuse to guess when the
-/// two disagree.
 fn find_wasm_module(dir: &Path, glue_name: &str) -> Result<String, String> {
     let assets = dir.join("assets");
     let glue = fs::read_to_string(assets.join(glue_name)).map_err(|err| {

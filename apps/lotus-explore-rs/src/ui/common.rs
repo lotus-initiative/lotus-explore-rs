@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Common UI utilities and phase models.
 
 /// High-level lifecycle phase for the results area viewport.

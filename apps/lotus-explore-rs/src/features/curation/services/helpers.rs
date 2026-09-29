@@ -20,7 +20,6 @@ pub(super) fn binding_value(binding: &Value, key: &str) -> Option<String> {
 }
 
 /// Escape a string literal for use inside a SPARQL double-quoted string.
-///
 /// Backslashes are doubled and double-quotes are backslash-escaped.
 /// A single forward pass avoids two intermediate heap allocations.
 pub(super) fn escape_sparql_string(value: &str) -> String {
@@ -36,11 +35,7 @@ pub(super) fn escape_sparql_string(value: &str) -> String {
 }
 
 /// Escape a string literal for use inside a `QuickStatements` statement value.
-///
 /// Unlike SPARQL, `QuickStatements` string values (inside double quotes)
-/// only require double-quote escaping. Backslashes in SMILES/InChI
-/// are stereo chemistry indicators and must NOT be escaped.
-/// See <https://www.wikidata.org/wiki/Q140985706>
 pub(super) fn escape_qs_string(value: &str) -> String {
     let mut out = String::with_capacity(value.len() + 4);
     for ch in value.chars() {
@@ -54,8 +49,8 @@ pub(super) fn escape_qs_string(value: &str) -> String {
     out
 }
 
-/// Format a Wikidata `QuickStatements` mass statement using the dalton unit (Q483261).
-/// Unit syntax is `U<QID>` - there is NO leading `Q` after the `U`.
+/// Format a Wikidata `QuickStatements` mass statement using the dalton unit (Q483261). Unit
+/// syntax is `U<QID>` - there is NO leading `Q` after the `U`.
 /// Adds S887 reference "inferred from SMILES" (Q113907573).
 pub fn qs_mass_statement(subject: &str, mass: f64) -> String {
     format!("{subject}|P2067|+{mass:.6}U483261|S887|Q113907573")
@@ -77,8 +72,6 @@ pub fn qs_statement_with_refs(subject: &str, prop: &str, value: &str, refs: &[&s
 }
 
 /// Build a canonical SMILES statement with appropriate S887 references.
-/// - NO reference if no isomeric SMILES present
-/// - ONLY Q123282952 ("inferred from isomeric SMILES") if isomeric SMILES also present
 pub fn qs_canonical_smiles_statement(
     subject: &str,
     canonical_smiles: &str,

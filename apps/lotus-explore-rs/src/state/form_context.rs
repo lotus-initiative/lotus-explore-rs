@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Search-form context with dirty tracking and action-based updates.
 
 use crate::features::explore::form_actions::{FormAction, apply_form_action_mut};

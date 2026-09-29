@@ -1,17 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Error recovery strategies and stale state handling patterns.
-//!
-//! This module codifies best practices for distinguishing recoverable vs fatal errors,
-//! determining retry strategies, and clearing stale state during error conditions.
-//!
-//! ## Philosophy
-//!
-//! - **Transient vs Permanent**: Network timeouts are recoverable; validation errors are not.
-//! - **Retry Policies**: Classified by error type; some errors should never retry.
-//! - **State Cleanup**: Clear partial/stale results on error to prevent UI inconsistencies.
-//! - **User Communication**: Categorize errors so UI can format them localization-aware.
 
 use crate::features::explore::transport_classification::classify_transport_error;
 use crate::features::explore::types::DomainError;
@@ -47,9 +36,6 @@ pub fn is_retryable_transport_error(error: &RepositoryError) -> bool {
 // ── User-Facing Recovery UI ───────────────────────────────────────────────────
 
 /// Determine whether a "Retry" button should be shown for this error.
-///
-/// - Non-retryable errors (validation, parse): only "Dismiss"
-/// - Retryable errors (network): both "Retry" and "Dismiss"
 #[must_use]
 pub fn should_show_retry_button(error: &DomainError) -> bool {
     is_retryable_error(error)

@@ -30,14 +30,7 @@ struct SortCacheInner {
 }
 
 /// Lazily-populated, cheaply-cloneable sort index cache.
-///
 /// Each column's ascending sort index is built on the first `indices_for_sort`
-/// call that requests it, then stored for reuse.  Cloning is `O(1)` — both the
-/// original and the clone share the same `Arc<SortCacheInner>`.
-///
-/// Two `SortIndexCache` values are equal iff they originate from the same
-/// source-rows `Arc` (pointer equality).  This is the correct semantic for
-/// Dioxus memos: the same batch of results always produces an equal cache.
 #[derive(Clone)]
 pub(super) struct SortIndexCache(Arc<SortCacheInner>);
 
@@ -56,7 +49,6 @@ impl std::fmt::Debug for SortIndexCache {
 }
 
 /// Build a new lazy sort index cache backed by `rows`.
-///
 /// No sort work is performed here; indices are computed on first access per
 /// column.
 #[must_use]
@@ -131,10 +123,6 @@ impl SortIndexCache {
 }
 
 /// Returns the sorted index sequence for the given `SortState`.
-///
-/// The ascending index for the requested column is computed on first access
-/// and cached; reversing is applied on-the-fly without extra allocation when
-/// the direction is already ascending.
 #[must_use]
 pub(super) fn indices_for_sort(cache: &SortIndexCache, sort: SortState) -> Arc<[u32]> {
     if sort.dir == SortDir::Asc {

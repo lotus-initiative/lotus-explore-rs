@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Virtualization hook encapsulating scroll handling and visible row calculation.
 
 /// Configuration for virtual scrolling.
@@ -71,7 +70,6 @@ pub fn compute_virtualization_state(
 }
 
 /// Hook that manages virtual scrolling state and calculations.
-///
 /// Always returns consistent state for SSR compatibility.
 #[must_use]
 pub fn use_virtualization(

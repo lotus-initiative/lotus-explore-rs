@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Performance monitoring and logging infrastructure for SPARQL query execution.
-//!
-//! Provides cross-platform logging (WASM console vs. native stdout) and fine-grained
-//! timing measurements across all query phases.
 
 use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
@@ -12,7 +8,6 @@ use std::time::Instant;
 
 /// Timer handle - stores platform-specific timing data.
 /// On WASM, this stores `performance.now()` milliseconds.
-/// On native, this stores the Instant when started
 #[cfg(target_arch = "wasm32")]
 pub type TimerHandle = f64;
 

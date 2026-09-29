@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Error recovery coordination — intelligent retry decisions based on error classification.
-//!
-//! This module provides pure decision logic for determining whether a search should retry,
-//! when, and with what backoff strategy. It uses SPARQL error classification to distinguish
-//! transient upstream cache conflicts from permanent errors.
 
 use crate::features::explore::transport_classification::{
     TransportFailureKind, classify_transport_error,
@@ -69,13 +64,6 @@ impl ErrorClass {
 }
 
 /// Determine retry strategy for a failed search given the error and attempt count.
-///
-/// # Arguments
-/// * `error` — the domain error that caused the search to fail
-/// * `attempt` — which retry attempt this is (0 = first attempt, 1 = first retry, etc.)
-///
-/// # Returns
-/// A decision indicating whether to retry, with backoff timing if applicable.
 pub fn classify_error_recovery(error: &DomainError, attempt: u32) -> RetryDecision {
     match error {
         DomainError::Validation(_) => RetryDecision {
@@ -159,15 +147,7 @@ fn classify_transport_error_recovery(repo_error: &RepositoryError, attempt: u32)
 }
 
 /// Compute exponential backoff for retry attempt.
-///
 /// Base 100ms, doubles each attempt (`2^(attempt+1)`), capped at 10s.
-///
-/// | attempt | backoff |
-/// |---------|---------|
-/// | 0       | 200 ms  |
-/// | 1       | 400 ms  |
-/// | 2       | 800 ms  |
-/// | 6+      | 10 000 ms (cap) |
 fn backoff_delay_ms(attempt: u32) -> u64 {
     const BASE_MS: u64 = 100;
     const MAX_MS: u64 = 10_000;
@@ -176,16 +156,6 @@ fn backoff_delay_ms(attempt: u32) -> u64 {
 }
 
 /// Backoff for 429 / rate-limit retries.
-///
-/// Longer base than [`backoff_delay_ms`] so Qlever's rate-limit window can reset
-/// between retries instead of being hammered into a permanent throttle.
-///
-/// | attempt | backoff |
-/// |---------|---------|
-/// | 0       | 1 000 ms |
-/// | 1       | 2 000 ms |
-/// | 2       | 4 000 ms |
-/// | 6+      | 10 000 ms (cap) |
 fn rate_limit_backoff_ms(attempt: u32) -> u64 {
     const BASE_MS: u64 = 1_000;
     const MAX_MS: u64 = 10_000;

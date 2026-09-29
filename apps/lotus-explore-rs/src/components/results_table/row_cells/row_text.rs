@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Locale-resolved text bundle for results-table row rendering.
 
 use crate::i18n::{Locale, TextKey, t};
 
 /// All static text strings needed to render a single results-table row.
-///
 /// Resolved once per render from the active locale and cheaply copied into
 /// each `row_view` call, avoiding repeated locale lookups per cell.
 #[derive(Clone, Copy, PartialEq)]

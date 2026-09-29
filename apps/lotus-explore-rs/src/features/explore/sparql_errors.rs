@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! SPARQL endpoint error classification and recovery heuristics.
-//!
-//! `QLever` and other SPARQL endpoints may return errors that are transient
-//! (cache invalidation, server hiccups) or permanent (bad query structure).
 
 /// Classify a plain SPARQL/QLever error message.
 pub fn classify_sparql_error_text(message: &str) -> SparqlErrorClass {

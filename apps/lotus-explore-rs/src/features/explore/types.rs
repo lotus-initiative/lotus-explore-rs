@@ -1,13 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Core domain types for the Explore feature.
-//!
-//! ## Error hierarchy
-//!
-//! Internal business logic uses [`DomainError`] — a structured, i18n-free type so
-//! that formatting decisions remain at the UI boundary. Components call a formatting
-//! function to produce the right locale string at render time.
 
 use thiserror::Error;
 
@@ -118,7 +111,6 @@ pub enum ValidationFault {
 }
 
 /// Fine-grained CSV / data parse fault.
-///
 /// Parse variants are scoped to active Explore pipeline stages.
 #[derive(Clone, Debug, PartialEq, Eq, Error)]
 pub enum ParseFault {
@@ -131,7 +123,6 @@ pub enum ParseFault {
 }
 
 /// Top-level domain error used throughout the Explore feature.
-///
 /// Contains **no locale-dependent strings**; UI components format errors at render time.
 #[derive(Clone, Debug, PartialEq, Eq, Error)]
 pub enum DomainError {
@@ -155,7 +146,6 @@ pub enum DomainError {
 
 impl DomainError {
     /// Construct a transport error for the given query stage and repository source.
-    ///
     /// This function is primarily used in unit tests and benchmarks to construct
     /// error scenarios for testing error handling and propagation logic.
     #[cfg(test)]

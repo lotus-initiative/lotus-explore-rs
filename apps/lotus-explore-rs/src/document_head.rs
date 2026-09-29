@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Document asset helpers for lotus-explore-rs.
 
 // Dioxus's `asset!` macro resolves to `&[u8]`, which clippy's
@@ -13,10 +12,6 @@
 use dioxus::prelude::*;
 
 /// Build a root-relative URL for a static asset under the served `public/` tree.
-///
-/// Uses the `<script src>` tag (set by `dx build --base-path`) to detect the base
-/// path at runtime, so the Ketcher iframe works on both GitHub Pages (`/<repo>/`)
-/// and root domains (`/`).
 #[cfg(target_arch = "wasm32")]
 pub fn asset_url(path: &str) -> String {
     let path = path.trim_start_matches('/');

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Row-level render orchestration.
 
 use crate::i18n::Locale;
@@ -56,16 +55,9 @@ fn row_view(
             "typeof": "ChemicalEntity",
             "about": "https://www.wikidata.org/entity/{compound_qid}",
             "data-lotus-id": "compound:{compound_qid}",
-            // No `tabindex` and no focus ring: the row is not a control. It has
-            // no click handler and no interactive role, so making it focusable
-            // only put 13 dead stops on the search page (growing with the
-            // virtualised table) that a keyboard user tabs through to reach
-            // nothing, which Firefox reports as "Clickable elements must be
-            // focusable and should have interactive semantics" and as failing
-            // keyboard accessibility. The hover tint stays because it is a
-            // scanning aid and does not change the cursor. The scroll container
-            // keeps its own `tabindex`, which is what actually needs to be
-            // focusable.
+            // No `tabindex`: the row is not a control, so a focusable one is
+            // just a dead tab stop. Hover tint stays (no cursor change); the
+            // scroll container keeps its own `tabindex`.
             class: "data-row border-b border-shell-border hover:bg-surface/40 [contain:layout_paint]",
             {structure_cell(locale, text, prepared.depict_url.clone(), name)}
             {compound_cell(locale, text, entry, prepared, name, compound_qid)}

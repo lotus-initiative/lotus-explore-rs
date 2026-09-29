@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! SPARQL query construction service.
-//!
 //! Pure, synchronous, zero-I/O — ideal for unit testing without stubs.
 
 use crate::models::{SearchCriteria, SmilesSearchType};
@@ -10,10 +8,7 @@ use crate::queries;
 use crate::services::search_telemetry as telemetry;
 
 /// Normalize a raw SMILES/Molfile string from the criteria.
-///
 /// * Line endings are unified to `\n`.
-/// * Plain SMILES strings are trimmed; molfile blocks retain their leading
-///   whitespace because some parsers are sensitive to it.
 pub fn normalize_smiles(raw: &str) -> String {
     // Fast path: skip allocation when no carriage returns are present (common case).
     let normalized = if raw.contains('\r') {
@@ -33,7 +28,6 @@ pub fn normalize_smiles(raw: &str) -> String {
 }
 
 /// Build the base SPARQL query for the given criteria and resolved taxon QID.
-///
 /// * If `smiles` is non-empty the Sachem SERVICE query is used.
 /// * Otherwise a taxon-filtered or "all compounds" query is generated.
 pub fn build_sparql_query(smiles: &str, crit: &SearchCriteria, taxon_qid: Option<&str>) -> String {

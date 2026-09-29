@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Pure model helpers for results-toolbar download actions.
 
 use crate::download::DownloadFormat;

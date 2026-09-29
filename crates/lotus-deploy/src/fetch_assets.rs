@@ -1,24 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Fetch the external frontend assets used by the web client.
-//!
-//! Downloads the configured RDKit.js and Scholia Citation.js bundles into
-//! `public/assets/vendor`, then downloads and slims the standalone Ketcher
-//! editor bundle. Run from the app crate directory so the relative output paths
-//! land in the app's `public` tree.
-//!
-//! # Environment
-//!
-//! * `CURATION_ASSET_DIR` — curation asset output directory (default
-//!   `public/assets/vendor`).
-//! * `CURATION_ASSET_STATE` — cache-state path (default
-//!   `target/lotus-assets-state`).
-//! * `KETCHER_VERSION` — release tag or `latest` (default `latest`).
-//! * `KETCHER_DIR` — output directory (default `public/assets/ketcher`).
-//! * `KETCHER_URL` — fully override the release URL.
-//! * `RDKIT_VERSION` — npm version or `latest` (default `latest`).
-//! * `CITATION_JS_REF` — Scholia branch, tag, or commit (default `main`).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
@@ -52,11 +34,8 @@ fn setting(name: &str, default: &str) -> String {
         .unwrap_or_else(|| default.to_owned())
 }
 
-/// Unused standalone "entry" bundles (and their license files) that ketcher's
-/// `index.html` never references — only `main.<hash>.js` is loaded by the
-/// editor iframe. Matches the original shell helper's `rm` globs: only the
-/// `closable`/`duo`/`popup` JavaScript bundles and their `.LICENSE.txt` are
-/// dropped; the small mode-specific `*.html`/`*.css` entry points are kept.
+/// Unused standalone "entry" bundles (and their license files) that ketcher's `index.html`
+/// never references — only `main.<hash>.js` is loaded by the editor iframe.
 #[must_use]
 fn is_unused_entry(name: &str) -> bool {
     let Some(file_name) = name.rsplit('/').next() else {
@@ -72,12 +51,9 @@ fn is_unused_entry(name: &str) -> bool {
             || file_name.ends_with(".js.LICENSE.txt"))
 }
 
-/// macOS zip metadata that must never be extracted: the `__MACOSX/` tree and
-/// `._`-prefixed resource forks. The ketcher release zip ships these
-/// (it was archived on macOS), and dioxus-cli's asset copier aborts on them
-/// with "stream did not contain valid UTF-8" / esbuild `Unexpected "\x00"`.
-/// The original shell helper avoided this implicitly via `cp -r standalone/*`;
-/// this makes it explicit and keeps the resource forks out of `public/assets`.
+/// macOS zip metadata that must never be extracted: the `__MACOSX/` tree and `._`-prefixed
+/// resource forks.
+/// The ketcher release zip ships these (it was archived on macOS), and dioxus-cli's asset
 #[must_use]
 fn is_macos_junk(name: &str) -> bool {
     if name == "__MACOSX" || name.starts_with("__MACOSX/") {
@@ -198,11 +174,6 @@ fn resolve_github_ref(
 
 /// One vendored family of third-party assets, checked, invalidated and logged
 /// on its own.
-///
-/// They used to share a single cache check and a single `remove_dir_all` of the
-/// whole curation root, so a change to either one invalidated both: bumping
-/// `CITATION_JS_REF` re-fetched 7.3 MB of `RDKit` in order to replace 2.1 MB of
-/// Citation.js, and the log could only report both present or neither.
 #[derive(Debug)]
 struct VendoredAsset {
     /// Human-readable name, for the log.
@@ -230,10 +201,7 @@ impl VendoredAsset {
 }
 
 /// Whether one vendored asset can be reused as-is.
-///
 /// `recorded` is what the state file holds for this asset, if anything.
-/// `all_files_present` is the file check. Both must hold: matching a version
-/// with a missing file is exactly the state a partial download leaves behind.
 #[must_use]
 fn asset_is_current(recorded: Option<&str>, version: &str, all_files_present: bool) -> bool {
     recorded == Some(version) && all_files_present

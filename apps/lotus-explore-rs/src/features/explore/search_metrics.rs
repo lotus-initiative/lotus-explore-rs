@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Execution-time metrics for a single search pipeline run.
-//!
-//! [`SearchMetrics`] accumulates wall-clock timings for the network and
-//! parsing phases of one search request. It is created fresh per request,
-//! passed by `&mut` through the pipeline, then consumed by
-//! [`emit_search_summary`] to produce a single structured log line.
 
 use crate::services::search_telemetry as telemetry;
 
@@ -39,7 +33,6 @@ impl SearchMetrics {
 const SLOW_QUERY_THRESHOLD_MS: f64 = 5_000.0;
 
 /// Emit a structured summary log line for a completed search.
-///
 /// If `total_elapsed` exceeds [`SLOW_QUERY_THRESHOLD_MS`] an additional
 /// `slow_query` warning is emitted so dashboards can alert on regressions.
 pub fn emit_search_summary(total_elapsed: std::time::Duration, metrics: SearchMetrics) {

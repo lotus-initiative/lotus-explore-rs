@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Shared download helpers for browser/native targets, including format handling & deduplication.
-//!
-//! [`DownloadFormat`] is a re-export of [`lotus::export::ExportFormat`] so
-//! consumers don't need to depend on `lotus` directly just for the enum.
 
 pub use lotus::export::ExportFormat as DownloadFormat;
 
@@ -21,10 +17,6 @@ mod native;
 mod wasm;
 
 /// Execute a download in the given format.
-///
-/// On WASM, tries the in-package server's `/v1/export-url` endpoint first, falling back
-/// to a direct `QLever` browser POST if the API call fails.
-/// On native, executes the query directly against `QLever` via `lotus::sparql`.
 pub async fn execute_download(
     format: DownloadFormat,
     #[cfg(target_arch = "wasm32")] criteria: std::sync::Arc<SearchCriteria>,

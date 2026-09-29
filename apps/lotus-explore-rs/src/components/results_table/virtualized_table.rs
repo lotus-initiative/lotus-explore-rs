@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Virtualized results table body and WASM scroll scheduling glue.
 
 use super::render_model::build_virtualized_table_render_model;

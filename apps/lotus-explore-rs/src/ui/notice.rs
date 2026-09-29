@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Shared notice bar component using inline Tailwind utility classes.
 
 use dioxus::prelude::*;

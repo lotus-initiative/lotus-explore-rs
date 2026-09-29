@@ -410,11 +410,7 @@ async fn resolve_row_dependencies(
 }
 
 /// Fetch pre-generated `QuickStatements` from citation.js (WASM only).
-/// Uses the __lotusCitation JS bridge which fetches CSL JSON from doi.org
-/// and calls `cite.format('quickstatements')` with the plugin-quickstatements
-/// output format registered with citation.js.
-/// When the citation bridge is unavailable or returns empty output,
-/// returns a minimal `## -- Step: create missing reference --` header only.
+/// Uses the __lotusCitation JS bridge which fetches CSL JSON from doi.org and calls
 async fn resolve_or_create_reference(
     repository: &dyn CurationKnowledgeRepository,
     doi: &str,

@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Data Transfer Objects (DTOs) for the LOTUS API client.
-//!
-//! Defines the serializable request payloads sent to the backend and the
-//! deserializable response shapes received. Internal domain types are kept
-//! separate; conversion happens at the edge via [`From`] implementations.
 
 use crate::{
     models::{CompoundEntry, DatasetStats, ElementState, SearchCriteria, SmilesSearchType},

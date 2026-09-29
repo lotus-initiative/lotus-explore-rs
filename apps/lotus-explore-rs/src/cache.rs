@@ -1,16 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! In-browser result cache.
-//!
-//! The WASM client runs standalone (no `--features server`): when the REST API
-//! fast-path is not opted-in (`api::api_base_url` is unset/empty) the explore
-//! flow calls `lotus::sparql` directly. A repeated or back-navigated search
-//! would otherwise re-fetch the same SPARQL page from QLever, so we keep the
-//! most recent result pages in a wasm `thread_local` HashMap keyed by
-//! `lotus::state::build_search_cache_key` — the *same* keys the native server
-//! uses, so the two cache paths stay compatible. This is the client-side mirror
-//! of `server/state`'s result cache.
 
 #[cfg(any(test, target_arch = "wasm32"))]
 mod cache_impl {

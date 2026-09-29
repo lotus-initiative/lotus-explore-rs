@@ -111,9 +111,9 @@ pub fn absolute_current_url_with_query(query: &str) -> String {
     }
 }
 
-/// The browser's `location.origin` + `location.pathname` (no query), when
-/// available. Centralizes the `web_sys::window()` lookup shared by the
-/// `absolute_*` URL builders so they don't each re-open the window.
+/// The browser's `location.origin` + `location.pathname` (no query), when available.
+/// Centralizes the `web_sys::window()` lookup shared by the `absolute_*` URL builders so they
+/// don't each re-open the window.
 #[cfg(target_arch = "wasm32")]
 fn origin_and_pathname() -> Option<(String, String)> {
     let win = web_sys::window()?;

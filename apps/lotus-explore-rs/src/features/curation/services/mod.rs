@@ -66,11 +66,6 @@ type SparqlExecution<'a> = LocalBoxFuture<'a, Result<String, FetchError>>;
 
 /// Execute a SPARQL query against QLever, falling back to WDQS when QLever is
 /// unavailable.
-///
-/// - Reference lookups (queries containing `SELECT ?ref WHERE {` and `wdt:P356`)
-///   use the WDQS scholarly subgraph endpoint directly.
-/// - All other queries are transformed via `transform_query_for_wdqs` and sent
-///   to the regular WDQS endpoint.
 pub async fn execute_sparql_with_wdqs_fallback(
     query: &str,
     format: ResponseFormat,

@@ -31,19 +31,6 @@ const ROW_HEIGHT_PX_COMFORTABLE: usize = 138;
 const TABLE_VIEWPORT_FALLBACK_PX: usize = 760;
 
 /// Renders the full results section.
-///
-/// Reactive surface is deliberately narrow: this component subscribes only to
-/// `entries` (for the empty-state check) and `locale`. Table preparation is
-/// split into two memos:
-/// 1. `prepared_state` — re-runs only when the entries `Arc` pointer changes
-///    (expensive: row prep + lazy sort-index cache allocation).
-/// 2. `table_view_model` — re-runs when entries OR sort changes (cheap: index
-///    selection only).
-///
-/// Sort interactions therefore **never** re-run row preparation and never
-/// trigger an O(N) deep-comparison of entries; the `use_result_arc_selector`
-/// uses pointer equality (`Arc::ptr_eq`) so that only a genuine new result set
-/// propagates through the `prepared_state` memo.
 #[component]
 pub fn ResultsTable() -> Element {
     let state = use_results_context();

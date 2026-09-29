@@ -1,13 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Custom Dioxus hooks that encapsulate the download-related reactive effects.
-//!
 //! These hooks coordinate two independent effect scenarios:
-//! 1. **Startup Effect**: Decides whether to auto-trigger search based on URL parameters.
-//! 2. **Dispatch Effect**: Monitors search progress and coordinates the download phase once results ready.
-//!
-//! See [`download_effects`] for pure business logic separated from Dioxus hooks.
+//! More detail in the type and function docs below.
 
 use crate::app_state::{AppState, MetricsState};
 use crate::download::execute_download;

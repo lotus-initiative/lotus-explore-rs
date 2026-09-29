@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Pure model helpers for sortable results-table headers.
 
 use super::sort_helpers::{aria_sort_for, sort_icon_for};

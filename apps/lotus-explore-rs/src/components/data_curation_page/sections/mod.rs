@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
-//! Curation-page UI sections: share-bar, status notice, add-row /
-//! TSV-import / queue / quickstatements cards, plus dark-mode detection.
+//! Curation-page UI sections: share bar, status notice, add-row, table.
 
 use crate::components::ui::Button;
 use crate::curation::{CurationInputRow, QuickStatementsBundle};
@@ -269,11 +267,8 @@ pub fn TsvImportCard(
                     disabled: processing || !has_tsv_input,
                     onclick: Some(EventHandler::new(move |_: Event<MouseData>| on_parse_tsv.call(()))),
                 }
-                // Visible <label for> rather than only an aria-label: the file
-                // input is a form element with no visible text label, which is
-                // what Firefox flags, and the old aria-label was a hardcoded
-                // English string in a four-locale app. The label supplies the
-                // accessible name, so the two cannot drift apart.
+                // Visible <label for>: the old aria-label was hardcoded English
+                // in a four-locale app and there was no visible label at all.
                 label {
                     r#for: "curation-tsv-file-input",
                     class: "text-ui font-semibold text-muted",

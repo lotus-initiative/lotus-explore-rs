@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Build script for lotus-explore-rs.
-//!
 //! Generates site metadata files (llms.txt, robots.txt, sitemap.xml, etc.)
 //! from the site-metadata.json configuration.
 
@@ -137,19 +135,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 /// Remove the previously-generated metadata files from `dx`'s output tree.
-///
 /// This runs on every wasm compile of the app, including the `cargo check`
-/// inside `just ci`, so it has to be surgical. It used to delete the whole
-/// `public` directory, which meant any running `dx serve` or `dx preview` lost
-/// the bundle it was serving and answered every request with
-///
-///     Err 404 - dioxus is not currently serving a web app
-///
-/// — over HTTP **200**, so nothing in the browser flags it, and it does not
-/// recover even after a later successful rebuild. Only restarting the server
-/// helps. Deleting instead only the files this build script owns is enough to
-/// force `dx` to re-bundle them, and leaves the module, the stylesheet, the
-/// bridges and `index.html` in place.
 fn clean_dx_output() -> Result<(), Box<dyn Error>> {
     let Ok(target) = std::env::var("TARGET") else {
         return Ok(());
@@ -227,7 +213,6 @@ fn build_sitemap_xml(meta: &Metadata) -> String {
 }
 
 /// ARD (`Agentic Resource Discovery`) capability manifest.
-///
 /// Generated next to `llms.txt` so agents can discover the app's `WebMCP`
 /// annotated search form without scraping the page.
 fn build_ai_catalog(meta: &Metadata) -> Result<String, Box<dyn Error>> {

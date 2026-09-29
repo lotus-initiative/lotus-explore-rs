@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Explore feature facade.
-//!
-//! External modules should prefer these re-exports over deep module imports,
-//! so feature internals can evolve without widespread callsite churn.
 
 pub use download_dispatch::{use_download_dispatch_effect, use_startup_effect};
 pub use form_actions::FormAction;

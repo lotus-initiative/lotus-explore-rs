@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Structure depiction cell for results-table rows.
-//!
 //! Renders a depiction image (lazy-loaded) when available, otherwise a dash.
 
 use crate::components::results_table::row_cells::row_text::RowText;

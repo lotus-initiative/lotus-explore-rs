@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 #![allow(clippy::future_not_send)]
-
 //! Full-results fetch service.
-//!
 //! This module is **Dioxus-free**: the phase-change callback (`on_fetching`)
 //! is a plain `Fn()` closure so that tests can supply a no-op.
 
@@ -48,7 +46,6 @@ struct PlannedResultsFetch<'a> {
 }
 
 /// Fetch full results with a single query and cap rendered rows locally.
-///
 /// `on_fetching` is called before the network fetch begins and `on_processing`
 /// before CSV parsing/stat aggregation; in tests pass `|| ()`.
 pub(super) async fn fetch<R: LotusRepository, OnFetching: Fn(), OnProcessing: Fn()>(

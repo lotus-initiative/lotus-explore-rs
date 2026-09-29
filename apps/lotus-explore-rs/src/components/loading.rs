@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Loading and download-dispatching overlay components.
-//!
-//! These components are intentionally small so that phase-text transitions
-//! (e.g., `ResolvingTaxon` -> `FetchingResults` -> `ProcessingResults`) only re-render
-//! the component that subscribes to `query_phase`, not the entire
-//! `ResultsViewport` tree.
 
 use crate::components::ui::Button;
 use crate::features::explore::interactions::use_explore_interactions;
@@ -18,7 +12,6 @@ use crate::ui::prelude::{NoticeBar, NoticeTone};
 use dioxus::prelude::*;
 
 /// Spinner overlay shown while a query is in-flight.
-///
 /// Subscribes to `query_phase` independently so phase-text updates do not
 /// propagate to `ResultsViewport` or its siblings.
 #[component]

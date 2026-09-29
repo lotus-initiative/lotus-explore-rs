@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Shared accessibility IDs and landmark contracts.
-//!
-//! Centralizing these values avoids drift between ARIA relationships
-//! (`aria-labelledby`, `aria-controls`) and their target element IDs.
 
 pub const MAIN_PANEL_ID: &str = "main-panel";
 pub const SKIP_TO_RESULTS_HREF: &str = "#main-panel";

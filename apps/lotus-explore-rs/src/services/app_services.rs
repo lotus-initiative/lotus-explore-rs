@@ -1,22 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Application-level services and dependency container.
-//!
-//! This module defines a single, unified dependency container that holds all
-//! singleton/long-lived services needed by the app. It centralizes service
-//! construction, caching, and context provision.
-//!
-//! ## Design
-//!
-//! - **Single ownership**: `AppServices` is created once at app bootstrap
-//! - **Context provider**: Made available via Dioxus context
-//! - **Zero-cost abstractions**: Copy-able, stateless wrappers around global services
 
 use crate::repositories::HybridRepository;
 
 /// Application-wide services container.
-///
 /// Holds references to all singleton dependencies needed throughout the app.
 /// Designed to be provided via Dioxus context and used by hooks/components.
 #[derive(Clone, Copy)]

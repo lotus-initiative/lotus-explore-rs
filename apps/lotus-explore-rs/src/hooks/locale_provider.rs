@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
-//! `LocaleProvider` makes `Locale` available throughout the component tree
-//! without explicit prop drilling.
+//! Makes `Locale` available throughout the component tree.
 
 use crate::i18n::Locale;
 use dioxus::prelude::*;

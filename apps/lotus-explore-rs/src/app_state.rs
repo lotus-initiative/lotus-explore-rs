@@ -1,25 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Consolidated app-level state for download orchestration and render telemetry.
 
 use crate::download::DownloadFormat;
 
 /// App-level state.  One signal of this type lives at the root of `App`.
-///
 /// Scope is deliberately narrow:
-/// * **download** — pending download format + direct-execute flag read by the
-///   download-dispatch hook.
-/// * **metrics** — one-shot logging guards that prevent duplicate telemetry
-///   events during the download-wait sequence.
-///
-/// Notice what is *not* here:
-/// * `SearchCriteria` — lives in its own `Signal<SearchCriteria>` and is
-///   exposed through `FormCriteriaContext`.
-/// * `ExploreState` — lives in its own `Signal<ExploreState>` with its own
-///   reducer and is exposed through `ResultsContext`.
-/// * `Locale` — provided via `LocaleProvider` context and accessed with
-///   `use_locale()`.
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct AppState {
     /// Download orchestration (format pending, direct-execute mode).
@@ -51,7 +37,6 @@ pub struct DownloadState {
 // ── Metrics State: One-shot telemetry guards ──────────────────────────────────
 
 /// Guards that prevent duplicate log events during the download-wait sequence.
-///
 /// These are reset to `false` once the awaited condition resolves.
 #[derive(Clone, PartialEq, Eq, Default, Debug)]
 pub struct MetricsState {

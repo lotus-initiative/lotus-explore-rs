@@ -4,11 +4,7 @@
 use crate::download::DownloadFormat;
 
 /// Check if startup effect should trigger based on download state and search history.
-///
 /// Returns `true` when all preconditions are met:
-/// * No prior search has completed (`!searched_once`)
-/// * Not currently loading
-/// * Either pending download format or direct-execute flag is set
 #[must_use]
 pub const fn should_trigger_startup_search(
     pending_format: Option<DownloadFormat>,

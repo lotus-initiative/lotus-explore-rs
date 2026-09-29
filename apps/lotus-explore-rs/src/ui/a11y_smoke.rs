@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Lightweight accessibility smoke tests.
-//!
-//! These tests guard critical ARIA/landmark contracts in source markup so
-//! regressions are detected early during refactors.
 
 #[cfg(test)]
 mod tests {
@@ -103,15 +99,6 @@ mod tests {
 
     /// The logo must keep the official lotus lockup *and* render it without
     /// depending on a font being installed.
-    ///
-    /// `favicon.svg` draws the "LOTUS" wordmark. It used to be live `<text>` in
-    /// Albert Sans, a font no device has, so the substituted metrics decided
-    /// how far the glyphs reached: on iOS they fell past the viewBox and were
-    /// clipped, while machines with the font and `WebKit` rendered them fine.
-    /// Chromium was worse, silently resolving weight 300 to `ExtraLight`. The
-    /// wordmark is now filled outlines taken from the real font, so every
-    /// engine paints the same shape, and the viewBox is re-fitted around the
-    /// whole lockup so nothing sits on the box edge.
     #[test]
     fn logo_keeps_the_official_lockup_without_a_font_dependency() {
         let mark_src = include_str!("../../public/favicon.svg");

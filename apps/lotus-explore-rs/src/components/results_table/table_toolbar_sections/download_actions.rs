@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
-//! Download actions toolbar group — buttons to trigger query/metadata downloads
-//! and links to open the query in the `QLever` UI.
+//! Download toolbar group: buttons that trigger query/metadata downloads.
 
 use super::super::download_model::{
     DOWNLOAD_METADATA_SPEC, DOWNLOAD_QUERY_CSV_SPEC, DOWNLOAD_QUERY_JSON_SPEC,

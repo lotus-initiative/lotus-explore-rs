@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Hook for managing the "add one row" form state in the data curation page.
-//!
-//! Extracting the four input signals and validation logic here keeps the
-//! component body focused on layout and event wiring.
 
 use crate::curation::CurationInputRow;
 use crate::features::curation::queue::{append_unique_rows, non_empty_trimmed};
@@ -12,7 +8,6 @@ use crate::i18n::{Locale, msg_duplicate_row_skipped, msg_name_smiles_required};
 use dioxus::prelude::*;
 
 /// Reactive handle for the "add one row" form signals.
-///
 /// Because every field is a [`Signal`] (which is `Copy`), this struct is
 /// itself `Copy` and can be captured by `move` closures without cloning.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -26,10 +21,6 @@ pub struct AddRowForm {
 impl AddRowForm {
     /// Validate the current inputs and, if valid, append a new
     /// [`CurationInputRow`] to `rows`.
-    ///
-    /// * Sets `status` to an error message and returns early on validation
-    ///   failure or a duplicate detection.
-    /// * On success clears `status` and resets every input to `""`.
     pub fn try_add(
         mut self,
         locale: Locale,
@@ -61,7 +52,6 @@ impl AddRowForm {
 }
 
 /// Create signals for the "add one row" form.
-///
 /// Must be called unconditionally inside a Dioxus component or hook
 /// (same rules as all `use_*` hooks).
 #[must_use]

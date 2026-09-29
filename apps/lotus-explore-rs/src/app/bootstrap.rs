@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Pure app bootstrap state assembly.
-//!
-//! This keeps startup parsing separate from component wiring so the initial app
-//! snapshot can be tested without a Dioxus runtime.
 
 use crate::app_state::{AppState, DownloadState};
 use crate::features::explore::{ExploreState, InitialUrlState};

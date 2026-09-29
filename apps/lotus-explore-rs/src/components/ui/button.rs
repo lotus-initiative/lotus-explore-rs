@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Shared Button component using inline Tailwind classes.
 
 use dioxus::prelude::*;
@@ -34,13 +33,10 @@ pub struct ButtonProps {
     pub children: Element,
 }
 
-/// The pointer class. Anything rendered by [`Button`] is clickable, so this is
-/// part of the component's contract rather than a styling choice a caller may
-/// drop: `class` replaces `default_class` wholesale, so relying on
-/// `default_class` alone loses the pointer at every call site that passes its
-/// own class. Measured before this was enforced: "Run search", "Add row",
-/// "Load example rows" and "Generate `QuickStatements`" all resolved to
-/// `cursor: default` while the pointer showed on every other button.
+/// The pointer class.
+/// Part of the component contract, not a styling choice: `class` replaces
+/// `default_class` wholesale, so callers passing their own class would
+/// otherwise lose the pointer.
 const POINTER: &str = "cursor-pointer";
 
 /// Append [`POINTER`] unless the caller's class already carries it.

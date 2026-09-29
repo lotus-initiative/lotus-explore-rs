@@ -167,10 +167,10 @@ pub const fn should_autorun(
     autorun_pending && queued_rows > 0 && !processing && result_rows == 0
 }
 
-/// Snapshot of commonly-queried UI state flags.
-/// Used to reduce signal reads and prevent unnecessary component re-renders.
-/// The booleans are independent flags read by separate components; packing
-/// them into a state-machine enum would couple unrelated rendering concerns.
+/// Snapshot of commonly-queried UI state flags. Used to reduce signal reads and prevent
+/// unnecessary component re-renders.
+/// The booleans are independent flags read by separate components; packing them into a
+/// state-machine enum would couple unrelated rendering concerns.
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct CurationUiState {

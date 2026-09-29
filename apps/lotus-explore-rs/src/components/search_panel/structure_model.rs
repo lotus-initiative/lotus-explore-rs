@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Pure presentation helpers for the structure section of the search panel.
 
 use crate::i18n::TextKey;

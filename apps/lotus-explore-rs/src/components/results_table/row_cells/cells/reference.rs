@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Reference identity cell for results-table rows.
-//!
-//! Renders the reference title (or QID fallback), Scholia link, DOI badge, and
-//! Wikidata statement badge.
 
 use crate::components::results_table::row_cells::prepared::PreparedRow;
 use crate::components::results_table::row_cells::row_text::RowText;

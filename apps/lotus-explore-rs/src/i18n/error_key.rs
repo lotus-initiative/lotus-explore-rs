@@ -1,31 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Typed error message keys for structured, i18n-aware error formatting.
-//!
-//! This module provides an [`ErrorKey`] enum that enables type-safe error message
-//! lookups across all supported locales (English, French, German, Italian).
-//!
-//! Error messages are discovered at compile time, making it impossible to
-//! accidentally reference a non-existent error key. This complements the
-//! [`crate::i18n::TextKey`] system for UI labels and notices.
-//!
-//! # Example
-//!
-//! ```ignore
-//! use crate::i18n::{error_key, Locale};
-//!
-//! let msg = error_key::err(Locale::En, error_key::ErrorKey::TaxonTooLong);
-//! println!("{}", msg);
-//! ```
 
 use crate::i18n::Locale;
 
 /// Typed keys for localized error messages and validation feedback.
-///
-/// Each variant corresponds to a specific error condition that may arise
-/// during search, validation, or data processing. Error messages are
-/// fetched from localized implementations via [`err()`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ErrorKey {
     // Validation errors
@@ -87,7 +66,6 @@ pub(crate) const ALL_ERROR_KEYS: &[ErrorKey] = &[
 ];
 
 /// Resolve an error key to its localized message.
-///
 /// This function acts as the primary dispatcher for generic localized error text.
 pub fn err(locale: Locale, key: ErrorKey) -> String {
     match locale {

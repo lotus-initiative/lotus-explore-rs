@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Status, warning, and error notice components.
 
 use crate::components::copy_button::CopyButton;
@@ -35,12 +34,8 @@ pub fn ShareNotice(shareable_url: Memo<Option<Arc<str>>>) -> Element {
             role: "status",
             aria_live: "polite",
             dark: dark_mode,
-            // A real <label for>, not just an aria-label. The field carried
-            // `aria-label="Copy shareable link"`, which named the *button* next
-            // to it rather than the field, and Firefox reported the field under
-            // that borrowed name with "Form elements should have a visible text
-            // label". A visible label also gives the name without an ARIA
-            // override, so the two can no longer disagree.
+            // Real <label for>: the old `aria-label` named the copy button
+            // beside the field, and overrode the visible text besides.
             label {
                 r#for: share_input_id,
                 class: "shrink-0 text-ui font-semibold text-muted",

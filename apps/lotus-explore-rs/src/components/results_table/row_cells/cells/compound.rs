@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Compound identity cell for results-table rows.
-//!
 //! Renders the compound name link, Wikidata badge, Scholia link, and `InChIKey` badge.
 
 use crate::components::results_table::row_cells::prepared::PreparedRow;

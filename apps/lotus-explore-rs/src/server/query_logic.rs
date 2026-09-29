@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! SPARQL query construction, taxon resolution, and request transformation logic.
-//!
 //! This module bridges the HTTP request layer and the upstream SPARQL endpoint:
-//! validating and normalizing request parameters, caching taxon QID lookups,
-//! building query strings and export URLs, and providing gzip compression.
+//! More detail in the type and function docs below.
 
 use crate::server::errors::ApiError;
 use crate::server::state::{AppState, taxon_cache_get, taxon_cache_put};

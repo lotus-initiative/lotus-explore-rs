@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Sortable column header for the results table.
-//!
-//! The header bar is visually aligned with the body rows: neutral labels, a grid
-//! based sort button, and a subtle sort indicator arrow.
 
 use super::header_model::{SortableHeaderModel, build_sortable_header_models};
 use crate::i18n::{TextKey, aria_sort_toggle, t};

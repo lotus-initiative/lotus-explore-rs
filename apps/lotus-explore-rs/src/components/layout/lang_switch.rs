@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Language-switcher button group.
-//!
 //! Reads and writes the `Signal<Locale>` from `LocaleProvider` context via
 //! [`use_locale_signal`] — zero props required.
 

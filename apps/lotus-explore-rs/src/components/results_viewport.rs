@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Top-level results area component using phase-driven rendering.
 
 use crate::components::loading::{DownloadDispatchState, DownloadOnlyState, LoadingState};

@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Controller hook for results-table virtualization and scroll scheduling.
-//!
-//! This module centralizes the non-render orchestration that used to live in
-//! `VirtualizedResultsTable`: signal ownership, virtualization configuration,
-//! SSR fallback sizing, and WASM scroll-frame scheduling.
 
 use super::{
     ROW_HEIGHT_PX_COMFORTABLE, TABLE_SCROLL_ID, TABLE_VIEWPORT_FALLBACK_PX, VIRTUAL_OVERSCAN_ROWS,

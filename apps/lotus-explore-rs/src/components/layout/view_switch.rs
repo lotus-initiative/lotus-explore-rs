@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! View-switcher nav component (Search / Curation / Structure editor).
-//!
 //! Reads the active route and `use_locale()` for labels — zero props required.
 
 use crate::app::routes::Route;

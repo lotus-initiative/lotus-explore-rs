@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Search request envelope shared across the explore orchestration pipeline.
 
 use crate::features::explore::actions::ExploreAction;

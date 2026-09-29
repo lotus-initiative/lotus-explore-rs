@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Pure table view model: encapsulates all preparation and sorting orchestration.
-//!
-//! Combines entry preparation, sort index caching, and index computation into a single
-//! boundary between raw data and rendering. This reduces component complexity and makes
-//! the preparation logic testable in isolation.
 
 use super::row_cells::{PreparedRow, prepare_rows};
 use super::sort_model::{SortIndexCache, build_sort_index_cache, indices_for_sort};
@@ -13,11 +8,6 @@ use crate::models::{Rows, SortState};
 use std::sync::Arc;
 
 /// Complete prepared state for rendering a results table.
-///
-/// Combines prepared row data, pre-computed sort indices, and sort state into
-/// a single, immutable, and cacheable value. This allows `ResultsTable` to manage
-/// a single memo instead of three separate memos, and allows `VirtualizedResultsTable`
-/// to receive fully-prepared state with all context needed for rendering.
 #[derive(Clone, PartialEq, Debug)]
 pub(super) struct TableViewModel {
     /// Pre-formatted row data (derived from entries).
@@ -29,7 +19,6 @@ pub(super) struct TableViewModel {
 }
 
 /// Builds a complete table view model from raw entries and sort state.
-///
 /// This is the primary boundary: raw data → fully-prepared view model.
 /// All preparation and caching logic is encapsulated here.
 #[must_use]

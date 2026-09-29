@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! [`MockRepository`] — a test stub for demonstrating SPARQL-only queries without backend dependencies.
-//!
 //! Test-only mock repository used by explorer unit tests.
 
 use crate::api::SearchResponse;

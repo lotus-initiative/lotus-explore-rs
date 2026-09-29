@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! In-process taxon name → QID cache.
-//!
-//! Avoids re-querying Wikidata for the same taxon name within a single
-//! browser session. The cache is intentionally simple: it is never evicted
-//! and is bounded by the number of distinct taxon names searched during the
-//! session, which is expected to be small.
 
 use std::cell::RefCell;
 use std::collections::HashMap;

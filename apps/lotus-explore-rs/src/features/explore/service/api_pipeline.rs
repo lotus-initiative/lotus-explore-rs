@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 #![allow(clippy::future_not_send)]
-
 //! REST API fast-path execution for Explore searches.
 
 use crate::features::explore::outcome::SearchOutcome;

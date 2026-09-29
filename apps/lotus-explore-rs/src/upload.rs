@@ -1,17 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
+//! Browser file extraction and streaming line reads.
+//! Native stubs preserve signature parity; they are inert by design.
 
-//! Inlined upload helpers for lotus-explore-rs.
-//!
-//! Provides WASM-only file blob extraction and streaming read utilities.
-//! Copied from the shared `upload` crate to make lotus-explore-rs standalone.
-//!
-//! The native half of this module (`cfg(not(target_arch = "wasm32"))`) exists
-//! only to preserve WASM/native signature parity: `UploadBlob = ()` and each
-//! stub returns `Err(BrowserOnly)`. Clippy's `unused_async`/`unused_self`/
-//! `trivially_copy_pass_by_ref`/`needless_pass_by_ref_mut` fire on those stubs
-//! because they are deliberately inert on native; `doc_markdown` fires on
-//! backticked identifiers in this file's doc comments.
 #![allow(clippy::unused_async)]
 #![allow(clippy::unused_self)]
 #![allow(clippy::trivially_copy_pass_by_ref)]
@@ -31,58 +22,58 @@ use wasm_bindgen_futures::JsFuture;
 #[cfg(target_arch = "wasm32")]
 use web_sys::{HtmlAnchorElement, Url};
 
-/// The browser `Blob` type — re-exported from web_sys for WASM.
+/// Browser `Blob`; `()` on native.
 #[cfg(target_arch = "wasm32")]
 pub type UploadBlob = web_sys::Blob;
 
-/// Placeholder type on non-WASM targets where browser APIs are unavailable.
+/// Unused on native.
 #[cfg(not(target_arch = "wasm32"))]
 pub type UploadBlob = ();
 
-/// Result of extracting a file from a form-data or drag-drop event.
+/// A file extracted from a form-data or drag-drop event.
 #[derive(Debug)]
 pub struct ExtractedFile {
-    /// The file as a browser `UploadBlob` ready for streaming reads.
+    /// Blob for streaming reads.
     pub blob: UploadBlob,
-    /// The original filename from the `<input>` or drag source.
+    /// Original filename.
     pub name: String,
 }
 
-/// Error returned by blob read operations.
+/// Blob read error.
 #[derive(Debug, thiserror::Error)]
 pub enum UploadError {
-    /// A browser/JS API call failed.
+    /// A JS call failed.
     #[error("blob read error: {0}")]
     UploadBlob(String),
 
-    /// The stream ended before the parser expected it to (truncated input).
+    /// Stream ended early (truncated input).
     #[error("unexpected EOF while reading stream")]
     UnexpectedEof,
 
-    /// A structural invariant of the input was violated.
+    /// An input invariant was violated.
     #[error("expected {expected}")]
     Expected {
-        /// Human-readable description of what was expected.
+        /// What was expected.
         expected: &'static str,
     },
 
-    /// The operation is only available inside the browser.
+    /// Browser-only operation.
     #[error("download is only available in the browser")]
     BrowserOnly,
 
-    /// A generic, formatted error for app-level validation.
+    /// App-level validation error.
     #[error("{0}")]
     Other(String),
 }
 
 impl UploadError {
-    /// Convenience for "expected X but got end of stream".
+    /// "Expected X but got end of stream".
     #[must_use]
     pub const fn expected(expected: &'static str) -> Self {
         Self::Expected { expected }
     }
 
-    /// Convenience for wrapping a message.
+    /// Wrap a message.
     #[must_use]
     pub fn other(msg: impl Into<String>) -> Self {
         Self::Other(msg.into())
@@ -100,13 +91,10 @@ impl From<wasm_bindgen::JsValue> for UploadError {
     }
 }
 
-/// Default chunk size for `UploadBlob` reads (16 MiB).
+/// Chunk size for blob reads.
 const CHUNK_SIZE: usize = 16 * 1024 * 1024;
 
-/// A line-oriented, chunked reader over a browser [`UploadBlob`].
-///
-/// Yields `String` lines (without trailing `\n` or `\r`) one at a time via
-/// [`next_line`](UploadBlobLines::next_line). Internally buffers one 16 MiB chunk.
+/// Chunked line reader over a blob; yields lines without trailing `\n`/`\r`.
 #[cfg(target_arch = "wasm32")]
 #[derive(Debug)]
 pub struct UploadBlobLines {
@@ -119,12 +107,10 @@ pub struct UploadBlobLines {
 
 #[cfg(target_arch = "wasm32")]
 impl UploadBlobLines {
-    /// Creates a new line reader for the given blob.
+    /// New reader for `blob`.
     #[must_use]
     pub fn new(blob: &UploadBlob) -> Self {
-        // `Blob::size()` is an f64 count of bytes: always finite,
-        // non-negative, and far below 2^53 for any real upload, so the
-        // float→int conversion is exact. No `try_from` exists for f64.
+        // `Blob::size()` is f64; exact well below 2^53 for any real upload.
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let total_bytes = blob.size() as u64;
         Self {
@@ -136,25 +122,24 @@ impl UploadBlobLines {
         }
     }
 
-    /// Total blob size in bytes.
+    /// Total blob size.
     #[must_use]
     pub const fn total_bytes(&self) -> u64 {
         self.total_bytes
     }
 
-    /// Returns the next line from the blob, or `Ok(None)` at end-of-stream.
+    /// Next line, or `Ok(None)` at end of stream.
     pub async fn next_line(&mut self) -> Result<Option<String>, UploadError> {
         loop {
-            // Try to extract a complete line from the current buffer.
+            // Complete line already buffered?
             if let Some(line) = self.take_line_from_buffer() {
                 return Ok(Some(line));
             }
 
-            // No complete line yet — check for EOF.
+            // Otherwise check for EOF.
             if self.offset >= self.total_bytes {
                 if self.buf_start < self.buffer.len() {
-                    // `buf_start <= buffer.len()` is an invariant (see
-                    // `take_line_from_buffer`); fall back to empty on violation.
+                    // `buf_start <= buffer.len()` is an invariant.
                     let tail = self.buffer.get(self.buf_start..).unwrap_or_default();
                     let remaining = String::from_utf8_lossy(tail).into_owned();
                     self.buf_start = self.buffer.len();
@@ -168,8 +153,7 @@ impl UploadBlobLines {
     }
 
     fn take_line_from_buffer(&mut self) -> Option<String> {
-        // `buf_start <= buffer.len()` is maintained by construction; `pos`
-        // comes from `position()` on the same slice, so both are in bounds.
+        // `buf_start` and `pos` both come from this slice, so they are in bounds.
         let available = self.buffer.get(self.buf_start..).unwrap_or_default();
         if let Some(pos) = available.iter().position(|b| *b == b'\n') {
             let line_bytes = available.get(..pos).unwrap_or_default();
@@ -178,7 +162,7 @@ impl UploadBlobLines {
             if line.ends_with('\r') {
                 line.pop();
             }
-            // Compact buffer when it's more than half consumed.
+            // Compact once mostly consumed.
             if self.buf_start > self.buffer.len() / 2 {
                 self.buffer.drain(..self.buf_start);
                 self.buf_start = 0;
@@ -192,8 +176,7 @@ impl UploadBlobLines {
     async fn load_next_chunk(&mut self) -> Result<(), UploadError> {
         let start = self.offset;
         let end = (self.offset + CHUNK_SIZE as u64).min(self.total_bytes);
-        // The `slice_with_f64_and_f64` JS binding takes f64; offsets stay far
-        // below 2^53 for any real upload, so the conversion is exact.
+        // The JS binding takes f64; offsets stay well below 2^53.
         #[allow(clippy::cast_precision_loss)]
         let (start_f64, end_f64) = (start as f64, end as f64);
         let slice = self
@@ -207,13 +190,13 @@ impl UploadBlobLines {
         array.copy_to(&mut chunk_bytes);
         self.buffer.extend_from_slice(&chunk_bytes);
         self.offset = end;
-        // Yield to the event loop so the UI stays responsive between chunks.
+        // Yield so the UI stays responsive between chunks.
         TimeoutFuture::new(0).await;
         Ok(())
     }
 }
 
-/// Non-WASM stub for `UploadBlobLines`.
+/// Native stub.
 #[cfg(not(target_arch = "wasm32"))]
 pub struct UploadBlobLines;
 
@@ -234,18 +217,12 @@ impl UploadBlobLines {
     }
 }
 
-/// Extracts a [`UploadBlob`] from the first `FileData` in a list.
-///
-/// Callers pass the result of `evt.data().files()` (which works for both
-/// file-input `FormData` events and drag-drop `DragData` events).
-///
+/// Extract a blob from the first entry of `evt.data().files()`.
 /// # Errors
-/// Returns a string message if the file cannot be downcast to a `UploadBlob`.
+/// Returns a message if the file is not a `Blob`.
 #[allow(clippy::unnecessary_wraps)]
-// `Result<Option<..>, _>` is intentional: the wasm path returns `Err` for
-// unsupported file types, so the `Result` is genuinely used there even though
-// the native (non-wasm) cfg branch only ever returns `Ok(None)` — which is what
-// trips the lint. Scoped here instead of allowed workspace-wide.
+// The wasm path returns `Err` for unsupported types, so `Result` is genuinely
+// used; the native branch only returns `Ok(None)`, which trips the lint.
 pub fn extract_blob_from_file_data(
     files: &[dioxus::html::FileData],
 ) -> Result<Option<ExtractedFile>, String> {
@@ -280,12 +257,7 @@ pub fn extract_blob_from_file_data(
     }
 }
 
-/// Read a blob as a string using streaming (handles large files without OOM).
-///
-/// This uses [`UploadBlobLines`] internally to stream the file in 16 MiB chunks,
-/// avoiding the memory issues of [`FileReader::read_as_text()`] which loads
-/// the entire file into memory at once.
-///
+/// Stream a blob to a string; avoids loading the whole file at once.
 /// # Errors
 /// Returns an error if the blob cannot be read or contains invalid UTF-8.
 #[cfg(target_arch = "wasm32")]
@@ -299,10 +271,9 @@ pub async fn read_blob_string(blob: &UploadBlob) -> Result<String, UploadError> 
     Ok(out)
 }
 
-/// Non-WASM stub for `read_blob_string`.
-///
+/// Native stub.
 /// # Errors
-/// Always returns an error since this function is only available on WASM targets.
+/// Always returns `Err`.
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn read_blob_string(_blob: &UploadBlob) -> Result<String, UploadError> {
     Err(UploadError::other(
@@ -310,10 +281,7 @@ pub async fn read_blob_string(_blob: &UploadBlob) -> Result<String, UploadError>
     ))
 }
 
-/// Sanitizes a filename for safe browser download.
-///
-/// Removes control characters and replaces path separators and quotes with
-/// underscores. No external crate required.
+/// Strip control characters; replace path separators and quotes with `_`.
 #[must_use]
 pub fn sanitize_filename(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
@@ -347,12 +315,7 @@ fn blob_url_from_str(content: &str, mime: &str) -> Result<String, String> {
         .map_err(|e| format!("failed to create object URL: {e:?}"))
 }
 
-/// Triggers a browser download of `content` as a text file.
-///
-/// # Arguments
-/// - `content`: The text content to download
-/// - `filename`: The full filename (including extension) for the download
-///
+/// Download `content` as `filename`.
 /// # Errors
 /// Returns a message if the download cannot be triggered.
 #[cfg(target_arch = "wasm32")]
@@ -365,14 +328,7 @@ pub fn download_text(content: &str, filename: &str) -> Result<(), String> {
         .map_err(|e| format!("download failed: {e}"))
 }
 
-/// Downloads content as a blob with a specific extension and MIME type.
-///
-/// # Arguments
-/// - `content`: The text content to download
-/// - `filename`: The base filename (without extension)
-/// - `extension`: File extension including dot (e.g. `".csv"`, `".json"`)
-/// - `mime`: MIME type for the blob
-///
+/// Download `content` as `{filename}{extension}` with `mime`.
 /// # Errors
 /// Returns a message if the download cannot be triggered.
 #[cfg(target_arch = "wasm32")]
@@ -399,7 +355,6 @@ pub fn download_text_as_blob(
 }
 
 /// Triggers a browser download of a URL (e.g. a QLever export URL or a remote file).
-///
 /// Opens the URL in a new tab / triggers an anchor click.  Returns `false` if
 /// the browser does not support programmatic clicks (extremely rare).
 #[cfg(target_arch = "wasm32")]
@@ -438,10 +393,7 @@ fn click_download_anchor(href: &str, filename: &str, new_tab: bool) -> Result<bo
     Ok(true)
 }
 
-/// Submits a hidden form to trigger a browser download via POST.
-///
-/// Used when the URL + query payload is too large for a GET request.
-///
+/// POST a hidden form to download; for payloads too large for GET.
 /// # Errors
 /// Returns a message if the form cannot be created or submitted.
 #[cfg(target_arch = "wasm32")]
@@ -480,9 +432,7 @@ pub async fn submit_download_form(endpoint: &str, fields: &[(&str, &str)]) -> Re
         .map_err(|e| format!("failed to submit form: {e:?}"))?;
     let _ = body.remove_child(&form);
 
-    // Yield so the form submission takes effect before the caller continues.
-    // The unit value is intentionally dropped: awaiting advances the microtask
-    // queue, which is the entire purpose of this statement.
+    // Awaited only to advance the microtask queue so the submit takes effect.
     #[allow(clippy::ignored_unit_patterns)]
     let _ = TimeoutFuture::new(0).await;
     Ok(())
@@ -490,23 +440,17 @@ pub async fn submit_download_form(endpoint: &str, fields: &[(&str, &str)]) -> Re
 
 // ── Non-WASM stubs ───────────────────────────────────────────────────────────
 
-/// Triggers a browser download of text content (native stub — returns `Err`).
-///
-/// On non-WASM targets browsers aren't available, so this always returns `Err`.
-///
+/// Native stub.
 /// # Errors
-/// Always returns an error on native targets.
+/// Always returns `Err`.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn download_text(_content: &str, _filename: &str) -> Result<(), String> {
     Err("Download is only available in the browser".to_string())
 }
 
-/// Downloads content as a blob (native stub — returns `Err`).
-///
-/// On non-WASM targets browsers aren't available, so this always returns `Err`.
-///
+/// Native stub.
 /// # Errors
-/// Always returns an error on native targets.
+/// Always returns `Err`.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn download_text_as_blob(
     _content: &str,
@@ -517,21 +461,16 @@ pub fn download_text_as_blob(
     Err("Download is only available in the browser".to_string())
 }
 
-/// Triggers a browser download of a URL (native stub — returns `false`).
-///
-/// On non-WASM targets browsers aren't available, so this always returns `false`.
+/// Native stub; always returns `false`.
 #[cfg(not(target_arch = "wasm32"))]
 #[must_use]
 pub const fn download_url(_url: &str, _filename: &str) -> bool {
     false
 }
 
-/// Submits a hidden form for download (native stub — returns an error).
-///
-/// On non-WASM targets browsers aren't available, so this always returns `Err`.
-///
+/// Native stub.
 /// # Errors
-/// Always returns an error on native targets.
+/// Always returns `Err`.
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn submit_download_form(_endpoint: &str, _fields: &[(&str, &str)]) -> Result<(), String> {
     Err("Download is only available in the browser".to_string())

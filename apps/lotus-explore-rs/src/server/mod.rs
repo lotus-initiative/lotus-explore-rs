@@ -1,33 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
-//! Native HTTP API for the LOTUS explorer: search and export endpoints wired
-//! to an Axum [`Router`].  Migrated from the former `lotus-api` crate so the
-//! full native + WASM stack builds from a single package.
-//!
-//! # Run locally
-//!
-//! ```bash
-//! cargo run --features server -p lotus-explore-rs -- --help                       # list flags; each falls back to $VAR
-//! cargo run --features server -p lotus-explore-rs -- --host 0.0.0.0 --port 8787
-//! LOTUS_API_BASE=http://localhost:3030 cargo run --features server -p lotus-explore-rs
-//! ```
-//!
-//! # Endpoints
-//!
-//! - `GET /health`
-//! - `GET /metrics`
-//! - `POST /v1/search`
-//! - `POST /v1/export-url`
-//! - `GET /v1/export-file/{cache_key}/{format}`
-//! - `GET /openapi.json`
-//! - `GET /docs`
-//!
-//! # Environment variables
-//!
-//! - `LOTUS_API_BASE` — base URL for the API server
-//! - `HOST` — bind address (default: `127.0.0.1`)
-//! - `PORT` — bind port (default: `8787`)
+//! Native HTTP API for the LOTUS explorer: search and export endpoints.
 
 mod config;
 mod errors;
@@ -161,10 +134,6 @@ async fn add_security_headers(req: axum::http::Request<Body>, next: Next) -> Res
 }
 
 /// Entry point for the in-package native API server.
-///
-/// Started from [`fn main`](crate::main) when the `server` feature is enabled
-/// on a non-WASM target. Mirrors the former standalone `lotus-api` binary so the
-/// full native + WASM stack builds and runs from this single package.
 pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .format_timestamp_millis()

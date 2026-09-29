@@ -1,25 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Form action dispatch for `SearchCriteria` mutations.
 
 use crate::models::{ElementState, SearchCriteria, SmilesSearchType};
 
 /// Unified action type for all form field updates.
-///
-/// Used by [`crate::state::FormCriteriaContext::update`] to atomically mutate
-/// `SearchCriteria` via a pure function.  Components dispatch actions instead
-/// of receiving individual callback props.
-///
-/// `FormulaSection` uses this for all element-bounds and halogen actions.
-/// The remaining variants (`Taxon`, `Smiles`, `SmilesSearchType`, etc.) are
-/// available for future context-dispatch wiring of the remaining form sections.
-///
-/// ## Usage
-/// ```ignore
-/// ctx.update(FormAction::Taxon("Quercus".to_string()));
-/// ctx.update(FormAction::CMin(50));
-/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub enum FormAction {
     // Taxon + Structure
@@ -60,7 +45,6 @@ pub enum FormAction {
 }
 
 /// Apply a `FormAction` to a mutable criteria reference.
-///
 /// This is the hot-path reducer used by the form context to avoid cloning the
 /// entire `SearchCriteria` on each keystroke.
 pub fn apply_form_action_mut(criteria: &mut SearchCriteria, action: FormAction) {
@@ -95,7 +79,6 @@ pub fn apply_form_action_mut(criteria: &mut SearchCriteria, action: FormAction) 
 }
 
 /// Apply a `FormAction` to `SearchCriteria`, returning the updated copy.
-///
 /// Kept as a pure helper for reducer-style tests and functional call sites.
 #[must_use]
 #[cfg(test)]

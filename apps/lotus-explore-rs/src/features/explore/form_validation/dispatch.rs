@@ -10,7 +10,6 @@ use crate::features::explore::types::ValidationFault;
 use crate::models::SearchCriteria;
 
 /// Validate criteria at the orchestration boundary.
-///
 /// This validator returns domain-native `ValidationFault` so `start_search`
 /// can fail fast without translating from UI-oriented validation error keys.
 pub fn validate_dispatch_criteria(criteria: &SearchCriteria) -> Result<(), ValidationFault> {

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Taxon identity cell for results-table rows.
-//!
 //! Renders the taxon name link and Scholia/Wikidata badges.
 
 use crate::components::results_table::row_cells::row_text::RowText;

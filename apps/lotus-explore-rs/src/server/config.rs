@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Application configuration management from environment variables.
-//!
-//! Handles initialization of server settings, resource limits, and CORS policy
-//! with sensible defaults and validation.
 
 use axum::http::HeaderValue;
 use clap::Parser;
@@ -24,12 +20,6 @@ pub struct AppConfig {
 }
 
 /// Command-line and environment configuration for the in-package `lotus-explore-rs` server.
-///
-/// Each field is resolved by clap in priority order: an explicit `--flag`, then
-/// the matching `VAR` environment variable, then a default value. `from_env`
-/// then hands the resolved strings straight to `from_provider`, so parsing,
-/// clamping and CORS validation live in exactly one place and the unit tests
-/// (which call `from_provider` directly) are unaffected.
 #[derive(Debug, Clone, Parser)]
 #[command(
     name = "lotus-explore-rs",
@@ -84,10 +74,6 @@ impl Cli {
 
 impl AppConfig {
     /// Build configuration from the process command line and environment.
-    ///
-    /// Each value is resolved by clap (explicit `--flag`, then `VAR` env, then
-    /// a default) and then passed to `from_provider` for parsing, clamping and
-    /// CORS validation — unchanged from the env-only behaviour.
     pub(crate) fn from_env() -> Result<Self, String> {
         let cli = Cli::parse();
         Self::from_provider(|name| cli.get(name))

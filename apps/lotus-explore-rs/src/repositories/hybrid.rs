@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! [`HybridRepository`] — the production `LotusRepository` implementation.
-//!
-//! Strategy:
-//! 1. If a REST API base URL is configured, try `api::search` first
-//!    (gives exact counts + query in one round-trip).
-//! 2. On API error or when not configured, return `None` / `Some(Err(…))`
-//!    so the caller falls back to direct SPARQL execution.
-//! 3. Direct SPARQL execution targets `QLever` (`QLEVER_WIKIDATA`) by
-//!    default. If `QLever` is unavailable due to a network failure or 502
-//!    Bad Gateway, the same query is immediately re-sent to the Wikidata
-//!    Query Service (`WDQS_WIKIDATA`) as a fallback, using the scholarly
-//!    subgraph for reference metadata, rather than surfacing the upstream
-//!    failure to the user.
 
 use crate::api;
 use crate::api::SearchResponse;
@@ -45,10 +32,6 @@ pub fn get_wdqs_transformed_query() -> Option<String> {
 }
 
 /// Remove a trailing `LIMIT nnn` (case-insensitive) clause from a query string.
-///
-/// This is used when retrieving the WDQS-transformed query for downloads —
-/// the interactive search adds `LIMIT 500` (from `runtime_table_row_limit()`),
-/// but downloads should fetch all results without that display-time cap.
 fn strip_limit_clause(query: &str) -> String {
     // Strip a trailing `LIMIT nnn` clause so downloads aren't capped at
     // the interactive display limit (e.g. 500 from runtime_table_row_limit()).
@@ -97,7 +80,6 @@ fn mark_wdqs_fallback_used(query: String) {
 }
 
 /// Rewrite `query` for the WDQS endpoint and record that WDQS fallback applied.
-///
 /// This is the single source of truth for the "prepare a query for WDQS
 /// fallback" step, shared by the body / tempfile execution paths.
 fn prepare_wdqs_fallback_query(query: &str) -> String {
@@ -107,7 +89,6 @@ fn prepare_wdqs_fallback_query(query: &str) -> String {
 }
 
 /// Zero-size, `Copy` production repository.
-///
 /// Holds no state of its own; all configuration is read from environment and
 /// runtime globals (`api_base_url`, `sparql::execute_sparql_body`, etc.).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -169,9 +150,9 @@ impl LotusRepository for HybridRepository {
     }
 }
 
-/// True when `QLever` is unavailable and the query should be retried against
-/// WDQS. The transport layer already retries transient failures, so reaching
-/// this layer means the in-endpoint attempts were exhausted.
+/// True when `QLever` is unavailable and the query should be retried against WDQS.
+/// The transport layer already retries transient failures, so reaching this layer means the
+/// in-endpoint attempts were exhausted.
 fn is_qlever_unavailable(err: &FetchError) -> bool {
     matches!(err, FetchError::Http(502, _) | FetchError::Network(_))
 }

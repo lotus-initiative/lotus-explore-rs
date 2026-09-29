@@ -71,19 +71,6 @@ fn integration_curation_rows_tsv_round_trip_keeps_expected_header() {
 
 /// The generated ARD capability manifest, as agents will fetch it from
 /// `/.well-known/ai-catalog.json`.
-///
-/// These assertions are transcribed from the published AI Catalog schema
-/// (`ards-project/ard-spec`, `spec/schemas/ai-catalog.schema.json`) and were
-/// confirmed against it with a JSON Schema validator. A dedicated schema crate
-/// would pull a dependency into a workspace that keeps its supply chain
-/// explicit, so the constraints that matter are pinned directly instead. If the
-/// schema changes, re-validate with a validator rather than widening these.
-///
-/// The manifest was already schema-valid when this was written. What was broken
-/// is that `.well-known/` never reached production: `actions/upload-pages-artifact`
-/// defaults `include-hidden-files` to false, which tars the bundle with
-/// `--exclude=.[^/]*` and silently drops the whole directory. Every file in it
-/// 404'd, which is what a registry means by "could not be loaded".
 mod ai_catalog {
     use serde_json::Value;
 
@@ -101,12 +88,6 @@ mod ai_catalog {
     const URN_NID: &str = "urn:air:";
 
     /// Read at run time, not with `include_str!`.
-    ///
-    /// `include_str!` bakes the JSON in at compile time, and editing only the
-    /// JSON does not necessarily rebuild the test binary — so a broken manifest
-    /// still passed every assertion below until the crate was recompiled. That
-    /// makes such a test decorative. Reading the file means these assertions
-    /// always describe the manifest that would actually be deployed.
     fn catalog() -> Option<Value> {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("public/.well-known/ai-catalog.json");
@@ -223,15 +204,6 @@ mod ai_catalog {
 }
 
 /// The pre-stylesheet paint, which has to stand on its own.
-///
-/// `index.html` carries an inline `<style>` that runs before
-/// `lotus-explore.css` is fetched and applied. Its `body` rule reads
-/// `var(--shell-page-bg, #f2f5f8)`, and that custom property is defined in the
-/// stylesheet — so the fallback is what paints first, and it was the light page
-/// colour for everyone. A dark-mode visitor got a light page with near-black
-/// text until the stylesheet arrived, which on a real link is the whole boot
-/// window. The `@media (prefers-color-scheme: dark)` block fixes it; these
-/// assertions keep the two colour sets in step with `tailwind/styles.css`.
 mod boot_paint {
     const INDEX: &str = include_str!("../index.html");
     const STYLES: &str = include_str!("../tailwind/styles.css");

@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Pure URL codec for explore state.
-//!
-//! This module intentionally contains no browser/runtime side effects so it can
-//! be tested on any target and reused by both startup parsing and URL builders.
 
 use crate::i18n::Locale;
 use crate::models::SearchCriteria;
@@ -29,7 +25,6 @@ pub struct InitialUrlState {
 }
 
 /// Test whether a URL query-parameter value represents a boolean true flag.
-///
 /// Accepts `"1"`, `"true"`, `"yes"`, and `"on"` (case-insensitive, trimmed).
 /// All other values — including absent keys — are treated as false.
 pub fn is_true_flag(v: &str) -> bool {

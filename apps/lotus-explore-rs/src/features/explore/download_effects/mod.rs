@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Pure effect scheduling helpers and lifecycle state queries for download orchestration.
-//!
 //! This module separates concerns from the hook implementations in `download_dispatch.rs`:
-//! * State query helpers determine when effects should run.
-//! * Effect schedulers are pure functions that decide what to dispatch/execute.
-//! * Telemetry helpers centralize logging patterns.
+//! More detail in the type and function docs below.
 
 mod dispatch;
 mod metrics;

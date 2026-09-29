@@ -1,29 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
-//! Repository layer — a thin boundary between the search orchestration and the
-//! concrete data-access backends (REST API and direct SPARQL).
-//!
-//! # Design rationale
-//!
-//! `orchestrator.rs` previously called `api::search` and SPARQL transport
-//! directly, mixing I/O concerns with business logic. Introducing a trait here
-//! gives us:
-//!
-//! * **Clean boundaries** — orchestration code does not import transport details
-//! * **Testability** — unit tests can supply a `MockRepository` without network
-//!
-//! # Trait object vs generics
-//!
-//! We use `impl LotusRepository` (generics, monomorphised) rather than
-//! `dyn LotusRepository` (dynamic dispatch) because:
-//!
-//! * `async fn` in trait currently requires `dyn`-unsafe workarounds on stable
-//! * WASM futures are `!Send`, which would require boxing the returned futures
-//! * Monomorphisation gives zero-overhead abstraction at compile time
-//!
-//! Concrete production code uses [`HybridRepository`], which tries the REST API
-//! first (if `api_base` is configured) and falls back to direct SPARQL.
+//! Repository layer: a thin boundary between search orchestration and transport.
 
 pub mod hybrid;
 #[cfg(test)]
@@ -77,14 +54,9 @@ impl From<crate::api::ApiClientError> for RepositoryError {
 }
 
 /// Boundary trait for data-access operations used by the search orchestrator.
-///
 /// Implementations may delegate to the REST API, SPARQL, or a test stub.
 pub trait LotusRepository: Clone + 'static {
     /// Try the REST API fast path.  Returns:
-    /// - `None` — API path unavailable without an attempted request (e.g. test stub)
-    /// - `Some(Ok(resp))` — successful API response
-    /// - `Some(Err(RepositoryError::NotConfigured))` — API not configured; caller should fall back
-    /// - `Some(Err(reason))` — API call failed; caller should fall back
     async fn api_search(
         &self,
         criteria: &SearchCriteria,

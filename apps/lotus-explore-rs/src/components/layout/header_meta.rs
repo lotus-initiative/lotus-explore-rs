@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-
 //! Header metadata strip (resolved taxon QID, query/result hashes, total matches).
-//!
 //! Reads from [`crate::state::ResultsContext`] and `use_locale()` — zero props.
 
 use crate::components::copy_button::CopyButton;
@@ -54,10 +52,6 @@ fn ResultHashMetaItem(locale: crate::i18n::Locale, full_hash: Arc<str>) -> Eleme
 }
 
 /// Displays resolved-taxon QID, query/result hashes, and total-match count.
-///
-/// All items are gathered into a single `page-header-meta` card that only
-/// renders when at least one value is present. Each row is a uniform
-/// `p.page-meta > span.meta-item` structure.
 #[component]
 pub fn HeaderMetaSection() -> Element {
     let explore = use_results_context().explore;
