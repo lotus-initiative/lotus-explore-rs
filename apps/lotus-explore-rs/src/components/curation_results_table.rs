@@ -28,6 +28,12 @@ fn status_badge_class(status: &CurationStatus) -> &'static str {
         CurationStatus::Error => {
             "inline-flex items-center rounded-full border border-shell-border bg-shell-raised px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-compound"
         }
+        // Muted, and deliberately not one of the other colours: "not looked up"
+        // is the absence of an answer, so it should not borrow the colour of
+        // "already complete" or of "new".
+        CurationStatus::NotChecked => {
+            "inline-flex items-center rounded-full border border-shell-border bg-shell-raised px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-muted"
+        }
     }
 }
 
@@ -152,6 +158,7 @@ fn status_label(locale: Locale, status: &CurationStatus) -> &'static str {
         CurationStatus::ExistingNeedsUpdates => "existing_updates",
         CurationStatus::NewCompound => "new_compound",
         CurationStatus::PendingDependencies => "pending_dependencies",
+        CurationStatus::NotChecked => "not_checked",
         CurationStatus::Error => "error",
     };
     curation_status_label(locale, key)

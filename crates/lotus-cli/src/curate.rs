@@ -12,6 +12,10 @@ use std::process::ExitCode;
 
 use clap::ValueEnum;
 
+// The escaper lives in the curation crate because the web client builds the same
+// statements, and two escapers is one duplicated bug waiting to happen.
+use lotus_curation::escape_quickstatements;
+
 /// What `curate` does with a set of rows.
 #[derive(Debug, clap::Args)]
 pub struct CurateArgs {
@@ -28,11 +32,12 @@ pub struct CurateArgs {
     #[arg(long, value_enum, default_value_t = ReportFormat::Table)]
     pub format: ReportFormat,
 
-    /// Suppress the reminder on stderr that the statements have not been
-    /// submitted.
+    /// Suppress the reminders on stderr: that nothing has been submitted, and how
+    /// many rows were not looked up.
     ///
-    /// Nothing is ever submitted. This only silences the reminder, for when the
-    /// output is being piped somewhere that reads stderr as noise. There is
+    /// Nothing is ever submitted. This only silences the reminders, for when the
+    /// output is being piped somewhere that reads stderr as noise. Both are
+    /// status, not error, so both go. There is
     /// deliberately no flag that submits: writing to Wikidata is a decision
     /// with a person attached to it, and a batch of a few hundred statements
     /// arriving from a shell script at 3am is not one.
@@ -42,6 +47,19 @@ pub struct CurateArgs {
     /// Log to stderr: error, warn, info, debug.
     #[arg(long, value_enum, default_value_t = LogLevel::Error)]
     pub log: LogLevel,
+
+    /// Do not contact Wikidata, and report every row as not looked up.
+    ///
+    /// Wikidata needs a structure converted to an `InChIKey` before it can be
+    /// matched at all, and that conversion is a network call, so a run makes two
+    /// or more per row. This skips all of it.
+    ///
+    /// Every row is reported as `not_checked`, not as `new`. A row that was never
+    /// looked up has not been shown to be absent, and the difference between
+    /// "I did not look" and "it is not there" is the difference between an honest
+    /// report and a duplicate submission.
+    #[arg(long)]
+    pub offline: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -82,7 +100,7 @@ pub fn identity_key(finding: &Finding) -> String {
     lotus_curation::row_uniqueness_key(finding)
 }
 
-pub fn run(args: &CurateArgs) -> anyhow::Result<ExitCode> {
+pub async fn run(args: &CurateArgs) -> anyhow::Result<ExitCode> {
     let input = match args.input.as_deref() {
         None | Some("-") => {
             let mut buffer = String::new();
@@ -119,7 +137,20 @@ pub fn run(args: &CurateArgs) -> anyhow::Result<ExitCode> {
         );
     }
 
-    let report = build_report(&unique);
+    let report = curate_findings(&unique, args.offline).await?;
+
+    // Worth saying out loud, because a bundle that reads like a finished curation
+    // is the one output of this command that can do damage. Under `--offline`
+    // this is every row.
+    let unchecked = report
+        .rows
+        .iter()
+        .filter(|row| row.status == lotus_curation::CurationStatus::NotChecked)
+        .count();
+    if unchecked > 0 && !args.quiet {
+        eprintln!("lotus: {unchecked} row(s) were not looked up");
+    }
+
     if let Some(path) = &args.output {
         let mut file = std::fs::File::create(path)
             .map_err(|e| anyhow::anyhow!("could not write {}: {e}", path.display()))?;
@@ -135,36 +166,14 @@ pub fn run(args: &CurateArgs) -> anyhow::Result<ExitCode> {
 }
 
 /// What curation would do to each row.
-///
-/// Every row is reported as new. The command does not query Wikidata, so it
-/// cannot know whether an item already exists, and saying "new" about something
-/// that is already there is the less harmful of the two wrong answers: a
-/// curator reads a "new" label and looks, and reads an "exists" label and does
-/// not.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Report {
-    pub findings: Vec<Finding>,
-    /// `QuickStatements` a curator would submit, in dependency order.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CuratedReport {
+    /// One entry per input row, in the order they were read.
+    pub rows: Vec<lotus_curation::CurationResultRow>,
+    /// `QuickStatements` a curator would submit, deduplicated and in order.
     pub statements: Vec<String>,
     /// The LOTUS paper, which every result should cite.
     pub citation: &'static str,
-}
-
-/// Escape a value for a `QuickStatements` scalar.
-///
-/// The format is pipe-separated with `"`-quoted scalars, and a value containing
-/// a quote or a newline will otherwise end the scalar early and write into the
-/// next line as though it were a new property.
-fn escape_quickstatements(value: &str) -> String {
-    let mut out = String::with_capacity(value.len());
-    for c in value.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\n' | '\r' => out.push(' '),
-            _ => out.push(c),
-        }
-    }
-    out
 }
 
 /// The properties a LOTUS row is written against, from the Wikidata projection.
@@ -175,77 +184,199 @@ fn escape_quickstatements(value: &str) -> String {
 const PROPERTY_CANONICAL_SMILES: &str = "P233";
 const PROPERTY_ISOMERIC_SMILES: &str = "P2017";
 const PROPERTY_NAME: &str = "Len";
-/// `P703` — "found in taxon", the occurrence link.
-const PROPERTY_OCCURS_IN_TAXON: &str = "P703";
-/// The reference link, a `prov:wasDerivedFrom` reference block.
-const PROPERTY_STATED_IN: &str = "P248";
 
-fn build_report(findings: &[Finding]) -> Report {
-    use std::fmt::Write as _;
+/// Curate one row against Wikidata.
+///
+/// The structure arrives already converted, because the `InChIKey` is the only
+/// thing Wikidata can be asked about: a `SMILES` is not an identity, and
+/// matching on one would report a compound as new whenever the row happened to
+/// write it in a different valid order.
+async fn curate_row<H: lotus_search::Http>(
+    http: &H,
+    finding: &Finding,
+    converted: &lotus_curation::ConvertedStructure,
+) -> lotus_curation::CurationResultRow {
+    match lotus_curation::look_up(http, finding, converted).await {
+        Ok(lookup) => {
+            let mut result = lotus_curation::to_result_row(finding, converted, &lookup);
+            // The `InChI` the conversion produced is worth keeping even when
+            // Wikidata has none of its own.
+            if result.inchi.is_none() {
+                result.inchi.clone_from(&converted.inchi);
+            }
+            result
+        }
+        Err(err) => {
+            let mut result = lotus_curation::to_result_row(
+                finding,
+                converted,
+                &lotus_curation::WikidataLookup::default(),
+            );
+            // A lookup that failed is not a compound that is absent, so the row is
+            // an error and not a new item.
+            result.status = lotus_curation::CurationStatus::Error;
+            result.note = format!("Wikidata could not be reached: {err}");
+            result
+        }
+    }
+}
+
+/// Report a row that was never looked up.
+///
+/// The statements are still generated, because a curator offline still wants
+/// something to read, but the status says the row is unchecked so the bundle is
+/// not mistaken for a finished curation.
+fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
+    let mut statements = vec![format!(
+        "## {name}\nCREATE\nLAST|{PROPERTY_NAME}|\"{name}\"\n\
+         LAST|{PROPERTY_CANONICAL_SMILES}|\"{smiles}\"\nLAST|{PROPERTY_ISOMERIC_SMILES}|\"{smiles}\"",
+        name = escape_quickstatements(finding.name.trim()),
+        smiles = escape_quickstatements(finding.smiles.trim()),
+    )];
+    if let Some(taxon) = finding
+        .taxon
+        .as_deref()
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+    {
+        statements.push(format!(
+            "\n## {name} — occurrence\nCREATE\nLAST|P703|\"{taxon}\"",
+            name = escape_quickstatements(finding.name.trim()),
+            taxon = escape_quickstatements(taxon),
+        ));
+    }
+    if let Some(doi) = finding
+        .doi
+        .as_deref()
+        .map(str::trim)
+        .filter(|d| !d.is_empty())
+    {
+        statements.push(format!(
+            "\n## {name} — reference\nCREATE\nLAST|P248|\"{doi}\"",
+            name = escape_quickstatements(finding.name.trim()),
+            doi = escape_quickstatements(doi),
+        ));
+    }
+
+    lotus_curation::CurationResultRow {
+        input: finding.clone(),
+        canonical_smiles: None,
+        inchikey: None,
+        inchi: None,
+        formula: None,
+        exact_mass: None,
+        mass_warning: None,
+        wikidata_qid: None,
+        status: lotus_curation::CurationStatus::NotChecked,
+        note: "not looked up: run without --offline to check this against Wikidata".into(),
+        dependency_blocks: Vec::new(),
+        quickstatements: statements,
+    }
+}
+
+/// Curate every row, in order.
+///
+/// The structures are converted for the whole file in one batch, because
+/// converting them a row at a time is three requests per row and the public
+/// service that does the converting rate-limits that. The Wikidata lookups stay
+/// per row: they are a different service, and a `VALUES` query over a whole file
+/// would be one enormous answer to hold in memory and lose everything if one row
+/// in it were wrong.
+async fn curate_findings(findings: &[Finding], offline: bool) -> anyhow::Result<CuratedReport> {
+    let mut rows = Vec::with_capacity(findings.len());
+
+    if offline {
+        rows.extend(findings.iter().map(not_checked_row));
+    } else {
+        let http = lotus_search::reqwest_client::ReqwestClient::new()?;
+
+        let smiles: Vec<&str> = findings
+            .iter()
+            .map(|finding| finding.smiles.trim())
+            .filter(|smiles| !smiles.is_empty())
+            .collect();
+        let converted = lotus_curation::convert_structures(&http, &smiles).await?;
+
+        let mut by_smiles: std::collections::HashMap<&str, &lotus_curation::ConvertedStructure> =
+            std::collections::HashMap::new();
+        for (smiles, structure) in smiles.iter().zip(&converted) {
+            by_smiles.insert(smiles, structure);
+        }
+
+        for finding in findings {
+            let key = finding.smiles.trim();
+            match by_smiles.get(key) {
+                Some(structure) => rows.push(curate_row(&http, finding, structure).await),
+                // No entry means the file had no structure to convert, which
+                // `parse_tsv` should have caught; a row that gets here has no
+                // structure at all and is reported rather than skipped.
+                None => rows.push(
+                    curate_row(
+                        &http,
+                        finding,
+                        &lotus_curation::ConvertedStructure::default(),
+                    )
+                    .await,
+                ),
+            }
+        }
+    }
 
     let mut statements = Vec::new();
-    for finding in findings {
-        let mut block = format!(
-            "## {}\nCREATE\nLAST|{PROPERTY_NAME}|\"{}\"\nLAST|{PROPERTY_CANONICAL_SMILES}|\"{}\"\nLAST|{PROPERTY_ISOMERIC_SMILES}|\"{}\"",
-            finding.name,
-            escape_quickstatements(&finding.name),
-            escape_quickstatements(finding.smiles.trim()),
-            escape_quickstatements(finding.smiles.trim()),
-        );
-        // The occurrence and the reference are separate statements because they
-        // need items that may not exist yet. A `QuickStatements` run stops at the
-        // first failure, so an occurrence pointing at a taxon nobody has created
-        // would take the whole block down -- including the compound itself,
-        // which is the part a curator most wants.
-        if let Some(taxon) = finding
-            .taxon
-            .as_deref()
-            .map(str::trim)
-            .filter(|t| !t.is_empty())
-        {
-            let _ = writeln!(
-                block,
-                "\n## {name} — occurrence\nCREATE\nLAST|{PROPERTY_OCCURS_IN_TAXON}|\"{taxon}\"",
-                name = escape_quickstatements(&finding.name),
-                taxon = escape_quickstatements(taxon),
-            );
+    let mut seen = std::collections::HashSet::new();
+    for row in &rows {
+        for block in &row.dependency_blocks {
+            if seen.insert(block.clone()) {
+                statements.push(block.clone());
+            }
         }
-        if let Some(doi) = finding
-            .doi
-            .as_deref()
-            .map(str::trim)
-            .filter(|d| !d.is_empty())
-        {
-            let _ = writeln!(
-                block,
-                "\n## {name} — reference\nCREATE\nLAST|{PROPERTY_STATED_IN}|\"{doi}\"",
-                name = escape_quickstatements(&finding.name),
-                doi = escape_quickstatements(doi),
-            );
+        for block in &row.quickstatements {
+            if seen.insert(block.clone()) {
+                statements.push(block.clone());
+            }
         }
-        statements.push(block);
     }
-    Report {
-        findings: findings.to_vec(),
+
+    Ok(CuratedReport {
+        rows,
         statements,
         citation: "https://doi.org/10.7554/eLife.70780",
+    })
+}
+
+/// The short status name a report carries.
+///
+/// Stable text, because it is what a person greps for and what a downstream
+/// script switches on; the enum variant is a Rust detail.
+#[must_use]
+pub const fn status_key(status: &lotus_curation::CurationStatus) -> &'static str {
+    use lotus_curation::CurationStatus;
+    match status {
+        CurationStatus::ExistingComplete => "existing_complete",
+        CurationStatus::ExistingNeedsUpdates => "existing_updates",
+        CurationStatus::NewCompound => "new_compound",
+        CurationStatus::PendingDependencies => "pending_dependencies",
+        CurationStatus::NotChecked => "not_checked",
+        CurationStatus::Error => "error",
     }
 }
 
 fn write_report<W: Write>(
     out: &mut W,
-    report: &Report,
+    report: &CuratedReport,
     format: ReportFormat,
 ) -> anyhow::Result<()> {
     match format {
         ReportFormat::Table => {
-            for finding in &report.findings {
+            for row in &report.rows {
                 writeln!(
                     out,
-                    "{}\t{}\t{}",
-                    finding.name,
-                    finding.taxon.as_deref().unwrap_or("—"),
-                    finding.doi.as_deref().unwrap_or("—"),
+                    "{}\t{}\t{}\t{}\t{}",
+                    row.input.name,
+                    row.input.taxon.as_deref().unwrap_or("—"),
+                    row.input.doi.as_deref().unwrap_or("—"),
+                    row.wikidata_qid.as_deref().unwrap_or("—"),
+                    status_key(&row.status),
                 )?;
             }
             writeln!(out)?;
@@ -259,30 +390,32 @@ fn write_report<W: Write>(
         // statements nor the citation. They are for piping into something else,
         // not for curation; `table` and `json` carry both.
         ReportFormat::Tsv => {
-            writeln!(out, "name\tsmiles\ttaxon\tdoi\tstatus")?;
-            for finding in &report.findings {
+            writeln!(out, "name\tsmiles\ttaxon\tdoi\twikidata_qid\tstatus")?;
+            for row in &report.rows {
                 writeln!(
                     out,
-                    "{}\t{}\t{}\t{}\tnew",
-                    finding.name,
-                    finding.smiles,
-                    finding.taxon.as_deref().unwrap_or(""),
-                    finding.doi.as_deref().unwrap_or(""),
+                    "{}\t{}\t{}\t{}\t{}\t{}",
+                    row.input.name,
+                    row.input.smiles,
+                    row.input.taxon.as_deref().unwrap_or(""),
+                    row.input.doi.as_deref().unwrap_or(""),
+                    row.wikidata_qid.as_deref().unwrap_or(""),
+                    status_key(&row.status),
                 )?;
             }
         }
         ReportFormat::Json => {
             let value = serde_json::json!({
                 "citation": report.citation,
-                "findings": report.findings,
+                "rows": report.rows,
                 "statements": report.statements,
             });
             serde_json::to_writer_pretty(&mut *out, &value)?;
             writeln!(out)?;
         }
         ReportFormat::Jsonl => {
-            for finding in &report.findings {
-                serde_json::to_writer(&mut *out, finding)?;
+            for row in &report.rows {
+                serde_json::to_writer(&mut *out, row)?;
                 writeln!(out)?;
             }
         }

@@ -58,6 +58,17 @@ impl Http for ReqwestClient {
             .map_err(|e| FetchError::Network(e.to_string()))
     }
 
+    async fn post_json(&self, url: &str, body: String) -> Result<reqwest::Response, FetchError> {
+        self.0
+            .post(url)
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/json")
+            .body(body)
+            .send()
+            .await
+            .map_err(|e| FetchError::Network(e.to_string()))
+    }
+
     async fn get(&self, url: &str, accept: &str) -> Result<reqwest::Response, FetchError> {
         self.0
             .get(url)

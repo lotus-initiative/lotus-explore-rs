@@ -13,8 +13,8 @@
 #![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
 
 use lotus_model::SearchCriteria;
-use lotus_search::{Http, HttpResponse, SearchRequest, search};
-use std::sync::{Arc, Mutex};
+use lotus_search::testing::{Scripted, ScriptedResponse};
+use lotus_search::{Http, SearchRequest, search};
 
 const NOW: u16 = 2026;
 const MOLFILE: &str = "\n\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n    0.0000    0.0000    0.0000 C   0  0  0  0  0  0\nM  END\n";
@@ -25,169 +25,9 @@ const ROWS_CSV: &str = "compound,compoundLabel,compound_inchikey,compound_smiles
 
 const COUNTS_CSV: &str = "n_entries,n_entries_unique,n_compounds,n_taxa,n_references\n1,1,1,1,1\n";
 
-/// A canned response. A status of 0 stands for "the request never arrived",
-/// which the transport has to be able to tell apart from a rejection.
-#[derive(Clone)]
-struct Fake {
-    status: u16,
-    body: Arc<str>,
-}
-
-/// Answers each request from a script, and records what was asked.
-///
-/// The script is consumed in order, so a test states the whole sequence of
-/// calls it expects: lookup, rows, then counts.
-#[derive(Clone)]
-struct Scripted {
-    replies: Arc<Mutex<std::collections::VecDeque<Fake>>>,
-    seen: Arc<Mutex<Vec<String>>>,
-}
-
-impl Scripted {
-    fn new(replies: Vec<(u16, &str)>) -> Self {
-        Self {
-            replies: Arc::new(Mutex::new(
-                replies
-                    .into_iter()
-                    .map(|(status, body)| Fake {
-                        status,
-                        body: Arc::from(body),
-                    })
-                    .collect(),
-            )),
-            seen: Arc::new(Mutex::new(Vec::new())),
-        }
-    }
-
-    /// The happy path: taxon lookup, rows, counts.
-    fn search() -> Self {
-        Self::new(vec![(200, TAXON_CSV), (200, ROWS_CSV), (200, COUNTS_CSV)])
-    }
-
-    /// Replace every reply from `index` on with the same one, so a retry loop
-    /// the test did not intend cannot silently consume a later entry.
-    fn then_always_from(&self, index: usize, status: u16, body: &str) {
-        let mut replies = self.replies.lock().expect("the script is not poisoned");
-        replies.truncate(index);
-        replies.extend(std::iter::repeat_n(
-            Fake {
-                status,
-                body: Arc::from(body),
-            },
-            16,
-        ));
-    }
-
-    fn record(&self, endpoint: &str, body: &str) {
-        self.seen
-            .lock()
-            .expect("the log is not poisoned")
-            .push(format!("{endpoint}|{}", decode(body)));
-    }
-
-    /// The queries that were sent, in order.
-    fn queries(&self) -> Vec<String> {
-        self.seen.lock().expect("the log is not poisoned").clone()
-    }
-
-    fn call_count(&self) -> usize {
-        self.seen.lock().expect("the log is not poisoned").len()
-    }
-
-    /// Which service each recorded call went to, in order.
-    fn endpoints(&self) -> Vec<String> {
-        self.queries()
-            .iter()
-            .map(|q| q.split('|').next().unwrap_or("").to_string())
-            .collect()
-    }
-}
-
-impl Http for Scripted {
-    type Response = ScriptedResponse;
-
-    async fn post(
-        &self,
-        endpoint: &str,
-        _accept: &str,
-        body: String,
-    ) -> Result<Self::Response, lotus_search::FetchError> {
-        self.record(endpoint, &body);
-
-        let reply = self
-            .replies
-            .lock()
-            .expect("the script is not poisoned")
-            .pop_front()
-            .unwrap_or_else(|| Fake {
-                status: 200,
-                body: Arc::from(""),
-            });
-
-        if reply.status == 0 {
-            return Err(lotus_search::FetchError::Network(
-                "connection refused".into(),
-            ));
-        }
-        Ok(ScriptedResponse(reply))
-    }
-
-    async fn get(
-        &self,
-        _url: &str,
-        _accept: &str,
-    ) -> Result<Self::Response, lotus_search::FetchError> {
-        Err(lotus_search::FetchError::Network("not scripted".into()))
-    }
-}
-
-/// Undo the form encoding so a recorded query can be asserted on directly.
-///
-/// A hand-rolled decoder, because the alternative is a URL-decoding dependency
-/// in the test tree to save six lines here.
-fn decode(body: &str) -> String {
-    let encoded = body.strip_prefix("query=").unwrap_or(body).as_bytes();
-    let mut out = Vec::with_capacity(encoded.len());
-    let mut i = 0;
-    while i < encoded.len() {
-        let hex = match encoded.get(i..i + 3) {
-            Some([b'%', hi, lo]) => char::from(*hi)
-                .to_digit(16)
-                .zip(char::from(*lo).to_digit(16))
-                .map(|(hi, lo)| u8::try_from(hi * 16 + lo).expect("two hex digits fit a byte")),
-            _ => None,
-        };
-        if let Some(byte) = hex {
-            out.push(byte);
-            i += 3;
-        } else {
-            out.push(if encoded[i] == b'+' { b' ' } else { encoded[i] });
-            i += 1;
-        }
-    }
-    String::from_utf8_lossy(&out).to_string()
-}
-
-struct ScriptedResponse(Fake);
-
-impl HttpResponse for ScriptedResponse {
-    fn status(&self) -> u16 {
-        self.0.status
-    }
-
-    async fn bytes(self) -> Result<lotus_search::ResponseBody, lotus_search::FetchError> {
-        Ok(bytes::Bytes::from(self.0.body.as_bytes().to_vec()))
-    }
-
-    async fn text(self) -> Result<String, lotus_search::FetchError> {
-        Ok(self.0.body.to_string())
-    }
-
-    async fn chunk(
-        &mut self,
-    ) -> Result<Option<lotus_search::ResponseBody>, lotus_search::FetchError> {
-        Ok(None)
-    }
+/// The happy path: taxon lookup, rows, counts.
+fn search_script() -> Scripted {
+    Scripted::new(vec![(200, TAXON_CSV), (200, ROWS_CSV), (200, COUNTS_CSV)])
 }
 
 fn criteria(taxon: &str) -> SearchCriteria {
@@ -199,7 +39,7 @@ fn criteria(taxon: &str) -> SearchCriteria {
 
 #[tokio::test]
 async fn a_search_resolves_the_taxon_then_fetches_rows_then_counts() {
-    let http = Scripted::search();
+    let http = search_script();
     let request = SearchRequest::new(criteria("Gentiana lutea"), NOW);
 
     let result = search(&http, &request).await.expect("the search succeeds");
@@ -341,7 +181,7 @@ async fn a_wildcard_taxon_still_reaches_every_taxon() {
 
 #[tokio::test]
 async fn invalid_filters_are_rejected_before_anything_is_sent() {
-    let http = Scripted::search();
+    let http = search_script();
     let request = SearchRequest::new(
         SearchCriteria {
             mass_min: 400.0,
@@ -480,7 +320,7 @@ async fn a_dropped_connection_falls_back_to_wikidata() {
 async fn the_returned_query_is_the_one_that_was_sent() {
     // A caller downloads "the query", and shows it as provenance. If it is not
     // the query that produced the rows, both are wrong.
-    let http = Scripted::search();
+    let http = search_script();
     let request = SearchRequest::new(criteria("Gentiana lutea"), NOW).with_limit(25);
 
     let result = search(&http, &request).await.expect("the search succeeds");

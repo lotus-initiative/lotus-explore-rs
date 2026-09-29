@@ -54,4 +54,21 @@ pub trait Http: Clone + Send + Sync + 'static {
         url: &str,
         accept: &str,
     ) -> impl Future<Output = Result<Self::Response, FetchError>>;
+
+    /// POST a JSON body, for the APIs that take one.
+    ///
+    /// Not every service curation touches speaks SPARQL: converting a structure
+    /// to an `InChIKey` is a JSON POST, and there is no form encoding that
+    /// expresses it. The default refuses rather than guessing, so a transport
+    /// that only speaks SPARQL still compiles and the caller is told what is
+    /// missing instead of sending something malformed.
+    fn post_json(
+        &self,
+        _url: &str,
+        _body: String,
+    ) -> impl Future<Output = Result<Self::Response, FetchError>> {
+        std::future::ready(Err(FetchError::Network(
+            "this transport cannot POST a JSON body".into(),
+        )))
+    }
 }

@@ -247,6 +247,7 @@ pub(super) fn curation_status_label(status_key: &str) -> &'static str {
         "existing_updates" => "existing item, updates generated",
         "new_compound" => "new item, creation generated",
         "pending_dependencies" => "waiting for prerequisite entities",
+        "not_checked" => "not looked up",
         "error" => "error",
         _ => "status",
     }

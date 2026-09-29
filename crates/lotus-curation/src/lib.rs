@@ -18,12 +18,18 @@
 mod constants;
 mod input;
 mod internal;
+mod knowledge;
 mod quickstatements;
+mod structure;
 mod types;
+mod wikidata_query;
 
-/// The natural-products API, which the server build uses to canonicalise a
-/// structure. Not compiled for wasm, where there is nothing to call it from.
-#[cfg(not(target_arch = "wasm32"))]
+/// The natural-products API, which converts a structure into the `InChIKey` that
+/// Wikidata is matched on.
+///
+/// A plain URL, available on every target. The browser build converts through
+/// `RDKit` compiled to WebAssembly instead, but the URL being present on wasm
+/// costs nothing and gating it meant this crate could not be built there at all.
 pub use constants::NATPROD_API_BASE;
 pub use constants::{
     CURATION_SPARQL_PREFIXES, WD_CHEMICAL_COMPOUND_QID, WD_OCCURS_IN_TAXON_PROP,
@@ -31,8 +37,18 @@ pub use constants::{
 };
 pub use input::{parse_tsv, row_uniqueness_key};
 pub use internal::{DependencyResolution, MassResolution, WikidataCompound};
-pub use quickstatements::build_quickstatements_bundle;
+pub use knowledge::{
+    StructureKey, WikidataLookup, creation_statements, look_up, statements_for,
+    taxon_dependency_statements, to_result_row,
+};
+pub use quickstatements::{build_quickstatements_bundle, escape_quickstatements};
+pub use structure::{ConvertedStructure, convert_structure, convert_structures};
 pub use types::{
     CurationError, CurationErrorKind, CurationInputRow, CurationResultRow, CurationStatus,
     QuickStatementsBundle,
+};
+pub use wikidata_query::{
+    compound_by_inchikey_query, create_compound_statements, escape_sparql_string,
+    has_occurrence_query, is_binomial, property, qid_from_uri, reference_by_doi_query,
+    taxon_by_name_query,
 };

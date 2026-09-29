@@ -38,6 +38,10 @@ pub use search::{
 #[cfg(feature = "reqwest")]
 pub mod reqwest_client;
 
+#[cfg(feature = "testing")]
+#[cfg_attr(docsrs, doc(cfg(feature = "testing")))]
+pub mod testing;
+
 pub use lotus_model::*;
 
 /// `QLever`'s Wikidata endpoint. Faster than WDQS, and the default.

@@ -1,0 +1,282 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
+
+//! A transport that answers from a script, for tests.
+//!
+//! The point of the [`Http`] trait is that a test can state the whole
+//! conversation it expects and get it back. That matters more the further a
+//! query is from the user: a curation run issues three or four requests per row
+//! against a service whose data changes, and a test that talks to the real
+//! service is a test that fails when the service is busy and asserts the wrong
+//! thing when the data moves.
+
+// The panic lints exist to keep shipped code free of panics on external input.
+// A poisoned lock in a test double means a test panicked while holding it, so
+// the test is already failing and the second panic says nothing new.
+#![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
+
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
+
+use bytes::Bytes;
+
+use crate::{FetchError, Http, HttpResponse, ResponseBody};
+
+/// A canned reply. A status of 0 stands for "the request never arrived", which
+/// the transport has to be able to tell apart from a rejection.
+#[derive(Clone, Debug)]
+struct Fake {
+    status: u16,
+    body: Arc<str>,
+}
+
+/// A transport that answers each request from a script, and records what was
+/// asked.
+///
+/// The script is consumed in order, so a test states the whole sequence of
+/// calls it expects. Running out of replies is itself an assertion: the last
+/// fake returned is an empty `200`, which fails to parse rather than quietly
+/// answering.
+#[derive(Clone, Debug)]
+pub struct Scripted {
+    replies: Arc<Mutex<VecDeque<Fake>>>,
+    seen: Arc<Mutex<Vec<String>>>,
+}
+
+impl Scripted {
+    /// Answer the given replies, in order, as `(status, body)`.
+    #[must_use]
+    pub fn new(replies: Vec<(u16, &str)>) -> Self {
+        Self {
+            replies: Arc::new(Mutex::new(
+                replies
+                    .into_iter()
+                    .map(|(status, body)| Fake {
+                        status,
+                        body: Arc::from(body),
+                    })
+                    .collect(),
+            )),
+            seen: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    /// Replace every reply from `index` on with the same one, so a retry loop
+    /// the test did not intend cannot silently consume a later entry.
+    ///
+    /// # Panics
+    /// If a test panicked while holding the script, which means that test has
+    /// already failed and this one only reports the same problem again.
+    pub fn then_always_from(&self, index: usize, status: u16, body: &str) {
+        let mut replies = self.replies.lock().expect("not poisoned");
+        replies.truncate(index);
+        replies.extend(std::iter::repeat_n(
+            Fake {
+                status,
+                body: Arc::from(body),
+            },
+            16,
+        ));
+    }
+
+    /// The next scripted reply, or an empty `200` once the script is spent.
+    ///
+    /// An empty `200` fails to parse rather than answering, so a test that
+    /// expected a fourth call and only scripted three is a failure rather than
+    /// a missing match.
+    fn reply(&self) -> Fake {
+        self.replies
+            .lock()
+            .expect("not poisoned")
+            .pop_front()
+            .unwrap_or_else(|| Fake {
+                status: 200,
+                body: Arc::from(""),
+            })
+    }
+
+    /// Record a call, so a wrapping transport can log what it forwards.
+    ///
+    /// The body is form-decoded, which is wrong for a JSON body and only affects
+    /// what a test can assert on: `%` is not a character JSON uses.
+    ///
+    /// # Panics
+    /// If a test panicked while holding the script, which means that test has
+    /// already failed and this one only reports the same problem again.
+    pub fn record(&self, endpoint: &str, body: &str) {
+        self.seen
+            .lock()
+            .expect("not poisoned")
+            .push(format!("{endpoint}|{}", decode(body)));
+    }
+
+    /// Every call as `endpoint|query`, in order.
+    ///
+    /// Asserting on this is how a test checks that the *right* question was
+    /// asked, not only that the right answer was read out of one.
+    /// # Panics
+    #[must_use]
+    pub fn queries(&self) -> Vec<String> {
+        self.seen.lock().expect("not poisoned").clone()
+    }
+
+    /// How many requests were made, retries included.
+    /// # Panics
+    #[must_use]
+    pub fn call_count(&self) -> usize {
+        self.seen.lock().expect("not poisoned").len()
+    }
+
+    /// Which service each call went to, in order.
+    /// # Panics
+    #[must_use]
+    pub fn endpoints(&self) -> Vec<String> {
+        self.queries()
+            .iter()
+            .map(|call| call.split('|').next().unwrap_or_default().to_owned())
+            .collect()
+    }
+}
+
+impl Http for Scripted {
+    type Response = ScriptedResponse;
+
+    async fn post(
+        &self,
+        endpoint: &str,
+        _accept: &str,
+        body: String,
+    ) -> Result<Self::Response, FetchError> {
+        self.record(endpoint, &body);
+
+        let reply = self.reply();
+        if reply.status == 0 {
+            return Err(FetchError::Network("connection refused".into()));
+        }
+        Ok(ScriptedResponse(reply))
+    }
+
+    async fn post_json(&self, url: &str, body: String) -> Result<Self::Response, FetchError> {
+        self.record(url, &body);
+
+        let reply = self.reply();
+        if reply.status == 0 {
+            return Err(FetchError::Network("connection refused".into()));
+        }
+        Ok(ScriptedResponse(reply))
+    }
+
+    async fn get(&self, url: &str, accept: &str) -> Result<Self::Response, FetchError> {
+        self.record(url, accept);
+
+        let reply = self.reply();
+        if reply.status == 0 {
+            return Err(FetchError::Network("connection refused".into()));
+        }
+        Ok(ScriptedResponse(reply))
+    }
+}
+
+/// The reply [`Scripted`] hands back.
+#[derive(Debug)]
+pub struct ScriptedResponse(Fake);
+
+impl HttpResponse for ScriptedResponse {
+    fn status(&self) -> u16 {
+        self.0.status
+    }
+
+    async fn bytes(self) -> Result<ResponseBody, FetchError> {
+        Ok(Bytes::from(self.0.body.as_bytes().to_vec()))
+    }
+
+    async fn text(self) -> Result<String, FetchError> {
+        Ok(self.0.body.to_string())
+    }
+
+    async fn chunk(&mut self) -> Result<Option<ResponseBody>, FetchError> {
+        Ok(None)
+    }
+}
+
+/// Undo the form encoding so a recorded query can be asserted on directly.
+///
+/// A hand-rolled decoder, because the alternative is a URL-decoding dependency
+/// in the test tree to save six lines here.
+fn decode(body: &str) -> String {
+    let encoded = body.strip_prefix("query=").unwrap_or(body).as_bytes();
+    let mut out = Vec::with_capacity(encoded.len());
+    let mut i = 0;
+    while i < encoded.len() {
+        let hex = match encoded.get(i..i + 3) {
+            Some([b'%', hi, lo]) => char::from(*hi)
+                .to_digit(16)
+                .zip(char::from(*lo).to_digit(16))
+                .map(|(hi, lo)| u8::try_from(hi * 16 + lo).expect("two hex digits fit a byte")),
+            _ => None,
+        };
+        if let Some(byte) = hex {
+            out.push(byte);
+            i += 3;
+        } else {
+            out.push(if encoded[i] == b'+' { b' ' } else { encoded[i] });
+            i += 1;
+        }
+    }
+    String::from_utf8_lossy(&out).to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn the_script_is_consumed_in_order() {
+        let http = Scripted::new(vec![(200, "one"), (200, "two")]);
+        let first = http
+            .post("http://example.org", "text/plain", "query=a".into())
+            .await;
+        let second = http
+            .post("http://example.org", "text/plain", "query=b".into())
+            .await;
+        assert_eq!(first.expect("a reply").text().await.expect("text"), "one");
+        assert_eq!(second.expect("a reply").text().await.expect("text"), "two");
+    }
+
+    #[tokio::test]
+    async fn a_zero_status_is_a_failed_connection_rather_than_a_rejection() {
+        let http = Scripted::new(vec![(0, "")]);
+        let err = http
+            .post("http://example.org", "text/plain", "query=a".into())
+            .await
+            .expect_err("a status of 0 never arrives");
+        assert!(
+            matches!(err, FetchError::Network(_)),
+            "the transport must tell them apart: {err:?}"
+        );
+    }
+
+    #[test]
+    fn a_recorded_query_is_decoded_back_to_what_was_asked() {
+        let http = Scripted::new(vec![]);
+        http.record(
+            "http://example.org",
+            "query=PREFIX+x%3A+%3Chttp%3A%2F%2Fx%2F%3E",
+        );
+        assert_eq!(
+            http.queries()[0],
+            "http://example.org|PREFIX x: <http://x/>"
+        );
+        assert_eq!(http.endpoints(), ["http://example.org"]);
+    }
+
+    #[tokio::test]
+    async fn a_retried_request_is_counted_more_than_once() {
+        // `call_count` includes retries, which is the point: a test that means
+        // "one request" has to see a retry it did not ask for.
+        let http = Scripted::new(vec![(200, "one"), (200, "two")]);
+        let _ = http.post("http://example.org", "t", "query=a".into()).await;
+        let _ = http.post("http://example.org", "t", "query=b".into()).await;
+        assert_eq!(http.call_count(), 2);
+    }
+}

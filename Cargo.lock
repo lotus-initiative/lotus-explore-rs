@@ -3509,8 +3509,11 @@ dependencies = [
 name = "lotus-curation"
 version = "0.1.0"
 dependencies = [
+ "lotus-search",
  "serde",
+ "serde_json",
  "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]

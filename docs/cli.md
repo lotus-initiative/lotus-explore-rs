@@ -124,11 +124,53 @@ Quercetin   O=c1c(O)c(-c2ccc(O)c(O)c2)oc2cc(O)cc(O)c12  Gentiana lutea  10.7554/
 Pass `-` or nothing to read stdin. `--format` takes `table`, `tsv`, `json` or
 `jsonl`.
 
+### What a run looks up
+
+Wikidata identifies a compound by its InChIKey, and a curator's file has SMILES,
+so a run converts each structure first and then asks Wikidata about the result.
+That is two or more requests per row, against two public services, so the command
+tells you when it cannot reach either.
+
+A row is reported as one of:
+
+| Status              | Meaning                                                   |
+| ------------------- | --------------------------------------------------------- |
+| `existing_complete` | Wikidata has the compound and the occurrence              |
+| `existing_updates`  | The compound is there; the occurrence is missing          |
+| `new_compound`      | No such item, and statements to create one                |
+| `pending_dependencies` | A taxon or reference the row needs is not there yet     |
+| `not_checked`       | Not looked up, so nothing is known                        |
+| `error`             | The lookup failed; this is not the same as "absent"       |
+
+`not_checked` and `error` are the two that matter. A row reported as
+`new_compound` has been shown to be absent; a row reported as `not_checked` has
+not, and a network failure that read as "absent" would put a duplicate of a
+compound that has been in Wikidata for years into every run.
+
+Because matching is on the InChIKey rather than the SMILES, a compound written
+`CCO` in one row and `OCC` in another is one compound, not two.
+
+A genus on its own is not resolved: "Gentiana" matches hundreds of species, and
+curating an occurrence against the genus rather than a species is a data error.
+The row is reported instead of guessed at.
+
+### Offline
+
+`--offline` makes no requests at all and reports every row as `not_checked`:
+
+```bash
+lotus curate findings.tsv --offline
+```
+
+The statements are still emitted, because there is something to read either way,
+but the status says they are a draft. Under `--offline` that is every row.
+
 **Nothing is submitted to Wikidata, and there is no flag that would.** The
 output is QuickStatements for a person to read and submit, and the command says
-so on stderr every time; `--quiet` silences that one line for when stderr is
-noise. There is deliberately no `--apply`: a batch of statements arriving from a
-script at 3am is not a decision anybody made on purpose.
+so on stderr every time; `--quiet` silences that reminder and the count of
+unchecked rows, for when stderr is noise. There is deliberately no `--apply`: a
+batch of statements arriving from a script at 3am is not a decision anybody made
+on purpose.
 
 Each row becomes one compound statement plus, when the row names them, a
 separate occurrence and a separate reference. They are separate because a

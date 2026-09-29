@@ -254,7 +254,7 @@ fn the_manual_page_is_generated() {
 fn curate_says_that_nothing_was_submitted() {
     let tsv = "name\tsmiles\ttaxon\tdoi\nQuercetin\tCCO\tGentiana lutea\t10.1/a\n";
     let output = lotus()
-        .args(["curate", "-"])
+        .args(["curate", "-", "--offline"])
         .write_stdin(tsv)
         .assert()
         .success();
@@ -272,12 +272,12 @@ fn curate_quiet_suppresses_the_reminder_and_nothing_else() {
     // would be a second, undocumented way to run the command.
     let tsv = "name\tsmiles\ttaxon\tdoi\nQuercetin\tCCO\tGentiana lutea\t10.1/a\n";
     let loud = lotus()
-        .args(["curate", "-"])
+        .args(["curate", "-", "--offline"])
         .write_stdin(tsv)
         .assert()
         .success();
     let quiet = lotus()
-        .args(["curate", "-", "--quiet"])
+        .args(["curate", "-", "--offline", "--quiet"])
         .write_stdin(tsv.to_string())
         .assert()
         .success();
@@ -301,7 +301,7 @@ fn curate_writes_the_occurrence_and_the_reference_as_separate_statements() {
     // down the compound statement in the same block.
     let tsv = "name\tsmiles\ttaxon\tdoi\nQuercetin\tCCO\tGentiana lutea\t10.1/a\n";
     let output = lotus()
-        .args(["curate", "-"])
+        .args(["curate", "-", "--offline"])
         .write_stdin(tsv)
         .assert()
         .success();
@@ -310,7 +310,7 @@ fn curate_writes_the_occurrence_and_the_reference_as_separate_statements() {
     // `json` is the format that carries the statements; `table` appends them
     // after the rows and `jsonl` is one row per line with no room for them.
     let output = lotus()
-        .args(["curate", "-", "--format", "json"])
+        .args(["curate", "-", "--offline", "--format", "json"])
         .write_stdin("name\tsmiles\ttaxon\tdoi\nQuercetin\tCCO\tGentiana lutea\t10.1/a\n")
         .assert()
         .success();
@@ -328,7 +328,7 @@ fn curate_escapes_a_quote_in_a_name() {
     // a statement that writes `hi` as a property name.
     let tsv = "name\tsmiles\nSay \"hi\"\tCCO\n";
     let output = lotus()
-        .args(["curate", "-", "--format", "json"])
+        .args(["curate", "-", "--offline", "--format", "json"])
         .write_stdin(tsv)
         .assert()
         .success();
@@ -341,13 +341,13 @@ fn curate_reads_stdin_and_ignores_a_row_with_no_smiles() {
     let tsv =
         "name\tsmiles\ttaxon\tdoi\nQuercetin\tCCO\tGentiana lutea\t10.1/a\nNoSmiles\t\tX\t10.1/b\n";
     let output = lotus()
-        .args(["curate", "-", "--format", "tsv"])
+        .args(["curate", "-", "--offline", "--format", "tsv"])
         .write_stdin(tsv)
         .assert()
         .success();
     let stdout = String::from_utf8(output.get_output().stdout.clone()).expect("UTF-8");
     let lines: Vec<&str> = stdout.lines().collect();
-    assert_eq!(lines[0], "name\tsmiles\ttaxon\tdoi\tstatus");
+    assert_eq!(lines[0], "name\tsmiles\ttaxon\tdoi\twikidata_qid\tstatus");
     assert_eq!(lines.len(), 2, "the incomplete row was dropped: {stdout}");
     assert!(lines[1].contains("Quercetin"));
 }
@@ -355,7 +355,7 @@ fn curate_reads_stdin_and_ignores_a_row_with_no_smiles() {
 #[test]
 fn curate_reports_a_missing_column_rather_than_reading_the_wrong_ones() {
     let output = lotus()
-        .args(["curate", "-"])
+        .args(["curate", "-", "--offline"])
         .write_stdin("smiles\ttaxon\nCCO\tX\n")
         .assert()
         .failure();
@@ -367,7 +367,7 @@ fn curate_reports_a_missing_column_rather_than_reading_the_wrong_ones() {
 fn curate_emits_jsonl_one_finding_per_line() {
     let tsv = "name\tsmiles\nA\tCCO\nB\tCCN\n";
     let output = lotus()
-        .args(["curate", "-", "--format", "jsonl"])
+        .args(["curate", "-", "--offline", "--format", "jsonl"])
         .write_stdin(tsv)
         .assert()
         .success();
@@ -376,7 +376,9 @@ fn curate_emits_jsonl_one_finding_per_line() {
     assert_eq!(lines.len(), 2);
     for line in lines {
         let value: serde_json::Value = serde_json::from_str(line).expect("one object per line");
-        assert!(value["name"].is_string());
+        // The row carries its input, so a consumer can see what was asked as
+        // well as what was found.
+        assert!(value["input"]["name"].is_string(), "{line}");
     }
 }
 
@@ -386,7 +388,7 @@ fn curate_deduplicates_rows_that_name_the_same_finding() {
     // spreadsheet artefact, not two things to submit.
     let tsv = "name\tsmiles\ttaxon\tdoi\nQuercetin\tCCO\tGentiana lutea\t10.1/a\nAlso called quercetin\tcco\tGENTIANA LUTEA\t10.1/A\n";
     let output = lotus()
-        .args(["curate", "-", "--format", "jsonl"])
+        .args(["curate", "-", "--offline", "--format", "jsonl"])
         .write_stdin(tsv)
         .assert()
         .success();
@@ -403,4 +405,65 @@ fn a_version_is_reported() {
         .assert()
         .success()
         .stdout(predicate::str::contains(env!("CARGO_PKG_VERSION")));
+}
+
+#[test]
+fn an_offline_run_says_it_did_not_look_rather_than_saying_the_row_is_new() {
+    // The distinction the whole command turns on. A row that was never checked
+    // has not been shown to be absent from Wikidata, and reporting it as new is
+    // how a curator submits a duplicate of something that has been there for
+    // years.
+    let tsv = "name\tsmiles\nQuercetin\tCCO\n";
+    let output = lotus()
+        .args(["curate", "-", "--offline", "--format", "tsv"])
+        .write_stdin(tsv)
+        .assert()
+        .success();
+    let stdout = String::from_utf8(output.get_output().stdout.clone()).expect("UTF-8");
+
+    assert!(stdout.contains("not_checked"), "got: {stdout}");
+    assert!(
+        !stdout.contains("new_compound"),
+        "an unchecked row is not new: {stdout}"
+    );
+}
+
+#[test]
+fn an_offline_row_still_carries_a_readable_draft_of_the_statements() {
+    // Being offline says what was not checked, not that there is nothing to
+    // read. A curator wants to see the bundle; they want to know it is a draft.
+    let tsv = "name\tsmiles\nQuercetin\tCCO\n";
+    let output = lotus()
+        .args(["curate", "-", "--offline", "--format", "json"])
+        .write_stdin(tsv)
+        .assert()
+        .success();
+    let value: serde_json::Value =
+        serde_json::from_slice(&output.get_output().stdout).expect("valid JSON");
+
+    assert_eq!(value["rows"][0]["status"], "NotChecked");
+    assert!(
+        value["rows"][0]["note"]
+            .as_str()
+            .is_some_and(|note| note.contains("not looked up")),
+        "the row must say why: {value}",
+    );
+    assert!(
+        value["statements"]
+            .as_array()
+            .is_some_and(|s| !s.is_empty()),
+        "there is still a draft to read: {value}"
+    );
+}
+
+#[test]
+fn curate_reports_how_many_rows_it_was_not_able_to_check() {
+    let tsv = "name\tsmiles\nA\tCCO\nB\tCCN\n";
+    let output = lotus()
+        .args(["curate", "-", "--offline"])
+        .write_stdin(tsv)
+        .assert()
+        .success();
+    let stderr = String::from_utf8(output.get_output().stderr.clone()).expect("UTF-8");
+    assert!(stderr.contains("not looked up"), "got: {stderr}");
 }

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 /// What `Wikidata` holds for a compound, as far as curation cares.
-#[derive(Debug)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct WikidataCompound {
     /// The compound's `Wikidata` item.
     pub qid: String,

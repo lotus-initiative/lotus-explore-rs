@@ -17,7 +17,7 @@ pub struct CurationInputRow {
     pub doi: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
 /// What curation concluded about a row.
 pub enum CurationStatus {
     /// Wikidata already says everything this row would.
@@ -28,11 +28,18 @@ pub enum CurationStatus {
     NewCompound,
     /// A taxon or reference the row needs has not been found yet.
     PendingDependencies,
+    /// The row was not looked up, so nothing is known about it.
+    ///
+    /// Not the same as "new". A run that was asked not to touch the network, or
+    /// that was cut short, has not established that a compound is absent -- and
+    /// reporting it as absent is how a duplicate gets submitted. This state
+    /// exists so that "I did not look" is sayable.
+    NotChecked,
     /// Curation could not be completed for this row.
     Error,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 /// One row after curation: what `Wikidata` has, and what it would take to add it.
 pub struct CurationResultRow {
     /// The row this result came from.
@@ -121,10 +128,16 @@ impl CurationError {
 
     /// Whether trying again with the same input could plausibly work.
     ///
-    /// A parse failure is not recoverable: the answer is there and is not in a
-    /// shape this crate reads, so a second request would be refused the same way.
+    /// Only a transport failure is worth retrying, and only because the input was
+    /// never in question. Two other failures are final and retrying them just
+    /// spends the endpoint's rate limit:
+    ///
+    /// - a parse failure, because the answer is there and is not in a shape this
+    ///   crate reads, so a second request would be refused the same way;
+    /// - an input failure, because the same malformed structure is the same
+    ///   malformed structure.
     #[must_use]
     pub const fn is_recoverable(&self) -> bool {
-        !matches!(self, Self::Parse(_))
+        matches!(self, Self::Http(_))
     }
 }

@@ -260,7 +260,7 @@ fn main() -> ExitCode {
 async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
     match cli.command {
         Command::Search(args) => search(args).await,
-        Command::Curate(args) => curate::run(&args),
+        Command::Curate(args) => curate::run(&args).await,
         Command::Completions(args) => {
             let mut command = <Cli as clap::CommandFactory>::command();
             let name = command.get_name().to_string();

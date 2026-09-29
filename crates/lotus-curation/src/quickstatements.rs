@@ -2,6 +2,25 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use crate::{CurationResultRow, QuickStatementsBundle};
+
+/// Escape a value for a `QuickStatements` scalar.
+///
+/// The format is pipe-separated with `"`-quoted scalars, and a value containing
+/// a quote or a newline will otherwise end the scalar early, so the rest of it
+/// is read as though it were further properties -- a compound called `Say "hi"`
+/// would write a property named `hi`.
+#[must_use]
+pub fn escape_quickstatements(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for c in value.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\n' | '\r' | '\t' => out.push(' '),
+            _ => out.push(c),
+        }
+    }
+    out
+}
 use std::collections::HashSet;
 
 /// Bundle a batch of curated rows into statements ready to paste.
