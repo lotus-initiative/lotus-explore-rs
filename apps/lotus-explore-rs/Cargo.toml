@@ -14,6 +14,17 @@ publish = false
 name = "lotus-explore-rs"
 path = "src/main.rs"
 
+# `cargo test` does not compile build.rs as a test target, so `#[test]`s in it
+# are silently never run -- verified: a test in build.rs reports "0 passed"
+# under `cargo test --all-targets`. This target makes them real, with cargo
+# resolving the build-dependencies instead of a hand-rolled `rustc --extern`
+# invocation guessing at rlib hashes. build.rs generates every host-bearing
+# file, so these are the tests that guard a CNAME change.
+[[test]]
+name = "buildrs"
+path = "build.rs"
+harness = true
+
 [dependencies]
 dioxus = { workspace = true }
 futures = { workspace = true }
