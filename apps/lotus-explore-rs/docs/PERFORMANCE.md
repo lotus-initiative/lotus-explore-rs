@@ -131,6 +131,44 @@ and the dev-only crates are already out of the wasm graph (verified, not assumed
 `tower-http`, `clap` and `env_logger` are all absent, and no TLS stack is
 reachable: `reqwest` on wasm uses the browser `fetch`).
 
+## Taking the module off the critical path
+
+`dx` preloads the JS glue but not the module, and the glue cannot fetch the
+module until it has itself been downloaded, parsed and executed. The largest
+response on the page was therefore waiting on a 45 KiB one:
+
+```text
+html -> glue js (45 KiB) -> fetch(module 1.4 MiB) -> instantiate -> mount
+```
+
+A `<link rel="preload" as="fetch" type="application/wasm" crossorigin>` in the
+built `index.html` takes it off that chain. `crossorigin` is not optional:
+`instantiateStreaming` fetches in CORS mode, and without it the preload sits in a
+different cache slot and the module is fetched twice.
+
+Measured from the real request timings, Lighthouse `devtools` throttling at
+1.6 Mbit/s / 150 ms:
+
+| | before | after |
+| --- | --- | --- |
+| module request starts | 520252 ms after the document | 220055 ms after the document |
+| observed LCP | 3114 ms | 2940 ms |
+| simulated LCP, 5 rounds | 3752 ms | 3606 ms light / 3624 ms dark |
+| perf mobile, 5 rounds | 89 | 90 light / 90 dark |
+| TBT mobile | 37 / 17 ms | 11 / 0 ms |
+
+The module now starts in the same ~9 ms window as the CSS and the glue instead of
+300 s behind them. This is the only LCP win in this document that came from
+request scheduling rather than from making the module smaller.
+
+Because the module name is content-hashed, this cannot be written by hand in the
+source `index.html`; `inject-wasm-preload` (a second `lotus-deploy` bin, run by
+both `just build` and the Dockerfile) injects it after the bundle is emitted. It
+copies the asset prefix out of the preload `dx` already wrote, so a `--base-path`
+build works without the tool knowing about base paths. It reads the module name
+out of the glue rather than listing `assets/`, because `dx` leaves a superseded
+module behind on a hash change and guessing wrong costs a wasted 1.4 MiB fetch.
+
 ## Three copies of one setting, and nothing comparing them
 
 The optimisation level is declared in three places: `[profile.release]`
