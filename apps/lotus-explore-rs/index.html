@@ -19,10 +19,20 @@
   <link rel="alternate" hreflang="de" href="">
   <link rel="alternate" hreflang="it" href="">
   <link rel="alternate" hreflang="x-default" href="">
+  <!-- Relative hrefs below, so each is already correct at parse time for a root
+       deploy and for the /lotus-explore-rs/ subpath. The inline setAssetBase
+       script still rewrites them to absolute basePath URLs on load; these values
+       only close the window where a link is empty or root-relative. -->
   <link rel="manifest" href="site.webmanifest">
-  <link id="ai-catalog" rel="ai-catalog" href="" type="application/json">
-  <link id="app-css" rel="stylesheet" href="" media="print">
-  <link rel="icon" href="" type="image/svg+xml">
+  <link id="ai-catalog" rel="ai-catalog" href=".well-known/ai-catalog.json" type="application/json">
+  <link id="app-css" rel="stylesheet" href="assets/lotus-explore.css" media="print">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="LOTUS-explore-rs">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="dns-prefetch" href="https://qlever.dev">
   <link rel="dns-prefetch" href="https://query.wikidata.org">
   <link rel="dns-prefetch" href="https://query-scholarly.wikidata.org">
@@ -63,8 +73,17 @@
          if (manifest) manifest.href = basePath + "site.webmanifest";
          var aiCatalog = document.getElementById("ai-catalog");
          if (aiCatalog) aiCatalog.href = basePath + ".well-known/ai-catalog.json";
-         var favicon = document.querySelector('link[rel="icon"]');
-         if (favicon) favicon.href = basePath + "favicon.svg";
+         // Two rel="icon" links exist (.ico fallback, then .svg), so this has to
+         // target the svg one specifically: a bare querySelector would return the
+         // .ico first and overwrite it with the svg href.
+         var iconBase = function (selector, file) {
+           var icons = document.querySelectorAll(selector);
+           for (var i = 0; i < icons.length; i += 1) icons[i].href = basePath + file;
+         };
+         iconBase('link[rel="icon"][type="image/svg+xml"]', "favicon.svg");
+         iconBase('link[rel="icon"][sizes="any"]', "favicon.ico");
+         var appleTouch = document.querySelector('link[rel="apple-touch-icon"]');
+         if (appleTouch) appleTouch.href = basePath + "apple-touch-icon.png";
          var css = document.getElementById("app-css");
          if (css) {
            css.href = basePath + "assets/lotus-explore.css";

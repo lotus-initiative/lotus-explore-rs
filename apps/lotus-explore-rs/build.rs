@@ -48,12 +48,24 @@ struct Manifest {
     description: String,
     start_url: String,
     scope: String,
+    /// Stable app identity, so a reinstall is not treated as a different app.
+    /// Resolved against the origin, which keeps it inside `scope` for a
+    /// subpath deploy.
+    id: Option<String>,
     display: String,
+    /// Progressive enhancement: the browser takes the first mode it supports.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    display_override: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    orientation: Option<String>,
     background_color: String,
     theme_color: String,
     lang: String,
     dir: String,
-    screenshots: Vec<String>,
+    /// Omitted rather than emitted as `[]`: an empty screenshots array is worse
+    /// than an absent one, and there are no screenshots to declare.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    screenshots: Option<Vec<String>>,
     icons: Vec<Icon>,
     categories: Vec<String>,
     prefer_related_applications: bool,

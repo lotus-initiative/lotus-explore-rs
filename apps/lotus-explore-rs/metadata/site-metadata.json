@@ -18,70 +18,66 @@
     "source_path": "https://github.com/lotusnprod/lotus-explore-rs"
   },
   "manifest": {
+    "id": "lotus-explore-rs",
     "start_url": "./",
     "scope": "./",
     "display": "standalone",
+    "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+    "orientation": "any",
     "background_color": "#f6f8fb",
     "theme_color": "#0b5cab",
     "lang": "en",
     "dir": "ltr",
-    "screenshots": [],
     "categories": ["science", "education", "research"],
     "prefer_related_applications": false,
     "icons": [
       {
-        "src": "/favicon.ico",
+        "src": "favicon.ico",
         "sizes": "16x16",
         "type": "image/x-icon",
         "purpose": "any"
       },
       {
-        "src": "/favicon.ico",
+        "src": "favicon.ico",
         "sizes": "32x32",
         "type": "image/x-icon",
         "purpose": "any"
       },
       {
-        "src": "/apple-touch-icon.png",
+        "src": "apple-touch-icon.png",
         "sizes": "180x180",
         "type": "image/png",
         "purpose": "any"
       },
       {
-        "src": "/favicon-16x16.png",
+        "src": "favicon-16x16.png",
         "sizes": "16x16",
         "type": "image/png",
         "purpose": "any"
       },
       {
-        "src": "/favicon-32x32.png",
+        "src": "favicon-32x32.png",
         "sizes": "32x32",
         "type": "image/png",
         "purpose": "any"
       },
       {
-        "src": "/android-chrome-192x192.png",
+        "src": "android-chrome-192x192.png",
         "sizes": "192x192",
         "type": "image/png",
         "purpose": "any"
       },
       {
-        "src": "/android-chrome-512x512.png",
+        "src": "android-chrome-512x512.png",
         "sizes": "512x512",
         "type": "image/png",
         "purpose": "any"
       },
       {
-        "src": "/favicon.svg",
+        "src": "favicon.svg",
         "sizes": "any",
         "type": "image/svg+xml",
-        "purpose": "any"
-      },
-      {
-        "src": "/favicon.svg",
-        "sizes": "any",
-        "type": "image/svg+xml",
-        "purpose": "maskable"
+        "purpose": "any maskable"
       }
     ],
     "shortcuts": [
@@ -92,13 +88,13 @@
         "url": "./search",
         "icons": [
           {
-            "src": "/favicon.ico",
+            "src": "favicon.ico",
             "sizes": "16x16",
             "type": "image/x-icon",
             "purpose": "any"
           },
           {
-            "src": "/favicon.svg",
+            "src": "favicon.svg",
             "sizes": "any",
             "type": "image/svg+xml",
             "purpose": "any"
