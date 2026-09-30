@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The LOTUS curation vocabulary.
 //!
-//! Curation means: a chemist has a list of compounds and organisms, and some of
+//! Curation means: a chemist has a list of compounds and taxa, and some of
 //! those are in Wikidata and some are not. The job is to say which is which and
 //! to write the statements that would fix the ones that are not.
 //!

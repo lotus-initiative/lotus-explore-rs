@@ -36,7 +36,7 @@ fn a_duplicate_triple_appears_once() {
 
 #[test]
 fn an_absent_taxon_is_empty_rather_than_missing() {
-    // A row can name a compound and a reference but no organism; the QID is
+    // A row can name a compound and a reference but no taxon; the QID is
     // then an empty string, not `None`, because the column is present.
     let rows = parse_compounds_csv(&fixture("compounds.csv"), 100).expect("valid CSV");
     let row = rows

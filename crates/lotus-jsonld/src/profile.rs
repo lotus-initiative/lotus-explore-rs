@@ -15,7 +15,7 @@ use std::collections::BTreeSet;
 pub enum Profile {
     /// Compounds.
     MolecularEntity,
-    /// Organisms.
+    /// Taxa.
     Taxon,
     /// A result set, and the LOTUS source as a whole.
     Dataset,

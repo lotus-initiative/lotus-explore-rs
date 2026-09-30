@@ -12,7 +12,7 @@
 use crate::{property_value, wikidata_uri};
 use serde_json::{Value, json};
 
-/// The `Taxon` for a row's taxon, or `None` when the row has no organism.
+/// The `Taxon` for a row's taxon, or `None` when the row names none.
 ///
 /// A compound with no occurrence data has no taxon, and a `Taxon` node with an
 /// empty name would fail the profile's `name` requirement.

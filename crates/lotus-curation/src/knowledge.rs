@@ -334,7 +334,7 @@ pub fn to_result_row(
     if let Some(taxon) = row.taxon.as_deref() {
         let taxon = taxon.trim();
         if !taxon.is_empty() && !is_binomial(taxon) {
-            note.push_str("the organism is a genus on its own, which is ambiguous. ");
+            note.push_str("the taxon is a genus on its own, which is ambiguous. ");
         } else if lookup.taxon_qid.is_none() {
             note.push_str("Wikidata has no taxon by that name. ");
         }
@@ -603,7 +603,7 @@ mod tests {
         let result = to_result_row(&row("X", "CCO", Some("Gentiana"), None), &known(), &lookup);
         assert!(
             result.note.contains("genus"),
-            "an ambiguous organism must be called out: {}",
+            "an ambiguous taxon must be called out: {}",
             result.note
         );
         // Creating an item called "Gentiana" from an ambiguous name would be

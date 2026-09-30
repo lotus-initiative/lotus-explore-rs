@@ -12,7 +12,7 @@
 //!
 //! Columns are matched by name, case- and space-insensitively, and `organism`
 //! is accepted for `taxon` because that is what a sheet of occurrence data will
-//! have in it. Only `name` and `smiles` are required: a row with no organism
+//! have in it. Only `name` and `smiles` are required: a row with no taxon
 //! and no DOI still has a compound to curate.
 
 use crate::{CurationError, CurationInputRow};

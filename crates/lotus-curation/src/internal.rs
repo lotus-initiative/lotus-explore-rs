@@ -21,7 +21,7 @@ pub struct WikidataCompound {
 /// The taxon and reference a row depends on, and any that are still missing.
 #[derive(Debug, Default)]
 pub struct DependencyResolution {
-    /// The organism, if it was found.
+    /// The taxon, if it was found.
     pub taxon_qid: Option<String>,
     /// The reference, if it was found.
     pub reference_qid: Option<String>,

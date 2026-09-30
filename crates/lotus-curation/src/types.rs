@@ -11,7 +11,7 @@ pub struct CurationInputRow {
     pub name: String,
     /// The structure, as `SMILES` or a molfile.
     pub smiles: String,
-    /// The reporting organism, if the row names one.
+    /// The reporting taxon, if the row names one.
     pub taxon: Option<String>,
     /// The reference `DOI`, if the row cites one.
     pub doi: Option<String>,

@@ -17,7 +17,7 @@ pub enum SortColumn {
     Mass,
     /// Molecular formula, ordered as written.
     Formula,
-    /// The reporting organism's name.
+    /// The reporting taxon's name.
     TaxonName,
     /// The reference's publication year.
     PubYear,

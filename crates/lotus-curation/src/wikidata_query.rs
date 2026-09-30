@@ -109,7 +109,7 @@ pub fn compound_by_inchikey_query(inchikey: &str) -> String {
 ///
 /// The item is restricted by `P31`, not by walking the taxonomy: the web client
 /// resolves taxa this way and has for some time, and a second rule here would be
-/// a third answer to "which item is this organism". A taxon classified only by
+/// a third answer to "which item is this taxon". A taxon classified only by
 /// `P105` and not by `P31` is missed by both, which is a known gap rather than a
 /// difference between the two front-ends.
 #[must_use]
