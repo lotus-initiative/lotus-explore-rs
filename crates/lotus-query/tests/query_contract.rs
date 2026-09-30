@@ -11,10 +11,12 @@
 #![allow(unused_crate_dependencies)]
 #![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
 
+use lotus_model::element_max;
 use lotus_model::{ElementState, SearchCriteria, SmilesSearchType};
 use lotus_query::{
     all_compounds_query, compounds_by_taxon_query, construct_from_select, counts_query,
-    export_query, limit_query, structure_search_query, taxon_lookup_query, with_filters,
+    escape_structure_literal, export_query, is_reference_lookup, limit_query,
+    structure_search_query, taxon_lookup_query, with_filters,
 };
 
 const NOW: u16 = 2026;
@@ -367,4 +369,190 @@ fn a_taxon_lookup_is_an_exact_values_match() {
 fn a_taxon_lookup_escapes_its_literal() {
     let query = taxon_lookup_query(r#"Gentiana "lutea" \ x"#);
     assert!(query.contains(r#"VALUES ?taxon_name { "Gentiana \"lutea\" \\ x" }"#));
+}
+
+// ── Formula element ranges ────────────────────────────────────────────────────
+
+/// The formula filter emits a `FILTER(?_count_c >= … && <= …)` only when the
+/// criterion actually constrains carbon. When it does not, the filter is noise
+/// that still costs a cache key, because a query's bytes are what the cache key
+/// and a shared link are derived from.
+fn carbon_ranged_filter(c_min: u16, c_max: u16) -> Option<String> {
+    let query = with_filters(
+        &compounds_by_taxon_query("Q16521"),
+        &SearchCriteria {
+            formula_enabled: true,
+            // Something has to make the formula filter run at all, or the element
+            // loop is never reached and the guard cannot be distinguished from
+            // any other spelling of it. An exact formula does that without
+            // touching the carbon bounds under test.
+            formula_exact: "CCO".into(),
+            c_min,
+            c_max,
+            ..criteria()
+        },
+        NOW,
+    );
+    query
+        .lines()
+        .find(|line| line.contains("?_count_c >="))
+        .map(str::trim)
+        .map(str::to_string)
+}
+
+#[test]
+fn an_element_pinned_to_its_full_range_gets_no_filter() {
+    // `min > 0` is false, `max < default_max` is false, so nothing is emitted.
+    // This is the case every boundary mutant in the guard breaks: `>` to `==`,
+    // `>` to `>=`, `<` to `==` and `<` to `<=` each make this emit a filter
+    // against a criterion that constrains nothing.
+    assert_eq!(
+        carbon_ranged_filter(0, element_max::C),
+        None,
+        "a full-range carbon criterion is not a constraint, so it gets no filter"
+    );
+}
+
+#[test]
+fn a_max_above_the_natural_maximum_gets_no_filter() {
+    // `max < default_max` is false when the max is *larger* than the element's
+    // natural maximum, and that is correct: nothing has 600 carbons in this
+    // domain, so the bound is vacuous. `max > default_max` would emit a filter
+    // here, and `c_max` is user input, so the bound is not always well-formed.
+    assert_eq!(
+        carbon_ranged_filter(0, element_max::C + 88),
+        None,
+        "a max beyond the natural maximum is vacuous, not a constraint"
+    );
+}
+
+#[test]
+fn either_bound_alone_is_enough_to_emit_the_filter() {
+    // The guard is `min > 0 || max < default_max`, and each half is reachable on
+    // its own: a lower bound with the default max, and an upper bound with no
+    // lower. `||` mutated to `&&` drops the filter in both of these, which is a
+    // silently wrong query rather than a failing one -- it returns the
+    // unfiltered result set.
+    assert_eq!(
+        carbon_ranged_filter(5, element_max::C).as_deref(),
+        Some("FILTER(?_count_c >= 5 && ?_count_c <= 512)"),
+        "a lower bound alone constrains carbon"
+    );
+    assert_eq!(
+        carbon_ranged_filter(0, 3).as_deref(),
+        Some("FILTER(?_count_c >= 0 && ?_count_c <= 3)"),
+        "an upper bound alone constrains carbon"
+    );
+}
+
+#[test]
+fn both_bounds_together_emit_both_ends() {
+    assert_eq!(
+        carbon_ranged_filter(2, 7).as_deref(),
+        Some("FILTER(?_count_c >= 2 && ?_count_c <= 7)")
+    );
+}
+
+// ── Reference-lookup detection ────────────────────────────────────────────────
+
+#[test]
+fn a_bare_doi_lookup_is_recognised() {
+    assert!(is_reference_lookup(
+        r#"SELECT ?ref WHERE { ?compound wdt:P356 ?ref . }"#
+    ));
+}
+
+#[test]
+fn a_reference_query_is_still_a_lookup_without_a_service_or_optional() {
+    // Each condition is removed on its own, and each removal has to change the
+    // answer. `!query.contains("OPTIONAL")` mutated to `query.contains` is the
+    // one that would pass if every test used a query with an `OPTIONAL` in it.
+    assert!(!is_reference_lookup(
+        "SELECT ?item WHERE { ?item wdt:P356 ?ref . }"
+    ));
+    assert!(!is_reference_lookup(
+        "SELECT ?ref WHERE { ?compound wdt:P31 ?ref . }"
+    ));
+    assert!(!is_reference_lookup(
+        "SELECT ?ref WHERE { SERVICE wikibase:label { } ?c wdt:P356 ?ref . }"
+    ));
+    assert!(
+        !is_reference_lookup("SELECT ?ref WHERE { OPTIONAL { ?c wdt:P356 ?ref . } }"),
+        "an OPTIONAL DOI is a join, not a lookup"
+    );
+}
+
+#[test]
+fn only_the_selection_shape_makes_it_a_lookup() {
+    // The `&&` between the two `contains` calls is the one that is easiest to
+    // break unnoticed, because a query that satisfies the first but not the
+    // second is unusual to write by hand. A real structure search does exactly
+    // that: it selects `?ref` and matches `wdt:P356`, but opens differently.
+    assert!(!is_reference_lookup(
+        "PREFIX wd: <x> ?compound wdt:P356 ?ref ."
+    ));
+}
+
+// ── Structure literals ───────────────────────────────────────────────────────
+
+/// A molfile in one line: classified as a molfile by its terminator, but with no
+/// newline of its own.
+const ONE_LINE_MOLFILE: &str = "benzene V2000 M  END";
+
+#[test]
+fn a_molfile_is_triple_quoted_even_on_one_line() {
+    // `is_molfile || body.contains('\n')`: this is the case where the left side
+    // holds and the right does not, so `||` mutated to `&&` double-quotes a
+    // molfile. Wikidata rejects that with a parse error about the structure,
+    // which is a far worse failure than the query being wrong.
+    assert_eq!(
+        escape_structure_literal(ONE_LINE_MOLFILE),
+        format!(r#"'''{ONE_LINE_MOLFILE}'''"#)
+    );
+}
+
+#[test]
+fn a_multi_line_smiles_is_triple_quoted() {
+    // The other case where the right side holds and the left does not: SMILES
+    // written across lines, which is how a reaction or a pasted structure
+    // arrives. A newline inside a double-quoted literal is not a newline.
+    assert_eq!(
+        escape_structure_literal("CCO\n.O"),
+        r#"'''CCO
+.O'''"#
+    );
+}
+
+#[test]
+fn a_single_line_smiles_is_double_quoted_with_escapes() {
+    assert_eq!(escape_structure_literal("  CCO  "), r#""CCO""#);
+    assert_eq!(escape_structure_literal(r#"a"b"#), r#""a\"b""#);
+    assert_eq!(escape_structure_literal(r"a\b"), r#""a\\b""#);
+}
+
+#[test]
+fn a_single_line_smiles_substructure_search_uses_the_cheap_service() {
+    // The `Substructure if is_multiline` arm exists because a molfile has to go
+    // through the scored search, which understands atom mapping, while a SMILES
+    // does not. With the guard forced true, every SMILES substructure search
+    // takes the expensive path and asks for scores the caller never reads.
+    let smiles = structure_search_query("CCO", SmilesSearchType::Substructure, 0.8, None);
+    assert!(
+        !smiles.contains("scoredSubstructureSearch"),
+        "a single-line SMILES should use the plain substructure service"
+    );
+    assert!(smiles.contains("sachem:substructureSearch"));
+
+    // The same search with a molfile does need the scored path, which is the
+    // half of the guard that distinguishes it from the arm above.
+    let molfile = structure_search_query(
+        "ethanol\n  0  0  0  0  0  0  0  0  0  0999 V2000\nM  END",
+        SmilesSearchType::Substructure,
+        0.8,
+        None,
+    );
+    assert!(
+        molfile.contains("scoredSubstructureSearch"),
+        "a molfile substructure search needs the scored path"
+    );
 }

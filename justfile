@@ -34,8 +34,22 @@ doc:
 # app's rendering and IO plumbing, where a surviving mutant is usually a
 # `write!` format string; these crates build the SPARQL and the answers, where a
 # surviving mutant is a wrong query sent to Wikidata.
+# Every library in the workspace. This started as three packages and was grown
+# one missed mutant at a time, which is backwards: the point of mutation testing
+# is that you do not know where the tests are thin until it says so.
+#
+# `apps/lotus-explore-rs` is excluded, deliberately and with a reason. It is 2,761
+# mutants of Dioxus rendering -- a `match` arm on a `Signal`, a `rswap!`, a
+# literal in a `class` attribute -- and killing those means rendering tests for
+# every component. That is a large piece of work with a poor ratio, so it is
+# `just mutants-ui`, opt-in, and the exclusion is written down in
+# `mutants.toml` rather than being an omission.
 mutants:
-	cargo mutants --package lotus-query --package lotus-curation --package lotus-jsonld --jobs 4 --timeout 120
+	cargo mutants --package lotus-model --package lotus-search --package lotus-query --package lotus-curation --package lotus-jsonld --package lotus-cli --package lotus-web-assets --jobs 8 --timeout 300
+
+# The excluded UI crate, run on request. See the note above.
+mutants-ui:
+	cargo mutants --package lotus-explore-rs --jobs 8 --timeout 300
 
 # Same scope, listing the mutants without running them. Use this to see what a
 # change added before paying for the run.
@@ -72,22 +86,51 @@ metadata:
 metadata-write:
 	cargo run --locked -q -p lotus-jsonld --bin emit-metadata
 
+# The gate. Every recipe here is one CI job, in CI's order, and
+# `tests/gate_consistency.rs` fails the build if that stops being true -- which is
+# the only reason the two lists have not drifted apart already.
+#
+# Two jobs are deliberately not here, because they need a network, a toolchain
+# this repo does not vendor, or minutes rather than seconds: `mutants` and
+# `desktop`. They are `just ci-slow`, and CI runs both.
 ci:
 	just fmt
+	just license-headers
 	just check
 	just clippy
 	just clippy-native-builds
 	just test
 	just doc
-	just license-headers
-	just metadata
 	just wasm
 	just clippy-wasm
 	just machete
-	just audit
 	just deny
+	just audit
+	just metadata
 	just opt-levels
 	just readme
+
+# The two CI jobs `just ci` leaves out, and why.
+#
+# `mutants` is non-blocking in CI for a documented reason -- survivors are a
+# to-do list, not a gate -- and takes about four minutes. `desktop` needs the
+# fetched assets and a `dx` build, so it cannot run on a checkout that has not
+# fetched them.
+ci-slow:
+	just mutants
+	just desktop
+
+# The `desktop` job in CI: compile the one target nothing else builds, then
+# prove the bundle can answer what the app asks of it. Every desktop-only bug so
+# far -- an unstyled window, a no-op download, a 404 for the toolkit -- compiled
+# cleanly, because nothing built this target.
+desktop:
+	cargo clippy -p lotus-explore-rs --features desktop --locked -- -D warnings
+	cargo test -p lotus-explore-rs --features desktop --all-targets --locked --quiet
+	cargo run --locked -p lotus-web-assets --bin fetch-assets
+	cd apps/lotus-explore-rs && dx build --package lotus-explore-rs --desktop --locked --features desktop
+	just verify-bundle
+	just bundle-icon
 
 # The optimisation level is declared in three places, and `dx` passes
 # `--rustc-args=-Copt-level=` last, so the justfile silently wins over the

@@ -28,6 +28,9 @@ hooks = [
   { id = "cargo-fmt-check", name = "cargo-fmt-check", language = "system", entry = "just fmt", pass_filenames = false, always_run = true, files = "(?!.*public/assets/).*$" },
   { id = "cargo-check", name = "cargo-check", language = "system", entry = "just check", pass_filenames = false, always_run = true, files = "(?!.*public/assets/).*$" },
   { id = "cargo-clippy", name = "cargo-clippy", language = "system", entry = "just clippy", pass_filenames = false, always_run = true, files = "(?!.*public/assets/).*$" },
+  # Text-only, so it belongs on the fast path: without it a commit lands with a
+  # missing header and CI rejects it, which is a pointless round trip.
+  { id = "license-headers", name = "license-headers", language = "system", entry = "just license-headers", pass_filenames = false, always_run = true, files = "(?!.*public/assets/).*$" },
 
   # ── Heavy Rust checks (pre-push only) — delegate to justfile ───────────────
   { id = "cargo-test", name = "cargo-test", language = "system", entry = "just test", pass_filenames = false, always_run = true, stages = ["pre-push"] },
@@ -36,6 +39,9 @@ hooks = [
   { id = "cargo-check-wasm", name = "cargo-check-wasm", language = "system", entry = "just wasm", pass_filenames = false, always_run = true, stages = ["pre-push"] },
   { id = "cargo-clippy-wasm", name = "cargo-clippy-wasm", language = "system", entry = "just clippy-wasm", pass_filenames = false, always_run = true, stages = ["pre-push"] },
   { id = "cargo-doc", name = "cargo-doc", language = "system", entry = "just doc", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  # The cfg-gated code no other build compiles, which is how desktop-only and
+  # server-only paths rotted unnoticed.
+  { id = "clippy-native-builds", name = "clippy-native-builds", language = "system", entry = "just clippy-native-builds", pass_filenames = false, always_run = true, stages = ["pre-push"] },
 
   # ── Supply chain (pre-push only) ───────────────────────────────────────────
   { id = "cargo-machete", name = "cargo-machete", language = "system", entry = "just machete", pass_filenames = false, always_run = true, stages = ["pre-push"] },
@@ -45,6 +51,10 @@ hooks = [
 
   # ── README verification (pre-push only) ────────────────────────────────────
   { id = "cargo-readme-panache", name = "cargo-readme-panache", language = "system", entry = "just readme", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  # Declared in three places and built in one; drift here is a silently slow
+  # release. Same for the repository metadata `cargo package` depends on.
+  { id = "metadata", name = "metadata", language = "system", entry = "just metadata", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  { id = "opt-levels", name = "opt-levels", language = "system", entry = "just opt-levels", pass_filenames = false, always_run = true, stages = ["pre-push"] },
 ]
 
 [[repos]]
