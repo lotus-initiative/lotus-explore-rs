@@ -5,7 +5,19 @@ all-features = true
 [advisories]
 db-path = "$CARGO_HOME/advisory-dbs"
 db-urls = ["https://github.com/rustsec/advisory-db"]
-ignore = []
+# All three are `unmaintained` notices, not vulnerabilities: no patched version
+# exists and cargo-deny reports "No safe upgrade is available!" for each. They
+# are transitive, and the authors' own position is that they are finished rather
+# than abandoned -- dtolnay, who wrote `paste`, says so in its issue tracker.
+#
+# A crate that nobody maintains is a risk only if it needs maintaining. These
+# three are build-time helpers with no open security surface here, and there is
+# no version to move to. Re-check them when a patched release appears.
+ignore = [
+  "RUSTSEC-2024-0370", # proc-macro-error is unmaintained
+  "RUSTSEC-2024-0436", # paste is unmaintained
+  "RUSTSEC-2025-0057", # fxhash is unmaintained
+]
 
 # ── Licenses ──────────────────────────────────────────────────────────────────
 # All project crates are AGPL-3.0-only. Dependencies must carry a license
@@ -25,6 +37,16 @@ allow = [
   "CDLA-Permissive-2.0",
   "BSL-1.0",
   "bzip2-1.0.6",
+  # MPL-2.0, file-level copyleft, from the HTML and CSS parsers the WebKit
+  # bindings pull in (`cssparser`, `selectors`, `option-ext`). Compatible with
+  # AGPL-3.0 for a dependency whose files we do not modify, which is the only
+  # way it appears here -- every one of them is transitive.
+  "MPL-2.0",
+  # NCSA and the LLVM exception, both from `target-lexicon`, a build dependency
+  # of the wasm bindings. The exception only carves the compiler's builtins out
+  # of Apache-2.0's patent grant, so it is Apache-2.0 for this purpose.
+  "NCSA",
+  "Apache-2.0 WITH LLVM-exception",
 ]
 
 [licenses.private]
@@ -68,6 +90,44 @@ skip = [
   { name = "thiserror-impl" },
   { name = "windows-sys" },
   { name = "winnow" },
+  # Added with the `desktop` feature, which pulls the WebKit and image stacks
+  # and their build-time parsers. Re-audited against the current lockfile; the
+  # pairs are two major versions of the same crate, not a second copy of a
+  # security-sensitive one.
+  { name = "bitflags" },
+  { name = "convert_case" },
+  { name = "core-graphics" },
+  { name = "foreign-types" },
+  { name = "foreign-types-shared" },
+  { name = "heck" },
+  { name = "libloading" },
+  { name = "miniz_oxide" },
+  { name = "phf" },
+  { name = "phf_codegen" },
+  { name = "phf_generator" },
+  { name = "phf_shared" },
+  { name = "png" },
+  { name = "proc-macro-crate" },
+  { name = "rand" },
+  { name = "rand_chacha" },
+  { name = "rand_core" },
+  { name = "raw-window-handle" },
+  { name = "siphasher" },
+  { name = "toml_datetime" },
+  { name = "toml_edit" },
+  { name = "wasi" },
+  { name = "windows-link" },
+  { name = "windows-result" },
+  { name = "windows-strings" },
+  { name = "windows-targets" },
+  { name = "windows_aarch64_gnullvm" },
+  { name = "windows_aarch64_msvc" },
+  { name = "windows_i686_gnu" },
+  { name = "windows_i686_gnullvm" },
+  { name = "windows_i686_msvc" },
+  { name = "windows_x86_64_gnu" },
+  { name = "windows_x86_64_gnullvm" },
+  { name = "windows_x86_64_msvc" },
 ]
 
 # ── Source policy ─────────────────────────────────────────────────────────────

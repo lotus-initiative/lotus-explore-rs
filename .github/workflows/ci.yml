@@ -41,6 +41,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with: { persist-credentials: false, fetch-depth: 1 }
+      # This job had no setup step at all, so `just` was not on the runner and
+      # the job exited 127 before reading a single file: it had been reporting
+      # nothing about license headers the whole time.
+      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
+        with:
+          tool: just
       - name: Every .rs file carries both AGPL headers on lines 1 and 2
         run: just license-headers
 
