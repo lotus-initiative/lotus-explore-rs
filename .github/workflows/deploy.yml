@@ -74,6 +74,27 @@ jobs:
           test ! -e _final_site/assets/styles.css
           ! grep -Eq '(@import "tailwindcss"|@source)' _final_site/assets/lotus-explore.css
 
+      # The structure editor and the toolkit are fetched, gitignored, and now
+      # referenced with `option_asset!` so a bare checkout can compile. That
+      # trade has a cost: if `fetch-assets` fails inside the image, the build no
+      # longer fails -- it produces a site with no editor and no toolkit, and
+      # every other check here still passes. Assert them in the export, where a
+      # missing one is otherwise indistinguishable from a working site.
+      - name: Verify the third-party assets are exported
+        run: |
+          for f in assets/ketcher/index.html \
+                   assets/ketcher/static/js/main.e47c48ad.js \
+                   assets/vendor/rdkit/RDKit_minimal.js \
+                   assets/vendor/rdkit/RDKit_minimal.wasm; do
+            test -f "_final_site/$f" || {
+              echo "::error::missing $f from the export"; exit 1; }
+          done
+          # The editor loads its chunks by relative path, so the directory has to
+          # have travelled whole rather than as a lone entry document.
+          n=$(find _final_site/assets/ketcher -type f | wc -l | tr -d ' ')
+          test "$n" -ge 20 || {
+            echo "::error::only $n ketcher files exported; expected the whole directory"; exit 1; }
+
       # Agent discoverability lives entirely in this one directory, and the
       # upload step strips dot-directories by default (see include-hidden-files
       # below). Every file here 404'd for exactly that reason, which is what an
