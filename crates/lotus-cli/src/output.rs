@@ -252,3 +252,124 @@ fn hash(value: &str) -> String {
             acc
         })
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used)]
+
+    use super::*;
+    use std::sync::Arc;
+
+    fn entry() -> CompoundEntry {
+        CompoundEntry {
+            compound_qid: Arc::from("Q16521"),
+            name: Arc::from("Quercetin"),
+            formula: Some(Arc::from("C15H10O7")),
+            mass: Some(302.24),
+            taxon_name: Arc::from("Gentiana lutea"),
+            ..CompoundEntry::default()
+        }
+    }
+
+    fn render(
+        f: impl Fn(&mut Vec<u8>, &[CompoundEntry]) -> anyhow::Result<()>,
+        rows: &[CompoundEntry],
+    ) -> String {
+        let mut out = Vec::new();
+        f(&mut out, rows).expect("writing to a Vec cannot fail");
+        String::from_utf8(out).expect("output is UTF-8 by construction")
+    }
+
+    #[test]
+    fn a_value_containing_the_separator_is_quoted_so_the_file_still_parses() {
+        // The whole point of quoting: a taxon name with a comma in it would
+        // otherwise split into two columns and every column after it shifts.
+        assert_eq!(quote("a,b", b','), r#""a,b""#);
+        assert_eq!(quote("a\tb", b'\t'), "\"a\tb\"");
+    }
+
+    #[test]
+    fn a_quote_inside_a_value_is_doubled_not_dropped() {
+        // RFC 4180. A single `"` would end the field early and the rest of the
+        // value would be read as the next field.
+        assert_eq!(quote(r#"say "hi""#, b','), r#""say ""hi""""#);
+    }
+
+    #[test]
+    fn a_newline_inside_a_value_is_quoted() {
+        assert_eq!(quote("two\nlines", b','), "\"two\nlines\"");
+        assert_eq!(quote("two\r\nlines", b','), "\"two\r\nlines\"");
+    }
+
+    #[test]
+    fn an_ordinary_value_is_left_alone() {
+        // Quoting everything is valid CSV but not valid TSV, where a consumer
+        // that splits on tabs would keep the quotes.
+        for plain in ["Gentiana lutea", "302.24", "C15H10O7", ""] {
+            assert_eq!(quote(plain, b','), plain, "{plain:?}");
+            assert_eq!(quote(plain, b'\t'), plain, "{plain:?}");
+        }
+    }
+
+    #[test]
+    fn the_csv_header_names_every_column() {
+        let out = render(|o, r| write_delimited(o, r, b','), &[entry()]);
+        let header = out.lines().next().expect("a header line");
+        for column in COLUMNS {
+            assert!(
+                header.contains(column),
+                "{column:?} missing from {header:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_csv_row_carries_the_values_the_query_returned() {
+        let out = render(|o, r| write_delimited(o, r, b','), &[entry()]);
+        let row = out.lines().nth(1).expect("one data row");
+        assert!(row.contains("Q16521"), "{row}");
+        assert!(row.contains("Quercetin"), "{row}");
+        assert!(row.contains("Gentiana lutea"), "{row}");
+    }
+
+    #[test]
+    fn tsv_is_delimited_by_tabs_and_not_commas() {
+        // A TSV whose cells contain commas must not gain quote characters, or
+        // the first column of every row arrives wrapped in them.
+        let out = render(|o, r| write_delimited(o, r, b'\t'), &[entry()]);
+        let header = out.lines().next().expect("a header line");
+        assert!(header.contains('\t'), "{header:?}");
+        assert!(
+            !header.contains('"'),
+            "TSV headers are not quoted: {header:?}"
+        );
+    }
+
+    #[test]
+    fn an_empty_result_set_says_so_rather_than_printing_an_empty_table() {
+        // The default format. A header with no rows reads as a broken query.
+        assert_eq!(render(write_table, &[]).trim(), "no matches");
+    }
+
+    #[test]
+    fn a_table_column_is_as_wide_as_its_widest_value() {
+        // Alignment is the reason this format exists, so it is worth pinning:
+        // two spaces between columns, and the next column starts past the
+        // longest cell above it.
+        let out = render(write_table, &[entry()]);
+        let mut lines = out.lines();
+        let header = lines.next().expect("a header line");
+        let row = lines.next().expect("a data row");
+        let column = header.find("formula").expect("the formula column");
+        assert_eq!(row.as_bytes()[column], b'C', "misaligned: {row:?}");
+    }
+
+    #[test]
+    fn an_absent_optional_value_renders_as_nothing_rather_than_null() {
+        // A row with no DOI must not print "None" or "null" into a column a
+        // person is about to read.
+        let out = render(write_table, &[entry()]);
+        assert!(!out.contains("None"), "{out}");
+        assert!(!out.contains("null"), "{out}");
+    }
+}

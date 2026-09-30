@@ -125,18 +125,39 @@ so the count was verified by locating each `mod tests` line above it.
 
 ### Coverage
 
-`cargo llvm-cov --workspace --lib --summary-only`.
+Measured twice, because the first number was wrong and the wrongness mattered.
 
-| Scope                  | Lines |   Cover |
-| ---------------------- | ----: | ------: |
-| Total                  | 6,404 | 84.48% |
-| `lotus-query/parse.rs` |   566 | 96.29% |
-| `lotus-search/execute.rs` | 378 | 78.04% |
-| `lotus-query/query.rs` |   332 |  **8.13%** |
+`cargo llvm-cov --workspace --lib` reports **84.48%** over 6,404 lines. That
+figure is an artifact: `--lib` excludes the integration tests in each crate's
+`tests/` directory, and in this workspace the library crates are tested almost
+entirely from there. `lotus-query/src/query.rs` reads as **8.13%** under `--lib`
+and **92.95%** with integration tests counted, because all twenty of its
+behaviours are pinned in `tests/query_contract.rs`.
 
-`lotus-query/src/query.rs` is the one real hole: 8% of 332 lines, and it is the
-SPARQL query builder every other crate depends on. Noted here as the coverage
-target for this pass.
+The correct measurement is `cargo llvm-cov --workspace` (no `--lib`):
+
+| Crate                   | Regions |  Missed |  Region cover |
+| ----------------------- | ------: | ------: | ------------: |
+| `lotus-model`           |     821 |      19 |       97.69% |
+| `lotus-curation`        |   1,984 |      72 |       96.37% |
+| `lotus-query`           |   1,098 |      41 |       96.27% |
+| `lotus-jsonld`          |   1,447 |      83 |       94.26% |
+| `lotus-search`          |   1,119 |     263 |       76.50% |
+| `lotus-cli`             |     943 |     510 |       45.92% |
+| `lotus-web-assets`      |     948 |     627 |       33.86% |
+| **Total**               | **17,286** | **6,420** | **62.86%** |
+
+The four areas the brief names are all above 94%: model 97.69%, curation 96.37%,
+query parsing and building 96.27%, jsonld 94.26%.
+
+`lotus-web-assets` is the real gap at 33.86% and 627 missed regions, the largest
+absolute hole in the tree. It rewrites HTML and JavaScript on the way into the
+bundle, and a silent break there surfaces as a blank page in a deploy rather than
+a failing test. Recorded as this pass's coverage target.
+
+The many `0.00%` files in the app are Dioxus `#[component]` functions. They
+execute in a browser and in no test, which is a property of the framework
+rather than a gap worth closing here.
 
 ---
 
