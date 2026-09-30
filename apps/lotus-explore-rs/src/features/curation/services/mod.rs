@@ -27,6 +27,7 @@ mod chemical;
 mod enrichment;
 mod helpers;
 mod http_client;
+mod occurrence;
 // `unreachable_pub`-style narrowing requires `pub(crate)` here (used by
 // `crate::curation`); the nursery `redundant_pub_crate` suggestion (`pub`)
 // would widen it.
