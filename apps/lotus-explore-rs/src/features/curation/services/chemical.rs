@@ -99,6 +99,8 @@ async fn convert_with_batch_direct(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// Takes the parsed response by value: it is read once and dropped, and the
+// `as` below narrows a mass the service already serialised as a float.
 #[allow(clippy::needless_pass_by_value)]
 #[allow(clippy::cast_precision_loss)]
 fn extract_batch_convert_output(parsed: BatchConvertResponse) -> Result<String, CurationError> {

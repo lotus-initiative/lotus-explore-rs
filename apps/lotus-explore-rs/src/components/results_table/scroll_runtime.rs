@@ -93,6 +93,9 @@ pub(super) struct ScrollFrameState {
 }
 
 #[cfg(target_arch = "wasm32")]
+// A frame is one measurement: the state, the element, the row geometry and the
+// handle all belong to the same request, and grouping them into a struct would
+// only add a type to rebuild at the one call site that has the parts.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn schedule_virtual_scroll_frame(
     frame: ScrollFrameState,

@@ -169,6 +169,8 @@ pub fn normalize_formula_for_wikidata(value: &str) -> String {
         .collect()
 }
 
+// The fixtures are SPARQL prefixes and Turtle, where `#` introduces a
+// comment and a literal one would be a syntax error in the thing under test.
 #[cfg(test)]
 #[allow(clippy::needless_raw_string_hashes)]
 mod tests {

@@ -25,6 +25,10 @@ pub fn now_iso8601() -> String {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+// Every cast below narrows within a value already bounded by the caller: a
+// time-of-day is under 86_400, a day count is four figures, and a signed
+// offset becomes a `u64` count of days only after the era shift has made it
+// non-negative. Widening the types to prove it would cost more than it says.
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::cast_sign_loss)]
