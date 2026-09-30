@@ -2,8 +2,9 @@
 
 Every number here was measured, not estimated. The recipe that produces the byte
 table is `just web-bytes`; the Lighthouse figures come from a static server that
-negotiates the precompressed `.br` siblings, because `just preview` serves
-neither the `.br` files nor `_headers` and therefore overstates every transfer.
+negotiates the precompressed `.br` siblings, because the Dioxus dev server
+serves neither the `.br` files nor `_headers` and therefore overstates every
+transfer.
 
 ## Where the time goes
 
@@ -56,8 +57,8 @@ Each of these was built and measured rather than reasoned about. Sizes are
   | `+ panic = "abort"`               | 1465621 | 466744 | 598085 | **no-op**, +13 B raw     |
   | `dioxus/devtools` off             | 1463423 | 465709 | 597095 | **no-op**, ±0.03 %       |
 
-All of the above were taken with a bare `dx build`. `just build` --- the path
-the Dockerfile runs --- was compiling at `opt-level=s` for part of this work, so
+All of the above were taken with a bare `dx build`. The release build --- the
+path the Dockerfile runs --- was compiling at `opt-level=s` for part of this work, so
 its outputs came out 185300 raw bytes larger. The `opt-level=z` row is the one
 that ships, and `just opt-levels` now keeps the three declarations in agreement.
 
@@ -163,7 +164,8 @@ request scheduling rather than from making the module smaller.
 
 Because the module name is content-hashed, this cannot be written by hand in the
 source `index.html`; `inject-wasm-preload` (a second `lotus-web-assets` bin, run
-by both `just build` and the Dockerfile) injects it after the bundle is emitted.
+by both the release build and the Dockerfile) injects it after the bundle is
+emitted.
 It copies the asset prefix out of the preload `dx` already wrote, so a
 `--base-path` build works without the tool knowing about base paths. It reads
 the module name out of the glue rather than listing `assets/`, because `dx`
@@ -178,18 +180,18 @@ The optimisation level is declared in three places: `[profile.release]`
 appends `--rustc-args` last, so the justfile wins and the profile is decorative.
 
 They drifted: the justfile said `s`, the profile said `z`, and every
-`just build` shipped a module 185300 raw / 27843 brotli bytes larger than
+every release build shipped a module 185300 raw / 27843 brotli bytes larger than
 intended. CI stayed green, because each file was individually valid and nothing
 compared them. `just opt-levels` now runs in `ci` and fails on any disagreement.
 
-The cost was not only the bytes. A bare `dx build` and a `just build` were
+The cost was not only the bytes. A bare `dx build` and the release build were
 compiling at different levels from identical source, so they produced different
 binaries and every comparison between them was meaningless until this was found.
 Measure through the shipping path, and not by invoking `dx` by hand.
 
 ## The dev server is not a measurement target
 
-`just serve` (and `dx serve` generally) reports an enormous payload, and it is
+`dx serve` reports an enormous payload, and it is
 not a bug in the app. A Lighthouse run against it shows roughly 65 MB, almost
 all of it one request to `/wasm/lotus-explore-rs_bg.wasm` --- the debug module,
 served unhashed alongside the Dioxus JS interpreter snippets.
@@ -204,13 +206,13 @@ Measured on this workspace, dev wasm from identical source:
   | `-Cdebuginfo=0 -Cstrip=debuginfo` | **6.4 MiB** | **6 s** |
 
 Optimising barely moves it; the debug sections are the entire cost, and writing
-them is most of the build time. `just serve` now strips them, which is a 10x
+them is most of the build time. The dev server now strips them, which is a 10x
 smaller payload and a 7x faster dev build, and neither flag changes codegen so
 hot reload is unaffected. What it costs is line numbers in panic backtraces.
 
 The remaining gap between 6.4 MiB and the shipped 456 KiB brotli is the
 difference between a debug server and a release build. Take numbers from
-`just build` and a static server that negotiates the precompressed `.br`
+the release build and a static server that negotiates the precompressed `.br`
 siblings, never from `dx serve`.
 
 ## A measurement trap worth recording
@@ -320,4 +322,4 @@ Our own glue emits no `sourceMappingURL` and has no map, so there is also no
 dangling 404 to chase. A map for it would be \~1.4 MB against a 45 KiB payload ---
 a real transfer cost, paid by anyone whose browser fetches it, in exchange for
 an unscored audit. Debugging the release build is what `--debug-symbols` and the
-local `just serve` profile are for.
+local dev-server profile are for.

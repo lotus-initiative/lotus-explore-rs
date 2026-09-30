@@ -75,8 +75,8 @@ ci:
 # The optimisation level is declared in three places, and `dx` passes
 # `--rustc-args=-Copt-level=` last, so the justfile silently wins over the
 # `[profile.release]` it is supposed to match. That drift shipped once: the
-# recipes said `s` while the profile said `z`, and every `just build` produced a
-# module 185300 raw / 38433 brotli bytes larger than intended, with nothing in
+# one build said `s` while the profile said `z`, and every release bundle was
+# 185300 raw / 38433 brotli bytes larger than intended, with nothing in
 # CI noticing. Assert the three agree.
 opt-levels:
 	#!/usr/bin/env bash
@@ -185,7 +185,7 @@ web-bytes:
 	set -euo pipefail
 	out="target/dx/lotus-explore-rs/release/web/public"
 	if [ ! -f "$out/index.html" ]; then
-	  echo "no build at $out — run 'just build' first" >&2
+	  echo "no build at $out — run 'dx build --release --platform web' in apps/lotus-explore-rs first" >&2
 	  exit 1
 	fi
 	# `dx build` leaves a superseded bundle beside the current one, which

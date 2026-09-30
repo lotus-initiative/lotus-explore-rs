@@ -15,7 +15,9 @@ the CLI runs are the same query.
 ## Quick start
 
 ```bash
-just serve
+cd apps/lotus-explore-rs
+cargo run -p lotus-web-assets --bin fetch-assets
+dx serve --platform web --package lotus-explore-rs --locked
 ```
 
 This is a development server: it serves an unhashed bundle plus the Dioxus JS
@@ -24,7 +26,12 @@ transfer size against it. For anything you intend to publish, build first and
 serve the output:
 
 ```bash
-just build
+cd apps/lotus-explore-rs
+cargo run -p lotus-web-assets --bin fetch-assets
+dx build --release --platform web --package lotus-explore-rs --locked \
+  --debug-symbols=false --rustc-args=-Copt-level=z
+cd ../..
+cargo run -p lotus-web-assets --bin inject-wasm-preload
 ```
 
 That writes the real bundle to `target/dx/lotus-explore-rs/release/web/public`,

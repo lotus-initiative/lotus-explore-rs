@@ -137,13 +137,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ))]
 fn main() {
     // A native build with no renderer and no server. This is reachable only by
-    // asking for it: `just serve` builds the browser client, `--features server`
+    // asking for it: `dx serve` builds the browser client, `--features server`
     // builds the API, `--features desktop` builds the window. The message names
     // all three, because the obvious question when a binary exits immediately
     // is which one was wanted.
     eprintln!(
         "lotus-explore-rs (native): this binary has no user interface.\n\
-         \n  browser client   just serve\n\
+         \n  browser client   dx serve (from apps/lotus-explore-rs)\n\
          \x20 native window   cargo run --features desktop -p lotus-explore-rs\n\
          \x20 HTTP API        cargo run --features server -p lotus-explore-rs"
     );

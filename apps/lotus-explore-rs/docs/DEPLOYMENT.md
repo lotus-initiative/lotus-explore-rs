@@ -294,7 +294,7 @@ where it did.
 
 ## Local measurement
 
-`just preview` serves the bundle without the `.br` siblings and without
+The Dioxus dev server serves the bundle without the `.br` siblings and without
 `_headers`, so Lighthouse against it overstates transfer and understates cache
 behaviour. To measure what a real host does, serve
 `target/dx/lotus-explore-rs/release/web/public` with a static server that serves

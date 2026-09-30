@@ -12,10 +12,11 @@ crate and the QLever SPARQL endpoint.
 
 ## Quick start
 
-From the repository root:
+From the app directory:
 
 ```bash
-just serve
+cargo run -p lotus-web-assets --bin fetch-assets
+dx serve --platform web --package lotus-explore-rs --locked
 ```
 
 To also run the optional API:
@@ -68,14 +69,15 @@ Run the workspace test suite:
 cargo test --workspace --all-targets --locked
 ```
 
-For production-sized local performance and Lighthouse checks, run the release
-server:
+For production-sized local performance and Lighthouse checks, build the release
+bundle first and serve that directory with any static file server:
 
 ```bash
-just preview
+dx build --release --platform web --package lotus-explore-rs --locked \
+  --debug-symbols=false --rustc-args=-Copt-level=z
 ```
 
-`just serve` intentionally serves the debug WASM bundle for hot reload.
+`dx serve` intentionally serves the debug WASM bundle for hot reload.
 
 ## Setup: external assets
 
@@ -107,11 +109,12 @@ cd apps/lotus-explore-rs   # from repo root
 cargo run -p lotus-web-assets --bin fetch-assets
 ```
 
-Or simply use the `just` recipes, which fetch the assets automatically:
+Or fold the fetch into the build command:
 
 ```bash
-just build   # fetches external assets + dx build --release
-just serve   # fetches external assets + dx serve
+cargo run -p lotus-web-assets --bin fetch-assets && \
+  dx build --release --platform web --package lotus-explore-rs --locked \
+    --debug-symbols=false --rustc-args=-Copt-level=z
 ```
 
 ## Citation
