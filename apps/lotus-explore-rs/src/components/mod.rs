@@ -1,6 +1,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
+//! The Dioxus components, grouped by which page or surface they belong to.
+//!
+//! Grouped by surface rather than by widget: `results_table` is a thing a reader
+//! uses, `form_inputs` is a set of things, and a reader looking for "where does
+//! the row height come from" wants the first and would not look in the second.
+//!
+//! # Component length
+//!
+//! Components here run past the 40-line mark that applies elsewhere, and that is
+//! the shape of Dioxus rather than an oversight. A `#[component]` is markup: the
+//! `rsx!` block is one expression, and a `Footer` that was 156 lines of markup is
+//! not 156 lines of logic. Splitting one into three components to reach a line
+//! count would add three props and three files to say the same thing.
+//!
+//! What is *not* forgiven is logic inside the markup. A component that fetches,
+//! formats, and renders is three components: the fetch goes to `features/`, the
+//! formatting to a pure function beside the file, and the component keeps only
+//! the state and the `rsx!`. The line count is the symptom, not the disease, so
+//! it is the job that gets checked, not the length.
 pub mod copy_button;
 pub mod curation_results_table;
 pub mod data_curation_page;
