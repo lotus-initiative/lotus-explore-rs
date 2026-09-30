@@ -3,7 +3,7 @@
 //! Search panel and its subsection components.
 
 use crate::components::form_sections::{
-    FormulaSection, MassRangeInput, TaxonInput, YearRangeInput,
+    FieldExamples, FormulaSection, MassRangeInput, TaxonInput, YearRangeInput,
 };
 use crate::features::explore::{FormAction, use_criteria_selector};
 
@@ -16,6 +16,12 @@ use crate::i18n::{TextKey, t, threshold_label};
 use crate::state::{use_form_criteria_context, use_results_context};
 use crate::ui::a11y_contract::SEARCH_PANEL_BODY_ID;
 use dioxus::prelude::*;
+
+/// Four structures, chosen to show the three shapes a structure field is usually
+/// given: a straight chain, an aromatic ring, and a stereocentre. A stereocentre
+/// is the one worth an example, because it is the case a person cannot type from
+/// memory and would otherwise go looking for a tool to draw one.
+const STRUCTURE_SUGGESTIONS: &[&str] = &["CC", "CCC", "c1ccccc1", "C[C@H](O)CO"];
 use lotus_model::SmilesSearchType;
 use lotus_model::classify_structure;
 
@@ -36,7 +42,7 @@ pub fn SearchPanel() -> Element {
     rsx! {
         form {
             id: "lotus-search-form",
-            class: "search-panel flex-0-auto flex flex-col gap-2 rounded-xl border border-border bg-panel-soft p-3.5 w-full min-w-0",
+            class: "flex-0-auto flex flex-col gap-2 rounded-xl border border-border bg-panel-soft p-3.5 w-full min-w-0 min-h-[300px]",
             aria_label: t(locale, TextKey::Search).to_string(),
             // WebMCP declarative tool registration. These four `tool*`
             // attributes are the ones a WebMCP-capable browser reads; it
@@ -115,16 +121,17 @@ fn StructureSection() -> Element {
                 autocomplete: "off",
                 spellcheck: "false",
                 placeholder: "{t(locale, TextKey::StructurePlaceholder)}",
+                "aria-describedby": "smiles-input-examples-heading",
                 value: "{smiles}",
                 oninput: move |e| ctx.update(FormAction::Smiles(e.value())),
                 rows: "2",
                 class: "min-h-16 resize-y font-mono w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
             }
-            div { class: "flex flex-wrap gap-1.5",
-                span { class: "rounded-full border border-border bg-panel px-2 py-1 text-micro text-subtle", "CC" }
-                span { class: "rounded-full border border-border bg-panel px-2 py-1 text-micro text-subtle", "CCC" }
-                span { class: "rounded-full border border-border bg-panel px-2 py-1 text-micro text-subtle", "c1ccccc1" }
-                span { class: "rounded-full border border-border bg-panel px-2 py-1 text-micro text-subtle", "C[C@H](O)CO" }
+            FieldExamples {
+                target: "smiles-input",
+                values: STRUCTURE_SUGGESTIONS.iter().map(|s| (*s).to_string()).collect(),
+                heading: TextKey::Examples,
+                onfill: move |value: String| ctx.update(FormAction::Smiles(value)),
             }
             if let Some(note_key) = view_model.note_key {
                 p { class: "flex flex-wrap items-center gap-2 text-micro text-subtle",

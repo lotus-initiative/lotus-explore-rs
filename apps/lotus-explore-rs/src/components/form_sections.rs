@@ -3,8 +3,10 @@
 //! Focused subcomponents for `SearchPanel` form sections.
 
 mod basic_sections;
+mod field_examples;
 mod formula_section;
 mod shared;
 
 pub use basic_sections::{MassRangeInput, TaxonInput, YearRangeInput};
+pub use field_examples::FieldExamples;
 pub use formula_section::FormulaSection;

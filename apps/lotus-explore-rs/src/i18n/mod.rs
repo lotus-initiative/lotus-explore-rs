@@ -142,6 +142,8 @@ pub enum TextKey {
     // Search panel
     Taxon,
     TaxonPlaceholder,
+    Examples,
+    ExampleSets,
     StructureSmilesOrMol,
     StructurePlaceholder,
     Substructure,

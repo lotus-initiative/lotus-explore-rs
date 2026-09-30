@@ -87,9 +87,11 @@ pub const fn fr_t(key: TextKey) -> &'static str {
             "Les libellés privilégient 'mul' et utilisent 'en' en repli afin de garantir des résultats comparables."
         }
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
-        TextKey::TaxonPlaceholder => "Gentiana lutea - Q34317 - *",
+        TextKey::TaxonPlaceholder => "un nom, un QID Wikidata, ou * pour tout",
+        TextKey::Examples => "Exemples",
+        TextKey::ExampleSets => "Remplir le champ avec",
         TextKey::StructureSmilesOrMol => "SMILES ou Molfile",
-        TextKey::StructurePlaceholder => "c1ccccc1   - ou collez un Molfile (V2000 / V3000)",
+        TextKey::StructurePlaceholder => "SMILES, ou un Molfile (V2000 / V3000)",
         TextKey::Substructure => "Sous-structure",
         TextKey::Similarity => "Similarité",
         TextKey::StructureSearchMode => "Mode de recherche par structure",

@@ -87,11 +87,11 @@ pub const fn de_t(key: TextKey) -> &'static str {
             "Beschriftungen bevorzugen 'mul' und verwenden 'en' als Fallback, damit Ergebnisse vergleichbar bleiben."
         }
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
-        TextKey::TaxonPlaceholder => "Gentiana lutea - Q34317 - *",
+        TextKey::TaxonPlaceholder => "ein Name, eine Wikidata-QID oder * für alle",
+        TextKey::Examples => "Beispiele",
+        TextKey::ExampleSets => "Feld auf",
         TextKey::StructureSmilesOrMol => "SMILES oder Molfile",
-        TextKey::StructurePlaceholder => {
-            "c1ccccc1   - oder einen Molfile-Block (V2000 / V3000) einfügen"
-        }
+        TextKey::StructurePlaceholder => "SMILES oder ein Molfile (V2000 / V3000)",
         TextKey::Substructure => "Substruktur",
         TextKey::Similarity => "Ähnlichkeit",
         TextKey::StructureSearchMode => "Struktursuchmodus",

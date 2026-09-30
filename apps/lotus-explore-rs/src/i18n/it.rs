@@ -89,11 +89,11 @@ pub const fn it_t(key: TextKey) -> &'static str {
             "Le etichette preferiscono 'mul' e ricorrono a 'en' come fallback per mantenere confrontabili i risultati."
         }
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
-        TextKey::TaxonPlaceholder => "Gentiana lutea - Q34317 - *",
+        TextKey::TaxonPlaceholder => "un nome, un QID di Wikidata, o * per tutto",
+        TextKey::Examples => "Esempi",
+        TextKey::ExampleSets => "Imposta il campo su",
         TextKey::StructureSmilesOrMol => "SMILES o Molfile",
-        TextKey::StructurePlaceholder => {
-            "c1ccccc1   - oppure incolla un blocco Molfile (V2000 / V3000)"
-        }
+        TextKey::StructurePlaceholder => "SMILES, o un Molfile (V2000 / V3000)",
         TextKey::Substructure => "Sottostruttura",
         TextKey::Similarity => "Somiglianza",
         TextKey::StructureSearchMode => "Modalità di ricerca per struttura",

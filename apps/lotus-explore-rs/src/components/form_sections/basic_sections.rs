@@ -8,9 +8,14 @@ use crate::i18n::{TextKey, t};
 use crate::state::use_form_criteria_context;
 use dioxus::prelude::*;
 
+use super::field_examples::FieldExamples;
 use super::shared::{normalized_year_input_max, parse_f64_input, parse_u16_input};
 
-pub(super) const TAXON_SUGGESTIONS: &[&str] = &["Fungi", "Bacteria", "Plantae", "Animalia", "*"];
+/// Example taxa, as they would be typed. The first is a real QID rather than a
+/// rank, because a rank is not a taxon the endpoint resolves: `Plantae` is a clade
+/// with no compound, so it returns nothing and reads as a broken search.
+pub(super) const TAXON_SUGGESTIONS: &[&str] =
+    &["Gentiana", "Q34317", "Fungi", "Plantae", "Animalia", "*"];
 
 #[component]
 pub fn TaxonInput() -> Element {
@@ -34,6 +39,9 @@ pub fn TaxonInput() -> Element {
                 spellcheck: "false",
                 placeholder: "{t(locale, TextKey::TaxonPlaceholder)}",
                 value: "{taxon.read()}",
+                // The examples are a described group of buttons, not a hint in the
+                // placeholder, so the input points at them by name.
+                "aria-describedby": "taxon-input-examples-heading",
                 class: "w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                 list: "taxon-suggestions",
                 oninput: move |e| ctx.update(FormAction::Taxon(e.value())),
@@ -48,13 +56,11 @@ pub fn TaxonInput() -> Element {
                     option { value: "{item}" }
                 }
             }
-            div { class: "flex flex-wrap gap-1.5",
-                for item in TAXON_SUGGESTIONS {
-                    span {
-                        class: "rounded-full border border-border bg-panel px-2 py-1 text-micro text-subtle",
-                        "{item}"
-                    }
-                }
+            FieldExamples {
+                target: "taxon-input",
+                values: TAXON_SUGGESTIONS.iter().map(|s| (*s).to_string()).collect(),
+                heading: TextKey::Examples,
+                onfill: move |value: String| ctx.update(FormAction::Taxon(value)),
             }
         }
     }

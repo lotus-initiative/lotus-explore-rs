@@ -82,9 +82,11 @@ pub const fn en_t(key: TextKey) -> &'static str {
             "Labels prefer 'mul' and fall back to 'en' so results remain comparable."
         }
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
-        TextKey::TaxonPlaceholder => "Gentiana lutea - Q34317 - *",
+        TextKey::TaxonPlaceholder => "a name, a Wikidata QID, or * for everything",
+        TextKey::Examples => "Examples",
+        TextKey::ExampleSets => "Set the field to",
         TextKey::StructureSmilesOrMol => "SMILES or Molfile",
-        TextKey::StructurePlaceholder => "c1ccccc1   - or paste a Molfile (V2000 / V3000) block",
+        TextKey::StructurePlaceholder => "SMILES, or a Molfile (V2000 / V3000)",
         TextKey::Substructure => "Substructure",
         TextKey::Similarity => "Similarity",
         TextKey::StructureSearchMode => "Structure search mode",
