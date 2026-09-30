@@ -128,6 +128,9 @@ pub const fn de_t(key: TextKey) -> &'static str {
 
         TextKey::KetcherIframeTitle => "Ketcher-Struktureditor",
         TextKey::KetcherClickToLoad => "Klicken Sie, um den Ketcher-Struktureditor zu laden.",
+        TextKey::KetcherNotBundled => {
+            "Der Struktureditor war in diesem Build nicht enthalten. Fuhren Sie `cargo run -p lotus-web-assets --bin fetch-assets` aus und bauen Sie neu."
+        }
         TextKey::KindNoteSmiles => "  Wird als einzeiliges SPARQL-Literal gesendet.",
         TextKey::KindNoteMol2000 => {
             "  Wird unverändert an SACHEM scoredSubstructureSearch weitergegeben."

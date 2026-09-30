@@ -161,9 +161,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with: { persist-credentials: false, fetch-depth: 1 }
       - uses: dtolnay/rust-toolchain@stable
+      # The crate is `dioxus-cli`, not `dx`: `dx` is the binary it installs and
+      # is not published to crates.io, so `dx@0.7.1` failed to resolve. The
+      # version matches the `dioxus` dependency, as the README already says.
       - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
         with:
-          tool: dx@0.7.1
+          tool: dioxus-cli@0.7.10
       # Native is the one target nothing was checking. Every desktop-only bug
       # reported so far -- an unstyled window, a no-op download, a 404 for
       # RDKit -- compiled cleanly here and was invisible to CI, because the
@@ -172,10 +175,22 @@ jobs:
         run: cargo clippy -p lotus-explore-rs --features desktop --locked -- -D warnings
       - name: Test desktop
         run: cargo test -p lotus-explore-rs --features desktop --all-targets --locked --quiet
+      # RDKit and Ketcher are gitignored and fetched. Without this the bundle is
+      # built without them, and the build still succeeds -- which is how a
+      # desktop app with no structure editor can be produced without a word from
+      # the compiler.
+      - name: Fetch the third-party assets
+        run: cargo run --locked -p lotus-web-assets --bin fetch-assets
       - name: Build desktop app
         run: |
           cd apps/lotus-explore-rs
           dx build --package lotus-explore-rs --desktop --locked --features desktop
+      # Asserts the bundle can answer every request the app makes of it: the
+      # icon the plist names, both folder assets, and Ketcher's own relative
+      # references. The bundle was complete while every URL 404ed, so checking
+      # that files exist is not enough on its own.
+      - name: Verify the bundle
+        run: just verify-bundle && just bundle-icon
 
   supply-chain:
     name: Supply-chain

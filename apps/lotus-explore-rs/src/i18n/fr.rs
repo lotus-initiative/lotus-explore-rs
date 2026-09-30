@@ -128,6 +128,9 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         }
         TextKey::KetcherIframeTitle => "Éditeur de structure Ketcher",
         TextKey::KetcherClickToLoad => "Cliquez pour charger l'éditeur de structure Ketcher.",
+        TextKey::KetcherNotBundled => {
+            "L'editeur de structure n'a pas ete inclus dans cette version. Lancez `cargo run -p lotus-web-assets --bin fetch-assets` puis recompilez."
+        }
         TextKey::KindNoteSmiles => "  Envoyé comme littéral SPARQL sur une seule ligne.",
         TextKey::KindNoteMol2000 => "  Transmis tel quel à SACHEM scoredSubstructureSearch.",
         TextKey::KindNoteMol3000 => {

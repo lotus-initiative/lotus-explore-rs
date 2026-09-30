@@ -116,6 +116,9 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::KetcherHintD => ") and use it in the Search structure field.",
         TextKey::KetcherIframeTitle => "Ketcher structure editor",
         TextKey::KetcherClickToLoad => "Click to load the Ketcher structure editor.",
+        TextKey::KetcherNotBundled => {
+            "The structure editor was not included in this build. Run `cargo run -p lotus-web-assets --bin fetch-assets` and rebuild."
+        }
         TextKey::KindNoteSmiles => "  Sent as a single-line SPARQL literal.",
         TextKey::KindNoteMol2000 => "  Forwarded verbatim to SACHEM scoredSubstructureSearch.",
         TextKey::KindNoteMol3000 => {

@@ -127,6 +127,9 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::KetcherHintD => ") e usalo nel campo struttura della scheda Ricerca.",
         TextKey::KetcherIframeTitle => "Editor di strutture Ketcher",
         TextKey::KetcherClickToLoad => "Clicca per caricare l'editor di strutture Ketcher.",
+        TextKey::KetcherNotBundled => {
+            "L'editor di strutture non e incluso in questa build. Esegui `cargo run -p lotus-web-assets --bin fetch-assets` e ricompila."
+        }
         TextKey::KindNoteSmiles => "  Inviato come letterale SPARQL su una singola riga.",
         TextKey::KindNoteMol2000 => {
             "  Inoltrato senza modifiche a SACHEM scoredSubstructureSearch."

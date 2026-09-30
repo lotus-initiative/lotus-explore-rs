@@ -3,6 +3,7 @@
 //! Ketcher molecule editor panel.
 
 use crate::i18n::{TextKey, t};
+use crate::ui::prelude::{NoticeBar, NoticeTone};
 use dioxus::prelude::*;
 
 #[component]
@@ -14,7 +15,16 @@ pub fn KetcherPanel() -> Element {
     // relative path, a missing `assets/` prefix, or a hashed name the editor's
     // own relative references do not match. All three look like "the editor does
     // not load" and nothing else.
-    log::info!("event=ketcher_load state=url url={ketcher_url}");
+    log::info!("event=ketcher_load state=url url={ketcher_url:?}");
+
+    // An editor that was never fetched is a different thing from one that failed
+    // to load, and it has to read differently. Rendering the frame anyway gives an
+    // empty box with no explanation, which is how this page was misdiagnosed.
+    let Some(ketcher_url) = ketcher_url else {
+        return rsx! {
+            NoticeBar { tone: NoticeTone::Warning, label: t(locale, TextKey::KetcherNotBundled).to_string() }
+        };
+    };
 
     rsx! {
         div {

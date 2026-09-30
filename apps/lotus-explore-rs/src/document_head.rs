@@ -21,20 +21,32 @@ use dioxus::prelude::*;
 ///
 /// The wasm module needs a `locateFile` override, and that is the one URL that
 /// cannot be a `src` -- see [`RDKIT_WASM_GLOBAL`].
+///
+/// The loader is omitted when `RDKit` was never fetched. It is 7 MB of wasm that
+/// `fetch-assets` downloads, and a build that skipped it should not leave a tag
+/// pointing at a file the bundler never had. The bridge already reports a missing
+/// toolkit, so the page degrades to a clear error rather than a silent hang.
 #[component]
 pub fn CurationScripts() -> Element {
+    let loader = crate::vendor_assets::rdkit_script_url();
+    let wasm = crate::vendor_assets::rdkit_wasm_url();
+
     // `document::eval` rather than an inline `<script>`. Dioxus renders a
     // `document::Script` from a single text node and rejects anything else, and
     // the text would have to be HTML-escaped, which a script body does not
     // unescape. Ordering is not a concern: this runs during the render, and the
     // loader below is `defer`red, so it executes after.
-    use_effect(|| {
-        let wasm = crate::vendor_assets::rdkit_wasm_url();
-        document::eval(&format!("window.{RDKIT_WASM_GLOBAL} = '{wasm}';"));
+    use_effect(move || {
+        if let Some(wasm) = wasm.as_deref() {
+            document::eval(&format!("window.{RDKIT_WASM_GLOBAL} = '{wasm}';"));
+        }
     });
+
     rsx! {
         document::Script { src: asset!("/public/assets/js/curation/rdkit-bridge.js"), defer: true, "type": "text/javascript" }
-        document::Script { src: crate::vendor_assets::rdkit_script_url(), defer: true, "type": "text/javascript" }
+        if let Some(loader) = loader {
+            document::Script { src: "{loader}", defer: true, "type": "text/javascript" }
+        }
         document::Script { src: asset!("/public/assets/js/curation/citation-bridge.js"), defer: true, "type": "text/javascript" }
     }
 }

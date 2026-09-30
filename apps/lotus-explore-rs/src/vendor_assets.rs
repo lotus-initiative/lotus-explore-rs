@@ -3,16 +3,24 @@
 //! Build-time references to the large third-party assets.
 //!
 //! `fetch-assets` downloads `RDKit` and `Ketcher` into `public/assets/`, and both
-//! are gitignored, so they are absent from a fresh checkout. Two consequences:
+//! are gitignored, so they are absent from a fresh checkout. Two consequences,
+//! and this module is the meeting point of both:
 //!
-//! - Nothing in the repository can name those paths, so a path typo here is a
-//!   compile error rather than a 404 at runtime. That is the reason these
-//!   references live in Rust rather than being composed as strings in the
-//!   bridge.
 //! - `dx` copies into a bundle only the assets Rust references. On the web the
 //!   server serves the whole `public/` tree, so a string URL is enough; in a
 //!   desktop bundle it 404s, because the bundler cannot see a path built at
 //!   runtime. Both directories are therefore declared here as folder assets.
+//! - A plain `asset!` on a missing directory is a **compile error**, which would
+//!   make the crate unbuildable from a bare checkout. That is not hypothetical:
+//!   it is what broke every job in CI and the deploy, because those check out
+//!   the repository without running `fetch-assets`. So these are `option_asset!`,
+//!   which resolves to `None` for a directory that was never fetched.
+//!
+//! `option_asset!` is not a weaker check than it looks. A path that does not exist
+//! yields `None`; a path that exists but is *misspelled* is still a compile error,
+//! so a typo cannot slip through as a missing asset. And nothing degrades
+//! silently: a `None` means the editor and the toolkit are reported as absent to
+//! the user rather than rendering a broken frame or a bridge that never loads.
 //!
 //! The two are folders rather than individual files because each is a
 //! multi-file application: `Ketcher`'s `index.html` loads hashed chunks by a
@@ -31,7 +39,7 @@ use dioxus::prelude::*;
 // by the macro.
 #[used]
 #[allow(dead_code, clippy::volatile_composites)]
-static RDKIT: manganis::Asset = manganis::asset!(
+static RDKIT: Option<manganis::Asset> = manganis::option_asset!(
     "/public/assets/vendor/rdkit",
     manganis::AssetOptions::folder()
 );
@@ -43,8 +51,8 @@ static RDKIT: manganis::Asset = manganis::asset!(
 // As `RDKIT` above.
 #[used]
 #[allow(dead_code, clippy::volatile_composites)]
-static KETCHER: manganis::Asset =
-    manganis::asset!("/public/assets/ketcher", manganis::AssetOptions::folder());
+static KETCHER: Option<manganis::Asset> =
+    manganis::option_asset!("/public/assets/ketcher", manganis::AssetOptions::folder());
 
 /// The URL a bundled folder asset is served at.
 ///
@@ -62,7 +70,12 @@ static KETCHER: manganis::Asset =
 /// A folder asset gets no content hash of its own: the files inside are already
 /// content-hashed by the projects that ship them, and their internal references
 /// are relative.
-fn bundled_folder_url(asset: &manganis::Asset) -> String {
+fn bundled_folder_url(asset: Option<&manganis::Asset>) -> Option<String> {
+    asset.map(asset_url_of)
+}
+
+/// [`asset_url_for`], from an asset rather than a path.
+fn asset_url_of(asset: &manganis::Asset) -> String {
     asset_url_for(asset.bundled().bundled_path())
 }
 
@@ -83,16 +96,16 @@ fn asset_url_for(bundled: &str) -> String {
 /// Where the desktop bundle serves its assets from.
 const ASSET_DIR: &str = "assets";
 
-/// The URL of Ketcher's entry document.
+/// The URL of Ketcher's entry document, or `None` if it was never fetched.
 #[must_use]
-pub fn ketcher_url() -> String {
-    in_folder(&bundled_folder_url(&KETCHER), "index.html")
+pub fn ketcher_url() -> Option<String> {
+    bundled_folder_url(KETCHER.as_ref()).map(|url| in_folder(&url, "index.html"))
 }
 
-/// The URL of `RDKit`'s loader script.
+/// The URL of `RDKit`'s loader script, or `None` if it was never fetched.
 #[must_use]
-pub fn rdkit_script_url() -> String {
-    in_folder(&bundled_folder_url(&RDKIT), "RDKit_minimal.js")
+pub fn rdkit_script_url() -> Option<String> {
+    bundled_folder_url(RDKIT.as_ref()).map(|url| in_folder(&url, "RDKit_minimal.js"))
 }
 
 /// The URL of `RDKit`'s WebAssembly module.
@@ -101,8 +114,8 @@ pub fn rdkit_script_url() -> String {
 /// for `RDKit_minimal.wasm` next to the script, which only works if the two kept
 /// their original names in the bundle.
 #[must_use]
-pub fn rdkit_wasm_url() -> String {
-    in_folder(&bundled_folder_url(&RDKIT), "RDKit_minimal.wasm")
+pub fn rdkit_wasm_url() -> Option<String> {
+    bundled_folder_url(RDKIT.as_ref()).map(|url| in_folder(&url, "RDKit_minimal.wasm"))
 }
 
 /// Join a file name onto a bundled folder path, tolerating either a trailing

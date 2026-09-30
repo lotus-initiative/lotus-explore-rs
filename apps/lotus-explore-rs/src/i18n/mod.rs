@@ -175,6 +175,7 @@ pub enum TextKey {
     KetcherHintD,
     KetcherIframeTitle,
     KetcherClickToLoad,
+    KetcherNotBundled,
     KindNoteSmiles,
     KindNoteMol2000,
     KindNoteMol3000,
