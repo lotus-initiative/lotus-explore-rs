@@ -112,6 +112,10 @@ indexing_slicing = "deny"
 # Assertions must explain intent; makes test failures self-documenting
 missing_assert_message = "deny"
 panic = "deny"
+# `shadow_unrelated` was tried and dropped: it fires on ordinary test-local
+# shadowing (`let root = ...` inside a block that already has a `root`), which is
+# idiomatic Rust rather than a defect, and 28 hits across the workspace is
+# enough noise that the lint would be ignored rather than obeyed.
 todo = "deny"
 # Any unsafe block must come with a justification comment
 undocumented_unsafe_blocks = "deny"
@@ -134,23 +138,29 @@ multiple_crate_versions = "allow"
 dead_code = "deny"
 missing_debug_implementations = "deny"
 missing_docs = "deny"
+# A binding that shadows another in the same scope is nearly always a mistake in
+# which of the two was meant.
 unreachable_pub = "deny"
 unsafe_code = "forbid"
 # Require an explicit unsafe block per unsafe operation inside unsafe fns
 unsafe_op_in_unsafe_fn = "deny"
+# An assignment that is immediately overwritten, or one whose value is never read:
+# either dead, or a sign the branch it guards was meant to return.
+unused_assignments = "deny"
 unused_crate_dependencies = "deny"
+unused_imports = "deny"
 unused_must_use = "deny"
 # A `let` binding that shadows is nearly always a bug in the binding, and one
 # that diverges from the value it was derived from is nearly always a bug in the
 # derivation.
 unused_variables = "deny"
-unused_imports = "deny"
-# An assignment that is immediately overwritten, or one whose value is never read:
-# either dead, or a sign the branch it guards was meant to return.
-unused_assignments = "deny"
-# A binding that shadows another in the same scope is nearly always a mistake in
-# which of the two was meant.
-shadow_unrelated = "deny"
+
+# `dev` keeps the debug assertions and overflow checks the release profile drops,
+# which is the point: the two profiles differ in what they check, not only in
+# how fast they are. Incremental is on, which is the default, and the incremental
+# cache is not shared with `test`.
+[profile.dev]
+debug = 1
 
 # The shipped wasm bundle and the desktop binary.
 #
@@ -169,13 +179,6 @@ debug-assertions = false
 overflow-checks = false
 lto = "fat"
 codegen-units = 1
-
-# `dev` keeps the debug assertions and overflow checks the release profile drops,
-# which is the point: the two profiles differ in what they check, not only in
-# how fast they are. Incremental is on, which is the default, and the incremental
-# cache is not shared with `test`.
-[profile.dev]
-debug = 1
 
 # A dependency compiled for tests is built once more than it needs to be; without
 # this the test build recompiles the whole graph with different settings.

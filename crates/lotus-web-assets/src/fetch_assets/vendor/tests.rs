@@ -14,6 +14,11 @@
 use super::*;
 use crate::test_support::{MockServer, client, err, http_ok, http_status, temp_dir};
 
+/// `count` copies of one response, for a request the client retries.
+fn repeated(response: String, count: usize) -> Vec<String> {
+    vec![response; count]
+}
+
 /// An asset with no files, which is enough to exercise the cache decision.
 fn asset_at(version: &str) -> VendoredAsset {
     VendoredAsset {
@@ -208,7 +213,7 @@ fn a_pinned_rdkit_version_skips_the_metadata_request() {
 
 #[test]
 fn metadata_a_500_is_not_treated_as_an_asset() {
-    let server = MockServer::start(vec![http_status(500, "Server Error")]);
+    let server = MockServer::start(repeated(http_status(500, "Server Error"), 3));
     let message = err(resolve_metadata_version(
         &client(3000),
         &server.url("/meta"),
@@ -266,7 +271,7 @@ fn a_failed_asset_leaves_no_version_recorded() {
             "RDKit_minimal.js".to_owned(),
         )],
     };
-    let server = MockServer::start(vec![http_status(500, "Server Error")]);
+    let server = MockServer::start(repeated(http_status(500, "Server Error"), 3));
     let mut state = parse_state("");
 
     let message = err(asset.at(&server.url("/RDKit_minimal.js")).refresh(

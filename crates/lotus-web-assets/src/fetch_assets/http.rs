@@ -33,17 +33,79 @@ pub fn setting(name: &str, default: &str) -> String {
     setting_or(env::var(name).ok(), default)
 }
 
-/// Reject a response that is not 2xx, naming the URL.
+/// How many times a request is attempted before it is called failed.
 ///
-/// Shared by every fetch here because a 404 from a CDN is a perfectly good body
-/// to write to disk, and the asset then looks present until the deployed site
-/// 404s on it.
-fn check_status(status: reqwest::StatusCode, url: &str) -> Result<(), Box<dyn std::error::Error>> {
-    if status.is_success() {
-        Ok(())
-    } else {
-        Err(format!("HTTP {status} fetching {url}").into())
+/// Three, with the wait doubling between them. This binary pulls ~115 MB from
+/// four hosts -- unpkg, GitHub releases, raw.githubusercontent.com, and a
+/// licence file on each -- so a run makes a dozen requests and every one of them
+/// is an opportunity for a connection reset, a CDN 5xx, or a rate limit. One
+/// attempt per request made the whole build fail intermittently on a transient
+/// blip, and a build that fails at random is a build people stop reading.
+const ATTEMPTS: u32 = 3;
+
+/// Base wait before the second attempt. Doubled each time, so the three waits are
+/// 1 s, 2 s, 4 s -- long enough for a rate limit to clear, short enough that a
+/// genuinely broken URL fails in under a minute.
+///
+/// A test that makes a request fail needs to sit through that, so under `cfg(test)`
+/// it is short enough to run. The retry *count* is unchanged, so what the tests
+/// exercise is the same number of attempts.
+#[cfg(not(test))]
+const BACKOFF: std::time::Duration = std::time::Duration::from_secs(1);
+#[cfg(test)]
+const BACKOFF: std::time::Duration = std::time::Duration::from_millis(1);
+
+/// Whether a failure is worth trying again.
+///
+/// A transport error or a 5xx is the server or the network, not the request: the
+/// same URL usually works a moment later. A 4xx is the URL, and repeating it
+/// three times only triples the wait before the same answer. `429` is the one
+/// 4xx that clears on its own.
+#[must_use]
+fn is_retryable(status: Option<reqwest::StatusCode>) -> bool {
+    // `None` means the request never completed.
+    status.is_none_or(|status| {
+        status.is_server_error() || status == reqwest::StatusCode::TOO_MANY_REQUESTS
+    })
+}
+
+/// GET a URL, retrying a transient failure, and hand back the response.
+///
+/// Every request in this binary goes through here, so the retry policy is stated
+/// once rather than at each call site.
+///
+/// # Errors
+/// Returns the last failure once the attempts are spent: the transport error, or
+/// the status the endpoint kept answering with.
+pub fn get(
+    client: &Client,
+    url: &str,
+) -> Result<reqwest::blocking::Response, Box<dyn std::error::Error>> {
+    let mut wait = BACKOFF;
+    for attempt in 1..=ATTEMPTS {
+        match client.get(url).send() {
+            Ok(response) if response.status().is_success() => return Ok(response),
+            Ok(response) => {
+                let status = response.status();
+                if !is_retryable(Some(status)) {
+                    return Err(format!("HTTP {status} fetching {url}").into());
+                }
+                if attempt == ATTEMPTS {
+                    return Err(format!("HTTP {status} fetching {url}").into());
+                }
+                eprintln!("  {status} from {url}, retrying in {wait:?}");
+            }
+            Err(error) => {
+                if attempt == ATTEMPTS {
+                    return Err(format!("could not reach {url}: {error}").into());
+                }
+                eprintln!("  {url}: {error}, retrying in {wait:?}");
+            }
+        }
+        std::thread::sleep(wait);
+        wait *= 2;
     }
+    unreachable!("the loop returns on the last attempt")
 }
 
 /// GET a URL and parse the body as JSON.
@@ -51,8 +113,7 @@ fn check_status(status: reqwest::StatusCode, url: &str) -> Result<(), Box<dyn st
 /// # Errors
 /// Returns the transport failure, a non-2xx status, or a body that is not JSON.
 pub fn read_json(client: &Client, url: &str) -> Result<Value, Box<dyn std::error::Error>> {
-    let response = client.get(url).send()?;
-    check_status(response.status(), url)?;
+    let response = get(client, url)?;
     Ok(serde_json::from_slice(&response.bytes()?)?)
 }
 
@@ -71,8 +132,7 @@ pub fn fetch_file(
     destination: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Downloading {url} ...");
-    let response = client.get(url).send()?;
-    check_status(response.status(), url)?;
+    let response = get(client, url)?;
     let bytes = response.bytes()?;
     if bytes.is_empty() {
         return Err(format!("empty response fetching {url}").into());
@@ -118,8 +178,7 @@ pub fn resolve_github_ref(
     }
 
     let url = format!("{base_url}/{repository}/commits/{requested}.atom");
-    let response = client.get(&url).send()?;
-    check_status(response.status(), &url)?;
+    let response = get(client, &url)?;
     let bytes = response.bytes()?;
     let body = String::from_utf8_lossy(&bytes);
     github_commit(&body)
@@ -139,8 +198,7 @@ pub fn resolve_tagged_version(
     if requested != "latest" {
         return Ok(normalize_version(requested));
     }
-    let response = client.get(latest_url).send()?;
-    check_status(response.status(), latest_url)?;
+    let response = get(client, latest_url)?;
     let Some(tag) = response
         .url()
         .path()

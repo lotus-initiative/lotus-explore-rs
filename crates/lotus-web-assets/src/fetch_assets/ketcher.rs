@@ -258,10 +258,7 @@ pub fn fetch_ketcher(
 
     let url = target.url.clone().unwrap_or_else(|| release_url(&version));
     println!("Downloading Ketcher v{version} from {url} ...");
-    let response = client.get(&url).send()?;
-    if !response.status().is_success() {
-        return Err(format!("HTTP {} fetching {url}", response.status()).into());
-    }
+    let response = super::http::get(client, &url)?;
     let bytes = response.bytes()?;
     println!("  downloaded {} bytes", bytes.len());
 

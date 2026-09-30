@@ -49,10 +49,13 @@ fn a_blank_setting_counts_as_unset() {
 
 #[test]
 fn json_is_parsed_and_a_500_is_not() {
-    let server = MockServer::start(vec![
-        http_ok(r#"{"version":"1"}"#),
-        http_status(500, "Server Error"),
-    ]);
+    // The mock answers one response per connection, and a 5xx is retried, so the
+    // server has to be given the response once per attempt. This is the shape a
+    // flaky CDN produces, and the point is that the fetch still reports the 500
+    // rather than succeeding on an empty answer.
+    let mut responses = vec![http_ok(r#"{"version":"1"}"#)];
+    responses.extend((0..3).map(|_| http_status(500, "Server Error")));
+    let server = MockServer::start(responses);
     let client = client(3000);
     assert_eq!(
         read_json(&client, &server.url("/a")).unwrap_or_default()["version"],
@@ -60,6 +63,31 @@ fn json_is_parsed_and_a_500_is_not() {
     );
     let message = err(read_json(&client, &server.url("/b")));
     assert!(message.contains("500"), "got {message}");
+}
+
+#[test]
+fn a_4xx_is_not_retried() {
+    // A 404 is the URL, not the server: repeating it only triples the wait
+    // before the same answer. The mock queues one response, so a second attempt
+    // would get a refused connection and the error would name that instead.
+    let server = MockServer::start(vec![http_status(404, "Not Found")]);
+    let message = err(read_json(&client(3000), &server.url("/gone")));
+    assert!(message.contains("404"), "got {message}");
+}
+
+#[test]
+fn a_transient_failure_is_retried_and_then_succeeds() {
+    // The case that motivated the retry: one blip, and the fetch works. Without
+    // it a CDN hiccup fails a 115 MB build.
+    let server = MockServer::start(vec![
+        http_status(503, "Service Unavailable"),
+        http_ok(r#"{"version":"2"}"#),
+    ]);
+    assert_eq!(
+        read_json(&client(3000), &server.url("/flaky")).unwrap_or_default()["version"],
+        Value::from("2"),
+        "the second attempt succeeds"
+    );
 }
 
 #[test]
@@ -274,8 +302,8 @@ fn a_file_is_written_and_an_error_page_is_not() {
     );
 
     let empty = dir.join("empty.txt");
-    let message = err(fetch_file(&c, &server.url("/c"), &empty));
-    assert!(message.contains("empty response"), "got {message}");
+    let error = err(fetch_file(&c, &server.url("/c"), &empty));
+    assert!(error.contains("empty response"), "got {error}");
     assert!(!empty.exists(), "an empty body is not an asset");
 
     let _ = fs::remove_dir_all(&dir);

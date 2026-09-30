@@ -30,20 +30,28 @@ WORKDIR /build
 
 # System deps: curl (for dx download), gcc (C linker for native build scripts),
 # pkg-config + libssl-dev (crypto crates)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# `-o Acquire::Retries=5` for the same reason as the `curl` below: the mirrors
+# occasionally reset a connection, and a transient apt failure would fail the
+# image build rather than retrying.
+RUN apt-get -o Acquire::Retries=5 update && apt-get install -y --no-install-recommends \
     curl gcc pkg-config libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Download the pre-built `dx` binary matching the host architecture
 # (aarch64 on Apple Silicon, x86_64 on Intel/AMD). This avoids the slow
 # `cargo install dioxus-cli` from source.
+# `--retry 5 --retry-all-errors --retry-delay 5` because this is a ~30 MB
+# download from GitHub's release CDN, and a connection reset part way through
+# otherwise fails the whole build for a reason that has nothing to do with the
+# commit under test.
 RUN arch=$(uname -m) && \
     case "$arch" in \
       aarch64) dx_arch="aarch64" ;; \
       x86_64)  dx_arch="x86_64" ;; \
       *) echo "unsupported arch: $arch" && exit 1 ;; \
     esac && \
-    curl -fsSL -o /tmp/dx.tar.gz \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 \
+      -o /tmp/dx.tar.gz \
       https://github.com/DioxusLabs/dioxus/releases/download/v0.7.10/dx-${dx_arch}-unknown-linux-gnu.tar.gz && \
     tar -xzf /tmp/dx.tar.gz -C /usr/local/bin/ && \
     chmod +x /usr/local/bin/dx && \
@@ -60,8 +68,22 @@ ARG DX_BASE_PATH="/"
 # Fetch configured curation assets and Ketcher (115 MB) then build the WASM web bundle.
 # fetch-assets runs from apps/lotus-explore-rs/ so its relative asset
 # directories land inside the app crate's public/ dir.
+# `fetch-assets` retries transient HTTP failures itself. The retry around the
+# whole command is for the failure it cannot see: a Docker layer that starts but
+# is cut off mid-download leaves the build with a partial `public/assets/`, and
+# `dx build` succeeds against that -- publishing a site with no structure editor
+# rather than failing.
 RUN cd apps/lotus-explore-rs && \
-    cargo run --release -p lotus-web-assets --bin fetch-assets && \
+    for attempt in 1 2 3; do \
+      cargo run --release -p lotus-web-assets --bin fetch-assets && break; \
+      echo "fetch-assets attempt $attempt failed; cleaning and retrying"; \
+      rm -rf public/assets/ketcher public/assets/vendor; \
+      [ "$attempt" = 3 ] && exit 1; \
+      sleep $((attempt * 10)); \
+    done && \
+    test -f public/assets/ketcher/index.html && \
+    test -f public/assets/vendor/rdkit/RDKit_minimal.wasm && \
+    test -f public/assets/vendor/citation-js/citation.js && \
     BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx build --release --platform web --base-path "${DX_BASE_PATH}" --package lotus-explore-rs --locked --debug-symbols=false --rustc-args=-Copt-level=z && \
     cd /build && cargo run --release -p lotus-web-assets --bin inject-wasm-preload
 
