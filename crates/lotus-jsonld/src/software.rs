@@ -7,15 +7,25 @@ use crate::{Profile, doi_uri, property_value};
 use serde_json::{Value, json};
 
 /// What the software is called, and how to cite it.
+///
+/// The source for all three citation formats, so a version bump is one edit.
 #[derive(Debug, Clone, Copy)]
 pub struct Software {
+    /// The project's name.
     pub name: &'static str,
+    /// One sentence on what it is for.
     pub description: &'static str,
+    /// Where the software is used.
     pub url: &'static str,
+    /// Where the source is.
     pub repository: &'static str,
+    /// The concept DOI, when the project has minted one.
     pub doi: Option<&'static str>,
+    /// The released version.
     pub version: &'static str,
+    /// The SPDX licence identifier.
     pub license: &'static str,
+    /// Subject terms, for discovery.
     pub keywords: &'static [&'static str],
 }
 

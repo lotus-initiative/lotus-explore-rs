@@ -1,18 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! The LOTUS curation vocabulary.
-//!
-//! Curation means: a chemist has a list of compounds and taxa, and some of
-//! those are in Wikidata and some are not. The job is to say which is which and
-//! to write the statements that would fix the ones that are not.
-//!
-//! Everything here is pure — the types a row and a result have, the Wikidata
-//! item identifiers they are written against, and how a batch of statements is
-//! assembled for a curator to submit. Nothing here talks to Wikidata or to
-//! `RDKit`. The web client and the CLI both curate, and they used to each carry
-//! their own copy of these types, which is how two implementations of "what a
-//! curation row is" ended up in the same repository.
-
+#![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
 
 mod constants;

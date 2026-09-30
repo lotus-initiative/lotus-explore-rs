@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! SPARQL query construction and result parsing for LOTUS.
-//!
-//! Two halves, and neither one needs HTTP, an async runtime or a clock:
-//!
-//! - The `query` module builds query strings from a
-//!   [`SearchCriteria`](lotus_model::SearchCriteria). Pure string manipulation
-//!   over the vocabulary in [`lotus_model`].
-//! - The `parse` module turns a `text/csv` payload into [`lotus_model`] types.
-//!
-//! Running the query is somebody else's job: see the `lotus-search` crate,
-//! which drives this one against a real endpoint. Keeping that out is what
-//! makes the builders testable by string comparison and the parsers testable
-//! against recorded fixtures.
-
+#![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
 
 mod error;

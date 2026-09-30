@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! JSON-LD for LOTUS results, following the Bioschemas profiles.
-//!
-//! The point of emitting it is findability: Google Dataset Search and the
-//! Bioschemas validator both read the document, and neither can read a page
-//! that carries no markup. So the shapes here are checked against the Bioschemas
-//! profiles rather than written from memory.
-
+#![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
 
 mod compound;
@@ -18,7 +12,7 @@ mod taxon;
 pub use compound::compound_jsonld;
 pub use dataset::{ResultSet, dataset_jsonld, result_set_jsonld};
 pub use profile::{Profile, ValidationIssue, check};
-pub use software::{citation_cff, codemeta, software_jsonld};
+pub use software::{Software, citation_cff, codemeta, software_jsonld};
 pub use taxon::taxon_jsonld;
 
 use lotus_model::CompoundEntry;

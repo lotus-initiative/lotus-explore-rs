@@ -1,16 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! LOTUS domain types and filter semantics.
-//!
-//! Everything here is pure: no IO, no async, no clock, no platform. A caller
-//! that needs the current year or the current time passes it in, which is why
-//! this crate compiles for `wasm32-unknown-unknown` and is testable without a
-//! runtime.
-//!
-//! The vocabulary: a **result row** ([`CompoundEntry`]) is one
-//! compound-found-in-taxon-cited-by-reference triple, which is the shape the
-//! LOTUS projection in Wikidata produces.
-
+#![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
 
 mod criteria;
