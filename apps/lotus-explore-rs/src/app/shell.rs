@@ -157,25 +157,27 @@ fn AppRuntimeEffects() -> Element {
         }
     });
 
-    // Sync <html lang> and <html data-theme> in a single effect to batch DOM
-    // reads (document_element) and writes (set_attribute) — avoids interleaved
-    // read-write-reflow patterns that cause forced synchronous layout.
+    // Sync <html lang> and <html data-theme> in a single effect, so the theme
+    // lands in one write and the browser does not reflow between the two.
+    //
+    // `document::eval` rather than `web_sys`: the theme lives on an attribute of
+    // the root `<html>` element, which no rsx node in this tree owns, and
+    // `eval` is the one way to reach it that works on both renderers. The
+    // previous version reached for `web_sys` under `cfg(target_arch = "wasm32")`
+    // and did nothing on native, so the toggle moved the state and the window
+    // never changed colour.
     use_effect(move || {
-        #[cfg(target_arch = "wasm32")]
-        {
-            let lang = locale.read().lang_code();
-            let dark_mode = app_state.read().dark_mode;
-            if let Some(doc) = web_sys::window().and_then(|w| w.document())
-                && let Some(html) = doc.document_element()
-            {
-                let _ = html.set_attribute("lang", lang);
-                let _ = html.set_attribute("data-theme", if dark_mode { "dark" } else { "light" });
-            }
-        }
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let _ = (locale.read(), app_state.read().dark_mode);
-        }
+        let lang = locale.read().lang_code();
+        let theme = if app_state.read().dark_mode {
+            "dark"
+        } else {
+            "light"
+        };
+        document::eval(&format!(
+            "var el = document.documentElement; \
+             el.setAttribute('lang', '{lang}'); \
+             el.setAttribute('data-theme', '{theme}');"
+        ));
     });
 
     #[cfg(target_arch = "wasm32")]

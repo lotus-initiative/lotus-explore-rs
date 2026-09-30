@@ -218,6 +218,34 @@ fn main() {
     let data_dir = dirs::data_dir()
         .unwrap_or_else(std::env::temp_dir)
         .join("lotus-explore-rs");
-    let config = dioxus_desktop::Config::new().with_data_directory(data_dir);
+
+    // Dioxus defaults to 800x600. The header is a single row -- title, nav
+    // pills, and a four-language switcher -- and at 800 it does not fit, so the
+    // switcher is cut off. The explorer is also a results table, which wants
+    // width. The window is resizable, so a small screen is cramped rather than
+    // broken.
+    let window = dioxus_desktop::WindowBuilder::new()
+        .with_title("LOTUS Explorer")
+        .with_inner_size(dioxus_desktop::LogicalSize::new(1280.0, 860.0))
+        .with_resizable(true);
+
+    // The window and dock icon, from the same artwork the web app serves.
+    //
+    // Left unset, dioxus uses its own placeholder, so the app showed a Dioxus
+    // logo in the dock. `icon_from_path` is not an option: on macOS tao's `Icon`
+    // only accepts raw RGBA, so the PNG has to go through `icon_from_memory`,
+    // which decodes it. The file is `include_bytes!`d rather than read from disk
+    // because a window icon is not worth a path that can be wrong at runtime.
+    let icon = dioxus_desktop::icon_from_memory::<dioxus_desktop::tao::window::Icon>(
+        include_bytes!("../public/apple-touch-icon.png"),
+    )
+    .ok();
+
+    let mut config = dioxus_desktop::Config::new()
+        .with_data_directory(data_dir)
+        .with_window(window);
+    if let Some(icon) = icon {
+        config = config.with_icon(icon);
+    }
     dioxus_desktop::launch::launch(AppRoot, vec![], vec![Box::new(config)]);
 }
