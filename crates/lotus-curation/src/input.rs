@@ -177,6 +177,37 @@ mod tests {
     }
 
     #[test]
+    fn parse_tsv_drops_rows_missing_either_required_field() {
+        // Both fields are required, and they are required independently: a row
+        // with a name but no structure, or a structure but no name, is as
+        // unusable as a row with neither. Mutation testing caught the check
+        // reading `name.is_empty() && smiles.is_empty()`, which keeps
+        // half-empty rows and sends them on to be looked up.
+        let tsv = "name\tsmiles\n\
+                   A\tCCO\n\
+                   \tCCC\n\
+                   B\t\n\
+                   \t\n\
+                   C\tCCN\n";
+        let rows = parse_tsv(tsv).expect("tsv parse");
+        assert_eq!(
+            rows.iter().map(|r| r.name.as_str()).collect::<Vec<_>>(),
+            vec!["A", "C"],
+            "only rows with both a name and a structure should survive"
+        );
+    }
+
+    #[test]
+    fn parse_tsv_ignores_a_header_row() {
+        // The header is located by name, so a header line is just another row
+        // and has to be dropped by the same required-field rule.
+        let tsv = "name\tsmiles\nA\tCCO\n";
+        let rows = parse_tsv(tsv).expect("tsv parse");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].name, "A");
+    }
+
+    #[test]
     fn row_key_normalizes_structure_taxon_and_doi() {
         // All three are folded, and the structure is upper-cased. This used to
         // assert the opposite for the DOI, pinning behaviour where `10.1/A` and

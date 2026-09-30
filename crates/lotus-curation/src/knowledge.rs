@@ -657,6 +657,86 @@ mod tests {
     }
 
     #[test]
+    fn a_row_without_a_doi_is_not_told_it_is_missing_one() {
+        // The note is conditional on a DOI being present. Mutation testing
+        // found the guard could be dropped, which made every row that simply
+        // has no DOI claim that Wikidata is missing a reference for it.
+        let lookup = compound_qid("Q153");
+
+        for doi in [None, Some(""), Some("   ")] {
+            let result = to_result_row(&row("ethanol", "CCO", None, doi), &known(), &lookup);
+            assert!(
+                !result.note.contains("no reference with that DOI"),
+                "doi={doi:?} should not produce a missing-reference note: {}",
+                result.note
+            );
+        }
+
+        // With a DOI present and unresolved, the note is correct.
+        let result = to_result_row(
+            &row("ethanol", "CCO", None, Some("10.1/x")),
+            &known(),
+            &lookup,
+        );
+        assert!(
+            result.note.contains("no reference with that DOI"),
+            "a real, unresolved DOI should be reported: {}",
+            result.note
+        );
+    }
+
+    #[test]
+    fn creation_statements_carry_both_smiles_and_the_name() {
+        // Canonical and isomeric are both written, and for different reasons:
+        // canonical drops stereochemistry, isomeric keeps it, and Wikidata
+        // holds both. Emitting an empty string here would silently produce a
+        // compound with no structure at all.
+        let stmts = creation_statements(
+            &row("Quercetin", "c1ccccc1", None, None),
+            "C1=CC=CC=C1",
+            "C1=CC=CC=C1",
+        );
+        assert!(
+            !stmts.is_empty(),
+            "creation statements must not be empty for a row that needs creating"
+        );
+        assert!(stmts.contains("Quercetin"), "the label is missing: {stmts}");
+        assert!(
+            stmts.contains("C1=CC=CC=C1"),
+            "the structure is missing: {stmts}"
+        );
+        assert!(
+            stmts.contains("P233") && stmts.contains("P2017"),
+            "both the canonical (P233) and isomeric (P2017) structure properties \
+             are required: {stmts}"
+        );
+        assert!(
+            stmts.contains("P31"),
+            "the instance-of property is missing: {stmts}"
+        );
+    }
+
+    #[test]
+    fn creation_statements_keep_both_stereochemistry_variants_distinct() {
+        // The same compound, specified and unspecified. They must not collapse
+        // to one statement, or the stereochemistry is lost on submission.
+        let racemic = creation_statements(&row("lactic", "CC(O)C", None, None), "CC(O)C", "CC(O)C");
+        let one_isomer = creation_statements(
+            &row("lactic", "C[C@@H](O)C", None, None),
+            "CC(O)C",
+            "C[C@@H](O)C",
+        );
+        assert_ne!(
+            racemic, one_isomer,
+            "a specified and an unspecified structure must produce different statements"
+        );
+        assert!(
+            one_isomer.contains("C[C@@H](O)C"),
+            "the isomeric structure is missing: {one_isomer}"
+        );
+    }
+
+    #[test]
     fn the_shipped_example_still_parses() {
         // The two front-ends read the same file; this is the one in the docs.
         let tsv = "name\tsmiles\ttaxon\tdoi\nQuercetin\tCCO\tGentiana lutea\t10.1/a\n";
