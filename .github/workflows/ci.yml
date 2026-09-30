@@ -279,9 +279,26 @@ jobs:
       - name: Fetch the third-party assets
         # From the app directory: `fetch-assets` writes to `public/assets/`
         # relative to where it runs, and the bundler only looks in the app's. From
-        # the repository root it downloads 40 MB into a `public/` nothing reads, and
-        # the bundle is silently built with no assets in it at all.
-        run: cd apps/lotus-explore-rs && cargo run --locked -p lotus-web-assets --bin fetch-assets
+        # the repository root it downloads 115 MB into a `public/` nothing reads,
+        # and the bundle is silently built with no assets in it at all.
+        #
+        # The loop is the same one the Dockerfile runs: `fetch-assets` retries a
+        # transient HTTP failure inside a single request, this covers a run cut
+        # off part way through, where the partial tree would otherwise be left
+        # behind and the build would succeed against it.
+        run: |
+          cd apps/lotus-explore-rs
+          for attempt in 1 2 3; do
+            if cargo run --locked -p lotus-web-assets --bin fetch-assets; then
+              break
+            fi
+            echo "::warning::fetch-assets attempt $attempt failed"
+            rm -rf public/assets/ketcher public/assets/vendor
+            [ "$attempt" = 3 ] && exit 1
+            sleep $((attempt * 10))
+          done
+          test -f public/assets/ketcher/index.html
+          test -f public/assets/vendor/rdkit/RDKit_minimal.wasm
       - name: Build desktop app
         # `ripgrep` is here for `just verify-bundle`, which reads Ketcher's
         # own `src`/`href` references out of its index.html. It is not on the

@@ -17,6 +17,10 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # The build fetches ~115 MB and compiles the wasm bundle. Without a ceiling a
+    # hung network call holds the job for the six-hour runner limit instead of
+    # failing in one where the log says what happened.
+    timeout-minutes: 45
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -39,15 +43,28 @@ jobs:
 
       - uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003
 
+      # The build fetches ~115 MB from four hosts. The retries inside
+      # fetch-assets cover a blip within one request; this covers the run as a
+      # whole, where a network cut part way through leaves a build context the
+      # next attempt would reuse with half its layers cached. A fresh
+      # _final_site each time matters for the same reason: a partial output from
+      # a failed attempt would otherwise be published by the one that followed.
       - name: Build webapp with Docker (fetches Ketcher + dx build)
         run: |
-          rm -rf _final_site
-          mkdir -p _final_site
           REPONAME="${GITHUB_REPOSITORY#*/}"
-          docker buildx build \
-            --target export \
-            --build-arg DX_BASE_PATH="/${REPONAME}" \
-             --output "_final_site" .
+          for attempt in 1 2; do
+            rm -rf _final_site
+            mkdir -p _final_site
+            if docker buildx build \
+              --target export \
+              --build-arg DX_BASE_PATH="/${REPONAME}" \
+              --output "_final_site" .; then
+              exit 0
+            fi
+            echo "::warning::docker build attempt $attempt failed"
+            [ "$attempt" = 2 ] && exit 1
+            sleep 15
+          done
 
       # A `dx build` that dies after emitting the module but before wasm-opt
       # leaves the unoptimised intermediate in place, and the export stage copies

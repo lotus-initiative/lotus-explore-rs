@@ -29,6 +29,24 @@ wanting to make a test hit a real endpoint, the thing to reach for is a fixture.
 just metadata-write   # regenerate codemeta.json and CITATION.cff
 ```
 
+### The one thing that does need the network
+
+`just desktop` and the deploy fetch ~115 MB of third-party frontend assets —
+Ketcher, RDKit, Citation.js — from four hosts. That is the only part of the gate
+that reaches out, and it has been the source of intermittent failures: a single
+reset connection failed a build that had nothing wrong with the commit.
+
+It is now retried at two levels, and the reason is worth knowing before you
+change either one. `fetch-assets` retries each request three times with a
+doubling wait, so a blip inside a request is invisible. The `desktop` job and
+the Dockerfile then retry the whole run and clear the partial tree first, for the
+failure that retry cannot see: a run cut off part way through leaves a
+half-populated `public/assets/`, and `dx build` succeeds against that — which
+publishes a site with no structure editor rather than failing.
+
+If you touch asset fetching, keep both levels and keep the `test -f` checks that
+follow them.
+
 ## Where a change goes
 
   | You are changing | It belongs in |
