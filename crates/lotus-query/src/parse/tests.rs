@@ -1,0 +1,229 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
+//! The tests for the CSV readers.
+//!
+//! Every fixture is a recorded answer from `QLever` or the WDQS, oddities
+//! included: a padded formula, a bare year, a prefixed DOI, a row with no taxon,
+//! an exact duplicate, and QIDs projected as bare integers because the query
+//! strips the `Q` and hands back an `xsd:integer`.
+
+// A test asserting on a fixture may panic when the fixture is wrong: that
+// is the failure it is reporting, and the lint exists to keep library code
+// free of panics on external input.
+#![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
+#![allow(clippy::format_collect)]
+
+use super::*;
+use lotus_model::WIKIDATA_STATEMENT_BASE;
+
+const HEADER: &str = "compound,compoundLabel,compound_inchikey,compound_smiles_conn,compound_smiles_iso,compound_mass,compound_formula,taxon,taxon_name,ref_qid,ref_title,ref_doi,ref_date,statement";
+
+fn csv(rows: &str) -> Vec<u8> {
+    format!("{HEADER}\n{rows}").into_bytes()
+}
+
+#[test]
+fn the_iso_smiles_wins_over_the_connection_table_one() {
+    let rows = parse_compounds_csv(
+        &csv("Q1,L,IK,CC=CC,CC=CC,78.0,C6H6,Q10,T,Q100,Title,10.1/a,2021,http://x/S1\n"),
+        10,
+    )
+    .expect("valid CSV");
+    assert_eq!(rows[0].smiles.as_deref(), Some("CC=CC"));
+}
+
+#[test]
+fn the_connection_table_smiles_is_used_when_there_is_no_iso_form() {
+    let rows = parse_compounds_csv(
+        &csv("Q1,L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,Title,10.1/a,2021,\n"),
+        10,
+    )
+    .expect("valid CSV");
+    assert_eq!(rows[0].smiles.as_deref(), Some("CC=CC"));
+}
+
+#[test]
+fn a_doi_prefix_is_stripped_but_a_reference_title_is_not() {
+    let rows = parse_compounds_csv(
+        &csv("Q1,L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,https://doi.org/10.1/B,10.1/B,2021,\n"),
+        10,
+    )
+    .expect("valid CSV");
+    assert_eq!(rows[0].ref_title.as_deref(), Some("https://doi.org/10.1/B"));
+    assert_eq!(rows[0].ref_doi.as_deref(), Some("10.1/B"));
+}
+
+#[test]
+fn a_publication_date_contributes_only_its_year() {
+    for (input, expected) in [("2021-04-23T00:00:00Z", Some(2021)), ("2019", Some(2019))] {
+        let rows = parse_compounds_csv(
+            &csv(&format!(
+                "Q1,L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,T,10.1/a,{input},\n"
+            )),
+            10,
+        )
+        .expect("valid CSV");
+        assert_eq!(rows[0].pub_year, expected, "input {input}");
+    }
+}
+
+#[test]
+fn a_row_without_a_compound_id_is_not_a_result() {
+    let rows = parse_compounds_csv(
+        &csv(",L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,T,10.1/a,2021,\n"),
+        10,
+    )
+    .expect("valid CSV");
+    assert!(rows.is_empty());
+}
+
+#[test]
+fn a_row_missing_several_columns_still_parses() {
+    let rows = parse_compounds_csv(&csv("Q1,L\n"), 10).expect("valid CSV");
+    assert_eq!(rows.len(), 1);
+    assert!(rows[0].taxon_qid.is_empty());
+    assert!(rows[0].smiles.is_none());
+}
+
+#[test]
+fn a_statement_uri_loses_its_prefix() {
+    let uri = format!("{WIKIDATA_STATEMENT_BASE}S1");
+    let rows = parse_compounds_csv(
+        &csv(&format!(
+            "Q1,L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,T,10.1/a,2021,{uri}\n"
+        )),
+        10,
+    )
+    .expect("valid CSV");
+    assert_eq!(rows[0].statement.as_deref(), Some("S1"));
+}
+
+#[test]
+fn a_duplicate_triple_is_kept_once_and_counted_once_each_way() {
+    let row = "Q1,L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,T,10.1/a,2021,\n";
+    let (rows, stats, capped) =
+        parse_compounds_csv_capped(&csv(&format!("{row}{row}")), 10).expect("valid CSV");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(stats.n_entries, 2, "raw rows");
+    assert_eq!(stats.n_entries_unique, 1, "distinct triples");
+    assert!(!capped);
+}
+
+#[test]
+fn capping_hides_rows_but_not_counts() {
+    // Five distinct compounds, so the cap hides rows rather than duplicates.
+    let rows: String = (1..=5)
+        .map(|i| format!("Q{i},L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,T,10.1/a,2021,\n"))
+        .collect();
+    let (kept, stats, capped) = parse_compounds_csv_capped(&csv(&rows), 2).expect("valid CSV");
+    assert_eq!(kept.len(), 2);
+    assert!(
+        capped,
+        "the caller must be able to say the table is partial"
+    );
+    assert_eq!(stats.n_entries, 5);
+    assert_eq!(stats.n_compounds, 5);
+}
+
+#[test]
+fn a_zero_unique_count_falls_back_to_the_entry_count() {
+    let bytes = b"n_entries,n_entries_unique,n_compounds,n_taxa,n_references\n10,0,3,2,4\n";
+    let stats = parse_counts_csv(bytes).expect("valid CSV");
+    assert_eq!(stats.n_entries_unique, 10);
+}
+
+#[test]
+fn a_count_query_with_no_row_is_an_error() {
+    // Unlike a row payload, there is nothing to fall back on: a total
+    // cannot be invented.
+    let err = parse_counts_csv(b"n_entries\n").expect_err("header only");
+    assert!(err.message().contains("count"), "{err}");
+}
+
+#[test]
+fn taxon_rows_need_both_an_id_and_a_name() {
+    let bytes = b"taxon,taxon_name\nhttp://www.wikidata.org/entity/Q1,A\nQ2,\n,Q3\n";
+    let matches = parse_taxon_csv(bytes).expect("valid CSV");
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].qid, "Q1");
+}
+
+#[test]
+fn an_empty_payload_is_an_empty_result_not_an_error() {
+    assert!(
+        parse_compounds_csv(b"", 10)
+            .expect("empty is valid")
+            .is_empty()
+    );
+}
+
+// ── The streaming reader ────────────────────────────────────────────────
+//
+// `parse_compounds_stream` is the path used for a result too large to hold
+// in memory, and it had no test at all. The three things it returns are all
+// load-bearing: the rows, the counts derived from every row read, and
+// whether the cap cut the result short.
+
+#[test]
+fn a_stream_is_read_to_the_same_result_as_the_bytes() {
+    let row = "Q1,L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,T,10.1/a,2021,\n";
+    let bytes = csv(&format!("{row}{row}"));
+    let (streamed, stats, capped) =
+        parse_compounds_stream(bytes.as_slice(), 10).expect("valid CSV");
+    let (direct, direct_stats, direct_capped) =
+        parse_compounds_csv_capped(&bytes, 10).expect("valid CSV");
+    assert_eq!(streamed, direct, "the stream and the slice agree");
+    assert_eq!(stats.n_entries, direct_stats.n_entries);
+    assert_eq!(capped, direct_capped);
+    assert!(!capped, "nothing was cut short");
+}
+
+#[test]
+fn a_capped_stream_reports_that_it_was_cut_short() {
+    // `capped` is the only signal the caller has that the result is partial.
+    // False when the cap was reached is a quiet wrong answer: the caller
+    // reports a total as if it were the whole set.
+    let rows: String = (1..=5)
+        .map(|i| format!("Q{i},L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,T,10.1/a,2021,\n"))
+        .collect();
+    let (kept, stats, capped) =
+        parse_compounds_stream(csv(&rows).as_slice(), 2).expect("valid CSV");
+    assert_eq!(kept.len(), 2, "the cap is respected");
+    assert!(capped, "and it is reported");
+    assert_eq!(
+        stats.n_entries, 5,
+        "the counts still describe every row read, not just the kept ones"
+    );
+}
+
+#[test]
+fn a_header_with_no_recognisable_columns_yields_no_rows() {
+    // Documenting what this does, which is not what the `# Errors` section
+    // above says it does. The CSV reader is built `flexible(true)` and the
+    // column detector returns `None` for each column it cannot place, so
+    // bytes that are not a result set at all parse to zero rows rather than
+    // to an error.
+    //
+    // That is the right call for a truncated or partially-typed export, and
+    // the wrong one for a file that is not an export: the caller cannot tell
+    // "this database has no compounds" from "this file is not a database".
+    // Deciding which is which needs a rule about a result set with no rows,
+    // which is a change to behaviour rather than to a test.
+    let bytes = b"\0\0\0not a result set at all\n".to_vec();
+    let (rows, _, capped) = parse_compounds_stream(bytes.as_slice(), 10).expect("reads");
+    assert!(rows.is_empty());
+    assert!(!capped);
+}
+
+#[test]
+fn a_stream_that_cannot_be_read_is_an_error() {
+    /// A reader that always fails, so the read error is exercised rather than
+    /// only the parse error.
+    struct Broken;
+    impl std::io::Read for Broken {
+        fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::other("the socket went away"))
+        }
+    }
+    assert!(parse_compounds_stream(Broken, 10).is_err());
+}
