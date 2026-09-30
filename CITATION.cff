@@ -1,20 +1,38 @@
 cff-version: 1.2.0
 message: If you use this software, please cite it as below.
+type: software
 title: LOTUS Explorer
 abstract: A linked open data explorer for the LOTUS compound-taxon-reference knowledge graph in Wikidata, queried over SPARQL.
 version: 0.1.0
+date-released: 2026
+license: AGPL-3.0-only
 repository-code: "https://github.com/lotusnprod/lotus-explore-rs"
 url: "https://lotus.nprod.net/lotus-explore-rs"
-license: "https://www.gnu.org/licenses/agpl-3.0.html"
-type: software
 doi: "https://doi.org/10.7554/eLife.70780"
+identifiers:
+  - type: url
+    value: "https://lotus.nprod.net/lotus-explore-rs"
 keywords:
   - natural products
   - linked open data
   - SPARQL
   - bioinformatics
-  - chemical structure
+  - chemical compound
+  - natural products
+  - taxonomy
+  - chemotaxonomy
+  - curation
+  - rust
 
 authors:
   - name: "The LOTUS consortium"
     website: "https://www.wikidata.org/wiki/Q104225190"
+references:
+  - type: article
+    title: The LOTUS initiative for open knowledge management in natural products research
+    journal: eLife
+    year: '2022'
+    doi: 10.7554/eLife.70780
+    url: "https://doi.org/10.7554/eLife.70780"
+    authors:
+      - name: "The LOTUS consortium"

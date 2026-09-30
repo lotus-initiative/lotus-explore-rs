@@ -9,18 +9,10 @@ document states the profile it follows, so a validator knows which required
 properties apply rather than inferring them from the shape.
 
 ```rust
-use lotus_jsonld::{Software, citation_cff, codemeta, software_jsonld};
+use lotus_jsonld::{SOFTWARE, citation_cff, codemeta, software_jsonld};
 
-let software = Software {
-    name: "LOTUS Explorer",
-    description: "Explore the LOTUS knowledge graph over SPARQL.",
-    url: "https://lotus.nprod.net/lotus-explore-rs/",
-    repository: "https://github.com/lotusnprod/lotus-explore-rs",
-    doi: None,
-    version: "0.1.0",
-    license: "AGPL-3.0-only",
-    keywords: &["LOTUS", "SPARQL"],
-};
+// The real project, so this example cannot drift from what ships.
+let software = SOFTWARE;
 
 assert_eq!(software_jsonld(&software)["@type"], "SoftwareApplication");
 assert_eq!(codemeta(&software)["@type"], "SoftwareSourceCode");

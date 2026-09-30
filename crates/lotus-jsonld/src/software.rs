@@ -19,14 +19,50 @@ pub struct Software {
     pub url: &'static str,
     /// Where the source is.
     pub repository: &'static str,
+    /// Where defects are reported.
+    pub issue_tracker: &'static str,
     /// The concept DOI, when the project has minted one.
     pub doi: Option<&'static str>,
     /// The released version.
     pub version: &'static str,
-    /// The SPDX licence identifier.
+    /// The SPDX licence identifier, for the vocabularies that want one.
+    ///
+    /// Separate from `license_url` because the two answer different questions:
+    /// one is the canonical machine-readable name, the other is where a reader
+    /// reads the terms.
     pub license: &'static str,
+    /// Where a reader reads the licence.
+    pub license_url: &'static str,
+    /// The language the project is written in.
+    pub language: &'static str,
+    /// The canonical project page for that language, for a `ComputerLanguage`
+    /// node to point at.
+    pub language_url: &'static str,
+    /// The minimum toolchain this build needs.
+    pub requires_rust: &'static str,
+    /// The year of the first release, for the `datePublished` a registry shows.
+    pub year: u16,
+    /// What the project is, in schema.org's controlled vocabulary.
+    pub application_category: &'static str,
+    /// The narrower label under it.
+    pub application_subcategory: &'static str,
+    /// What the software can do, as a list a reader can check off.
+    pub features: &'static [&'static str],
     /// Subject terms, for discovery.
     pub keywords: &'static [&'static str],
+    /// The LOTUS paper this tool exists to serve, with its title.
+    pub paper: Option<Paper>,
+}
+
+/// The LOTUS paper, cited alongside the software.
+#[derive(Debug, Clone, Copy)]
+pub struct Paper {
+    /// The paper's title.
+    pub title: &'static str,
+    /// The paper's DOI, without a resolver.
+    pub doi: &'static str,
+    /// The year it was published.
+    pub year: u16,
 }
 
 /// The project as a conforming `SoftwareApplication`.
@@ -46,16 +82,15 @@ pub fn software_jsonld(software: &Software) -> Value {
     );
     object.insert("applicationSubCategory".into(), json!("SPARQL client"));
     object.insert("codeRepository".into(), json!(software.repository));
-    object.insert("programmingLanguage".into(), json!("Rust"));
     object.insert(
-        "featureList".into(),
-        json!([
-            "SPARQL search over the LOTUS projection in Wikidata",
-            "substructure and similarity structure search",
-            "taxon, mass, year and molecular formula filters",
-            "Bioschemas-compliant JSON-LD export",
-        ]),
+        "programmingLanguage".into(),
+        json!({
+            "@type": "ComputerLanguage",
+            "name": software.language,
+            "url": software.language_url,
+        }),
     );
+    object.insert("featureList".into(), json!(software.features));
     object.insert(
         "identifier".into(),
         json!([property_value(
@@ -67,20 +102,21 @@ pub fn software_jsonld(software: &Software) -> Value {
     );
     object.insert("sameAs".into(), json!([software.repository]));
 
-    if let Some(doi) = software.doi {
-        object.insert("citation".into(), lotus_paper(doi));
+    if let Some(paper) = software.paper {
+        object.insert("citation".into(), lotus_paper(&paper));
     }
 
     crate::stamp(Value::Object(object), Profile::SoftwareApplication)
 }
 
 /// The LOTUS paper, as a `ScholarlyArticle` citation.
-fn lotus_paper(doi: &str) -> Value {
+fn lotus_paper(paper: &Paper) -> Value {
     json!({
         "@type": "ScholarlyArticle",
-        "name": "The LOTUS initiative for open knowledge management in natural products research",
-        "identifier": doi_uri(doi),
-        "url": doi_uri(doi),
+        "name": paper.title,
+        "identifier": doi_uri(paper.doi),
+        "url": doi_uri(paper.doi),
+        "datePublished": paper.year.to_string(),
     })
 }
 
@@ -97,22 +133,86 @@ pub fn codemeta(software: &Software) -> Value {
     object.insert("name".into(), json!(software.name));
     object.insert("description".into(), json!(software.description));
     object.insert("codeRepository".into(), json!(software.repository));
+    object.insert("issueTracker".into(), json!(software.issue_tracker));
     object.insert("url".into(), json!(software.url));
-    object.insert("license".into(), json!(software.license));
+    object.insert("license".into(), json!(software.license_url));
     object.insert("version".into(), json!(software.version));
-    object.insert("programmingLanguage".into(), json!("Rust"));
+    // A `ComputerLanguage` node rather than a bare string: a registry that
+    // renders the language links it, and the plain form has nothing to link to.
+    object.insert(
+        "programmingLanguage".into(),
+        json!({
+            "@type": "ComputerLanguage",
+            "name": software.language,
+            "url": software.language_url,
+        }),
+    );
     object.insert("keywords".into(), json!(software.keywords));
     object.insert("operatingSystem".into(), json!("any"));
     object.insert(
         "applicationCategory".into(),
-        json!("scientific data analysis"),
+        json!(software.application_category),
+    );
+    object.insert(
+        "applicationSubCategory".into(),
+        json!(software.application_subcategory),
     );
     object.insert(
         "buildInstructions".into(),
         json!("cargo build --release -p lotus-cli"),
     );
+    // The toolchain is a real requirement -- the workspace pins 1.97 and uses
+    // edition 2024 -- so it is stated rather than left to be discovered by a
+    // failed build.
+    object.insert(
+        "softwareRequirements".into(),
+        json!([{
+            "@type": "SoftwareApplication",
+            "name": "Rust",
+            "version": software.requires_rust,
+            "url": software.language_url,
+        }]),
+    );
+    object.insert("featureList".into(), json!(software.features));
+    object.insert(
+        "readme".into(),
+        json!(format!("{}/blob/main/README.md", software.repository)),
+    );
+    object.insert(
+        "contIntegration".into(),
+        json!([format!("{}/actions", software.repository)]),
+    );
+    object.insert(
+        "developmentStatus".into(),
+        json!("https://www.w3.org/TR/sw-life-cycle/#active-development"),
+    );
+    object.insert("datePublished".into(), json!(software.year.to_string()));
+    // The pages that describe the software, so a registry can show a gallery
+    // rather than one bare URL.
+    object.insert(
+        "relatedLink".into(),
+        json!([
+            software.url,
+            software.issue_tracker,
+            format!("{}/blob/main/CONTRIBUTING.md", software.repository),
+        ]),
+    );
     if let Some(doi) = software.doi {
         object.insert("identifier".into(), json!(doi_uri(doi)));
+    }
+    // The paper is a separate work from the tool, so it goes in `citation` with
+    // its own type rather than being folded into `identifier`.
+    if let Some(paper) = software.paper {
+        object.insert(
+            "citation".into(),
+            json!([{
+                "@type": "ScholarlyArticle",
+                "name": paper.title,
+                "identifier": doi_uri(paper.doi),
+                "url": doi_uri(paper.doi),
+                "datePublished": paper.year.to_string(),
+            }]),
+        );
     }
     Value::Object(object)
 }
@@ -125,20 +225,32 @@ pub fn codemeta(software: &Software) -> Value {
 #[must_use]
 pub fn citation_cff(software: &Software) -> String {
     let mut fields = vec![
-        format!("cff-version: 1.2.0"),
-        "message: If you use this software, please cite it as below.".to_string(),
+        "cff-version: 1.2.0".to_string(),
+        format!(
+            "message: {}",
+            yaml_scalar("If you use this software, please cite it as below.")
+        ),
+        format!("type: software"),
         format!("title: {}", yaml_scalar(software.name)),
         format!("abstract: {}", yaml_scalar(software.description)),
         format!("version: {}", yaml_scalar(software.version)),
+        format!("date-released: {}", yaml_scalar(&software.year.to_string())),
+        // The SPDX identifier, not the URL: `cffconvert --validate` and GitHub's
+        // widget both read this as a licence *name*. The URL goes alongside it as
+        // an identifier, where a machine can dereference it.
+        format!("license: {}", yaml_scalar(software.license)),
         format!("repository-code: {}", yaml_scalar(software.repository)),
         format!("url: {}", yaml_scalar(software.url)),
-        format!("license: {}", yaml_scalar(software.license)),
-        "type: software".to_string(),
     ];
 
     if let Some(doi) = software.doi {
         fields.push(format!("doi: {}", yaml_scalar(&doi_uri(doi))));
     }
+
+    fields.push(format!(
+        "identifiers:\n  - type: url\n    value: {}",
+        yaml_scalar(software.url)
+    ));
 
     // One `keywords:` key with every value under it. Emitting a key per keyword
     // parses as valid YAML and silently keeps only the last one, so a document
@@ -156,8 +268,32 @@ pub fn citation_cff(software: &Software) -> String {
         fields.push(list);
     }
 
-    let authors = "authors:\n  - name: \"The LOTUS consortium\"\n    website: \"https://www.wikidata.org/wiki/Q104225190\"";
-    fields.push(authors.to_string());
+    // The consortium is a Wikidata item, not a person, so it is named with a
+    // `name` and an `alias` rather than invented given and family names. A
+    // citation that attributes the software to a person who did not write it is
+    // worse than one that attributes it to the group that did.
+    fields.push(
+        "authors:\n  - name: \"The LOTUS consortium\"\n    website: \"https://www.wikidata.org/wiki/Q104225190\""
+            .to_string(),
+    );
+
+    // The paper this tool exists to serve. `references` rather than
+    // `preferred-citation`: the citable work is the software, and the LOTUS
+    // paper is what it queries, so asking a reader to cite that instead would
+    // point them at the wrong artefact.
+    if let Some(paper) = software.paper {
+        use std::fmt::Write as _;
+        let mut reference = format!(
+            "references:\n  - type: article\n    title: {}\n    journal: eLife\n    year: '{}'\n    doi: {}\n    url: {}\n    authors:\n      - name: \"{}\"",
+            yaml_scalar(paper.title),
+            paper.year,
+            yaml_scalar(paper.doi),
+            yaml_scalar(&doi_uri(paper.doi)),
+            "The LOTUS consortium",
+        );
+        let _ = writeln!(reference);
+        fields.push(reference.trim_end().to_string());
+    }
 
     format!("{}\n", fields.join("\n"))
 }
@@ -237,6 +373,92 @@ mod tests {
     }
 
     #[test]
+    fn the_licence_is_an_spdx_id_and_not_the_url() {
+        // `cffconvert` and GitHub's widget read `license` as a licence *name*.
+        // A URL there is not a licence name, and the terms are what a reader
+        // needs to see before they cite.
+        let cff = citation_cff(&SOFTWARE);
+        assert!(
+            cff.contains(&format!("license: {}", SOFTWARE.license)),
+            "the SPDX identifier is the licence field: {cff}"
+        );
+        assert!(
+            !cff.contains(&format!("license: {}", SOFTWARE.license_url)),
+            "the URL is not a licence name"
+        );
+        assert_eq!(SOFTWARE.license, "AGPL-3.0-only");
+    }
+
+    #[test]
+    fn the_paper_is_referenced_rather_than_preferred() {
+        // The citable work is the software. `preferred-citation` would point a
+        // reader at the LOTUS paper instead, which is the dataset it queries,
+        // not this tool.
+        let cff = citation_cff(&SOFTWARE);
+        assert!(!cff.contains("preferred-citation"), "got: {cff}");
+        assert!(
+            cff.contains("references:"),
+            "the paper is cited as a reference"
+        );
+    }
+
+    #[test]
+    fn codemeta_states_the_toolchain_the_build_actually_needs() {
+        // The workspace pins 1.97 and is edition 2024, so a consumer on an older
+        // toolchain fails at compile time. The requirement is stated rather than
+        // discovered.
+        let document = codemeta(&SOFTWARE);
+        let empty = Vec::new();
+        let requirements = document["softwareRequirements"]
+            .as_array()
+            .unwrap_or(&empty);
+        assert_eq!(requirements.len(), 1);
+        assert_eq!(requirements[0]["name"], "Rust");
+        assert!(
+            requirements[0]["version"]
+                .as_str()
+                .is_some_and(|v| v.contains("1.97")),
+            "the pinned toolchain is named, got {requirements:?}"
+        );
+    }
+
+    #[test]
+    fn the_language_is_a_node_a_registry_can_link() {
+        let document = codemeta(&SOFTWARE);
+        assert_eq!(document["programmingLanguage"]["@type"], "ComputerLanguage");
+        assert_eq!(document["programmingLanguage"]["name"], "Rust");
+        assert!(
+            document["programmingLanguage"]["url"]
+                .as_str()
+                .is_some_and(|u| u.starts_with("https://")),
+            "the language node carries somewhere to link to"
+        );
+    }
+
+    #[test]
+    fn the_document_carries_the_pages_that_describe_the_software() {
+        let document = codemeta(&SOFTWARE);
+        assert!(
+            document["issueTracker"]
+                .as_str()
+                .is_some_and(|u| u.ends_with("/issues")),
+            "a defect report has somewhere to go"
+        );
+        assert!(
+            document["readme"]
+                .as_str()
+                .is_some_and(|u| u.ends_with("README.md")),
+            "the readme is where a registry shows the description"
+        );
+        assert!(
+            document["relatedLink"]
+                .as_array()
+                .is_some_and(|l| l.len() >= 2),
+            "more than one related page"
+        );
+    }
+
+    #[test]
     fn every_keyword_survives_as_a_list() {
         // A YAML mapping with `keywords:` repeated keeps only the last value.
         // The document named five keywords and described the software by one.
@@ -262,9 +484,15 @@ mod tests {
     fn the_lotus_paper_is_a_scholarly_article_keyed_by_its_doi() {
         // The citation is what a consumer resolves the software to a paper with,
         // so both the type and the identifier have to be right.
-        let paper = lotus_paper("10.1000/lotus");
-        assert_eq!(paper["@type"], "ScholarlyArticle");
-        assert_eq!(paper["identifier"], "https://doi.org/10.1000/lotus");
+        let paper = Paper {
+            title: "A paper",
+            doi: "10.1000/lotus",
+            year: 2026,
+        };
+        let node = lotus_paper(&paper);
+        assert_eq!(node["@type"], "ScholarlyArticle");
+        assert_eq!(node["identifier"], "https://doi.org/10.1000/lotus");
+        assert_eq!(node["datePublished"], "2026");
     }
 
     #[test]
