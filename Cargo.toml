@@ -13,12 +13,12 @@ members = [
 
 [workspace.package]
 version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
 # Declared here so `cargo metadata` reports a repository for every package, and
 # so the citation metadata this workspace generates can read it instead of
 # carrying a second copy of the URL.
 repository = "https://github.com/lotusnprod/lotus-explore-rs"
-edition = "2024"
-rust-version = "1.97"
 license = "AGPL-3.0-only"
 
 [workspace.dependencies]

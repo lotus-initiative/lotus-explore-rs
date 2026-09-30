@@ -4,22 +4,22 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.97"
 description = "The LOTUS curation vocabulary: what a curation row is, what a result is, the Wikidata queries curation asks, and how QuickStatements are bundled for submission. No clock, no HTTP client, and no submission: the caller injects a transport and reads the diff."
-license = "AGPL-3.0-only"
 repository.workspace = true
+license = "AGPL-3.0-only"
 keywords = ["bioinformatics", "curation", "lotus", "quickstatements", "wikidata"]
 categories = ["science", "web-programming"]
 publish = false
-
-[dev-dependencies]
-# The scripted transport, so curation can be tested without a network.
-lotus-search = { workspace = true, features = ["testing"] }
-tokio = { workspace = true, features = ["macros", "rt"] }
 
 [dependencies]
 lotus-search = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+# The scripted transport, so curation can be tested without a network.
+lotus-search = { workspace = true, features = ["testing"] }
+tokio = { workspace = true, features = ["macros", "rt"] }
 
 [lints]
 workspace = true

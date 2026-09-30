@@ -87,4 +87,3 @@ form → criteria → lotus-query (build) → lotus-search (run) → rows → ta
 
 On the server the same path runs with the app's own HTTP client in place of the
 scripted transport `lotus-search` tests against.
-

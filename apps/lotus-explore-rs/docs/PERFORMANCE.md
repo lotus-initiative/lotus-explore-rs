@@ -58,9 +58,10 @@ Each of these was built and measured rather than reasoned about. Sizes are
   | `dioxus/devtools` off             | 1463423 | 465709 | 597095 | **no-op**, ±0.03 %       |
 
 All of the above were taken with a bare `dx build`. The release build --- the
-path the Dockerfile runs --- was compiling at `opt-level=s` for part of this work, so
-its outputs came out 185300 raw bytes larger. The `opt-level=z` row is the one
-that ships, and `just opt-levels` now keeps the three declarations in agreement.
+path the Dockerfile runs --- was compiling at `opt-level=s` for part of this
+work, so its outputs came out 185300 raw bytes larger. The `opt-level=z` row is
+the one that ships, and `just opt-levels` now keeps the three declarations in
+agreement.
 
 ### `opt-level = "s"` is not the counter-intuitive win it is claimed to be
 
@@ -165,8 +166,7 @@ request scheduling rather than from making the module smaller.
 Because the module name is content-hashed, this cannot be written by hand in the
 source `index.html`; `inject-wasm-preload` (a second `lotus-web-assets` bin, run
 by both the release build and the Dockerfile) injects it after the bundle is
-emitted.
-It copies the asset prefix out of the preload `dx` already wrote, so a
+emitted. It copies the asset prefix out of the preload `dx` already wrote, so a
 `--base-path` build works without the tool knowing about base paths. It reads
 the module name out of the glue rather than listing `assets/`, because `dx`
 leaves a superseded module behind on a hash change and guessing wrong costs a
@@ -179,8 +179,8 @@ The optimisation level is declared in three places: `[profile.release]`
 `--rustc-args=-Copt-level=` on every `dx` invocation in the justfile. `dx`
 appends `--rustc-args` last, so the justfile wins and the profile is decorative.
 
-They drifted: the justfile said `s`, the profile said `z`, and every
-every release build shipped a module 185300 raw / 27843 brotli bytes larger than
+They drifted: the justfile said `s`, the profile said `z`, and every every
+release build shipped a module 185300 raw / 27843 brotli bytes larger than
 intended. CI stayed green, because each file was individually valid and nothing
 compared them. `just opt-levels` now runs in `ci` and fails on any disagreement.
 
@@ -191,10 +191,10 @@ Measure through the shipping path, and not by invoking `dx` by hand.
 
 ## The dev server is not a measurement target
 
-`dx serve` reports an enormous payload, and it is
-not a bug in the app. A Lighthouse run against it shows roughly 65 MB, almost
-all of it one request to `/wasm/lotus-explore-rs_bg.wasm` --- the debug module,
-served unhashed alongside the Dioxus JS interpreter snippets.
+`dx serve` reports an enormous payload, and it is not a bug in the app. A
+Lighthouse run against it shows roughly 65 MB, almost all of it one request to
+`/wasm/lotus-explore-rs_bg.wasm` --- the debug module, served unhashed alongside
+the Dioxus JS interpreter snippets.
 
 Measured on this workspace, dev wasm from identical source:
 
@@ -211,8 +211,8 @@ smaller payload and a 7x faster dev build, and neither flag changes codegen so
 hot reload is unaffected. What it costs is line numbers in panic backtraces.
 
 The remaining gap between 6.4 MiB and the shipped 456 KiB brotli is the
-difference between a debug server and a release build. Take numbers from
-the release build and a static server that negotiates the precompressed `.br`
+difference between a debug server and a release build. Take numbers from the
+release build and a static server that negotiates the precompressed `.br`
 siblings, never from `dx serve`.
 
 ## A measurement trap worth recording

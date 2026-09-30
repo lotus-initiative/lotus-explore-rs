@@ -128,19 +128,19 @@ Pass `-` or nothing to read stdin. `--format` takes `table`, `tsv`, `json` or
 
 Wikidata identifies a compound by its InChIKey, and a curator's file has SMILES,
 so a run converts each structure first and then asks Wikidata about the result.
-That is two or more requests per row, against two public services, so the command
-tells you when it cannot reach either.
+That is two or more requests per row, against two public services, so the
+command tells you when it cannot reach either.
 
 A row is reported as one of:
 
-| Status              | Meaning                                                   |
-| ------------------- | --------------------------------------------------------- |
-| `existing_complete` | Wikidata has the compound and the occurrence              |
-| `existing_updates`  | The compound is there; the occurrence is missing          |
-| `new_compound`      | No such item, and statements to create one                |
-| `pending_dependencies` | A taxon or reference the row needs is not there yet     |
-| `not_checked`       | Not looked up, so nothing is known                        |
-| `error`             | The lookup failed; this is not the same as "absent"       |
+  | Status                 | Meaning                                                   |
+  | -------------------    | --------------------------------------------------------- |
+  | `existing_complete`    | Wikidata has the compound and the occurrence              |
+  | `existing_updates`     | The compound is there; the occurrence is missing          |
+  | `new_compound`         | No such item, and statements to create one                |
+  | `pending_dependencies` | A taxon or reference the row needs is not there yet       |
+  | `not_checked`          | Not looked up, so nothing is known                        |
+  | `error`                | The lookup failed; this is not the same as "absent"       |
 
 `not_checked` and `error` are the two that matter. A row reported as
 `new_compound` has been shown to be absent; a row reported as `not_checked` has
