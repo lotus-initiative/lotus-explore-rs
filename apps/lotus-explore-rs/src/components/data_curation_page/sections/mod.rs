@@ -49,41 +49,6 @@ pub fn ShareBar(locale: Locale, share: Arc<str>) -> Element {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    #![allow(clippy::indexing_slicing)]
-
-    use crate::curation::CurationInputRow;
-
-    #[test]
-    fn queue_rows_removal_logic_preserves_other_rows() {
-        let mut rows = vec![
-            CurationInputRow {
-                name: "A".to_string(),
-                smiles: "CCO".to_string(),
-                taxon: None,
-                doi: None,
-            },
-            CurationInputRow {
-                name: "B".to_string(),
-                smiles: "CCN".to_string(),
-                taxon: None,
-                doi: None,
-            },
-            CurationInputRow {
-                name: "C".to_string(),
-                smiles: "CCC".to_string(),
-                taxon: None,
-                doi: None,
-            },
-        ];
-        rows.remove(1);
-        assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0].name, "A");
-        assert_eq!(rows[1].name, "C");
-    }
-}
-
 #[component]
 pub fn StatusNotice(locale: Locale, message: Arc<str>) -> Element {
     rsx! {
@@ -492,3 +457,7 @@ pub fn QuickStatementsCard(
         }
     }
 }
+
+#[cfg(test)]
+#[path = "tests.rs"]
+mod tests;
