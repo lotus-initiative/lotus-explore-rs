@@ -3,6 +3,12 @@ apps/lotus-explore-rs/public/assets/vendor/
 target/
 graphify-out/
 
+# Local editor and agent tooling. `.opencode/` ignores only its own
+# `node_modules` and lockfiles, so without this `opencode.json` and `plugins/`
+# are ignored on this machine by a global gitignore and nowhere else -- a fresh
+# clone and a CI checkout would show them as untracked.
+.opencode/
+
 # macOS Finder junk; it is not tracked but a local `dx build` copies anything
 # sitting in the source public/ tree into the bundle.
 .DS_Store
