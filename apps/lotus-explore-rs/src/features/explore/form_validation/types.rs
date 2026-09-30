@@ -44,7 +44,12 @@ impl ValidationError {
         Self { field, code }
     }
 
-    pub(super) const fn into_fault(self) -> ValidationFault {
+    /// The domain fault this error maps to.
+    ///
+    /// `as_` rather than `into_` because it borrows: the caller has a `&`
+    /// from `Vec::first`, and taking `self` would mean cloning the error to
+    /// throw it away.
+    pub(super) const fn as_fault(&self) -> ValidationFault {
         match self.code {
             ValidationCode::TaxonTooLong => ValidationFault::TaxonTooLong,
             ValidationCode::StructureTooLong => ValidationFault::StructureTooLong,

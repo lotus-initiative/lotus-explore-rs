@@ -17,20 +17,25 @@ pub fn validate_dispatch_criteria(criteria: &SearchCriteria) -> Result<(), Valid
         return Err(ValidationFault::EmptyInput);
     }
 
-    // Safety: map_err is only called when validate_criteria returns Err,
-    // which means errors is guaranteed non-empty.
-    #[allow(clippy::expect_used)]
-    validate_criteria(criteria)
-        .map_err(|errors| {
-            errors
-                .into_iter()
-                .next()
-                .expect("validation_errors contains at least one error")
-        })
-        .map_err(ValidationError::into_fault)
+    // `validation_errors` only ever fails with at least one error, because each
+    // rule is added by `push_error`, which takes an `Option`. That was a comment
+    // and an `expect`; it is now a `map_or` whose fallback arm names the same
+    // invariant and returns a fault instead of panicking, so a rule that one day
+    // fails with nothing to report produces a wrong message rather than a crash.
+    match validation_errors(criteria) {
+        Ok(()) => Ok(()),
+        Err(errors) => Err(errors
+            .first()
+            .map_or(ValidationFault::EmptyInput, ValidationError::as_fault)),
+    }
 }
 
-fn validate_criteria(criteria: &SearchCriteria) -> Result<(), Vec<ValidationError>> {
+/// Every rule that rejects this criteria, in the order a reader would fix them.
+///
+/// Named for what it returns rather than for what it does: the public
+///  stops at the first error, and a form wants
+/// all of them so a reader can fix the fields in one pass.
+fn validation_errors(criteria: &SearchCriteria) -> Result<(), Vec<ValidationError>> {
     let mut errors = Vec::with_capacity(6);
 
     push_error(&mut errors, validate_taxon(&criteria.taxon));
