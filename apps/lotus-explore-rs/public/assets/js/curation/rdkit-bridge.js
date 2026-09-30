@@ -164,47 +164,22 @@
         return bridge.rdkitReadyPromise;
     }
 
-    // Kicks off the load. Returns immediately; poll `isReady` for the outcome.
-    bridge.start = function start() {
-        ensureRdkitReady().catch(function (error) {
-            bridge.rdkitError = String((error && error.message) || error);
-        });
-        return true;
+    bridge.ready = function ready() {
+        return ensureRdkitReady();
     };
 
-    bridge.isReady = function isReady() {
-        return !!bridge.rdkit;
+    bridge.convert = async function convert(smiles) {
+        const rdkit = await ensureRdkitReady();
+        return rdkit.convert(smiles);
     };
 
-    bridge.error = function error() {
-        return bridge.rdkitError || null;
+    bridge.exactMass = async function exactMass(smiles) {
+        const rdkit = await ensureRdkitReady();
+        return rdkit.exactMass(smiles);
     };
 
-    // Synchronous accessors.
-    //
-    // `document::eval` on a desktop build returns what the script evaluates to
-    // *synchronously*: a returned promise serialises as `null`, not as its
-    // resolved value. So these cannot be `async`, and readiness is a separate
-    // call the Rust side polls.
-    function ready() {
-        if (bridge.rdkitError) {
-            throw new Error("RDKit failed to load: " + bridge.rdkitError);
-        }
-        if (!bridge.rdkit) {
-            throw new Error("RDKit is not ready yet");
-        }
-        return bridge.rdkit;
-    }
-
-    bridge.convert = function convert(smiles) {
-        return ready().convert(smiles);
-    };
-
-    bridge.exactMass = function exactMass(smiles) {
-        return ready().exactMass(smiles);
-    };
-
-    bridge.hasUndefinedStereo = function hasUndefinedStereo(smiles) {
-        return ready().hasUndefinedStereo(smiles);
+    bridge.hasUndefinedStereo = async function hasUndefinedStereo(smiles) {
+        const rdkit = await ensureRdkitReady();
+        return rdkit.hasUndefinedStereo(smiles);
     };
 })();

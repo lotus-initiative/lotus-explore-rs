@@ -3528,7 +3528,6 @@ dependencies = [
  "env_logger",
  "flate2",
  "futures",
- "futures-timer",
  "gloo-timers",
  "js-sys",
  "log",

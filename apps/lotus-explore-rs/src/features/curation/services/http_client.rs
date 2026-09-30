@@ -9,12 +9,12 @@
 //! `RDKit` and call a third-party HTTP service instead, which is why a desktop
 //! window behaved differently from a browser.
 //!
-//! One shape of call works on both, and it is not the obvious one. `eval`
-//! returns what the script evaluates to *synchronously*: a returned promise
-//! arrives as `null`, not as its resolved value. So the bridge exposes a
-//! synchronous accessor, and readiness is a separate call that is polled. A
-//! single `await bridge.convert(...)` silently produced `null` and a parse
-//! error, which is what this module exists to prevent.
+//! Getting a value *out* of the page is the part that is easy to get wrong.
+//! Awaiting the `Eval` itself returns what the script evaluates to
+//! synchronously, so an `async` bridge method arrives as `null`. Dioxus's
+//! supported answer is the eval channel: the script pushes the result with
+//! `dioxus.send` once its promise settles, and Rust awaits `recv`. That is what
+//! this module does, and it is why there is no polling loop here.
 
 // A `WebView` round trip, so these futures are not `Send`. Every caller is on a
 // component's own single-threaded task, which is the right shape for it.
@@ -25,96 +25,55 @@ use serde_json::Value;
 
 use super::CurationError;
 
-/// How long to wait for `RDKit`'s 7 MB wasm module to compile, in milliseconds.
-///
-/// Generous, because the first load compiles the module and a cold start on a
-/// slow disk is not the same as a bad build. The wait is a poll loop, so a slow
-/// load costs nothing but a few `eval` round trips.
-const READY_TIMEOUT_MS: u64 = 60_000;
-const READY_POLL_MS: u64 = 100;
-
 /// Call a method on the `RDKit` bridge and return its answer.
 ///
-/// Waits for `RDKit` to finish loading first. The wait is bounded, and a load
-/// that failed reports the error the loader recorded rather than timing out.
+/// Waits for `RDKit` to finish loading first, which the bridge does internally.
 ///
 /// # Errors
-/// Returns a message if the bridge is missing, the load failed, the wait timed
-/// out, or the call itself threw.
+/// Returns a message if the bridge is missing, the load failed, the call threw,
+/// or nothing arrived on the channel.
 pub(super) async fn rdkit_bridge_call(method: &str, smiles: &str) -> Result<Value, CurationError> {
-    wait_until_ready().await?;
-
     // The SMILES is user input, so it goes in as a JSON string literal rather
     // than being interpolated raw: a quote or a backslash would otherwise end
     // the literal and change what the script parses as.
     let smiles_literal = serde_json::to_string(smiles.trim())
         .map_err(|e| CurationError::Parse(format!("could not encode the structure: {e}")))?;
-    let method_literal = serde_json::to_string(method)
-        .map_err(|e| CurationError::Parse(format!("could not encode the method: {e}")))?;
 
-    eval(&format!(
-        r"window.__lotusRdkit[{method_literal}]({smiles_literal})"
-    ))
-    .await
-}
+    // `method` is a literal at every call site, so it is not attacker-controlled
+    // and needs no escaping. `dioxus.send` is called on both paths, so the
+    // channel always produces exactly one value and `recv` cannot hang.
+    let script = format!(
+        r#"(async () => {{
+            const fail = (message) => dioxus.send({{ lotus_rdkit_error: String(message) }});
+            try {{
+                const bridge = window.__lotusRdkit;
+                if (!bridge) {{
+                    fail("the RDKit bridge is not loaded");
+                    return;
+                }}
+                const value = await bridge.{method}({smiles_literal});
+                dioxus.send({{ lotus_rdkit_value: value === undefined ? null : value }});
+            }} catch (error) {{
+                fail((error && error.message) || error);
+            }}
+        }})();"#
+    );
 
-/// Start the load and poll until the toolkit is usable.
-///
-/// # Errors
-/// Returns a message if the bridge is absent, the load recorded an error, or the
-/// wait ran out.
-async fn wait_until_ready() -> Result<(), CurationError> {
-    // Kick the load off. The bridge is single-flight, so this is safe to call on
-    // every conversion.
-    eval("window.__lotusRdkit.start()").await?;
-
-    let mut waited = 0_u64;
-    loop {
-        let state =
-            eval(r"({ ready: window.__lotusRdkit.isReady(), error: window.__lotusRdkit.error() })")
-                .await?;
-
-        if state.get("ready").and_then(Value::as_bool) == Some(true) {
-            return Ok(());
-        }
-        if let Some(error) = state.get("error").and_then(Value::as_str) {
-            return Err(CurationError::Http(format!(
-                "rdkit.js failed to load: {error}"
-            )));
-        }
-        if waited >= READY_TIMEOUT_MS {
-            return Err(CurationError::Http(format!(
-                "rdkit.js was still loading after {READY_TIMEOUT_MS}ms"
-            )));
-        }
-        wait(READY_POLL_MS).await;
-        waited += READY_POLL_MS;
-    }
-}
-
-/// Evaluate `script` and return its value.
-///
-/// # Errors
-/// Returns a message if the script throws or its value cannot be read.
-async fn eval(script: &str) -> Result<Value, CurationError> {
-    document::eval(script)
+    let mut eval = document::eval(&script);
+    let outcome: Value = eval
+        .recv()
         .await
-        .map_err(|e| CurationError::Http(format!("evaluating the RDKit bridge failed: {e}")))
-}
+        .map_err(|e| CurationError::Http(format!("the RDKit bridge did not answer: {e}")))?;
 
-/// Wait `ms` milliseconds.
-///
-/// The poll interval is a tenth of a second and the wait can run for a minute
-/// while a seven megabyte wasm module compiles, so this is a real timer rather
-/// than a busy loop. `futures-timer` is the one timer here that builds for both
-/// renderers without dragging a runtime in with it: `tokio` is native-only and
-/// not even enabled for the desktop build, `gloo-timers` is wasm-only, and
-/// sleeping on a spawned thread would wake the runtime for a no-op.
-///
-/// # Errors
-/// Never.
-async fn wait(ms: u64) {
-    futures_timer::Delay::new(std::time::Duration::from_millis(ms)).await;
+    if let Some(message) = outcome.get("lotus_rdkit_error").and_then(Value::as_str) {
+        return Err(CurationError::Http(format!(
+            "rdkit.js {method} failed: {message}"
+        )));
+    }
+    outcome
+        .get("lotus_rdkit_value")
+        .cloned()
+        .ok_or_else(|| CurationError::Http(format!("rdkit.js {method} returned no value")))
 }
 
 #[cfg(test)]
