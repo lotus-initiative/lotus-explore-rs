@@ -557,6 +557,20 @@ mod tests {
     }
 
     #[test]
+    fn no_keyword_is_listed_twice() {
+        // A registry folds this list into a search index, so a repeated term
+        // weights the software twice and tells a reader nothing twice.
+        let mut seen = std::collections::HashSet::new();
+        for keyword in SOFTWARE.keywords {
+            assert!(
+                seen.insert(*keyword),
+                "{keyword:?} is listed twice, in {:?}",
+                SOFTWARE.keywords
+            );
+        }
+    }
+
+    #[test]
     fn every_keyword_survives_as_a_list() {
         // A YAML mapping with `keywords:` repeated keeps only the last value.
         // The document named five keywords and described the software by one.

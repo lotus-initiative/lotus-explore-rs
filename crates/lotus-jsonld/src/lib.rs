@@ -118,7 +118,7 @@ pub const SOFTWARE: crate::software::Software = crate::software::Software {
         "SPARQL",
         "bioinformatics",
         "chemical compound",
-        "natural products",
+        "natural product",
         "taxonomy",
         "chemotaxonomy",
         "curation",
