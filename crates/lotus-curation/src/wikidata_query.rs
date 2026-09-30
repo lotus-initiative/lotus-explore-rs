@@ -339,4 +339,46 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn a_backslash_is_itself_escaped() {
+        // The quote and the control characters cannot occur in a real DOI, so
+        // this is the escape that only shows up when a value is pasted rather
+        // than typed -- and getting it wrong silently corrupts the literal.
+        assert_eq!(escape_sparql_string(r"a\b"), r"a\\b");
+        assert_eq!(escape_sparql_string(r#"a"b"#), r#"a\"b"#);
+        assert_eq!(
+            escape_sparql_string("a\nb\tc"),
+            "a b c",
+            "control characters become spaces"
+        );
+    }
+
+    #[test]
+    fn a_doi_lookup_is_a_doi_predicate() {
+        let query = reference_by_doi_query("10.1000/xyz123");
+        assert!(query.contains("SELECT ?ref WHERE"), "{query}");
+        assert!(
+            query.contains(&format!("wdt:{} \"10.1000/xyz123\"", property::DOI)),
+            "the DOI is the value of the DOI predicate: {query}"
+        );
+        assert!(
+            query.contains("LIMIT 1"),
+            "one reference is enough to match on: {query}"
+        );
+    }
+
+    #[test]
+    fn a_doi_with_a_quote_in_it_cannot_break_out_of_the_literal() {
+        // The value is interpolated into a SPARQL string literal, so an
+        // unescaped quote ends the literal and everything after it is parsed as
+        // query. `lotus curate` reads from the live endpoint, so this is the
+        // difference between a bad match and a query nobody wrote.
+        let query = reference_by_doi_query(r#"10.1/" . ?ref ?o ."#);
+        assert!(
+            !query.contains(r#"10.1/" . ?ref"#),
+            "the quote has to be escaped: {query}"
+        );
+        assert!(query.contains(r#"10.1/\""#), "{query}");
+    }
 }

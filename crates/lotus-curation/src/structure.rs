@@ -504,4 +504,32 @@ mod tests {
         assert!(matches!(err, CurationError::InvalidInput(_)), "{err:?}");
         assert_eq!(http.call_count(), 0);
     }
+
+    #[test]
+    fn a_success_with_no_output_is_a_parse_failure() {
+        // The service answered, and what it answered was not a structure. That is
+        // a shape this does not read, so it is reported as a parse failure rather
+        // than quietly curating an empty value.
+        for blank in ["", "   ", "\n\t "] {
+            let converted = Converted {
+                output: Some(blank.to_owned()),
+                error: None,
+            };
+            let result = converted.into_result("SMILES");
+            assert!(
+                matches!(result, Err(CurationError::Parse(ref message)) if message.contains("no SMILES")),
+                "{blank:?} is not an output, got {result:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_real_output_is_trimmed_and_kept() {
+        let result = Converted {
+            output: Some("  CCO  ".to_owned()),
+            error: None,
+        }
+        .into_result("SMILES");
+        assert_eq!(result.unwrap_or_default().as_deref(), Some("CCO"));
+    }
 }

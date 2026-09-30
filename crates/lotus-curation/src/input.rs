@@ -245,6 +245,26 @@ mod tests {
             "the name is not part of the identity"
         );
     }
+
+    #[test]
+    fn a_row_needs_both_a_name_and_a_smiles() {
+        // The row is dropped if either half is missing. Each is dropped on its
+        // own here, because the guard is an `||`: turned into `&&`, a row with
+        // only one half survives and gets submitted with nothing to label it by.
+        //
+        // The empty field is in the middle deliberately. `parse_tsv` trims each
+        // whole line before splitting it, so a leading tab is gone before the
+        // columns are read and the first field can never come out empty -- the
+        // only way to see this is a gap between two present fields.
+        let tsv = "organism\tname\tsmiles\n\
+                   Taxon\tKeep\tCCO\n\
+                   Taxon\t\tCCC\n\
+                   \tNoStructure\t\n\
+                   Taxon\tBoth blank\t \n";
+        let rows = parse_tsv(tsv).expect("tsv parse");
+        let kept: Vec<&str> = rows.iter().map(|row| row.name.as_str()).collect();
+        assert_eq!(kept, ["Keep"], "only the complete row survives: {kept:?}");
+    }
 }
 
 #[test]

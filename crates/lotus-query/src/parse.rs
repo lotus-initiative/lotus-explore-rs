@@ -523,4 +523,75 @@ mod tests {
                 .is_empty()
         );
     }
+
+    // ── The streaming reader ────────────────────────────────────────────────
+    //
+    // `parse_compounds_stream` is the path used for a result too large to hold
+    // in memory, and it had no test at all. The three things it returns are all
+    // load-bearing: the rows, the counts derived from every row read, and
+    // whether the cap cut the result short.
+
+    #[test]
+    fn a_stream_is_read_to_the_same_result_as_the_bytes() {
+        let row = "Q1,L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,T,10.1/a,2021,\n";
+        let bytes = csv(&format!("{row}{row}"));
+        let (streamed, stats, capped) =
+            parse_compounds_stream(bytes.as_slice(), 10).expect("valid CSV");
+        let (direct, direct_stats, direct_capped) =
+            parse_compounds_csv_capped(&bytes, 10).expect("valid CSV");
+        assert_eq!(streamed, direct, "the stream and the slice agree");
+        assert_eq!(stats.n_entries, direct_stats.n_entries);
+        assert_eq!(capped, direct_capped);
+        assert!(!capped, "nothing was cut short");
+    }
+
+    #[test]
+    fn a_capped_stream_reports_that_it_was_cut_short() {
+        // `capped` is the only signal the caller has that the result is partial.
+        // False when the cap was reached is a quiet wrong answer: the caller
+        // reports a total as if it were the whole set.
+        let rows: String = (1..=5)
+            .map(|i| format!("Q{i},L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,T,10.1/a,2021,\n"))
+            .collect();
+        let (kept, stats, capped) =
+            parse_compounds_stream(csv(&rows).as_slice(), 2).expect("valid CSV");
+        assert_eq!(kept.len(), 2, "the cap is respected");
+        assert!(capped, "and it is reported");
+        assert_eq!(
+            stats.n_entries, 5,
+            "the counts still describe every row read, not just the kept ones"
+        );
+    }
+
+    #[test]
+    fn a_header_with_no_recognisable_columns_yields_no_rows() {
+        // Documenting what this does, which is not what the `# Errors` section
+        // above says it does. The CSV reader is built `flexible(true)` and the
+        // column detector returns `None` for each column it cannot place, so
+        // bytes that are not a result set at all parse to zero rows rather than
+        // to an error.
+        //
+        // That is the right call for a truncated or partially-typed export, and
+        // the wrong one for a file that is not an export: the caller cannot tell
+        // "this database has no compounds" from "this file is not a database".
+        // Deciding which is which needs a rule about a result set with no rows,
+        // which is a change to behaviour rather than to a test.
+        let bytes = b"\0\0\0not a result set at all\n".to_vec();
+        let (rows, _, capped) = parse_compounds_stream(bytes.as_slice(), 10).expect("reads");
+        assert!(rows.is_empty());
+        assert!(!capped);
+    }
+
+    #[test]
+    fn a_stream_that_cannot_be_read_is_an_error() {
+        /// A reader that always fails, so the read error is exercised rather than
+        /// only the parse error.
+        struct Broken;
+        impl std::io::Read for Broken {
+            fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+                Err(std::io::Error::other("the socket went away"))
+            }
+        }
+        assert!(parse_compounds_stream(Broken, 10).is_err());
+    }
 }
