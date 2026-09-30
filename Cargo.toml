@@ -144,16 +144,27 @@ unreachable_pub = "deny"
 unsafe_code = "forbid"
 # Require an explicit unsafe block per unsafe operation inside unsafe fns
 unsafe_op_in_unsafe_fn = "deny"
-# An assignment that is immediately overwritten, or one whose value is never read:
-# either dead, or a sign the branch it guards was meant to return.
-unused_assignments = "deny"
 unused_crate_dependencies = "deny"
-unused_imports = "deny"
 unused_must_use = "deny"
-# A `let` binding that shadows is nearly always a bug in the binding, and one
-# that diverges from the value it was derived from is nearly always a bug in the
-# derivation.
-unused_variables = "deny"
+
+# `unused_assignments`, `unused_imports`, `unused_variables` and
+# `unused_extern_crates` were tried here and removed again. All four are in
+# rustc's default `unused` group, so CI's `RUSTFLAGS: "-D warnings"` already
+# fails on them; listing them only moved the failure earlier.
+#
+# That "earlier" is the problem. Mutation testing rewrites a function body and
+# re-runs the tests, and a mutation that leaves an unused binding then fails to
+# *compile* rather than failing an assertion. cargo-mutants reports a build
+# failure as unviable, so promoting these lints quietly turned 230 mutants that
+# a test would have caught into ones nothing evaluates: 639 caught became 407,
+# with no test and no line of code any worse for it.
+#
+# The lint's job is to catch a defect in the code as written; mutation testing's
+# is to show which behaviours the tests pin. Denying a default warn costs the
+# second to buy the first nothing it did not already have.
+#
+# `clippy::shadow_unrelated` was also tried: it fires on ordinary test-local
+# shadowing, which is idiomatic rather than defective.
 
 # `dev` keeps the debug assertions and overflow checks the release profile drops,
 # which is the point: the two profiles differ in what they check, not only in
