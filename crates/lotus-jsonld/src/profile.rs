@@ -417,4 +417,19 @@ mod tests {
             assert!(!issues.is_empty(), "{bad}");
         }
     }
+
+    #[test]
+    fn each_json_kind_is_named_in_its_own_words() {
+        use serde_json::{Value, json};
+
+        // These strings go into a validation message. Naming two kinds the same
+        // way turns "expected a string, got a number" into a message that cannot
+        // be acted on.
+        assert_eq!(kind_of(&Value::Null), "null");
+        assert_eq!(kind_of(&Value::Bool(true)), "a boolean");
+        assert_eq!(kind_of(&Value::from(1)), "a number");
+        assert_eq!(kind_of(&Value::from("s")), "a string");
+        assert_eq!(kind_of(&Value::from(vec![1])), "an array");
+        assert_eq!(kind_of(&json!({"a": 1})), "an object");
+    }
 }

@@ -314,4 +314,19 @@ mod tests {
             json!("https://doi.org/10.7554/eLife.70780")
         );
     }
+
+    #[test]
+    fn an_absent_taxon_is_shown_as_all_organisms() {
+        // Two spellings of "no taxon": an empty cell and the `*` the SPARQL uses
+        // for a wildcard. Both mean the same thing to a reader, so both are
+        // written the same way.
+        for wildcard in ["", "*"] {
+            assert_eq!(display_taxon(wildcard), "all organisms", "{wildcard:?}");
+        }
+        assert_eq!(
+            display_taxon("Q16521"),
+            "Q16521",
+            "a real taxon is shown as itself"
+        );
+    }
 }

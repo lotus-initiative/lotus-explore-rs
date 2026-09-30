@@ -119,3 +119,57 @@ pub const SOFTWARE: crate::software::Software = crate::software::Software {
 pub fn entity_for(entry: &CompoundEntry) -> Result<serde_json::Value, serde_json::Error> {
     Ok(compound_jsonld(entry))
 }
+
+#[cfg(test)]
+mod uri_tests {
+    #![allow(
+        clippy::panic,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::indexing_slicing
+    )]
+
+    use super::*;
+
+    // These strings are `sameAs` targets in emitted JSON-LD, so they are part of
+    // the data rather than display: a consumer dereferences them. A wrong one is
+    // a link that 404s, and nothing in the pipeline notices.
+
+    #[test]
+    fn each_uri_carries_its_own_identifier() {
+        assert_eq!(wikidata_uri("Q1"), "http://www.wikidata.org/entity/Q1");
+        assert_eq!(
+            pubchem_uri("LFQSCWFLJHTTHZ-UHFFFAOYSA-N"),
+            "https://pubchem.ncbi.nlm.nih.gov/compound/LFQSCWFLJHTTHZ-UHFFFAOYSA-N"
+        );
+        assert_eq!(doi_uri("10.1000/xyz"), "https://doi.org/10.1000/xyz");
+    }
+
+    #[test]
+    fn a_property_value_is_shaped_the_way_a_consumer_expects() {
+        let value = property_value(
+            "wikidata",
+            "http://www.wikidata.org/entity/Q1",
+            "uri",
+            "http://wikiba.se/ontology#WikidataItem",
+        );
+        assert_eq!(value["@type"], "PropertyValue");
+        assert_eq!(value["propertyID"], "wikidata");
+        assert_eq!(value["valueType"], "uri");
+        assert_eq!(value["value"], "http://www.wikidata.org/entity/Q1");
+        assert_eq!(
+            value["identifier"], "http://wikiba.se/ontology#WikidataItem",
+            "the scheme travels as the identifier, which is where a consumer reads it"
+        );
+    }
+
+    #[test]
+    fn an_entity_is_returned_for_a_row() {
+        let entry = lotus_model::CompoundEntry {
+            compound_qid: std::sync::Arc::from("Q1"),
+            ..lotus_model::CompoundEntry::default()
+        };
+        let entity = entity_for(&entry).expect("infallible today");
+        assert_eq!(entity["@id"], "http://www.wikidata.org/entity/Q1");
+    }
+}

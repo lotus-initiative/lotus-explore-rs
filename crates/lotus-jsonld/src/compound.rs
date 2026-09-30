@@ -176,4 +176,19 @@ mod tests {
     fn the_type_is_the_one_the_profile_constrains() {
         assert_eq!(compound_jsonld(&entry())["@type"], json!("MolecularEntity"));
     }
+
+    #[test]
+    fn a_row_always_contributes_at_least_its_wikidata_identifier() {
+        // The vector is seeded with the Wikidata property rather than built by
+        // pushing, so a row with no inchikey, no smiles and no DOI still carries
+        // the one identifier that identifies it. An empty list here would emit a
+        // compound with no identity at all.
+        let entry = CompoundEntry {
+            compound_qid: Arc::from("Q1"),
+            ..CompoundEntry::default()
+        };
+        let out = identifiers(&entry, "http://www.wikidata.org/entity/Q1");
+        assert_eq!(out.len(), 1, "the Wikidata identifier is always there");
+        assert_eq!(out[0]["propertyID"], "wikidata");
+    }
 }

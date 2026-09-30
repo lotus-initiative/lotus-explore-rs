@@ -159,6 +159,11 @@ fn yaml_scalar(value: &str) -> String {
         || value.contains('\n')
         || value.starts_with(' ')
         || value.ends_with(' ')
+        // A leading quote is not just a quote: in a plain scalar it opens one, and
+        // the value ends up as a quoted scalar with no terminator. Anywhere else a
+        // `"` is an ordinary character and the value stays readable.
+        || value.starts_with('"')
+        || value.starts_with('\'')
         || value.is_empty();
     if needs_quotes {
         format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
@@ -241,5 +246,64 @@ mod tests {
         for keyword in SOFTWARE.keywords {
             assert!(cff.contains(keyword), "{keyword} missing from:\n{cff}");
         }
+    }
+
+    #[test]
+    fn the_lotus_paper_is_a_scholarly_article_keyed_by_its_doi() {
+        // The citation is what a consumer resolves the software to a paper with,
+        // so both the type and the identifier have to be right.
+        let paper = lotus_paper("10.1000/lotus");
+        assert_eq!(paper["@type"], "ScholarlyArticle");
+        assert_eq!(paper["identifier"], "https://doi.org/10.1000/lotus");
+    }
+
+    #[test]
+    fn a_yaml_scalar_is_quoted_for_each_thing_that_needs_it() {
+        // One case per clause of the `||` chain, because `&&` in place of `||`
+        // quotes only the value that fails every test at once.
+        for needs in [
+            "a: b", // a colon would start a mapping
+            "a #b", // a hash would start a comment
+            "a\nb", // a newline would end the scalar
+            " a",   // leading space is significant in YAML
+            "a ",   // and so is trailing
+            "",     // an empty scalar has to be spelled out
+        ] {
+            assert!(
+                yaml_scalar(needs).starts_with('"'),
+                "{needs:?} must be quoted, got {:?}",
+                yaml_scalar(needs)
+            );
+        }
+        for plain in ["CCO", "C6H6O", "10.1000/xyz", "Gentiana-lutea"] {
+            assert_eq!(yaml_scalar(plain), plain, "an ordinary word stays readable");
+        }
+    }
+
+    #[test]
+    fn a_leading_quote_is_quoted_because_it_opens_one() {
+        // Unquoted, `"abc` is a double-quoted scalar with nothing closing it, and
+        // the file the emitter writes no longer parses.
+        for leading in [r#""abc"#, "'abc"] {
+            assert!(
+                yaml_scalar(leading).starts_with('"'),
+                "{leading:?} would open a scalar it never closes"
+            );
+        }
+        // Anywhere but the front, a quote is just a character.
+        assert_eq!(yaml_scalar(r#"a"b"#), r#"a"b"#);
+    }
+
+    #[test]
+    fn a_quoted_scalar_escapes_what_would_end_the_quotes() {
+        // Escaping only happens on the way to being quoted: in a plain scalar a
+        // backslash is an ordinary character and needs nothing.
+        assert_eq!(yaml_scalar(r#"a: "b""#), r#""a: \"b\"""#);
+        assert_eq!(yaml_scalar(r"a: \b"), r#""a: \\b""#);
+        assert_eq!(
+            yaml_scalar(r"a\b"),
+            r"a\b",
+            "a plain scalar needs no escaping"
+        );
     }
 }
