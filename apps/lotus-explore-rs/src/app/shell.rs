@@ -11,6 +11,7 @@ use crate::components::layout::page_header::PageHeader;
 use crate::components::layout::structured_data::StructuredDataHead;
 use crate::components::results_viewport::ResultsViewport;
 use crate::components::welcome::SearchExamples;
+use crate::document_head::AppStylesheet;
 use crate::features::explore::{
     ExploreInteractions, ExploreState, SearchTaskController, build_shareable_url,
     initial_url_state, is_true_flag, use_download_dispatch_effect, use_startup_effect,
@@ -70,6 +71,16 @@ fn resolve_startup_dark_mode(startup: &crate::features::explore::InitialUrlState
     startup_dark_mode
 }
 
+/// Whether the root links the application stylesheet from the component tree.
+///
+/// True for the native window, which has no `index.html` to link it from, and
+/// false for the browser, whose document links the sheet before the wasm module
+/// boots. See `AppStylesheet`.
+#[cfg(not(target_arch = "wasm32"))]
+const LINK_STYLESHEET: bool = true;
+#[cfg(target_arch = "wasm32")]
+const LINK_STYLESHEET: bool = false;
+
 #[component]
 pub fn AppRoot() -> Element {
     normalize_empty_query();
@@ -105,6 +116,14 @@ pub fn AppRoot() -> Element {
     });
 
     rsx! {
+        // A window has no `index.html`, so its stylesheet link has to come from
+        // the tree. A browser does, and links the sheet at parse time so the
+        // first paint is styled -- so the link is native-only. A `const` rather
+        // than `#[cfg]` on the node, which rsx does not accept, and it keeps the
+        // two cases greppable.
+        if LINK_STYLESHEET {
+            AppStylesheet {}
+        }
         LocaleProvider { locale,
             Router::<Route> {}
         }

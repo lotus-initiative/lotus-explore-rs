@@ -173,6 +173,26 @@ build app="lotus-explore-rs":
 # The module is content-hashed, so only a post-build step can name it. Without
 # this the 1.4 MiB module is fetched *after* the 45 KiB JS glue has downloaded,
 # parsed and executed; measured, that serialisation cost ~120 ms of LCP.
+# Recompile the application stylesheet.
+#
+# The compiled sheet is committed, because `asset!` reads it at compile time and
+# a checkout without it cannot build the app. That makes it possible for it to go
+# stale, so `tests` in `document_head.rs` fails if a theme token is missing from
+# it. Run this after editing `tailwind/styles.css`, and commit the result.
+#
+# Uses the Tailwind binary dx installed, not npm: dx owns the version, and a
+# second copy of the compiler is a second answer to which utilities exist.
+css:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	tw=$(ls -d "$HOME"/.dx/tools/tailwindcss-*/tailwindcss 2>/dev/null | sort -V | tail -1 || true)
+	if [ -z "$tw" ] || [ ! -x "$tw" ]; then
+	  echo "no tailwind binary under ~/.dx/tools; run 'dx build' once to install it" >&2
+	  exit 1
+	fi
+	cd apps/lotus-explore-rs
+	"$tw" --input tailwind/styles.css --output public/assets/lotus-explore.css
+
 preload-wasm:
 	cargo run --locked --release -p lotus-web-assets --bin inject-wasm-preload
 

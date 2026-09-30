@@ -1,7 +1,12 @@
 # Build-time frontend assets (downloaded by fetch-assets)
 public/assets/ketcher/
 public/assets/vendor/
-public/assets/lotus-explore.css
+
+# `public/assets/lotus-explore.css` is deliberately NOT ignored. `dx` compiles it
+# from `tailwind/styles.css`, but `asset!` reads it at compile time, so a
+# checkout without it cannot build the app at all. Committing it is the
+# Dioxus-with-Tailwind convention, and `tests/design_tokens.rs` fails if the
+# committed sheet drifts from the theme in `tailwind/styles.css`.
 
 # Build artifacts
 target/
