@@ -10,6 +10,12 @@ pub fn KetcherPanel() -> Element {
     let locale = crate::hooks::use_locale();
     let mut ketcher_ready = use_signal(|| false);
     let ketcher_url = crate::vendor_assets::ketcher_url();
+    // Logged because this URL is wrong in exactly one way per bundler: a
+    // relative path, a missing `assets/` prefix, or a hashed name the editor's
+    // own relative references do not match. All three look like "the editor does
+    // not load" and nothing else.
+    log::info!("event=ketcher_load state=url url={ketcher_url}");
+
     rsx! {
         div {
             class: "flex w-full flex-col gap-3",
@@ -34,6 +40,13 @@ pub fn KetcherPanel() -> Element {
                         class: "min-h-[420px] w-full flex-1 border-0 bg-surface",
                         allow: "fullscreen",
                         referrerpolicy: "no-referrer",
+                        // The editor is a separate application in a frame, so
+                        // nothing in this window's render tree reports on it. A
+                        // 404, a MIME the WebView refuses, or a runtime error
+                        // inside Ketcher all look the same from out here: an
+                        // empty box.
+                        onload: move |_| log::info!("event=ketcher_load state=iframe_loaded"),
+                        onerror: move |_| log::warn!("event=ketcher_load state=iframe_failed"),
                     }
                 } else {
                     button {
