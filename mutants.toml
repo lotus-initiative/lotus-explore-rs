@@ -1,16 +1,33 @@
 # Mutation testing.
 #
 # `just mutants` covers every library crate in the workspace and nothing else.
-# This file exists to say why `apps/lotus-explore-rs` is the one omission, so the
-# gap is a decision rather than an oversight, and so it is checked: the
-# `mutants` recipe's package list and this file are compared by
-# `apps/lotus-explore-rs/tests/gate_consistency.rs`.
-
-# The app is 2,761 mutants of Dioxus rendering -- a `match` arm on a `Signal`,
-# an `rswap!`, a literal in a `class` attribute. Killing those means a rendering
-# test for every component, which is a large piece of work with a poor ratio.
-# It is `just mutants-ui`, opt-in.
+# This file says why `apps/lotus-explore-rs` is the one omission, so the gap is a
+# decision rather than an oversight; `apps/lotus-explore-rs/tests/
+# gate_consistency.rs` checks that the exclusion is still the one this file states.
 #
-# Recorded on 2026-09-30, so the number is checkable rather than remembered.
+# Recorded on 2026-09-30. That run: 947 mutants, 645 caught, 297 unviable, 5
+# surviving -- all five introduced by splitting fetch-assets, and all five since
+# killed. The one left standing is written down at the bottom.
+
+# The app is ~2,700 mutants of Dioxus rendering -- a `match` arm on a `Signal`, an
+# `rswap!`, a literal in a `class` attribute. Killing those means a rendering
+# test for every component: a large piece of work with a poor ratio. It is
+# `just mutants-ui`, opt-in.
 [package.lotus-explore-rs]
 exclude = true
+
+# One mutant survives in lotus-web-assets and is left standing on purpose:
+#
+#   src/fetch_assets/mod.rs: replace main -> Result<..> with Ok(())
+#
+# It asks whether `main` stops propagating a failure, and the only way to observe
+# that is the process exit status of the binary. The logic `main` contains is
+# now the `run` function next to it, which is covered: its error path is
+# asserted on, and the mutant that short-circuited it is caught. What remains is
+# the process boundary, which is the one thing a unit test cannot reach and which
+# a shell test would only restate.
+#
+# The 297 "unviable" are mutants that do not compile -- an array replaced with a
+# different arity, a function replaced with a body of the wrong type. They are
+# not a gap in the tests: cargo-mutants reports a build failure as unviable
+# rather than caught.
