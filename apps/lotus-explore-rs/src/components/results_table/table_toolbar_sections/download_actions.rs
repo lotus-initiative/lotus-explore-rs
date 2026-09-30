@@ -432,7 +432,7 @@ pub fn DownloadActionsGroup() -> Element {
                                     // used to be absent, which made the button a
                                     // no-op in the window.
                                     #[cfg(not(target_arch = "wasm32"))]
-                                    if let Err(e) = crate::upload::open_externally(url) {
+                                    if let Err(e) = crate::download::open_externally(url) {
                                         log::warn!(
                                             "event=open_external state=error reason={e}"
                                         );

@@ -285,22 +285,6 @@ fn blob_url_from_str(content: &str, mime: &str) -> Result<String, String> {
         .map_err(|e| format!("failed to create object URL: {e:?}"))
 }
 
-/// Download `content` as `filename`.
-/// # Errors
-/// Returns a message if the download cannot be triggered.
-#[cfg(target_arch = "wasm32")]
-// Only the native and server paths reach this; the browser client has its
-// own fetch path, so a wasm build has no caller for it.
-#[cfg(not(target_arch = "wasm32"))]
-pub fn download_text(content: &str, filename: &str) -> Result<(), String> {
-    let safe_name = sanitize_filename(filename);
-    let url = blob_url_from_str(content, "text/plain;charset=utf-8")?;
-
-    click_download_anchor(&url, &safe_name, false)
-        .map(|_| ())
-        .map_err(|e| format!("download failed: {e}"))
-}
-
 /// Download `content` as `{filename}{extension}` with `mime`.
 /// # Errors
 /// Returns a message if the download cannot be triggered.
@@ -411,158 +395,6 @@ pub async fn submit_download_form(endpoint: &str, fields: &[(&str, &str)]) -> Re
     Ok(())
 }
 
-/// Writes `content` to a file in the user's download directory.
-///
-/// The browser build triggers a download through an anchor and a blob URL. A
-/// desktop window has neither, so the file is written to disk instead and the
-/// absolute path is logged. Without this the export buttons did nothing at all
-/// on desktop, because this function used to return an error that the download
-/// path discarded.
-///
-/// Returns the path written, so the caller can tell the user where the file
-/// went. A desktop window has no download shelf and no browser notification, so
-/// a file that appears in `~/Downloads` with no other sign is indistinguishable
-/// from a button that did nothing.
-///
-/// # Errors
-/// Returns a message if the download directory cannot be determined or the
-/// file cannot be written.
-#[cfg(not(target_arch = "wasm32"))]
-pub fn download_text(content: &str, filename: &str) -> Result<std::path::PathBuf, String> {
-    let dir = download_dir().ok_or_else(|| {
-        "no download directory could be determined; set LOTUS_DOWNLOAD_DIR".to_string()
-    })?;
-
-    // `sanitize_filename` strips path separators, so `name` cannot escape `dir`.
-    let name = sanitize_filename(filename);
-    let name = if name.is_empty() {
-        "lotus-export".to_string()
-    } else {
-        name
-    };
-
-    // Never silently clobber an earlier export: append ` (2)`, ` (3)`, ...
-    let path = unique_path(&dir, &name);
-
-    std::fs::write(&path, content)
-        .map_err(|e| format!("failed to write {}: {e}", path.display()))?;
-    log::info!(
-        "event=download phase=write state=success path={}",
-        path.display()
-    );
-    Ok(path)
-}
-
-/// Where a native export should be written.
-///
-/// `LOTUS_DOWNLOAD_DIR` wins, so a headless or scripted run can be pointed at a
-/// specific directory. Otherwise this follows the platform convention: macOS and
-/// Windows use `~/Downloads`, and on Linux the XDG variable is honoured with the
-/// same path as the fallback.
-///
-/// This is spelled out rather than pulled from `dirs` because that dependency is
-/// only enabled for the `desktop` feature, while this function is compiled for
-/// every native target, including the server build.
-#[cfg(not(target_arch = "wasm32"))]
-fn download_dir() -> Option<std::path::PathBuf> {
-    use std::path::PathBuf;
-
-    let non_empty = |v: Option<std::ffi::OsString>| v.filter(|v| !v.is_empty()).map(PathBuf::from);
-
-    if let Some(dir) = non_empty(std::env::var_os("LOTUS_DOWNLOAD_DIR")) {
-        return Some(dir);
-    }
-    if cfg!(target_os = "macos") || cfg!(target_os = "windows") {
-        let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"))?;
-        return Some(PathBuf::from(home).join("Downloads"));
-    }
-    if let Some(dir) = non_empty(std::env::var_os("XDG_DOWNLOAD_DIR")) {
-        return Some(dir);
-    }
-    let home = std::env::var_os("HOME")?;
-    Some(PathBuf::from(home).join("Downloads"))
-}
-
-/// First unused path in `dir` for `name`, appending ` (2)`, ` (3)`, ... to the
-/// stem so an earlier export is never overwritten.
-#[cfg(not(target_arch = "wasm32"))]
-fn unique_path(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
-    let (stem, ext) = match name.rsplit_once('.') {
-        Some((stem, ext)) if !stem.is_empty() => (stem.to_string(), format!(".{ext}")),
-        _ => (name.to_string(), String::new()),
-    };
-    let mut candidate = dir.join(name);
-    let mut n = 2_u32;
-    while candidate.exists() {
-        candidate = dir.join(format!("{stem} ({n}){ext}"));
-        n += 1;
-    }
-    candidate
-}
-
-/// Native stub.
-/// # Errors
-/// Always returns `Err`.
-#[cfg(not(target_arch = "wasm32"))]
-pub fn download_text_as_blob(
-    _content: &str,
-    _filename: &str,
-    _extension: &str,
-    _mime: &str,
-) -> Result<(), String> {
-    Err("Download is only available in the browser".to_string())
-}
-
-/// Native stub; always returns `false`.
-#[cfg(not(target_arch = "wasm32"))]
-#[must_use]
-pub const fn download_url(_url: &str, _filename: &str) -> bool {
-    false
-}
-
-/// Native stub.
-/// # Errors
-/// Always returns `Err`.
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn submit_download_form(_endpoint: &str, _fields: &[(&str, &str)]) -> Result<(), String> {
-    Err("Download is only available in the browser".to_string())
-}
-
-/// Open `url` in the user's default browser.
-///
-/// The desktop window is not a browser, so there is nothing to navigate: the
-/// "Open in QLever" button used to carry only a `wasm32` branch and was a no-op
-/// in a window. The system opener is the platform's own answer, and it hands the
-/// URL to whatever the user has set as default.
-///
-/// # Errors
-/// Returns a message if the URL is not http(s) or the opener fails. Only http
-/// and https are accepted because the URL is passed to an external program.
-#[cfg(not(target_arch = "wasm32"))]
-pub fn open_externally(url: &str) -> Result<(), String> {
-    let url = url.trim();
-    if !(url.starts_with("https://") || url.starts_with("http://")) {
-        return Err(format!("refusing to open a non-http URL: {url}"));
-    }
-
-    let (program, args): (&str, &[&str]) = if cfg!(target_os = "macos") {
-        ("open", &[url])
-    } else if cfg!(target_os = "windows") {
-        // `start` is a shell builtin, so this needs a shell to run it. The empty
-        // string is the window title, which `start` would otherwise take from
-        // the URL.
-        ("cmd", &["/c", "start", "", url])
-    } else {
-        ("xdg-open", &[url])
-    };
-
-    std::process::Command::new(program)
-        .args(args)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| format!("failed to run {program}: {e}"))
-}
-
 #[cfg(test)]
 mod tests {
     // The panic lints keep shipped code free of panics on external input. A test
@@ -570,8 +402,6 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::sanitize_filename;
-    #[cfg(not(target_arch = "wasm32"))]
-    use super::unique_path;
 
     #[test]
     fn sanitize_removes_path_separators() {
@@ -616,53 +446,5 @@ mod tests {
     fn sanitize_unicode_passthrough() {
         assert_eq!(sanitize_filename("résultats.csv"), "résultats.csv");
         assert_eq!(sanitize_filename("α-β-γ.rdf"), "α-β-γ.rdf");
-    }
-
-    /// Native export naming: a second export of the same file must not
-    /// overwrite the first, and the extension must survive the counter.
-    #[cfg(not(target_arch = "wasm32"))]
-    #[test]
-    fn unique_path_never_clobbers_an_existing_export() {
-        let dir = std::env::temp_dir().join(format!("lotus-upload-test-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).expect("temp dir");
-
-        assert_eq!(unique_path(&dir, "results.csv"), dir.join("results.csv"));
-        std::fs::write(dir.join("results.csv"), b"first").expect("write");
-
-        assert_eq!(
-            unique_path(&dir, "results.csv"),
-            dir.join("results (2).csv")
-        );
-        std::fs::write(dir.join("results (2).csv"), b"second").expect("write");
-
-        assert_eq!(
-            unique_path(&dir, "results.csv"),
-            dir.join("results (3).csv")
-        );
-
-        // A name that is already a counter must still be uniqued, not assumed free.
-        std::fs::write(dir.join("results (3).csv"), b"third").expect("write");
-        assert_eq!(
-            unique_path(&dir, "results (3).csv"),
-            dir.join("results (3) (2).csv"),
-            "a name that is already a counter must still be uniqued"
-        );
-
-        // No extension: the counter goes after the whole name.
-        assert_eq!(unique_path(&dir, "export"), dir.join("export"));
-        std::fs::write(dir.join("export"), b"x").expect("write");
-        assert_eq!(unique_path(&dir, "export"), dir.join("export (2)"));
-
-        // A dotfile has no stem, so it is treated as a bare name.
-        assert_eq!(unique_path(&dir, ".gitignore"), dir.join(".gitignore"));
-
-        assert_eq!(
-            std::fs::read(dir.join("results.csv")).expect("read"),
-            b"first",
-            "the original export must be left intact"
-        );
-
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

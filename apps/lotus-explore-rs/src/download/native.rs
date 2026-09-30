@@ -186,7 +186,7 @@ pub(super) fn trigger_download(
     // The result used to be dropped here, which turned a failed export into a
     // silent no-op: the user clicked download, nothing appeared, and no error
     // was ever logged.
-    match crate::upload::download_text(content, filename) {
+    match super::local_file::download_text(content, filename) {
         Ok(path) => {
             let message = path.display().to_string();
             log::info!("event=download phase=trigger state=success path={message}");

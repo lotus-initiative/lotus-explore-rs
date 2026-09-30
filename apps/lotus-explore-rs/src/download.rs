@@ -12,6 +12,11 @@ use crate::perf;
 use lotus_search::SearchCriteria;
 
 #[cfg(not(target_arch = "wasm32"))]
+mod local_file;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use local_file::open_externally;
+#[cfg(not(target_arch = "wasm32"))]
 mod native;
 #[cfg(target_arch = "wasm32")]
 mod wasm;

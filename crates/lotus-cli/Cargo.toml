@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.97"
 description = "Search LOTUS from a terminal, and export the result"
+readme = "README.md"
 repository.workspace = true
 license = "AGPL-3.0-only"
 keywords = ["bioinformatics", "cli", "lotus", "natural-products", "sparql"]
