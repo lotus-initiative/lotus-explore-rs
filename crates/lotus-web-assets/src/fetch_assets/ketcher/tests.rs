@@ -12,7 +12,10 @@
 )]
 
 use super::*;
-use crate::test_support::{MockServer, client, err, http_ok, http_status, temp_dir};
+use crate::test_support::{
+    MockServer, client, err, http_ok, http_status, ketcher_style_zip, temp_dir, zip_of,
+};
+use std::io::Cursor;
 
 #[test]
 fn macos_junk_does_not_hide_the_single_wrapper_directory() {
@@ -252,5 +255,120 @@ fn the_editor_already_present_at_that_version_is_left_alone() {
         "<title>Ketcher v9.9.9</title>",
         "the existing tree is untouched"
     );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_editor_is_unzipped_with_the_wrapper_directory_removed() {
+    let dir = temp_dir("ketcher-extract");
+    let bytes = zip_of(&[
+        ("standalone/index.html", "<title>Ketcher v3.18.0</title>"),
+        ("standalone/static/js/main.abc.js", "console.log(1)"),
+    ]);
+    let mut archive = ZipArchive::new(Cursor::new(bytes)).expect("the fixture is a zip");
+
+    let tally = extract(&mut archive, &dir).unwrap_or_else(|e| panic!("extract: {e}"));
+
+    assert_eq!(tally.extracted, 2, "both files are written");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("index.html")).unwrap_or_default(),
+        "<title>Ketcher v3.18.0</title>",
+        "the editor sits at the root, not at standalone/index.html"
+    );
+    assert!(
+        dir.join("static/js/main.abc.js").is_file(),
+        "nested paths keep their structure"
+    );
+    assert!(
+        !dir.join("standalone").exists(),
+        "the wrapper directory is stripped, not created"
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn unused_entry_bundles_and_macos_junk_are_counted_not_written() {
+    let dir = temp_dir("ketcher-skips");
+    let bytes = ketcher_style_zip();
+    let mut archive = ZipArchive::new(Cursor::new(bytes)).expect("the fixture is a zip");
+
+    let tally = extract(&mut archive, &dir).unwrap_or_else(|e| panic!("extract: {e}"));
+
+    assert_eq!(tally.extracted, 2, "index.html and main.abc.js");
+    assert_eq!(
+        tally.skipped_bytes,
+        u64::try_from("unused".len()).unwrap_or_default(),
+        "the unused bundle is counted so the log can say what it dropped"
+    );
+    assert!(
+        !dir.join("static/js/closable.def.js").exists(),
+        "a bundle the editor never loads is not written"
+    );
+    assert!(!dir.join("__MACOSX").exists(), "junk is not written");
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn an_archive_with_several_top_level_directories_keeps_its_layout() {
+    // Stripping a guessed prefix writes files to the wrong place and only fails
+    // in a browser, so an archive with two roots is left exactly as it is.
+    let dir = temp_dir("ketcher-two-roots");
+    let bytes = zip_of(&[("a/index.html", "A"), ("b/index.html", "B")]);
+    let mut archive = ZipArchive::new(Cursor::new(bytes)).expect("the fixture is a zip");
+
+    let tally = extract(&mut archive, &dir).unwrap_or_else(|e| panic!("extract: {e}"));
+
+    assert_eq!(tally.extracted, 2);
+    assert!(dir.join("a/index.html").is_file(), "got a/index.html");
+    assert!(dir.join("b/index.html").is_file(), "got b/index.html");
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn an_escaping_entry_is_not_written_outside_the_destination() {
+    let dir = temp_dir("ketcher-escape");
+    let marker = dir.join("outside.js");
+    let bytes = zip_of(&[
+        ("standalone/index.html", "ok"),
+        ("standalone/../outside.js", "pwned"),
+    ]);
+    let mut archive = ZipArchive::new(Cursor::new(bytes)).expect("the fixture is a zip");
+
+    extract(&mut archive, &dir).unwrap_or_else(|e| panic!("extract: {e}"));
+
+    assert!(
+        !marker.exists(),
+        "nothing is written outside the destination"
+    );
+    assert!(
+        dir.join("index.html").is_file(),
+        "the safe entry still lands"
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_directory_entry_is_created_but_not_counted_as_a_file() {
+    let dir = temp_dir("ketcher-dirs");
+    let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    let options: zip::write::FileOptions<'_, ()> =
+        zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    writer
+        .add_directory("standalone/static", options)
+        .unwrap_or_else(|e| panic!("{e}"));
+    writer
+        .start_file("standalone/static/a.js", options)
+        .unwrap_or_else(|e| panic!("{e}"));
+    writer.write_all(b"x").unwrap_or_else(|e| panic!("{e}"));
+    let bytes = writer
+        .finish()
+        .unwrap_or_else(|e| panic!("{e}"))
+        .into_inner();
+    let mut archive = ZipArchive::new(Cursor::new(bytes)).expect("the fixture is a zip");
+
+    let tally = extract(&mut archive, &dir).unwrap_or_else(|e| panic!("extract: {e}"));
+
+    assert_eq!(tally.extracted, 1, "the directory is not a file");
+    assert!(dir.join("static").is_dir(), "but it is created");
     let _ = fs::remove_dir_all(&dir);
 }

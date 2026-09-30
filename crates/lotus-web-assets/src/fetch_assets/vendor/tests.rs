@@ -216,3 +216,70 @@ fn metadata_a_500_is_not_treated_as_an_asset() {
     ));
     assert!(message.contains("500"), "got {message}");
 }
+
+#[test]
+fn the_state_file_is_written_only_after_the_assets_land() {
+    let dir = temp_dir("vendor-write-state");
+    let state_path = dir.join("nested/state");
+    let root = dir.join("root");
+    let asset = VendoredAsset {
+        name: "RDKit",
+        state_key: "rdkit",
+        dir: "rdkit",
+        version: "1".to_owned(),
+        files: vec![(
+            "https://example.invalid/RDKit_minimal.js".to_owned(),
+            "RDKit_minimal.js".to_owned(),
+        )],
+    };
+    let server = MockServer::start(vec![http_ok("payload")]);
+    let mut state = parse_state("");
+
+    asset
+        .at(&server.url("/RDKit_minimal.js"))
+        .refresh(&client(3000), &root, &mut state, &state_path)
+        .unwrap_or_else(|e| panic!("refresh: {e}"));
+
+    assert_eq!(
+        std::fs::read_to_string(&state_path).unwrap_or_default(),
+        "rdkit=1\n",
+        "the version is recorded so the next run trusts the tree"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_failed_asset_leaves_no_version_recorded() {
+    // The recording is the last step, so a fetch that fails part way leaves the
+    // state file absent and the next run retries rather than trusting a
+    // directory that is not there.
+    let dir = temp_dir("vendor-partial");
+    let state_path = dir.join("state");
+    let root = dir.join("root");
+    let asset = VendoredAsset {
+        name: "RDKit",
+        state_key: "rdkit",
+        dir: "rdkit",
+        version: "1".to_owned(),
+        files: vec![(
+            "https://example.invalid/RDKit_minimal.js".to_owned(),
+            "RDKit_minimal.js".to_owned(),
+        )],
+    };
+    let server = MockServer::start(vec![http_status(500, "Server Error")]);
+    let mut state = parse_state("");
+
+    let message = err(asset.at(&server.url("/RDKit_minimal.js")).refresh(
+        &client(3000),
+        &root,
+        &mut state,
+        &state_path,
+    ));
+
+    assert!(message.contains("500"), "got {message}");
+    assert!(
+        !state_path.exists(),
+        "an interrupted fetch must not record the version it never reached"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}

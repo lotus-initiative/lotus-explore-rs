@@ -2,7 +2,7 @@
 
 Search the LOTUS knowledge graph from a terminal: chemical compounds, the
 organisms they occur in, and the references that report them. The data is the
-Wikidata projection of the [LOTUS database](https://lotus-db.com), queried over
+Wikidata projection of [LOTUS](https://doi.org/10.7554/eLife.70780), queried over
 SPARQL.
 
 ## Install

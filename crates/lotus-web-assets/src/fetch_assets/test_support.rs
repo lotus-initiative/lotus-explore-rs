@@ -129,3 +129,36 @@ pub fn err<T>(result: Result<T, Box<dyn std::error::Error>>) -> String {
 pub fn commit_id(seed: char) -> String {
     std::iter::repeat_n(seed, 40).collect()
 }
+
+/// A zip holding `entries`, as `(path in the archive, contents)`.
+///
+/// Bytes rather than a `zip::ZipWriter`, because `fetch-assets` unzips bytes
+/// off the network: building the archive in memory keeps the test off the
+/// filesystem and off the network at the same time.
+pub fn zip_of(entries: &[(&str, &str)]) -> Vec<u8> {
+    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    let options: zip::write::FileOptions<'_, ()> =
+        zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    for (name, contents) in entries {
+        writer
+            .start_file(*name, options)
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+        writer
+            .write_all(contents.as_bytes())
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+    }
+    writer
+        .finish()
+        .unwrap_or_else(|e| panic!("{e}"))
+        .into_inner()
+}
+
+/// A zip whose single top-level directory is `standalone/`, as Ketcher ships.
+pub fn ketcher_style_zip() -> Vec<u8> {
+    zip_of(&[
+        ("standalone/index.html", "<title>Ketcher v3.18.0</title>"),
+        ("standalone/static/js/main.abc.js", "console.log(1)"),
+        ("standalone/static/js/closable.def.js", "unused"),
+        ("__MACOSX/._standalone", "junk"),
+    ])
+}

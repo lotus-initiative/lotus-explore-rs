@@ -56,6 +56,28 @@ impl VendoredAsset {
             .collect()
     }
 
+    /// This asset, with its single file fetched from `url`.
+    ///
+    /// Only for tests, which cannot reach the real CDN and must not.
+    #[cfg(test)]
+    fn at(&self, url: &str) -> Self {
+        Self {
+            name: self.name,
+            state_key: self.state_key,
+            dir: self.dir,
+            version: self.version.clone(),
+            files: vec![(url.to_owned(), self.first_file_name())],
+        }
+    }
+
+    /// The path this asset's one file is written under.
+    #[cfg(test)]
+    fn first_file_name(&self) -> String {
+        self.files
+            .first()
+            .map_or_else(|| String::from("asset"), |(_, name)| name.clone())
+    }
+
     /// Whether this asset can be reused as-is.
     ///
     /// Both halves matter: a partial download leaves the recorded version in

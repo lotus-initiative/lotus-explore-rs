@@ -12,10 +12,12 @@
 )]
 
 use serde_json::Value;
+use std::fs;
+use std::path::Path;
 
 use super::*;
 use crate::test_support::{
-    MockServer, client, commit_id, err, http_ok, http_redirect_to_self, http_status,
+    MockServer, client, commit_id, err, http_ok, http_redirect_to_self, http_status, temp_dir,
 };
 
 #[test]
@@ -243,4 +245,60 @@ fn metadata_with_no_version_is_an_error() {
         "latest",
     ));
     assert!(message.contains("no version"), "got {message}");
+}
+
+#[test]
+fn a_file_is_written_and_an_error_page_is_not() {
+    let dir = temp_dir("fetch");
+    let server = MockServer::start(vec![
+        http_ok("contents"),
+        http_status(403, "Forbidden"),
+        http_ok(""),
+    ]);
+    let c = client(3000);
+
+    let good = dir.join("nested/good.txt");
+    fetch_file(&c, &server.url("/a"), &good).unwrap_or_default();
+    assert_eq!(fs::read_to_string(&good).unwrap_or_default(), "contents");
+    assert!(
+        good.parent().is_some_and(Path::exists),
+        "the parent is created"
+    );
+
+    let denied = dir.join("denied.txt");
+    let message = err(fetch_file(&c, &server.url("/b"), &denied));
+    assert!(message.contains("403"), "got {message}");
+    assert!(
+        !denied.exists(),
+        "an error page must not be written as the asset"
+    );
+
+    let empty = dir.join("empty.txt");
+    let message = err(fetch_file(&c, &server.url("/c"), &empty));
+    assert!(message.contains("empty response"), "got {message}");
+    assert!(!empty.exists(), "an empty body is not an asset");
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_destination_that_cannot_be_written_is_an_error_not_a_silent_skip() {
+    // The asset is fetched successfully, so the only thing that can fail is
+    // writing it. Returning success here would leave the tree looking complete.
+    let server = MockServer::start(vec![http_ok("contents")]);
+    let blocker = temp_dir("fetch-blocked");
+    let as_file = blocker.join("not-a-directory");
+    fs::write(&as_file, "in the way").unwrap_or_else(|e| panic!("{e}"));
+
+    let message = err(fetch_file(
+        &client(3000),
+        &server.url("/a"),
+        &as_file.join("child.txt"),
+    ));
+
+    assert!(
+        !message.is_empty(),
+        "the failure is reported rather than swallowed"
+    );
+    let _ = fs::remove_dir_all(&blocker);
 }
