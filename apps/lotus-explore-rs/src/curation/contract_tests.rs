@@ -46,8 +46,6 @@ fn result(
     }
 }
 
-// ── TSV input ────────────────────────────────────────────────────────────────
-
 #[test]
 fn tsv_columns_are_matched_by_name_not_position() {
     let rows = parse_tsv_rows("smiles\tname\ttaxon\nCCO\tEthanol\tOenothera\n").expect("valid TSV");
@@ -146,8 +144,6 @@ fn the_example_rows_are_well_formed() {
     }
 }
 
-// ── Row identity ─────────────────────────────────────────────────────────────
-
 #[test]
 fn row_identity_is_smiles_taxon_doi_with_taxon_and_doi_normalised() {
     let a = input(
@@ -196,8 +192,6 @@ fn two_rows_differing_only_in_smiles_are_distinct() {
         row_uniqueness_key(&input("A", "CCN", Some("X"), None))
     );
 }
-
-// ── QuickStatements bundle ───────────────────────────────────────────────────
 
 #[test]
 fn dependencies_are_deduplicated_preserving_first_appearance() {

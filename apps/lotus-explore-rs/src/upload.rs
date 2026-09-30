@@ -269,8 +269,6 @@ pub fn sanitize_filename(input: &str) -> String {
     out.trim_matches('.').trim().to_string()
 }
 
-// ── Download helpers ────────────────────────────────────────────────────────
-
 #[cfg(target_arch = "wasm32")]
 fn blob_url_from_str(content: &str, mime: &str) -> Result<String, String> {
     let parts = Array::new();
@@ -412,8 +410,6 @@ pub async fn submit_download_form(endpoint: &str, fields: &[(&str, &str)]) -> Re
     let _ = TimeoutFuture::new(0).await;
     Ok(())
 }
-
-// ── Non-WASM stubs ───────────────────────────────────────────────────────────
 
 /// Native stub.
 /// # Errors

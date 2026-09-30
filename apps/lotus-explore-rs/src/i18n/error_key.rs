@@ -66,7 +66,6 @@ pub(crate) const ALL_ERROR_KEYS: &[ErrorKey] = &[
 ];
 
 /// Resolve an error key to its localized message.
-/// This function acts as the primary dispatcher for generic localized error text.
 pub fn err(locale: Locale, key: ErrorKey) -> String {
     match locale {
         Locale::En => lookup_en(key),
@@ -75,10 +74,6 @@ pub fn err(locale: Locale, key: ErrorKey) -> String {
         Locale::It => lookup_it(key),
     }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Locale-specific lookup implementations
-// ─────────────────────────────────────────────────────────────────────────────
 
 fn lookup_en(key: ErrorKey) -> String {
     match key {

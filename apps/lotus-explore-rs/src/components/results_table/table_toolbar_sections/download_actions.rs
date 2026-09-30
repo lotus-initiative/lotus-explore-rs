@@ -18,8 +18,6 @@ use lotus_query::ExportFormat as DownloadFormat;
 use lotus_search::SearchCriteria;
 use std::sync::Arc;
 
-// ── private helpers ─────────────────────────────────────────────────────────
-
 // `criteria_snapshot` is used on WASM only (threaded into the download
 // there); unused on native, where the parameter exists for signature parity.
 #[cfg_attr(
@@ -117,8 +115,6 @@ fn dispatch_metadata_download_blob(filename: &str, body: &str) {
         "event=download phase=table_trigger state=success format=metadata elapsed_ms={elapsed_ms:.1}"
     );
 }
-
-// ── components ─────────────────────────────────────────────────────────────
 
 /// Displays download status with spinning indicator.
 #[component]

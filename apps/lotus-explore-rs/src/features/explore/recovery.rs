@@ -6,8 +6,6 @@ use crate::features::explore::transport_classification::classify_transport_error
 use crate::features::explore::types::DomainError;
 use crate::repositories::RepositoryError;
 
-// ── Error Classification ──────────────────────────────────────────────────────
-
 /// Determines whether an error is recoverable and worth retrying.
 #[must_use]
 pub fn is_retryable_error(error: &DomainError) -> bool {
@@ -32,8 +30,6 @@ pub fn is_retryable_error(error: &DomainError) -> bool {
 pub fn is_retryable_transport_error(error: &RepositoryError) -> bool {
     classify_transport_error(error).is_retryable()
 }
-
-// ── User-Facing Recovery UI ───────────────────────────────────────────────────
 
 /// Determine whether a "Retry" button should be shown for this error.
 #[must_use]

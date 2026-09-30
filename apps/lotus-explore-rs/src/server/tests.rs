@@ -562,8 +562,6 @@ async fn export_file_rejects_unknown_cache_key() {
     );
 }
 
-// ── sanitize_download_filename ────────────────────────────────────────────────
-
 #[test]
 fn sanitize_filename_replaces_slash_with_underscore() {
     // '/' and '\' are replaced with '_'; leading dots from trim_matches get removed too.
@@ -607,8 +605,6 @@ fn sanitize_filename_empty_or_whitespace_returns_empty() {
     assert_eq!(export::sanitize_download_filename("   "), "");
 }
 
-// ── element-range validation ──────────────────────────────────────────────────
-
 #[test]
 fn apply_request_rejects_inverted_element_ranges() {
     let req = SearchRequest {
@@ -642,8 +638,6 @@ fn apply_request_rejects_inverted_element_ranges() {
     };
     assert!(apply_request(&req).is_err());
 }
-
-// ── smiles_threshold validation ────────────────────────────────────────────────
 
 #[test]
 fn apply_request_clamps_similarity_threshold() {

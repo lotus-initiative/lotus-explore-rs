@@ -9,8 +9,6 @@ use dioxus::prelude::*;
 
 pub use form_context::{FormCriteriaContext, use_form_criteria_context};
 
-// ── App State Context ─────────────────────────────────────────────────────
-
 /// Root context: access to the unified `AppState` (download, metrics, theme).
 /// Use this to read or mutate download-orchestration and theme state.
 #[derive(Clone, Copy)]
@@ -23,8 +21,6 @@ impl AppStateContext {
         Self { state }
     }
 }
-
-// ── Results Context ───────────────────────────────────────────────────────────
 
 /// Context for results-area components.
 #[derive(Clone, Copy)]
@@ -39,8 +35,6 @@ impl ResultsContext {
     }
 }
 
-// ── Hook Helpers ──────────────────────────────────────────────────────────────
-
 /// Hook to read the root `AppStateContext` from any descendant component.
 pub fn use_app_state_context() -> AppStateContext {
     use_context::<AppStateContext>()
@@ -49,8 +43,6 @@ pub fn use_app_state_context() -> AppStateContext {
 pub fn use_results_context() -> ResultsContext {
     use_context::<ResultsContext>()
 }
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {

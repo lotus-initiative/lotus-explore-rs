@@ -72,8 +72,6 @@ pub fn DownloadOnlyState() -> Element {
     }
 }
 
-// ── Pure helpers ──────────────────────────────────────────────────────────────
-
 /// Maps a `QueryPhase` to the user-facing loading-state label.
 pub fn query_phase_text(locale: Locale, phase: QueryPhase) -> &'static str {
     match phase {

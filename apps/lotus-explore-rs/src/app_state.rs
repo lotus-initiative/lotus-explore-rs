@@ -18,8 +18,6 @@ pub struct AppState {
     pub dark_mode: bool,
 }
 
-// ── Download State: Orchestration ─────────────────────────────────────────────
-
 /// Download action orchestration and pending-format queue.
 #[derive(Clone, PartialEq, Eq, Default, Debug)]
 pub struct DownloadState {
@@ -33,8 +31,6 @@ pub struct DownloadState {
     /// `true` when the URL included `?execute=true` (direct search + preview).
     pub direct_execute: bool,
 }
-
-// ── Metrics State: One-shot telemetry guards ──────────────────────────────────
 
 /// Guards that prevent duplicate log events during the download-wait sequence.
 /// These are reset to `false` once the awaited condition resolves.

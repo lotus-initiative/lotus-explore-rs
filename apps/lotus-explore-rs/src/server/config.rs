@@ -186,8 +186,6 @@ pub fn build_cors_layer(config: &AppConfig) -> CorsLayer {
     }
 }
 
-// ── Tests for the clap CLI layer ─────────────────────────────────────
-
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
@@ -196,7 +194,6 @@ mod tests {
 
     use super::*;
 
-    // ── Cli flag resolution (tested via clap's try_parse_from) ───────
     //
     // clap's `#[arg(env = "...")]` attribute guarantees flag > env > default
     // priority. These tests verify flag resolution and defaults directly.
@@ -224,8 +221,6 @@ mod tests {
         let cli = Cli::try_parse_from(["lotus-explore-rs", "--host", "0.0.0.0"]).unwrap();
         assert_eq!(cli.get("HOST"), Some("0.0.0.0".to_string()));
     }
-
-    // ── Invalid port values error cleanly through from_provider ───────
 
     #[test]
     fn from_provider_invalid_port_string_returns_error() {
@@ -265,8 +260,6 @@ mod tests {
         let err = result.expect_err("port > u16::MAX should error");
         assert!(err.contains("PORT"));
     }
-
-    // ── Integration: Cli flag → from_provider ──────────────────────────
 
     #[test]
     fn flag_port_through_full_flow() {
