@@ -1,6 +1,6 @@
 # lotus-explore-rs
 
-A linked open data explorer for the [LOTUS](https://lotus-db.com) compound-taxon-reference
+A linked open data explorer for the [LOTUS](https://doi.org/10.7554/eLife.70780) compound-taxon-reference
 knowledge graph from Wikidata, queried over SPARQL.
 
 The search, query-building and curation logic lives in the `lotus-*` crates, which the web app,

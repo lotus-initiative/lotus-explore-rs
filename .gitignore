@@ -1,5 +1,10 @@
 apps/lotus-explore-rs/public/assets/ketcher/
 apps/lotus-explore-rs/public/assets/vendor/
+
+# The fetcher vendors into the crate it runs from as well as the app. Neither
+# tree is source: it is fetched by `cargo run -p lotus-web-assets --bin
+# fetch-assets` and is reproducible from the versions in that binary.
+crates/lotus-web-assets/public/
 target/
 graphify-out/
 
