@@ -255,7 +255,9 @@ fn hash(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
+    // The panic lints keep shipped code free of panics on external input. A test
+    // that fails on a malformed fixture is reporting, not panicking.
+    #![allow(clippy::expect_used, clippy::panic)]
 
     use super::*;
     use std::sync::Arc;
@@ -352,16 +354,21 @@ mod tests {
     }
 
     #[test]
-    fn a_table_column_is_as_wide_as_its_widest_value() {
-        // Alignment is the reason this format exists, so it is worth pinning:
-        // two spaces between columns, and the next column starts past the
-        // longest cell above it.
+    fn a_table_column_starts_where_the_header_above_it_does() {
+        // Alignment is the reason this format exists, so it is worth pinning: the
+        // next column begins past the widest cell above it. Compared by byte
+        // position rather than by slicing, so a short row reports a mismatch
+        // instead of panicking.
         let out = render(write_table, &[entry()]);
         let mut lines = out.lines();
         let header = lines.next().expect("a header line");
         let row = lines.next().expect("a data row");
         let column = header.find("formula").expect("the formula column");
-        assert_eq!(row.as_bytes()[column], b'C', "misaligned: {row:?}");
+
+        let Some(at) = row.as_bytes().get(column).copied() else {
+            panic!("row is shorter than the header: header {header:?} row {row:?}");
+        };
+        assert_eq!(at, b'C', "misaligned: header {header:?} row {row:?}");
     }
 
     #[test]
