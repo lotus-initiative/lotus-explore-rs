@@ -20,33 +20,9 @@ cargo run -p lotus-web-assets --bin fetch-assets
 dx serve --platform web --package lotus-explore-rs --locked
 ```
 
-This is a development server: it serves an unhashed bundle plus the Dioxus JS
-interpreter, and it is **not** what ships. Do not run Lighthouse or measure
-transfer size against it. For anything you intend to publish, build first and
-serve the output:
-
-```bash
-cd apps/lotus-explore-rs
-cargo run -p lotus-web-assets --bin fetch-assets
-dx build --release --platform web --package lotus-explore-rs --locked \
-  --debug-symbols=false --rustc-args=-Copt-level=z
-cd ../..
-cargo run -p lotus-web-assets --bin inject-wasm-preload
-```
-
-That writes the real bundle to `target/dx/lotus-explore-rs/release/web/public`,
-which is what the deploy publishes. The module there is 1.4 MiB raw / 456 KiB
-brotli, against the dev server's 6.4 MiB.
-
-To also run the optional API:
-
-```bash
-cargo run --locked --features server -p lotus-explore-rs
-```
-
-Then open `http://localhost:8080/?api_base=http://127.0.0.1:8787`.
-
-Without the server, the explorer falls back to direct QLever/SPARQL queries.
+That is a development server, and it is not what ships. For the release build,
+the optional API, and how to serve the output the way the deploy does, see
+[`apps/lotus-explore-rs/README.md`](apps/lotus-explore-rs/README.md).
 
 ## Structure
 
