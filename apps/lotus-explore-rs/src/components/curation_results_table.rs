@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
+use crate::components::ui::SectionHeading;
 use crate::curation::{CurationResultRow, CurationStatus};
 use crate::i18n::{
     Locale, TextKey, col_canonical_smiles, col_exact_mass, col_name, col_original_smiles,
@@ -110,7 +111,7 @@ pub fn CurationResultsTable(locale: Locale, rows: Arc<[CurationResultRow]>) -> E
 
     rsx! {
         div { class: "flex flex-col gap-3",
-            h3 { class: "text-base font-semibold", "{crate::i18n::heading_results(locale)}" }
+            SectionHeading { text: crate::i18n::heading_results(locale).to_string() }
             StatusSummaryBadges { locale, rows: rows.clone() }
             p {
                 id: scroll_hint_id,

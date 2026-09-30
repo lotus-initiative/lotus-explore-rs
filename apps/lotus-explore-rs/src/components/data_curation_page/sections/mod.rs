@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Curation-page UI sections: share bar, status notice, add-row, table.
 
-use crate::components::ui::Button;
+use crate::components::ui::{Button, SectionHeading};
 use crate::curation::{CurationInputRow, QuickStatementsBundle};
 use crate::features::curation::services::quickstatements::build_qs_dev_link;
 use crate::hooks::use_add_row_form::AddRowForm;
@@ -132,7 +132,7 @@ pub fn AddRowCard(
                 on_add_row.call(());
             },
             class: "flex flex-col gap-4 rounded-xl border border-border bg-panel-soft p-4",
-            h3 { "{heading_add_one_row(locale)}" }
+            SectionHeading { text: heading_add_one_row(locale).to_string() }
             div { class: "grid grid-cols-1 gap-3",
                 label { class: "form-label", r#for: "curation-name-input",
                     "{placeholder_molecule_name(locale)}"
@@ -247,7 +247,7 @@ pub fn TsvImportCard(
                 }
             },
             class: "flex flex-col gap-4 rounded-xl border border-border bg-panel-soft p-4",
-            h3 { "{heading_tsv_import(locale)}" }
+            SectionHeading { text: heading_tsv_import(locale).to_string() }
             p { class: "text-ui text-subtle leading-snug", "{hint_expected_tsv_headers(locale)}" }
             label { class: "form-label", r#for: "curation-tsv-input", "TSV" }
             textarea {
@@ -335,7 +335,7 @@ pub fn QueueRowsCard(
     rsx! {
         div { class: "flex flex-col gap-4 rounded-xl",
             div { class: "flex flex-wrap items-center justify-between gap-2.5",
-                h3 { "{heading_queued_rows(locale)}" }
+                SectionHeading { text: heading_queued_rows(locale).to_string() }
                 Button {
                     label: if processing {
                         button_generating(locale).to_string()
@@ -438,7 +438,7 @@ pub fn QuickStatementsCard(
                     " - {curation_qs_dev_prereq_hint(locale)}"
                 }
                 div { class: "flex flex-wrap items-center justify-between gap-2.5",
-                    h3 { "{heading_quickstatements_dependencies(locale)}" }
+                    SectionHeading { text: heading_quickstatements_dependencies(locale).to_string() }
                     CopyButton {
                         text: qs_ref.dependencies.clone(),
                         locale,
@@ -473,7 +473,7 @@ pub fn QuickStatementsCard(
                     " - {curation_qs_dev_main_hint(locale)}"
                 }
                 div { class: "flex flex-wrap items-center justify-between gap-2.5",
-                    h3 { "{heading_quickstatements(locale)}" }
+                    SectionHeading { text: heading_quickstatements(locale).to_string() }
                     CopyButton {
                         text: qs_ref.main.clone(),
                         locale,

@@ -9,6 +9,7 @@ use dioxus::prelude::*;
 use std::sync::Arc;
 
 use super::curation_results_table::CurationResultsTable;
+use crate::components::ui::SectionHeading;
 
 mod sections;
 use sections::{
@@ -50,7 +51,11 @@ pub fn DataCurationPage() -> Element {
         CurationScripts {}
         section {
             class: "page-section w-full max-w-none px-4 sm:px-6 lg:px-8",
-            h2 { class: "sr-only", id: "curation-page-heading", "{crate::i18n::view_label_curation_explorer(locale)}" }
+            SectionHeading {
+                level: 2,
+                sr_only: true,
+                text: crate::i18n::view_label_curation_explorer(locale).to_string(),
+            }
             div { class: "w-full rounded-xl border border-shell-border bg-shell-raised overflow-hidden",
                 div { class: "page-body flex flex-col gap-4 px-4 pb-4 pt-5 sm:px-6 sm:pb-6 sm:pt-6",
                     div {
