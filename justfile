@@ -108,7 +108,6 @@ ci:
 	just audit
 	just metadata
 	just opt-levels
-	just readme
 
 # The two CI jobs `just ci` leaves out, and why.
 #
@@ -462,36 +461,9 @@ deny:
 outdated:
 	@command -v cargo-outdated >/dev/null 2>&1 && cargo outdated --workspace --exit-code 1 || echo "cargo-outdated not installed; skipping"
 
-# README sync: regenerate each crate README from README.tpl + source `//!` doc
-# comments, lint, and diff against the checked-in README.md. A pre-push hook.
+# Crate READMEs are the crate docs.
 #
-# `$d` is single-dollar because just interpolates `$name` before the shell sees
-# it, so `$$d` became a literal `$d`: `cd: 68631d: No such file or directory`.
-# The diff compares formatted output because a pre-commit hook reformats the
-# file after `cargo readme` writes it, and raw output reported drift that does
-# not exist.
-readme:
-	#!/usr/bin/env bash
-	set -euo pipefail
-	command -v cargo-readme >/dev/null 2>&1 || { echo "cargo-readme not installed; skipping"; exit 0; }
-	command -v panache >/dev/null 2>&1 || { echo "panache not installed; skipping"; exit 0; }
-	# Any crate with a README.tpl has its README generated from its lib.rs docs
-	# and committed. A crate with no template has no README and is skipped, which
-	# is why this globs for templates rather than naming crates -- and why the
-	# no-templates case is a pass rather than a failure.
-	found=0
-	for template in crates/*/README.tpl; do
-	  [ -e "$template" ] || continue
-	  dir=$(dirname "$template")
-	  found=1
-	  if ! ( cd "$dir" \
-	         && cargo readme -t README.tpl -o /tmp/readme_panache.md 2>/dev/null \
-	         && panache format /tmp/readme_panache.md >/dev/null \
-	         && panache lint /tmp/readme_panache.md \
-	         && diff -q /tmp/readme_panache.md README.md >/dev/null 2>&1 ); then
-	    echo "README.md out of date for $dir" >&2
-	    echo "  run: (cd $dir && cargo readme -t README.tpl -o README.md && panache format README.md)" >&2
-	    exit 1
-	  fi
-	done
-	[ "$found" = 1 ] || echo "no crate READMEs to check"
+# Each library crate's README.md is included with `#![doc = include_str!]`, so its
+# Rust example runs as a doctest and `cargo test` is what keeps it honest. There is
+# no generator: the README is the source, and regenerating it from `//!` comments
+# would put the two in a loop.

@@ -49,8 +49,6 @@ hooks = [
   { id = "cargo-deny", name = "cargo-deny", language = "system", entry = "just deny", pass_filenames = false, always_run = true, stages = ["pre-push"] },
   { id = "cargo-outdated", name = "cargo-outdated", language = "system", entry = "just outdated", pass_filenames = false, always_run = true, stages = ["pre-push"] },
 
-  # ── README verification (pre-push only) ────────────────────────────────────
-  { id = "cargo-readme-panache", name = "cargo-readme-panache", language = "system", entry = "just readme", pass_filenames = false, always_run = true, stages = ["pre-push"] },
   # Declared in three places and built in one; drift here is a silently slow
   # release. Same for the repository metadata `cargo package` depends on.
   { id = "metadata", name = "metadata", language = "system", entry = "just metadata", pass_filenames = false, always_run = true, stages = ["pre-push"] },
@@ -61,8 +59,3 @@ hooks = [
 repo = "https://github.com/tombi-toml/tombi-pre-commit"
 rev = "v1.6.1"
 hooks = [{ id = "tombi-format" }, { id = "tombi-lint" }]
-
-[[repos]]
-repo = "https://github.com/jolars/panache-pre-commit"
-rev = "v3.12.0"
-hooks = [{ id = "panache-format" }, { id = "panache-lint" }]

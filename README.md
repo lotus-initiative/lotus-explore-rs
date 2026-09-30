@@ -1,16 +1,11 @@
 # lotus-explore-rs
 
-[![AGPL-3.0
-license](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0.html)
-[![CI](https://github.com/lotusnprod/lotus-explore-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/lotusnprod/lotus-explore-rs/actions/workflows/ci.yml)
+A linked open data explorer for the [LOTUS](https://lotus-db.com) compound-taxon-reference
+knowledge graph from Wikidata, queried over SPARQL.
 
-`lotus-explore-rs` --- LOTUS Explorer.
-
-A linked open data (LOD) explorer for the LOTUS compound-taxon-reference
-knowledge graph from Wikidata, queried over SPARQL. The search, query-building
-and curation logic lives in the `lotus-*` crates below, which the web app, the
-`lotus` CLI and the tests all share, so a query the explorer runs and a query
-the CLI runs are the same query.
+The search, query-building and curation logic lives in the `lotus-*` crates, which the web app,
+the `lotus` CLI and the tests all share. A query the explorer runs and a query the CLI runs are
+the same query.
 
 ## Quick start
 
@@ -20,99 +15,62 @@ cargo run -p lotus-web-assets --bin fetch-assets
 dx serve --platform web --package lotus-explore-rs --locked
 ```
 
-That is a development server, and it is not what ships. For the release build,
-the optional API, and how to serve the output the way the deploy does, see
-[`apps/lotus-explore-rs/README.md`](apps/lotus-explore-rs/README.md).
+That is a development server. For the release build, the optional HTTP API, and how to serve the
+output the way the deploy does, see [`apps/lotus-explore-rs/README.md`](apps/lotus-explore-rs/README.md).
 
-## Structure
+For the terminal instead:
 
+```bash
+cargo install --path crates/lotus-cli
+lotus search --taxon "Gentiana lutea" --format csv
 ```
-lotus-explore-rs/
-├── Cargo.toml                ← workspace root
-├── rust-toolchain.toml       ← pinned compiler, components, target
-├── crates/                   ← shared library crates
-│   ├── lotus-model/          ← Domain types, filter semantics, validation
-│   ├── lotus-query/          ← SPARQL construction and CSV parsing (pure)
-│   ├── lotus-search/         ← The search use case: resolve, run, fall back
-│   ├── lotus-curation/       ← The curation vocabulary and QuickStatements
-│   ├── lotus-jsonld/         ← Bioschemas JSON-LD, CodeMeta, CITATION.cff
-│   ├── lotus-cli/            ← The `lotus` binary
-│   └── lotus-web-assets/     ← Host-only frontend asset fetcher
-├── apps/                     ← application crates
-│   └── lotus-explore-rs/     ← Main app: WASM client + optional native server
-│       ├── Cargo.toml
-│       ├── Dioxus.toml       ← Dioxus CLI config
-│       ├── build.rs          ← Generates metadata files (llms.txt, robots.txt, etc.)
-│       ├── index.html
-│       ├── tailwind/
-│       │   └── styles.css    ← Tailwind input
-│       ├── public/           ← Static assets (favicons, site.webmanifest, etc.)
-│       │   └── assets/
-│       │       └── lotus-explore.css  ← Compiled Tailwind CSS
-│       └── src/
-│           ├── main.rs
-│           ├── document_head.rs
-│           ├── app/
-│           ├── components/
-│           ├── features/
-│           ├── server/
-│           ├── state/
-│           ├── ui/
-│           └── utils/
-```
+
+## The crates
+
+| crate | what it is |
+| --- | --- |
+| `lotus-model` | the vocabulary: a filter set, a result row, what makes a filter active |
+| `lotus-query` | SPARQL construction and CSV parsing. Pure. |
+| `lotus-search` | the search use case: which endpoint, when to fall back, taxon resolution |
+| `lotus-curation` | the curation vocabulary and the statements it produces |
+| `lotus-jsonld` | Bioschemas JSON-LD, CodeMeta, `CITATION.cff` |
+| `lotus-cli` | the `lotus` binary |
+| `lotus-web-assets` | host-only fetcher for the third-party frontend assets |
+| `apps/lotus-explore-rs` | the app: WASM client, optional native server, optional desktop window |
+
+Each library crate has a README that is compiled as its documentation, so the example in it is
+checked by `cargo test`. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) says why the boundaries
+are where they are.
 
 ## Prerequisites
 
-The repo pins Rust 1.97, `clippy`, `rustfmt`, and `wasm32-unknown-unknown` in
-`rust-toolchain.toml`. Running any `cargo` command will auto-download the pinned
-toolchain via `rustup`.
-
-The repository commands use the `just` task runner; install it with your
-platform's package manager.
-
-To serve or build the WASM app, also install the Dioxus CLI:
+Rust 1.97 with `clippy`, `rustfmt` and `wasm32-unknown-unknown`, pinned in `rust-toolchain.toml`.
+`just` for the repository commands. `dx` for the web app, and Node.js is not needed because
+Dioxus builds the Tailwind itself:
 
 ```bash
 cargo install dioxus-cli --version 0.7.10 --locked
 ```
 
-Dioxus 0.7.10 builds and watches Tailwind automatically during `dx serve` and
-`dx build`, so Node.js and npm are not required for local development or release
-builds.
+## Working on it
+
+`just ci` is every check CI runs, in order. It needs no network access.
+
+```bash
+just ci       # formatting, clippy, tests, docs, wasm, supply chain
+just mutants  # mutation testing: a passing test run cannot tell you this
+```
+
+[`CONTRIBUTING.md`](CONTRIBUTING.md) has the full list, where a change belongs, and how to
+refresh the fixtures.
 
 ## Documentation
 
-- [`docs/DESIGN_SYSTEM.md`](apps/lotus-explore-rs/docs/DESIGN_SYSTEM.md) --- the
-  four shell planes, their measured separation, and the border rules
-- [`docs/PERFORMANCE.md`](apps/lotus-explore-rs/docs/PERFORMANCE.md) --- where
-  load time goes, and the profile experiments that were kept and rejected
-- [`docs/DEPLOYMENT.md`](apps/lotus-explore-rs/docs/DEPLOYMENT.md) --- what the
-  production host actually serves, and how to measure it locally
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) --- the crates, and why the
-  boundary is where it is
-- [`docs/FRONTENDS.md`](docs/FRONTENDS.md) --- the web, desktop and `lotus` CLI
-  front ends: how each is built, and where they differ
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) --- how to build, test, and where a
-  change belongs
-- [`apps/.../docs/ARCHITECTURE.md`](apps/lotus-explore-rs/docs/ARCHITECTURE.md) ---
-  the application side
-- [`docs/cli.md`](docs/cli.md) --- the `lotus` command, kept honest against
-  `--help` by a test
-
-## Continuous integration
-
-On every push to `main`:
-
-- `cargo fmt --all -- --check`
-- `cargo check --workspace --all-targets --locked`
-- `cargo clippy --workspace --all-targets --locked -- -D warnings`
-- `cargo test --workspace --all-targets --locked`
-- `cargo test -p lotus-explore-rs --features server --locked`
-- The three pure crates built for `wasm32` on their own
-- `codemeta.json` and `CITATION.cff` checked against the code
-- WASM build and deploy to GitHub Pages
+- [`docs/cli.md`](docs/cli.md) — the `lotus` command, every flag, checked against `--help` by a test
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — the crates and their boundaries
+- [`docs/FRONTENDS.md`](docs/FRONTENDS.md) — web, desktop and CLI: how each is built
+- [`apps/lotus-explore-rs/docs/`](apps/lotus-explore-rs/docs/) — design system, performance, deployment
 
 ## License
 
-`AGPL-3.0-only` --- see [`LICENSE`](https://www.gnu.org/licenses/agpl-3.0.html)
-for details.
+`AGPL-3.0-only`. See [`LICENSE`](LICENSE).

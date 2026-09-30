@@ -123,7 +123,6 @@ const LOCAL_ONLY: &[(&str, &str)] = &[
         "opt-levels",
         "the release optimisation level, which is declared in three places and only one builds",
     ),
-    ("readme", "generated examples in the READMEs"),
 ];
 
 /// The recipes `just ci` runs, in order.

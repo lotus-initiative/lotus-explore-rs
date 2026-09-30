@@ -1,0 +1,16 @@
+# Mutation testing.
+#
+# `just mutants` covers every library crate in the workspace and nothing else.
+# This file exists to say why `apps/lotus-explore-rs` is the one omission, so the
+# gap is a decision rather than an oversight, and so it is checked: the
+# `mutants` recipe's package list and this file are compared by
+# `apps/lotus-explore-rs/tests/gate_consistency.rs`.
+
+# The app is 2,761 mutants of Dioxus rendering -- a `match` arm on a `Signal`,
+# an `rswap!`, a literal in a `class` attribute. Killing those means a rendering
+# test for every component, which is a large piece of work with a poor ratio.
+# It is `just mutants-ui`, opt-in.
+#
+# Recorded on 2026-09-30, so the number is checkable rather than remembered.
+[package.lotus-explore-rs]
+exclude = true
