@@ -33,3 +33,8 @@ backend = "http://127.0.0.1:8787/v1"
 [web.serve]
 # Ensures correct MIME types are emitted locally
 asset_dir = "public"
+
+[macos]
+# The bundle identifier. `dx` would otherwise derive it from the package name,
+# which is not reverse-DNS.
+identifier = "net.lotusnprod.lotus-explore-rs"

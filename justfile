@@ -187,6 +187,43 @@ build app="lotus-explore-rs":
 	cd apps/{{app}} && BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' dx build --release --package {{app}} --locked --debug-symbols=false --rustc-args=-Copt-level=z
 	just preload-wasm
 
+# The macOS application icon, generated from the same artwork the web app uses.
+#
+# `dx` writes `CFBundleIconFile = icon.icns` into every macOS bundle whether or
+# not one is configured, so a bundle built without this file has a plist naming
+# a file that is not there, and Finder shows a generic icon. `iconutil` needs a
+# full iconset -- ten sizes, half of them at 2x -- so it is generated rather than
+# committed, and the mistake it prevents is a `.icns` that looks right and is
+# missing a size.
+app-icon:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	src=apps/lotus-explore-rs/public/apple-touch-icon.png
+	iconset=$(mktemp -d)/lotus.iconset
+	mkdir -p "$iconset"
+	for size in 16 32 128 256 512; do
+	  sips -z $size $size "$src" --out "$iconset/icon_${size}x${size}.png" >/dev/null
+	  sips -z $((size * 2)) $((size * 2)) "$src" --out "$iconset/icon_${size}x${size}@2x.png" >/dev/null
+	done
+	iconutil -c icns "$iconset" -o apps/lotus-explore-rs/public/icon.icns
+	echo "wrote apps/lotus-explore-rs/public/icon.icns"
+
+# Copy the icon into a built macOS bundle.
+#
+# Done here rather than through `Dioxus.toml` because `dx` accepts a `resources`
+# entry and does not put it where the plist looks, so a configured icon and a
+# Finder icon were two different files.
+bundle-icon app="LotusExploreRs":
+	#!/usr/bin/env bash
+	set -euo pipefail
+	for profile in debug release; do
+	  bundle="target/dx/lotus-explore-rs/$profile/macos/{{app}}.app"
+	  if [ -d "$bundle" ]; then
+	    cp apps/lotus-explore-rs/public/icon.icns "$bundle/Contents/Resources/icon.icns"
+	    echo "installed icon into $bundle"
+	  fi
+	done
+
 # The module is content-hashed, so only a post-build step can name it. Without
 # this the 1.4 MiB module is fetched *after* the 45 KiB JS glue has downloaded,
 # parsed and executed; measured, that serialisation cost ~120 ms of LCP.

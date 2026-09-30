@@ -116,12 +116,15 @@ mod tests {
         // two answer different questions and have to move apart.
         #[cfg(feature = "server")]
         {
-            assert!(
+            // A `const` block, because both operands are constants and the
+            // assertion is about the relationship between them rather than
+            // about a runtime value. The messages are static strings: a const
+            // block cannot format.
+            const _: () = assert!(
                 API_MAX_ROWS > TABLE_ROW_LIMIT,
-                "the API must be able to return more than one screen of rows: \
-                 {API_MAX_ROWS} vs {TABLE_ROW_LIMIT}"
+                "the API must be able to return more than one screen of rows"
             );
-            assert!(
+            const _: () = assert!(
                 TABLE_ROW_LIMIT > 0 && API_MAX_ROWS > 0,
                 "a limit of zero means the caller can never have a result"
             );

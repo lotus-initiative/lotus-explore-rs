@@ -11,42 +11,23 @@
 
 use dioxus::prelude::*;
 
-/// Build a root-relative URL for a static asset under the served `public/` tree.
-#[cfg(target_arch = "wasm32")]
-pub fn asset_url(path: &str) -> String {
-    let path = path.trim_start_matches('/');
-    let base = web_sys::window()
-        .and_then(|win| win.document())
-        .and_then(|doc| {
-            doc.document_element()
-                .and_then(|html| html.get_attribute("data-lotus-base-path"))
-                .filter(|base| !base.is_empty())
-                .or_else(|| {
-                    doc.query_selector("script[src*='assets/']")
-                        .ok()
-                        .flatten()
-                        .and_then(|el| el.get_attribute("src"))
-                        .and_then(|src| src.find("assets/").map(|pos| src[..pos].to_string()))
-                        .filter(|base| !base.is_empty())
-                })
-        })
-        .unwrap_or_else(|| String::from("/"));
-    format!("{base}{path}")
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub fn asset_url(_path: &str) -> String {
-    String::new()
-}
-
 /// Injects the curation bridge JS into the document `<head>`, once. Verified not
 /// to duplicate on a full load, on SPA navigation to and away from `/curation`,
 /// or on re-render of the page's own inputs. The bridge files still tolerate a
 /// second injection, which is browser behaviour this component does not control.
 #[component]
 pub fn CurationScripts() -> Element {
+    // The RDKit loader and its wasm module, as data attributes rather than as
+    // paths the bridge composes for itself. The bridge used to read
+    // `data-lotus-base-path` off the document element and build
+    // `assets/vendor/rdkit/RDKit_minimal.js` from it; the desktop document never
+    // sets that attribute, so it fell back to `/` and fetched a path that is not
+    // in the bundle. Reading the URLs from here means one source of truth, and a
+    // typo is a compile error.
+    let rdkit_script = crate::vendor_assets::rdkit_script_url();
+    let rdkit_wasm = crate::vendor_assets::rdkit_wasm_url();
     rsx! {
-        document::Script { src: asset!("/public/assets/js/curation/rdkit-bridge.js"), defer: true, "type": "text/javascript" }
+        document::Script { src: asset!("/public/assets/js/curation/rdkit-bridge.js"), defer: true, "type": "text/javascript", "data-rdkit-src": "{rdkit_script}", "data-rdkit-wasm": "{rdkit_wasm}" }
         document::Script { src: asset!("/public/assets/js/curation/citation-bridge.js"), defer: true, "type": "text/javascript" }
     }
 }

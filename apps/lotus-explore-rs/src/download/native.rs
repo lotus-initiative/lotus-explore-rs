@@ -15,15 +15,12 @@ pub(super) async fn execute_download_with_fallback(
     query: Arc<str>,
     filename: String,
     dl_timer: perf::TimerHandle,
-) -> Result<(), String> {
+) -> Result<String, String> {
     // First try QLever, fallback to WDQS on 502
     let result = execute_download_direct(format, query.as_ref()).await;
 
     match result {
-        Ok(body) => {
-            finalize_download(format, "direct", &body, dl_timer, &filename);
-            Ok(())
-        }
+        Ok(body) => finalize_download(format, "direct", &body, dl_timer, &filename),
         Err(e) => {
             // Check if it's a gateway error (502) indicating QLever is down
             if e.contains("502") || e.contains("Bad Gateway") || e.contains("gateway") {
@@ -47,7 +44,7 @@ async fn execute_download_wdqs_endpoint(
     endpoint: &str,
     filename: &str,
     dl_timer: perf::TimerHandle,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let prepared = format.prepared_query(query);
     execute_sparql_with_format_download(
         format,
@@ -65,7 +62,7 @@ async fn execute_download_wdqs(
     query: Arc<str>,
     filename: String,
     dl_timer: perf::TimerHandle,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let (endpoint, wdqs_query) = wdqs_download_query(&query);
     if endpoint == WDQS_SCHOLARLY {
         log::warn!(
@@ -84,7 +81,7 @@ fn finalize_download(
     body: &str,
     dl_timer: perf::TimerHandle,
     filename: &str,
-) {
+) -> Result<String, String> {
     let fetch_elapsed = perf::end_timer(format.timer_label(), dl_timer);
     perf::log_timing(
         "download",
@@ -97,23 +94,34 @@ fn finalize_download(
     );
 
     let trigger_timer = perf::start_timer(&format.trigger_timer_label());
-    trigger_download(filename, format.content_type(), body);
+    let written = trigger_download(filename, format.content_type(), body);
     let trigger_elapsed = perf::end_timer(&format.trigger_timer_label(), trigger_timer);
-    perf::log_timing(
-        "download",
-        &format!(
-            "event=download format={} phase=trigger state=success source={source}",
-            format.log_name()
+    match &written {
+        Ok(_) => perf::log_timing(
+            "download",
+            &format!(
+                "event=download format={} phase=trigger state=success source={source}",
+                format.log_name()
+            ),
+            Some(trigger_elapsed),
         ),
-        Some(trigger_elapsed),
-    );
+        Err(e) => perf::log_timing(
+            "download",
+            &format!(
+                "event=download format={} phase=trigger state=error source={source} reason={e}",
+                format.log_name()
+            ),
+            Some(trigger_elapsed),
+        ),
+    }
+    written
 }
 
 fn handle_download_error(
     format: DownloadFormat,
     error: &str,
     dl_timer: perf::TimerHandle,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let elapsed = perf::end_timer(format.timer_label(), dl_timer);
     perf::log_timing(
         "download",
@@ -158,24 +166,35 @@ async fn execute_sparql_with_format_download(
     response_format: LotusResponseFormat,
     filename: &str,
     dl_timer: perf::TimerHandle,
-) -> Result<(), String> {
+) -> Result<String, String> {
     use crate::sparql::execute_sparql_format_at as shared_execute;
 
     let body = shared_execute(query, endpoint, response_format)
         .await
         .map_err(|e| e.to_string())?;
 
-    finalize_download(format, "wdqs", &body, dl_timer, filename);
-    Ok(())
+    finalize_download(format, "wdqs", &body, dl_timer, filename)
 }
 
-pub(super) fn trigger_download(filename: &str, mime: &str, content: &str) {
+/// Returns a message naming the file that was written, for display to the user.
+pub(super) fn trigger_download(
+    filename: &str,
+    mime: &str,
+    content: &str,
+) -> Result<String, String> {
     let _ = mime;
     // The result used to be dropped here, which turned a failed export into a
     // silent no-op: the user clicked download, nothing appeared, and no error
-    // was ever logged. A desktop export that cannot be written is a real
-    // failure, so it is reported rather than discarded.
-    if let Err(e) = crate::upload::download_text(content, filename) {
-        log::error!("event=download phase=trigger state=error source=native reason={e}");
+    // was ever logged.
+    match crate::upload::download_text(content, filename) {
+        Ok(path) => {
+            let message = path.display().to_string();
+            log::info!("event=download phase=trigger state=success path={message}");
+            Ok(message)
+        }
+        Err(e) => {
+            log::error!("event=download phase=trigger state=error source=native reason={e}");
+            Err(e)
+        }
     }
 }

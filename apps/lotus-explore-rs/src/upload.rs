@@ -419,11 +419,16 @@ pub async fn submit_download_form(endpoint: &str, fields: &[(&str, &str)]) -> Re
 /// on desktop, because this function used to return an error that the download
 /// path discarded.
 ///
+/// Returns the path written, so the caller can tell the user where the file
+/// went. A desktop window has no download shelf and no browser notification, so
+/// a file that appears in `~/Downloads` with no other sign is indistinguishable
+/// from a button that did nothing.
+///
 /// # Errors
 /// Returns a message if the download directory cannot be determined or the
 /// file cannot be written.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn download_text(content: &str, filename: &str) -> Result<(), String> {
+pub fn download_text(content: &str, filename: &str) -> Result<std::path::PathBuf, String> {
     let dir = download_dir().ok_or_else(|| {
         "no download directory could be determined; set LOTUS_DOWNLOAD_DIR".to_string()
     })?;
@@ -445,7 +450,7 @@ pub fn download_text(content: &str, filename: &str) -> Result<(), String> {
         "event=download phase=write state=success path={}",
         path.display()
     );
-    Ok(())
+    Ok(path)
 }
 
 /// Where a native export should be written.
@@ -521,6 +526,41 @@ pub const fn download_url(_url: &str, _filename: &str) -> bool {
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn submit_download_form(_endpoint: &str, _fields: &[(&str, &str)]) -> Result<(), String> {
     Err("Download is only available in the browser".to_string())
+}
+
+/// Open `url` in the user's default browser.
+///
+/// The desktop window is not a browser, so there is nothing to navigate: the
+/// "Open in QLever" button used to carry only a `wasm32` branch and was a no-op
+/// in a window. The system opener is the platform's own answer, and it hands the
+/// URL to whatever the user has set as default.
+///
+/// # Errors
+/// Returns a message if the URL is not http(s) or the opener fails. Only http
+/// and https are accepted because the URL is passed to an external program.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn open_externally(url: &str) -> Result<(), String> {
+    let url = url.trim();
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err(format!("refusing to open a non-http URL: {url}"));
+    }
+
+    let (program, args): (&str, &[&str]) = if cfg!(target_os = "macos") {
+        ("open", &[url])
+    } else if cfg!(target_os = "windows") {
+        // `start` is a shell builtin, so this needs a shell to run it. The empty
+        // string is the window title, which `start` would otherwise take from
+        // the URL.
+        ("cmd", &["/c", "start", "", url])
+    } else {
+        ("xdg-open", &[url])
+    };
+
+    std::process::Command::new(program)
+        .args(args)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("failed to run {program}: {e}"))
 }
 
 #[cfg(test)]

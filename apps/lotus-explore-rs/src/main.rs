@@ -28,29 +28,23 @@
 // for the feature-less `lotus`/`lotus-web-assets` crates.
 #![allow(unused_crate_dependencies)]
 #![allow(unreachable_pub, clippy::missing_const_for_fn)]
-// In a test build the app modules are compiled so the app's own tests can reach
-// them, and no test launches a Dioxus component tree. Every component, and every
-// helper only a component calls, is unreferenced *in that build* -- which says
-// something about the test harness and nothing about the app. So the allow is
-// scoped to `test`: the same code is checked with `dead_code` denied in the
-// wasm, desktop and server builds, where those items do have callers, so nothing
-// escapes review by being allowed here.
-#![cfg_attr(test, allow(dead_code))]
-// The two native builds each compile module code written for a different program.
-// `server` is an HTTP API that shares the query and export modules with the
-// client and renders nothing; `desktop` is a window that loads the client and has
-// no browser to stream a blob into or read a deployment base path from. In both,
-// the items belonging to the *other* program are unreferenced, and there are
-// hundreds of them: the honest description is "this build shares code with a
-// program it is not", not a list of hundreds of attributes that would only
-// describe the overlap between two programs and go stale the moment either
-// changes.
+// `dead_code` is denied, and there are three configurations where that is the
+// wrong answer. Each is a case where the code in this crate is not the program
+// being built, so its items have no caller in *this* binary:
 //
-// Scoped to exactly those two configurations. The browser build and the default
-// build -- the two where this crate's client *is* the program -- keep
-// `dead_code` denied, and that is where a genuinely unused helper is caught.
+// - A test build compiles the app modules so the app's own tests can reach them.
+//   No test launches a component tree, so every component and every helper only
+//   a component calls is unreferenced.
+// - `server` is an HTTP API that shares the query and export modules with the
+//   client and renders nothing.
+// - `desktop` is a window with no browser to stream a blob into.
+//
+// The browser build and the default build -- the two where this crate's client
+// *is* the program -- keep `dead_code` denied, so a genuinely unused helper is
+// still caught there.
 #![cfg_attr(
     any(
+        test,
         all(feature = "server", not(target_arch = "wasm32")),
         all(feature = "desktop", not(target_arch = "wasm32")),
     ),
@@ -111,6 +105,8 @@ mod ui;
 mod upload;
 #[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod utils;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
+mod vendor_assets;
 
 #[cfg(all(feature = "server", not(target_arch = "wasm32")))]
 mod server;
@@ -229,15 +225,19 @@ fn main() {
         .with_inner_size(dioxus_desktop::LogicalSize::new(1280.0, 860.0))
         .with_resizable(true);
 
-    // The window and dock icon, from the same artwork the web app serves.
+    // The window and dock icon.
     //
     // Left unset, dioxus uses its own placeholder, so the app showed a Dioxus
-    // logo in the dock. `icon_from_path` is not an option: on macOS tao's `Icon`
-    // only accepts raw RGBA, so the PNG has to go through `icon_from_memory`,
-    // which decodes it. The file is `include_bytes!`d rather than read from disk
-    // because a window icon is not worth a path that can be wrong at runtime.
+    // logo in the dock.
+    //
+    // `icon.icns` rather than the web app's PNG: tao decodes whatever it is
+    // given, and the `.icns` is the format macOS asks for. It is the same file
+    // the bundler puts in `Contents/Resources` and names in `Info.plist`, so the
+    // window, the dock and Finder all agree. The file is `include_bytes!`d
+    // rather than read from disk because a window icon is not worth a path that
+    // can be wrong at runtime.
     let icon = dioxus_desktop::icon_from_memory::<dioxus_desktop::tao::window::Icon>(
-        include_bytes!("../public/apple-touch-icon.png"),
+        include_bytes!("../public/icon.icns"),
     )
     .ok();
 

@@ -24,15 +24,44 @@ use std::sync::Arc;
     not(target_arch = "wasm32"),
     allow(unused_variables, clippy::needless_pass_by_value)
 )]
+/// The three signals the download buttons share.
+///
+/// Grouped because passing them separately ran the argument count past the limit
+/// clippy enforces, and because they are one thing: what the download UI is
+/// currently showing.
+#[derive(Clone, Copy, PartialEq)]
+pub(super) struct DownloadSignals {
+    /// A download is in flight.
+    pub busy: Signal<bool>,
+    /// The in-flight message, shown next to a spinner.
+    pub status: Signal<Option<String>>,
+    /// The result of the last finished download, shown after the spinner is gone.
+    pub notice: Signal<Option<String>>,
+}
+
+// The criteria snapshot is only needed by the browser build, which has to
+// rebuild the query from the form the user submitted. A desktop build already
+// holds the SPARQL string, so the snapshot is never read there.
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    allow(unused_variables, clippy::needless_pass_by_value)
+)]
 fn spawn_query_download(
     format: DownloadFormat,
     status_message: String,
     criteria_snapshot: Option<Arc<SearchCriteria>>,
     filename: String,
     query: Arc<str>,
-    mut download_busy: Signal<bool>,
-    mut download_status: Signal<Option<String>>,
+    signals: DownloadSignals,
 ) {
+    let DownloadSignals {
+        busy: download_busy,
+        status: download_status,
+        notice: download_notice,
+    } = signals;
+    let mut download_busy = download_busy;
+    let mut download_status = download_status;
+    let mut download_notice = download_notice;
     *download_busy.write() = true;
     *download_status.write() = Some(status_message);
     spawn(async move {
@@ -46,7 +75,7 @@ fn spawn_query_download(
             query.contains("SERVICE"),
             query.len()
         );
-        if let Err(err) = execute_download(
+        let outcome: Result<String, String> = execute_download(
             format,
             #[cfg(target_arch = "wasm32")]
             {
@@ -63,13 +92,22 @@ fn spawn_query_download(
             query,
             filename,
         )
-        .await
-        {
-            log::warn!(
-                "event=download phase=table_fetch state=error format={} reason={err}",
+        .await;
+
+        match &outcome {
+            Ok(_) => log::info!(
+                "event=download format={} phase=table_fetch state=success",
                 format.log_name()
-            );
+            ),
+            Err(err) => log::warn!(
+                "event=download format={} phase=table_fetch state=error reason={err}",
+                format.log_name()
+            ),
         }
+        // On a desktop build the message is the path the file was written to. A
+        // window has no download shelf, so without this the file appears in
+        // ~/Downloads and the UI looks like the click did nothing.
+        *download_notice.write() = Some(outcome.unwrap_or_else(|e| e));
         *download_busy.write() = false;
         *download_status.write() = None;
     });
@@ -81,8 +119,7 @@ fn dispatch_query_download_spec(
     criteria_snapshot: Option<Arc<SearchCriteria>>,
     filename: String,
     query: Arc<str>,
-    download_busy: Signal<bool>,
-    download_status: Signal<Option<String>>,
+    signals: DownloadSignals,
 ) {
     spawn_query_download(
         spec.format,
@@ -90,12 +127,15 @@ fn dispatch_query_download_spec(
         criteria_snapshot,
         filename,
         query,
-        download_busy,
-        download_status,
+        signals,
     );
 }
 
-fn dispatch_metadata_download_blob(filename: &str, body: &str) {
+fn dispatch_metadata_download_blob(
+    filename: &str,
+    body: &str,
+    mut download_notice: Signal<Option<String>>,
+) {
     log::info!(
         "event=download phase=table_dispatch state=started format=metadata filename={} size={}",
         filename,
@@ -108,12 +148,40 @@ fn dispatch_metadata_download_blob(filename: &str, body: &str) {
         );
         return;
     }
-    trigger_download(filename, "application/ld+json", body);
+    let outcome = trigger_download(filename, "application/ld+json", body);
+    *download_notice.write() = Some(match &outcome {
+        Ok(()) => filename.to_string(),
+        Err(e) => e.clone(),
+    });
+    if let Err(e) = outcome {
+        log::error!("event=download phase=table_dispatch state=error format=metadata reason={e}");
+        return;
+    }
     let elapsed_ms =
         perf::end_timer("LOTUS:table_download_meta_trigger", trigger_timer).as_secs_f64() * 1000.0;
     log::info!(
         "event=download phase=table_trigger state=success format=metadata elapsed_ms={elapsed_ms:.1}"
     );
+}
+
+/// The result of a finished download: where the file went, or why it did not.
+///
+/// Separate from the spinner, which is only on screen while a download is in
+/// flight. A desktop export finishes by writing a file, and without this the
+/// user has no way to tell that from a click that did nothing.
+#[component]
+fn DownloadNotice(notice: ReadSignal<Option<String>>) -> Element {
+    let Some(text) = notice.read().clone() else {
+        return rsx! {};
+    };
+    rsx! {
+        span {
+            role: "status",
+            aria_live: "polite",
+            class: "inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-1.5 text-ui font-semibold text-muted shadow-xs",
+            "{text}"
+        }
+    }
 }
 
 /// Displays download status with spinning indicator.
@@ -145,8 +213,7 @@ fn DownloadQueryButton(
     sparql_query: Arc<str>,
     locale: crate::i18n::Locale,
     disabled: bool,
-    download_busy: Signal<bool>,
-    download_status: Signal<Option<String>>,
+    signals: DownloadSignals,
     criteria: ReadSignal<SearchCriteria>,
     filename: String,
 ) -> Element {
@@ -182,8 +249,7 @@ fn DownloadQueryButton(
                         criteria_snapshot,
                         filename(),
                         sparql_query.clone(),
-                        download_busy,
-                        download_status,
+                        signals,
                     );
                 }
             },
@@ -200,6 +266,7 @@ fn DownloadMetadataButton(
     >,
     locale: crate::i18n::Locale,
     disabled: bool,
+    download_notice: Signal<Option<String>>,
 ) -> Element {
     let title = t(locale, DOWNLOAD_METADATA_SPEC.title_key);
     let label = t(locale, DOWNLOAD_METADATA_SPEC.label_key);
@@ -219,7 +286,11 @@ fn DownloadMetadataButton(
                 // every render rather than on the click that needs it.
                 move |_| {
                     let filename = toolbar_model.read().metadata_filename.clone();
-                    dispatch_metadata_download_blob(&filename, metadata_json.as_ref());
+                    dispatch_metadata_download_blob(
+                        &filename,
+                        metadata_json.as_ref(),
+                        download_notice,
+                    );
                 }
             },
         }
@@ -252,9 +323,14 @@ pub fn DownloadActionsGroup() -> Element {
 
     let download_results_label = t(locale, TextKey::DownloadResults);
 
-    // Local download state — busy flag and status text.
-    let download_busy = use_signal(|| false);
-    let download_status: Signal<Option<String>> = use_signal(|| None);
+    // Separate `notice` from `status`, which the spinner shows only while a
+    // download is in flight. A desktop export finishes by writing a file, and
+    // nothing on screen would otherwise say so.
+    let signals = DownloadSignals {
+        busy: use_signal(|| false),
+        status: use_signal(|| None),
+        notice: use_signal(|| None),
+    };
 
     let sparql_query_value = snapshot.sparql_query.clone();
     let metadata_json_value = snapshot.metadata_json.clone();
@@ -277,10 +353,14 @@ pub fn DownloadActionsGroup() -> Element {
 
     rsx! {
         nav { class: "flex w-full min-w-0 flex-wrap items-center justify-center gap-3 py-1 mb-3", aria_label: "{download_results_label}",
-            if *download_busy.read() {
+            if *signals.busy.read() {
                 DownloadStatusSpinner {
-                    download_status,
+                    download_status: signals.status,
                     locale,
+                }
+            } else if signals.notice.read().is_some() {
+                li {
+                    DownloadNotice { notice: signals.notice }
                 }
             }
             if export_available {
@@ -292,9 +372,8 @@ pub fn DownloadActionsGroup() -> Element {
                                 spec: DOWNLOAD_QUERY_CSV_SPEC,
                                 sparql_query: query.clone(),
                                 locale,
-                                disabled: *download_busy.read(),
-                                download_busy,
-                                download_status,
+                                disabled: *signals.busy.read(),
+                                signals,
                                 criteria,
                                 filename: toolbar_model.read().csv_filename.clone(),
                             }
@@ -304,9 +383,8 @@ pub fn DownloadActionsGroup() -> Element {
                                 spec: DOWNLOAD_QUERY_JSON_SPEC,
                                 sparql_query: query.clone(),
                                 locale,
-                                disabled: *download_busy.read(),
-                                download_busy,
-                                download_status,
+                                disabled: *signals.busy.read(),
+                                signals,
                                 criteria,
                                 filename: toolbar_model.read().json_filename.clone(),
                             }
@@ -316,9 +394,8 @@ pub fn DownloadActionsGroup() -> Element {
                                 spec: DOWNLOAD_QUERY_RDF_SPEC,
                                 sparql_query: query.clone(),
                                 locale,
-                                disabled: *download_busy.read(),
-                                download_busy,
-                                download_status,
+                                disabled: *signals.busy.read(),
+                                signals,
                                 criteria,
                                 filename: toolbar_model.read().rdf_filename.clone(),
                             }
@@ -330,7 +407,8 @@ pub fn DownloadActionsGroup() -> Element {
                                 metadata_json: body.clone(),
                                 toolbar_model,
                                 locale,
-                                disabled: *download_busy.read(),
+                                disabled: *signals.busy.read(),
+                                download_notice: signals.notice,
                             }
                         }
                     }
@@ -342,15 +420,22 @@ pub fn DownloadActionsGroup() -> Element {
                                 title: Some(format!("{open_in_title} ({endpoint_name})")),
                                 label: Some(open_in_label.to_string()),
                                 onclick: move |_| {
+                                    let Some(url) = ui_url_for_click.as_ref() else {
+                                        return;
+                                    };
                                     #[cfg(target_arch = "wasm32")]
-                                    {
-                                        if let Some(win) = web_sys::window()
-                                            && let Some(url) =
-                                                ui_url_for_click.as_ref()
-                                        {
-                                            let _ = win
-                                                .open_with_url_and_target(url, "_blank");
-                                        }
+                                    if let Some(win) = web_sys::window() {
+                                        let _ = win.open_with_url_and_target(url, "_blank");
+                                    }
+                                    // A desktop window is not a browser, so
+                                    // there is nothing to navigate. This branch
+                                    // used to be absent, which made the button a
+                                    // no-op in the window.
+                                    #[cfg(not(target_arch = "wasm32"))]
+                                    if let Err(e) = crate::upload::open_externally(url) {
+                                        log::warn!(
+                                            "event=open_external state=error reason={e}"
+                                        );
                                     }
                                 },
                             }

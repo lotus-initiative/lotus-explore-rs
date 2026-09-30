@@ -39,21 +39,45 @@ pub(super) async fn convert_smiles(smiles: &str) -> Result<ConvertFormatsRespons
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let (canonical_smiles, isomeric_smiles, inchi, inchikey) = try_join!(
-            convert_with_batch_direct(smiles, "canonicalsmiles"),
-            convert_with_batch_direct(smiles, "isomericsmiles"),
+        // The service has no `isomericsmiles` output. It answers
+        // `Unsupported output format: isomericsmiles`, and because this used to
+        // be part of a `try_join!`, that one unsupported format failed the whole
+        // conversion and took the InChIKey down with it.
+        //
+        // Its `canonicalsmiles` output already carries stereochemistry --
+        // `C[C@@H](C(=O)O)N` in, `C[C@@H](C(=O)O)N` out -- so it answers both
+        // questions. `lotus-curation` reaches the same conclusion for the same
+        // reason. The two are compared downstream by `has_isomeric_smiles`,
+        // which looks for stereo marks, so an unspecified structure correctly
+        // reports that it has none.
+        let (canonical_smiles, inchi, inchikey) = try_join!(
+            convert_with_batch_direct(smiles, NATPROD_CANONICAL_SMILES),
             convert_with_batch_direct(smiles, "inchi"),
             convert_with_batch_direct(smiles, "inchikey"),
         )?;
 
         Ok(ConvertFormatsResponse {
+            isomeric_smiles: canonical_smiles.clone(),
             canonical_smiles,
-            isomeric_smiles,
             inchi,
             inchikey,
         })
     }
 }
+
+/// The service's name for its canonical-SMILES output.
+#[cfg(not(target_arch = "wasm32"))]
+const NATPROD_CANONICAL_SMILES: &str = "canonicalsmiles";
+
+/// Every output format this code asks the service for.
+///
+/// Asking for anything else fails the conversion: the service replies 200 with
+/// `success: false` and `Unsupported output format: <name>`, which
+/// `extract_batch_convert_output` turns into an error. So this list is not a
+/// preference, it is the set the service actually implements -- `isomericsmiles`
+/// is not in it, and its canonical output already carries stereochemistry.
+#[cfg(not(target_arch = "wasm32"))]
+const NATPROD_OUTPUT_FORMATS: [&str; 3] = [NATPROD_CANONICAL_SMILES, "inchi", "inchikey"];
 
 #[cfg(target_arch = "wasm32")]
 async fn convert_with_rdkit(smiles: &str) -> Result<ConvertFormatsResponse, CurationError> {
@@ -255,5 +279,27 @@ pub(super) async fn has_undefined_stereo(smiles: &str) -> bool {
         json.get("stereoisomers")
             .and_then(Value::as_array)
             .is_some_and(|a| a.len() > 1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used)]
+
+    /// Pinned against the live service, which answers 200 with
+    /// `success: false` and `Unsupported output format: <name>` for anything
+    /// outside this list, rather than a 4xx that would be obvious here.
+    #[test]
+    fn only_formats_the_service_implements_are_requested() {
+        assert_eq!(
+            super::NATPROD_OUTPUT_FORMATS,
+            ["canonicalsmiles", "inchi", "inchikey"],
+            "the requested formats changed; the service must be able to answer \
+             each one, and `isomericsmiles` is not one it can"
+        );
+        assert!(
+            !super::NATPROD_OUTPUT_FORMATS.contains(&"isomericsmiles"),
+            "the service has no isomeric-SMILES output and rejects the request"
+        );
     }
 }

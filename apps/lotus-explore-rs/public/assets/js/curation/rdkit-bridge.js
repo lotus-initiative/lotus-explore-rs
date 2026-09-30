@@ -14,11 +14,20 @@
 (function () {
     "use strict";
 
-    const RDKIT_BASE_PATH = (() => {
-        const base = document.documentElement.getAttribute("data-lotus-base-path") || "/";
-        return base.endsWith("/") ? base : `${base}/`;
-    })();
-    const RDKIT_JS_SRC = `${RDKIT_BASE_PATH}assets/vendor/rdkit/RDKit_minimal.js`;
+    // The URLs come from the `data-rdkit-*` attributes that
+    // `document_head::CurationScripts` sets on this script tag, so Rust is the
+    // one place that knows where the bundler put the files.
+    //
+    // The fallback is for a page that injects this file by hand, and it is the
+    // path the web server serves. It is not the path a desktop bundle uses: the
+    // folder is embedded as `assets/rdkit`, not `assets/vendor/rdkit`, which is
+    // why the desktop build has to supply the attributes.
+    const scriptTag = document.currentScript;
+    const RDKIT_JS_SRC =
+        (scriptTag && scriptTag.getAttribute("data-rdkit-src")) ||
+        "assets/vendor/rdkit/RDKit_minimal.js";
+    const RDKIT_WASM_SRC =
+        (scriptTag && scriptTag.getAttribute("data-rdkit-wasm")) || null;
     const bridge = (window.__lotusRdkit = window.__lotusRdkit || {});
 
     function waitForInitRDKitModule(timeoutMs = 12000) {
@@ -84,7 +93,14 @@
 
         bridge.rdkitReadyPromise = (async () => {
             const init = await loadRdkitJs();
-            const RDKit = await init();
+            // `locateFile` is how the wasm module is found. Left to itself the
+            // loader asks for `RDKit_minimal.wasm` next to the script, which
+            // holds only when the file kept that exact name. Point it at the
+            // URL Rust resolved instead, so a content-addressed copy in the
+            // bundle still loads.
+            const RDKit = RDKIT_WASM_SRC
+                ? await init({ locateFile: () => RDKIT_WASM_SRC })
+                : await init();
 
             function withMol(smiles, callback) {
                 const trimmed = String(smiles || "").trim();

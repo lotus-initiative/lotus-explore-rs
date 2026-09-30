@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Ketcher molecule editor panel.
 
-use crate::document_head::asset_url;
 use crate::i18n::{TextKey, t};
 use dioxus::prelude::*;
 
@@ -10,7 +9,7 @@ use dioxus::prelude::*;
 pub fn KetcherPanel() -> Element {
     let locale = crate::hooks::use_locale();
     let mut ketcher_ready = use_signal(|| false);
-    let ketcher_url = asset_url("assets/ketcher/index.html");
+    let ketcher_url = crate::vendor_assets::ketcher_url();
     rsx! {
         div {
             class: "flex w-full flex-col gap-3",
