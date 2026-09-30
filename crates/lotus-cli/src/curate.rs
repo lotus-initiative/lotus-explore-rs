@@ -142,12 +142,8 @@ pub async fn run(args: &CurateArgs) -> anyhow::Result<ExitCode> {
     // Worth saying out loud, because a bundle that reads like a finished curation
     // is the one output of this command that can do damage. Under `--offline`
     // this is every row.
-    let unchecked = report
-        .rows
-        .iter()
-        .filter(|row| row.status == lotus_curation::CurationStatus::NotChecked)
-        .count();
-    if unchecked > 0 && !args.quiet {
+    let unchecked = unchecked_count(&report);
+    if should_warn_about_unchecked(unchecked, args.quiet) {
         eprintln!("lotus: {unchecked} row(s) were not looked up");
     }
 
@@ -282,6 +278,42 @@ fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
 /// per row: they are a different service, and a `VALUES` query over a whole file
 /// would be one enormous answer to hold in memory and lose everything if one row
 /// in it were wrong.
+/// Whether to say how many rows were not looked up.
+///
+/// Both halves matter and neither implies the other: a run that checked
+/// everything has nothing to report however loud it is, and a quiet run says
+/// nothing however much it skipped.
+const fn should_warn_about_unchecked(unchecked: usize, quiet: bool) -> bool {
+    unchecked > 0 && !quiet
+}
+
+/// How many rows were never looked up.
+///
+/// A row ends up `NotChecked` when its structure could not be converted, and the
+/// count is printed rather than folded into an error: the rows that *were* looked
+/// up are still correct, and the ones that were not are still a valid batch to
+/// paste into a spreadsheet. A zero is not worth a line on stderr.
+fn unchecked_count(report: &CuratedReport) -> usize {
+    report
+        .rows
+        .iter()
+        .filter(|row| row.status == lotus_curation::CurationStatus::NotChecked)
+        .count()
+}
+
+/// The SMILES worth sending to the conversion service.
+///
+/// Trimmed, and blank ones dropped: an empty structure is what the service
+/// cannot read, so asking it to convert one spends a request to be told the
+/// thing that was already obvious here.
+fn convertible_smiles(findings: &[Finding]) -> Vec<&str> {
+    findings
+        .iter()
+        .map(|finding| finding.smiles.trim())
+        .filter(|smiles| !smiles.is_empty())
+        .collect()
+}
+
 async fn curate_findings(findings: &[Finding], offline: bool) -> anyhow::Result<CuratedReport> {
     let mut rows = Vec::with_capacity(findings.len());
 
@@ -290,11 +322,7 @@ async fn curate_findings(findings: &[Finding], offline: bool) -> anyhow::Result<
     } else {
         let http = lotus_search::reqwest_client::ReqwestClient::new()?;
 
-        let smiles: Vec<&str> = findings
-            .iter()
-            .map(|finding| finding.smiles.trim())
-            .filter(|smiles| !smiles.is_empty())
-            .collect();
+        let smiles = convertible_smiles(findings);
         let converted = lotus_curation::convert_structures(&http, &smiles).await?;
 
         let mut by_smiles: std::collections::HashMap<&str, &lotus_curation::ConvertedStructure> =
@@ -421,4 +449,149 @@ fn write_report<W: Write>(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::panic,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::indexing_slicing
+    )]
+
+    use super::{
+        CuratedReport, Finding, convertible_smiles, should_warn_about_unchecked, unchecked_count,
+    };
+    use lotus_curation::{CurationInputRow, CurationResultRow, CurationStatus};
+
+    fn finding(smiles: &str) -> Finding {
+        Finding {
+            name: "Quercetin".into(),
+            smiles: smiles.into(),
+            taxon: None,
+            doi: None,
+        }
+    }
+
+    fn row(status: &CurationStatus) -> CurationResultRow {
+        CurationResultRow {
+            input: CurationInputRow {
+                name: "Quercetin".into(),
+                smiles: "CCO".into(),
+                taxon: None,
+                doi: None,
+            },
+            canonical_smiles: None,
+            inchikey: None,
+            inchi: None,
+            formula: None,
+            exact_mass: None,
+            mass_warning: None,
+            wikidata_qid: None,
+            status: status.clone(),
+            note: String::new(),
+            dependency_blocks: vec![],
+            quickstatements: vec![],
+        }
+    }
+
+    fn report_with(statuses: &[CurationStatus]) -> CuratedReport {
+        CuratedReport {
+            rows: statuses.iter().map(row).collect(),
+            statements: vec![],
+            citation: "citation",
+        }
+    }
+
+    #[test]
+    fn only_the_rows_that_were_not_checked_are_counted() {
+        // The statuses a row can end in. Counting the wrong one makes the
+        // warning a lie in either direction: silent about rows that were never
+        // looked up, or claiming failures that are not.
+        let report = report_with(&[
+            CurationStatus::ExistingComplete,
+            CurationStatus::NotChecked,
+            CurationStatus::NewCompound,
+            CurationStatus::NotChecked,
+        ]);
+        assert_eq!(unchecked_count(&report), 2);
+    }
+
+    #[test]
+    fn a_fully_checked_report_counts_zero() {
+        // Which is the case the `> 0` decides: nothing to say, so nothing is
+        // printed. A `>= 0` here would announce "0 row(s) were not looked up" on
+        // every successful run.
+        let report = report_with(&[
+            CurationStatus::ExistingComplete,
+            CurationStatus::ExistingNeedsUpdates,
+            CurationStatus::NewCompound,
+            CurationStatus::PendingDependencies,
+        ]);
+        assert_eq!(unchecked_count(&report), 0);
+    }
+
+    #[test]
+    fn the_warning_needs_something_to_say_and_permission_to_say_it() {
+        // A clean run says nothing, however loud. A quiet run says nothing,
+        // however many it skipped. Anything else says so.
+        assert!(
+            !should_warn_about_unchecked(0, false),
+            "nothing was skipped"
+        );
+        assert!(
+            !should_warn_about_unchecked(0, true),
+            "nothing was skipped, and quiet"
+        );
+        assert!(!should_warn_about_unchecked(3, true), "quiet means quiet");
+        assert!(
+            should_warn_about_unchecked(1, false),
+            "one skipped is still one"
+        );
+        assert!(should_warn_about_unchecked(3, false));
+    }
+
+    #[test]
+    fn an_empty_report_counts_zero() {
+        let empty = CuratedReport {
+            rows: vec![],
+            statements: vec![],
+            citation: "citation",
+        };
+        assert_eq!(unchecked_count(&empty), 0);
+    }
+
+    #[test]
+    fn blank_structures_are_not_sent_to_be_converted() {
+        // Each of these would be a request the service cannot satisfy, answered
+        // with the error that the structure was empty.
+        let findings = vec![
+            finding("CCO"),
+            finding(""),
+            finding("   "),
+            finding("\t\n"),
+            finding("CCC"),
+        ];
+        assert_eq!(convertible_smiles(&findings), ["CCO", "CCC"]);
+    }
+
+    #[test]
+    fn a_surrounding_space_is_trimmed_rather_than_sent() {
+        // Padded SMILES from a spreadsheet, which is where most of them come
+        // from. The service is asked about the structure, not the padding.
+        assert_eq!(convertible_smiles(&[finding("  CCO  ")]), ["CCO"]);
+        assert_eq!(convertible_smiles(&[finding("\tCCO\n")]), ["CCO"]);
+    }
+
+    #[test]
+    fn a_batch_with_nothing_convertible_sends_nothing() {
+        // A batch of blanks from a spreadsheet is exactly the case where an
+        // empty request is the right answer rather than a request that fails.
+        assert_eq!(
+            convertible_smiles(&[finding(""), finding(" ")]),
+            Vec::<&str>::new()
+        );
+        assert!(convertible_smiles(&[]).is_empty());
+    }
 }
