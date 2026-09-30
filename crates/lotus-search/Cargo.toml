@@ -2,7 +2,7 @@
 name = "lotus-search"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.97"
+rust-version.workspace = true
 description = "The LOTUS search use case: resolve a taxon, build a query, run it against an endpoint, and return rows, over a pluggable HTTP transport"
 repository.workspace = true
 license = "AGPL-3.0-only"

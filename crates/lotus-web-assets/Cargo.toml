@@ -2,7 +2,7 @@
 name = "lotus-web-assets"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.97"
+rust-version.workspace = true
 description = "Vendors the web client's third-party frontend assets (Ketcher, RDKit, citation.js) and preloads the built wasm module"
 repository.workspace = true
 license = "AGPL-3.0-only"

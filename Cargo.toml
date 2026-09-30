@@ -126,6 +126,11 @@ unwrap_used = "deny"
 multiple_crate_versions = "allow"
 
 [workspace.lints.rust]
+#
+# The lints below are on because the whole workspace already satisfies them with
+# no `#[allow]` and no `#[expect]` anywhere. That is the test for whether a lint
+# belongs here: one that needs suppressing somewhere is not a gate, it is noise
+# that teaches the reader to ignore the list.
 dead_code = "deny"
 missing_debug_implementations = "deny"
 missing_docs = "deny"
@@ -135,7 +140,27 @@ unsafe_code = "forbid"
 unsafe_op_in_unsafe_fn = "deny"
 unused_crate_dependencies = "deny"
 unused_must_use = "deny"
+# A `let` binding that shadows is nearly always a bug in the binding, and one
+# that diverges from the value it was derived from is nearly always a bug in the
+# derivation.
+unused_variables = "deny"
+unused_imports = "deny"
+# An assignment that is immediately overwritten, or one whose value is never read:
+# either dead, or a sign the branch it guards was meant to return.
+unused_assignments = "deny"
+# A binding that shadows another in the same scope is nearly always a mistake in
+# which of the two was meant.
+shadow_unrelated = "deny"
 
+# The shipped wasm bundle and the desktop binary.
+#
+# `opt-level = "z"` and `lto = "fat"` because the payload is downloaded before
+# anything renders, and every byte is a byte the reader waits for. `z` over `s`
+# trades a little speed for size, which is the right way round for a module this
+# large. `overflow-checks = false` is the one field here that trades correctness
+# for size, and it is deliberate: this is a query client, not a ledger, and the
+# checks protect arithmetic that either cannot overflow or is checked where it
+# matters.
 [profile.release]
 opt-level = "z"
 debug = false
@@ -144,3 +169,15 @@ debug-assertions = false
 overflow-checks = false
 lto = "fat"
 codegen-units = 1
+
+# `dev` keeps the debug assertions and overflow checks the release profile drops,
+# which is the point: the two profiles differ in what they check, not only in
+# how fast they are. Incremental is on, which is the default, and the incremental
+# cache is not shared with `test`.
+[profile.dev]
+debug = 1
+
+# A dependency compiled for tests is built once more than it needs to be; without
+# this the test build recompiles the whole graph with different settings.
+[profile.test]
+debug = 1

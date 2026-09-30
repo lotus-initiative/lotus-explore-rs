@@ -2,7 +2,7 @@
 name = "lotus-jsonld"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.97"
+rust-version.workspace = true
 description = "Bioschemas and schema.org JSON-LD for LOTUS results, compounds, taxa and the software itself"
 repository.workspace = true
 license = "AGPL-3.0-only"

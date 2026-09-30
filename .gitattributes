@@ -1,1 +1,6 @@
-graphify-out/graph.json merge=graphify
+# Normalise line endings so a checkout on Windows does not rewrite every file.
+* text=auto eol=lf
+
+# Generated and vendored trees are not source and are not reviewed as diffs.
+apps/lotus-explore-rs/public/assets/** linguist-vendored
+crates/lotus-web-assets/public/** linguist-vendored

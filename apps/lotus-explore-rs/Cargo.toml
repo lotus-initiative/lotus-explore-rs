@@ -2,7 +2,7 @@
 name = "lotus-explore-rs"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.97"
+rust-version.workspace = true
 description = "LOTUS Explorer — chemical occurrence explorer"
 repository.workspace = true
 license = "AGPL-3.0-only"
