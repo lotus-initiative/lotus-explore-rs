@@ -110,6 +110,10 @@ jobs:
       - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
         with:
           tool: cargo-mutants@27.1.0
+      # `just` is not on the runner, and the last two steps of this job call it.
+      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
+        with:
+          tool: just
       # Delegates to `just mutants` so the package list and flags cannot drift
       # from the ones a developer runs. `apps/lotus-explore-rs/tests/` and the
       # gate-consistency test both read this file, so a change here that breaks
@@ -142,6 +146,13 @@ jobs:
       - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
         with:
           tool: dioxus-cli@0.7.10
+      # `just` is not on the runner, and the last step of this job calls it. It
+      # stayed invisible because the job died at link time before reaching that
+      # step -- the same way a real defect stays invisible until the thing in
+      # front of it is fixed.
+      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
+        with:
+          tool: just
       # Native is the one target nothing was checking. Every desktop-only bug
       # reported so far -- an unstyled window, a no-op download, a 404 for
       # RDKit -- compiled cleanly here and was invisible to CI, because the

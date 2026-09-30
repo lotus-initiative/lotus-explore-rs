@@ -351,6 +351,70 @@ fn the_exceptions_are_all_real() -> Result<()> {
     Ok(())
 }
 
+/// Each job's block of the workflow, as `(name, text)`.
+///
+/// Scanned rather than parsed: the app crate has no YAML parser, and what the
+/// checks below need is "which lines belong to which job", which is decided by
+/// indentation. A job key is at column 2; every key inside one is deeper.
+fn ci_jobs_raw() -> Result<Vec<(String, String)>> {
+    let yaml = read(".github/workflows/ci.yml")?;
+    let mut jobs: Vec<(String, Vec<String>)> = Vec::new();
+
+    for line in yaml.lines() {
+        let at_column_two = line.starts_with("  ")
+            && !line[2..].starts_with([' ', '\t'])
+            && line.ends_with(':')
+            && !line[2..].trim_end_matches(':').is_empty();
+        if at_column_two {
+            jobs.push((
+                line[2..].trim_end_matches(':').to_owned(),
+                vec![line.to_owned()],
+            ));
+        } else if let Some((_, lines)) = jobs.last_mut() {
+            lines.push(line.to_owned());
+        }
+    }
+
+    Ok(jobs
+        .into_iter()
+        .map(|(name, lines)| (name, lines.join("\n")))
+        .collect())
+}
+
+#[test]
+fn a_job_that_calls_a_tool_installs_it() -> Result<()> {
+    // `just` is not on the GitHub runner. The desktop job has run
+    // `just verify-bundle` since it was written and never once got as far as it:
+    // the job died at link time first, so the missing tool was invisible until
+    // the link was fixed. The mutants job inherited the same gap.
+    //
+    // So: any job whose steps invoke a tool has to have a step that installs it.
+    // Tools this workflow shells out to, and the string that installs each.
+    const TOOLS: &[(&str, &str)] = &[
+        ("just ", "tool: just"),
+        ("dx ", "tool: dioxus-cli"),
+        ("cargo mutants", "tool: cargo-mutants"),
+    ];
+
+    let mut undeclared = Vec::new();
+    for (name, block) in ci_jobs_raw()? {
+        for (invocation, install) in TOOLS {
+            let calls = block.lines().any(|line| {
+                line.trim_start().starts_with("run:") || line.trim_start().starts_with("- ")
+            }) && block.contains(invocation);
+            if calls && !block.contains(install) {
+                undeclared.push(format!("{name} calls `{invocation}` with no `{install}`"));
+            }
+        }
+    }
+    assert!(
+        undeclared.is_empty(),
+        "these jobs invoke a tool the runner does not have:\n  {}",
+        undeclared.join("\n  ")
+    );
+    Ok(())
+}
+
 #[test]
 fn the_declarations_are_not_vacuous() -> Result<()> {
     // So a scraper that silently finds nothing cannot pass everything.
