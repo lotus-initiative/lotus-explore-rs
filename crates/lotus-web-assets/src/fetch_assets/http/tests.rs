@@ -66,6 +66,88 @@ fn json_is_parsed_and_a_500_is_not() {
 }
 
 #[test]
+fn a_rate_limit_is_retried_but_a_not_found_is_not() {
+    // 429 is the one 4xx that clears on its own, so it is retried; 404 is the
+    // URL being wrong and repeating it only triples the wait. Both are 4xx, so
+    // the distinction has to be the status rather than the class alone.
+    for (code, reason, retried) in [
+        (429u16, "Too Many Requests", true),
+        (404, "Not Found", false),
+    ] {
+        let mut responses = vec![http_status(code, reason)];
+        if retried {
+            responses.push(http_ok(r#"{"version":"late"}"#));
+        }
+        let server = MockServer::start(responses);
+        let url = server.url("/limited");
+
+        let outcome = read_json(&client(3000), &url);
+
+        if retried {
+            assert_eq!(
+                outcome.unwrap_or_default()["version"],
+                Value::from("late"),
+                "{code} is retried"
+            );
+        } else {
+            assert!(err(outcome).contains("404"), "{code} is not retried");
+        }
+    }
+}
+
+#[test]
+fn an_unreachable_host_is_attried_the_configured_number_of_times() {
+    // Counting the attempts is the whole point. A guard that gave up on the
+    // first attempt, or one that never gave up at all, produces the same error
+    // message as the correct three -- so the count has to be observed rather
+    // than inferred from the failure.
+    //
+    // Each request to a port nothing is listening on is refused before the mock
+    // server sees anything, so this cannot be counted there. The doubling of
+    // the waits is the observable proxy: three attempts sleep twice, one sleeps
+    // not at all.
+    let started = std::time::Instant::now();
+    let outcome = read_json(&client(300), "http://127.0.0.1:1/nothing-here");
+    let elapsed = started.elapsed();
+
+    assert!(outcome.is_err(), "the host is not there to answer");
+    assert!(
+        elapsed >= BACKOFF * 2,
+        "three attempts sleep at least twice: {:?} after {:?}",
+        BACKOFF * 2,
+        elapsed
+    );
+}
+
+#[test]
+fn an_unreachable_host_gives_up_after_the_configured_attempts() {
+    // A port nothing is listening on refuses the connection, so every attempt
+    // fails at the transport layer rather than with a status. The point is that
+    // it stops: without the last-attempt guard this loops forever, and the error
+    // a caller sees has to be the transport one rather than a truncated status.
+    let message = err(read_json(&client(300), "http://127.0.0.1:1/nothing-here"));
+    assert!(
+        message.starts_with("could not reach"),
+        "the transport failure is reported as such, got: {message}"
+    );
+}
+
+#[test]
+fn the_wait_between_attempts_grows() {
+    // It has to grow: the point of waiting is to give a rate limit or an
+    // overloaded CDN room to recover, and a wait that shrank or stayed flat
+    // would hammer the endpoint hardest exactly when it is least able to answer.
+    let waits: Vec<_> = (1..ATTEMPTS).map(backoff_after).collect();
+    assert_eq!(waits.len(), 2, "three attempts means two waits");
+    assert!(
+        waits[1] > waits[0],
+        "the second wait is longer than the first: {waits:?}"
+    );
+    assert_eq!(waits[0] * 2, waits[1], "and it doubles: {waits:?}");
+    assert_eq!(backoff_after(1), BACKOFF, "the first wait is the base");
+}
+
+#[test]
 fn a_4xx_is_not_retried() {
     // A 404 is the URL, not the server: repeating it only triples the wait
     // before the same answer. The mock queues one response, so a second attempt

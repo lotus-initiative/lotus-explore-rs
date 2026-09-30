@@ -69,6 +69,17 @@ fn is_retryable(status: Option<reqwest::StatusCode>) -> bool {
     })
 }
 
+/// The wait before the attempt after `attempt` (1-based), doubling each time.
+///
+/// A function rather than a running total so the schedule is a value: the growth
+/// is the part that matters -- a wait that shrank would hammer an endpoint that
+/// is already rate-limiting -- and a total computed inline cannot be asserted on
+/// without timing the retries.
+const fn backoff_after(attempt: u32) -> std::time::Duration {
+    let doublings = attempt.saturating_sub(1);
+    BACKOFF.saturating_mul(2u32.saturating_pow(doublings))
+}
+
 /// GET a URL, retrying a transient failure, and hand back the response.
 ///
 /// Every request in this binary goes through here, so the retry policy is stated
@@ -81,29 +92,27 @@ pub fn get(
     client: &Client,
     url: &str,
 ) -> Result<reqwest::blocking::Response, Box<dyn std::error::Error>> {
-    let mut wait = BACKOFF;
     for attempt in 1..=ATTEMPTS {
         match client.get(url).send() {
             Ok(response) if response.status().is_success() => return Ok(response),
             Ok(response) => {
                 let status = response.status();
-                if !is_retryable(Some(status)) {
+                if !is_retryable(Some(status)) || attempt == ATTEMPTS {
                     return Err(format!("HTTP {status} fetching {url}").into());
                 }
-                if attempt == ATTEMPTS {
-                    return Err(format!("HTTP {status} fetching {url}").into());
-                }
-                eprintln!("  {status} from {url}, retrying in {wait:?}");
+                eprintln!(
+                    "  {status} from {url}, retrying in {:?}",
+                    backoff_after(attempt)
+                );
             }
             Err(error) => {
                 if attempt == ATTEMPTS {
                     return Err(format!("could not reach {url}: {error}").into());
                 }
-                eprintln!("  {url}: {error}, retrying in {wait:?}");
+                eprintln!("  {url}: {error}, retrying in {:?}", backoff_after(attempt));
             }
         }
-        std::thread::sleep(wait);
-        wait *= 2;
+        std::thread::sleep(backoff_after(attempt));
     }
     unreachable!("the loop returns on the last attempt")
 }
