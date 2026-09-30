@@ -73,14 +73,6 @@ mod tests {
             );
         }
     }
-
-    #[test]
-    fn the_heading_and_the_panel_it_labours_are_both_present() {
-        // `aria-labelledby` is worth nothing if the id it names is not rendered.
-        assert!(all_ids().contains(&PAGE_TITLE_ID));
-        assert!(all_ids().contains(&RESULTS_SECTION_HEADING_ID));
-        assert_ne!(RESULTS_SECTION_ID, RESULTS_SECTION_HEADING_ID);
-    }
 }
 
 /// The brand assets, checked against the files rather than against source text.

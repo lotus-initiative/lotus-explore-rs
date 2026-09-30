@@ -7,6 +7,12 @@ use crate::repositories::HybridRepository;
 /// Application-wide services container.
 /// Holds references to all singleton dependencies needed throughout the app.
 /// Designed to be provided via Dioxus context and used by hooks/components.
+///
+/// `Copy` is load-bearing: this is provided through Dioxus context and read by
+/// many components, and a `Clone` that deep-copied a repository would hand each
+/// component its own cache. The `const` assertion below is where that is
+/// checked -- it fails the build rather than a test, because a type that is not
+/// `Copy` is a compile error at every call site anyway.
 #[derive(Clone, Copy)]
 pub struct AppServices {
     /// Data repository (API/SPARQL hybrid adapter).
@@ -27,20 +33,22 @@ impl AppServices {
     }
 }
 
+/// `AppServices` must stay `Copy`: it is shared through Dioxus context, and a
+/// `Clone` that owned its own repository would give each component a separate
+/// cache. Binding it twice below would not compile otherwise, and this is where
+/// that is checked -- a test would pass whether or not the type were `Copy`,
+/// because the assertion is decided at compile time.
+const _: () = {
+    fn assert_copy<T: Copy>(_: T, _: T) {}
+    fn check(services: AppServices) {
+        assert_copy(services, services);
+    }
+    let _ = check;
+};
+
 #[cfg(test)]
 mod tests {
-    // The double-bind is the point: it is a compile-time assertion that
-    // `AppServices` is Copy (the second bind would fail to compile otherwise).
-    #![allow(clippy::no_effect_underscore_binding)]
-
     use super::*;
-
-    #[test]
-    fn app_services_is_copy() {
-        let services = AppServices::new();
-        let _copy = services;
-        let _another_copy = services;
-    }
 
     #[test]
     fn app_services_repository_is_consistent() {

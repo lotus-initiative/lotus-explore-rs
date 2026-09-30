@@ -14,8 +14,14 @@ use super::shared::{normalized_year_input_max, parse_f64_input, parse_u16_input}
 /// Example taxa, as they would be typed. The first is a real QID rather than a
 /// rank, because a rank is not a taxon the endpoint resolves: `Plantae` is a clade
 /// with no compound, so it returns nothing and reads as a broken search.
-pub(super) const TAXON_SUGGESTIONS: &[&str] =
-    &["Gentiana", "Q34317", "Fungi", "Plantae", "Animalia", "*"];
+pub(super) const TAXON_SUGGESTIONS: &[&str] = &[
+    "Gentiana lutea",
+    "Q15584175",
+    "Fungi",
+    "Plantae",
+    "Animalia",
+    "*",
+];
 
 #[component]
 pub fn TaxonInput() -> Element {

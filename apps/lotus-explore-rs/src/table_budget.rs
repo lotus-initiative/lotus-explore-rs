@@ -107,19 +107,15 @@ mod tests {
 
     #[test]
     fn the_budget_is_within_the_ceiling() {
+        // Every call site divides by this or iterates it, so zero would be a
+        // hang rather than an error. The lower bound covers that as well as the
+        // usefulness one.
         let limit = runtime_table_row_limit();
         assert!(
             limit >= 180,
             "a table this small is not worth fetching: {limit}"
         );
         assert!(limit <= TABLE_ROW_LIMIT, "{limit} exceeds the ceiling");
-    }
-
-    #[test]
-    fn the_budget_is_never_zero() {
-        // Every call site divides by this or iterates it; zero would be a hang
-        // rather than an error.
-        assert!(runtime_table_row_limit() > 0);
     }
 
     #[test]

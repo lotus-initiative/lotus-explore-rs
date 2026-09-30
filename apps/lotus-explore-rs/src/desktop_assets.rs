@@ -125,20 +125,27 @@ pub const PROBE: &str = r#"
 ///
 /// # Errors
 /// Returns a message if the entry document cannot be fetched, which in practice
-/// means the editor is not in this build.
-#[allow(clippy::future_not_send)] // a `WebView` round trip; see the module docs
-pub async fn ketcher_document(entry: &str) -> Result<String, String> {
-    let entry_literal =
-        serde_json::to_string(entry.trim()).map_err(|e| format!("could not encode: {e}"))?;
-    // Derived from the entry path so the two cannot disagree: drop the last segment
-    // and the editor's own `./...` references resolve as they do in a browser.
-    let base = format!(
+/// The directory an entry document sits in, with a trailing slash.
+///
+/// Derived from the entry path so the `<base href>` and the entry cannot disagree:
+/// dropping the last segment is what makes the editor's own `./...` references
+/// resolve as they do in a browser.
+fn entry_directory(entry: &str) -> String {
+    format!(
         "{}/",
         entry
             .trim_end_matches('/')
             .rsplit_once('/')
             .map_or("", |(directory, _)| directory)
-    );
+    )
+}
+
+/// means the editor is not in this build.
+#[allow(clippy::future_not_send)] // a `WebView` round trip; see the module docs
+pub async fn ketcher_document(entry: &str) -> Result<String, String> {
+    let entry_literal =
+        serde_json::to_string(entry.trim()).map_err(|e| format!("could not encode: {e}"))?;
+    let base = entry_directory(entry);
     let base_literal =
         serde_json::to_string(&base).map_err(|e| format!("could not encode: {e}"))?;
     let probe_literal =
