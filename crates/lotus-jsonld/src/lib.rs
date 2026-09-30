@@ -101,7 +101,8 @@ pub const SOFTWARE: crate::software::Software = crate::software::Software {
     language: "Rust",
     language_url: "https://www.rust-lang.org",
     requires_rust: ">= 1.97",
-    year: 2026,
+    // The first commit in this repository; there is no release tag to date from yet.
+    date_published: "2026-09-22",
     application_category: "scientific data analysis",
     application_subcategory: "SPARQL client",
     features: &[

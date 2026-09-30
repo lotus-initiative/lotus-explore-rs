@@ -40,8 +40,13 @@ pub struct Software {
     pub language_url: &'static str,
     /// The minimum toolchain this build needs.
     pub requires_rust: &'static str,
-    /// The year of the first release, for the `datePublished` a registry shows.
-    pub year: u16,
+    /// When the project was first committed, for the `datePublished` a registry
+    /// shows.
+    ///
+    /// The repository's own first commit, so it is checkable. There is no release
+    /// tag yet, so this is when the work began rather than when a version shipped;
+    /// when the first release is tagged, this becomes that tag's date.
+    pub date_published: &'static str,
     /// What the project is, in schema.org's controlled vocabulary.
     pub application_category: &'static str,
     /// The narrower label under it.
@@ -186,7 +191,7 @@ pub fn codemeta(software: &Software) -> Value {
         "developmentStatus".into(),
         json!("https://www.w3.org/TR/sw-life-cycle/#active-development"),
     );
-    object.insert("datePublished".into(), json!(software.year.to_string()));
+    object.insert("datePublished".into(), json!(software.date_published));
     // The pages that describe the software, so a registry can show a gallery
     // rather than one bare URL.
     object.insert(
@@ -234,7 +239,6 @@ pub fn citation_cff(software: &Software) -> String {
         format!("title: {}", yaml_scalar(software.name)),
         format!("abstract: {}", yaml_scalar(software.description)),
         format!("version: {}", yaml_scalar(software.version)),
-        format!("date-released: {}", yaml_scalar(&software.year.to_string())),
         // The SPDX identifier, not the URL: `cffconvert --validate` and GitHub's
         // widget both read this as a licence *name*. The URL goes alongside it as
         // an identifier, where a machine can dereference it.
@@ -244,13 +248,28 @@ pub fn citation_cff(software: &Software) -> String {
     ];
 
     if let Some(doi) = software.doi {
-        fields.push(format!("doi: {}", yaml_scalar(&doi_uri(doi))));
+        // The bare DOI, not the resolver URL. CFF's `doi` field is defined as
+        // the identifier without a prefix, and a resolver URL in it is either
+        // rejected by `cffconvert --validate` or silently turned into
+        // `https://doi.org/https://doi.org/...` by a consumer that prepends one.
+        fields.push(format!("doi: {}", yaml_scalar(doi)));
     }
 
-    fields.push(format!(
-        "identifiers:\n  - type: url\n    value: {}",
+    // Both dereferenceable forms of the project, so a consumer that wants a URL
+    // has one whether it reads `identifiers` or resolves `doi` itself.
+    let mut identifiers = format!(
+        "identifiers:\n  - type: url\n    value: {}\n",
         yaml_scalar(software.url)
-    ));
+    );
+    if let Some(doi) = software.doi {
+        use std::fmt::Write as _;
+        let _ = writeln!(
+            identifiers,
+            "  - type: doi\n    value: {}",
+            yaml_scalar(&doi_uri(doi))
+        );
+    }
+    fields.push(identifiers.trim_end().to_string());
 
     // One `keywords:` key with every value under it. Emitting a key per keyword
     // parses as valid YAML and silently keeps only the last one, so a document
@@ -352,8 +371,12 @@ mod tests {
         assert!(cff.starts_with("cff-version: 1.2.0\n"), "got: {cff}");
         assert!(cff.contains("type: software"));
         assert!(cff.contains("authors:"));
-        // A value with a colon has to be quoted or it parses as a mapping.
-        assert!(cff.contains("doi: \"https://doi.org/10.7554/eLife.70780\""));
+        // The DOI is bare. This assertion used to require the resolver URL, which
+        // is the wrong form: CFF defines `doi` as the identifier without a
+        // prefix. It passed here because the URL has a colon and so also
+        // happened to demonstrate the quoting rule, which is why the wrong form
+        // survived as long as it did.
+        assert!(cff.contains("doi: 10.7554/eLife.70780"), "got: {cff}");
     }
 
     #[test]
@@ -363,6 +386,10 @@ mod tests {
             yaml_scalar("https://example.org"),
             "\"https://example.org\""
         );
+        // A bare DOI has no colon, so it stays unquoted. Quoting it would be
+        // harmless, but the point is that the value is not being rescued by a
+        // quote that the resolver URL used to need.
+        assert_eq!(yaml_scalar("10.7554/eLife.70780"), "10.7554/eLife.70780");
         assert_eq!(yaml_scalar("a: b"), "\"a: b\"");
         assert_eq!(yaml_scalar(""), "\"\"");
     }
@@ -455,6 +482,77 @@ mod tests {
                 .as_array()
                 .is_some_and(|l| l.len() >= 2),
             "more than one related page"
+        );
+    }
+
+    /// Every check the `CFF` and `CodeMeta` documents have to pass, as assertions.
+    ///
+    /// A citation file that parses is not necessarily a valid one: YAML will
+    /// read `2026` as a number where a date is required, and a resolver URL
+    /// where a bare DOI is required, without complaining. These are the
+    /// mistypings that survive a parse.
+    #[test]
+    fn the_citation_document_survives_the_mistypings_yaml_allows() {
+        let cff = citation_cff(&SOFTWARE);
+
+        // There is no release tag yet, so there is no release date to state.
+        // Emitting one would mean inventing a day, and a citation file carrying a
+        // fabricated date is worse than one that omits an optional field.
+        assert!(
+            !cff.contains("date-released"),
+            "no release has been tagged, so no date is claimed:\n{cff}"
+        );
+        // `license` is read as a licence name, not a place to read the terms.
+        assert!(!cff.contains("license: http"), "got:\n{cff}");
+        // One `keywords:` key. A repeated key parses and silently keeps the last.
+        assert_eq!(
+            cff.matches("keywords:").count(),
+            1,
+            "a repeated key drops the earlier values:\n{cff}"
+        );
+        // Every list item starts a line of its own. A missing newline joins two
+        // items into one line, which YAML then reads as a single longer value
+        // rather than as two -- so the second entry is lost without complaint.
+        for (label, key, expected) in [
+            ("keywords", "keywords:", SOFTWARE.keywords.len()),
+            ("identifiers", "identifiers:", 2),
+        ] {
+            let tail = cff
+                .split_once(&format!("\n{key}\n"))
+                .map_or("", |(_, rest)| rest);
+            let indented: Vec<&str> = tail.lines().take_while(|l| l.starts_with(' ')).collect();
+            let items = indented
+                .iter()
+                .filter(|l| l.trim_start().starts_with("- "))
+                .count();
+            assert_eq!(
+                items, expected,
+                "{label} has {expected} items, each on its own line:\n{cff}"
+            );
+        }
+        assert!(
+            cff.lines().all(|l| l.trim_end() == l),
+            "no trailing whitespace, so the file diffs cleanly:\n{cff}"
+        );
+    }
+
+    #[test]
+    fn the_doi_is_bare_and_the_resolver_url_is_an_identifier() {
+        // CFF defines `doi` as the identifier without a prefix. A resolver URL
+        // there is either rejected by `cffconvert --validate` or, worse, silently
+        // doubled by a consumer that prepends the prefix itself.
+        let cff = citation_cff(&SOFTWARE);
+        assert!(
+            cff.contains("doi: 10.7554/eLife.70780"),
+            "the doi field is bare, got:\n{cff}"
+        );
+        assert!(
+            !cff.contains("doi: \"https://doi.org/"),
+            "the doi field must not carry a resolver prefix"
+        );
+        assert!(
+            cff.contains("- type: doi"),
+            "the resolver URL is an identifier instead"
         );
     }
 

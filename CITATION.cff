@@ -4,14 +4,15 @@ type: software
 title: LOTUS Explorer
 abstract: A linked open data explorer for the LOTUS compound-taxon-reference knowledge graph in Wikidata, queried over SPARQL.
 version: 0.1.0
-date-released: 2026
 license: AGPL-3.0-only
 repository-code: "https://github.com/lotusnprod/lotus-explore-rs"
 url: "https://lotus.nprod.net/lotus-explore-rs"
-doi: "https://doi.org/10.7554/eLife.70780"
+doi: 10.7554/eLife.70780
 identifiers:
   - type: url
     value: "https://lotus.nprod.net/lotus-explore-rs"
+  - type: doi
+    value: "https://doi.org/10.7554/eLife.70780"
 keywords:
   - natural products
   - linked open data

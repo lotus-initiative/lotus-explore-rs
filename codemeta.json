@@ -17,7 +17,7 @@
   "contIntegration": [
     "https://github.com/lotusnprod/lotus-explore-rs/actions"
   ],
-  "datePublished": "2026",
+  "datePublished": "2026-09-22",
   "description": "A linked open data explorer for the LOTUS compound-taxon-reference knowledge graph in Wikidata, queried over SPARQL.",
   "developmentStatus": "https://www.w3.org/TR/sw-life-cycle/#active-development",
   "featureList": [
