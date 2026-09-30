@@ -93,6 +93,8 @@ fn find_ascii_ci(haystack: &str, needle: &[u8]) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used)]
+
     use super::*;
 
     #[test]
@@ -165,5 +167,42 @@ mod tests {
         assert_eq!(non_empty("  x "), Some("x"));
         assert_eq!(non_empty(""), None);
         assert_eq!(non_empty("  \t "), None);
+    }
+
+    #[test]
+    fn a_case_insensitive_search_finds_any_single_byte() {
+        // The window test is per byte, and a needle that is not ASCII is
+        // compared byte-wise too. What matters is that one wrong byte in the
+        // middle stops the match rather than being skipped.
+        assert_eq!(find_ascii_ci("Hello World", b"world"), Some(6));
+        assert_eq!(find_ascii_ci("Hello World", b"WORLD"), Some(6));
+        assert_eq!(find_ascii_ci("Hello World", b"o w"), Some(4));
+        assert_eq!(find_ascii_ci("Hello World", b"o_W"), None);
+        assert_eq!(
+            find_ascii_ci("Hello World", b"World!"),
+            None,
+            "a partial match is not a match"
+        );
+        assert_eq!(
+            find_ascii_ci("hi", b""),
+            None,
+            "an empty needle is not found anywhere"
+        );
+        assert_eq!(find_ascii_ci("", b"x"), None, "nothing to find in nothing");
+        assert_eq!(
+            find_ascii_ci("a", b"ab"),
+            None,
+            "a needle longer than the haystack"
+        );
+    }
+
+    #[test]
+    fn the_search_does_not_match_across_a_multibyte_character() {
+        // Byte windows can straddle a UTF-8 boundary, where a match would be a
+        // coincidence of continuation bytes rather than a real substring.
+        // n(0) a(1) U+00EF(2,3) v(4) e(5): the needle starts after the two-byte character.
+        assert_eq!(find_ascii_ci("na\u{ef}ve caf\u{e9}", b"ve"), Some(4));
+        // A needle that is not valid ASCII has no meaningful case folding here.
+        assert_eq!(find_ascii_ci("na\u{ef}ve", &[0xef, 0x76]), None);
     }
 }
