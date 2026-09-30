@@ -110,7 +110,7 @@ pub fn StatBar() -> Element {
 
     rsx! {
         div {
-            class: "stat-bar flex w-full min-w-0 flex-wrap items-stretch justify-center gap-3 px-0",
+            class: "flex w-full min-w-0 flex-wrap items-stretch justify-center gap-3 px-0 min-h-[70px]",
             role: "group",
             aria_label: "{t(locale, TextKey::DatasetStatistics)}",
             StatBadge {

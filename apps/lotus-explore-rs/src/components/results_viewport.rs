@@ -77,7 +77,7 @@ fn QueryDisplay(query: std::sync::Arc<str>) -> Element {
     rsx! {
         section {
             id: "query-display",
-            class: "page-section w-full max-w-none px-0",
+            class: "w-full max-w-none px-0 pt-3",
             h2 { class: "text-title font-semibold text-text mb-4", "SPARQL Query" }
             pre {
                 class: "m-0 max-h-96 overflow-auto font-mono text-ui text-muted whitespace-pre-wrap break-all",

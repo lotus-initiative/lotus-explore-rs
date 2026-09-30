@@ -211,7 +211,7 @@ pub fn AppShell() -> Element {
                 class: "app-layout",
                 main {
                     id: MAIN_PANEL_ID,
-                     class: "main-content min-w-0 min-h-0 w-full max-w-none",
+                     class: "main-content min-w-0 min-h-0 w-full max-w-none min-h-[400px]",
 
                     tabindex: "-1",
                     aria_labelledby: PAGE_TITLE_ID,
@@ -241,7 +241,7 @@ pub(crate) fn ExplorePage() -> Element {
 
     rsx! {
         section {
-            class: "page-section w-full max-w-none px-4 sm:px-6 lg:px-8",
+            class: "w-full max-w-none px-4 pt-3 sm:px-6 lg:px-8",
             h2 { class: "sr-only", id: "search-page-heading", "{t(locale, TextKey::Search)}" }
             div { class: "w-full rounded-xl border border-shell-border bg-shell-raised overflow-hidden",
                 div { class: "page-body flex min-h-0 flex-col gap-4 px-4 pb-4 pt-5 sm:px-6 sm:pb-6 sm:pt-6",

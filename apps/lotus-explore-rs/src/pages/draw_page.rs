@@ -9,7 +9,7 @@ use dioxus::prelude::*;
 pub fn DrawPage() -> Element {
     rsx! {
         section {
-            class: "page-section w-full max-w-none px-4 sm:px-6 lg:px-8",
+            class: "w-full max-w-none px-4 pt-3 sm:px-6 lg:px-8",
             div { class: "w-full rounded-xl border border-shell-border bg-shell-raised overflow-hidden",
                 // Full-width shell here keeps the editor usable on large screens without a faux content column.
                 KetcherPanel {}

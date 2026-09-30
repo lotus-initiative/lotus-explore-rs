@@ -33,7 +33,7 @@ pub fn LandingPage() -> Element {
     };
     rsx! {
         section {
-            class: "page-section w-full max-w-none px-4 sm:px-6 lg:px-8",
+            class: "w-full max-w-none px-4 pt-3 sm:px-6 lg:px-8",
             aria_labelledby: "landing-welcome-heading",
             div {
                 class: "mx-auto min-w-0 w-full max-w-6xl",
@@ -104,7 +104,7 @@ pub fn NotFoundPage() -> Element {
     };
     rsx! {
         section {
-            class: "page-section w-full max-w-none px-4 sm:px-6 lg:px-8",
+            class: "w-full max-w-none px-4 pt-3 sm:px-6 lg:px-8",
             aria_labelledby: "not-found-heading",
             div {
                 class: "w-full max-w-3xl rounded-xl border border-shell-border bg-shell-raised p-6 shadow-xs sm:p-8",

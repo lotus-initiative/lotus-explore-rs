@@ -46,7 +46,7 @@ pub fn NoticeBar(props: NoticeBarProps) -> Element {
         div {
             role: props.role,
             aria_live: props.aria_live,
-            class: "notice-bar flex flex-wrap items-baseline gap-2 rounded-xl border p-2.5 shadow-xs text-ui {outer_tone}",
+            class: "notice-bar flex flex-wrap items-baseline gap-2 rounded-xl border p-2.5 shadow-xs text-ui min-h-12 {outer_tone}",
             span {
                 class: "inline-flex items-center px-2 py-0.5 rounded-full font-bold uppercase tracking-[0.08em] text-micro shrink-0 whitespace-nowrap {label_tone}",
                 "{props.label}"
