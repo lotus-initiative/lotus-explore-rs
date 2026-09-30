@@ -6,24 +6,100 @@ use crate::i18n::{TextKey, t};
 use crate::ui::prelude::{NoticeBar, NoticeTone};
 use dioxus::prelude::*;
 
+/// Marks the "the editor is not in this build" error, so the panel can tell it
+/// apart from a genuine failure and say the useful thing.
+const EDITOR_NOT_BUNDLED: &str = "the structure editor is not in this build";
+
+/// Where the editor has got to.
+///
+/// The first launch has to unpack 31 MB, so there is a real pending state. It
+/// used to be skipped by rendering the frame immediately, which is what made a
+/// missing or unpackable editor look like a silent empty box.
+#[derive(Clone, PartialEq)]
+enum EditorState {
+    /// The editor is being unpacked, or the first render has not resolved it yet.
+    Loading,
+    /// In this build, and this is the URL the frame is given.
+    Ready(String),
+    /// Not in this build at all, so there is nothing to show and nothing to
+    /// fetch. Kept apart from `Failed` because it is a build problem with a known
+    /// remedy, and the user gets the remedy rather than a diagnostic.
+    NotBundled,
+    /// Present but unusable, and this is why.
+    Failed(String),
+}
+
+impl EditorState {
+    fn is_settled(&self) -> bool {
+        !matches!(self, Self::Loading)
+    }
+}
+
 #[component]
 pub fn KetcherPanel() -> Element {
     let locale = crate::hooks::use_locale();
     let mut ketcher_ready = use_signal(|| false);
-    let ketcher_url = crate::vendor_assets::ketcher_url();
-    // Logged because this URL is wrong in exactly one way per bundler: a
-    // relative path, a missing `assets/` prefix, or a hashed name the editor's
-    // own relative references do not match. All three look like "the editor does
-    // not load" and nothing else.
-    log::info!("event=ketcher_load state=url url={ketcher_url:?}");
+    // The frame cannot be pointed at the bundled path on a desktop build -- see
+    // `desktop_assets` for what the navigation handler does to it -- so the URL is
+    // resolved asynchronously and the panel shows a real state while it happens.
+    // That is also why a missing editor is visible instead of an empty box.
+    let editor = use_signal(|| EditorState::Loading);
+    let bundled = crate::vendor_assets::ketcher_url();
 
-    // An editor that was never fetched is a different thing from one that failed
-    // to load, and it has to read differently. Rendering the frame anyway gives an
-    // empty box with no explanation, which is how this page was misdiagnosed.
-    let Some(ketcher_url) = ketcher_url else {
-        return rsx! {
-            NoticeBar { tone: NoticeTone::Warning, label: t(locale, TextKey::KetcherNotBundled).to_string() }
-        };
+    use_effect(move || {
+        if editor.read().is_settled() {
+            return;
+        }
+        let entry = bundled.clone();
+        let mut editor = editor;
+        spawn(async move {
+            #[cfg(not(target_arch = "wasm32"))]
+            let resolved = match entry {
+                Some(entry) => crate::desktop_assets::ketcher_frame_url(&entry).await,
+                None => Err(String::from(EDITOR_NOT_BUNDLED)),
+            };
+            // A browser serves the whole `public/` tree and has no navigation
+            // handler, so the bundled path is already the right URL there.
+            #[cfg(target_arch = "wasm32")]
+            let resolved: Result<String, String> =
+                entry.ok_or_else(|| String::from("the structure editor is not in this build"));
+
+            match resolved {
+                // Logged because a wrong URL looks exactly like every other
+                // failure here: no frame, no message.
+                Ok(url) => {
+                    log::info!("event=ketcher_load state=url url={url}");
+                    editor.set(EditorState::Ready(url));
+                }
+                Err(reason) => {
+                    log::error!("event=ketcher_load state=error reason={reason}");
+                    editor.set(if reason == EDITOR_NOT_BUNDLED {
+                        EditorState::NotBundled
+                    } else {
+                        EditorState::Failed(reason)
+                    });
+                }
+            }
+        });
+    });
+
+    let ketcher_url = match editor.read().clone() {
+        EditorState::NotBundled => {
+            return rsx! {
+                NoticeBar { tone: NoticeTone::Warning, label: t(locale, TextKey::KetcherNotBundled).to_string() }
+            };
+        }
+        EditorState::Failed(reason) => {
+            return rsx! {
+                NoticeBar { tone: NoticeTone::Warning, label: reason }
+            };
+        }
+        EditorState::Loading => {
+            return rsx! {
+                NoticeBar { tone: NoticeTone::Neutral, label: t(locale, TextKey::KetcherPreparing).to_string() }
+            };
+        }
+        EditorState::Ready(url) => url,
     };
 
     rsx! {

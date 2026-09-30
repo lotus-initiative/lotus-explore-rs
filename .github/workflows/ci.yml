@@ -162,16 +162,17 @@ jobs:
         with: { persist-credentials: false, fetch-depth: 1 }
       - uses: dtolnay/rust-toolchain@stable
       # `dioxus-desktop` reaches WebKitGTK through `wry`, whose `*-sys` crates
-      # shell out to `pkg-config` at build time. Without these the job dies in
-      # `glib-sys`/`gobject-sys` before compiling any of our code, which is the
-      # same shape of failure as a missing asset: nothing to do with the change
-      # under test.
+      # shell out to `pkg-config` at build time, and `tao` links `libxdo` for
+      # window dragging. Without these the job dies in `glib-sys`/`gobject-sys`
+      # or at link time with `unable to find library -lxdo`, before compiling any
+      # of our code -- the same shape of failure as a missing asset, and equally
+      # unrelated to the change under test.
       - name: Install the WebKitGTK build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev \
-            libayatana-appindicator3-dev librsvg2-dev
+            libayatana-appindicator3-dev librsvg2-dev libxdo-dev
       # The crate is `dioxus-cli`, not `dx`: `dx` is the binary it installs and
       # is not published to crates.io, so `dx@0.7.1` failed to resolve. The
       # version matches the `dioxus` dependency, as the README already says.

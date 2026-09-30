@@ -131,6 +131,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::KetcherNotBundled => {
             "Der Struktureditor war in diesem Build nicht enthalten. Fuhren Sie `cargo run -p lotus-web-assets --bin fetch-assets` aus und bauen Sie neu."
         }
+        TextKey::KetcherPreparing => "Struktureditor wird vorbereitet (nur beim ersten Start)...",
         TextKey::KindNoteSmiles => "  Wird als einzeiliges SPARQL-Literal gesendet.",
         TextKey::KindNoteMol2000 => {
             "  Wird unverändert an SACHEM scoredSubstructureSearch weitergegeben."

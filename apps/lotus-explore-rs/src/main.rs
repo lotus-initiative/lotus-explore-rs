@@ -45,6 +45,11 @@ mod clock;
 mod components;
 #[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod curation;
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    any(feature = "desktop", feature = "server", test)
+))]
+mod desktop_assets;
 #[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod document_head;
 #[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]

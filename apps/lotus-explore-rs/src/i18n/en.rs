@@ -119,6 +119,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::KetcherNotBundled => {
             "The structure editor was not included in this build. Run `cargo run -p lotus-web-assets --bin fetch-assets` and rebuild."
         }
+        TextKey::KetcherPreparing => "Preparing the structure editor (first launch only)...",
         TextKey::KindNoteSmiles => "  Sent as a single-line SPARQL literal.",
         TextKey::KindNoteMol2000 => "  Forwarded verbatim to SACHEM scoredSubstructureSearch.",
         TextKey::KindNoteMol3000 => {

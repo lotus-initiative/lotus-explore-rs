@@ -832,11 +832,15 @@ mod tests {
     /// `index_html_agrees_with_base_url`); documentation, where a measurement
     /// of the old host is history; and this file's own test fixtures, which are
     /// pinned to the real host on purpose.
-    const HOST_BEARING_SOURCES: [&str; 4] = [
+    const HOST_BEARING_SOURCES: [&str; 5] = [
         "metadata/site-metadata.json",
         "index.html",
         "docs/DEPLOYMENT.md",
         "build.rs",
+        // Names the published subpath to explain why a web asset URL has to be
+        // relative. It is a comment, not a link, and it is the reason a reader
+        // does not "fix" it back to a rooted path and break the deployed site.
+        "src/vendor_assets.rs",
     ];
 
     #[test]
