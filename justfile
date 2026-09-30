@@ -266,29 +266,50 @@ app-icon:
 verify-bundle app="LotusExploreRs" profile="debug":
 	#!/usr/bin/env bash
 	set -euo pipefail
-	bundle="target/dx/lotus-explore-rs/{{profile}}/macos/{{app}}.app"
-	if [ ! -d "$bundle" ]; then
-	  echo "no bundle at $bundle -- run 'dx build --desktop --features desktop' first" >&2
+	root="target/dx/lotus-explore-rs/{{profile}}"
+
+	# The bundle layout is the platform's, and the checks below are about what the
+	# app can actually request rather than where the files sit. A macOS build is an
+	# `.app` with `Contents/Resources` inside it and a plist naming the icon; a Linux
+	# build is a binary with the assets beside it and no plist at all. Hard-coding
+	# the macOS shape meant the desktop job failed on every Linux runner at the first
+	# step, so it proved nothing about the other ten.
+	case "$(uname -s)" in
+	Darwin)
+	  bundle="$root/macos/{{app}}.app"
+	  resources="$bundle/Contents/Resources"
+	  icon=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$bundle/Contents/Info.plist" 2>/dev/null || true)
+	  ;;
+	*)
+	  bundle="$root/$(uname -s | tr '[:upper:]' '[:lower:]')"
+	  resources="$bundle"
+	  icon=""
+	  ;;
+	esac
+	if [ ! -d "$resources" ]; then
+	  echo "no bundle at $resources -- run 'dx build --desktop --features desktop' first" >&2
 	  exit 1
 	fi
-	resources="$bundle/Contents/Resources"
 	fail=0
 
-	# The plist names an icon whether or not one was configured, and Finder
-	# shows a generic icon when the named file is not there.
-	icon=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$bundle/Contents/Info.plist")
-	if [ -f "$resources/$icon" ]; then
-	  echo "ok    icon: $icon"
+	# The plist names an icon whether or not one was configured, and Finder shows a
+	# generic icon when the named file is not there. Only macOS has a plist.
+	if [ -n "$icon" ]; then
+	  if [ -f "$resources/$icon" ]; then
+	    echo "ok    icon: $icon"
+	  else
+	    echo "FAIL  icon: plist names $icon, which is not in Contents/Resources"
+	    fail=1
+	  fi
 	else
-	  echo "FAIL  icon: plist names $icon, which is not in Contents/Resources"
-	  fail=1
+	  echo "skip  icon: $(uname -s) has no bundle plist to check it against"
 	fi
 
-	# The URLs the app actually requests, not just the files that exist. These
-	# two were different for a long time: the bundle had every file, and
-	# `bundled_path` still produced `.../index.html/rdkit/RDKit_minimal.js`,
-	# which the resolver does not serve. Checking the filesystem could not see
-	# that; checking the shape of the URL can.
+	# The URLs the app actually requests, not just the files that exist. These two
+	# were different for a long time: the bundle had every file, and `bundled_path`
+	# still produced `.../index.html/rdkit/RDKit_minimal.js`, which the resolver does
+	# not serve. Checking the filesystem could not see that; checking the shape of the
+	# URL can.
 	for f in assets/rdkit/RDKit_minimal.js \
 	         assets/rdkit/RDKit_minimal.wasm \
 	         assets/ketcher/index.html; do
@@ -301,8 +322,8 @@ verify-bundle app="LotusExploreRs" profile="debug":
 	done
 
 	# The resolver serves out of the bundle only for a rooted `/assets/` path.
-	# `vendor_assets::asset_url_for` is what guarantees that, and its test pins
-	# the shape; this pins that the shape still matches the real bundle.
+	# `vendor_assets::asset_url_for` is what guarantees that, and its test pins the
+	# shape; this pins that the shape still matches the real bundle.
 	if [ -d "$resources/assets/rdkit" ] && [ -d "$resources/assets/ketcher" ]; then
 	  echo "ok    assets/ layout matches the URLs vendor_assets generates"
 	else
@@ -310,11 +331,12 @@ verify-bundle app="LotusExploreRs" profile="debug":
 	  fail=1
 	fi
 
-	# Ketcher loads its chunks by relative path, so the bundle is only correct
-	# if those resolve inside it too.
+	# Ketcher loads its chunks by relative path, so the bundle is only correct if
+	# those resolve inside it too. The paths are rewritten at runtime for a desktop
+	# frame, so this is about the files, which the rewrite resolves against here.
 	while read -r ref; do
-	  target="assets/ketcher/${ref#./}"
-	  if [ -f "$resources/$target" ]; then
+	  [ -n "$ref" ] || continue
+	  if [ -f "$resources/assets/ketcher/${ref#./}" ]; then
 	    echo "ok    ketcher ref $ref"
 	  else
 	    echo "FAIL  ketcher/index.html references $ref, which is not in the bundle"
@@ -333,13 +355,24 @@ verify-bundle app="LotusExploreRs" profile="debug":
 bundle-icon app="LotusExploreRs":
 	#!/usr/bin/env bash
 	set -euo pipefail
-	for profile in debug release; do
-	  bundle="target/dx/lotus-explore-rs/$profile/macos/{{app}}.app"
-	  if [ -d "$bundle" ]; then
-	    cp apps/lotus-explore-rs/public/icon.icns "$bundle/Contents/Resources/icon.icns"
-	    echo "installed icon into $bundle"
-	  fi
-	done
+	# `dx` accepts a `resources` entry and does not put it where the plist looks,
+	# so a configured icon and a Finder icon were two different files. Only macOS
+	# has a plist, and only macOS has an `.icns`; the other platforms take their icon
+	# from the desktop file, which `dx` writes itself.
+	case "$(uname -s)" in
+	Darwin)
+	  for profile in debug release; do
+	    bundle="target/dx/lotus-explore-rs/$profile/macos/{{app}}.app"
+	    if [ -d "$bundle" ]; then
+	      cp apps/lotus-explore-rs/public/icon.icns "$bundle/Contents/Resources/icon.icns"
+	      echo "installed icon into $bundle"
+	    fi
+	  done
+	  ;;
+	*)
+	  echo "skip  icon: $(uname -s) takes its icon from the desktop file dx writes"
+	  ;;
+	esac
 
 # The module is content-hashed, so only a post-build step can name it. Without
 # this the 1.4 MiB module is fetched *after* the 45 KiB JS glue has downloaded,
