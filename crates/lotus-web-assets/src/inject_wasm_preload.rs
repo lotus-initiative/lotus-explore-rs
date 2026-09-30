@@ -175,6 +175,15 @@ fn asset_prefix(html: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    // The panic lints keep library code from panicking on bad input. A test that
+    // fails on a bad fixture is reporting a failure, not panicking on input.
+    #![allow(
+        clippy::panic,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::indexing_slicing
+    )]
+
     use super::{
         DEFAULT_WEB_PUBLIC_DIR, asset_prefix, find_wasm_module, insert_after_anchor,
         module_script_name,
@@ -364,7 +373,7 @@ mod tests {
         // variant that was not built into this bundle is ignored.
         let dir = bundle_naming("import(\"lotus-d1g2h3i4.wasm\")");
         assert!(
-            matches!(find_wasm_module(dir.path(), "index-abc123.js"), Err(_)),
+            find_wasm_module(dir.path(), "index-abc123.js").is_err(),
             "a named but missing module is not found"
         );
     }
