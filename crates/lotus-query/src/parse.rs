@@ -232,8 +232,13 @@ fn build_entry(
     let conn = field(record, columns.smiles_conn);
     let smiles = if iso.is_empty() { conn } else { iso };
 
+    // Every QID goes through `normalize_qid`. The query projects QIDs as
+    // `xsd:integer(STRAFTER(STR(?x), "Q"))`, so the CSV arrives holding `16521`
+    // where the item is `Q16521` -- and the row is rendered into a
+    // `wikidata.org/entity/` URL. Interning the cell verbatim put the bare
+    // number in the link, which is a 404 for every result row.
     CompoundEntry {
-        compound_qid: Interners::qid(interners, compound),
+        compound_qid: Interners::qid(interners, &normalize_qid(compound)),
         name: Interners::label(interners, field(record, columns.label)),
         inchikey: optional(Interners::inchikey(
             interners,
@@ -245,9 +250,9 @@ fn build_entry(
             interners,
             field(record, columns.formula),
         )),
-        taxon_qid: Interners::qid(interners, taxon),
+        taxon_qid: Interners::qid(interners, &normalize_qid(taxon)),
         taxon_name: Interners::taxon_name(interners, field(record, columns.taxon_name)),
-        reference_qid: Interners::qid(interners, reference),
+        reference_qid: Interners::qid(interners, &normalize_qid(reference)),
         ref_title: optional(Interners::title(
             interners,
             field(record, columns.ref_title),

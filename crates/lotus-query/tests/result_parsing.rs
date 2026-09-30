@@ -34,6 +34,22 @@ fn a_duplicate_triple_appears_once() {
     assert_eq!(rows[2].compound_qid.as_ref(), "Q3");
 }
 
+/// The QID projection: the query strips the `Q` and hands back an integer.
+///
+/// `compounds.csv` cannot catch this, because its QIDs are written `Q1` rather
+/// than the `1` the live endpoint returns -- so the fixture passed while every
+/// rendered link was wrong. This is the fixture in the shape it actually arrives.
+const INTEGER_QIDS: &str = "compound,compoundLabel,compound_inchikey,taxon,taxon_name,ref_qid,ref_title,ref_doi,ref_date,statement\n\
+16521,Quercetin,IIYFPWUAQGXNF,16521,Gentiana lutea,1000,An article,10.1/A,2021,http://www.wikidata.org/entity/statement/S1\n";
+
+#[test]
+fn a_qid_projected_as_an_integer_gets_its_prefix_back() {
+    let rows = parse_compounds_csv(INTEGER_QIDS.as_bytes(), 100).expect("valid CSV");
+    assert_eq!(rows[0].compound_qid.as_ref(), "Q16521");
+    assert_eq!(rows[0].taxon_qid.as_ref(), "Q16521");
+    assert_eq!(rows[0].reference_qid.as_ref(), "Q1000");
+}
+
 #[test]
 fn an_absent_taxon_is_empty_rather_than_missing() {
     // A row can name a compound and a reference but no taxon; the QID is
