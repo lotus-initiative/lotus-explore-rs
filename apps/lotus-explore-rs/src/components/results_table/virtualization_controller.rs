@@ -150,15 +150,16 @@ impl ResultsTableVirtualizationController {
         }
     }
 
-    #[allow(clippy::unused_self)]
-    #[allow(clippy::needless_pass_by_ref_mut)]
-    // Native stub mirroring the WASM mutating `sync_after_render` for
-    // signature parity on the non-browser target (see sibling `handle_scroll`).
+    // A native stub mirroring the WASM mutating `sync_after_render`, kept so the
+    // two targets have the same signature and the call sites need no cfg (see
+    // the sibling `handle_scroll`). It uses neither `self` nor its argument,
+    // because there is no browser to schedule a frame in.
     #[cfg(not(target_arch = "wasm32"))]
+    #[allow(clippy::unused_self, clippy::needless_pass_by_ref_mut)]
     pub(super) const fn sync_after_render(&mut self, _total_rows: usize) {}
 
-    #[allow(clippy::unused_self)]
     // `total_rows` is consumed on WASM only; kept on native for signature parity.
+    #[allow(clippy::unused_self)]
     #[cfg_attr(not(target_arch = "wasm32"), allow(unused_variables))]
     pub(super) fn handle_scroll(&self, total_rows: usize) {
         #[cfg(target_arch = "wasm32")]

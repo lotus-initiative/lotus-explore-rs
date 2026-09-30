@@ -45,38 +45,47 @@ pub struct SearchCriteria {
     /// bound is a filter.
     ///
     /// [`element_max`]: crate::element_max
-    #[allow(missing_docs)]
+    #[allow(missing_docs)] // see the note on `f_state` below
     pub c_min: u16,
-    #[allow(missing_docs)]
+    #[allow(missing_docs)] // see the note on `f_state` below
     pub c_max: u16,
-    #[allow(missing_docs)]
+    #[allow(missing_docs)] // see the note on `f_state` below
     pub h_min: u16,
-    #[allow(missing_docs)]
+    #[allow(missing_docs)] // see the note on `f_state` below
     pub h_max: u16,
-    #[allow(missing_docs)]
+    #[allow(missing_docs)] // see the note on `f_state` below
     pub n_min: u16,
-    #[allow(missing_docs)]
+    #[allow(missing_docs)] // see the note on `f_state` below
     pub n_max: u16,
-    #[allow(missing_docs)]
+    #[allow(missing_docs)] // see the note on `f_state` below
     pub o_min: u16,
-    #[allow(missing_docs)]
+    #[allow(missing_docs)] // see the note on `f_state` below
     pub o_max: u16,
-    #[allow(missing_docs)]
+    #[allow(missing_docs)] // see the note on `f_state` below
     pub p_min: u16,
-    #[allow(missing_docs)]
+    #[allow(missing_docs)] // see the note on `f_state` below
     pub p_max: u16,
-    #[allow(missing_docs)]
+    #[allow(missing_docs)] // see the note on `f_state` below
     pub s_min: u16,
-    #[allow(missing_docs)]
+    #[allow(missing_docs)] // see the note on `f_state` below
     pub s_max: u16,
     /// Presence requirement for each optional halogen.
+    ///
+    /// `missing_docs` is allowed on this field and on the twelve above it
+    /// because all sixteen are the same shape twice -- a bound pair per element,
+    /// then a state per halogen -- and documenting each one separately would
+    /// write "minimum carbon count" and its eleven variations. The doc comment
+    /// on the group above names the convention. Grouping the fields into a
+    /// nested struct would read better and is deliberately not done: it is a
+    /// change to a type 66 call sites use across five crates, which is a rename
+    /// wearing a refactor's coat, not a documentation fix.
     #[allow(missing_docs)]
     pub f_state: ElementState,
-    #[allow(missing_docs)]
+    #[allow(missing_docs)] // see the note on `f_state` above
     pub cl_state: ElementState,
-    #[allow(missing_docs)]
+    #[allow(missing_docs)] // see the note on `f_state` above
     pub br_state: ElementState,
-    #[allow(missing_docs)]
+    #[allow(missing_docs)] // see the note on `f_state` above
     pub i_state: ElementState,
 }
 
