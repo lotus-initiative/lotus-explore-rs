@@ -14,7 +14,7 @@ publish = false
 # `cargo build --release -p lotus-web-assets --bin fetch-assets`.
 [[bin]]
 name = "fetch-assets"
-path = "src/fetch_assets.rs"
+path = "src/fetch_assets/mod.rs"
 
 # Injects `<link rel="preload" as="fetch">` for the content-hashed wasm module
 # into the built index.html, so the module is not fetched behind the JS glue.

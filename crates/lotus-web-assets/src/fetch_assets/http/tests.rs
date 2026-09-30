@@ -1,0 +1,246 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
+//! Tests for the shared fetch plumbing.
+//!
+//! The panic lints keep library code from panicking on bad input. A test that
+//! fails on a bad fixture is reporting, not panicking.
+#![allow(
+    clippy::panic,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing
+)]
+
+use serde_json::Value;
+
+use super::*;
+use crate::test_support::{
+    MockServer, client, commit_id, err, http_ok, http_redirect_to_self, http_status,
+};
+
+#[test]
+fn an_unset_setting_is_its_default() {
+    // `setting_or` covers the filtering; this covers the lookup itself, which is
+    // the half that would silently return an empty value.
+    assert_eq!(
+        setting("LOTUS_FETCH_ASSETS_NOT_SET_9f3a2b", "fallback"),
+        "fallback"
+    );
+}
+
+#[test]
+fn a_blank_setting_counts_as_unset() {
+    assert_eq!(setting_or(None, "fallback"), "fallback");
+    for blank in ["", " ", "\t", "  \n ", "\r\n"] {
+        assert_eq!(
+            setting_or(Some(blank.to_owned()), "fallback"),
+            "fallback",
+            "{blank:?} is not a value, it is an empty export"
+        );
+    }
+    assert_eq!(setting_or(Some("real".to_owned()), "fallback"), "real");
+    assert_eq!(
+        setting_or(Some(" padded ".to_owned()), "fallback"),
+        " padded "
+    );
+}
+
+#[test]
+fn json_is_parsed_and_a_500_is_not() {
+    let server = MockServer::start(vec![
+        http_ok(r#"{"version":"1"}"#),
+        http_status(500, "Server Error"),
+    ]);
+    let client = client(3000);
+    assert_eq!(
+        read_json(&client, &server.url("/a")).unwrap_or_default()["version"],
+        Value::from("1")
+    );
+    let message = err(read_json(&client, &server.url("/b")));
+    assert!(message.contains("500"), "got {message}");
+}
+
+#[test]
+fn a_commit_id_is_forty_hex_characters_and_nothing_else() {
+    assert!(is_commit_id(&commit_id('a')));
+    assert!(is_commit_id(&commit_id('F')));
+    assert!(
+        !is_commit_id(&commit_id('a')[..39]),
+        "one short is a branch"
+    );
+    assert!(
+        !is_commit_id(&format!("{}a", commit_id('a'))),
+        "one long is not an id"
+    );
+    assert!(
+        !is_commit_id(&commit_id('z')),
+        "hexadecimal only: a ref with a non-hex character is not a commit"
+    );
+    assert!(!is_commit_id("main"));
+    assert!(!is_commit_id(""));
+}
+
+#[test]
+fn a_commit_is_read_out_of_the_feed() {
+    let body = format!("<entry>Grit::Commit/{}\n</entry>", commit_id('0'));
+    assert_eq!(github_commit(&body).unwrap_or_default(), commit_id('0'));
+}
+
+#[test]
+fn a_feed_with_no_commit_id_yields_nothing() {
+    assert!(github_commit("<entry>nothing here</entry>").is_none());
+    assert!(github_commit(&format!("Grit::Commit/{}", &commit_id('a')[..39])).is_none());
+    assert!(
+        github_commit(&format!("Grit::Commit/{}", commit_id('z'))).is_none(),
+        "a non-hex id is not a commit"
+    );
+}
+
+#[test]
+fn extracts_github_commit_from_atom_feed() {
+    let body = "<id>tag:github.com,2008:Grit::Commit/0123456789abcdef0123456789abcdef01234567</id>";
+    assert_eq!(
+        github_commit(body).as_deref(),
+        Some("0123456789abcdef0123456789abcdef01234567")
+    );
+    assert!(github_commit("<id>not-a-commit</id>").is_none());
+}
+
+#[test]
+fn a_pinned_ref_is_taken_as_given() {
+    let server = MockServer::start(vec![]);
+    let pinned = commit_id('0');
+    assert_eq!(
+        resolve_github_ref(&client(300), &server.url(""), "WDscholia/scholia", &pinned)
+            .unwrap_or_default(),
+        pinned,
+        "a full commit id needs no feed lookup"
+    );
+}
+
+#[test]
+fn a_branch_ref_resolves_through_the_feed() {
+    let server = MockServer::start(vec![http_ok(&format!(
+        "<entry>Grit::Commit/{}\n</entry>",
+        commit_id('0')
+    ))]);
+    assert_eq!(
+        resolve_github_ref(&client(3000), &server.url(""), "WDscholia/scholia", "main")
+            .unwrap_or_default(),
+        commit_id('0')
+    );
+    let request = server.next_request();
+    assert!(
+        request.contains("/WDscholia/scholia/commits/main.atom"),
+        "got {request}"
+    );
+}
+
+#[test]
+fn a_ref_the_feed_does_not_resolve_is_an_error() {
+    let server = MockServer::start(vec![http_ok("<entry>no id here</entry>")]);
+    let message = err(resolve_github_ref(
+        &client(3000),
+        &server.url(""),
+        "WDscholia/scholia",
+        "gone",
+    ));
+    assert!(message.contains("no commit id"), "got {message}");
+}
+
+#[test]
+fn a_ref_lookup_that_404s_is_an_error() {
+    let server = MockServer::start(vec![http_status(404, "Not Found")]);
+    let message = err(resolve_github_ref(
+        &client(3000),
+        &server.url(""),
+        "WDscholia/scholia",
+        "gone",
+    ));
+    assert!(message.contains("404"), "got {message}");
+}
+
+#[test]
+fn a_pinned_version_never_asks_the_network() {
+    let server = MockServer::start(vec![]);
+    // The server has no responses queued, so any request would hang and then
+    // fail; the assertion is that resolution succeeds without one.
+    assert_eq!(
+        resolve_tagged_version(&client(300), &server.url("/latest"), "v2.3.4").unwrap_or_default(),
+        "2.3.4",
+        "the leading v is stripped so versions compare equal"
+    );
+    assert_eq!(
+        resolve_metadata_version(&client(300), &server.url("/meta"), "2026.3.6")
+            .unwrap_or_default(),
+        "2026.3.6",
+        "a pinned metadata version needs no request either"
+    );
+}
+
+#[test]
+fn the_word_latest_resolves_through_the_redirect() {
+    // The tag is read off the URL the redirect *resolved to*, so the mock
+    // redirects to itself and the follow-up is what carries `/tag/`.
+    let server = MockServer::start(vec![http_redirect_to_self("/tag/v9.9.9/"), http_ok("")]);
+    let resolved = resolve_tagged_version(&client(3000), &server.url("/releases/latest"), "latest");
+    assert!(
+        matches!(resolved, Ok(ref v) if v == "9.9.9"),
+        "the tag comes off the resolved URL, got {resolved:?}"
+    );
+    assert!(
+        server.next_request().contains("/releases/latest"),
+        "the latest URL is what was asked for"
+    );
+}
+
+#[test]
+fn a_latest_lookup_that_404s_is_an_error() {
+    let server = MockServer::start(vec![http_status(404, "Not Found")]);
+    let message = err(resolve_tagged_version(
+        &client(3000),
+        &server.url("/releases/latest"),
+        "latest",
+    ));
+    assert!(message.contains("404"), "a 404 names itself, got {message}");
+}
+
+#[test]
+fn a_latest_lookup_with_no_tag_in_the_url_is_an_error() {
+    // Redirects to the repository root, not to a release: the version cannot be
+    // read, and guessing one would vendor the wrong bundle.
+    let server = MockServer::start(vec![
+        http_redirect_to_self("/WDscholia/ketcher"),
+        http_ok(""),
+    ]);
+    let message = err(resolve_tagged_version(
+        &client(3000),
+        &server.url("/releases/latest"),
+        "latest",
+    ));
+    assert!(
+        message.contains("did not resolve to a release tag"),
+        "got {message}"
+    );
+}
+
+#[test]
+fn the_latest_metadata_version_comes_from_the_document() {
+    let server = MockServer::start(vec![http_ok(r#"{"version":"2026.9.9"}"#)]);
+    assert_eq!(
+        resolve_metadata_version(&client(3000), &server.url("/meta"), "latest").unwrap_or_default(),
+        "2026.9.9"
+    );
+    let _ = server.next_request();
+}
+
+#[test]
+fn metadata_with_no_version_is_an_error() {
+    let server = MockServer::start(vec![http_ok(r#"{"name":"@rdkit/rdkit"}"#)]);
+    let message = err(resolve_metadata_version(
+        &client(3000),
+        &server.url("/meta"),
+        "latest",
+    ));
+    assert!(message.contains("no version"), "got {message}");
+}
