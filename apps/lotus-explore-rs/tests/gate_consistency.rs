@@ -84,6 +84,12 @@ const MAPPING: &[Job] = &[
         note: "",
     },
     Job {
+        name: "metadata",
+        recipes: &["metadata"],
+        in_local_gate: true,
+        note: "the committed citation files are generated, and nothing else would notice a stale one",
+    },
+    Job {
         name: "machete",
         recipes: &["machete"],
         in_local_gate: true,
@@ -114,10 +120,6 @@ const LOCAL_ONLY: &[(&str, &str)] = &[
     (
         "check",
         "a bare `cargo check`; the lints that follow already build everything",
-    ),
-    (
-        "metadata",
-        "workspace repository metadata, which `cargo package` needs and CI does not do",
     ),
     (
         "opt-levels",

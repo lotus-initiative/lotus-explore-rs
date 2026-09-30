@@ -30,8 +30,16 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: dtolnay/rust-toolchain@stable
-        with: { components: rustfmt }
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          # One key for every job on the branch, so the first job to run pays
+          # for compiling the dependency graph and the rest reuse it. The
+          # default is per-job, which shares nothing.
+          shared-key: ci
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: 1.97
+          components: rustfmt
       - run: cargo fmt --all -- --check
 
   license-headers:
@@ -41,12 +49,24 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          # One key for every job on the branch, so the first job to run pays
+          # for compiling the dependency graph and the rest reuse it. The
+          # default is per-job, which shares nothing.
+          shared-key: ci
       # This job had no setup step at all, so `just` was not on the runner and
       # the job exited 127 before reading a single file: it had been reporting
       # nothing about license headers the whole time.
       - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
         with:
           tool: just
+      # The recipe is a shell loop over `find`, so it needs no Rust toolchain of
+      # its own -- but pinning it here is what makes every job in this file run
+      # the same compiler rather than whatever the image shipped this week.
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: 1.97
       - name: Every .rs file carries both AGPL headers on lines 1 and 2
         run: just license-headers
 
@@ -57,8 +77,16 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: dtolnay/rust-toolchain@stable
-        with: { components: clippy }
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          # One key for every job on the branch, so the first job to run pays
+          # for compiling the dependency graph and the rest reuse it. The
+          # default is per-job, which shares nothing.
+          shared-key: ci
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: 1.97
+          components: clippy
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo clippy -p lotus-explore-rs --features server --locked -- -D warnings
 
@@ -71,7 +99,15 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          # One key for every job on the branch, so the first job to run pays
+          # for compiling the dependency graph and the rest reuse it. The
+          # default is per-job, which shares nothing.
+          shared-key: ci
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: 1.97
       - run: cargo test --workspace --all-targets --locked --quiet
       - run: cargo test -p lotus-explore-rs --features server --locked --quiet
 
@@ -86,8 +122,63 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          # One key for every job on the branch, so the first job to run pays
+          # for compiling the dependency graph and the rest reuse it. The
+          # default is per-job, which shares nothing.
+          shared-key: ci
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: 1.97
       - run: cargo doc --workspace --no-deps --locked
+
+  wasm:
+    name: WASM
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          shared-key: ci
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: 1.97
+          targets: wasm32-unknown-unknown
+      # `just` is not on the runner, and both steps below call it.
+      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
+        with:
+          tool: just
+      # Per package, not `--workspace --target wasm32`: `lotus-web-assets` is a
+      # host-only binary, because `reqwest::blocking` cannot exist on wasm. A
+      # workspace-wide wasm lint can never pass, so the wasm-relevant crates are
+      # linted individually. This is the same split `just wasm` makes, and it is
+      # why the wasm target was never checked by a job that could pass.
+      - run: just wasm
+      - run: just clippy-wasm
+
+  metadata:
+    name: Citation metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          shared-key: ci
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: 1.97
+      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
+        with:
+          tool: just
+      # `codemeta.json` and `CITATION.cff` are generated from one description in
+      # `lotus-jsonld`. A version bump that forgot to regenerate them publishes a
+      # stale citation, and nothing else in this workflow would notice.
+      - run: just metadata
 
   mutants:
     name: Mutation tests
@@ -106,7 +197,15 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          # One key for every job on the branch, so the first job to run pays
+          # for compiling the dependency graph and the rest reuse it. The
+          # default is per-job, which shares nothing.
+          shared-key: ci
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: 1.97
       - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
         with:
           tool: cargo-mutants@27.1.0
@@ -127,7 +226,15 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          # One key for every job on the branch, so the first job to run pays
+          # for compiling the dependency graph and the rest reuse it. The
+          # default is per-job, which shares nothing.
+          shared-key: ci
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: 1.97
       # `dioxus-desktop` reaches WebKitGTK through `wry`, whose `*-sys` crates
       # shell out to `pkg-config` at build time, and `tao` links `libxdo` for
       # window dragging. Without these the job dies in `glib-sys`/`gobject-sys`
@@ -196,7 +303,15 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          # One key for every job on the branch, so the first job to run pays
+          # for compiling the dependency graph and the rest reuse it. The
+          # default is per-job, which shares nothing.
+          shared-key: ci
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: 1.97
       - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
         with:
           tool: |
@@ -214,7 +329,15 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          # One key for every job on the branch, so the first job to run pays
+          # for compiling the dependency graph and the rest reuse it. The
+          # default is per-job, which shares nothing.
+          shared-key: ci
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: 1.97
       - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
         with:
           tool: |
