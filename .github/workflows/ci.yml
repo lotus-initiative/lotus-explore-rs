@@ -79,11 +79,44 @@ jobs:
     name: Docs
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # Without this a rustdoc warning is printed and the job still passes, so
+      # the job proves only that the docs build, not that they are warning-free.
+      RUSTDOCFLAGS: -D warnings
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with: { persist-credentials: false, fetch-depth: 1 }
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo doc --workspace --no-deps --locked
+
+  mutants:
+    name: Mutation tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Non-blocking for now, on purpose. `cargo mutants` exits non-zero when any
+    # mutant survives, and 31 of the 358 do today: mostly untested return
+    # strings in the citation-metadata code that CI already checks through
+    # `emit-metadata -- --check`, which `cargo mutants` does not run. Making
+    # this blocking before those are either covered by a test or excluded would
+    # mean shipping a permanently red job. Each run is the to-do list for
+    # promoting it to blocking.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
+        with:
+          tool: cargo-mutants@27.1.0
+      # Same three crates and the same flags as `just mutants`. 358 mutants at
+      # the time of writing, which fits the timeout with room to spare.
+      - run: >-
+          cargo mutants
+          --package lotus-query
+          --package lotus-curation
+          --package lotus-jsonld
+          --jobs 4
+          --timeout 120
 
   wasm:
     name: WASM type-check
@@ -119,6 +152,30 @@ jobs:
             --target wasm32-unknown-unknown --locked -- -D warnings
           cargo clippy --target wasm32-unknown-unknown -p lotus-explore-rs \
             --locked -- -D warnings
+
+  desktop:
+    name: Desktop build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { persist-credentials: false, fetch-depth: 1 }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
+        with:
+          tool: dx@0.7.1
+      # Native is the one target nothing was checking. Every desktop-only bug
+      # reported so far -- an unstyled window, a no-op download, a 404 for
+      # RDKit -- compiled cleanly here and was invisible to CI, because the
+      # `desktop` feature was never built by any job.
+      - name: Clippy desktop
+        run: cargo clippy -p lotus-explore-rs --features desktop --locked -- -D warnings
+      - name: Test desktop
+        run: cargo test -p lotus-explore-rs --features desktop --all-targets --locked --quiet
+      - name: Build desktop app
+        run: |
+          cd apps/lotus-explore-rs
+          dx build --package lotus-explore-rs --desktop --locked --features desktop
 
   supply-chain:
     name: Supply-chain

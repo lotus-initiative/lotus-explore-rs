@@ -23,7 +23,24 @@ test:
 	cargo test -p lotus-explore-rs --features desktop --all-targets --locked --quiet
 
 doc:
-	cargo doc --workspace --no-deps --locked
+	RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
+
+# Mutation testing. `cargo mutants` rewrites one expression at a time and
+# re-runs the tests: a mutant that survives is a behaviour the suite does not
+# actually pin down, which a passing test run cannot tell you. Coverage counts
+# executed lines, this checks that they are asserted on.
+#
+# Scoped to the three pure-logic crates. The full workspace is dominated by the
+# app's rendering and IO plumbing, where a surviving mutant is usually a
+# `write!` format string; these crates build the SPARQL and the answers, where a
+# surviving mutant is a wrong query sent to Wikidata.
+mutants:
+	cargo mutants --package lotus-query --package lotus-curation --package lotus-jsonld --jobs 4 --timeout 120
+
+# Same scope, listing the mutants without running them. Use this to see what a
+# change added before paying for the run.
+mutants-list:
+	cargo mutants --package lotus-query --package lotus-curation --package lotus-jsonld --list
 
 # Every .rs file must carry both AGPL-3.0-only headers on lines 1 and 2.
 # `target/`, `.opencode/` and `graphify-out/` are build output, vendored config
