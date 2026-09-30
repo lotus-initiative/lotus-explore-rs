@@ -201,7 +201,7 @@ mod tests {
         // Byte windows can straddle a UTF-8 boundary, where a match would be a
         // coincidence of continuation bytes rather than a real substring.
         // n(0) a(1) U+00EF(2,3) v(4) e(5): the needle starts after the two-byte character.
-        assert_eq!(find_ascii_ci("na\u{ef}ve caf\u{e9}", b"ve"), Some(4));
+        assert_eq!(find_ascii_ci("na\u{ef}ve x\u{e9}y", b"ve"), Some(4));
         // A needle that is not valid ASCII has no meaningful case folding here.
         assert_eq!(find_ascii_ci("na\u{ef}ve", &[0xef, 0x76]), None);
     }

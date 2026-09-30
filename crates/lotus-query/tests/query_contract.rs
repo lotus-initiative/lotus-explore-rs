@@ -458,7 +458,7 @@ fn both_bounds_together_emit_both_ends() {
 #[test]
 fn a_bare_doi_lookup_is_recognised() {
     assert!(is_reference_lookup(
-        r#"SELECT ?ref WHERE { ?compound wdt:P356 ?ref . }"#
+        "SELECT ?ref WHERE { ?compound wdt:P356 ?ref . }"
     ));
 }
 
@@ -507,7 +507,7 @@ fn a_molfile_is_triple_quoted_even_on_one_line() {
     // which is a far worse failure than the query being wrong.
     assert_eq!(
         escape_structure_literal(ONE_LINE_MOLFILE),
-        format!(r#"'''{ONE_LINE_MOLFILE}'''"#)
+        format!("'''{ONE_LINE_MOLFILE}'''")
     );
 }
 
@@ -518,8 +518,8 @@ fn a_multi_line_smiles_is_triple_quoted() {
     // arrives. A newline inside a double-quoted literal is not a newline.
     assert_eq!(
         escape_structure_literal("CCO\n.O"),
-        r#"'''CCO
-.O'''"#
+        "'''CCO
+.O'''"
     );
 }
 

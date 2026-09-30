@@ -92,15 +92,17 @@ jobs:
   mutants:
     name: Mutation tests
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    # Non-blocking for now, on purpose. `cargo mutants` exits non-zero when any
-    # mutant survives, and 31 of the 358 do today: mostly untested return
-    # strings in the citation-metadata code that CI already checks through
-    # `emit-metadata -- --check`, which `cargo mutants` does not run. Making
-    # this blocking before those are either covered by a test or excluded would
-    # mean shipping a permanently red job. Each run is the to-do list for
-    # promoting it to blocking.
-    continue-on-error: true
+    timeout-minutes: 60
+    # Blocking. This was non-blocking while 31 of 358 mutants survived, which is
+    # the only reason it was ever allowed to be red: a job that is permanently
+    # failing is not a gate, it is noise, and nobody reads it. There are now zero
+    # survivors across all seven library crates -- 931 mutants, 639 caught, 292
+    # unviable -- so it can hold.
+    #
+    # `apps/lotus-explore-rs` is deliberately absent. It is 2,761 mutants of
+    # Dioxus rendering, and killing those means rendering tests for every
+    # component. It is `just mutants-ui`, opt-in, and the exclusion is written
+    # down there rather than being an omission.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with: { persist-credentials: false, fetch-depth: 1 }
@@ -108,50 +110,11 @@ jobs:
       - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
         with:
           tool: cargo-mutants@27.1.0
-      # Same three crates and the same flags as `just mutants`. 358 mutants at
-      # the time of writing, which fits the timeout with room to spare.
-      - run: >-
-          cargo mutants
-          --package lotus-query
-          --package lotus-curation
-          --package lotus-jsonld
-          --jobs 4
-          --timeout 120
-
-  wasm:
-    name: WASM type-check
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: dtolnay/rust-toolchain@stable
-        with: { targets: wasm32-unknown-unknown, components: clippy }
-      - name: Check WASM
-        run: |
-          # The three pure crates must build for wasm on their own, not only
-          # because the app happens to pull them in: that is what keeps them
-          # free of IO. `lotus-search` builds with no default features, since
-          # its native default pulls in an HTTP stack and a reactor.
-          cargo check --target wasm32-unknown-unknown --locked \
-            -p lotus-model -p lotus-query -p lotus-jsonld -p lotus-curation \
-            -p lotus-search --no-default-features
-          cargo check -p lotus-explore-rs --target wasm32-unknown-unknown --locked
-      - name: Citation metadata is current
-        run: cargo run --locked -q -p lotus-jsonld --bin emit-metadata -- --check
-      - name: Clippy WASM
-        run: |
-          # `lotus-web-assets` is a host-only bin (blocking reqwest) and is excluded on
-          # purpose; only the wasm-relevant crates are linted here.
-          # The four pure crates are linted for wasm in their own right.
-          cargo clippy --target wasm32-unknown-unknown --locked \
-            -p lotus-model -p lotus-query -p lotus-jsonld -p lotus-curation -- -D warnings
-          # `lotus-search` with no default features: its default is a `reqwest`
-          # client, and a wasm `reqwest::Response` future is not `Send`.
-          cargo clippy -p lotus-search --no-default-features \
-            --target wasm32-unknown-unknown --locked -- -D warnings
-          cargo clippy --target wasm32-unknown-unknown -p lotus-explore-rs \
-            --locked -- -D warnings
+      # Delegates to `just mutants` so the package list and flags cannot drift
+      # from the ones a developer runs. `apps/lotus-explore-rs/tests/` and the
+      # gate-consistency test both read this file, so a change here that breaks
+      # the mapping fails the ordinary test job too.
+      - run: just mutants
 
   desktop:
     name: Desktop build

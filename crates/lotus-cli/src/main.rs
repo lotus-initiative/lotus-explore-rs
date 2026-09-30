@@ -455,8 +455,8 @@ pub fn civil_year_from_days(days: i64) -> u16 {
 ///
 /// `--formula` and `--carbon` both filter by formula, and only the first sets
 /// `formula_enabled` on the criteria. This is not
-/// [`SearchCriteria::has_formula_filter`], which reports false until
-/// `formula_enabled` is set -- asking it here would be circular.
+/// [`lotus_model::SearchCriteria::has_formula_filter`], which reports false
+/// until `formula_enabled` is set -- asking it here would be circular.
 #[must_use]
 fn flags_ask_for_formula(criteria: &lotus_model::SearchCriteria) -> bool {
     use lotus_model::ElementState;
