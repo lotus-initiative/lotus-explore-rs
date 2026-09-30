@@ -411,12 +411,88 @@ pub async fn submit_download_form(endpoint: &str, fields: &[(&str, &str)]) -> Re
     Ok(())
 }
 
-/// Native stub.
+/// Writes `content` to a file in the user's download directory.
+///
+/// The browser build triggers a download through an anchor and a blob URL. A
+/// desktop window has neither, so the file is written to disk instead and the
+/// absolute path is logged. Without this the export buttons did nothing at all
+/// on desktop, because this function used to return an error that the download
+/// path discarded.
+///
 /// # Errors
-/// Always returns `Err`.
+/// Returns a message if the download directory cannot be determined or the
+/// file cannot be written.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn download_text(_content: &str, _filename: &str) -> Result<(), String> {
-    Err("Download is only available in the browser".to_string())
+pub fn download_text(content: &str, filename: &str) -> Result<(), String> {
+    let dir = download_dir().ok_or_else(|| {
+        "no download directory could be determined; set LOTUS_DOWNLOAD_DIR".to_string()
+    })?;
+
+    // `sanitize_filename` strips path separators, so `name` cannot escape `dir`.
+    let name = sanitize_filename(filename);
+    let name = if name.is_empty() {
+        "lotus-export".to_string()
+    } else {
+        name
+    };
+
+    // Never silently clobber an earlier export: append ` (2)`, ` (3)`, ...
+    let path = unique_path(&dir, &name);
+
+    std::fs::write(&path, content)
+        .map_err(|e| format!("failed to write {}: {e}", path.display()))?;
+    log::info!(
+        "event=download phase=write state=success path={}",
+        path.display()
+    );
+    Ok(())
+}
+
+/// Where a native export should be written.
+///
+/// `LOTUS_DOWNLOAD_DIR` wins, so a headless or scripted run can be pointed at a
+/// specific directory. Otherwise this follows the platform convention: macOS and
+/// Windows use `~/Downloads`, and on Linux the XDG variable is honoured with the
+/// same path as the fallback.
+///
+/// This is spelled out rather than pulled from `dirs` because that dependency is
+/// only enabled for the `desktop` feature, while this function is compiled for
+/// every native target, including the server build.
+#[cfg(not(target_arch = "wasm32"))]
+fn download_dir() -> Option<std::path::PathBuf> {
+    use std::path::PathBuf;
+
+    let non_empty = |v: Option<std::ffi::OsString>| v.filter(|v| !v.is_empty()).map(PathBuf::from);
+
+    if let Some(dir) = non_empty(std::env::var_os("LOTUS_DOWNLOAD_DIR")) {
+        return Some(dir);
+    }
+    if cfg!(target_os = "macos") || cfg!(target_os = "windows") {
+        let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"))?;
+        return Some(PathBuf::from(home).join("Downloads"));
+    }
+    if let Some(dir) = non_empty(std::env::var_os("XDG_DOWNLOAD_DIR")) {
+        return Some(dir);
+    }
+    let home = std::env::var_os("HOME")?;
+    Some(PathBuf::from(home).join("Downloads"))
+}
+
+/// First unused path in `dir` for `name`, appending ` (2)`, ` (3)`, ... to the
+/// stem so an earlier export is never overwritten.
+#[cfg(not(target_arch = "wasm32"))]
+fn unique_path(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
+    let (stem, ext) = match name.rsplit_once('.') {
+        Some((stem, ext)) if !stem.is_empty() => (stem.to_string(), format!(".{ext}")),
+        _ => (name.to_string(), String::new()),
+    };
+    let mut candidate = dir.join(name);
+    let mut n = 2_u32;
+    while candidate.exists() {
+        candidate = dir.join(format!("{stem} ({n}){ext}"));
+        n += 1;
+    }
+    candidate
 }
 
 /// Native stub.
@@ -449,7 +525,13 @@ pub async fn submit_download_form(_endpoint: &str, _fields: &[(&str, &str)]) -> 
 
 #[cfg(test)]
 mod tests {
+    // The panic lints keep shipped code free of panics on external input. A test
+    // that fails to create its temp dir is reporting, not panicking.
+    #![allow(clippy::expect_used)]
+
     use super::sanitize_filename;
+    #[cfg(not(target_arch = "wasm32"))]
+    use super::unique_path;
 
     #[test]
     fn sanitize_removes_path_separators() {
@@ -494,5 +576,53 @@ mod tests {
     fn sanitize_unicode_passthrough() {
         assert_eq!(sanitize_filename("résultats.csv"), "résultats.csv");
         assert_eq!(sanitize_filename("α-β-γ.rdf"), "α-β-γ.rdf");
+    }
+
+    /// Native export naming: a second export of the same file must not
+    /// overwrite the first, and the extension must survive the counter.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn unique_path_never_clobbers_an_existing_export() {
+        let dir = std::env::temp_dir().join(format!("lotus-upload-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("temp dir");
+
+        assert_eq!(unique_path(&dir, "results.csv"), dir.join("results.csv"));
+        std::fs::write(dir.join("results.csv"), b"first").expect("write");
+
+        assert_eq!(
+            unique_path(&dir, "results.csv"),
+            dir.join("results (2).csv")
+        );
+        std::fs::write(dir.join("results (2).csv"), b"second").expect("write");
+
+        assert_eq!(
+            unique_path(&dir, "results.csv"),
+            dir.join("results (3).csv")
+        );
+
+        // A name that is already a counter must still be uniqued, not assumed free.
+        std::fs::write(dir.join("results (3).csv"), b"third").expect("write");
+        assert_eq!(
+            unique_path(&dir, "results (3).csv"),
+            dir.join("results (3) (2).csv"),
+            "a name that is already a counter must still be uniqued"
+        );
+
+        // No extension: the counter goes after the whole name.
+        assert_eq!(unique_path(&dir, "export"), dir.join("export"));
+        std::fs::write(dir.join("export"), b"x").expect("write");
+        assert_eq!(unique_path(&dir, "export"), dir.join("export (2)"));
+
+        // A dotfile has no stem, so it is treated as a bare name.
+        assert_eq!(unique_path(&dir, ".gitignore"), dir.join(".gitignore"));
+
+        assert_eq!(
+            std::fs::read(dir.join("results.csv")).expect("read"),
+            b"first",
+            "the original export must be left intact"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

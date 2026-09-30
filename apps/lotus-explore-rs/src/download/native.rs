@@ -170,6 +170,12 @@ async fn execute_sparql_with_format_download(
 }
 
 pub(super) fn trigger_download(filename: &str, mime: &str, content: &str) {
-    let _ = crate::upload::download_text(content, filename);
     let _ = mime;
+    // The result used to be dropped here, which turned a failed export into a
+    // silent no-op: the user clicked download, nothing appeared, and no error
+    // was ever logged. A desktop export that cannot be written is a real
+    // failure, so it is reported rather than discarded.
+    if let Err(e) = crate::upload::download_text(content, filename) {
+        log::error!("event=download phase=trigger state=error source=native reason={e}");
+    }
 }
