@@ -25,7 +25,7 @@ pub(in crate::components::results_table::row_cells) fn reference_cell(
                         href: "https://www.wikidata.org/entity/{reference_qid}",
                         target: "_blank",
                         rel: "noopener noreferrer",
-                        class: "block min-h-6 break-words line-clamp-2 font-semibold leading-snug hover:underline text-wd-reference",
+                        class: "min-h-6 break-words line-clamp-2 font-semibold leading-snug hover:underline text-wd-reference",
                         "{full_title}"
                     }
                 } else {
@@ -33,7 +33,7 @@ pub(in crate::components::results_table::row_cells) fn reference_cell(
                         href: "https://www.wikidata.org/entity/{reference_qid}",
                         target: "_blank",
                         rel: "noopener noreferrer",
-                        class: "block min-h-6 break-words line-clamp-2 font-semibold leading-snug hover:underline text-wd-reference",
+                        class: "min-h-6 break-words line-clamp-2 font-semibold leading-snug hover:underline text-wd-reference",
                         "{reference_qid}"
                     }
                 }

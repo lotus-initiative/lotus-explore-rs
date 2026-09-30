@@ -26,7 +26,7 @@ pub(in crate::components::results_table::row_cells) fn compound_cell(
                     href: "https://www.wikidata.org/entity/{compound_qid}",
                     target: "_blank",
                     rel: "noopener noreferrer",
-                    class: "block min-h-6 break-words hyphens-auto line-clamp-2 font-semibold leading-snug hover:underline text-wd-compound",
+                    class: "min-h-6 break-words hyphens-auto line-clamp-2 font-semibold leading-snug hover:underline text-wd-compound",
                     "{prepared.display_name}"
                 }
                 if let Some(smiles) = entry.smiles.as_deref() {
