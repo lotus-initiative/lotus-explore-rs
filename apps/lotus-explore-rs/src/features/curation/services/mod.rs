@@ -17,8 +17,6 @@ use crate::sparql::{FetchError, QLEVER_WIKIDATA, ResponseFormat};
 use futures::future::BoxFuture;
 #[cfg(target_arch = "wasm32")]
 use futures::future::LocalBoxFuture;
-#[cfg(not(target_arch = "wasm32"))]
-pub(super) use lotus_curation::NATPROD_API_BASE;
 pub(super) use lotus_curation::{
     CURATION_SPARQL_PREFIXES, CurationError, CurationInputRow, CurationResultRow, CurationStatus,
     DependencyResolution, MassResolution, WD_CHEMICAL_COMPOUND_QID, WD_OCCURS_IN_TAXON_PROP,
@@ -39,8 +37,8 @@ pub mod wikidata;
 
 use chemical::{convert_smiles, has_undefined_stereo, resolve_exact_mass};
 use helpers::{
-    QS_REF_INFERRED_FROM_SMILES, escape_qs_string, has_isomeric_smiles, has_stereo_marks,
-    normalize_doi, qs_canonical_smiles_statement, qs_inchi_statement, qs_inchikey_statement,
+    QS_REF_INFERRED_FROM_SMILES, escape_qs_string, has_isomeric_smiles, normalize_doi,
+    qs_canonical_smiles_statement, qs_inchi_statement, qs_inchikey_statement,
     qs_isomeric_smiles_statement, qs_statement_with_refs,
 };
 use reference_metadata::fetch_reference_quickstatements;

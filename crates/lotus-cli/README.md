@@ -5,10 +5,6 @@ organisms they occur in, and the references that report them. The data is the
 Wikidata projection of the [LOTUS database](https://lotus-db.com), queried over
 SPARQL.
 
-Every filter the web explorer offers is available here and the output formats
-are the same, so a result set moves between the two without changing anything
-but the command line.
-
 ## Install
 
 ```bash
@@ -24,24 +20,31 @@ cargo build --release -p lotus-cli
 
 ## Use
 
+`search` takes filters, not a query term. To find a compound, search by its
+structure; to find everything reported for an organism, search by taxon.
+
 ```bash
-# Find a compound and print it as CSV.
-lotus search "quercetin" --format csv
+# Everything Wikidata reports for one organism, as CSV.
+lotus search --taxon "Gentiana lutea" --format csv
 
-# Everything reported for a taxon, restricted to one reference.
-lotus search --taxon "Gentiana lutea" --doi 10.1000/xyz --format json
+# Compounds similar to benzene, and see the SPARQL instead of running it.
+lotus search --structure c1ccccc1 --structure-search similarity --threshold 0.9
+lotus search --structure c1ccccc1 --explain
 
-# Check what Wikidata already has for a file of compounds, and print the edits
-# that would complete it. Read-only: nothing is ever submitted.
-lotus curate compounds.json
+# Narrow by formula, publication year, and element counts.
+lotus search --taxon "Isaria cicadae" --year-min 2015 --year-max 2024
+lotus search --taxon "Voacanga africana" --carbon 10..20 --bromine excluded
 ```
+
+The binary is `lotus`. If you did not install it, prefix these with
+`./target/release/`.
 
 ## Documentation
 
 [`docs/cli.md`](../../docs/cli.md) is the reference: every flag, the output
 formats, the exit codes, and the endpoint overrides. It is checked against
-`--help` by `crates/lotus-cli/tests/docs_in_sync.rs`, so a flag that changes
-without the document changing fails the build.
+`--help` by `crates/lotus-cli/tests/docs_in_sync.rs`, and so is every example in
+this file --- a `lotus` line that no longer parses fails the build.
 
 `lotus man` writes the same reference as a manual page, and
 `lotus completions <shell>` writes a completion script.

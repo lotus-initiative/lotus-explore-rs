@@ -208,6 +208,80 @@ app-icon:
 	iconutil -c icns "$iconset" -o apps/lotus-explore-rs/public/icon.icns
 	echo "wrote apps/lotus-explore-rs/public/icon.icns"
 
+# Check that a built macOS bundle can actually answer everything the app asks
+# it for.
+#
+# `dioxus-desktop` serves a request out of the bundle only when the path starts
+# with `/assets/`, joining it onto `Contents/Resources`. Anything else is looked
+# up on disk relative to the working directory and missed. That rule is why
+# RDKit and Ketcher 404ed in the window while working in a browser, and nothing
+# in the test suite could see it: the assets were absent, and the paths were
+# only ever assembled at runtime.
+#
+# So this walks the real bundle: the icon the plist names, every folder asset
+# the app can request, and Ketcher's own relative references.
+verify-bundle app="LotusExploreRs" profile="debug":
+	#!/usr/bin/env bash
+	set -euo pipefail
+	bundle="target/dx/lotus-explore-rs/{{profile}}/macos/{{app}}.app"
+	if [ ! -d "$bundle" ]; then
+	  echo "no bundle at $bundle -- run 'dx build --desktop --features desktop' first" >&2
+	  exit 1
+	fi
+	resources="$bundle/Contents/Resources"
+	fail=0
+
+	# The plist names an icon whether or not one was configured, and Finder
+	# shows a generic icon when the named file is not there.
+	icon=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$bundle/Contents/Info.plist")
+	if [ -f "$resources/$icon" ]; then
+	  echo "ok    icon: $icon"
+	else
+	  echo "FAIL  icon: plist names $icon, which is not in Contents/Resources"
+	  fail=1
+	fi
+
+	# The URLs the app actually requests, not just the files that exist. These
+	# two were different for a long time: the bundle had every file, and
+	# `bundled_path` still produced `.../index.html/rdkit/RDKit_minimal.js`,
+	# which the resolver does not serve. Checking the filesystem could not see
+	# that; checking the shape of the URL can.
+	for f in assets/rdkit/RDKit_minimal.js \
+	         assets/rdkit/RDKit_minimal.wasm \
+	         assets/ketcher/index.html; do
+	  if [ -f "$resources/$f" ]; then
+	    echo "ok    $f"
+	  else
+	    echo "FAIL  $f is requested at runtime and is not in the bundle"
+	    fail=1
+	  fi
+	done
+
+	# The resolver serves out of the bundle only for a rooted `/assets/` path.
+	# `vendor_assets::asset_url_for` is what guarantees that, and its test pins
+	# the shape; this pins that the shape still matches the real bundle.
+	if [ -d "$resources/assets/rdkit" ] && [ -d "$resources/assets/ketcher" ]; then
+	  echo "ok    assets/ layout matches the URLs vendor_assets generates"
+	else
+	  echo "FAIL  the bundle is not laid out as /assets/rdkit and /assets/ketcher"
+	  fail=1
+	fi
+
+	# Ketcher loads its chunks by relative path, so the bundle is only correct
+	# if those resolve inside it too.
+	while read -r ref; do
+	  target="assets/ketcher/${ref#./}"
+	  if [ -f "$resources/$target" ]; then
+	    echo "ok    ketcher ref $ref"
+	  else
+	    echo "FAIL  ketcher/index.html references $ref, which is not in the bundle"
+	    fail=1
+	  fi
+	done < <(rg -o '(src|href)="\./[^"]+"' "$resources/assets/ketcher/index.html" \
+	         | sed -E 's/^[a-z]+="//; s/"$//' | sort -u)
+
+	exit "$fail"
+
 # Copy the icon into a built macOS bundle.
 #
 # Done here rather than through `Dioxus.toml` because `dx` accepts a `resources`

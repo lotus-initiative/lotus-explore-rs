@@ -1,47 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-// This crate compiles Dioxus WASM-client code alongside native-server code in
-// a single compilation unit. On native targets (no `server` feature) main()
-// just prints a hint and never launches a renderer, so the modules below are not
-// compiled at all there -- see the `cfg` on each one. That is the fix for the
-// `dead_code` allow this file used to carry: the lint was right, and the answer
-// was to stop building code that has no caller in that configuration, not to
-// stop listening. `unreachable_pub` is allowed for the cross-cfg reason --
-// `pub` items inside a module that only exists on some targets are unreachable
-// from the others -- and `missing_const_for_fn` (nursery) is allowed
-// crate-wide: it fires ~64x across UI/i18n locale-dispatch code where
-// const-ness has no material benefit (the dispatchers cannot be `const` without
-// const-cascading into all four locale table files, and UI helpers run at
-// runtime only).
-// `dead_code` stays denied and meaningful. Items that are genuinely unused on a
-// target are removed or gated there, with a reason at the site; the
-// `#[allow(dead_code)]`s inside the i18n dispatch macros are scoped to what
-// those macros generate, which is the only place it is needed.
-// NOTE: `clippy::module_name_repetitions` is deliberately NOT allowed here;
-// the few `App*`/`Export*` names that need it carry item-level allows instead.
+// Four programs share this crate: the browser client, a desktop window, an HTTP
+// API, and the test build. The crate-wide lint exceptions below are the cost of
+// that, and each one is scoped to where it is actually wrong.
 #![cfg_attr(target_arch = "wasm32", allow(clippy::future_not_send))]
-// `tower` serves `server`-feature tests only (`ServiceExt::oneshot`), but Cargo
-// has no feature-gated dev-dependencies, so `unused_crate_dependencies`
-// false-positives on default-features builds (the canonical `just clippy`
-// invocation). The lint stays enabled workspace-wide and remains effective
-// for the feature-less `lotus`/`lotus-web-assets` crates.
+// `tower` is a `server`-feature test dependency. Cargo cannot express a
+// feature-gated dev-dependency, so `unused_crate_dependencies` false-positives
+// on a default-features build. The lint stays on workspace-wide, where it still
+// catches things in `lotus` and `lotus-web-assets`.
 #![allow(unused_crate_dependencies)]
+// `pub` inside a module that only exists on some targets is unreachable from the
+// others. `missing_const_for_fn` fires on locale-dispatch helpers that cannot be
+// `const` without cascading into all four locale tables.
 #![allow(unreachable_pub, clippy::missing_const_for_fn)]
-// `dead_code` is denied, and there are three configurations where that is the
-// wrong answer. Each is a case where the code in this crate is not the program
-// being built, so its items have no caller in *this* binary:
-//
-// - A test build compiles the app modules so the app's own tests can reach them.
-//   No test launches a component tree, so every component and every helper only
-//   a component calls is unreferenced.
-// - `server` is an HTTP API that shares the query and export modules with the
-//   client and renders nothing.
-// - `desktop` is a window with no browser to stream a blob into.
-//
-// The browser build and the default build -- the two where this crate's client
-// *is* the program -- keep `dead_code` denied, so a genuinely unused helper is
-// still caught there.
+// `dead_code` is denied, and allowed only where the code in this crate is not
+// the program being built. See the `cfg_attr` below for which those are.
 #![cfg_attr(
     any(
         test,

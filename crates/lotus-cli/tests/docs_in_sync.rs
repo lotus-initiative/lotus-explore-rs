@@ -13,10 +13,10 @@
 #![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
 
 use assert_cmd::Command;
-use predicates::prelude::*;
 
 /// The path to the documentation, relative to this crate.
 const DOCS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/cli.md");
+const README: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/README.md");
 
 /// Split a documented command line into arguments, honouring quotes and
 /// dropping a redirection and its target, which are not arguments to `lotus`.
@@ -60,6 +60,27 @@ fn lotus() -> Command {
 
 fn docs() -> String {
     std::fs::read_to_string(DOCS).expect("docs/cli.md exists")
+}
+
+/// Every file that documents `lotus` and therefore carries examples that can rot.
+///
+/// The crate README is here because an example that no longer runs is worse than
+/// no example, and a README is the first thing anyone reads. It previously was
+/// not covered, and carried a positional argument and a `--doi` flag that `lotus
+/// search` has never accepted.
+fn documents() -> Vec<(&'static str, String)> {
+    [
+        ("docs/cli.md", DOCS),
+        ("crates/lotus-cli/README.md", README),
+    ]
+    .into_iter()
+    .map(|(name, path)| {
+        (
+            name,
+            std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{path:?}: {e}")),
+        )
+    })
+    .collect()
 }
 
 /// Every long flag `lotus search` accepts.
@@ -169,34 +190,42 @@ fn the_documented_examples_parse() {
     // An example that no longer runs is worse than no example, so each
     // `lotus …` line in the docs is run with `--explain` appended, which
     // exercises argument parsing without touching the network.
-    let docs = docs();
     let mut checked = 0;
 
-    for line in docs.lines() {
-        let line = line.trim();
-        let Some(rest) = line
-            .strip_prefix("lotus ")
-            .or_else(|| line.strip_prefix("$ lotus "))
-        else {
-            continue;
-        };
-        // Only the `search` subcommand can be checked offline.
-        if !rest.starts_with("search ") && rest != "search" {
-            continue;
+    for (name, document) in documents() {
+        for line in document.lines() {
+            let line = line.trim();
+            let Some(rest) = line
+                .strip_prefix("lotus ")
+                .or_else(|| line.strip_prefix("$ lotus "))
+            else {
+                continue;
+            };
+            // Only the `search` subcommand can be checked offline.
+            if !rest.starts_with("search ") && rest != "search" {
+                continue;
+            }
+            // A quoted value is one argument, however many spaces it holds.
+            let args = shell_words(rest);
+            if args.iter().any(|a| a == "--explain") {
+                continue;
+            }
+            let output = lotus()
+                .args(&args)
+                .arg("--explain")
+                .output()
+                .expect("the binary runs");
+            assert!(
+                output.status.success(),
+                "{name}: `lotus {rest}` is rejected:\n{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            checked += 1;
         }
-        // A quoted value is one argument, however many spaces it holds.
-        let args = shell_words(rest);
-        if args.iter().any(|a| a == "--explain") {
-            continue;
-        }
-        lotus()
-            .args(&args)
-            .arg("--explain")
-            .assert()
-            .success()
-            .stderr(predicate::str::contains("error").not());
-        checked += 1;
     }
 
-    assert!(checked >= 5, "only {checked} examples were checked");
+    assert!(
+        checked >= 10,
+        "only {checked} examples were checked: the scraper is probably broken"
+    );
 }

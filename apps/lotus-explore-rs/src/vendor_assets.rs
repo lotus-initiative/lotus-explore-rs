@@ -46,25 +46,53 @@ static RDKIT: manganis::Asset = manganis::asset!(
 static KETCHER: manganis::Asset =
     manganis::asset!("/public/assets/ketcher", manganis::AssetOptions::folder());
 
-/// Where the bundled copies of the two folders above are served from.
+/// The URL a bundled folder asset is served at.
 ///
-/// A folder asset gets no content hash of its own -- the files inside are
-/// already content-hashed by the projects that ship them, and the internal
-/// references are relative -- so this is just the folder's path under `assets/`.
-fn bundled_folder(asset: &manganis::Asset) -> String {
-    asset.bundled().bundled_path().to_string()
+/// `bundled_path` is the name the bundler filed the asset under, which for a
+/// folder is just the folder name -- `rdkit`, not `assets/rdkit`. Two things then
+/// have to be put right, and both were wrong at once:
+///
+/// - The `assets/` prefix. `dioxus-desktop` serves a request out of the bundle
+///   only when the path starts with `/assets/`; anything else is looked up on
+///   disk relative to the working directory and missed.
+/// - The leading slash. The document is served at `.../index.html`, so a
+///   relative URL resolves against that and becomes
+///   `.../index.html/rdkit/RDKit_minimal.js` -- a 404 with a plausible shape.
+///
+/// A folder asset gets no content hash of its own: the files inside are already
+/// content-hashed by the projects that ship them, and their internal references
+/// are relative.
+fn bundled_folder_url(asset: &manganis::Asset) -> String {
+    asset_url_for(asset.bundled().bundled_path())
 }
+
+/// The pure part of [`bundled_folder_url`], so the shape can be tested without
+/// a real `dx` build.
+fn asset_url_for(bundled: &str) -> String {
+    // Only the final segment. The bundler produces a bare folder name, and this
+    // is a URL the WebView will request, so a `..` from anywhere must not be
+    // able to walk out of the bundle.
+    let name = bundled.rsplit('/').next().unwrap_or(bundled);
+    if name == ASSET_DIR {
+        format!("/{ASSET_DIR}")
+    } else {
+        format!("/{ASSET_DIR}/{name}")
+    }
+}
+
+/// Where the desktop bundle serves its assets from.
+const ASSET_DIR: &str = "assets";
 
 /// The URL of Ketcher's entry document.
 #[must_use]
 pub fn ketcher_url() -> String {
-    in_folder(&bundled_folder(&KETCHER), "index.html")
+    in_folder(&bundled_folder_url(&KETCHER), "index.html")
 }
 
 /// The URL of `RDKit`'s loader script.
 #[must_use]
 pub fn rdkit_script_url() -> String {
-    in_folder(&bundled_folder(&RDKIT), "RDKit_minimal.js")
+    in_folder(&bundled_folder_url(&RDKIT), "RDKit_minimal.js")
 }
 
 /// The URL of `RDKit`'s WebAssembly module.
@@ -74,7 +102,7 @@ pub fn rdkit_script_url() -> String {
 /// their original names in the bundle.
 #[must_use]
 pub fn rdkit_wasm_url() -> String {
-    in_folder(&bundled_folder(&RDKIT), "RDKit_minimal.wasm")
+    in_folder(&bundled_folder_url(&RDKIT), "RDKit_minimal.wasm")
 }
 
 /// Join a file name onto a bundled folder path, tolerating either a trailing
@@ -84,39 +112,65 @@ pub fn rdkit_wasm_url() -> String {
 /// but this feeds a `WebView` request, so it is the one place a traversal from
 /// outside could arrive.
 fn in_folder(folder: &str, file: &str) -> String {
+    // A file name, not a path: these come from the bundler, but this is a URL
+    // into the WebView and the only place a `..` from outside could arrive.
     let file = file.rsplit('/').next().unwrap_or(file);
     format!("{}/{}", folder.trim_end_matches('/'), file)
 }
 
 #[cfg(test)]
 mod tests {
+    use super::{asset_url_for, in_folder};
+
     /// `bundled_path` is a placeholder outside a `dx` build -- reading it panics
     /// with "This should be replaced by dx as part of the build process". So the
-    /// URL shape is tested against the join, with a representative folder path,
-    /// and the wiring to the real assets is checked by the desktop build.
-    ///
-    /// The path that used to be built by hand in JS was
-    /// `assets/vendor/rdkit/RDKit_minimal.js`, which is not where the bundler
-    /// writes the folder. Getting this wrong is a 404 with no other symptom.
+    /// URL shape is tested against the two pure helpers, and the wiring to the
+    /// real assets is checked by `just verify-bundle` against a real bundle.
     #[test]
-    fn joined_urls_name_a_file_inside_the_folder() {
+    fn a_bundled_folder_becomes_a_url_the_resolver_can_serve() {
+        // This is the exact 404 that shipped: `bundled_path` is `rdkit`, and a
+        // relative URL resolved against `.../index.html` to
+        // `.../index.html/rdkit/RDKit_minimal.js`.
+        for (bundled, expected) in [
+            ("rdkit", "/assets/rdkit"),
+            ("ketcher", "/assets/ketcher"),
+            // Already prefixed, and already rooted: both must not double up.
+            ("assets/rdkit", "/assets/rdkit"),
+            ("/assets/rdkit", "/assets/rdkit"),
+        ] {
+            assert_eq!(asset_url_for(bundled), expected, "for {bundled}");
+        }
+    }
+
+    /// A path that cannot be served from the bundle must not be turned into one
+    /// that looks servable.
+    #[test]
+    fn a_traversal_cannot_climb_out_of_the_bundle() {
+        for input in ["ketcher/../../etc/passwd", "../rdkit", "a/b/../../../c"] {
+            let url = asset_url_for(input);
+            assert!(!url.contains(".."), "{input} -> {url}");
+
+            let joined = in_folder(&asset_url_for("ketcher"), input);
+            assert!(!joined.contains(".."), "{input} -> {joined}");
+        }
+    }
+
+    #[test]
+    fn a_file_is_joined_onto_its_folder() {
         assert_eq!(
-            super::in_folder("assets/rdkit", "RDKit_minimal.js"),
-            "assets/rdkit/RDKit_minimal.js"
+            in_folder("/assets/rdkit", "RDKit_minimal.js"),
+            "/assets/rdkit/RDKit_minimal.js"
         );
         assert_eq!(
-            super::in_folder("assets/ketcher", "index.html"),
-            "assets/ketcher/index.html"
+            in_folder("/assets/ketcher", "index.html"),
+            "/assets/ketcher/index.html"
         );
     }
 
     /// A trailing slash must not produce a doubled separator.
     #[test]
     fn a_trailing_slash_does_not_double_up() {
-        assert_eq!(
-            super::in_folder("assets/rdkit/", "x.js"),
-            "assets/rdkit/x.js"
-        );
+        assert_eq!(in_folder("/assets/rdkit/", "x.js"), "/assets/rdkit/x.js");
     }
 
     /// The wasm is loaded relative to the script, so the two must resolve to the
@@ -127,21 +181,8 @@ mod tests {
             url.rsplit_once('/').map_or("", |(d, _)| d)
         }
         assert_eq!(
-            dir(&super::in_folder("assets/rdkit", "RDKit_minimal.js")),
-            dir(&super::in_folder("assets/rdkit", "RDKit_minimal.wasm")),
+            dir(&in_folder("/assets/rdkit", "RDKit_minimal.js")),
+            dir(&in_folder("/assets/rdkit", "RDKit_minimal.wasm")),
         );
-    }
-
-    /// Nothing may escape the bundle root: these paths come from the bundler, but
-    /// a traversal here would read outside the app's own directory.
-    #[test]
-    fn a_file_name_cannot_escape_the_folder() {
-        for bad in ["../secret", "/etc/passwd", "a/../../b"] {
-            let joined = super::in_folder("assets/rdkit", bad);
-            assert!(
-                !joined.split('/').any(|segment| segment == ".."),
-                "{bad} escaped: {joined}"
-            );
-        }
     }
 }

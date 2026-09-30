@@ -11,46 +11,48 @@
 
 use dioxus::prelude::*;
 
-/// Injects the curation bridge JS into the document `<head>`, once. Verified not
-/// to duplicate on a full load, on SPA navigation to and away from `/curation`,
-/// or on re-render of the page's own inputs. The bridge files still tolerate a
-/// second injection, which is browser behaviour this component does not control.
+/// Injects the curation page's third-party JS into the document `<head>`.
+///
+/// The `RDKit` loader is tagged here rather than by the bridge. The bridge used
+/// to build `assets/vendor/rdkit/RDKit_minimal.js` in JS, which is a path the
+/// bundler cannot see: it embeds only what `asset!` names, so the file was
+/// absent from a desktop bundle and the request 404ed. A path assembled at
+/// runtime is invisible to `dx` by construction.
+///
+/// The wasm module needs a `locateFile` override, and that is the one URL that
+/// cannot be a `src` -- see [`RDKIT_WASM_GLOBAL`].
 #[component]
 pub fn CurationScripts() -> Element {
-    // The RDKit loader and its wasm module, as data attributes rather than as
-    // paths the bridge composes for itself. The bridge used to read
-    // `data-lotus-base-path` off the document element and build
-    // `assets/vendor/rdkit/RDKit_minimal.js` from it; the desktop document never
-    // sets that attribute, so it fell back to `/` and fetched a path that is not
-    // in the bundle. Reading the URLs from here means one source of truth, and a
-    // typo is a compile error.
-    let rdkit_script = crate::vendor_assets::rdkit_script_url();
-    let rdkit_wasm = crate::vendor_assets::rdkit_wasm_url();
+    // `document::eval` rather than an inline `<script>`. Dioxus renders a
+    // `document::Script` from a single text node and rejects anything else, and
+    // the text would have to be HTML-escaped, which a script body does not
+    // unescape. Ordering is not a concern: this runs during the render, and the
+    // loader below is `defer`red, so it executes after.
+    use_effect(|| {
+        let wasm = crate::vendor_assets::rdkit_wasm_url();
+        document::eval(&format!("window.{RDKIT_WASM_GLOBAL} = '{wasm}';"));
+    });
     rsx! {
-        document::Script { src: asset!("/public/assets/js/curation/rdkit-bridge.js"), defer: true, "type": "text/javascript", "data-rdkit-src": "{rdkit_script}", "data-rdkit-wasm": "{rdkit_wasm}" }
+        document::Script { src: asset!("/public/assets/js/curation/rdkit-bridge.js"), defer: true, "type": "text/javascript" }
+        document::Script { src: crate::vendor_assets::rdkit_script_url(), defer: true, "type": "text/javascript" }
         document::Script { src: asset!("/public/assets/js/curation/citation-bridge.js"), defer: true, "type": "text/javascript" }
     }
 }
 
-/// The application stylesheet.
+/// The global the `RDKit` bridge reads the wasm module's URL from.
 ///
-/// Compiled by `dx` from `tailwind/styles.css` into
-/// `public/assets/lotus-explore.css`, and linked from the component tree rather
-/// than from `index.html`.
+/// A `locateFile` callback, not a `src`, because the loader looks the module up
+/// by name relative to itself. The bundled copy is content-addressed, so that
+/// name is not what the loader asks for.
+const RDKIT_WASM_GLOBAL: &str = "__lotusRDKitWasm";
+
+/// The application stylesheet, on native only.
 ///
-/// That indirection is what makes the desktop window styled. `dx` bundles into a
-/// desktop binary only the assets that `asset!` names in Rust, so a stylesheet
-/// referenced solely from `index.html` is not in the bundle and the window comes
-/// up with no CSS at all. Every design token in the theme -- the palette, the
-/// spacing, the dark scheme -- is a custom property in this one file, so losing
-/// it loses the entire look, not just the utilities.
-///
-/// On wasm the `asset!` URL resolves to the same `/assets/lotus-explore.css`
-/// that `index.html` already links, and Dioxus deduplicates links by href and
-/// rel, so rendering this there does not double-load the sheet. It is rendered
-/// on native only regardless: the browser document links the sheet at parse time,
-/// before the wasm module has booted, which is what keeps the first paint from
-/// flashing an unstyled page.
+/// `dx` embeds only the assets Rust names in an `asset!` call, so a stylesheet
+/// linked only from `index.html` is absent from a desktop bundle and the window
+/// comes up unstyled. The browser document keeps that link, because it loads at
+/// parse time and the wasm module has not booted yet; rendering this on wasm too
+/// would only add a duplicate that Dioxus then deduplicates.
 #[component]
 pub fn AppStylesheet() -> Element {
     rsx! {

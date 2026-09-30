@@ -254,7 +254,10 @@ async fn enrich_and_generate(
             lines.push(format!("LAST|Len|\"{}\"", escape_qs_string(&input.name)));
             lines.push("LAST|Den|\"chemical compound\"".into());
 
-            if has_undefined_stereo(&input.smiles).await {
+            // A structure the toolkit cannot read is not "no undefined
+            // stereo", so the flag stays off rather than claiming the compound
+            // is fully specified.
+            if has_undefined_stereo(&input.smiles).await.unwrap_or(false) {
                 lines.push(format!("LAST|P31|{WD_STEREOISOMER_GROUP_QID}"));
             } else {
                 lines.push(format!("LAST|P31|{WD_TYPE_CHEMICAL_ENTITY_QID}"));

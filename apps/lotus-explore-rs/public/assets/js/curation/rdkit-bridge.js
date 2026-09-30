@@ -14,23 +14,25 @@
 (function () {
     "use strict";
 
-    // The URLs come from the `data-rdkit-*` attributes that
-    // `document_head::CurationScripts` sets on this script tag, so Rust is the
-    // one place that knows where the bundler put the files.
+    // The loader script is *not* fetched from here. `document_head::CurationScripts`
+    // adds the `<script>` tag itself, from a path Rust got back from the bundler.
+    // This file used to build the URL itself, and a path assembled at runtime is
+    // invisible to `dx`: it embeds only the assets Rust names, so the file was
+    // simply not in a desktop bundle and the request 404ed.
     //
-    // The fallback is for a page that injects this file by hand, and it is the
-    // path the web server serves. It is not the path a desktop bundle uses: the
-    // folder is embedded as `assets/rdkit`, not `assets/vendor/rdkit`, which is
-    // why the desktop build has to supply the attributes.
-    const scriptTag = document.currentScript;
-    const RDKIT_JS_SRC =
-        (scriptTag && scriptTag.getAttribute("data-rdkit-src")) ||
-        "assets/vendor/rdkit/RDKit_minimal.js";
-    const RDKIT_WASM_SRC =
-        (scriptTag && scriptTag.getAttribute("data-rdkit-wasm")) || null;
+    // The wasm module is the one URL that cannot be a `src`, because the loader
+    // looks it up by name relative to itself and the bundled copy is
+    // content-addressed. Rust publishes it on a global for `locateFile` below.
+    const RDKIT_WASM_GLOBAL = "__lotusRDKitWasm";
     const bridge = (window.__lotusRdkit = window.__lotusRdkit || {});
 
-    function waitForInitRDKitModule(timeoutMs = 12000) {
+    // The loader script is already in the document, so this only has to wait
+    // for it to finish defining `initRDKitModule`. Waiting for a global is the
+    // only option left now that this file does not create the tag: a classic
+    // `<script src>` tag with `defer` runs in document order, and the loader is
+    // tagged after this file, so by the time anything calls in, it is either
+    // there or the load genuinely failed.
+    function waitForInitRDKitModule(timeoutMs = 20000) {
         const start = Date.now();
         return new Promise((resolve, reject) => {
             function poll() {
@@ -39,7 +41,12 @@
                     return;
                 }
                 if (Date.now() - start >= timeoutMs) {
-                    reject(new Error("RDKit_minimal.js timed out loading"));
+                    reject(
+                        new Error(
+                            "RDKit_minimal.js did not define initRDKitModule; " +
+                                "check that it reached the bundle"
+                        )
+                    );
                     return;
                 }
                 setTimeout(poll, 16);
@@ -48,58 +55,20 @@
         });
     }
 
-    function loadRdkitJs() {
-        if (typeof initRDKitModule === "function") {
-            return Promise.resolve(initRDKitModule);
-        }
-        if (bridge.rdkitScriptLoadPromise) {
-            return bridge.rdkitScriptLoadPromise;
-        }
-
-        bridge.rdkitScriptLoadPromise = new Promise((resolve, reject) => {
-            const existing = document.querySelector(`script[src="${RDKIT_JS_SRC}"]`);
-            const complete = () => {
-                waitForInitRDKitModule().then(resolve, reject);
-            };
-
-            if (existing) {
-                complete();
-                return;
-            }
-
-            const script = document.createElement("script");
-            script.src = RDKIT_JS_SRC;
-            script.async = true;
-            script.crossOrigin = "anonymous";
-            script.addEventListener("load", complete, { once: true });
-            script.addEventListener(
-                "error",
-                () => reject(new Error("RDKit_minimal.js failed to load")),
-                { once: true }
-            );
-            document.head.appendChild(script);
-        }).catch((error) => {
-            bridge.rdkitScriptLoadPromise = null;
-            throw error;
-        });
-
-        return bridge.rdkitScriptLoadPromise;
-    }
-
     function ensureRdkitReady() {
         if (bridge.rdkitReadyPromise) {
             return bridge.rdkitReadyPromise;
         }
 
         bridge.rdkitReadyPromise = (async () => {
-            const init = await loadRdkitJs();
+            const init = await waitForInitRDKitModule();
             // `locateFile` is how the wasm module is found. Left to itself the
             // loader asks for `RDKit_minimal.wasm` next to the script, which
-            // holds only when the file kept that exact name. Point it at the
-            // URL Rust resolved instead, so a content-addressed copy in the
-            // bundle still loads.
-            const RDKit = RDKIT_WASM_SRC
-                ? await init({ locateFile: () => RDKIT_WASM_SRC })
+            // only works if the file kept that exact name. The bundled copy is
+            // content-addressed, so it does not.
+            const wasm = window[RDKIT_WASM_GLOBAL];
+            const RDKit = wasm
+                ? await init({ locateFile: () => wasm })
                 : await init();
 
             function withMol(smiles, callback) {
@@ -140,7 +109,7 @@
                 return smiles.replace(/@{1,2}/g, "").replace(/[/\\]/g, "");
             }
 
-            return {
+            bridge.rdkit = {
                 convert(smiles) {
                     return withMol(smiles, (mol) => {
                         const isomericsmiles = mol.get_smiles(
@@ -186,6 +155,7 @@
                     });
                 },
             };
+            return bridge.rdkit;
         })().catch((error) => {
             bridge.rdkitReadyPromise = null;
             throw error;
@@ -194,22 +164,47 @@
         return bridge.rdkitReadyPromise;
     }
 
-    bridge.ready = function ready() {
-        return ensureRdkitReady();
+    // Kicks off the load. Returns immediately; poll `isReady` for the outcome.
+    bridge.start = function start() {
+        ensureRdkitReady().catch(function (error) {
+            bridge.rdkitError = String((error && error.message) || error);
+        });
+        return true;
     };
 
-    bridge.convert = async function convert(smiles) {
-        const rdkit = await ensureRdkitReady();
-        return rdkit.convert(smiles);
+    bridge.isReady = function isReady() {
+        return !!bridge.rdkit;
     };
 
-    bridge.exactMass = async function exactMass(smiles) {
-        const rdkit = await ensureRdkitReady();
-        return rdkit.exactMass(smiles);
+    bridge.error = function error() {
+        return bridge.rdkitError || null;
     };
 
-    bridge.hasUndefinedStereo = async function hasUndefinedStereo(smiles) {
-        const rdkit = await ensureRdkitReady();
-        return rdkit.hasUndefinedStereo(smiles);
+    // Synchronous accessors.
+    //
+    // `document::eval` on a desktop build returns what the script evaluates to
+    // *synchronously*: a returned promise serialises as `null`, not as its
+    // resolved value. So these cannot be `async`, and readiness is a separate
+    // call the Rust side polls.
+    function ready() {
+        if (bridge.rdkitError) {
+            throw new Error("RDKit failed to load: " + bridge.rdkitError);
+        }
+        if (!bridge.rdkit) {
+            throw new Error("RDKit is not ready yet");
+        }
+        return bridge.rdkit;
+    }
+
+    bridge.convert = function convert(smiles) {
+        return ready().convert(smiles);
+    };
+
+    bridge.exactMass = function exactMass(smiles) {
+        return ready().exactMass(smiles);
+    };
+
+    bridge.hasUndefinedStereo = function hasUndefinedStereo(smiles) {
+        return ready().hasUndefinedStereo(smiles);
     };
 })();

@@ -6,11 +6,11 @@ implementations of the search: `lotus-model`, `lotus-query`, `lotus-search`,
 a thin shell over them. This document is about what differs between them, and
 why.
 
-| Front end | Crate | Built by | Talks to |
-| --- | --- | --- | --- |
-| Web | `apps/lotus-explore-rs` (`dioxus/web`) | `dx build --platform web` | QLever / WDQS over HTTPS |
-| Desktop | `apps/lotus-explore-rs` (`dioxus/desktop`) | `dx serve --desktop --features desktop` | QLever / WDQS over HTTPS |
-| CLI | `crates/lotus-cli` | `cargo build` | QLever / WDQS over HTTPS |
+  | Front end | Crate                                      | Built by                                | Talks to                 |
+  | ---       | ---                                        | ---                                     | ---                      |
+  | Web       | `apps/lotus-explore-rs` (`dioxus/web`)     | `dx build --platform web`               | QLever / WDQS over HTTPS |
+  | Desktop   | `apps/lotus-explore-rs` (`dioxus/desktop`) | `dx serve --desktop --features desktop` | QLever / WDQS over HTTPS |
+  | CLI       | `crates/lotus-cli`                         | `cargo build`                           | QLever / WDQS over HTTPS |
 
 All three hit the same public endpoints, so a query that works in one works in
 all three. The endpoints are overridable with `LOTUS_QLEVER_ENDPOINT`,
@@ -74,14 +74,15 @@ What differs is the document and the asset pipeline, and both bite:
 
 - **Dioxus generates the document.** There is no `index.html` to read, so the
   stylesheet is attached from the component tree with
-  `document::Stylesheet { href: asset!(...) }` in `document_head::AppStylesheet`.
+  `document::Stylesheet { href: asset!(...) }` in
+  `document_head::AppStylesheet`.
 - **Only `asset!`-referenced files are embedded.** This is the important one.
   `dx` copies into the bundle the files that Rust names in an `asset!` call, not
   the whole `public/` tree. `fetch-assets` writes RDKit and Ketcher into
   `public/assets/vendor`, and nothing in Rust references them, so they are
-  absent from the bundle. The window has no CSS problem — `AppStylesheet` fixed
-  that — but the curation and structure-editor pages depend on those files, and
-  see them 404.
+  absent from the bundle. The window has no CSS problem --- `AppStylesheet`
+  fixed that --- but the curation and structure-editor pages depend on those
+  files, and see them 404.
 
 Two consequences that are easy to mistake for unrelated bugs:
 
@@ -119,4 +120,4 @@ Search and curation behaviour belongs in the shared crates, not in the front
 ends. If a change makes the web app show a different result, the fix belongs in
 `lotus-query` or `lotus-search` and all three front ends get it. The front ends
 differ in transport, in how they reach a file, and in what they do with the
-answer — not in what the answer is.
+answer --- not in what the answer is.
