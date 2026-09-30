@@ -4,9 +4,10 @@
 //!
 //! Two halves, and neither one needs HTTP, an async runtime or a clock:
 //!
-//! - [`query`] builds query strings from a [`SearchCriteria`]. Pure string
-//!   manipulation over the vocabulary in [`lotus_model`].
-//! - [`parse`] turns a `text/csv` payload into [`lotus_model`] types.
+//! - The `query` module builds query strings from a
+//!   [`SearchCriteria`](lotus_model::SearchCriteria). Pure string manipulation
+//!   over the vocabulary in [`lotus_model`].
+//! - The `parse` module turns a `text/csv` payload into [`lotus_model`] types.
 //!
 //! Running the query is somebody else's job: see the `lotus-search` crate,
 //! which drives this one against a real endpoint. Keeping that out is what

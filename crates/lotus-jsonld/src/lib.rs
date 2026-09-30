@@ -4,8 +4,8 @@
 //!
 //! The point of emitting it is findability: Google Dataset Search and the
 //! Bioschemas validator both read the document, and neither can read a page
-//! that carries no markup. So the shapes here are checked against the profiles
-//! rather than written from memory — see [`profiles`].
+//! that carries no markup. So the shapes here are checked against the Bioschemas
+//! profiles rather than written from memory.
 
 #![warn(missing_docs)]
 
