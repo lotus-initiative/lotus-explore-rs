@@ -12,8 +12,15 @@ check:
 clippy:
 	cargo clippy --workspace --all-targets --locked -- -D warnings
 
+# The app is three programs: a browser client, a native window and an HTTP API.
+# `--workspace` only builds the first, because the other two need a feature. That
+# gap is how `--features server` sat broken on main while this recipe passed: the
+# API had a renamed request field its own tests still used, and nothing here
+# compiled it. Each line below is also a job in CI; keep them in step.
 test:
 	cargo test --workspace --all-targets --locked --quiet
+	cargo test -p lotus-explore-rs --features server --locked --quiet
+	cargo test -p lotus-explore-rs --features desktop --all-targets --locked --quiet
 
 doc:
 	cargo doc --workspace --no-deps --locked
@@ -52,6 +59,7 @@ ci:
 	just fmt
 	just check
 	just clippy
+	just clippy-native-builds
 	just test
 	just doc
 	just license-headers
@@ -103,6 +111,13 @@ wasm:
 # is a host-only bin — `reqwest::blocking` cannot exist on wasm — so a
 # workspace-wide wasm lint can never pass; only wasm-relevant crates are
 # linted here). Mirrors the Clippy-WASM step in .github/workflows/ci.yml.
+# The two native programs are different lint surfaces: each compiles module code
+# written for the other, so they are linted on their own for the same reason as
+# in `test`.
+clippy-native-builds:
+	cargo clippy -p lotus-explore-rs --features server --locked -- -D warnings
+	cargo clippy -p lotus-explore-rs --features desktop --locked -- -D warnings
+
 clippy-wasm:
 	cargo clippy --target wasm32-unknown-unknown --locked \
 		-p lotus-model -p lotus-query -p lotus-jsonld -p lotus-curation -- -D warnings

@@ -17,6 +17,7 @@ use axum::http::{Request, StatusCode, header};
 use tower::ServiceExt;
 use utoipa::OpenApi;
 
+use crate::export;
 use crate::server::{
     ApiDoc, build_router,
     config::AppConfig,
@@ -59,9 +60,9 @@ fn content_type_header(response: &axum::response::Response) -> String {
 fn supports_u16_formula_ranges() {
     let req = SearchRequest {
         taxon: Some("*".to_string()),
-        structure: None,
-        structure_search: None,
-        structure_threshold: None,
+        smiles: None,
+        smiles_search_type: None,
+        smiles_threshold: None,
         mass_min: None,
         mass_max: None,
         year_min: None,
@@ -612,9 +613,9 @@ fn sanitize_filename_empty_or_whitespace_returns_empty() {
 fn apply_request_rejects_inverted_element_ranges() {
     let req = SearchRequest {
         taxon: Some("*".to_string()),
-        structure: None,
-        structure_search: None,
-        structure_threshold: None,
+        smiles: None,
+        smiles_search_type: None,
+        smiles_threshold: None,
         mass_min: None,
         mass_max: None,
         year_min: None,
@@ -649,9 +650,9 @@ fn apply_request_clamps_similarity_threshold() {
     fn make_req(threshold: f64) -> SearchRequest {
         SearchRequest {
             taxon: Some("*".to_string()),
-            structure: Some("c1ccccc1".to_string()),
-            structure_search: None,
-            structure_threshold: Some(threshold),
+            smiles: Some("c1ccccc1".to_string()),
+            smiles_search_type: None,
+            smiles_threshold: Some(threshold),
             mass_min: None,
             mass_max: None,
             year_min: None,

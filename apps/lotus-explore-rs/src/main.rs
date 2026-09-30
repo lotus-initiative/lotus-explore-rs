@@ -36,6 +36,26 @@
 // wasm, desktop and server builds, where those items do have callers, so nothing
 // escapes review by being allowed here.
 #![cfg_attr(test, allow(dead_code))]
+// The two native builds each compile module code written for a different program.
+// `server` is an HTTP API that shares the query and export modules with the
+// client and renders nothing; `desktop` is a window that loads the client and has
+// no browser to stream a blob into or read a deployment base path from. In both,
+// the items belonging to the *other* program are unreferenced, and there are
+// hundreds of them: the honest description is "this build shares code with a
+// program it is not", not a list of hundreds of attributes that would only
+// describe the overlap between two programs and go stale the moment either
+// changes.
+//
+// Scoped to exactly those two configurations. The browser build and the default
+// build -- the two where this crate's client *is* the program -- keep
+// `dead_code` denied, and that is where a genuinely unused helper is caught.
+#![cfg_attr(
+    any(
+        all(feature = "server", not(target_arch = "wasm32")),
+        all(feature = "desktop", not(target_arch = "wasm32")),
+    ),
+    allow(dead_code)
+)]
 //! `lotus-explore-rs` — LOTUS Explorer.
 
 #![allow(non_snake_case)] // Dioxus PascalCase component naming convention
@@ -163,14 +183,14 @@ fn tracing_subscriber_init(level: log::Level) {
 
 /// A native window, for `dx serve --desktop` and a `--release` binary.
 ///
-/// The same `AppRoot` the browser gets, in a WebView. This exists because the
+/// The same `AppRoot` the browser gets, in a `WebView`. This exists because the
 /// native build otherwise had no UI path at all: with only the `web` renderer
 /// compiled, `dx serve --desktop` built a binary, launched it, and it exited
 /// immediately having printed how to build the browser client instead.
 ///
 /// The server feature is a different program -- an HTTP API with no window --
 /// and takes precedence, because a deployment that asked for the server wants an
-/// API and would be surprised by a WebView.
+/// API and would be surprised by a `WebView`.
 #[cfg(all(
     not(target_arch = "wasm32"),
     not(feature = "server"),
