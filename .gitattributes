@@ -4,4 +4,3 @@
 # Generated and vendored trees are not source and are not reviewed as diffs.
 apps/lotus-explore-rs/public/assets/** linguist-vendored
 crates/lotus-web-assets/public/** linguist-vendored
-graphify-out/graph.json merge=graphify

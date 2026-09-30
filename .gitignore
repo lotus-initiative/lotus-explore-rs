@@ -5,17 +5,21 @@ apps/lotus-explore-rs/public/assets/vendor/
 # tree is source: it is fetched by `cargo run -p lotus-web-assets --bin
 # fetch-assets` and is reproducible from the versions in that binary.
 crates/lotus-web-assets/public/
+
 target/
-graphify-out/
 
 # macOS Finder junk; it is not tracked but a local `dx build` copies anything
 # sitting in the source public/ tree into the bundle.
 .DS_Store
-.code-review-graph/
 
 # cargo-mutants writes its results here next to the workspace. It is a report
 # about one run, not an input to anything.
 mutants.out/
 
-# Knowledge graph outputs
+# Local agent tooling: the knowledge-graph MCP server config and the instructions
+# that go with it. They describe the tool rather than the project, and the graph
+# they read is rebuilt on demand, so none of it belongs in the repository.
+.mcp.json
+AGENTS.md
 graphify-out/
+.code-review-graph/
