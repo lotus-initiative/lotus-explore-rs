@@ -135,11 +135,15 @@ jobs:
       # of our code -- the same shape of failure as a missing asset, and equally
       # unrelated to the change under test.
       - name: Install the WebKitGTK build dependencies
+        # `ripgrep` is here for `just verify-bundle`, which reads Ketcher's
+        # own `src`/`href` references out of its index.html. It is not on the
+        # runner by default, and without it the recipe fails on its last check.
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev \
-            libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+            libayatana-appindicator3-dev librsvg2-dev libxdo-dev \
+            ripgrep
       # The crate is `dioxus-cli`, not `dx`: `dx` is the binary it installs and
       # is not published to crates.io, so `dx@0.7.1` failed to resolve. The
       # version matches the `dioxus` dependency, as the README already says.
@@ -166,8 +170,15 @@ jobs:
       # desktop app with no structure editor can be produced without a word from
       # the compiler.
       - name: Fetch the third-party assets
-        run: cargo run --locked -p lotus-web-assets --bin fetch-assets
+        # From the app directory: `fetch-assets` writes to `public/assets/`
+        # relative to where it runs, and the bundler only looks in the app's. From
+        # the repository root it downloads 40 MB into a `public/` nothing reads, and
+        # the bundle is silently built with no assets in it at all.
+        run: cd apps/lotus-explore-rs && cargo run --locked -p lotus-web-assets --bin fetch-assets
       - name: Build desktop app
+        # `ripgrep` is here for `just verify-bundle`, which reads Ketcher's
+        # own `src`/`href` references out of its index.html. It is not on the
+        # runner by default, and without it the recipe fails on its last check.
         run: |
           cd apps/lotus-explore-rs
           dx build --package lotus-explore-rs --desktop --locked --features desktop
