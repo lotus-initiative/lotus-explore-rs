@@ -98,7 +98,7 @@ pub const SOFTWARE: crate::software::Software = crate::software::Software {
     description: "A linked open data explorer for the LOTUS compound-taxon-reference \
                   knowledge graph in Wikidata, queried over SPARQL.",
     url: "https://lotus.nprod.net/lotus-explore-rs",
-    repository: "https://github.com/lotusnprod/lotus-explore-rs",
+    repository: env!("CARGO_PKG_REPOSITORY"),
     doi: Some("10.7554/eLife.70780"),
     version: env!("CARGO_PKG_VERSION"),
     license: "https://www.gnu.org/licenses/agpl-3.0.html",

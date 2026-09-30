@@ -9,7 +9,8 @@ use serde_json::{Map, Value, json};
 
 pub const APP_VERSION: &str = "0.1.0";
 pub const APP_NAME: &str = "LOTUS Explorer";
-pub const APP_URL: &str = "https://github.com/lotusnprod/lotus-explore-rs";
+/// From the manifest, so the URL is declared once for the whole workspace.
+pub const APP_URL: &str = env!("CARGO_PKG_REPOSITORY");
 pub const QLEVER_ENDPOINT: &str = "https://qlever.dev/api/wikidata";
 pub const WDQS_ENDPOINT: &str = "https://query.wikidata.org/sparql";
 

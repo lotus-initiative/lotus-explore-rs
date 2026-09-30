@@ -5,6 +5,7 @@ edition = "2024"
 rust-version = "1.97"
 description = "The LOTUS curation vocabulary: what a curation row is, what a result is, the Wikidata queries curation asks, and how QuickStatements are bundled for submission. No clock, no HTTP client, and no submission: the caller injects a transport and reads the diff."
 license = "AGPL-3.0-only"
+repository.workspace = true
 keywords = ["bioinformatics", "curation", "lotus", "quickstatements", "wikidata"]
 categories = ["science", "web-programming"]
 publish = false

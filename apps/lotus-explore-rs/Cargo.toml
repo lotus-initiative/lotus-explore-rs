@@ -5,6 +5,7 @@ edition = "2024"
 rust-version = "1.97"
 description = "LOTUS Explorer — chemical occurrence explorer"
 license = "AGPL-3.0-only"
+repository.workspace = true
 keywords = ["dioxus", "lotus", "natural-products", "wasm", "wikidata"]
 categories = ["science", "wasm", "web-programming"]
 build = "build.rs"

@@ -5,6 +5,7 @@ edition = "2024"
 rust-version = "1.97"
 description = "Bioschemas and schema.org JSON-LD for LOTUS results, compounds, taxa and the software itself"
 license = "AGPL-3.0-only"
+repository.workspace = true
 keywords = ["bioschemas", "json-ld", "linked-data", "lotus", "schema.org"]
 categories = ["science", "web-programming"]
 publish = false
