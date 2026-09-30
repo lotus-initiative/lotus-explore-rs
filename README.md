@@ -90,10 +90,12 @@ builds.
   production host actually serves, and how to measure it locally
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) --- the crates, and why the
   boundary is where it is
+- [`docs/FRONTENDS.md`](docs/FRONTENDS.md) --- the web, desktop and `lotus` CLI
+  front ends: how each is built, and where they differ
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) --- how to build, test, and where a
   change belongs
-- [`apps/.../docs/ARCHITECTURE.md`](apps/lotus-explore-rs/docs/ARCHITECTURE.md) --- the
-  application side
+- [`apps/.../docs/ARCHITECTURE.md`](apps/lotus-explore-rs/docs/ARCHITECTURE.md) ---
+  the application side
 - [`docs/cli.md`](docs/cli.md) --- the `lotus` command, kept honest against
   `--help` by a test
 
