@@ -2,7 +2,7 @@
 
 [![AGPL-3.0
 license](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0.html)
-[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](https://github.com/lotusnprod/lotus-explore-rs/actions)
+[![CI](https://github.com/lotusnprod/lotus-explore-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/lotusnprod/lotus-explore-rs/actions/workflows/ci.yml)
 
 `lotus-explore-rs` --- LOTUS Explorer.
 
@@ -116,7 +116,7 @@ builds.
   boundary is where it is
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) --- how to build, test, and where a
   change belongs
-- [`docs/ARCHITECTURE.md`](apps/lotus-explore-rs/docs/ARCHITECTURE.md) --- the
+- [`apps/.../docs/ARCHITECTURE.md`](apps/lotus-explore-rs/docs/ARCHITECTURE.md) --- the
   application side
 - [`docs/cli.md`](docs/cli.md) --- the `lotus` command, kept honest against
   `--help` by a test

@@ -1,20 +1,8 @@
 # lotus-explore-rs Architecture
 
-## The crates
-
-Six library crates and one application. The crates are arranged so that
-everything which can be pure is, and everything which makes a decision is named.
-
-```
-crates/lotus-model      Domain types, filter semantics, validation
-crates/lotus-query      SPARQL construction and CSV parsing
-crates/lotus-search     The search use case: resolve, run, fall back
-crates/lotus-curation   The curation vocabulary and QuickStatements
-crates/lotus-jsonld     Bioschemas JSON-LD, CodeMeta, CITATION.cff
-crates/lotus-cli        The `lotus` binary
-crates/lotus-web-assets Host-only: vendors Ketcher and RDKit, preloads wasm
-apps/lotus-explore-rs   The web client and its optional native server
-```
+The workspace layout --- what each crate is for, and which of them may be pure ---
+is in [`docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md). This page covers
+what this application adds on top of it.
 
 `lotus-model`, `lotus-query`, `lotus-curation` and `lotus-jsonld` have no HTTP,
 no clock, and no async runtime. They are built for `wasm32` in CI in their own
@@ -98,9 +86,5 @@ form → criteria → lotus-query (build) → lotus-search (run) → rows → ta
 ```
 
 On the server the same path runs with the app's own HTTP client in place of the
-`Http` trait's recording double.
+scripted transport `lotus-search` tests against.
 
-## Agent tooling
-
-- `.github/ai/` --- AI collaboration guides, the contribution protocol, and the
-  incident postmortem for the lotus-explore Qlever 429-storm fix.
