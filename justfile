@@ -267,43 +267,56 @@ verify-bundle app="LotusExploreRs" profile="debug":
 	#!/usr/bin/env bash
 	set -euo pipefail
 	root="target/dx/lotus-explore-rs/{{profile}}"
-
-	# The bundle layout is the platform's, and the checks below are about what the
-	# app can actually request rather than where the files sit. A macOS build is an
-	# `.app` with `Contents/Resources` inside it and a plist naming the icon; a Linux
-	# build is a binary with the assets beside it and no plist at all. Hard-coding
-	# the macOS shape meant the desktop job failed on every Linux runner at the first
-	# step, so it proved nothing about the other ten.
-	case "$(uname -s)" in
-	Darwin)
-	  bundle="$root/macos/{{app}}.app"
-	  resources="$bundle/Contents/Resources"
-	  icon=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$bundle/Contents/Info.plist" 2>/dev/null || true)
-	  ;;
-	*)
-	  bundle="$root/$(uname -s | tr '[:upper:]' '[:lower:]')"
-	  resources="$bundle"
-	  icon=""
-	  ;;
-	esac
-	if [ ! -d "$resources" ]; then
-	  echo "no bundle at $resources -- run 'dx build --desktop --features desktop' first" >&2
+	if [ ! -d "$root" ]; then
+	  echo "no build at $root -- run 'dx build --desktop --features desktop' first" >&2
 	  exit 1
 	fi
-	fail=0
+
+	# The bundle layout is the platform's, and it is not worth guessing: a macOS
+	# build is `macos/App.app/Contents/Resources/assets`, a Linux build is
+	# `linux/<name>/assets`, and the name is whatever the package is called. Guessing
+	# is what made this check useless -- it reported "the assets are missing" on
+	# every Linux run while the assets were present, in a directory it had decided
+	# not to look in.
+	#
+	# So: find the directory that actually holds the editor, which is the only thing
+	# this recipe is really about -- that the URLs the app can request resolve. And
+	# say which one it used, so a failure is diagnosable from the log alone.
+	resources=""
+	for candidate in "$root/macos/{{app}}.app/Contents/Resources" $(find "$root" -maxdepth 3 -type d -name assets 2>/dev/null | sed 's|/assets$||' | sort); do
+	  if [ -f "$candidate/assets/ketcher/index.html" ]; then
+	    resources="$candidate"
+	    break
+	  fi
+	done
+	if [ -z "$resources" ]; then
+	  echo "FAIL  no bundle under $root contains assets/ketcher/index.html" >&2
+	  echo "      dx put the build at: $(find "$root" -maxdepth 2 -type d 2>/dev/null | head -20)" >&2
+	  echo "      and these assets exist: $(find "$root" -maxdepth 4 -name 'RDKit_minimal.js' 2>/dev/null | head -3)" >&2
+	  exit 1
+	fi
+	echo "ok    bundle resources: $resources"
 
 	# The plist names an icon whether or not one was configured, and Finder shows a
 	# generic icon when the named file is not there. Only macOS has a plist.
-	if [ -n "$icon" ]; then
-	  if [ -f "$resources/$icon" ]; then
-	    echo "ok    icon: $icon"
-	  else
-	    echo "FAIL  icon: plist names $icon, which is not in Contents/Resources"
-	    fail=1
+	case "$(uname -s)" in
+	Darwin)
+	  bundle="$(dirname "$(dirname "$resources")")"
+	  icon=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$bundle/Contents/Info.plist" 2>/dev/null || true)
+	  if [ -n "$icon" ]; then
+	    if [ -f "$resources/$icon" ]; then
+	      echo "ok    icon: $icon"
+	    else
+	      echo "FAIL  icon: plist names $icon, which is not in Contents/Resources"
+	      fail=1
+	    fi
 	  fi
-	else
+	  ;;
+	*)
 	  echo "skip  icon: $(uname -s) has no bundle plist to check it against"
-	fi
+	  ;;
+	esac
+	fail=0
 
 	# The URLs the app actually requests, not just the files that exist. These two
 	# were different for a long time: the bundle had every file, and `bundled_path`
@@ -333,7 +346,7 @@ verify-bundle app="LotusExploreRs" profile="debug":
 
 	# Ketcher loads its chunks by relative path, so the bundle is only correct if
 	# those resolve inside it too. The paths are rewritten at runtime for a desktop
-	# frame, so this is about the files, which the rewrite resolves against here.
+	# frame, so this is about the files, which is what the rewrite resolves against.
 	while read -r ref; do
 	  [ -n "$ref" ] || continue
 	  if [ -f "$resources/assets/ketcher/${ref#./}" ]; then
