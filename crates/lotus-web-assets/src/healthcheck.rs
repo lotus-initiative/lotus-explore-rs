@@ -112,7 +112,18 @@ fn main() -> ExitCode {
     let port: u16 = args.next().and_then(|p| p.parse().ok()).unwrap_or(8787);
     let path = args.next().unwrap_or_else(|| "/health".to_owned());
 
-    match request(&host, port, &path) {
+    probe(&host, port, &path)
+}
+
+/// The whole probe, minus `main`.
+///
+/// Split out so the mapping from outcome to exit status is a function returning a
+/// value rather than a branch buried in `main`. `main` itself is only reachable by
+/// running the binary and reading `$?`, which is the one thing a unit test cannot
+/// do -- and a health check that reports healthy for a server that is not is the
+/// failure mode that silently takes a container out of a load balancer.
+fn probe(host: &str, port: u16, path: &str) -> ExitCode {
+    match request(host, port, path) {
         Ok(status) => {
             println!("ok: {host}:{port}{path} -> {status}");
             ExitCode::SUCCESS
@@ -142,10 +153,16 @@ mod tests {
     // fails on a bad fixture is reporting a failure, not panicking on input.
     #![allow(clippy::expect_used, clippy::panic)]
 
-    use super::request;
+    use super::{probe, request};
     use std::io::{BufRead, BufReader, Write};
     use std::net::TcpListener;
     use std::thread;
+
+    /// How many 10 ms polls `serve_once` will make before giving up on a connection.
+    ///
+    /// Long enough that a loaded machine still accepts in time, short enough that a
+    /// test which never connects fails in about a second instead of hanging.
+    const ACCEPT_TIMEOUTS: usize = 200;
 
     /// A listener on an ephemeral port, and the `host:port` to reach it on.
     fn bind() -> (TcpListener, String, u16) {
@@ -158,9 +175,29 @@ mod tests {
     ///
     /// One connection, not a loop: each test asserts on one answer, and a loop would
     /// leave a thread blocked on a second accept that never comes.
+    ///
+    /// The accept is bounded, because the alternative is a test that hangs rather
+    /// than fails. Every test here goes through `probe`, and if `probe` is broken
+    /// enough to make no connection at all -- which is exactly what a mutation does
+    /// -- the thread would sit in `accept()` for as long as the test runner waits,
+    /// and the mutant would be reported as a timeout rather than as caught. A
+    /// bounded accept makes that an ordinary assertion failure.
     fn serve_once(listener: TcpListener, response: &'static str) -> thread::JoinHandle<String> {
         thread::spawn(move || {
-            let (mut stream, _) = listener.accept().expect("a connection");
+            listener
+                .set_nonblocking(true)
+                .expect("the listener can be polled instead of blocked on");
+            let stream = (0..ACCEPT_TIMEOUTS)
+                .find_map(|_| match listener.accept() {
+                    Ok((stream, _)) => Some(stream),
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        thread::sleep(std::time::Duration::from_millis(10));
+                        None
+                    }
+                    Err(e) => panic!("accept failed: {e}"),
+                })
+                .expect("a connection within the accept timeout");
+            let mut stream = stream;
             // Read the request before answering, so the client is never writing into
             // a socket the server has already closed.
             let mut reader = BufReader::new(&stream);
@@ -261,6 +298,56 @@ mod tests {
         assert!(
             request("127.0.0.1", port, "/health").is_err(),
             "a closed port must not be reported healthy"
+        );
+    }
+
+    /// The exit status, which is the entire contract of a health check.
+    ///
+    /// Docker reads only this: a probe that returns the wrong one is not a probe
+    /// that is slightly off, it is a container that stays in rotation while
+    /// serving 500s, or one that gets killed while serving 200s. Both directions
+    /// are asserted, and against a real socket, because that is what `main` does.
+    #[test]
+    fn the_exit_status_is_what_a_healthy_server_gets() {
+        let (listener, host, port) = bind();
+        let server = serve_once(listener, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
+        assert_eq!(
+            probe(&host, port, "/health"),
+            std::process::ExitCode::SUCCESS,
+            "a 200 is healthy"
+        );
+        server.join().expect("the server thread");
+    }
+
+    /// The other direction, and the more damaging one.
+    #[test]
+    fn the_exit_status_is_not_what_a_failing_server_gets() {
+        let (listener, host, port) = bind();
+        let server = serve_once(listener, "HTTP/1.1 500 Oops\r\nContent-Length: 0\r\n\r\n");
+        assert_eq!(
+            probe(&host, port, "/health"),
+            std::process::ExitCode::FAILURE,
+            "a 500 is not healthy"
+        );
+        server.join().expect("the server thread");
+    }
+
+    /// Nothing listening at all.
+    ///
+    /// The case a real deploy hits first: the server has not bound the port yet,
+    /// so every connection is refused. Reported healthy here would be the probe
+    /// claiming the container is serving traffic that cannot arrive.
+    #[test]
+    fn the_exit_status_is_failure_when_nothing_is_listening() {
+        // Bind and immediately drop, so the port is known to be closed.
+        let port = {
+            let listener = TcpListener::bind("127.0.0.1:0").expect("a free port");
+            listener.local_addr().expect("the bound address").port()
+        };
+        assert_eq!(
+            probe("127.0.0.1", port, "/health"),
+            std::process::ExitCode::FAILURE,
+            "a refused connection is not healthy"
         );
     }
 

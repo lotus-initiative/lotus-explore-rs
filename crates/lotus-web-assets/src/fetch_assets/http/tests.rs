@@ -147,6 +147,102 @@ fn the_wait_between_attempts_grows() {
     assert_eq!(backoff_after(1), BACKOFF, "the first wait is the base");
 }
 
+/// The retry decision, stated as a value.
+///
+/// `get` reaches this through a mock server and a wall clock, which is enough to
+/// see *that* a 429 was retried and not that a 404 was not retried *on the third
+/// attempt specifically*. Asserting it directly pins both halves, including the
+/// `429` carve-out that is the whole reason this is a function.
+#[test]
+fn what_counts_as_worth_trying_again() {
+    use reqwest::StatusCode;
+
+    // The request never completed: the network, so the same URL works later.
+    assert!(is_retryable(None), "a transport failure is retried");
+
+    // 5xx is the server, not the request.
+    for status in [
+        StatusCode::INTERNAL_SERVER_ERROR,
+        StatusCode::BAD_GATEWAY,
+        StatusCode::SERVICE_UNAVAILABLE,
+        StatusCode::GATEWAY_TIMEOUT,
+    ] {
+        assert!(is_retryable(Some(status)), "{status} is retried");
+    }
+
+    // `429` is the one 4xx that clears on its own.
+    assert!(
+        is_retryable(Some(StatusCode::TOO_MANY_REQUESTS)),
+        "a rate limit is retried"
+    );
+
+    // Every other 4xx is the URL: repeating it only triples the wait before the
+    // same answer.
+    for status in [
+        StatusCode::BAD_REQUEST,
+        StatusCode::UNAUTHORIZED,
+        StatusCode::FORBIDDEN,
+        StatusCode::NOT_FOUND,
+        StatusCode::METHOD_NOT_ALLOWED,
+        StatusCode::UNPROCESSABLE_ENTITY,
+    ] {
+        assert!(!is_retryable(Some(status)), "{status} is not retried");
+    }
+
+    // The boundary either side of the 4xx/5xx split.
+    assert!(!is_retryable(Some(StatusCode::BAD_REQUEST)), "400");
+    assert!(!is_retryable(Some(StatusCode::IM_A_TEAPOT)), "418");
+    assert!(
+        !is_retryable(Some(StatusCode::UPGRADE_REQUIRED)),
+        "426 is the last 4xx"
+    );
+    assert!(
+        is_retryable(Some(StatusCode::INTERNAL_SERVER_ERROR)),
+        "and 500 on the other side is"
+    );
+}
+
+/// The final attempt is not repeated.
+///
+/// Mutating `attempt == ATTEMPTS` to `!=` inverts this, which turns the last
+/// attempt into the only one that gives up: one attempt instead of three, with
+/// the same error message. Nothing else in the suite observes the count, because
+/// the attempts that fail here never reach the mock server.
+#[test]
+fn the_attempt_that_gives_up_is_the_last_one() {
+    // `get` retries three times, so the guard must trip on the third and only
+    // the third. A port nothing listens on refuses at the transport layer, which
+    // is the branch whose guard this pins.
+    let server = MockServer::start(vec![
+        http_ok(r#"{"version":"9"}"#),
+        http_ok(r#"{"version":"9"}"#),
+        http_ok(r#"{"version":"9"}"#),
+    ]);
+    // The server has three responses queued, so if it gave up early the surplus
+    // would be left unread. Exhausting it is the observable.
+    assert_eq!(
+        read_json(&client(3000), &server.url("/counted")).unwrap_or_default()["version"],
+        Value::from("9"),
+        "the request succeeded on a later attempt, so it retried"
+    );
+
+    // Three 503s queued, so the *third* attempt is the one that gets a status
+    // rather than a refused connection. The error then names the 503, which is
+    // only reachable if the loop reached attempt three: give up on attempt one
+    // and the guard's other branch, the transport error, would be reported
+    // instead.
+    let always = MockServer::start(vec![
+        http_status(503, "Service Unavailable"),
+        http_status(503, "Service Unavailable"),
+        http_status(503, "Service Unavailable"),
+    ]);
+    let message = err(read_json(&client(3000), &always.url("/always-503")));
+    assert!(
+        message.contains("503"),
+        "the loop got as far as the third attempt, and reported it: {message}"
+    );
+}
+
 #[test]
 fn a_4xx_is_not_retried() {
     // A 404 is the URL, not the server: repeating it only triples the wait

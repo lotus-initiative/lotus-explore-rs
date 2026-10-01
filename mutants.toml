@@ -7,7 +7,13 @@
 #
 # Recorded on 2026-09-30. That run: 947 mutants, 645 caught, 297 unviable, 5
 # surviving -- all five introduced by splitting fetch-assets, and all five since
-# killed. The one left standing is written down at the bottom.
+# killed.
+#
+# Re-run on 2026-10-01 after the healthcheck extraction: 961 mutants, 656 caught,
+# 301 unviable, 4 surviving. Two were real gaps (`is_retryable` and the attempt
+# guard in `get` had no test that could observe them) and are now covered; one was
+# the healthcheck exit status, killed by the `probe` extraction; one is the
+# equivalent `&&` written down below. Nothing survives now.
 
 # The app is ~2,700 mutants of Dioxus rendering -- a `match` arm on a `Signal`, an
 # `rswap!`, a literal in a `class` attribute. Killing those means a rendering
@@ -16,18 +22,35 @@
 [package.lotus-explore-rs]
 exclude = true
 
-# One mutant survives in lotus-web-assets and is left standing on purpose:
+# No mutant survives in lotus-web-assets.
+#
+# It used to be one, and the record is kept because the reason it was ever allowed
+# is the reason this crate has a test seam worth arguing about.
 #
 #   src/fetch_assets/mod.rs: replace main -> Result<..> with Ok(())
 #
-# It asks whether `main` stops propagating a failure, and the only way to observe
-# that is the process exit status of the binary. The logic `main` contains is
-# now the `run` function next to it, which is covered: its error path is
-# asserted on, and the mutant that short-circuited it is caught. What remains is
-# the process boundary, which is the one thing a unit test cannot reach and which
-# a shell test would only restate.
+# That asked whether `main` stops propagating a failure, and the only way to observe
+# it was the exit status of a process -- something a unit test cannot reach. The
+# logic `main` contains is now the `run` function next to it, which is covered: its
+# error path is asserted on, and the mutant that short-circuited it is caught.
 #
-# The 297 "unviable" are mutants that do not compile -- an array replaced with a
-# different arity, a function replaced with a body of the wrong type. They are
-# not a gap in the tests: cargo-mutants reports a build failure as unviable
-# rather than caught.
+# `healthcheck.rs` had the same shape and was left standing for the same reason. It
+# is no longer: `main` is now a thin wrapper over `probe`, and `probe` returning
+# `Default::default()` is caught by three tests. The extraction is what made it
+# killable, and it also exposed a real hazard -- `serve_once` blocked in `accept()`
+# forever when the code under test made no connection, so a broken `probe` showed up
+# as a mutation-testing *timeout* rather than a failure. The accept is bounded now.
+#
+# One survivor remains elsewhere and is not in this crate:
+#
+#   src/query.rs: replace && with || in with_filters
+#
+# It is equivalent, not a gap. Every branch of that function writes to both the
+# `required` and `filters` buffers or to neither, so the two can never disagree
+# about whether a filter was added and `&&` and `||` always agree. Recorded in a
+# comment at the line itself.
+#
+# The ~300 "unviable" are mutants that do not compile -- an array replaced with a
+# different arity, a function replaced with a body of the wrong type. They are not a
+# gap in the tests: cargo-mutants reports a build failure as unviable rather than
+# caught.

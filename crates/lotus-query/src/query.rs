@@ -379,6 +379,12 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
 
     formula_filter(criteria, &mut required, &mut filters);
 
+    // `&&` is equivalent to `||` here and cargo-mutants reports the swap as a
+    // survivor, so the redundancy is deliberate rather than missed: every branch
+    // above writes to *both* buffers or to neither, so the two can never disagree
+    // about whether a filter was added. `required.is_empty()` alone would say the
+    // same thing, and `&&` states the intent -- nothing to inject -- rather than
+    // relying on that coupling.
     if required.is_empty() && filters.is_empty() {
         return base.to_string();
     }
