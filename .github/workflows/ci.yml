@@ -78,6 +78,22 @@ jobs:
           components: clippy, rustfmt, llvm-tools-preview
           targets: wasm32-unknown-unknown
 
+      # `./mk ci` runs clippy with `--all-features`, and `desktop` is one of the
+      # app's features, so the gate compiles a WebView. `glib-sys` shells out to
+      # `pkg-config` for `glib-2.0 >= 2.70`, which a plain runner does not have,
+      # so the gate died in `lint` on a system library rather than on the code.
+      #
+      # The desktop job installs these for the same reason; the gate is a second
+      # job that needs them. This is that job's list minus `ripgrep`, which only
+      # the desktop job's `verify-bundle` task uses.
+      - name: Install the WebKitGTK build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+
+
       # The tools the gate calls. `./mk ci` fails on a missing one rather
       # than skipping it, which is deliberate: a supply-chain check that is
       # silently absent on a machine where it is not installed is a check that
