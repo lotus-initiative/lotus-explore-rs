@@ -168,8 +168,12 @@ mod tests {
         // table ceiling moves with UI performance and the export ceiling does
         // not, and a table ceiling that reached it would silently truncate
         // exports.
+        //
+        // A `const` block, as in `the_api_ceiling_is_not_the_table_ceiling`
+        // below: both operands are constants, so the assertion is about the
+        // relationship between them rather than about a runtime value.
         #[cfg(feature = "server")]
-        assert!(
+        const _: () = assert!(
             API_MAX_ROWS >= 100 * TABLE_ROW_LIMIT,
             "the export ceiling has lost its margin over the table ceiling"
         );

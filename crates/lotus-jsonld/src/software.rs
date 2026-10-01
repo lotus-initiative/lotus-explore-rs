@@ -235,7 +235,7 @@ pub fn citation_cff(software: &Software) -> String {
             "message: {}",
             yaml_scalar("If you use this software, please cite it as below.")
         ),
-        format!("type: software"),
+        "type: software".to_string(),
         format!("title: {}", yaml_scalar(software.name)),
         format!("abstract: {}", yaml_scalar(software.description)),
         format!("version: {}", yaml_scalar(software.version)),

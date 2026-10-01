@@ -14,6 +14,18 @@
 // A poisoned lock in a test double means a test panicked while holding it, so
 // the test is already failing and the second panic says nothing new.
 #![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
+// `clippy::unused_async_trait_impl` wants a trait-impl method with no `.await`
+// rewritten to return `impl Future`; `clippy::manual_async_fn` then wants that
+// hand-written block turned back into an `async fn`. They cannot both be
+// obeyed, and the two lints are what this expectation is about.
+//
+// The `async fn` spelling is kept, because it is the one the trait itself is
+// written in and the one a reader of the trait recognises. The fix clippy asks
+// for would also run the recording at call time rather than at first poll.
+#![expect(
+    clippy::unused_async_trait_impl,
+    reason = "contradicts clippy::manual_async_fn, which wants the async fn back"
+)]
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};

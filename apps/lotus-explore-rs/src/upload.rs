@@ -188,6 +188,14 @@ impl UploadBlobLines {
         Self
     }
 
+    // The wasm build above awaits `Blob::slice`, so this is the same signature
+    // with a different answer. `std::future::ready` would return a future
+    // instead of an `async fn`, and the caller's `.await` would be awaiting a
+    // value rather than this reader's state.
+    #[expect(
+        clippy::unused_async_trait_impl,
+        reason = "the wasm twin of this method is an `async fn`; the pair must match"
+    )]
     pub async fn next_line(&mut self) -> Result<Option<String>, UploadError> {
         Err(UploadError::BrowserOnly)
     }

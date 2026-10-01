@@ -56,6 +56,13 @@ mod tests {
     #![allow(clippy::expect_used)]
     #![allow(clippy::unwrap_used)]
     #![allow(clippy::panic)]
+    // `LotusRepository` is an async-fn-in-trait, so the stub's two methods must
+    // be `async fn`; a canned response has nothing to await, and the lint
+    // cannot tell the trait signature apart from a choice in the body.
+    #![expect(
+        clippy::unused_async_trait_impl,
+        reason = "LotusRepository is an AFIT: the `async fn` spelling is fixed by the trait"
+    )]
 
     use super::*;
     use crate::api::SearchResponse;

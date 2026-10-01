@@ -106,7 +106,14 @@ impl HttpResponse for reqwest::Response {
 
     // The wasm `Response` has no inherent `chunk`, and the streaming path is
     // native-only, so this exists to satisfy the trait and is never called.
+    //
+    // `HttpResponse` is an async-fn-in-trait, so `async fn` is the spelling the
+    // trait requires; there is nothing to await because nothing runs.
     #[cfg(target_arch = "wasm32")]
+    #[expect(
+        clippy::unused_async_trait_impl,
+        reason = "HttpResponse is an AFIT, and this wasm stub is never called"
+    )]
     async fn chunk(&mut self) -> Result<Option<ResponseBody>, FetchError> {
         Err(FetchError::Network(
             "streaming is not available here".into(),

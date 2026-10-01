@@ -274,7 +274,7 @@ fn the_anchor_may_be_the_module_script_when_there_is_no_preload() {
     let out = insert_after_anchor(html, "LINK").unwrap_or_default();
     assert_eq!(
         out,
-        format!("  <script type=\"module\" src=\"/a.js\"></script>\nLINK\n")
+        "  <script type=\"module\" src=\"/a.js\"></script>\nLINK\n"
     );
 }
 

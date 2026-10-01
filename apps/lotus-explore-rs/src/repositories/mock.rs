@@ -3,6 +3,15 @@
 //! [`MockRepository`] — a test stub for demonstrating SPARQL-only queries without backend dependencies.
 //! Test-only mock repository used by explorer unit tests.
 
+// `LotusRepository` is an async-fn-in-trait, so both methods below have to be
+// spelled `async fn` however little they await. A stub that returns a canned
+// response has nothing to await, and the lint cannot tell the trait signature
+// apart from a choice made in the body.
+#![expect(
+    clippy::unused_async_trait_impl,
+    reason = "LotusRepository is an AFIT: the `async fn` spelling is fixed by the trait"
+)]
+
 use crate::api::SearchResponse;
 use crate::repositories::{LotusRepository, RepositoryError};
 use lotus_search::SearchCriteria;

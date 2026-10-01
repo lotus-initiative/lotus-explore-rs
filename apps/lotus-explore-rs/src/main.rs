@@ -93,7 +93,15 @@ mod server;
 #[cfg(target_arch = "wasm32")]
 use dioxus::prelude::*;
 
-#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+// `not(feature = "server")` because the desktop `main` below carries it too:
+// with `server` enabled the server `main` is the entry point, and the import has
+// no reader. Under `--all-features` -- which the gate now runs, and CI did not --
+// the mismatch is the difference between a warning and a clean build.
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    not(feature = "server"),
+    feature = "desktop"
+))]
 use app::shell::AppRoot;
 
 #[cfg(test)]
