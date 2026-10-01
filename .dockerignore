@@ -1,0 +1,86 @@
+# The build context. Every byte here is uploaded to the daemon before the first
+# instruction runs, so a pattern that misses is a slow build rather than a wrong
+# one -- except for `target/`, which is both large and actively harmful: without
+# this line a local build sends several gigabytes of host build output into the
+# image, where `COPY . .` overwrites the cache cargo-chef just built.
+
+# Build output. The largest thing here by an order of magnitude, and the one
+# whose absence the `builder` stage depends on: it copies the cooked `target`
+# from the `chef` stage and then copies the source over it.
+target/
+**/target/
+
+# The fetched frontend assets. The Dockerfile fetches them itself, with a retry,
+# into the layer that needs them. Copying a local `public/assets/` in would put
+# a half-downloaded tree into an image that then builds successfully against it.
+apps/lotus-explore-rs/public/assets/ketcher/
+apps/lotus-explore-rs/public/assets/vendor/
+crates/lotus-web-assets/public/
+
+# Version control and the build context's own metadata. `.git` is not just
+# large: the deploy workflow builds from a checkout, and copying `.git` in would
+# put the full history -- and every object a shallow clone left out -- into a
+# layer the runtime image does not need.
+.git/
+.gitattributes
+.github/
+.gitignore
+
+# Editor and OS state. `.DS_Store` in particular is copied into the bundle by a
+# local `dx build`, and `deploy.yml` has a step to delete it from the export;
+# excluding it here is the version of that fix that costs nothing.
+.DS_Store
+**/.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Documentation and generated site output. None of it is an input to any stage,
+# and the developer docs are in the repository rather than in the image.
+docs/
+target/doc/
+*.md
+!README.md
+!crates/*/README.md
+!apps/*/README.md
+
+# Local agent and knowledge-graph tooling. Not source, and the graph is
+# regenerated on demand.
+.opencode/
+graphify-out/
+.code-review-graph/
+.mcp.json
+AGENTS.md
+
+# Mutation testing output: a report about one run, not an input to anything.
+mutants.out/
+mutants.out.old/
+repro.rs
+
+# Local caches and the coverage report.
+.llvm-cov/
+lcov.info
+*.profraw
+*.profdata
+
+# Editorconfig, hook configs and task files. The Dockerfile runs its own
+# commands; a hook configuration is a developer's machine, not an input.
+.editorconfig
+prek.toml
+Makefile.toml
+make/
+.mutable-version
+
+# Secrets. Nothing in this repository needs one at build time, so anything
+# matching these patterns is an accident, and an accident that reaches a build
+# context is an accident that reaches an image layer.
+.env
+.env.*
+*.pem
+*.key
+secrets/
+
+# Editor swap and backup files.
+*~
+*.orig
+*.rej

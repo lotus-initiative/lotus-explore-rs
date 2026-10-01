@@ -22,6 +22,13 @@ path = "src/fetch_assets/mod.rs"
 name = "inject-wasm-preload"
 path = "src/inject_wasm_preload.rs"
 
+# The container image's HEALTHCHECK. distroless has no shell and no HTTP client,
+# so a probe that can run in it has to be a binary. Statically linked to musl and
+# dependency-free, so it adds nothing to the runtime image beyond itself.
+[[bin]]
+name = "lotus-healthcheck"
+path = "src/healthcheck.rs"
+
 [dependencies]
 reqwest = { version = "0.13", features = ["blocking", "gzip"] }
 serde_json = { workspace = true }
