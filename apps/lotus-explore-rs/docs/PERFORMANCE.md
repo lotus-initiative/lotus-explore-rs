@@ -1,7 +1,7 @@
 # LOTUS performance
 
 Every number here was measured, not estimated. The recipe that produces the byte
-table is `cargo make web-bytes`; the Lighthouse figures come from a static server that
+table is `./mk web-bytes`; the Lighthouse figures come from a static server that
 negotiates the precompressed `.br` siblings, because the Dioxus dev server
 serves neither the `.br` files nor `_headers` and therefore overstates every
 transfer.
@@ -47,7 +47,7 @@ run-to-run spread of a metric whose dominant term is a 2.3 s download.
 ## What was tried and rejected
 
 Each of these was built and measured rather than reasoned about. Sizes are
-`cargo make web-bytes` output for a release `dx build`.
+`./mk web-bytes` output for a release `dx build`.
 
   | Experiment                        | raw     | br     | gz     | verdict                  |
   | --------------------------------- | ------- | ------ | ------ | ------------------------ |
@@ -60,7 +60,7 @@ Each of these was built and measured rather than reasoned about. Sizes are
 All of the above were taken with a bare `dx build`. The release build --- the
 path the Dockerfile runs --- was compiling at `opt-level=s` for part of this
 work, so its outputs came out 185300 raw bytes larger. The `opt-level=z` row is
-the one that ships, and `cargo make opt-levels` now keeps the three declarations in
+the one that ships, and `./mk opt-levels` now keeps the three declarations in
 agreement.
 
 ### `opt-level = "s"` is not the counter-intuitive win it is claimed to be
@@ -72,7 +72,7 @@ LCP is transfer-bound and the last 4 % of transfer is worth \~80 ms, the larger
 binary is simply worse on the only axis that matters. `opt-level = "z"` stays,
 in `Cargo.toml`, in `Dioxus.toml`'s `wasm_opt.level`, and in the `--rustc-args`
 of every `dx` invocation in `make/web.toml`, so all three entry points agree.
-`cargo make opt-levels` asserts it and is in the gate.
+`./mk opt-levels` asserts it and is in the gate.
 
 ### `panic = "abort"` cannot shrink this module
 
@@ -183,7 +183,7 @@ appends `--rustc-args` last, so the justfile wins and the profile is decorative.
 They drifted: the justfile said `s`, the profile said `z`, and every every
 release build shipped a module 185300 raw / 27843 brotli bytes larger than
 intended. CI stayed green, because each file was individually valid and nothing
-compared them. `cargo make opt-levels` now runs in `ci` and fails on any disagreement.
+compared them. `./mk opt-levels` now runs in `ci` and fails on any disagreement.
 
 The cost was not only the bytes. A bare `dx build` and the release build were
 compiling at different levels from identical source, so they produced different
@@ -228,9 +228,9 @@ ETag the repeats become 304s and the same page measures 499 KB.
 Any harness that serves the bundle must send a validator, or it will report a
 phantom cost. The other thing to know is that `build.rs` runs
 `clean_dx_output()`, which deletes `target/dx/<app>/<profile>/web/public` on
-*any* wasm compile of the app. `cargo make ci` runs
+*any* wasm compile of the app. `./mk ci` runs
 `cargo check --target wasm32-unknown-unknown`, so the CI gate silently destroys
-the last `dx` bundle. Always run `dx build` after `cargo make ci` if you intend to
+the last `dx` bundle. Always run `dx build` after `./mk ci` if you intend to
 measure afterwards.
 
 ## Render path

@@ -77,7 +77,7 @@ docker run --rm -it \\
   lotus-explore-rs:local
 """
 
-# The CLI, as a container. `cargo make cli` is the same query against the same
+# The CLI, as a container. `./mk cli` is the same query against the same
 # crates without the image; this is what proves the image is not a different
 # build.
 [tasks."docker-cli"]

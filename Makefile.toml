@@ -1,6 +1,6 @@
-# Task runner for lotus-explore-rs. `cargo make <task>`.
+# Task definitions for lotus-explore-rs. Run them with `./mk <task>`.
 #
-# This is the single list of what CI runs. The workflow calls `cargo make ci`
+# This is the single list of what CI runs. The workflow calls `./mk ci`
 # and nothing else, so a check that is green locally and red in a pipeline, or
 # the reverse, cannot happen by drift: there is one command.
 #
@@ -10,7 +10,7 @@
 # The tasks are split across `make/*.toml` by concern. This file holds the
 # shared configuration and the gate itself.
 #
-# Run `cargo make --list-all-steps` for the current list rather than reading
+# Run `./mk --list-all-steps` for the current list rather than reading
 # this file: it is the one that cannot go stale.
 
 # The task files, one per concern.
@@ -48,7 +48,7 @@ REPO_ROOT = "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}"
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = "true"
 
 # ── The gate ─────────────────────────────────────────────────────────────────
-# `cargo make ci` is exactly what .github/workflows/ci.yml runs, in the same
+# `./mk ci` is exactly what .github/workflows/ci.yml runs, in the same
 # order. Everything here needs no network access.
 
 [tasks."ci"]

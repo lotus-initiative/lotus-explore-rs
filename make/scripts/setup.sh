@@ -53,7 +53,7 @@ install_tool() {
 
 # Test runner. Without this every other task that mentions tests is wrong.
 install_tool cargo-nextest 0.9.146
-# This task runner. Installing it is a chicken-and-egg for `cargo make setup`,
+# This task runner. Installing it is a chicken-and-egg for `./mk setup`,
 # which is why the first thing to try is a plain `cargo install`.
 install_tool cargo-make 0.37.24
 
@@ -123,4 +123,4 @@ fi
 echo
 echo "Installed. The tasks are:"
 echo
-cargo make --list-all-steps
+./mk --list-all-steps

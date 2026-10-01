@@ -140,11 +140,11 @@ fn every_relative_link_resolves() -> Result<(), String> {
 
 #[test]
 fn every_documented_task_exists() -> Result<(), String> {
-    // A `cargo make <task>` named in the developer docs has to exist, or the
+    // An `./mk <task>` named in the developer docs has to exist, or the
     // instructions cannot be followed. This is the same drift check the old
     // justfile version did, ported to the task runner: a doc that says
-    // `cargo make mutants` and a makefile with no `mutants` task is a
-    // contributor copying a command that fails.
+    // `./mk mutants` and a makefile with no `mutants` task is a contributor
+    // copying a command that fails.
     //
     // It scans every document `DOCUMENTS` lists, not just the two at the root,
     // because the task names moved into `apps/lotus-explore-rs/README.md` and
@@ -190,7 +190,7 @@ fn every_documented_task_exists() -> Result<(), String> {
             continue;
         };
         for (index, line) in text.lines().enumerate() {
-            let Some(rest) = line.split("cargo make ").nth(1) else {
+            let Some(rest) = line.split("./mk ").nth(1) else {
                 continue;
             };
             let task: String = rest
@@ -205,7 +205,7 @@ fn every_documented_task_exists() -> Result<(), String> {
                 continue;
             }
             if !tasks.iter().any(|t| t == &task) {
-                missing.push(format!("{name}:{}: cargo make {task}", index + 1));
+                missing.push(format!("{name}:{}: ./mk {task}", index + 1));
             }
         }
     }

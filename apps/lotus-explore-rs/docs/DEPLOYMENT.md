@@ -100,7 +100,7 @@ cargo nextest run -p lotus-explore-rs --test buildrs
   following the source is caught without touching the real config.
 
 There is no separate step for these: the `buildrs` target is declared in
-`apps/lotus-explore-rs/Cargo.toml` and runs under `cargo make test` and CI. It
+`apps/lotus-explore-rs/Cargo.toml` and runs under `./mk test` and CI. It
 needs declaring because the test target has to name a file other than
 `build.rs` — a path that is both a build script and a test target makes Cargo
 warn — and because the tests have to be somewhere Cargo will compile. Run it

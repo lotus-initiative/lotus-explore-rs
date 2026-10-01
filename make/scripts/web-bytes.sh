@@ -7,7 +7,7 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 out="target/dx/lotus-explore-rs/release/web/public"
 if [ ! -f "$out/index.html" ]; then
-  echo "no build at $out -- run 'cargo make web-build' first" >&2
+  echo "no build at $out -- run './mk web-build' first" >&2
   exit 1
 fi
 # `dx build` leaves a superseded bundle beside the current one, which inflates

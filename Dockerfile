@@ -209,7 +209,7 @@ COPY . .
 # vendor prefixes in the stylesheet every page loads.
 #
 # `-Copt-level=z` is asserted against `[profile.release]` and `[web.wasm_opt]`
-# by `cargo make opt-levels`, because `dx` passes `--rustc-args` last and would
+# by `./mk opt-levels`, because `dx` passes `--rustc-args` last and would
 # otherwise silently win over both.
 RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     cd apps/lotus-explore-rs && \

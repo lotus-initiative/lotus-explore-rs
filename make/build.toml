@@ -56,8 +56,12 @@ RUSTDOCFLAGS="-D warnings -D rustdoc::broken_intra_doc_links" \\
 [tasks."doc-open"]
 cwd = "${REPO_ROOT}"
 description = "Build the documentation and print the path to open it."
+# `cargo make doc` rather than a dependency on the `doc` task: a task listed in
+# `dependencies` is the better shape, but this one exists only to print a path
+# afterwards, and re-entering the task runner here would run the whole thing a
+# second time.
 script = """
-cargo make doc
+cargo doc --workspace --no-deps --locked
 echo
 echo "open target/doc/lotus_query/index.html"
 """

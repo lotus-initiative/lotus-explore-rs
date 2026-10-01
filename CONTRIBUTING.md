@@ -11,20 +11,20 @@ curation vocabulary precisely so that a query the explorer runs and a query
 ## Running the checks
 
 ```bash
-cargo make setup   # once: installs every tool, at a pinned version
-cargo make ci      # every check CI runs, in order
+./mk setup   # once: installs every tool, at a pinned version
+./mk ci      # every check CI runs, in order
 ```
 
-`cargo make ci` is exactly what the CI workflow runs — the workflow calls this
+`./mk ci` is exactly what the CI workflow runs — the workflow calls this
 one command, so a check that is green locally and red in a pipeline cannot happen
 by drift. It covers formatting (rustfmt and tombi), compilation, clippy with
 warnings denied, tests, docs, SPDX headers, citation metadata, the wasm builds,
 and the supply-chain checks. It needs no network access.
 
-`cargo make --list-all-steps` is the list of tasks. It is the authoritative one;
+`./mk --list-all-steps` is the list of tasks. It is the authoritative one;
 the summary above is not, because a copied list is a list that goes stale.
 
-If it is slow, `cargo make test` and `cargo make lint` are the two that matter
+If it is slow, `./mk test` and `./mk lint` are the two that matter
 most. The git hooks run the same tasks before a push — see `prek.toml`, which
 delegates to them rather than repeating the cargo flags — so most failures are
 caught before they reach CI.
@@ -34,7 +34,7 @@ caught before they reach CI.
 The test suite runs under [`cargo-nextest`](https://nexte.st), which runs each
 test in its own process and in parallel; it is roughly twice as fast as
 `cargo test` on this workspace. nextest does **not** run doctests, so
-`cargo make test` runs the two in sequence, and so does every other place tests
+`./mk test` runs the two in sequence, and so does every other place tests
 run:
 
 ```bash
@@ -54,12 +54,12 @@ retry policy are both covered without touching the network. If you find yourself
 wanting to make a test hit a real endpoint, the thing to reach for is a fixture.
 
 ```bash
-cargo make metadata-write   # regenerate codemeta.json and CITATION.cff
+./mk metadata-write   # regenerate codemeta.json and CITATION.cff
 ```
 
 ### The one thing that does need the network
 
-`cargo make desktop` and the deploy fetch ~115 MB of third-party frontend assets —
+`./mk desktop` and the deploy fetch ~115 MB of third-party frontend assets —
 Ketcher, RDKit, Citation.js — from four hosts. That is the only part of the gate
 that reaches out, and it has been the source of intermittent failures: a single
 reset connection failed a build that had nothing wrong with the commit.
@@ -132,7 +132,7 @@ Every `.rs` file starts with exactly:
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 ```
 
-`cargo make license-headers` and CI both enforce it. Run it rather than fixing by
+`./mk license-headers` and CI both enforce it. Run it rather than fixing by
 hand after the fact.
 
 ## Style

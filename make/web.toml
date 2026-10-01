@@ -3,7 +3,7 @@
 # `dx` is the Dioxus CLI, pinned to the same 0.7.10 as the `dioxus` dependency
 # in the root manifest. `dx` is the binary `dioxus-cli` installs and is not
 # published to crates.io, so `cargo binstall dx@0.7.10` does not resolve and
-# `cargo make setup` installs `dioxus-cli` instead.
+# `./mk setup` installs `dioxus-cli` instead.
 
 # fetch-assets must run from the app crate's directory so its relative asset
 # directories land inside `apps/lotus-explore-rs/public`, not at the repo-root
@@ -216,6 +216,16 @@ exec bash "make/scripts/verify-bundle.sh"
 [tasks."cli"]
 cwd = "${REPO_ROOT}"
 description = "Run the lotus CLI. Arguments after -- are passed straight through."
+# The `--` in `$@` is cargo-make's own separator between the task name and the
+# arguments, so `./mk cli -- search --taxon x` would pass `--` to the binary as
+# well and it would fail with "unrecognized subcommand '--help'". Drop it, and
+# only it: a `--` the caller meant for the binary's own arguments is in second
+# position and stays.
 script = """
-cargo run --locked -q -p lotus-cli --bin lotus -- "$@"
+args=()
+for a in "$@"; do
+  [ "$a" = "--" ] && continue
+  args+=("$a")
+done
+exec cargo run --locked -q -p lotus-cli --bin lotus -- "${args[@]}"
 """

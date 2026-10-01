@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The local gate, the git hooks and the CI gate must be the same gate.
 //!
-//! `cargo make ci`, `prek.toml` and `.github/workflows/ci.yml` are three
+//! `./mk ci`, `prek.toml` and `.github/workflows/ci.yml` are three
 //! hand-maintained lists of the same checks, and hand-maintained lists drift.
 //! They had: the local gate ran checks CI did not, CI ran a job the local gate
 //! did not, four gated tasks had no hook at all, and the desktop job had no
@@ -11,7 +11,7 @@
 //!
 //! `MAPPING` below is the correspondence, written out once. These tests hold it
 //! to three things: it covers every CI job, every task it names really exists,
-//! and `cargo make ci` runs exactly the part of it meant to be local. Adding a
+//! and `./mk ci` runs exactly the part of it meant to be local. Adding a
 //! check to one file and forgetting the others now fails the build.
 //!
 //! The scraping is textual rather than a parse. The app crate has no YAML or
@@ -45,7 +45,7 @@ fn read(path: &str) -> Result<String> {
 /// `make/`.
 ///
 /// Read as a set rather than through the task runner because these tests are
-/// about the *source* of truth. Asking `cargo make --list-all-steps` would be
+/// about the *source* of truth. Asking `./mk --list-all-steps` would be
 /// asking the thing under test to confirm itself, and a task runner that
 /// silently loaded no files -- which is what cargo-make does when `extend` is
 /// not the first key -- would then report an empty list and pass everything.
@@ -70,7 +70,7 @@ fn makefiles() -> Result<String> {
 /// The `dependencies` of a task, read from its `[tasks."<name>"]` block.
 ///
 /// Parsed by finding the table header and reading until the next one, rather
-/// than by looking for `cargo make <name>` anywhere in the file: a task that
+/// than by looking for the task name anywhere in the file: a task that
 /// *calls* another is not the same as a task that *depends on* it, and the
 /// difference is exactly the drift being looked for.
 fn task_dependencies(makefiles: &str, task: &str) -> Result<BTreeSet<String>> {
@@ -118,12 +118,12 @@ fn all_tasks(makefiles: &str) -> BTreeSet<String> {
 
 /// The tasks `prek.toml` delegates to.
 ///
-/// Every hook is `cargo make <task>` with no cargo flags of its own, so the flags
+/// Every hook is `./mk <task>` with no cargo flags of its own, so the flags
 /// cannot drift -- that is the point of delegating. What can still drift is the
 /// *name*: a hook pointing at a task that no longer exists fails on every push,
-/// and a new check can go into `cargo make ci` with no hook to catch it before
+/// and a new check can go into `./mk ci` with no hook to catch it before
 /// the commit lands.
-/// The `cargo make` tasks a `prek.toml` hook delegates to.
+/// The tasks a `prek.toml` hook delegates to, via `./mk`.
 fn hooked_tasks(hooks: &str) -> BTreeSet<String> {
     hooked_entry_tasks(hooks)
 }
@@ -136,7 +136,7 @@ fn covered_by_a_hook(hooks: &str) -> BTreeSet<String> {
     let mut covered = hooked_entry_tasks(hooks);
     // `typos` and `tombi` are covered by prek's own repo hooks rather than by a
     // `cargo make` delegation: prek installs and runs those tools itself. The
-    // gate still has a `cargo make typos` task for CI, but the *pre-commit*
+    // gate still has a an `./mk typos` task for CI, but the *pre-commit*
     // coverage comes from the repo hook. Counting them here is what stops
     // `every_gated_task_has_a_hook` demanding a duplicate delegation for a task
     // that is already covered twice.
@@ -154,7 +154,7 @@ fn covered_by_a_hook(hooks: &str) -> BTreeSet<String> {
 fn hooked_entry_tasks(hooks: &str) -> BTreeSet<String> {
     let mut tasks = BTreeSet::new();
     for line in hooks.lines() {
-        if let Some((_, rest)) = line.split_once("entry = \"cargo make ") {
+        if let Some((_, rest)) = line.split_once("entry = \"./mk ") {
             let name: String = rest
                 .chars()
                 .take_while(|c| c.is_ascii_alphanumeric() || *c == '-')
@@ -187,7 +187,7 @@ fn ci_jobs(yaml: &str) -> Result<BTreeSet<String>> {
         .collect())
 }
 
-/// The `cargo make <task>` commands a CI job runs.
+/// The `./mk <task>` commands a CI job runs.
 ///
 /// A job that calls no task is not covered by `MAPPING` in a way this can check,
 /// so it is caught here instead: every job in the workflow is either running a
@@ -207,8 +207,8 @@ fn tasks_a_job_runs(yaml: &str, job: &str) -> BTreeSet<String> {
         if !inside {
             continue;
         }
-        // Both `run: cargo make x` and `- run: cargo make x` appear.
-        if let Some((_, rest)) = line.split_once("cargo make ") {
+        // Both `run: ./mk x` and `- run: ./mk x` appear.
+        if let Some((_, rest)) = line.split_once("./mk ") {
             let name: String = rest
                 .chars()
                 .take_while(|c| c.is_ascii_alphanumeric() || *c == '-')
@@ -233,8 +233,8 @@ struct Job {
     name: &'static str,
     /// Tasks whose combined commands are what this job runs.
     tasks: &'static [&'static str],
-    /// `false` for the jobs `cargo make ci` deliberately leaves to
-    /// `cargo make ci-slow`, or that CI runs and the local gate cannot.
+    /// `false` for the jobs `./mk ci` deliberately leaves to
+    /// `./mk ci-slow`, or that CI runs and the local gate cannot.
     in_local_gate: bool,
     /// Why, for a job that is not in the local gate. Asserted non-empty.
     note: &'static str,
@@ -358,9 +358,7 @@ fn every_ci_job_runs_a_task_that_exists() -> Result<()> {
     for job in ci_jobs(&yaml)? {
         for task in tasks_a_job_runs(&yaml, &job) {
             if !defined.contains(&task) {
-                bad.push(format!(
-                    "{job} runs `cargo make {task}`, which does not exist"
-                ));
+                bad.push(format!("{job} runs `./mk {task}`, which does not exist"));
             }
         }
     }
@@ -370,28 +368,35 @@ fn every_ci_job_runs_a_task_that_exists() -> Result<()> {
 
 #[test]
 fn every_ci_job_runs_something() -> Result<()> {
-    // A job that runs no `cargo make` task is a job that is not covered by
-    // `MAPPING`, whatever its name says. The `msrv` job is the one place this
-    // could be legitimate, and it is listed as running `check` and
-    // `test-nextest` above, so it is expected to be found here too.
+    // A job that runs no task is a job that nothing holds to the local gate,
+    // whatever its name says.
+    //
+    // `msrv` is the one legitimate exception and it has to be named here: it
+    // builds with the *oldest* supported toolchain, while `./mk` inherits the
+    // pinned one from `rust-toolchain.toml`, so it spells its two commands out
+    // instead. An exception that is not written down is an exception that
+    // nobody is checking, which is what `MAPPING` is for everywhere else.
+    const EXEMPT: &[&str] = &["msrv"];
+
     let yaml = read(".github/workflows/ci.yml")?;
     let mut silent = Vec::new();
     for job in ci_jobs(&yaml)? {
-        if tasks_a_job_runs(&yaml, &job).is_empty() {
+        if !EXEMPT.contains(&job.as_str()) && tasks_a_job_runs(&yaml, &job).is_empty() {
             silent.push(job);
         }
     }
     assert!(
         silent.is_empty(),
-        "these CI jobs run no `cargo make` task, so nothing holds them to the \
-         local gate: {silent:?}"
+        "these CI jobs run no `./mk` task, so nothing holds them to the local \
+         gate: {silent:?}. Either give it a task or add it to EXEMPT with a \
+         reason."
     );
     Ok(())
 }
 
 #[test]
 fn the_local_gate_runs_exactly_the_mapped_local_jobs() -> Result<()> {
-    // The `ci` job runs `cargo make ci`, and `ci` is a fan-out over the leaf
+    // The `ci` job runs `./mk ci`, and `ci` is a fan-out over the leaf
     // checks. So the comparison is between what `ci` *depends on* and the union
     // of the local rows: the leaf tasks for the `ci` row (which is the gate
     // itself), and the named tasks for every other local row.
@@ -427,7 +432,7 @@ fn the_local_gate_runs_exactly_the_mapped_local_jobs() -> Result<()> {
 
     assert!(
         missing.is_empty() && extra.is_empty(),
-        "`cargo make ci` and MAPPING disagree. In MAPPING but not in `ci`: \
+        "`./mk ci` and MAPPING disagree. In MAPPING but not in `ci`: \
          {missing:?}. In `ci` but not accounted for: {extra:?}. Add a row to \
          MAPPING or LOCAL_ONLY rather than editing the task alone."
     );
@@ -500,7 +505,7 @@ fn every_gated_task_has_a_hook() -> Result<()> {
     let missing: Vec<String> = ci.into_iter().filter(|t| !covered.contains(t)).collect();
     assert!(
         missing.is_empty(),
-        "`cargo make ci` runs {missing:?} with no prek hook. Add one at the \
+        "`./mk ci` runs {missing:?} with no prek hook. Add one at the \
          stage matching its cost, so the failure happens before the push."
     );
     Ok(())
@@ -531,7 +536,7 @@ fn the_exceptions_are_all_real() -> Result<()> {
         if !AGGREGATES.contains(task) {
             assert!(
                 run.contains(*task),
-                "LOCAL_ONLY names `{task}`, which `cargo make ci` does not run"
+                "LOCAL_ONLY names `{task}`, which `./mk ci` does not run"
             );
         }
     }
@@ -552,7 +557,7 @@ fn a_job_that_calls_a_tool_installs_it() -> Result<()> {
     // every job that calls a tool directly must install that tool too. The
     // install line is a `taiki-e/install-action` `tool:` entry.
     const TOOLS: &[(&str, &str)] = &[
-        ("cargo make ", "cargo-make@"),
+        ("./mk ", "cargo-make@"),
         ("cargo nextest ", "cargo-nextest@"),
         ("dx build", "dioxus-cli@"),
         ("cargo mutants", "cargo-mutants@"),
@@ -587,7 +592,7 @@ fn the_declarations_are_not_vacuous() -> Result<()> {
     // So a scraper that silently finds nothing cannot pass everything.
     let makefiles = makefiles()?;
     let ci = task_dependencies(&makefiles, "ci")?;
-    assert!(ci.len() >= 12, "`cargo make ci` looks truncated: {ci:?}");
+    assert!(ci.len() >= 12, "`./mk ci` looks truncated: {ci:?}");
     assert!(MAPPING.len() >= 5, "MAPPING looks truncated");
     assert!(
         all_tasks(&makefiles).len() >= 40,

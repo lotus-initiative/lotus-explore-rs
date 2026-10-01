@@ -48,7 +48,7 @@ Rust 1.98.1 with `clippy`, `rustfmt` and `wasm32-unknown-unknown`, pinned in
 `rust-toolchain.toml`. Everything else is installed for you:
 
 ```bash
-cargo make setup
+./mk setup
 ```
 
 That installs the test runner, the task runner, the linters and the supply-chain
@@ -57,14 +57,14 @@ is not needed, because Dioxus builds the Tailwind itself.
 
 ## Working on it
 
-`cargo make ci` is every check CI runs, in order. It needs no network access.
+`./mk ci` is every check CI runs, in order. It needs no network access.
 
 ```bash
-cargo make ci       # formatting, clippy, tests, docs, wasm, supply chain
-cargo make mutants  # mutation testing: a passing test run cannot tell you this
+./mk ci       # formatting, clippy, tests, docs, wasm, supply chain
+./mk mutants  # mutation testing: a passing test run cannot tell you this
 ```
 
-`cargo make --list-all-steps` is the list of tasks. It is the authoritative one:
+`./mk --list-all-steps` is the list of tasks. It is the authoritative one:
 a copy of it in this file would be a copy that goes stale.
 
 [`CONTRIBUTING.md`](CONTRIBUTING.md) has the full list, where a change belongs, and how to

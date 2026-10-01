@@ -17,7 +17,7 @@ cd "$(git rev-parse --show-toplevel)"
 profile="${1:-debug}"
 root="target/dx/lotus-explore-rs/$profile"
 if [ ! -d "$root" ]; then
-  echo "no build at $root -- run 'cargo make desktop' first" >&2
+  echo "no build at $root -- run './mk desktop' first" >&2
   exit 1
 fi
 

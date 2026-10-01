@@ -55,7 +55,7 @@ Two things are specific to the web build:
 ## Desktop
 
 ```bash
-cargo make web-dev-desktop  # from the repo root
+./mk web-dev-desktop  # from the repo root
 # equivalently, from apps/lotus-explore-rs:
 dx serve --package lotus-explore-rs --desktop --locked --features desktop
 ```

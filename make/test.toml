@@ -2,7 +2,7 @@
 #
 # nextest does not run doctests. That is not a small gap here: each library
 # crate's README is its crate documentation via `#![doc = include_str!]`, and
-# the example in it is a doctest. `cargo make test` therefore runs nextest and
+# the example in it is a doctest. `./mk test` therefore runs nextest and
 # then `cargo test --doc`, in that order, and so does CI. Dropping the second
 # line leaves the READMEs unchecked and nothing notices.
 

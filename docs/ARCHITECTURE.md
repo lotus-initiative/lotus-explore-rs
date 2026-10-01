@@ -69,11 +69,11 @@ odd otherwise:
   documented example is run with `--explain` appended.
 
 ```bash
-cargo make ci        # everything the pipeline runs
-cargo make metadata  # codemeta.json and CITATION.cff are current
+./mk ci        # everything the pipeline runs
+./mk metadata  # codemeta.json and CITATION.cff are current
 ```
 
-The full task list is `cargo make --list-all-steps`; it is not copied here so
+The full task list is `./mk --list-all-steps`; it is not copied here so
 that it cannot go stale.
 
 ## See also
