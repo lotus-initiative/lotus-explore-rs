@@ -556,11 +556,17 @@ fn a_job_that_calls_a_tool_installs_it() -> Result<()> {
     // Every job that runs a `cargo make` task must install `cargo-make`, and
     // every job that calls a tool directly must install that tool too. The
     // install line is a `taiki-e/install-action` `tool:` entry.
+    //
+    // Matched without the `@version`. The workflow installs these unpinned, so
+    // `cargo-make` is the entry and `cargo-make@0.37.24` would also be one; this
+    // checks that the tool is installed at all, which is the part that decides
+    // whether the job runs. Which version it resolves to is install-action's
+    // business, and pinning it here is a second place to update.
     const TOOLS: &[(&str, &str)] = &[
-        ("./mk ", "cargo-make@"),
-        ("cargo nextest ", "cargo-nextest@"),
-        ("dx build", "dioxus-cli@"),
-        ("cargo mutants", "cargo-mutants@"),
+        ("./mk ", "cargo-make"),
+        ("cargo nextest ", "cargo-nextest"),
+        ("dx build", "dioxus-cli"),
+        ("cargo mutants", "cargo-mutants"),
     ];
 
     let yaml = read(".github/workflows/ci.yml")?;

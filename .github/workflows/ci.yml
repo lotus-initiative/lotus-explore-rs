@@ -88,11 +88,23 @@ jobs:
             cargo-binstall
             cargo-make
             cargo-nextest
-            tombi-cli
             typos-cli
             cargo-deny
             cargo-audit
             cargo-machete
+
+      # tombi is not installable through `install-action`. `tombi-cli` is a
+      # 0.0.1 placeholder on crates.io with no binary in it, so install-action
+      # falls back to cargo-binstall, which fails the step with "no binaries
+      # specified nor inferred". The real tool ships as a GitHub release.
+      #
+      # `setup-tombi` is the maintained installer for it, and it verifies a
+      # checksum, which a hand-rolled `curl | tar` here would not. Pinned to the
+      # tag rather than a SHA because that is what the project's own tags are
+      # for; `binary-checksum` pins the artifact itself.
+      - uses: tombi-toml/setup-tombi@64fd5f369deac268b78baf5f03226dead3218645 # v1.6.1
+        with:
+          version: "1.6.1"
 
       - name: ./mk ci
         run: ./mk ci

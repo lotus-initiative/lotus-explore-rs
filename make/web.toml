@@ -12,7 +12,11 @@
 [tasks."assets"]
 cwd = "${REPO_ROOT}"
 description = "Fetch the third-party frontend assets (Ketcher, RDKit, citation.js)."
+# The shebang is load-bearing. cargo-make runs `script` through `sh`, which is
+# dash on Ubuntu and has no `pipefail`, so the task dies on line one there while
+# passing on macOS where `sh` is bash. Same shape as the `license-headers` task.
 script = """
+#!/usr/bin/env bash
 set -euo pipefail
 cd apps/lotus-explore-rs
 # The retry is for the failure `fetch-assets` cannot see: a run cut off part way
@@ -118,7 +122,9 @@ dependencies = ["assets", "lint-desktop", "test-desktop", "desktop-build", "veri
 [tasks."desktop-build"]
 cwd = "${REPO_ROOT}"
 description = "Run dx build for the desktop bundle."
+# Shebang for the same reason as `assets`: `sh` is dash on the CI runners.
 script = """
+#!/usr/bin/env bash
 set -euo pipefail
 cd apps/lotus-explore-rs
 exec dx build --package lotus-explore-rs --desktop --locked --features desktop
