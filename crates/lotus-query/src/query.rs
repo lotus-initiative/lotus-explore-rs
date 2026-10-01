@@ -303,6 +303,16 @@ WHERE {{
 /// with two `FILTER(LANG(…))` passes is the most expensive thing in the query,
 /// and a count that walked it would be slow enough to be rate-limited. The
 /// variables it leaves unbound project as `NULL`, which the `COUNT`s ignore.
+///
+/// The deletion is by literal text, so it is only correct because nothing a
+/// filter needs lives inside the two blocks being deleted. [`with_filters`] binds
+/// what a filter needs outside them: `?c wdt:P2067 ?compound_mass .` for a mass
+/// filter, `?r wdt:P577 ?ref_date .` for a year one, and `?c wdt:P274
+/// ?compound_formula_raw .` for a formula one. A filter reading a variable bound
+/// only inside a deleted block would survive here as a `FILTER` over an unbound
+/// variable and count nothing at all -- which is what the formula filter did
+/// until the third of those bindings was added, and every count on the page read
+/// zero for any search that used one.
 #[must_use]
 pub fn counts_query(base: &str) -> String {
     let Some(select_at) = base.find("SELECT") else {
@@ -367,7 +377,7 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
         let _ = writeln!(required, "?r wdt:P577 ?ref_date .");
     }
 
-    formula_filter(criteria, &mut filters);
+    formula_filter(criteria, &mut required, &mut filters);
 
     if required.is_empty() && filters.is_empty() {
         return base.to_string();
@@ -387,7 +397,11 @@ fn trimmed_strip_closing_brace(base: &str) -> Option<&str> {
 
 /// The formula filter: normalise the formula once, then count elements against
 /// the normalised string.
-fn formula_filter(criteria: &SearchCriteria, out: &mut String) {
+///
+/// Takes `required` as well as `out` because the filter needs a binding that has
+/// to survive into the counts query, and the counts query is built by deleting
+/// text from this one -- see [`counts_query`].
+fn formula_filter(criteria: &SearchCriteria, required: &mut String, out: &mut String) {
     if !criteria.has_formula_filter() {
         return;
     }
@@ -398,6 +412,18 @@ fn formula_filter(criteria: &SearchCriteria, out: &mut String) {
     // The variable names here are part of the query text, and a query's bytes
     // are what a cache key and a shared link are derived from, so they are not
     // renamed for tidiness.
+    //
+    // This triple is the reason the counts were wrong. `?compound_formula_raw` is
+    // bound by an `OPTIONAL` inside `COMPOUND_PROPERTIES`, and `counts_query`
+    // deletes that whole block because it is expensive and display-only -- except
+    // that when a formula filter is active it is neither display-only nor
+    // optional. The counts query kept `FILTER(BOUND(?compound_formula_raw))` over
+    // a variable nothing bound, so it matched no rows and every card on the page
+    // read zero for any search with a formula filter. Re-binding it here, outside
+    // the deleted block and in the same way the mass and year filters bind their
+    // own variables, is what makes it survive.
+    let _ = writeln!(required, "?c wdt:P274 ?compound_formula_raw .");
+
     let _ = writeln!(out, "FILTER(BOUND(?compound_formula_raw))");
     let _ = writeln!(out, "BIND(STR(?compound_formula_raw) AS ?_formula_raw)");
     let _ = writeln!(

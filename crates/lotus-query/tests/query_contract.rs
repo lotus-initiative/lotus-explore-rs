@@ -556,3 +556,118 @@ fn a_single_line_smiles_substructure_search_uses_the_cheap_service() {
         "a molfile substructure search needs the scored path"
     );
 }
+
+/// Every variable a `FILTER` or `BIND` in the counts query names.
+///
+/// Every such variable has to be bound before it is used. The ones
+/// `counts_query` can unbind are the filter machinery's, so this scans only
+/// those two forms and takes every `?name` inside them -- the formula filter
+/// alone names seven.
+fn referenced_variables(query: &str) -> Vec<String> {
+    let mut vars = Vec::new();
+    for line in query.lines() {
+        let t = line.trim_start();
+        if !(t.starts_with("FILTER(") || t.starts_with("BIND(")) {
+            continue;
+        }
+        for part in t.split('?').skip(1) {
+            let name: String = part
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+            // A `?` with no usable name after it is a regex quantifier or
+            // metacharacter, not a variable.
+            if !name.is_empty() && !vars.contains(&name) {
+                vars.push(name);
+            }
+        }
+    }
+    vars
+}
+
+/// Whether `?var` is bound by something in `query`.
+fn bound_in(query: &str, var: &str) -> bool {
+    // A `BIND(… AS ?var)` defines the variable it names.
+    if query.contains(&format!("AS ?{var}")) {
+        return true;
+    }
+    // Otherwise it has to come out of a triple pattern, which this crate always
+    // writes with the variable last: `?c wdt:P274 ?compound_formula_raw .`
+    query
+        .lines()
+        .any(|line| line.trim_end().ends_with(&format!("?{var} .")))
+}
+
+/// The variables each filter reads still have their bindings in the counts query.
+///
+/// `counts_query` deletes two blocks of query text and keeps the filters. A filter
+/// reading a variable bound only inside a deleted block survives as a `FILTER`
+/// over an unbound variable, matches nothing, and makes every count on the page
+/// read zero -- with no error anywhere, because a `FILTER` that rejects every row
+/// is a successful query returning no rows.
+///
+/// That is not hypothetical: the formula filter read `?compound_formula_raw`,
+/// bound only inside `COMPOUND_PROPERTIES`, so every stats card read zero for any
+/// search with a formula filter on. This asserts the pairing for every filter
+/// this crate can build.
+#[test]
+fn every_filter_something_counts_query_keeps_still_has_its_binding() {
+    let filters: [(&str, SearchCriteria); 4] = [
+        (
+            "mass",
+            SearchCriteria {
+                mass_min: 100.0,
+                mass_max: 400.0,
+                ..criteria()
+            },
+        ),
+        (
+            "year",
+            SearchCriteria {
+                year_min: 1990,
+                ..criteria()
+            },
+        ),
+        (
+            "formula halogen",
+            SearchCriteria {
+                formula_enabled: true,
+                cl_state: ElementState::Required,
+                ..criteria()
+            },
+        ),
+        (
+            "formula element range",
+            SearchCriteria {
+                formula_enabled: true,
+                n_min: 2,
+                n_max: 5,
+                ..criteria()
+            },
+        ),
+    ];
+
+    for (name, criteria) in filters {
+        let counts = counts_query(&with_filters(
+            &compounds_by_taxon_query("Q16521"),
+            &criteria,
+            NOW,
+        ));
+
+        assert!(
+            counts.contains("FILTER("),
+            "{name}: the counts query dropped every filter"
+        );
+
+        let vars = referenced_variables(&counts);
+        assert!(!vars.is_empty(), "{name}: no filter variables were found");
+
+        for var in &vars {
+            assert!(
+                bound_in(&counts, var),
+                "{name}: the counts query uses ?{var} but nothing binds it, so \
+                 every row is filtered out and every count reads zero"
+            );
+        }
+    }
+}
