@@ -40,6 +40,10 @@ lotus search --taxon "Isaria cicadae" --year-min 2015 --year-max 2024
   | Flag                                                                           | Meaning                                                          |
   | ---                                                                            | ---                                                              |
   | `--taxon`                                                                      | Scientific name, Wikidata QID, or `*` for every organism         |
+  | `--no-accepted-synonyms`                                                       | Ignore the accepted name's synonyms (`P1420`)                      |
+  | `--no-basionyms`                                                               | Ignore the basionym, the name first described under (`P566`)      |
+  | `--no-protonyms`                                                               | Ignore the original combination, as first published (`P1403`)     |
+  | `--no-replacements`                                                            | Ignore replacement names and what they replaced (`P694`)          |
   | `--structure`                                                                  | SMILES, or an MDL molfile (V2000/V3000)                          |
   | `--structure-search`                                                           | `substructure` or `similarity`                                   |
   | `--threshold`                                                                  | Tanimoto cutoff for a similarity search, 0 to 1                  |
@@ -52,6 +56,29 @@ lotus search --taxon "Isaria cicadae" --year-min 2015 --year-max 2024
   | `--explain`                                                                    | Print the SPARQL and send nothing                                |
   | `--carbon`, `--hydrogen`, `--nitrogen`, `--oxygen`, `--phosphorus`, `--sulfur` | Atom-count range, e.g. `10..20`                                  |
   | `--fluorine`, `--chlorine`, `--bromine`, `--iodine`                            | Halogen presence: `allowed`, `required`, `excluded`              |
+
+A taxon search follows the taxon's *nomenclatural closure* by default: the name
+you gave, plus the other names Wikidata links to it, plus the descendants of all
+of them. That is four independent relationships, each with its own flag:
+
+- **accepted name and its synonyms** (`P1420`) — no chronology; either name may
+  be the older one. So `--taxon "Leontopodium nivale"` also finds the 33
+  compounds filed under its accepted name *Leontopodium alpinum*.
+- **basionym and new combination** (`P566`) — the name the taxon was first
+  described under, and the combination its genus was later moved into. So
+  `--taxon "Houpoea officinalis"` finds the 226 compounds filed under its
+  basionym *Magnolia officinalis*.
+- **original combination / protonym** (`P1403`) — the binomial as first
+  published, before any reclassification.
+- **replacement name** (`P694`, *nomen novum*) and the name it displaced. So
+  `--taxon "Salvia rosmarinus"` finds the 595 compounds filed under *Rosmarinus
+  officinalis*, and the two searches return the same 304 compounds.
+
+Accepted/synonym and old/new are kept apart deliberately: the first is a
+taxonomic judgement that can change, the second a nomenclatural fact that does
+not, and Wikidata stores them under four separate property pairs. Pass any
+`--no-…` flag to switch one relationship off. See
+[TAXON-SEARCH.md](TAXON-SEARCH.md) for the properties and the traversal.
 
 An element range is written `MIN..MAX`, and either end may be omitted:
 `--carbon ..20` is at most 20 carbons, `--carbon 5..` is at least 5. A bare

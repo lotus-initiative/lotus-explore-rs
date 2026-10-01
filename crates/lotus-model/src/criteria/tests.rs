@@ -216,3 +216,120 @@ fn a_taxon_on_its_own_is_not_an_effective_filter() {
     assert!(c.is_searchable());
     assert!(!c.has_effective_filters(crate::YEAR_MIN));
 }
+
+/// The nomenclatural dispatch, checked one relation at a time.
+///
+/// The point of the per-relation pattern is that a *single* relation set to
+/// `true` is not enough: a `for_relation` that returned the wrong field would
+/// still read `true` for whichever relation it aliased, because the other three
+/// are `true` by default. Setting exactly one and checking the other three read
+/// `false` is the only way to see which field each `slot` actually reaches.
+///
+/// This lives here rather than in `lotus-query`'s contract tests because a
+/// mutation run against this crate executes this crate's tests only — the
+/// query-side tests that also observe this dispatch do not run, and the
+/// mutants survive.
+#[test]
+fn for_relation_reads_the_field_the_slot_names() {
+    for relation in crate::taxon_nomenclature::ALL {
+        let mut names = TaxonNomenclature::ALL_OFF;
+        names.set_for_relation(&relation, true);
+
+        for other in crate::taxon_nomenclature::ALL {
+            assert_eq!(
+                names.for_relation(&other),
+                other.id == relation.id,
+                "with only {} set, {} reads {}",
+                relation.id,
+                other.id,
+                other.id == relation.id
+            );
+        }
+    }
+}
+
+/// The inverse of the above: setting one relation must not disturb the others.
+#[test]
+fn set_for_relation_touches_only_the_named_one() {
+    for relation in crate::taxon_nomenclature::ALL {
+        let mut names = TaxonNomenclature::ALL_ON;
+        names.set_for_relation(&relation, false);
+        assert!(
+            !names.for_relation(&relation),
+            "{} was turned off",
+            relation.id
+        );
+        for other in crate::taxon_nomenclature::ALL {
+            if other.id != relation.id {
+                assert!(
+                    names.for_relation(&other),
+                    "{} must survive {} being turned off",
+                    other.id,
+                    relation.id
+                );
+            }
+        }
+    }
+}
+
+/// A newtype around four booleans has to answer two questions, and both are
+/// observable only if the values are allowed to differ.
+#[test]
+fn any_is_false_only_when_all_four_are_off() {
+    assert!(TaxonNomenclature::ALL_ON.any());
+    assert!(!TaxonNomenclature::ALL_OFF.any());
+
+    // One at a time: every single toggle on its own has to be enough.
+    for relation in crate::taxon_nomenclature::ALL {
+        let mut names = TaxonNomenclature::ALL_OFF;
+        names.set_for_relation(&relation, true);
+        assert!(names.any(), "{} alone is enough", relation.id);
+    }
+
+    // And all but one is still enough.
+    for relation in crate::taxon_nomenclature::ALL {
+        let mut names = TaxonNomenclature::ALL_ON;
+        names.set_for_relation(&relation, false);
+        assert!(
+            names.any(),
+            "three on is still on, even without {}",
+            relation.id
+        );
+    }
+}
+
+/// The criteria-level spelling of the same question, which the query builder
+/// and the URL codec both go through.
+#[test]
+fn a_criteria_reports_whether_any_name_is_followed() {
+    let mut c = criteria();
+    assert!(
+        c.has_nomenclatural_relations(),
+        "the default follows all four"
+    );
+
+    c.taxon_names = TaxonNomenclature::ALL_OFF;
+    assert!(!c.has_nomenclatural_relations());
+
+    for relation in crate::taxon_nomenclature::ALL {
+        let mut c = criteria();
+        c.taxon_names = TaxonNomenclature::ALL_OFF;
+        c.taxon_names.set_for_relation(&relation, true);
+        assert!(
+            c.has_nomenclatural_relations(),
+            "{} alone still counts",
+            relation.id
+        );
+    }
+}
+
+/// The four are independent, so a criteria built from one must be able to carry
+/// any of the sixteen combinations. `Default` is the all-on one, because that
+/// is what a search gets when nobody has said otherwise.
+#[test]
+fn the_default_is_every_relationship_on() {
+    assert_eq!(TaxonNomenclature::default(), TaxonNomenclature::ALL_ON);
+    for relation in crate::taxon_nomenclature::ALL {
+        assert!(TaxonNomenclature::ALL_ON.for_relation(&relation));
+    }
+}

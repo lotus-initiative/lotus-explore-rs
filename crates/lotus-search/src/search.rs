@@ -15,8 +15,8 @@ use crate::error::{FetchError, ResponseFormat};
 use crate::result::{SearchRequest, SearchResult, TaxonNote, TaxonResolution};
 use lotus_model::{DatasetStats, SearchCriteria, SmilesSearchType, ValidationError};
 use lotus_query::{
-    all_compounds_query, compounds_by_taxon_query, counts_query, limit_query,
-    structure_search_query, taxon_lookup_query, with_filters,
+    Nomenclature, all_compounds_query, compounds_by_taxon_query_with, counts_query, limit_query,
+    structure_search_query_with, taxon_lookup_query, with_filters,
 };
 use lotus_query::{parse_compounds_csv_capped, parse_counts_csv, parse_taxon_csv};
 
@@ -77,6 +77,7 @@ pub fn normalize_structure(value: &str) -> String {
 /// `qid` is [`TaxonResolution::qid`], and the wildcard `*` means every taxon.
 #[must_use]
 pub fn build_base_query(criteria: &SearchCriteria, qid: Option<&str>) -> String {
+    let nomenclature = Nomenclature::from(criteria);
     match StructurePlan::for_request(criteria) {
         Some(plan) => {
             let taxon = match qid {
@@ -85,10 +86,16 @@ pub fn build_base_query(criteria: &SearchCriteria, qid: Option<&str>) -> String 
                 Some("*") => Some("Q2382443"),
                 other => other,
             };
-            structure_search_query(&plan.structure, plan.search, plan.threshold, taxon)
+            structure_search_query_with(
+                &plan.structure,
+                plan.search,
+                plan.threshold,
+                taxon,
+                &nomenclature,
+            )
         }
         None => match qid {
-            Some(qid) if qid != "*" => compounds_by_taxon_query(qid),
+            Some(qid) if qid != "*" => compounds_by_taxon_query_with(qid, &nomenclature),
             _ => all_compounds_query(),
         },
     }

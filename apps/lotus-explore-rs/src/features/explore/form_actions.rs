@@ -9,6 +9,16 @@ use lotus_model::{ElementState, SearchCriteria, SmilesSearchType};
 pub enum FormAction {
     // Taxon + Structure
     Taxon(String),
+    /// Which nomenclatural relationship the taxon filter follows, and whether
+    /// it is followed at all. One variant for all four rather than one each:
+    /// they are the same decision, and a fifth relationship should not mean a
+    /// fifth line of reducer.
+    TaxonNomenclature {
+        /// The relationship being toggled.
+        relation: &'static lotus_model::taxon_nomenclature::Relation,
+        /// Whether to follow it.
+        on: bool,
+    },
     Smiles(String),
     SmilesSearchType(SmilesSearchType),
     SmilesThreshold(f64),
@@ -50,6 +60,12 @@ pub enum FormAction {
 pub fn apply_form_action_mut(criteria: &mut SearchCriteria, action: FormAction) {
     match action {
         FormAction::Taxon(v) => criteria.taxon = v,
+        // The four are one field, so the reducer dispatches on the relation
+        // rather than naming a field per variant. A new relationship is one
+        // variant here, not five lines of assignment.
+        FormAction::TaxonNomenclature { relation, on } => {
+            criteria.taxon_names.set_for_relation(relation, on);
+        }
         FormAction::Smiles(v) => criteria.structure = v,
         FormAction::SmilesSearchType(v) => criteria.structure_search = v,
         FormAction::SmilesThreshold(v) => criteria.structure_threshold = v,

@@ -30,9 +30,12 @@ pub fn normalize_smiles(raw: &str) -> String {
 /// * If `smiles` is non-empty the Sachem SERVICE query is used.
 /// * Otherwise a taxon-filtered or "all compounds" query is generated.
 pub fn build_sparql_query(smiles: &str, crit: &SearchCriteria, taxon_qid: Option<&str>) -> String {
+    let nomenclature = lotus_query::Nomenclature::from(crit);
     if smiles.is_empty() {
         match taxon_qid {
-            Some(qid) if qid != "*" => lotus_query::compounds_by_taxon_query(qid),
+            Some(qid) if qid != "*" => {
+                lotus_query::compounds_by_taxon_query_with(qid, &nomenclature)
+            }
             _ => lotus_query::all_compounds_query(),
         }
     } else {
@@ -48,11 +51,12 @@ pub fn build_sparql_query(smiles: &str, crit: &SearchCriteria, taxon_qid: Option
             Some(qid) => Some(qid),
             None => None,
         };
-        let q = lotus_query::structure_search_query(
+        let q = lotus_query::structure_search_query_with(
             smiles,
             effective_type,
             crit.structure_threshold,
             taxon_for_sachem,
+            &nomenclature,
         );
         telemetry::query_build_sachem_query_created(q.contains("SERVICE"));
         q

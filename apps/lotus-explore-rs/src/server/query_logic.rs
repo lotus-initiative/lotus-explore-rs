@@ -19,6 +19,20 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
         ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
 
+    // Absent leaves the model default alone, so a caller that omits the
+    // toggles gets the same answer as the UI's default checkboxes.
+    if let Some(v) = req.taxon_accepted_synonyms {
+        c.taxon_names.accepted_synonyms = v;
+    }
+    if let Some(v) = req.taxon_basionyms {
+        c.taxon_names.basionyms = v;
+    }
+    if let Some(v) = req.taxon_protonyms {
+        c.taxon_names.protonyms = v;
+    }
+    if let Some(v) = req.taxon_replacements {
+        c.taxon_names.replacements = v;
+    }
     if let Some(v) = req.smiles_search_type {
         c.structure_search = v.into();
     }
@@ -114,10 +128,11 @@ pub fn build_execution_query(
     resolved_taxon_qid: Option<&str>,
 ) -> String {
     let smiles = normalized_structure_input(&criteria.structure);
+    let nomenclature = lotus_query::Nomenclature::from(criteria);
     let base_query = if smiles.is_empty() {
         match resolved_taxon_qid {
             Some("*") | None => lotus_query::all_compounds_query(),
-            Some(qid) => lotus_query::compounds_by_taxon_query(qid),
+            Some(qid) => lotus_query::compounds_by_taxon_query_with(qid, &nomenclature),
         }
     } else {
         let taxon_for_sachem = match resolved_taxon_qid {
@@ -125,11 +140,12 @@ pub fn build_execution_query(
             Some(qid) => Some(qid),
             None => None,
         };
-        lotus_query::structure_search_query(
+        lotus_query::structure_search_query_with(
             &smiles,
             criteria.structure_search,
             criteria.structure_threshold,
             taxon_for_sachem,
+            &nomenclature,
         )
     };
 

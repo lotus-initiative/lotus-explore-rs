@@ -142,6 +142,11 @@ pub enum TextKey {
     // Search panel
     Taxon,
     TaxonPlaceholder,
+    TaxonNomenclature,
+    TaxonNomenclatureAccepted,
+    TaxonNomenclatureBasionym,
+    TaxonNomenclatureProtonym,
+    TaxonNomenclatureReplacement,
     Examples,
     ExampleSets,
     StructureSmilesOrMol,
@@ -276,8 +281,13 @@ mod tests {
     fn tsv_missing_column_messages_are_localized() {
         for locale in [Locale::En, Locale::Fr, Locale::De, Locale::It] {
             let message = msg_tsv_missing_column(locale, "name");
-            assert!(message.contains("name"));
-            assert!(!message.is_empty());
+            // `contains` already implies non-empty, so this asserts the column
+            // name survived substitution in every locale, which is the thing that
+            // can actually break.
+            assert!(
+                message.contains("name"),
+                "{locale:?} dropped the column name: {message:?}"
+            );
         }
     }
 }

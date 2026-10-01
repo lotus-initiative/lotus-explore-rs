@@ -298,6 +298,9 @@
   .mx-auto {
     margin-inline: auto;
   }
+  .mt-0\.5 {
+    margin-top: calc(var(--spacing) * 0.5);
+  }
   .mt-1 {
     margin-top: var(--spacing-1);
   }
@@ -994,6 +997,9 @@
   }
   .py-3 {
     padding-block: var(--spacing-3);
+  }
+  .pt-1\.5 {
+    padding-top: calc(var(--spacing) * 1.5);
   }
   .pt-3 {
     padding-top: var(--spacing-3);

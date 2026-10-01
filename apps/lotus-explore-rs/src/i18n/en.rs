@@ -83,6 +83,14 @@ pub const fn en_t(key: TextKey) -> &'static str {
         }
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonPlaceholder => "a name, a QID, or * for everything",
+        TextKey::TaxonNomenclature => "Also search other names",
+        TextKey::TaxonNomenclatureAccepted => "accepted name and its synonyms",
+        TextKey::TaxonNomenclatureBasionym => "basionym (name it was first described under)",
+        TextKey::TaxonNomenclatureProtonym => "original combination (name as first published)",
+        TextKey::TaxonNomenclatureReplacement => {
+            "replacement name (nomen novum) and the name it replaced"
+        }
+
         TextKey::Examples => "Examples",
         TextKey::ExampleSets => "Set the field to",
         TextKey::StructureSmilesOrMol => "SMILES or Molfile",

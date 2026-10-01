@@ -88,6 +88,12 @@ pub const fn de_t(key: TextKey) -> &'static str {
         }
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonPlaceholder => "ein Name, eine QID oder * für alles",
+        TextKey::TaxonNomenclature => "Auch unter anderen Namen suchen",
+        TextKey::TaxonNomenclatureAccepted => "akzeptierter Name und seine Synonyme",
+        TextKey::TaxonNomenclatureBasionym => "Basionym (der Name der Erstbeschreibung)",
+        TextKey::TaxonNomenclatureProtonym => "Originalkombination (der Name bei Erstpublikation)",
+        TextKey::TaxonNomenclatureReplacement => "Ersatzname (nomen novum) und der ersetzte Name",
+
         TextKey::Examples => "Beispiele",
         TextKey::ExampleSets => "Feld auf",
         TextKey::StructureSmilesOrMol => "SMILES oder Molfile",

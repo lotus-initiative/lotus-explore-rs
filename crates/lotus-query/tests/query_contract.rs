@@ -14,9 +14,10 @@
 use lotus_model::element_max;
 use lotus_model::{ElementState, SearchCriteria, SmilesSearchType};
 use lotus_query::{
-    all_compounds_query, compounds_by_taxon_query, construct_from_select, counts_query,
-    escape_structure_literal, export_query, is_reference_lookup, limit_query,
-    structure_search_query, taxon_lookup_query, with_filters,
+    Nomenclature, all_compounds_query, compounds_by_taxon_query, compounds_by_taxon_query_with,
+    construct_from_select, counts_query, escape_structure_literal, export_query,
+    is_reference_lookup, limit_query, structure_search_query, structure_search_query_with,
+    taxon_lookup_query, with_filters,
 };
 
 const NOW: u16 = 2026;
@@ -42,11 +43,6 @@ fn base_body(query: &str) -> &str {
 #[test]
 fn the_compound_query_is_three_levels_deep() {
     for query in [all_compounds_query(), compounds_by_taxon_query("Q16521")] {
-        assert_eq!(
-            subquery_depth(&query),
-            3,
-            "SELECT plus two nested subqueries"
-        );
         assert!(query.contains("?c wdt:P235 ?compound_inchikey"));
         assert!(query.contains("?c p:P703 ?statement"));
         assert!(query.contains("?statement ps:P703 ?t"));
@@ -63,35 +59,391 @@ fn the_compound_query_is_three_levels_deep() {
 
 #[test]
 fn the_taxon_filter_sits_in_the_innermost_subquery() {
-    let query = compounds_by_taxon_query("Q16521");
-    let ancestry = query.find("P171*").expect("the ancestry filter is present");
+    for query in [
+        compounds_by_taxon_query("Q16521"),
+        compounds_by_taxon_query_with("Q16521", &Nomenclature::ALL_OFF),
+    ] {
+        let ancestry = query.find("P171*").expect("the ancestry filter is present");
 
-    // It has to precede the close of the innermost WHERE, or the endpoint
-    // enriches every row and only then discards most of them.
-    let after_ancestry = &query[ancestry..];
-    let close_of_inner = after_ancestry.find('}').expect("the subquery closes");
-    assert!(
-        close_of_inner
-            > after_ancestry
-                .find("wd:Q16521")
-                .expect("the qid is present"),
-        "the filter is inside the innermost WHERE"
+        // It has to come after the innermost `SELECT` — the one that projects
+        // only what the occurrence asserts — or the endpoint enriches every
+        // row and only then discards most of them. Which is the load-bearing
+        // question whether the QID is a seed, a filter target, or both.
+        let innermost_select = query[..ancestry]
+            .rfind("SELECT")
+            .expect("the innermost subquery opens before the filter");
+        let between = &query[innermost_select..ancestry];
+        assert!(
+            !between.contains("?ref_title") && !between.contains("?compoundLabelMul"),
+            "the display OPTIONAL(s) are not in the innermost projection"
+        );
+    }
+}
+
+/// The `SELECT` plus the two subqueries the query has always nested. A taxon
+/// query with synonyms adds exactly one more, for the expansion — and that is
+/// the only thing that adds a level.
+#[test]
+fn a_taxon_query_is_one_level_deeper_than_the_all_compounds_query() {
+    assert_eq!(subquery_depth(&all_compounds_query()), 3);
+    assert_eq!(
+        subquery_depth(&compounds_by_taxon_query("Q16521")),
+        4,
+        "three, plus the synonym expansion"
     );
+    assert_eq!(
+        subquery_depth(&compounds_by_taxon_query_with(
+            "Q16521",
+            &Nomenclature::ALL_OFF
+        )),
+        3,
+        "the expansion is the only thing that adds a level"
+    );
+}
+
+/// The four relationships, and the one property deliberately left out.
+///
+/// `P1531` (*hybrid of*) is not in the path and must stay out: a hybrid is a
+/// different organism with a parent of its own, so following it answers a
+/// question about breeding history rather than about names. See
+/// `lotus_model::taxon_nomenclature` for the argument in full.
+#[test]
+fn the_closure_covers_every_nomenclatural_property() {
+    let query = compounds_by_taxon_query("Q122679");
+    for relation in lotus_model::taxon_nomenclature::ALL {
+        for (property, prefixed) in relation.properties() {
+            assert!(
+                query.contains(prefixed),
+                "{property} ({}) is in the nomenclatural closure",
+                relation.id
+            );
+        }
+    }
+    assert!(
+        !query.contains("P1531"),
+        "hybrid-of is not a rename and does not belong in the closure"
+    );
+}
+
+/// Each toggle puts exactly its own two properties in the path, and only those.
+///
+/// This is the test that would fail if the four were collapsed back into one
+/// "synonyms" switch: the relationships are independent, and a user who turns
+/// off the basionym should not lose the replacement name with it.
+#[test]
+fn each_toggle_brings_only_its_own_properties() {
+    for (nomenclature, relation) in [
+        (
+            Nomenclature::accepted_synonyms_only(),
+            lotus_model::taxon_nomenclature::ACCEPTED_SYNONYM,
+        ),
+        (
+            Nomenclature::basionyms_only(),
+            lotus_model::taxon_nomenclature::BASIONYM,
+        ),
+        (
+            Nomenclature::protonyms_only(),
+            lotus_model::taxon_nomenclature::PROTONYM,
+        ),
+        (
+            Nomenclature::replacements_only(),
+            lotus_model::taxon_nomenclature::REPLACEMENT,
+        ),
+    ] {
+        let query = compounds_by_taxon_query_with("Q122679", &nomenclature);
+        assert_eq!(
+            query.matches("?seed (").count(),
+            1,
+            "one expansion subquery per search, whatever is enabled"
+        );
+        assert_eq!(
+            relation.properties().len(),
+            2,
+            "each relation is a pair of properties"
+        );
+        for (property, prefixed) in relation.properties() {
+            assert!(query.contains(prefixed), "{property} is present");
+        }
+        for other in lotus_model::taxon_nomenclature::ALL {
+            if other.id == relation.id {
+                continue;
+            }
+            for (property, prefixed) in other.properties() {
+                assert!(
+                    !query.contains(prefixed),
+                    "{property} belongs to {} and must not be here",
+                    other.id
+                );
+            }
+        }
+    }
+}
+
+/// Every enabled property is read in both directions.
+///
+/// Wikidata stores each relationship from both ends, and a curator enters
+/// whichever end they are looking at: `Rosmarinus officinalis` carries `P12764`
+/// toward `Salvia rosmarinus` while `Salvia rosmarinus` carries `P694` back. A
+/// one-way path would find the newer name from the older one and not the
+/// reverse.
+#[test]
+fn the_closure_is_read_in_both_directions() {
+    let query = compounds_by_taxon_query("Q122679");
+    let path = closure_path(&query);
+    for relation in lotus_model::taxon_nomenclature::ALL {
+        for (property, prefixed) in relation.properties() {
+            assert!(
+                path.contains(&format!("{prefixed}|")) || path.ends_with(prefixed),
+                "{property} is read forwards"
+            );
+            assert!(
+                path.contains(&format!("^{prefixed}|")) || path.ends_with(&format!("^{prefixed}")),
+                "{property} is also read backwards"
+            );
+        }
+    }
+}
+
+/// The seed is expanded in its own subquery, and only the resulting handful of
+/// QIDs is handed to `P171*`.
+///
+/// This is the efficiency decision the whole feature rests on, and the two
+/// alternatives are both worse: interleaving the closures as
+/// `(wdt:P171*|SYN*)` re-walks the nomenclatural closure at every node of the
+/// tree, and expanding synonyms for each descendant would admit the other names
+/// of taxa the user never asked about.
+#[test]
+fn the_expansion_is_its_own_subquery() {
+    let query = compounds_by_taxon_query("Q122679");
+
+    let expansion = query
+        .find("VALUES ?seed { wd:Q122679 }")
+        .expect("the seed is a constant, not a join");
+    let root_at = query
+        .find("?t (wdt:P171*) ?root .")
+        .expect("the ancestry filter runs off the expanded roots");
+    assert!(expansion < root_at, "expansion comes first");
+
+    // The expansion's `SELECT` closes and its own `}` follows before the
+    // ancestry filter, so the endpoint evaluates the expansion against one
+    // constant and hands `P171*` a handful of QIDs rather than walking a
+    // combined path from the tree's root.
+    let expansion_block = &query[expansion..root_at];
+    assert!(
+        expansion_block.contains("}\n          }"),
+        "the expansion is a self-contained subquery, closing before P171*"
+    );
+}
+
+/// No predicate is written into the path twice.
+///
+/// A repeated predicate makes the query longer and its cache key different for
+/// no gain, and the closure list is the kind of thing that grows a duplicate
+/// when someone adds a property that is already there.
+#[test]
+fn the_closure_dedupes_its_properties() {
+    let query = compounds_by_taxon_query("Q122679");
+    let path = closure_path(&query);
+    // Each predicate appears exactly twice: once forward, once under `^`. The
+    // count is over the alternatives rather than the text, because `wdt:P1420`
+    // is a substring of `^wdt:P1420` and the text would double-count.
+    let alternatives: Vec<&str> = path.split('|').collect();
+    let mut expected = 0;
+    for relation in lotus_model::taxon_nomenclature::ALL {
+        for (property, prefixed) in relation.properties() {
+            assert_eq!(
+                alternatives.iter().filter(|a| **a == prefixed).count(),
+                1,
+                "{property} is read forward exactly once"
+            );
+            assert_eq!(
+                alternatives
+                    .iter()
+                    .filter(|a| **a == format!("^{prefixed}"))
+                    .count(),
+                1,
+                "{property} is read backward exactly once"
+            );
+            expected += 2;
+        }
+    }
+    assert_eq!(
+        alternatives.len(),
+        expected,
+        "no predicate is written into the path twice"
+    );
+}
+
+/// Turning every relationship off restores the query that was there before,
+/// byte for byte. A user who wants the name as typed should not pay for the
+/// names they did not ask about.
+#[test]
+fn turning_everything_off_restores_the_plain_ancestry_filter() {
+    let off = compounds_by_taxon_query_with("Q122679", &Nomenclature::ALL_OFF);
+    assert!(off.contains("?t (wdt:P171*) wd:Q122679 ."));
+    assert!(!off.contains("VALUES ?seed"), "no seed to expand");
+    for relation in lotus_model::taxon_nomenclature::ALL {
+        for (property, prefixed) in relation.properties() {
+            assert!(!off.contains(prefixed), "{property} is not reached");
+        }
+    }
+    // Same nesting as the no-taxon query: SELECT plus two subqueries.
+    assert_eq!(
+        subquery_depth(&off),
+        subquery_depth(&all_compounds_query()),
+        "adding the options must not deepen the query when they are all off"
+    );
+}
+
+/// On by default, all four of them. `compounds_by_taxon_query` is the form most
+/// call sites use and it must not be the narrow one.
+#[test]
+fn every_relationship_is_included_unless_asked_otherwise() {
+    let criteria = criteria();
+    let names = criteria.taxon_names;
+    assert!(names.accepted_synonyms, "accepted/synonym defaults on");
+    assert!(names.basionyms, "basionym defaults on");
+    assert!(names.protonyms, "original combination defaults on");
+    assert!(names.replacements, "replacement name defaults on");
+    assert!(criteria.has_nomenclatural_relations());
+
+    assert_eq!(
+        Nomenclature::default(),
+        Nomenclature::ALL_ON,
+        "the default is all four"
+    );
+    assert_eq!(
+        compounds_by_taxon_query("Q122679"),
+        compounds_by_taxon_query_with("Q122679", &Nomenclature::ALL_ON),
+        "the default builder and the options agree"
+    );
+}
+
+/// The four are independent: turning one off leaves the other three in the
+/// query. Collapsing them into one switch would make this fail.
+#[test]
+fn turning_one_off_leaves_the_others_alone() {
+    let only_basionym_off =
+        Nomenclature::ALL_ON.without(&lotus_model::taxon_nomenclature::BASIONYM);
+    let query = compounds_by_taxon_query_with("Q122679", &only_basionym_off);
+    for (property, prefixed) in lotus_model::taxon_nomenclature::BASIONYM.properties() {
+        assert!(!query.contains(prefixed), "{property} is switched off");
+    }
+    for relation in [
+        lotus_model::taxon_nomenclature::ACCEPTED_SYNONYM,
+        lotus_model::taxon_nomenclature::PROTONYM,
+        lotus_model::taxon_nomenclature::REPLACEMENT,
+    ] {
+        for (property, prefixed) in relation.properties() {
+            assert!(
+                query.contains(prefixed),
+                "{property} survives an unrelated toggle"
+            );
+        }
+    }
+}
+
+/// The criteria carry the four flags through to the query, which is the whole
+/// job of `Nomenclature::from`.
+#[test]
+fn the_criteria_flags_reach_the_query() {
+    let criteria = SearchCriteria {
+        taxon_names: lotus_model::TaxonNomenclature {
+            basionyms: false,
+            ..lotus_model::TaxonNomenclature::ALL_ON
+        },
+        ..criteria()
+    };
+    let nomenclature = Nomenclature::from(&criteria);
+    assert!(!nomenclature.follows(&lotus_model::taxon_nomenclature::BASIONYM));
+    assert!(nomenclature.follows(&lotus_model::taxon_nomenclature::ACCEPTED_SYNONYM));
+    assert!(nomenclature.follows(&lotus_model::taxon_nomenclature::PROTONYM));
+    assert!(nomenclature.follows(&lotus_model::taxon_nomenclature::REPLACEMENT));
+
+    let query = compounds_by_taxon_query_with("Q122679", &nomenclature);
+    assert!(!query.contains("wdt:P566"), "the basionym is left out");
+    assert!(query.contains("wdt:P1420"), "the rest is untouched");
+}
+
+/// A structure search is run *within* a taxon, and the taxon's closure is the
+/// same set of organisms however the compound was found.
+#[test]
+fn a_structure_search_honours_the_same_relationships() {
+    let on = structure_search_query_with(
+        "CCO",
+        SmilesSearchType::Substructure,
+        0.8,
+        Some("Q122679"),
+        &Nomenclature::ALL_ON,
+    );
+    assert!(on.contains("VALUES ?seed { wd:Q122679 }"));
+    assert!(on.contains("?t (wdt:P171*) ?root ."));
+
+    let off = structure_search_query_with(
+        "CCO",
+        SmilesSearchType::Substructure,
+        0.8,
+        Some("Q122679"),
+        &Nomenclature::ALL_OFF,
+    );
+    assert!(off.contains("?t (wdt:P171*) wd:Q122679 ."));
+    assert!(!off.contains("VALUES ?seed"));
+}
+
+/// The wildcard is not a taxon and has no entity to expand, so it keeps the
+/// root-anchored `P171*` and gains nothing from the closure.
+#[test]
+fn the_all_taxa_wildcard_has_nothing_to_expand() {
+    let query = all_compounds_query();
+    assert!(!query.contains("VALUES ?seed"));
+    for relation in lotus_model::taxon_nomenclature::ALL {
+        for (property, prefixed) in relation.properties() {
+            assert!(!query.contains(prefixed), "{property} is absent");
+        }
+    }
+}
+
+/// The property path inside the expansion subquery, or a panic naming the test.
+fn closure_path(query: &str) -> &str {
+    query
+        .split("?seed (")
+        .nth(1)
+        .and_then(|rest| rest.split(')').next())
+        .expect("the closure is a property path")
+}
+
+/// `P12764` (*replaced synonym of*) and `P694` (*replaced synonym*, the
+/// `nom. nov.` case) record the same relationship, and Wikidata uses both
+/// inconsistently — some replacements are recorded only as `P12764`, with no
+/// `P694` anywhere on the item. A search that read only `P694` would silently
+/// miss those, so both travel together under one toggle.
+#[test]
+fn both_replaced_synonym_properties_travel_together() {
+    let query = compounds_by_taxon_query_with("Q122679", &Nomenclature::replacements_only());
+    assert!(query.contains("wdt:P12764"), "the general property");
+    assert!(query.contains("wdt:P694"), "the nom. nov. case");
 }
 
 #[test]
 fn the_taxon_qid_is_escaped() {
-    let query = compounds_by_taxon_query(r#"Q1" . OPTIONAL { ?s ?p ?o }"#);
-    // A crafted QID must not be able to close the pattern and add its own.
-    assert!(query.contains(r#"wd:Q1\" . OPTIONAL"#));
+    for query in [
+        compounds_by_taxon_query(r#"Q1" . OPTIONAL { ?s ?p ?o }"#),
+        compounds_by_taxon_query_with(r#"Q1" . OPTIONAL { ?s ?p ?o }"#, &Nomenclature::ALL_ON),
+    ] {
+        // A crafted QID must not be able to close the pattern and add its own.
+        assert!(query.contains(r#"wd:Q1\" . OPTIONAL"#));
+    }
 }
 
 #[test]
 fn no_taxon_means_no_ancestry_filter() {
     let query = all_compounds_query();
     assert!(!query.contains("P171*"));
+    assert!(!query.contains("VALUES ?seed"), "nothing to expand");
+    // One shallower than the taxon query, which spends a level on the
+    // expansion. Every other level is the same.
     assert_eq!(
-        subquery_depth(&query),
+        subquery_depth(&query) + 1,
         subquery_depth(&compounds_by_taxon_query("Q16521"))
     );
 }
@@ -112,7 +464,13 @@ fn a_structure_search_without_a_taxon_keeps_optional_occurrences() {
 
 #[test]
 fn a_structure_search_with_a_taxon_requires_the_occurrence() {
-    let query = structure_search_query("CCO", SmilesSearchType::Substructure, 0.8, Some("Q16521"));
+    let query = structure_search_query_with(
+        "CCO",
+        SmilesSearchType::Substructure,
+        0.8,
+        Some("Q16521"),
+        &Nomenclature::ALL_OFF,
+    );
     assert!(
         query.contains("SELECT DISTINCT ?c"),
         "the service is pre-filtered"
@@ -324,8 +682,18 @@ fn the_rdf_export_rewrites_the_outer_select_as_a_construct() {
     let select = compounds_by_taxon_query("Q16521");
     let construct = construct_from_select(&select);
 
-    assert!(!construct.contains("SELECT DISTINCT"));
+    // The *outer* SELECT is the one that becomes a CONSTRUCT. The nested
+    // subqueries keep their own `SELECT DISTINCT` — they are subqueries, not
+    // the result shape — so the assertion is that the CONSTRUCT comes first,
+    // not that the word `SELECT` is gone.
     assert!(construct.contains("CONSTRUCT {"));
+    assert!(
+        construct
+            .find("CONSTRUCT")
+            .expect("a CONSTRUCT was written")
+            < construct.find("SELECT").expect("a nested SELECT survived"),
+        "the outer SELECT is the one that was rewritten"
+    );
     assert!(construct.contains("?c wdt:P235 ?compound_inchikey ."));
     assert!(construct.contains("?statement ps:P703 ?t ;"));
     assert!(construct.contains("?r wdt:P356 ?ref_doi ."));
@@ -334,12 +702,13 @@ fn the_rdf_export_rewrites_the_outer_select_as_a_construct() {
     assert!(construct.contains("AS ?compound_formula)"));
     assert_eq!(
         construct.matches("SELECT").count(),
-        2,
-        "the outer SELECT becomes CONSTRUCT; the inner two stay"
+        3,
+        "the outer SELECT becomes CONSTRUCT; the inner three stay"
     );
-    // Balanced. Three `WHERE`s is right: the CONSTRUCT's own, plus the two the
-    // source query already had as nested subqueries.
-    assert_eq!(construct.matches("WHERE").count(), 3);
+    // Balanced. Four `WHERE`s is right: the CONSTRUCT's own, plus the two the
+    // source query already had as nested subqueries, plus the one the synonym
+    // expansion adds.
+    assert_eq!(construct.matches("WHERE").count(), 4);
     assert_eq!(
         construct.matches('{').count(),
         construct.matches('}').count(),

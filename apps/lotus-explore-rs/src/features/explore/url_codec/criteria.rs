@@ -8,6 +8,10 @@ use std::str::FromStr;
 #[derive(Clone, Debug, Default, PartialEq)]
 struct CriteriaQueryDto {
     taxon: Option<String>,
+    /// The four nomenclatural toggles, `None` when a parameter is absent, so an
+    /// old shared link parses to the model defaults rather than to a search
+    /// that turns things off nobody asked it to.
+    taxon_names: PartialNomenclature,
     structure: Option<String>,
     structure_search_type: Option<SmilesSearchType>,
     structure_threshold: Option<f64>,
@@ -15,6 +19,64 @@ struct CriteriaQueryDto {
     year_filter: Option<RangeU16Dto>,
     formula_filter: Option<FormulaQueryDto>,
     has_explicit_taxon: bool,
+}
+
+/// The four nomenclatural toggles, each still possibly unspecified.
+///
+/// A parallel `Option`-per-field shape rather than a `TaxonNomenclature` with
+/// a default, because the two states are genuinely different and both are
+/// reachable: *absent* means "leave the model default alone", while *present
+/// and false* means "the user turned this off". Collapsing them into a
+/// `TaxonNomenclature` at parse time would turn every link written before a
+/// toggle existed into a search with that toggle off.
+#[derive(Clone, Debug, Default, PartialEq)]
+struct PartialNomenclature {
+    accepted_synonyms: Option<bool>,
+    basionyms: Option<bool>,
+    protonyms: Option<bool>,
+    replacements: Option<bool>,
+}
+
+impl PartialNomenclature {
+    fn parse(params: &QueryParams) -> Self {
+        Self {
+            accepted_synonyms: parse_flag(params, "taxon_accepted_synonyms"),
+            basionyms: parse_flag(params, "taxon_basionyms"),
+            protonyms: parse_flag(params, "taxon_protonyms"),
+            replacements: parse_flag(params, "taxon_replacements"),
+        }
+    }
+
+    /// Write the specified toggles onto a criteria, leaving the rest alone.
+    fn apply(self, onto: &mut lotus_model::TaxonNomenclature) {
+        if let Some(v) = self.accepted_synonyms {
+            onto.accepted_synonyms = v;
+        }
+        if let Some(v) = self.basionyms {
+            onto.basionyms = v;
+        }
+        if let Some(v) = self.protonyms {
+            onto.protonyms = v;
+        }
+        if let Some(v) = self.replacements {
+            onto.replacements = v;
+        }
+    }
+}
+
+/// The `(query-parameter, value)` pairs for a criteria' four toggles, in the
+/// order the relations are declared.
+///
+/// The parameter names are the model's own field names, so a rename on either
+/// side has to be made on both — see the round-trip test on
+/// [`criteria_query_params`].
+fn nomenclature_query_pairs(names: lotus_model::TaxonNomenclature) -> [(&'static str, bool); 4] {
+    [
+        ("taxon_accepted_synonyms", names.accepted_synonyms),
+        ("taxon_basionyms", names.basionyms),
+        ("taxon_protonyms", names.protonyms),
+        ("taxon_replacements", names.replacements),
+    ]
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -68,6 +130,15 @@ pub fn criteria_query_params(criteria: &SearchCriteria, year_max: u16) -> QueryP
     let taxon = criteria.taxon.trim();
     if !taxon.is_empty() {
         params.insert("taxon".to_string(), taxon.to_string());
+        // Each nomenclatural toggle is written only when it is off. The default
+        // is on, and a link that spells out the default is a link that has to
+        // be re-read when the default changes. This is the same rule the mass
+        // and year ranges follow.
+        for (key, on) in nomenclature_query_pairs(criteria.taxon_names) {
+            if !on {
+                params.insert(key.to_string(), "false".to_string());
+            }
+        }
     }
 
     let structure = criteria.structure.trim();
@@ -135,6 +206,7 @@ impl CriteriaQueryDto {
         Self {
             has_explicit_taxon: taxon.is_some(),
             taxon,
+            taxon_names: PartialNomenclature::parse(params),
             structure: params
                 .get("structure")
                 .cloned()
@@ -168,6 +240,7 @@ impl CriteriaQueryDto {
         if let Some(taxon) = self.taxon {
             criteria.taxon = taxon;
         }
+        self.taxon_names.apply(&mut criteria.taxon_names);
         if let Some(structure) = self.structure {
             criteria.structure = structure;
         }
@@ -321,6 +394,15 @@ impl RangeU16Dto {
             set_max(criteria, value);
         }
     }
+}
+
+/// A boolean parameter, absent when the key is not there at all.
+///
+/// The distinction from "present and false" is the whole point: absent has to
+/// mean "leave the model default alone", or every link written before a toggle
+/// existed would silently turn that toggle off.
+fn parse_flag(params: &QueryParams, name: &str) -> Option<bool> {
+    params.get(name).map(|v| is_true_flag(v))
 }
 
 fn parse_param<T: FromStr>(params: &QueryParams, name: &str) -> Option<T> {

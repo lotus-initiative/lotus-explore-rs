@@ -66,11 +66,33 @@ struct CompletionsArgs {
 }
 
 /// Every filter the web explorer exposes, and the limits a terminal wants.
+// The four `--no-*` nomenclatural flags make this the fifth boolean here. A clap
+// args struct is a flat mirror of the command line, one field per flag, and
+// folding four independent switches into a nested struct would mean the flag
+// names stop being the field names — which is the property that keeps
+// `docs_in_sync` worth having.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, clap::Args)]
 struct SearchArgs {
     /// Taxon name, scientific name, QID, or `*` for all organisms.
     #[arg(short, long, default_value = "")]
     taxon: String,
+
+    /// Match the taxon's accepted name alone, ignoring its synonyms.
+    #[arg(long, default_value_t = false)]
+    no_accepted_synonyms: bool,
+
+    /// Ignore the basionym, the name the taxon was first described under.
+    #[arg(long, default_value_t = false)]
+    no_basionyms: bool,
+
+    /// Ignore the original combination, the binomial as first published.
+    #[arg(long, default_value_t = false)]
+    no_protonyms: bool,
+
+    /// Ignore a replacement name (nomen novum) and the name it replaced.
+    #[arg(long, default_value_t = false)]
+    no_replacements: bool,
 
     /// SMILES or an MDL molfile (V2000/V3000) to search by structure.
     #[arg(short, long, default_value = "")]
@@ -275,19 +297,35 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
     }
 }
 
-async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
-    let year_max = args.year_max.unwrap_or_else(current_year);
+/// The criteria the flags describe.
+///
+/// Split out of `search` so it can be tested without a network, a terminal and
+/// a running binary. It is not a cosmetic extraction: the four `--no-*`
+/// nomenclatural flags are negations, and nothing downstream can tell the
+/// difference between "not passed" and "passed, meaning the opposite" unless
+/// this function is the thing under test. With the mapping inlined in `search`,
+/// a dropped `!` turned `--no-basionyms` into a way of *enabling* the basionym
+/// search, and every test in the crate still passed.
+fn criteria_from_args(args: &SearchArgs, year_max: u16) -> lotus_model::SearchCriteria {
     let mut criteria = lotus_model::SearchCriteria::up_to_year(year_max);
 
-    criteria.taxon = args.taxon;
-    criteria.structure = args.structure;
+    criteria.taxon.clone_from(&args.taxon);
+    // The model defaults all four to on and each flag is a negation, so these
+    // are unconditional assignments rather than defaults the flags turn off.
+    criteria.taxon_names = lotus_model::TaxonNomenclature {
+        accepted_synonyms: !args.no_accepted_synonyms,
+        basionyms: !args.no_basionyms,
+        protonyms: !args.no_protonyms,
+        replacements: !args.no_replacements,
+    };
+    criteria.structure.clone_from(&args.structure);
     criteria.structure_search = args.structure_search.into();
     criteria.structure_threshold = args.threshold;
     criteria.mass_min = args.mass_min;
     criteria.mass_max = args.mass_max;
     criteria.year_min = args.year_min;
     criteria.year_max = year_max;
-    criteria.formula_exact = args.formula.unwrap_or_default();
+    criteria.formula_exact = args.formula.clone().unwrap_or_default();
     apply_ranges(
         &mut criteria,
         args.carbon,
@@ -301,12 +339,15 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
     criteria.cl_state = args.chlorine.into();
     criteria.br_state = args.bromine.into();
     criteria.i_state = args.iodine.into();
-    // Any formula filter implies the formula section is in use. A user who typed
-    // `--carbon 10..20` has filtered by formula whether or not they also passed
-    // `--formula`. This cannot be asked of `has_formula_filter`, which reports
-    // false until the flag is set — asking would be circular.
+
     criteria.formula_enabled = flags_ask_for_formula(&criteria);
 
+    criteria
+}
+
+async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
+    let year_max = args.year_max.unwrap_or_else(current_year);
+    let criteria = criteria_from_args(&args, year_max);
     lotus_model::validate_criteria(&criteria, year_max)?;
 
     let request =
@@ -474,3 +515,7 @@ fn flags_ask_for_formula(criteria: &lotus_model::SearchCriteria) -> bool {
 #[cfg(test)]
 #[path = "main/civil_year_tests.rs"]
 mod civil_year_tests;
+
+#[cfg(test)]
+#[path = "main/nomenclature_flag_tests.rs"]
+mod nomenclature_flag_tests;

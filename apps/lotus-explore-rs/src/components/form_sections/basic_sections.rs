@@ -7,6 +7,8 @@ use crate::features::explore::selectors::use_criteria_selector;
 use crate::i18n::{TextKey, t};
 use crate::state::use_form_criteria_context;
 use dioxus::prelude::*;
+use lotus_model::SearchCriteria;
+use lotus_model::taxon_nomenclature::{self, Relation};
 
 use super::field_examples::FieldExamples;
 use super::shared::{normalized_year_input_max, parse_f64_input, parse_u16_input};
@@ -14,14 +16,93 @@ use super::shared::{normalized_year_input_max, parse_f64_input, parse_u16_input}
 /// Example taxa, as they would be typed. The first is a real QID rather than a
 /// rank, because a rank is not a taxon the endpoint resolves: `Plantae` is a clade
 /// with no compound, so it returns nothing and reads as a broken search.
-pub(super) const TAXON_SUGGESTIONS: &[&str] = &[
-    "Gentiana lutea",
-    "Q15584175",
-    "Fungi",
-    "Plantae",
-    "Animalia",
-    "*",
-];
+pub(super) const TAXON_SUGGESTIONS: &[&str] =
+    &["Gentiana lutea", "Q15584175", "Fungi", "Plantae", "*"];
+
+/// The four nomenclatural relationships a taxon search can follow.
+///
+/// An enum rather than a `(key, label)` tuple, because the key is also what
+/// picks the criteria field and the form action, and matching on a string to
+/// do that is a rename away from a silent no-op.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) enum NomenclatureToggle {
+    /// Accepted name ↔ its synonyms (`P1420` / `P12763`).
+    AcceptedSynonyms,
+    /// New combination ↔ its basionym (`P566` / `P12766`).
+    Basionyms,
+    /// Current name ↔ its original combination, or protonym
+    /// (`P1403` / `P12765`).
+    Protonyms,
+    /// Replacement name ↔ the name it replaced (`P694` / `P12764`).
+    Replacements,
+}
+
+impl NomenclatureToggle {
+    /// Every toggle, in the order the relationships are introduced in
+    /// `lotus_model::taxon_nomenclature`: accepted/synonym first because it is
+    /// the one most searches want, then the three chronological ones.
+    pub(super) const ALL: [Self; 4] = [
+        Self::AcceptedSynonyms,
+        Self::Basionyms,
+        Self::Protonyms,
+        Self::Replacements,
+    ];
+
+    /// The value in a criteria.
+    pub(super) fn read(self, criteria: &SearchCriteria) -> bool {
+        criteria.taxon_names.for_relation(self.relation())
+    }
+
+    /// The model-side relationship this toggle drives.
+    pub(super) const fn relation(self) -> &'static Relation {
+        match self {
+            Self::AcceptedSynonyms => &taxon_nomenclature::ACCEPTED_SYNONYM,
+            Self::Basionyms => &taxon_nomenclature::BASIONYM,
+            Self::Protonyms => &taxon_nomenclature::PROTONYM,
+            Self::Replacements => &taxon_nomenclature::REPLACEMENT,
+        }
+    }
+
+    /// The DOM `id`/`name` stem, which is also the query-parameter name.
+    pub(super) const fn key(self) -> &'static str {
+        match self {
+            Self::AcceptedSynonyms => "accepted_synonyms",
+            Self::Basionyms => "basionyms",
+            Self::Protonyms => "protonyms",
+            Self::Replacements => "replacements",
+        }
+    }
+
+    /// The label, naming the relationship rather than describing the toggle —
+    /// a user who knows the vocabulary should recognise it.
+    pub(super) const fn label(self) -> TextKey {
+        match self {
+            Self::AcceptedSynonyms => TextKey::TaxonNomenclatureAccepted,
+            Self::Basionyms => TextKey::TaxonNomenclatureBasionym,
+            Self::Protonyms => TextKey::TaxonNomenclatureProtonym,
+            Self::Replacements => TextKey::TaxonNomenclatureReplacement,
+        }
+    }
+
+    /// The `toolparamdescription`, which is the place a user who does *not*
+    /// know the vocabulary finds out what the toggle actually does.
+    pub(super) const fn description(self) -> &'static str {
+        match self {
+            Self::AcceptedSynonyms => {
+                "Also match the taxon's accepted name and its synonyms (Wikidata P1420)."
+            }
+            Self::Basionyms => {
+                "Also match the basionym, the name the taxon was first described under (Wikidata P566)."
+            }
+            Self::Protonyms => {
+                "Also match the original combination, the binomial as first published (Wikidata P1403)."
+            }
+            Self::Replacements => {
+                "Also match a replacement name (nomen novum) and the name it replaced (Wikidata P694)."
+            }
+        }
+    }
+}
 
 #[component]
 pub fn TaxonInput() -> Element {
@@ -29,6 +110,13 @@ pub fn TaxonInput() -> Element {
     let ctx = use_form_criteria_context();
     let interactions = use_explore_interactions();
     let taxon = use_criteria_selector(ctx.criteria, |c| c.taxon.clone());
+    // A selector per toggle rather than one selector for the set: each checkbox
+    // re-renders on its own value changing, and a single selector holding all
+    // four would re-render all of them on any one. Each reads through
+    // `NomenclatureToggle::read`, so which field backs which checkbox is stated
+    // once, here, rather than repeated in the closure and in the action.
+    let nomenclature = NomenclatureToggle::ALL
+        .map(|toggle| use_criteria_selector(ctx.criteria, move |c| toggle.read(c)));
     rsx! {
         div { class: "flex flex-col gap-1.5 rounded-xl border border-shell-border bg-shell-raised p-1.5",
             label {
@@ -67,6 +155,43 @@ pub fn TaxonInput() -> Element {
                 values: TAXON_SUGGESTIONS.iter().map(|s| (*s).to_string()).collect(),
                 heading: TextKey::Examples,
                 onfill: move |value: String| ctx.update(FormAction::Taxon(value)),
+            }
+            // Four separate toggles rather than one "include synonyms", because
+            // the four are independent nomenclatural relationships. A
+            // basionym is a rename with a chronology behind it; an accepted
+            // name's synonym is not, and lumping them together means a user
+            // who unticks one has no way to say which they meant.
+            //
+            // They sit under a `role="group"` with a visible heading rather
+            // than as four loose checkboxes, because the group is one decision
+            // ("how far back in this taxon's naming history to look") and a
+            // screen reader user needs to hear that before the first option.
+            div {
+                role: "group",
+                aria_labelledby: "taxon-nomenclature-heading",
+                class: "flex flex-col gap-1 border-t border-shell-border pt-1.5",
+                p {
+                    id: "taxon-nomenclature-heading",
+                    class: "text-micro font-semibold uppercase tracking-wide text-subtle",
+                    "{t(locale, TextKey::TaxonNomenclature)}"
+                }
+                for (toggle, is_on) in NomenclatureToggle::ALL.into_iter().zip(nomenclature) {
+                    label {
+                        key: "{toggle.key()}",
+                        class: "flex cursor-pointer items-start gap-1.5 text-ui text-muted",
+                        input {
+                            r#type: "checkbox",
+                            id: "taxon-{toggle.key()}-input",
+                            name: "taxon_{toggle.key()}",
+                            "toolparamdescription": "{toggle.description()}",
+                            autocomplete: "off",
+                            class: "accent-accent mt-0.5 cursor-pointer",
+                            checked: *is_on.read(),
+                            onchange: move |e| ctx.update(FormAction::TaxonNomenclature { relation: toggle.relation(), on: e.checked() }),
+                        }
+                        span { "{t(locale, toggle.label())}" }
+                    }
+                }
             }
         }
     }

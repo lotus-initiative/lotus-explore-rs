@@ -58,6 +58,21 @@ impl From<ApiElementState> for lotus_model::ElementState {
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct SearchRequest {
     pub(crate) taxon: Option<String>,
+    /// Whether the taxon filter also collects the compounds recorded against
+    /// the taxon's other names.
+    ///
+    /// One field per nomenclatural relationship, because they answer different
+    /// questions — *accepted name vs. synonym* is a taxonomic judgement, while
+    /// *old vs. new* is a nomenclatural fact, and Wikidata stores them under
+    /// four separate property pairs. See `docs/TAXON-SEARCH.md`.
+    ///
+    /// Each absent field is left at the model default rather than reconciled
+    /// against it, so a caller that omits them all gets the same answer as the
+    /// UI's default checkboxes.
+    pub(crate) taxon_accepted_synonyms: Option<bool>,
+    pub(crate) taxon_basionyms: Option<bool>,
+    pub(crate) taxon_protonyms: Option<bool>,
+    pub(crate) taxon_replacements: Option<bool>,
     pub(crate) smiles: Option<String>,
     pub(crate) smiles_search_type: Option<ApiSmilesSearchType>,
     pub(crate) smiles_threshold: Option<f64>,

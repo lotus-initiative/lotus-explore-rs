@@ -8,8 +8,146 @@
 //! `tests/query_contract.rs`; those tests assert the builders' behaviour rather
 //! than their bytes, so whitespace may change but structure may not.
 
+use lotus_model::taxon_nomenclature::{self, Relation};
 use lotus_model::{ElementState, SearchCriteria, SmilesSearchType, classify_structure};
 use std::fmt::Write as _;
+
+/// Which of the four nomenclatural relationships a taxon search follows.
+///
+/// Four independent booleans rather than one, because the four relationships
+/// answer different questions — see [`lotus_nomenclature`] for why "old versus
+/// new" and "accepted versus synonym" are two separate axes and not one.
+///
+/// [`lotus_nomenclature`]: lotus_model::taxon_nomenclature
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Nomenclature {
+    /// The four toggles, owned by the model.
+    ///
+    /// A wrapper rather than a parallel set of fields: there is one place in
+    /// this workspace that knows which boolean is which relationship, and it is
+    /// not here. Everything below delegates, so a fifth relationship is added
+    /// to [`taxon_nomenclature::ALL`] and this wrapper picks it up.
+    names: lotus_model::TaxonNomenclature,
+}
+
+impl Nomenclature {
+    /// Every relationship followed. The default, and what a search gets when
+    /// the user has not said otherwise.
+    pub const ALL_ON: Self = Self {
+        names: lotus_model::TaxonNomenclature::ALL_ON,
+    };
+
+    /// No relationship followed: the taxon name as typed, and nothing else.
+    pub const ALL_OFF: Self = Self {
+        names: lotus_model::TaxonNomenclature::ALL_OFF,
+    };
+
+    /// Only the accepted/synonym relationship, for a caller that wants
+    /// taxonomic synonymy without the nomenclatural history.
+    #[must_use]
+    pub const fn accepted_synonyms_only() -> Self {
+        Self::only(&taxon_nomenclature::ACCEPTED_SYNONYM)
+    }
+
+    /// Only the basionym relationship.
+    #[must_use]
+    pub const fn basionyms_only() -> Self {
+        Self::only(&taxon_nomenclature::BASIONYM)
+    }
+
+    /// Only the original-combination (protonym) relationship.
+    #[must_use]
+    pub const fn protonyms_only() -> Self {
+        Self::only(&taxon_nomenclature::PROTONYM)
+    }
+
+    /// Only the replacement-name relationship.
+    #[must_use]
+    pub const fn replacements_only() -> Self {
+        Self::only(&taxon_nomenclature::REPLACEMENT)
+    }
+
+    const fn only(relation: &Relation) -> Self {
+        let mut names = lotus_model::TaxonNomenclature::ALL_OFF;
+        names.set_for_relation(relation, true);
+        Self { names }
+    }
+
+    /// The same choice with one relationship switched off.
+    ///
+    /// The relationships are independent, so this is a normal operation rather
+    /// than a special case: a user who wants accepted-name synonyms but not the
+    /// nomenclatural history is asking a coherent question.
+    #[must_use]
+    pub const fn without(mut self, relation: &Relation) -> Self {
+        self.names.set_for_relation(relation, false);
+        self
+    }
+
+    /// The same choice with one relationship switched on.
+    #[must_use]
+    pub const fn with(mut self, relation: &Relation) -> Self {
+        self.names.set_for_relation(relation, true);
+        self
+    }
+
+    /// Accepted name ↔ its synonyms (`P1420` / `P12763`). Not chronological.
+    /// New combination ↔ its basionym (`P566` / `P12766`).
+    /// Current name ↔ its original combination, or protonym
+    /// (`P1403` / `P12765`).
+    /// Replacement name ↔ what it replaced (`P694` / `P12764`).
+    /// Whether the given relationship is followed.
+    #[must_use]
+    pub const fn follows(&self, relation: &Relation) -> bool {
+        self.names.for_relation(relation)
+    }
+
+    /// The enabled relationships, in the order
+    /// [`taxon_nomenclature::ALL`] lists them.
+    #[must_use]
+    pub fn enabled_relations(&self) -> Vec<Relation> {
+        taxon_nomenclature::ALL
+            .into_iter()
+            .filter(|relation| self.follows(relation))
+            .collect()
+    }
+
+    /// Every property of every enabled relationship, deduplicated.
+    ///
+    /// Each relationship's two properties are distinct, so eight in the all-on
+    /// case; the dedupe is here so that a relationship added with a property
+    /// another one already uses cannot write it into the path twice.
+    #[must_use]
+    pub fn properties(&self) -> Vec<(&'static str, &'static str)> {
+        let mut seen: Vec<(&'static str, &'static str)> = Vec::new();
+        for relation in self.enabled_relations() {
+            for pair in relation.properties() {
+                if !seen.contains(&pair) {
+                    seen.push(pair);
+                }
+            }
+        }
+        seen
+    }
+}
+
+impl Default for Nomenclature {
+    fn default() -> Self {
+        Self::ALL_ON
+    }
+}
+
+impl From<&SearchCriteria> for Nomenclature {
+    fn from(criteria: &SearchCriteria) -> Self {
+        Self::from(&criteria.taxon_names)
+    }
+}
+
+impl From<&lotus_model::TaxonNomenclature> for Nomenclature {
+    fn from(names: &lotus_model::TaxonNomenclature) -> Self {
+        Self { names: *names }
+    }
+}
 
 const PREFIXES: &str = "\
 PREFIX xsd:    <http://www.w3.org/2001/XMLSchema#>
@@ -118,18 +256,30 @@ pub fn all_compounds_query() -> String {
     compounds_query(None)
 }
 
-/// Compounds found in `taxon_qid` and its descendants (`P171*`).
+/// Compounds found in `taxon_qid` and its descendants (`P171*`), following
+/// every nomenclatural relationship.
 #[must_use]
 pub fn compounds_by_taxon_query(taxon_qid: &str) -> String {
-    compounds_query(Some(taxon_qid))
+    compounds_by_taxon_query_with(taxon_qid, &Nomenclature::ALL_ON)
 }
 
-fn compounds_query(taxon_qid: Option<&str>) -> String {
-    let ancestry = taxon_qid.map_or_else(String::new, |qid| {
-        format!(
-            "\n          ?t (wdt:P171*) wd:{} .",
-            escape_sparql_string(qid)
-        )
+/// Compounds found in `taxon_qid` and its descendants, following the
+/// nomenclatural relationships that `nomenclature` enables.
+///
+/// This is the form the rest of the workspace calls, because which
+/// relationships to follow is a user-facing choice rather than a builder
+/// detail. A `Nomenclature` with all four off produces exactly the query the
+/// crate built before any of this existed.
+///
+/// [`Nomenclature`]: crate::Nomenclature
+#[must_use]
+pub fn compounds_by_taxon_query_with(taxon_qid: &str, nomenclature: &Nomenclature) -> String {
+    compounds_query(Some((taxon_qid, nomenclature)))
+}
+
+fn compounds_query(taxon_qid: Option<(&str, &Nomenclature)>) -> String {
+    let ancestry = taxon_qid.map_or_else(String::new, |(qid, nomenclature)| {
+        format!("\n          {}", taxon_ancestry_pattern(qid, *nomenclature))
     });
 
     format!(
@@ -158,6 +308,81 @@ WHERE {{
   }}
 }}",
         select_clause(),
+    )
+}
+
+/// The nomenclatural closure of a taxon, as a property path over the
+/// properties of the enabled relationships in [`lotus_model::taxon_nomenclature`].
+///
+/// Read in **both** directions and closed transitively with `*`.
+///
+/// The bidirectional read is not optional. Wikidata stores each relationship
+/// from both ends, but a curator enters whichever end they are looking at, and
+/// both are in active use: `Rosmarinus officinalis` carries `P12764` toward
+/// `Salvia rosmarinus`, while `Salvia rosmarinus` carries `P694` back. A search
+/// that read only one direction would find the newer name from the older one
+/// and not the reverse, which is the same bug in each of the four relations.
+///
+/// The `*` is bounded in practice by the shape of the graph. These properties
+/// connect a taxon to the *other names of that same taxon*, so the closure is a
+/// handful of items, not a subtree — measured at 1 to 2 hops on every taxon
+/// tested. It is deliberately **not** the same closure as `P171*`: crossing
+/// from a name to a name is a rename, whereas crossing a parent link is
+/// descent into a different organism.
+///
+/// # Why this is a separate subquery and not one big path
+///
+/// The obvious spelling is to let the two closures interleave, as
+/// `?t (wdt:P171*|SYN*) wd:Q` — one path, and no subquery to reason about. It
+/// is wrong here for two reasons, and both cost time rather than correctness:
+///
+/// 1. The endpoint evaluates a path from its endpoints, so `(P171*|SYN*)`
+///    anchored at `wd:Q` walks the whole `P171` tree *and* re-walks the
+///    nomenclatural closure at every node it passes, instead of expanding one
+///    seed list and then descending it once. On `Gentianales` (Q21754) that is
+///    11009 compounds against 11088 for the subquery form, reached more slowly.
+/// 2. Interleaving makes the result a fixpoint of two relations applied
+///    together, which means a synonym of a *descendant* silently joins the
+///    result. Whether that is right is arguable; that it is a decision nobody
+///    chose deliberately is not.
+///
+/// So the seed is expanded first, on its own, and only the resulting handful of
+/// QIDs is handed to `P171*`. The expansion subquery is cheap because it is
+/// evaluated against one constant.
+fn nomenclature_path(nomenclature: Nomenclature) -> Option<String> {
+    let mut alternatives: Vec<String> = Vec::new();
+    for (property, _) in nomenclature.properties() {
+        alternatives.push(property.to_string());
+    }
+    if alternatives.is_empty() {
+        return None;
+    }
+    // The inverses are appended afterwards, each with its own `^`.
+    //
+    // Writing `^a|b` instead of `^a|^b` would be a silent bug: `^` binds to
+    // the single path that follows it, so that is "inverse of a, or b", and
+    // the properties after the first would be read forwards only. The expansion
+    // still returns rows, so the query looks fine and returns a different set —
+    // the worst shape a query bug can take.
+    for (property, _) in nomenclature.properties() {
+        alternatives.push(format!("^{property}"));
+    }
+    Some(format!("({})*", alternatives.join("|")))
+}
+
+/// The taxon filter for the innermost subquery: a descendant of any taxon in the
+/// nomenclatural closure of `qid`.
+///
+/// With every relationship off this is the `P171*` path the query has always
+/// used, unchanged, so a search that does not want them costs exactly what it
+/// used to.
+fn taxon_ancestry_pattern(qid: &str, nomenclature: Nomenclature) -> String {
+    let escaped = escape_sparql_string(qid);
+    let Some(path) = nomenclature_path(nomenclature) else {
+        return format!("?t (wdt:P171*) wd:{escaped} .");
+    };
+    format!(
+        "{{\n            SELECT DISTINCT ?root\n            WHERE {{\n              VALUES ?seed {{ wd:{escaped} }}\n              ?seed {path} ?root .\n            }}\n          }}\n          ?t (wdt:P171*) ?root ."
     )
 }
 
@@ -190,6 +415,30 @@ pub fn structure_search_query(
     search: SmilesSearchType,
     threshold: f64,
     taxon_qid: Option<&str>,
+) -> String {
+    structure_search_query_with(
+        structure,
+        search,
+        threshold,
+        taxon_qid,
+        &Nomenclature::ALL_ON,
+    )
+}
+
+/// [`structure_search_query`], with the nomenclatural expansion of the taxon
+/// filter under the caller's control.
+///
+/// The choice means the same thing here as it does for
+/// [`compounds_by_taxon_query_with`]: a structure search is run *within* a
+/// taxon, and the taxon's nomenclatural closure is the same set of organisms
+/// whether the compound was found by name or by substructure.
+#[must_use]
+pub fn structure_search_query_with(
+    structure: &str,
+    search: SmilesSearchType,
+    threshold: f64,
+    taxon_qid: Option<&str>,
+    nomenclature: &Nomenclature,
 ) -> String {
     let literal = escape_structure_literal(structure);
     let is_multiline = literal.starts_with("'''");
@@ -276,12 +525,12 @@ pub fn structure_search_query(
              prov:wasDerivedFrom ?ref .
   ?ref pr:P248 ?r .
   ?t wdt:P225 ?taxon_name .
-  ?t (wdt:P171*) wd:{} .
+  {}
 
   {REFERENCE_METADATA}
   {COMPOUND_PROPERTIES}
 ",
-                escape_sparql_string(qid)
+                taxon_ancestry_pattern(qid, *nomenclature)
             )
         },
     );

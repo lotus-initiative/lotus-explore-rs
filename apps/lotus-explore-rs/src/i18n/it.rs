@@ -88,6 +88,14 @@ pub const fn it_t(key: TextKey) -> &'static str {
         }
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonPlaceholder => "un nome, un QID o * per tutto",
+        TextKey::TaxonNomenclature => "Cerca anche con altri nomi",
+        TextKey::TaxonNomenclatureAccepted => "nome accettato e suoi sinonimi",
+        TextKey::TaxonNomenclatureBasionym => "bionimo (il nome della descrizione originale)",
+        TextKey::TaxonNomenclatureProtonym => {
+            "combinazione originale (il nome alla prima pubblicazione)"
+        }
+        TextKey::TaxonNomenclatureReplacement => "nome sostitutivo (nomen novum) e nome sostituito",
+
         TextKey::Examples => "Esempi",
         TextKey::ExampleSets => "Imposta il campo su",
         TextKey::StructureSmilesOrMol => "SMILES o Molfile",

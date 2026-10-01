@@ -60,6 +60,10 @@ fn content_type_header(response: &axum::response::Response) -> String {
 fn supports_u16_formula_ranges() {
     let req = SearchRequest {
         taxon: Some("*".to_string()),
+        taxon_accepted_synonyms: None,
+        taxon_basionyms: None,
+        taxon_protonyms: None,
+        taxon_replacements: None,
         smiles: None,
         smiles_search_type: None,
         smiles_threshold: None,
@@ -609,6 +613,10 @@ fn sanitize_filename_empty_or_whitespace_returns_empty() {
 fn apply_request_rejects_inverted_element_ranges() {
     let req = SearchRequest {
         taxon: Some("*".to_string()),
+        taxon_accepted_synonyms: None,
+        taxon_basionyms: None,
+        taxon_protonyms: None,
+        taxon_replacements: None,
         smiles: None,
         smiles_search_type: None,
         smiles_threshold: None,
@@ -644,6 +652,10 @@ fn apply_request_clamps_similarity_threshold() {
     fn make_req(threshold: f64) -> SearchRequest {
         SearchRequest {
             taxon: Some("*".to_string()),
+            taxon_accepted_synonyms: None,
+            taxon_basionyms: None,
+            taxon_protonyms: None,
+            taxon_replacements: None,
             smiles: Some("c1ccccc1".to_string()),
             smiles_search_type: None,
             smiles_threshold: Some(threshold),

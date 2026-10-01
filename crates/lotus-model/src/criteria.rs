@@ -20,6 +20,16 @@ use crate::stats::{ElementState, SmilesSearchType};
 pub struct SearchCriteria {
     /// Taxon name, scientific name, QID, or `*` for all taxa.
     pub taxon: String,
+    /// Which nomenclatural relationships a taxon search follows, beyond the
+    /// taxon name as typed. All four default to `true`.
+    ///
+    /// A nested struct rather than four loose booleans: they are one decision —
+    /// *how far back in this taxon's naming history to look* — they are always
+    /// read together, and `clippy::struct_excessive_bools` is right that five
+    /// unrelated `bool`s in one flat struct is a shape that grows badly. See
+    /// [`crate::taxon_nomenclature`] for what each relationship means and why
+    /// they are four and not one.
+    pub taxon_names: TaxonNomenclature,
     /// SMILES or an MDL molfile (V2000/V3000).
     pub structure: String,
     /// How `structure` is matched. [`SmilesSearchType::Substructure`] unless set.
@@ -89,6 +99,115 @@ pub struct SearchCriteria {
     pub i_state: ElementState,
 }
 
+/// Which of the four nomenclatural relationships a taxon search follows.
+///
+/// Every field defaults to `true`, because a search that quietly returns fewer
+/// compounds than the literature holds is the failure mode this exists to
+/// prevent — see [`crate::taxon_nomenclature`] for the relationships and
+/// `docs/TAXON-SEARCH.md` for worked examples.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// Four independent toggles, and that is the shape they have to be: each names
+// a distinct nomenclatural relationship, each can be on with the other three
+// off, and the state space is genuinely 2^4. The lint's own suggestions — a
+// state machine, or a two-variant enum per field — would replace four readable
+// `bool`s with sixteen named states and no way to say "all of them", which is
+// the value a caller reaches for most often.
+#[allow(clippy::struct_excessive_bools)]
+pub struct TaxonNomenclature {
+    /// Accepted name ↔ its synonyms (`P1420` / `P12763`).
+    ///
+    /// Example: *Leontopodium nivale* carries `P1420` to its accepted name
+    /// *Leontopodium alpinum*, which holds 33 compounds and *nivale* none.
+    /// Not chronological — either name may be the older one.
+    pub accepted_synonyms: bool,
+    /// New combination ↔ its basionym (`P566` / `P12766`).
+    ///
+    /// Example: *Houpoea officinalis* is a new combination for *Magnolia
+    /// officinalis*, and all 226 LOTUS compounds are filed under the basionym.
+    pub basionyms: bool,
+    /// Current name ↔ its original combination, whose zoological mirror image
+    /// is a protonym (`P1403` / `P12765`).
+    ///
+    /// Example: *Gonyaulax tamarensis* is the original combination of
+    /// *Alexandrium tamarense*.
+    pub protonyms: bool,
+    /// Replacement name (*nomen novum*) ↔ the name it replaced
+    /// (`P694` / `P12764`).
+    ///
+    /// Example: *Salvia rosmarinus* replaced *Rosmarinus officinalis*, and the
+    /// 595 compounds under the old name and the 31 under the new one are
+    /// compounds from one plant.
+    pub replacements: bool,
+}
+
+impl TaxonNomenclature {
+    /// Every relationship followed. The default.
+    pub const ALL_ON: Self = Self {
+        accepted_synonyms: true,
+        basionyms: true,
+        protonyms: true,
+        replacements: true,
+    };
+
+    /// No relationship followed: the taxon name as typed, and nothing else.
+    pub const ALL_OFF: Self = Self {
+        accepted_synonyms: false,
+        basionyms: false,
+        protonyms: false,
+        replacements: false,
+    };
+
+    /// Whether any relationship is followed.
+    #[must_use]
+    pub const fn any(&self) -> bool {
+        self.accepted_synonyms || self.basionyms || self.protonyms || self.replacements
+    }
+
+    /// Set the value for a given relationship.
+    pub const fn set_for_relation(
+        &mut self,
+        relation: &crate::taxon_nomenclature::Relation,
+        on: bool,
+    ) {
+        use crate::taxon_nomenclature as n;
+        if relation.slot == n::ACCEPTED_SYNONYM.slot {
+            self.accepted_synonyms = on;
+        } else if relation.slot == n::BASIONYM.slot {
+            self.basionyms = on;
+        } else if relation.slot == n::PROTONYM.slot {
+            self.protonyms = on;
+        } else {
+            self.replacements = on;
+        }
+    }
+
+    /// The value for a given relationship.
+    ///
+    /// Dispatching on `Relation::slot` rather than `Relation::id`: an `id` is
+    /// a `&'static str`, and a const path in a match arm sits in pattern
+    /// position, where only a literal or a binding is allowed. The `slot`
+    /// exists for exactly this.
+    #[must_use]
+    pub const fn for_relation(&self, relation: &crate::taxon_nomenclature::Relation) -> bool {
+        use crate::taxon_nomenclature as n;
+        if relation.slot == n::ACCEPTED_SYNONYM.slot {
+            self.accepted_synonyms
+        } else if relation.slot == n::BASIONYM.slot {
+            self.basionyms
+        } else if relation.slot == n::PROTONYM.slot {
+            self.protonyms
+        } else {
+            self.replacements
+        }
+    }
+}
+
+impl Default for TaxonNomenclature {
+    fn default() -> Self {
+        Self::ALL_ON
+    }
+}
+
 impl SearchCriteria {
     /// Criteria bounded by `year_max`, with no other filter set.
     ///
@@ -98,6 +217,7 @@ impl SearchCriteria {
     pub const fn up_to_year(year_max: u16) -> Self {
         Self {
             taxon: String::new(),
+            taxon_names: TaxonNomenclature::ALL_ON,
             structure: String::new(),
             structure_search: SmilesSearchType::Substructure,
             structure_threshold: 0.8,
@@ -185,6 +305,12 @@ impl SearchCriteria {
         self.halogen_states()
             .iter()
             .any(|(_, state)| *state != ElementState::Allowed)
+    }
+
+    /// Whether any nomenclatural relationship is being followed.
+    #[must_use]
+    pub const fn has_nomenclatural_relations(&self) -> bool {
+        self.taxon_names.any()
     }
 
     /// Whether any filter beyond taxon is narrowing the result set.
