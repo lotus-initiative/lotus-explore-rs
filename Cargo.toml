@@ -162,6 +162,27 @@ debug = 1
 # for size, and it is deliberate: this is a query client, not a ledger, and the
 # checks protect arithmetic that either cannot overflow or is checked where it
 # matters.
+#
+# `strip = "debuginfo"`, not `"symbols"`. This costs about 3 KB of the 475 KB
+# brotli-compressed wasm bundle -- 0.6% -- and it is not optional.
+#
+# `dx build` runs `rustc-objcopy --strip-all` over the linked module *before*
+# wasm-bindgen, because that is how it extracts embedded assets. Since LLVM 23
+# (Rust 1.99) `--strip-all` removes custom sections, and one of them is
+# `__wasm_bindgen_unstable`, which carries the metadata wasm-bindgen needs to
+# generate the JS bindings. Strip it and wasm-bindgen cannot process the module:
+#
+#   the `__wasm_bindgen_unstable` custom section is missing, but the module still
+#   contains wasm-bindgen shims
+#
+# `--strip-debug` leaves the custom sections alone, so the module survives. The
+# error this produces is reported much later and says nothing about the cause:
+# wasm-opt fails to open a `_bg.wasm` that wasm-bindgen never got round to
+# writing, so the first thing you read is "Failed opening ...".
+#
+# Verified on both toolchains: `--strip-all` drops the section on 1.99 and keeps
+# it on 1.98.1, which is the whole of the difference between a build that works
+# and one that does not.
 [profile.release]
 opt-level = "z"
 debug = false

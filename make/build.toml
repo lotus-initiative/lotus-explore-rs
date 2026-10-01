@@ -17,7 +17,7 @@ script = "cargo check --workspace --all-targets --locked"
 [tasks."check-wasm"]
 cwd = "${REPO_ROOT}"
 description = "Type-check the wasm-compatible crates for wasm32."
-dependencies = ["check-wasm-pure", "check-wasm-search", "check-wasm-app"]
+dependencies = ["check-wasm-pure", "check-wasm-search", "check-wasm-app", "check-wasm-build"]
 
 [tasks."check-wasm-pure"]
 cwd = "${REPO_ROOT}"
@@ -36,6 +36,46 @@ script = "cargo check -p lotus-search --no-default-features --target wasm32-unkn
 cwd = "${REPO_ROOT}"
 description = "Type-check the browser build for wasm32."
 script = "cargo check -p lotus-explore-rs --target wasm32-unknown-unknown --locked"
+
+[tasks."check-wasm-build"]
+cwd = "${REPO_ROOT}"
+description = "Link the wasm module and run it through wasm-bindgen, the way the release build does."
+# `check-wasm` above is `cargo check`, which stops before a linker runs. That is
+# the right boundary for the pure crates -- it is fast, and it is where a crate
+# that reached for a clock or a socket is caught -- but it cannot see anything
+# that goes wrong after linking, and the whole wasm pipeline lives there.
+#
+# Concretely: `dx build` strips the linked module with `rustc-objcopy` and hands
+# it to wasm-bindgen, and a strip that is too aggressive produces a module
+# wasm-bindgen cannot read. That failed the container build with an error about a
+# `_bg.wasm` that wasm-bindgen had never been asked to write, which reads as a
+# missing file rather than as a corrupt input. `cargo check` is green throughout,
+# because there is nothing wrong with any of the Rust.
+#
+# So this links, strips and binds. It does not run `wasm-opt` or bundle, which is
+# what `dx build` does after this point: the bundle step is Dioxus's, and its
+# failure modes are the ones already covered by the container build.
+#
+# `--release`, because the strip settings differ between the profiles and only
+# the release profile is the one that ships. A debug-profile link would pass
+# happily while the release one is broken, which is exactly the case this exists
+# for.
+# `dx build`, not `cargo build`. The strip happens inside dx, so a plain cargo
+# build links the module and stops: it would go green on exactly the input dx
+# cannot use. This is the task's whole reason for existing, and taking the
+# shorter command here would have made it decorative.
+#
+# `--release` for the reason above: the strip settings differ per profile and
+# only the release one ships.
+#
+# `dx` itself is a CI dependency, installed by the desktop and container jobs.
+# `./mk ci` runs this task, so a contributor without dx gets a task failure
+# rather than a skipped one, which is the same trade every other gate task makes.
+script = """
+cd apps/lotus-explore-rs
+dx build --release --platform web --package lotus-explore-rs --locked \
+  --debug-symbols=false --rustc-args=-Copt-level=z
+"""
 
 # rustdoc with warnings denied. Without `-D warnings` a rustdoc warning is
 # printed and the build still succeeds, so the job proves only that the docs
