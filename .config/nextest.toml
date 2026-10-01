@@ -1,0 +1,81 @@
+# nextest profiles. Read automatically from `.config/nextest.toml`; see
+# https://nexte.st/book/configuration.html
+#
+# nextest runs each test in its own process, in parallel, and unlike
+# `cargo test` it does not run doctests. The doctest step is therefore a
+# separate command everywhere nextest appears: `cargo make test`, CI, the git
+# hooks and the contributor docs. A forgotten doctest step is invisible
+# locally, because a passing test run and a complete one look the same.
+#
+# Several settings that used to live here are command-line flags in current
+# nextest and nextest warns about them as unknown keys: `junit-path`,
+# `no-fail-fast` and `default-test-threads`. The flags are on the `test` and
+# `ci` tasks in `make/*.toml` instead, and the JUnit path is the `junit.path`
+# key below. Verified against cargo-nextest 0.9.146, not assumed.
+
+# The everyday loop: stop at the first failure, and do not spend the time a
+# report costs on a run that is already known to be red.
+[profile.default]
+fail-fast = true
+
+# The asset fetcher retries with a doubling wait against a scripted HTTP
+# conversation, so its tests sleep for real. `lotus-web-assets` is the only
+# target that does.
+[[profile.default.overrides]]
+slow-timeout = { period = "120s" }
+filter = "package(lotus-web-assets)"
+
+# What CI runs. Every difference from `default` is about producing a verdict
+# someone else can read rather than one you can read.
+[profile.ci]
+# A red test is a red test. A retry would hide a flake behind a green build and
+# the flake would be found later, in someone's release, rather than here.
+retries = 0
+# Run everything even after a failure: the JUnit report is only useful if it
+# says which of the failing tests failed, not just that something did. The
+# flag is `--no-fail-fast`; `fail-fast = false` alone is not enough on its own.
+fail-fast = false
+# The machine-readable report CI uploads as an artifact. Without it a failure is
+# a red dot and a scrollback. The path is relative to a per-profile store
+# directory next to the build output, so the file lands at
+# `target/nextest/ci/ci-junit.xml`.
+junit.path = "ci-junit.xml"
+# Per-test progress nobody reads while a pipeline is deciding whether it is
+# green.
+status-level = "fail"
+final-status-level = "fail"
+# A test that has not finished in this long is hung, not slow, and the job
+# should fail with a name rather than sit until the runner's own timeout.
+slow-timeout = { period = "60s" }
+
+[[profile.ci.overrides]]
+slow-timeout = { period = "120s" }
+filter = "package(lotus-web-assets)"
+
+# `cargo make test-live`: the `#[ignore]`d network tests.
+#
+# There are none today, and that is a decision rather than an oversight: the
+# search use case is tested through the `Http` trait against a scripted
+# conversation, so the QLever-to-WDQS fallback and the retry policy are both
+# covered without a socket. This profile is where a test that genuinely has to
+# reach an endpoint goes, so that one is opt-in and never in CI by default.
+#
+# No retries here either: a network test that failed once and passed on a
+# retry has still told you something, and the honest thing is to say it.
+#
+# `--run-ignored only` has no profile equivalent, so `cargo make test-live` is
+# what pairs this profile with it. The profile on its own would run every
+# non-ignored test, which is the `ci` profile under another name and not what
+# the task claims to do.
+[profile.live]
+retries = 0
+fail-fast = false
+status-level = "fail"
+final-status-level = "fail"
+# Anything reaching a real endpoint deserves more room than a fixture does.
+slow-timeout = { period = "300s" }
+
+# ── Per-test overrides ───────────────────────────────────────────────────────
+# Both of these exist because a group of tests is legitimately slower than the
+# period above, and a timeout that fires on a test doing its job is a timeout
+# that trains people to ignore timeouts.

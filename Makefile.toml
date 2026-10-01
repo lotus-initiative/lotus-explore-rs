@@ -1,0 +1,119 @@
+# Task runner for lotus-explore-rs. `cargo make <task>`.
+#
+# This is the single list of what CI runs. The workflow calls `cargo make ci`
+# and nothing else, so a check that is green locally and red in a pipeline, or
+# the reverse, cannot happen by drift: there is one command.
+#
+# `apps/lotus-explore-rs/tests/gate_consistency.rs` holds the local gate, the
+# git hooks and CI to the same set, and fails the build if they disagree.
+#
+# The tasks are split across `make/*.toml` by concern. This file holds the
+# shared configuration and the gate itself.
+#
+# Run `cargo make --list-all-steps` for the current list rather than reading
+# this file: it is the one that cannot go stale.
+
+# The task files, one per concern.
+#
+# `extend` has to be the first key in this file. Put `[config]` above it and
+# cargo-make parses the file without complaint and loads none of the task files,
+# so every task is "not found" and the gate appears to have no tasks at all.
+# Verified against cargo-make 0.37.24.
+#
+# Only one file can be named here, which is why `make/all.toml` exists: it is a
+# one-line indirection over the eight task files.
+extend = "make/all.toml"
+
+[config]
+# The task runner's own built-in tasks (`make`, `run`, `build`, `watch`, ...)
+# are noise in a list meant to describe this repository's checks.
+skip_core_tasks = true
+
+[env]
+# Every task passes `--locked`, so the lockfile is authoritative. Set once here
+# rather than repeated in each task.
+CARGO_TERM_COLOR = "always"
+
+# The absolute path to the workspace root.
+#
+# cargo-make runs a task once per member crate with the working directory set
+# to that member, so a task cannot assume it is at the root. The `cwd =` value
+# and every script path below are written against this rather than a relative
+# path, which is what makes them work from a member directory.
+#
+# Set here and not left to the runner because it is the one fact every
+# cwd-sensitive task needs, and deriving it in eight places is eight chances to
+# derive it differently.
+REPO_ROOT = "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}"
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = "true"
+
+# ── The gate ─────────────────────────────────────────────────────────────────
+# `cargo make ci` is exactly what .github/workflows/ci.yml runs, in the same
+# order. Everything here needs no network access.
+
+[tasks."ci"]
+description = "Every check CI runs, in CI's order. No network access needed."
+dependencies = [
+  "fmt-check",
+  "tombi-check",
+  "tombi-lint",
+  "typos",
+  "license-headers",
+  "check",
+  "lint",
+  "lint-native-builds",
+  "test",
+  "doc",
+  "check-wasm",
+  "lint-wasm",
+  "metadata",
+  "opt-levels",
+  "machete",
+  "deny",
+  "audit",
+]
+
+# What the pre-push hook runs. `ci` minus the supply-chain checks, which are the
+# slowest part of the gate and the ones that only change when a dependency does.
+[tasks."ci-fast"]
+description = "What a pre-push hook runs: the gate minus the supply-chain checks."
+dependencies = [
+  "fmt-check",
+  "tombi-check",
+  "tombi-lint",
+  "typos",
+  "license-headers",
+  "check",
+  "lint",
+  "lint-native-builds",
+  "test",
+  "doc",
+  "check-wasm",
+  "lint-wasm",
+  "metadata",
+  "opt-levels",
+]
+
+# The two CI jobs `ci` leaves out, and why.
+#
+# `mutants` is minutes rather than seconds and its survivors are a to-do list
+# rather than a verdict. `desktop` needs the fetched assets and a `dx` build, so
+# it cannot run on a checkout that has not fetched them.
+[tasks."ci-slow"]
+description = "The slow CI jobs: mutation testing and the desktop build."
+dependencies = ["mutants", "desktop"]
+
+[tasks."setup"]
+description = "Install every tool the other tasks call, at a pinned version."
+script = { file = "${REPO_ROOT}/make/scripts/setup.sh" }
+
+[tasks."clean"]
+description = "Remove build output. Does not touch the fetched assets."
+script = """
+#!/usr/bin/env bash
+set -euo pipefail
+cd "${REPO_ROOT}"
+echo "removing target/nextest, the coverage report and the build output"
+rm -rf target/nextest target/llvm-cov-report target/llvm-cov-target
+cargo clean
+"""

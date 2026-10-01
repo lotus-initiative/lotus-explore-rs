@@ -1,0 +1,105 @@
+# Supply-chain and dependency hygiene.
+#
+# These four are separated from the gate's compile-time work because they are
+# the checks that answer a different question: not "is this correct" but "is
+# what this depends on still correct, still licensed compatibly, and still
+# maintained".
+
+[tasks."machete"]
+cwd = "${REPO_ROOT}"
+description = "Find declared dependencies that are never used."
+script = """
+set -e
+if ! command -v cargo-machete >/dev/null 2>&1; then
+  echo "cargo-machete is not installed; run 'cargo make setup'" >&2
+  exit 1
+fi
+cargo machete
+"""
+
+# `cargo udeps` rather than only `cargo machete`: machete is fast and reads the
+# manifest, udeps is slow and needs nightly because it looks at what the
+# compiler actually emitted. The second question is the one that catches a
+# dependency used only behind a cfg, which is exactly the shape of mistake in
+# this workspace -- several crates are built for wasm and for native from one
+# source. So: machete in the gate, udeps on a schedule.
+[tasks."udeps"]
+cwd = "${REPO_ROOT}"
+description = "Find unused dependencies by inspecting the compiled code. Needs nightly."
+script = """
+set -e
+if ! command -v cargo-udeps >/dev/null 2>&1; then
+  echo "cargo-udeps is not installed; run 'cargo make setup'" >&2
+  exit 1
+fi
+cargo +nightly udeps --workspace --all-targets
+"""
+
+[tasks."deny"]
+cwd = "${REPO_ROOT}"
+description = "Check advisories, duplicate versions, licenses and sources."
+script = """
+set -e
+if ! command -v cargo-deny >/dev/null 2>&1; then
+  echo "cargo-deny is not installed; run 'cargo make setup'" >&2
+  exit 1
+fi
+cargo deny check advisories bans licenses sources
+"""
+
+[tasks."audit"]
+cwd = "${REPO_ROOT}"
+description = "Check the lockfile against the RustSec advisory database."
+script = """
+set -e
+if ! command -v cargo-audit >/dev/null 2>&1; then
+  echo "cargo-audit is not installed; run 'cargo make setup'" >&2
+  exit 1
+fi
+cargo audit
+"""
+
+# Which dependencies have a newer release. Not a gate: a version being behind
+# is not a defect, and a task that fails on it trains people to ignore the task.
+# This is on the weekly schedule, where the answer is a list someone reads.
+[tasks."outdated"]
+cwd = "${REPO_ROOT}"
+description = "List direct dependencies with a newer release available."
+script = """
+set -e
+if ! command -v cargo-outdated >/dev/null 2>&1; then
+  echo "cargo-outdated is not installed; run 'cargo make setup'" >&2
+  exit 1
+fi
+cargo outdated --workspace --root-deps-only
+"""
+
+# The full upgrade, applied but not committed. Separate from `outdated` because
+# the two answer different questions and only one of them changes anything: a
+# report you read, and a diff you review.
+[tasks."upgrade"]
+cwd = "${REPO_ROOT}"
+description = "Apply the newest compatible dependency versions to Cargo.lock."
+script = "cargo update --workspace"
+
+# The incompatible upgrades -- the majors, and the ones cargo update will not
+# take on its own. These need a changelog read and usually a code change, so
+# this is a task you run deliberately and review, never one a hook runs.
+[tasks."upgrade-major"]
+cwd = "${REPO_ROOT}"
+description = "Apply the newest incompatible (major) dependency versions."
+script = "cargo upgrade --incompatible --workspace"
+
+# The real MSRV, measured rather than asserted. `rust-version` in the root
+# manifest is what CI compiles against; this is how that number was arrived at.
+[tasks."msrv"]
+cwd = "${REPO_ROOT}"
+description = "Find the lowest toolchain the workspace actually builds on."
+script = "cargo msrv --workspace --all-targets"
+
+# The version floor that is really required, and the check that the declared
+# `rust-version` is not lying about it.
+[tasks."minimal-versions"]
+cwd = "${REPO_ROOT}"
+description = "Check the workspace against the minimum versions each dependency allows."
+script = "cargo minimal-versions check --workspace --all-features"

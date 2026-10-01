@@ -1,0 +1,151 @@
+# Tests, coverage and mutation testing.
+#
+# nextest does not run doctests. That is not a small gap here: each library
+# crate's README is its crate documentation via `#![doc = include_str!]`, and
+# the example in it is a doctest. `cargo make test` therefore runs nextest and
+# then `cargo test --doc`, in that order, and so does CI. Dropping the second
+# line leaves the READMEs unchecked and nothing notices.
+
+# The three programs the app can be, tested as three programs, and then the
+# doctests. `--workspace --all-targets` only builds the browser client; the other
+# two need a feature, and a build that is not compiled is a build whose tests do
+# not run. That is not hypothetical: `--features server` sat broken on main while
+# this passed.
+[tasks."test"]
+cwd = "${REPO_ROOT}"
+description = "Run every test: nextest for all three builds, then the doctests."
+dependencies = ["test-nextest", "test-server", "test-desktop", "test-doc"]
+
+# The everyday profile: fail at the first failure. A red run you are about to
+# read in full is not a run worth spending the time on.
+[tasks."test-nextest"]
+cwd = "${REPO_ROOT}"
+description = "Run the test suite with cargo-nextest, fail-fast."
+script = "cargo nextest run --workspace --locked --no-fail-fast --test-threads 4"
+
+# The three programs the app can be, tested as three programs. `--workspace`
+# only builds the browser client; the other two need a feature, and a build
+# that is not compiled is a build whose tests do not run.
+[tasks."test-server"]
+cwd = "${REPO_ROOT}"
+description = "Test the app's HTTP API build."
+script = "cargo nextest run -p lotus-explore-rs --features server --locked --no-fail-fast"
+
+[tasks."test-desktop"]
+cwd = "${REPO_ROOT}"
+description = "Test the app's native-window build."
+script = "cargo nextest run -p lotus-explore-rs --features desktop --all-targets --locked --no-fail-fast"
+
+# What CI runs, as one command. The `ci` task calls the per-build tasks
+# separately so a red test names the build it failed in; this is for a human who
+# wants the same set in one invocation.
+[tasks."test-ci"]
+cwd = "${REPO_ROOT}"
+description = "The CI test run: nextest with the ci profile, then the doctests."
+script = """
+cargo nextest run --workspace --locked --profile ci --no-fail-fast
+cargo make test-doc
+"""
+
+# The doctests, on their own.
+#
+# `cargo test --doc` rather than nextest, because nextest does not run them.
+# `--workspace` because each library crate's README is a doctest and running
+# only the workspace default would skip the ones that matter most.
+[tasks."test-doc"]
+cwd = "${REPO_ROOT}"
+description = "Run the doctests, including the library crates' README examples."
+script = "cargo test --workspace --doc --locked --quiet"
+
+# The `#[ignore]`d network tests.
+#
+# There are none today. The search use case is tested through the `Http` trait
+# against a scripted conversation, so the QLever-to-WDQS fallback and the retry
+# policy are both covered without a socket -- and a test that reaches a live
+# endpoint is a test that fails when the endpoint is busy. A test that genuinely
+# has to reach the network goes here, opt-in, never in CI.
+#
+# `--run-ignored only` has no profile equivalent in nextest, which is why this
+# is a task and not just a profile: without the flag the `live` profile would
+# run every ordinary test under a different name.
+[tasks."test-live"]
+cwd = "${REPO_ROOT}"
+description = "Run the #[ignore]d network tests. Needs a network and an endpoint."
+script = "cargo nextest run --workspace --profile live --run-ignored only --locked --no-fail-fast"
+
+# Coverage, for the crates where a line count says something.
+#
+# `cargo llvm-cov nextest` rather than `cargo llvm-cov test`: it runs the
+# suite under nextest, so the report is of the same run CI performs and the
+# parallel overhead is not paid twice. `llvm-tools-preview` is in
+# `rust-toolchain.toml` because this needs it.
+#
+# Scoped to the library crates for the same reason mutation testing is: the app
+# is mostly Dioxus rendering and IO plumbing, where an executed line is not a
+# tested line. There the number is high and says nothing.
+[tasks."cov"]
+cwd = "${REPO_ROOT}"
+description = "Coverage report for the library crates, via nextest."
+script = """
+cargo llvm-cov nextest run --locked \\
+  -p lotus-model -p lotus-query -p lotus-curation -p lotus-jsonld -p lotus-search \\
+  --profile ci --no-fail-fast
+"""
+
+# The report as text rather than HTML, which is what a diff of two runs needs.
+[tasks."cov-summary"]
+cwd = "${REPO_ROOT}"
+description = "Print the coverage summary table without writing HTML."
+script = "cargo llvm-cov nextest run --locked --summary-only --workspace"
+
+# Mutation testing. `cargo mutants` rewrites one expression at a time and
+# re-runs the tests: a mutant that survives is a behaviour the suite does not
+# actually pin down, which a passing test run cannot tell you. Coverage counts
+# executed lines; this checks that they are asserted on.
+#
+# `--test-tool nextest` because nextest is what the suite runs under elsewhere,
+# and a mutant evaluated against a different harness is a mutant evaluated
+# against a different suite.
+#
+# Every library crate in the workspace. This started as three packages and was
+# grown one missed mutant at a time, which is backwards: the point of mutation
+# testing is that you do not know where the tests are thin until it says so.
+#
+# `apps/lotus-explore-rs` is excluded, deliberately and with a reason. It is
+# ~2,700 mutants of Dioxus rendering -- a `match` arm on a `Signal`, an
+# `rswap!`, a literal in a `class` attribute -- and killing those means a
+# rendering test for every component. That is a large piece of work with a poor
+# ratio, so it is `mutants-ui`, opt-in, and the exclusion is written down in
+# `mutants.toml` rather than being an omission.
+[tasks."mutants"]
+cwd = "${REPO_ROOT}"
+description = "Mutation testing over the library crates, using nextest."
+script = """
+cargo mutants --test-tool nextest --jobs 8 --timeout 300 \\
+  --package lotus-model --package lotus-search --package lotus-query \\
+  --package lotus-curation --package lotus-jsonld \\
+  --package lotus-cli --package lotus-web-assets
+"""
+
+# The excluded UI crate, run on request. See the note above.
+[tasks."mutants-ui"]
+cwd = "${REPO_ROOT}"
+description = "Mutation testing over the app crate. Large and mostly unkillable."
+script = "cargo mutants --test-tool nextest --package lotus-explore-rs --jobs 8 --timeout 300"
+
+# The same packages, listed without running them. Use this to see what a change
+# added before paying for the run.
+[tasks."mutants-list"]
+cwd = "${REPO_ROOT}"
+description = "List the mutants in the query and curation crates without running them."
+script = "cargo mutants --package lotus-query --package lotus-curation --package lotus-jsonld --list"
+
+# Binary size, per function, for the shipped artefacts. Only useful on a real
+# release build, so the task builds one first.
+[tasks."bloat"]
+cwd = "${REPO_ROOT}"
+description = "Report the largest functions in the release binaries."
+script = """
+cargo build --release --locked -p lotus-cli
+cargo bloat --release --crates -p lotus-cli
+"""

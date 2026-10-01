@@ -1,0 +1,110 @@
+# Containers.
+#
+# Every task here goes through `docker buildx`, not `docker build`, so the
+# BuildKit cache mounts in the Dockerfile are actually used: `docker build`
+# without buildx ignores `--mount=type=cache`, and the apt and cargo-registry
+# layers are the two that take the time.
+
+[tasks."docker-build"]
+cwd = "${REPO_ROOT}"
+description = "Build the runtime image (the API and the web client)."
+script = """
+docker buildx build --target runtime --load \\
+  --build-arg "VCS_REF=$(git rev-parse --short HEAD)" \\
+  -t lotus-explore-rs:local .
+"""
+
+[tasks."docker-build-cli"]
+cwd = "${REPO_ROOT}"
+description = "Build the CLI image (a statically linked lotus on distroless)."
+script = """
+docker buildx build --target cli --load \\
+  --build-arg "VCS_REF=$(git rev-parse --short HEAD)" \\
+  -t lotus:local .
+"""
+
+[tasks."docker-build-static"]
+cwd = "${REPO_ROOT}"
+description = "Build the static image (the web client on unprivileged nginx)."
+script = """
+docker buildx build --target static --load \\
+  --build-arg "VCS_REF=$(git rev-parse --short HEAD)" \\
+  -t lotus-explore-rs-web:local .
+"""
+
+[tasks."docker-build-all"]
+cwd = "${REPO_ROOT}"
+description = "Build all three images."
+dependencies = ["docker-build", "docker-build-cli", "docker-build-static"]
+
+# Cold and warm, in one command, because the difference between them is the
+# only number that says whether the layer structure is doing anything. A cold
+# build is `--no-cache` with the BuildKit cache mounts also dropped, since
+# otherwise `--no-cache` invalidates the instructions but not the mounts and the
+# number is neither of the two things it claims to be.
+[tasks."docker-timing"]
+cwd = "${REPO_ROOT}"
+description = "Report the cold and warm build times and the resulting image size."
+script = """
+#!/usr/bin/env bash
+set -euo pipefail
+exec bash "make/scripts/docker-timing.sh"
+"""
+
+[tasks."docker-run"]
+cwd = "${REPO_ROOT}"
+description = "Run the runtime image on http://localhost:8080."
+script = """
+docker run --rm -it \\
+  --name lotus-explore-rs \\
+  -p 127.0.0.1:8080:8787 \\
+  lotus-explore-rs:local
+"""
+
+# The read-only-rootfs run. This is the configuration a deployment should use,
+# and it is a task rather than a note because the failure mode of forgetting it
+# is a container that quietly cannot write its cache directory and serves
+# errors that look like a bug in the search use case.
+[tasks."docker-run-readonly"]
+cwd = "${REPO_ROOT}"
+description = "Run the runtime image with a read-only root filesystem."
+script = """
+docker run --rm -it \\
+  --name lotus-explore-rs \\
+  --read-only --tmpfs /tmp \\
+  --cap-drop ALL --security-opt no-new-privileges \\
+  -p 127.0.0.1:8080:8787 \\
+  lotus-explore-rs:local
+"""
+
+# The CLI, as a container. `cargo make cli` is the same query against the same
+# crates without the image; this is what proves the image is not a different
+# build.
+[tasks."docker-cli"]
+cwd = "${REPO_ROOT}"
+description = "Run the CLI in its image. Arguments after -- are passed to lotus."
+script = """
+docker run --rm -it \\
+  --name lotus-cli \\
+  --read-only --cap-drop ALL --security-opt no-new-privileges \\
+  lotus:local "$@"
+"""
+
+# Confirm the image is what it claims: non-root, with a healthcheck that
+# actually runs, and a server that answers behind it.
+[tasks."docker-verify"]
+cwd = "${REPO_ROOT}"
+description = "Assert the image runs as non-root and passes its healthcheck."
+script = """
+#!/usr/bin/env bash
+set -euo pipefail
+exec bash "make/scripts/docker-verify.sh"
+"""
+
+[tasks."docker-clean"]
+cwd = "${REPO_ROOT}"
+description = "Remove the built images and the buildx cache."
+script = """
+docker rmi lotus-explore-rs:local lotus-explore-rs-web:local lotus:local 2>/dev/null || true
+docker buildx prune --force
+"""

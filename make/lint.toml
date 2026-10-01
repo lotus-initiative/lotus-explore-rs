@@ -1,0 +1,86 @@
+# Linting. The rust lints live in `[workspace.lints]` in the root `Cargo.toml`
+# so every crate inherits them; this file is about running them.
+
+[tasks."lint"]
+cwd = "${REPO_ROOT}"
+description = "Clippy over the whole workspace, all targets, all features, warnings denied."
+script = "cargo clippy --workspace --all-targets --all-features --locked -- -D warnings"
+
+# The app is three programs: a browser client, a native window and an HTTP API.
+# `--workspace --all-features` covers the first two but the third is behind a
+# feature that changes which `main` is compiled, and `--all-features` compiles
+# `server` and `desktop` together, which is a build nobody ships. Each of the
+# two native programs is therefore linted on its own, the same way it is tested.
+#
+# This is not belt-and-braces: `--features server` sat broken on main while a
+# workspace-wide clippy passed, because the API had a renamed request field its
+# own tests still used and nothing compiled it.
+[tasks."lint-native-builds"]
+cwd = "${REPO_ROOT}"
+description = "Clippy the server and desktop builds separately, warnings denied."
+dependencies = ["lint-server", "lint-desktop"]
+
+[tasks."lint-server"]
+cwd = "${REPO_ROOT}"
+description = "Clippy the app's HTTP API build, warnings denied."
+script = "cargo clippy -p lotus-explore-rs --features server --locked -- -D warnings"
+
+[tasks."lint-desktop"]
+cwd = "${REPO_ROOT}"
+description = "Clippy the app's native-window build, warnings denied."
+script = "cargo clippy -p lotus-explore-rs --features desktop --locked -- -D warnings"
+
+# Per-package WASM clippy.
+#
+# NOT `--workspace --target wasm32`: `lotus-web-assets` is a host-only binary,
+# because `reqwest::blocking` cannot exist on wasm. A workspace-wide wasm lint
+# can never pass, so only the wasm-relevant crates are linted here. This is the
+# same split `check-wasm` makes.
+[tasks."lint-wasm"]
+cwd = "${REPO_ROOT}"
+description = "Clippy the wasm-compatible crates for wasm32, warnings denied."
+dependencies = ["lint-wasm-pure", "lint-wasm-search", "lint-wasm-app"]
+
+[tasks."lint-wasm-pure"]
+cwd = "${REPO_ROOT}"
+description = "Clippy the four pure crates for wasm32, warnings denied."
+script = """
+cargo clippy --target wasm32-unknown-unknown --locked \\
+  -p lotus-model -p lotus-query -p lotus-jsonld -p lotus-curation \\
+  -- -D warnings
+"""
+
+# `lotus-search`'s default features are its `reqwest` client, and a
+# `reqwest::Response` is not `Send` on wasm. The pure half is what has to be
+# wasm-clean, so that is what gets linted; the default build is linted for wasm
+# in the app, which does use it.
+[tasks."lint-wasm-search"]
+cwd = "${REPO_ROOT}"
+description = "Clippy lotus-search without its reqwest client, for wasm32."
+script = "cargo clippy -p lotus-search --no-default-features --target wasm32-unknown-unknown --locked -- -D warnings"
+
+[tasks."lint-wasm-app"]
+cwd = "${REPO_ROOT}"
+description = "Clippy the browser build for wasm32, warnings denied."
+script = "cargo clippy --target wasm32-unknown-unknown -p lotus-explore-rs --locked -- -D warnings"
+
+# Every feature combination in the workspace.
+#
+# This was scoped to the library crates on the assumption that `dioxus` and
+# `utoipa` would make the powerset explode. It does not: no feature in this
+# workspace enables another except the app's `server`/`desktop` pair, and the
+# whole set is 16 combinations. So the whole workspace is checked, which is
+# also the only version that would catch a feature in a crate someone forgot to
+# think of as a library.
+[tasks."feature-powerset"]
+cwd = "${REPO_ROOT}"
+description = "Check every feature combination in the workspace (16 of them)."
+script = "cargo hack check --workspace --feature-powerset --locked"
+
+# The unsafe audit. `unsafe_code = "forbid"` in the workspace lints covers this
+# crate's own code; this is the transitive question, which is a different one
+# and the only reason `cargo geiger` is here.
+[tasks."geiger"]
+cwd = "${REPO_ROOT}"
+description = "Report the unsafe code in the dependency tree."
+script = "cargo geiger --output-format stdout"

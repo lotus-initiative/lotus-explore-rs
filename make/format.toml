@@ -1,0 +1,67 @@
+# Formatting and text hygiene. The cheap checks: nothing here compiles anything,
+# so all of it runs in seconds and belongs on the pre-commit path.
+#
+# TOML is handled by tombi, which is the tool the git hooks already run
+# (`tombi-format` and `tombi-lint` in `prek.toml`). A second TOML formatter here
+# would be a second answer to what "formatted" means, and the one that loses is
+# whichever a contributor happens not to have installed.
+
+[tasks."fmt"]
+cwd = "${REPO_ROOT}"
+description = "Format Rust and TOML in place."
+dependencies = ["fmt-rust", "tombi-fmt"]
+
+[tasks."fmt-rust"]
+cwd = "${REPO_ROOT}"
+description = "Format Rust source in place."
+script = "cargo fmt --all"
+
+[tasks."fmt-check"]
+cwd = "${REPO_ROOT}"
+description = "Fail if any Rust source is not rustfmt-formatted."
+script = "cargo fmt --all -- --check"
+
+# `tombi format --check` is the TOML equivalent of `cargo fmt --check`: it
+# reports which files are not formatted and exits non-zero, without writing.
+[tasks."tombi-check"]
+cwd = "${REPO_ROOT}"
+description = "Check that every TOML file is formatted, and that it is valid."
+script = "tombi format --check"
+
+# `tombi lint` is a different question and the more valuable one: it checks each
+# TOML file against the schema for its kind, so a `Cargo.toml` is checked against
+# Cargo's own schema rather than only for being parseable. It is what caught
+# `[target.'cfg(not(target_arch = "wasm32"))'.dependencies]` owning the keys
+# written after it.
+#
+# Separate from `tombi-check` because the two fail for different reasons and a
+# contributor fixing formatting should not have to read a schema error, or the
+# other way round.
+[tasks."tombi-lint"]
+cwd = "${REPO_ROOT}"
+description = "Validate every TOML file against its schema."
+script = "tombi lint --error-on-warnings"
+
+[tasks."tombi-fmt"]
+cwd = "${REPO_ROOT}"
+description = "Format every TOML file in place."
+script = "tombi format"
+
+[tasks."typos"]
+cwd = "${REPO_ROOT}"
+description = "Fail on a misspelling in any tracked text file."
+script = "typos"
+
+# Every `.rs` file must carry both AGPL-3.0-only headers on lines 1 and 2.
+#
+# The `cd` is not defensive: cargo-make runs a task once per workspace member
+# with the working directory set to that member, so a task that does not move to
+# the root is reading a different tree depending on which member invoked it.
+[tasks."license-headers"]
+cwd = "${REPO_ROOT}"
+description = "Check that every .rs file carries both AGPL SPDX headers."
+script = """
+#!/usr/bin/env bash
+set -euo pipefail
+exec bash make/scripts/license-headers.sh
+"""

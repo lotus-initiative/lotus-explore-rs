@@ -1,0 +1,63 @@
+# Compiling without running anything: the checks whose value is that they are
+# fast enough to run on every commit.
+
+[tasks."check"]
+cwd = "${REPO_ROOT}"
+description = "Type-check the whole workspace, all targets."
+script = "cargo check --workspace --all-targets --locked"
+
+# One `cargo check -p <crate> --target wasm32` per crate keeps the wasm build
+# green.
+#
+# The four pure crates are checked for wasm *in their own right*, not only
+# because the app pulls them in: that is what keeps them free of IO. The app
+# would fail to build if any of them reached for a clock or a socket, but the
+# reverse is not true -- a crate can compile as part of the app while being
+# untestable in isolation, and the boundary is the point.
+[tasks."check-wasm"]
+cwd = "${REPO_ROOT}"
+description = "Type-check the wasm-compatible crates for wasm32."
+dependencies = ["check-wasm-pure", "check-wasm-search", "check-wasm-app"]
+
+[tasks."check-wasm-pure"]
+cwd = "${REPO_ROOT}"
+description = "Type-check the four pure crates for wasm32."
+script = """
+cargo check --target wasm32-unknown-unknown --locked \\
+  -p lotus-model -p lotus-query -p lotus-jsonld -p lotus-curation
+"""
+
+[tasks."check-wasm-search"]
+cwd = "${REPO_ROOT}"
+description = "Type-check lotus-search's pure half for wasm32."
+script = "cargo check -p lotus-search --no-default-features --target wasm32-unknown-unknown --locked"
+
+[tasks."check-wasm-app"]
+cwd = "${REPO_ROOT}"
+description = "Type-check the browser build for wasm32."
+script = "cargo check -p lotus-explore-rs --target wasm32-unknown-unknown --locked"
+
+# rustdoc with warnings denied. Without `-D warnings` a rustdoc warning is
+# printed and the build still succeeds, so the job proves only that the docs
+# build, not that they are warning-free.
+[tasks."doc"]
+cwd = "${REPO_ROOT}"
+description = "Build the documentation with rustdoc warnings denied."
+script = """
+RUSTDOCFLAGS="-D warnings -D rustdoc::broken_intra_doc_links" \\
+  cargo doc --workspace --no-deps --locked
+"""
+
+# The published developer documentation, to `target/doc`.
+#
+# Not a GitHub Pages deployment and not an mdbook: the developer docs are three
+# markdown files, and an mdbook is a site generator for a site that does not
+# exist yet. This task is the whole of it -- a local `target/doc` you can open.
+[tasks."doc-open"]
+cwd = "${REPO_ROOT}"
+description = "Build the documentation and print the path to open it."
+script = """
+cargo make doc
+echo
+echo "open target/doc/lotus_query/index.html"
+"""

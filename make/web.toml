@@ -1,0 +1,221 @@
+# The web app, the desktop window and the wasm bundle.
+#
+# `dx` is the Dioxus CLI, pinned to the same 0.7.10 as the `dioxus` dependency
+# in the root manifest. `dx` is the binary `dioxus-cli` installs and is not
+# published to crates.io, so `cargo binstall dx@0.7.10` does not resolve and
+# `cargo make setup` installs `dioxus-cli` instead.
+
+# fetch-assets must run from the app crate's directory so its relative asset
+# directories land inside `apps/lotus-explore-rs/public`, not at the repo-root
+# `public/`. From the root it downloads ~115 MB into a `public/` nothing reads,
+# and the build then succeeds with no assets in it at all.
+[tasks."assets"]
+cwd = "${REPO_ROOT}"
+description = "Fetch the third-party frontend assets (Ketcher, RDKit, citation.js)."
+script = """
+set -euo pipefail
+cd apps/lotus-explore-rs
+# The retry is for the failure `fetch-assets` cannot see: a run cut off part way
+# through leaves a half-populated `public/assets/`, and `dx build` succeeds
+# against that -- which publishes a site with no structure editor rather than
+# failing. `fetch-assets` already retries within a single request.
+for attempt in 1 2 3; do
+  if cargo run --locked -p lotus-web-assets --bin fetch-assets; then
+    break
+  fi
+  echo "::warning::fetch-assets attempt $attempt failed; clearing the partial tree"
+  rm -rf public/assets/ketcher public/assets/vendor
+  [ "$attempt" = 3 ] && exit 1
+  sleep $((attempt * 10))
+done
+test -f public/assets/ketcher/index.html
+test -f public/assets/vendor/rdkit/RDKit_minimal.wasm
+"""
+
+# The dev server's payload is dominated by debug info, not by code. Measured on
+# this workspace, dev wasm, same source, with the rustc flags below applied in
+# turn to the default:
+#
+#   (nothing)          63.6 MiB   build 42s
+#   opt-level 1        60.1 MiB   build 14s
+#   debuginfo 0        37.5 MiB   build 12s
+#   debuginfo 0 + strip debuginfo   6.4 MiB   build  6s
+#
+# Optimising barely moves it; emitting the debug sections is the whole cost, and
+# writing them is also most of the build time. Stripping them is a 10x smaller
+# payload and a 7x faster dev build, for the loss of line numbers in panic
+# backtraces. Neither flag changes codegen, so hot reload is unaffected. The
+# flags are written out longhand rather than as an opt-level because the whole
+# finding is that the opt-level is not the lever.
+#
+# Never measure Lighthouse against this: it is a dev server serving an unhashed
+# bundle and the Dioxus JS interpreter, not the shipped artefact. See
+# `apps/lotus-explore-rs/docs/PERFORMANCE.md`.
+[tasks."web-dev"]
+cwd = "${REPO_ROOT}"
+description = "Run the Dioxus dev server for the web app."
+dependencies = ["assets"]
+script = """
+cd apps/lotus-explore-rs
+dx serve --package lotus-explore-rs --platform web --locked --open=false \\
+  --rustc-args="-Cdebuginfo=0 -Cstrip=debuginfo"
+"""
+
+# Dioxus supplies a different entry point per renderer and two of them cannot be
+# enabled at once, so the renderer is chosen by a feature. Without `--features
+# desktop` a native build has no user interface and exits immediately.
+[tasks."web-dev-desktop"]
+cwd = "${REPO_ROOT}"
+description = "Run the dev server for the native-window build."
+dependencies = ["assets"]
+script = """
+cd apps/lotus-explore-rs
+dx serve --package lotus-explore-rs --desktop --locked --features desktop --open=false
+"""
+
+# The release web build, with the optimisation level the profile declares.
+#
+# The `BROWSERSLIST` is the shipped floor, and it is set here rather than left
+# to autoprefixer because the browserslist config affects what Tailwind emits:
+# a wider floor means more vendor prefixes in the stylesheet that every page
+# loads.
+[tasks."web-build"]
+cwd = "${REPO_ROOT}"
+description = "Build the optimised web bundle with dx."
+dependencies = ["assets", "opt-levels"]
+script = """
+cd apps/lotus-explore-rs
+BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' \\
+  dx build --release --package lotus-explore-rs --platform web --locked \\
+  --debug-symbols=false --rustc-args=-Copt-level=z
+"""
+
+# The desktop job in CI: compile the one target nothing else builds, then prove
+# the bundle can answer what the app asks of it. Every desktop-only bug so far
+# -- an unstyled window, a no-op download, a 404 for the toolkit -- compiled
+# cleanly, because nothing built this target.
+[tasks."desktop"]
+cwd = "${REPO_ROOT}"
+description = "Build the desktop app and verify the bundle can answer every request."
+dependencies = ["assets", "lint-desktop", "test-desktop"]
+script = """
+set -euo pipefail
+cd apps/lotus-explore-rs
+dx build --package lotus-explore-rs --desktop --locked --features desktop
+cd ../..
+cargo make verify-bundle
+cargo make bundle-icon
+"""
+
+# The optimisation level is declared in three places, and `dx` passes
+# `--rustc-args=-Copt-level=` last, so the task runner silently wins over the
+# `[profile.release]` it is supposed to match. That drift shipped once: the one
+# build said `s` while the profile said `z`, and every release bundle was 185300
+# raw / 38433 brotli bytes larger than intended, with nothing in CI noticing.
+# Assert the three agree.
+[tasks."opt-levels"]
+cwd = "${REPO_ROOT}"
+description = "Assert the three declarations of the release opt-level agree."
+script = """
+#!/usr/bin/env bash
+set -euo pipefail
+exec bash "make/scripts/opt-levels.sh"
+"""
+
+# The module is content-hashed, so only a post-build step can name it. Without
+# this the 1.4 MiB module is fetched *after* the 45 KiB JS glue has downloaded,
+# parsed and executed; measured, that serialisation cost ~120 ms of LCP.
+[tasks."preload-wasm"]
+cwd = "${REPO_ROOT}"
+description = "Inject the preload link for the content-hashed wasm module."
+script = "cargo run --locked --release -p lotus-web-assets --bin inject-wasm-preload"
+
+# Recompile the application stylesheet.
+#
+# The compiled sheet is committed, because `asset!` reads it at compile time and
+# a checkout without it cannot build the app. That makes it possible for it to go
+# stale, so a test in `document_head.rs` fails if a theme token is missing from
+# it. Run this after editing `tailwind/styles.css`, and commit the result.
+#
+# Uses the Tailwind binary dx installed, not npm: dx owns the version, and a
+# second copy of the compiler is a second answer to which utilities exist.
+[tasks."web-css"]
+cwd = "${REPO_ROOT}"
+description = "Recompile the Tailwind stylesheet with the binary dx installed."
+script = """
+#!/usr/bin/env bash
+set -euo pipefail
+exec bash "make/scripts/web-css.sh"
+"""
+
+# One number per transfer encoding, so a profile experiment is comparable with
+# the one before it instead of eyeballed. `raw` is what the linker emitted, `br`
+# is the sibling dx pre-compresses, `gzip -9` is the fallback for hosts without
+# brotli. Only the bundle we actually ship is measured: no source maps.
+[tasks."web-bytes"]
+cwd = "${REPO_ROOT}"
+description = "Measure the built wasm bundle, raw and compressed."
+script = """
+#!/usr/bin/env bash
+set -euo pipefail
+exec bash "make/scripts/web-bytes.sh"
+"""
+
+# The macOS application icon, generated from the same artwork the web app uses.
+#
+# `dx` writes `CFBundleIconFile = icon.icns` into every macOS bundle whether or
+# not one is configured, so a bundle built without this file has a plist naming
+# a file that is not there, and Finder shows a generic icon. `iconutil` needs a
+# full iconset -- ten sizes, half of them at 2x -- so it is generated rather than
+# committed, and the mistake it prevents is an `.icns` that looks right and is
+# missing a size.
+[tasks."app-icon"]
+cwd = "${REPO_ROOT}"
+description = "Generate the macOS .icns from the app's PNG artwork."
+script = """
+#!/usr/bin/env bash
+set -euo pipefail
+exec bash "make/scripts/app-icon.sh"
+"""
+
+# Copy the icon into a built macOS bundle.
+#
+# Done here rather than through `Dioxus.toml` because `dx` accepts a `resources`
+# entry and does not put it where the plist looks, so a configured icon and a
+# Finder icon were two different files.
+[tasks."bundle-icon"]
+cwd = "${REPO_ROOT}"
+description = "Install the .icns into any built macOS bundle."
+script = """
+#!/usr/bin/env bash
+set -euo pipefail
+exec bash "make/scripts/bundle-icon.sh"
+"""
+
+# Check that a built macOS bundle can actually answer everything the app asks
+# it for.
+#
+# `dioxus-desktop` serves a request out of the bundle only when the path starts
+# with `/assets/`, joining it onto `Contents/Resources`. Anything else is looked
+# up on disk relative to the working directory and missed. That rule is why
+# RDKit and Ketcher 404ed in the window while working in a browser, and nothing
+# in the test suite could see it: the assets were absent, and the paths were
+# only ever assembled at runtime.
+#
+# So this walks the real bundle: the icon the plist names, every folder asset
+# the app can request, and Ketcher's own relative references.
+[tasks."verify-bundle"]
+cwd = "${REPO_ROOT}"
+description = "Assert the built desktop bundle can answer every request the app makes."
+script = """
+#!/usr/bin/env bash
+set -euo pipefail
+exec bash "make/scripts/verify-bundle.sh"
+"""
+
+[tasks."cli"]
+cwd = "${REPO_ROOT}"
+description = "Run the lotus CLI. Arguments after -- are passed straight through."
+script = """
+cargo run --locked -q -p lotus-cli --bin lotus -- "$@"
+"""
