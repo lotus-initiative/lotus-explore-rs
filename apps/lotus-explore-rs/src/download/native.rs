@@ -22,7 +22,6 @@ pub(super) async fn execute_download_with_fallback(
     match result {
         Ok(body) => finalize_download(format, "direct", &body, dl_timer, &filename),
         Err(e) => {
-            // Check if it's a gateway error (502) indicating QLever is down
             if e.contains("502") || e.contains("Bad Gateway") || e.contains("gateway") {
                 log::warn!(
                     "event=download format={} phase=fetch state=fallback reason=qlever_502",

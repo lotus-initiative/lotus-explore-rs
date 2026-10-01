@@ -25,36 +25,20 @@ impl ResultsExecutionPlan {
     }
 
     pub(super) fn into_download_only_outcome(self) -> ResultsPipelineOutcome {
-        let endpoint = if is_wdqs_fallback_used() {
-            SparqlEndpoint::Wdqs
-        } else {
-            SparqlEndpoint::Qlever
-        };
-        let warning = if is_wdqs_fallback_used() {
-            Some(crate::features::explore::types::TaxonWarning::WdqsFallback)
-        } else {
-            self.taxon_resolution.warning
-        };
-        // Store the display query (WDQS-transformed if fallback occurred)
-        let query = crate::repositories::get_wdqs_transformed_query()
-            .unwrap_or_else(|| self.execution_query.clone());
-
-        ResultsPipelineOutcome {
-            rows: Vec::new(),
-            qid: self.taxon_resolution.qid,
-            warning,
-            query,
-            total_matches: None,
-            total_stats: None,
-            display_capped_rows: false,
-            endpoint,
-        }
+        self.into_outcome(FetchResult::empty())
     }
 
     pub(super) fn into_interactive_outcome(
         self,
         fetch_result: FetchResult,
     ) -> ResultsPipelineOutcome {
+        self.into_outcome(fetch_result)
+    }
+
+    /// The endpoint, warning and display query are a function of the fallback
+    /// state alone, so the two outcomes differ only in what was fetched. A
+    /// download-only search fetched nothing, which is `FetchResult::empty`.
+    fn into_outcome(self, fetch_result: FetchResult) -> ResultsPipelineOutcome {
         let endpoint = if is_wdqs_fallback_used() {
             SparqlEndpoint::Wdqs
         } else {
@@ -65,7 +49,6 @@ impl ResultsExecutionPlan {
         } else {
             self.taxon_resolution.warning
         };
-        // Store the display query (WDQS-transformed if fallback occurred)
         let query = crate::repositories::get_wdqs_transformed_query()
             .unwrap_or_else(|| self.execution_query.clone());
 

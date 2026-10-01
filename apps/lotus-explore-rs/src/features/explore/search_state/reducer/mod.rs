@@ -63,7 +63,6 @@ pub fn reduce_mut(state: &mut ExploreState, action: ExploreAction) {
             if lifecycle::search_failed(&mut state.lifecycle, &error) {
                 result_data::clear(&mut state.result);
             }
-            // Store the query that was attempted even on error
             if let Some(q) = query {
                 state.result.sparql_query = Some(Arc::from(q));
             }

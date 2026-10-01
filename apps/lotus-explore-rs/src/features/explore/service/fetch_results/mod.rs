@@ -26,6 +26,21 @@ pub struct FetchResult {
     pub display_capped_rows: bool,
 }
 
+impl FetchResult {
+    /// A search that was never sent, so nothing came back.
+    ///
+    /// Download-only searches resolve a taxon and build a query without fetching
+    /// anything, and their outcome differs from a real search only in this.
+    pub const fn empty() -> Self {
+        Self {
+            rows: Vec::new(),
+            total_stats: None,
+            total_matches: None,
+            display_capped_rows: false,
+        }
+    }
+}
+
 pub struct FetchHooks<OnFetching, OnProcessing> {
     on_fetching: OnFetching,
     on_processing: OnProcessing,

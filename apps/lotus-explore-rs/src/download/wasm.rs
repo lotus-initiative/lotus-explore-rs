@@ -58,7 +58,6 @@ pub(super) async fn execute_download_wasm(
                 "event=download format={} phase=fetch state=fallback reason=api_export_urls_failed detail={err}",
                 format.log_name()
             );
-            // Check if WDQS fallback was used for interactive query
             if is_wdqs_fallback_used() {
                 log::warn!(
                     "event=download format={} phase=fetch state=wdqs_fallback_from_api_error",

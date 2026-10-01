@@ -254,10 +254,10 @@ pub fn search_inflight_cell(
     state: &AppState,
     key: &str,
 ) -> Result<(InFlightSearch, bool), ApiError> {
-    // `Mutex::lock` errors only on poison (a holder thread panicked while
-    // holding the guard). Previously these were `.expect(...)` calls which
-    // would abort the request thread. Now they are converted to a typed
-    // `ApiError` (500) so the request fails gracefully instead of crashing.
+    // `Mutex::lock` errors only on poison -- a holder thread panicked while
+    // holding the guard. That is converted to a 500 rather than unwrapped,
+    // because unwrapping aborts the whole process: one poisoned lock would take
+    // down every other in-flight request with it.
     let existing = state
         .search_inflight
         .lock()
