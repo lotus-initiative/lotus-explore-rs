@@ -86,10 +86,17 @@ pub struct ExploreUiState {
     pub has_entries: bool,
     pub has_query: bool,
     pub has_resolved_qid: bool,
+    /// The search form has been edited since the last search ran.
+    ///
+    /// Taken from the form rather than read from here, because the form is a
+    /// separate signal and nothing in the explore state knows what the user has
+    /// typed.
+    pub criteria_dirty: bool,
 }
 
 impl ExploreUiState {
-    pub fn from_explore(explore: Signal<ExploreState>) -> Self {
+    /// `criteria_dirty` is the form's, not the explore state's -- see the field.
+    pub fn from_explore(explore: Signal<ExploreState>, criteria_dirty: bool) -> Self {
         let explore_read = explore.read();
         Self {
             loading: explore_read.lifecycle.loading,
@@ -100,6 +107,7 @@ impl ExploreUiState {
             has_entries: !explore_read.result.entries.is_empty(),
             has_query: explore_read.result.sparql_query.is_some(),
             has_resolved_qid: explore_read.result.resolved_qid.is_some(),
+            criteria_dirty,
         }
     }
 }
@@ -174,6 +182,7 @@ mod tests {
             has_entries: !explore.result.entries.is_empty(),
             has_query: explore.result.sparql_query.is_some(),
             has_resolved_qid: explore.result.resolved_qid.is_some(),
+            criteria_dirty: false,
         };
 
         assert!(!ui_state.loading);

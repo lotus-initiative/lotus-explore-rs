@@ -4,6 +4,7 @@
 
 use crate::components::loading::{DownloadDispatchState, DownloadOnlyState, LoadingState};
 use crate::components::results_table::ResultsTable;
+use crate::i18n::{TextKey, t};
 use crate::state::use_results_context;
 use crate::ui::{ContentPhase, LifecycleBooleans};
 use dioxus::prelude::*;
@@ -16,7 +17,11 @@ pub fn ResultsViewport() -> Element {
 
     let state = use_results_context();
     let explore = state.explore;
-    let ui_state = use_memo(move || ExploreUiState::from_explore(explore));
+    let form = crate::state::use_form_criteria_context();
+    // The results on screen belong to the criteria as they were when the search
+    // ran. Editing the form does not re-run it, so this is what tells the viewport
+    // the table no longer describes the query above it.
+    let ui_state = use_memo(move || ExploreUiState::from_explore(explore, form.is_dirty()));
 
     let phase = use_memo(move || {
         let s = *ui_state.read();
@@ -26,6 +31,7 @@ pub fn ResultsViewport() -> Element {
             searched_once: s.searched_once,
             download_only_mode: s.download_only_mode,
             has_entries: s.has_entries,
+            criteria_dirty: s.criteria_dirty,
         })
     });
 
@@ -48,6 +54,11 @@ pub fn ResultsViewport() -> Element {
                 },
             )
         }
+        // The results are gone because the query they answered is not the query
+        // on screen any more. Saying so, and saying what to do, is the difference
+        // between a page that looks broken and a page that is waiting for a
+        // button press.
+        ContentPhase::Stale => rsx! { StaleNotice {} },
         ContentPhase::Empty => {
             if *searched_once.read() {
                 rsx! { ResultsTable {} }
@@ -67,6 +78,26 @@ pub fn ResultsViewport() -> Element {
                 rsx! {
                     DownloadOnlyState {}
                 }
+            }
+        }
+    }
+}
+
+/// "Your search criteria changed. Run the search again to see results for them."
+#[component]
+fn StaleNotice() -> Element {
+    let locale = crate::hooks::use_locale();
+    rsx! {
+        div {
+            class: "empty-state",
+            role: "status",
+            // `polite`: the notice appears when a field is edited and stays
+            // there. It is not an error and must not interrupt what the user is
+            // still typing.
+            aria_live: "polite",
+            p {
+                class: "text-muted",
+                "{t(locale, TextKey::StaleResults)}"
             }
         }
     }

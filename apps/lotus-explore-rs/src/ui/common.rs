@@ -9,6 +9,8 @@ pub enum ContentPhase {
     Loading,
     Error,
     DownloadOnly,
+    /// Searched once, then the form was edited and not yet re-run.
+    Stale,
     Empty,
     Loaded,
 }
@@ -23,6 +25,15 @@ pub struct LifecycleBooleans {
     pub searched_once: bool,
     pub download_only_mode: bool,
     pub has_entries: bool,
+    /// The search form has been edited since the last search ran.
+    ///
+    /// This is what stops the results from belonging to a query that is no longer
+    /// the one on screen. Changing a field does not dispatch a search -- the user
+    /// presses the button -- so without this the table and the stats cards sit
+    /// there describing the *previous* criteria, under a form showing the new
+    /// ones. Two panels on screen disagreeing about what is being searched is
+    /// worse than either being absent.
+    pub criteria_dirty: bool,
 }
 
 impl From<LifecycleBooleans> for ContentPhase {
@@ -33,6 +44,7 @@ impl From<LifecycleBooleans> for ContentPhase {
             searched_once,
             download_only_mode,
             has_entries,
+            criteria_dirty,
         } = state;
         if loading {
             Self::Loading
@@ -42,6 +54,11 @@ impl From<LifecycleBooleans> for ContentPhase {
             Self::DownloadOnly
         } else if !searched_once {
             Self::Welcome
+        } else if criteria_dirty {
+            // Edited but not yet re-run. Its own phase rather than `Empty`, so
+            // the page can say why the results went away and what to do about it
+            // instead of looking like the search found nothing.
+            Self::Stale
         } else if !has_entries {
             Self::Empty
         } else {

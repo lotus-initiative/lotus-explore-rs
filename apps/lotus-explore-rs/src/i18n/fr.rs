@@ -189,5 +189,8 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::Statement => "Déclaration",
         TextKey::SparqlQuery => "Requête SPARQL",
         TextKey::CopySparqlQuery => "Copier la requête SPARQL",
+        TextKey::StaleResults => {
+            "Vos critères de recherche ont changé. Relancez la recherche pour voir les résultats correspondants."
+        }
     }
 }

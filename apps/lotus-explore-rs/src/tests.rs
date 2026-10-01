@@ -44,11 +44,55 @@ fn integration_explore_snapshot_drives_loaded_phase_and_toolbar_data() {
         searched_once: explore.lifecycle.searched_once,
         download_only_mode: explore.lifecycle.download_only_mode,
         has_entries: true,
+        criteria_dirty: false,
     });
 
     assert_eq!(snapshot.total_matches, Some(3));
     assert!(snapshot.sparql_query.is_some());
     assert_eq!(phase, ContentPhase::Loaded);
+}
+
+/// Editing a field without pressing Search must take the results away.
+///
+/// Changing a form field does not dispatch a search -- the user presses the
+/// button -- so without this the table and the stats cards sit there describing
+/// the *previous* criteria while the form shows the new ones. Two panels on
+/// screen disagreeing about what is being searched is worse than either being
+/// absent, and it reads as a bug in the search rather than a search that has not
+/// been run yet.
+#[test]
+fn editing_the_form_takes_the_previous_results_away() {
+    let phase = |criteria_dirty: bool| {
+        ContentPhase::from(LifecycleBooleans {
+            loading: false,
+            has_error: false,
+            searched_once: true,
+            download_only_mode: false,
+            has_entries: true,
+            criteria_dirty,
+        })
+    };
+
+    assert_eq!(phase(false), ContentPhase::Loaded);
+    assert_eq!(phase(true), ContentPhase::Stale);
+}
+
+/// Loading outranks a dirty form.
+///
+/// A search already running is what the user is waiting for; telling them their
+/// results are stale while the new ones are in flight would be two messages at
+/// once, and the second would be wrong within a second.
+#[test]
+fn loading_outranks_a_dirty_form() {
+    let phase = ContentPhase::from(LifecycleBooleans {
+        loading: true,
+        has_error: false,
+        searched_once: true,
+        download_only_mode: false,
+        has_entries: true,
+        criteria_dirty: true,
+    });
+    assert_eq!(phase, ContentPhase::Loading);
 }
 
 #[test]

@@ -185,5 +185,8 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::Statement => "Aussage",
         TextKey::SparqlQuery => "SPARQL-Abfrage",
         TextKey::CopySparqlQuery => "SPARQL-Abfrage kopieren",
+        TextKey::StaleResults => {
+            "Ihre Suchkriterien haben sich geändert. Führen Sie die Suche erneut aus, um Ergebnisse zu sehen."
+        }
     }
 }

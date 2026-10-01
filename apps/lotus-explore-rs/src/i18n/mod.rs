@@ -234,6 +234,8 @@ pub enum TextKey {
     Statement,
     SparqlQuery,
     CopySparqlQuery,
+    /// Shown when the form was edited but the search was not re-run.
+    StaleResults,
 }
 
 /// Resolve a [`TextKey`] for the given [`Locale`].

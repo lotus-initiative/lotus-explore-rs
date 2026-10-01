@@ -82,9 +82,15 @@ jobs:
       # than skipping it, which is deliberate: a supply-chain check that is
       # silently absent on a machine where it is not installed is a check that
       # reports nothing about the code.
-      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20 # v2
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: |
+            # `cargo-binstall` first, and deliberately: it is what
+            # install-action falls back to for any tool whose exact version its
+            # own table does not list, and the GitHub runner image ships Rust but
+            # not cargo-binstall. Without it here that fallback is a missing
+            # command and the step exits 76 before installing anything.
+            cargo-binstall
             cargo-make@0.37.24
             cargo-nextest@0.9.146
             tombi-cli@1.6.1
@@ -126,9 +132,15 @@ jobs:
       # should say so here rather than in a coverage report.
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with: { toolchain: 1.98.1, components: llvm-tools-preview }
-      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20 # v2
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: |
+            # `cargo-binstall` first, and deliberately: it is what
+            # install-action falls back to for any tool whose exact version its
+            # own table does not list, and the GitHub runner image ships Rust but
+            # not cargo-binstall. Without it here that fallback is a missing
+            # command and the step exits 76 before installing anything.
+            cargo-binstall
             cargo-make@0.37.24
             cargo-nextest@0.9.146
             cargo-llvm-cov@0.9.1
@@ -161,9 +173,11 @@ jobs:
       # nextest but *not* cargo-make: `./mk` inherits the pinned toolchain from
       # `rust-toolchain.toml`, which is exactly what this job must not use, so the
       # two commands are spelled out rather than delegated.
-      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20 # v2
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
-          tool: cargo-nextest@0.9.146
+          tool: |
+            cargo-binstall
+            cargo-nextest@0.9.146
       - run: cargo check --workspace --all-targets --locked
       - run: cargo nextest run --workspace --locked --no-fail-fast
 
@@ -208,9 +222,15 @@ jobs:
       # The crate is `dioxus-cli`, not `dx`: `dx` is the binary it installs and
       # is not published to crates.io, so `dx@0.7.10` failed to resolve. The
       # version matches the `dioxus` dependency.
-      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20 # v2
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: |
+            # `cargo-binstall` first, and deliberately: it is what
+            # install-action falls back to for any tool whose exact version its
+            # own table does not list, and the GitHub runner image ships Rust but
+            # not cargo-binstall. Without it here that fallback is a missing
+            # command and the step exits 76 before installing anything.
+            cargo-binstall
             cargo-make@0.37.24
             cargo-nextest@0.9.146
             dioxus-cli@0.7.10
@@ -231,9 +251,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with: { persist-credentials: false, fetch-depth: 1 }
       - uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v3
-      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20 # v2
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
-          tool: cargo-make@0.37.24
+          tool: |
+            cargo-binstall
+            cargo-make@0.37.24
 
       # The ~115 MB asset fetch is the slow part and it is inside the image
       # build, so the timeout is generous by necessity rather than by caution.
