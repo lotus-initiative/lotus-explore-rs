@@ -40,7 +40,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::CopyFullQueryHash => "Vollständigen Abfrage-Hash kopieren (SHA-256)",
         TextKey::CopyFullResultHash => "Vollständigen Ergebnis-Hash kopieren (SHA-256)",
         TextKey::CopyShareableLink => "Freigabelink kopieren",
-        TextKey::Unique => "Eindeutig",
+        TextKey::Unique => "eindeutige",
         TextKey::LoadingTitle => "Wikidata wird über QLever abgefragt...",
         TextKey::LoadingHint => "Große Ergebnismengen können einige Sekunden dauern.",
         TextKey::LoadingResolvingTaxon => "Taxon wird aufgelöst...",
@@ -87,14 +87,14 @@ pub const fn de_t(key: TextKey) -> &'static str {
             "Beschriftungen bevorzugen 'mul' und verwenden 'en' als Fallback, damit Ergebnisse vergleichbar bleiben."
         }
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
-        TextKey::TaxonPlaceholder => "ein Name, eine Wikidata-QID oder * für alle",
+        TextKey::TaxonPlaceholder => "ein Name, eine QID oder * für alles",
         TextKey::Examples => "Beispiele",
         TextKey::ExampleSets => "Feld auf",
         TextKey::StructureSmilesOrMol => "SMILES oder Molfile",
         TextKey::StructurePlaceholder => "SMILES oder ein Molfile (V2000 / V3000)",
         TextKey::Substructure => "Substruktur",
         TextKey::Similarity => "Ähnlichkeit",
-        TextKey::StructureSearchMode => "Struktursuchmodus",
+        TextKey::StructureSearchMode => "Struktursuche",
         TextKey::EditCopyDaylightSmiles => "Bearbeiten -> Als Daylight SMILES kopieren",
         TextKey::CopyExtendedSmilesMol => "Als erweiterte SMILES / MOL V3000 kopieren",
         TextKey::FormulaFilter => "Formelfilter",
@@ -103,7 +103,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::MaxCount => "max",
         TextKey::MinCountAria => "Mindestanzahl",
         TextKey::MaxCountAria => "Maximalanzahl",
-        TextKey::ElementRequirement => "Anforderung",
+        TextKey::ElementRequirement => "Bedingung",
         TextKey::ElementStateAllowed => "erlaubt",
         TextKey::ElementStateRequired => "erforderlich",
         TextKey::ElementStateExcluded => "ausgeschlossen",
@@ -129,7 +129,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::KetcherIframeTitle => "Ketcher-Struktureditor",
         TextKey::KetcherClickToLoad => "Klicken Sie, um den Ketcher-Struktureditor zu laden.",
         TextKey::KetcherNotBundled => {
-            "Der Struktureditor war in diesem Build nicht enthalten. Fuhren Sie `cargo run -p lotus-web-assets --bin fetch-assets` aus und bauen Sie neu."
+            "Der Struktureditor war in diesem Build nicht enthalten. Führen Sie `cargo run -p lotus-web-assets --bin fetch-assets` aus und bauen Sie neu."
         }
         TextKey::KetcherPreparing => "Struktureditor wird vorbereitet (nur beim ersten Start)...",
         TextKey::KindNoteSmiles => "  Wird als einzeiliges SPARQL-Literal gesendet.",

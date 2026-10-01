@@ -41,11 +41,9 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::CopyFullQueryHash => "Copia hash completo della query (SHA-256)",
         TextKey::CopyFullResultHash => "Copia hash completo del risultato (SHA-256)",
         TextKey::CopyShareableLink => "Copia link condivisibile",
-        TextKey::Unique => "Uniche",
+        TextKey::Unique => "Unici",
         TextKey::LoadingTitle => "Interrogazione di Wikidata tramite QLever...",
-        TextKey::LoadingHint => {
-            "I set di risultati di grandi dimensioni possono richiedere alcuni secondi."
-        }
+        TextKey::LoadingHint => "Un numero elevato di risultati può richiedere alcuni secondi.",
         TextKey::LoadingResolvingTaxon => "Risoluzione del taxon...",
         TextKey::LoadingFetchingResults => "Recupero risultati...",
         TextKey::LoadingProcessingResults => "Elaborazione dei conteggi risultati...",
@@ -55,7 +53,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::ErrorHintConfiguration => {
             "In questo ambiente manca la configurazione di servizio richiesta."
         }
-        TextKey::ErrorHintNetwork => "Problema di rete rilevato. Riprova.",
+        TextKey::ErrorHintNetwork => "Problema di rete rilevato. Riprova può riuscire.",
         TextKey::ErrorHintRateLimit => {
             "Limite di richieste raggiunto sul servizio upstream. Attendi circa un minuto e riprova."
         }
@@ -89,7 +87,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
             "Le etichette preferiscono 'mul' e ricorrono a 'en' come fallback per mantenere confrontabili i risultati."
         }
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
-        TextKey::TaxonPlaceholder => "un nome, un QID di Wikidata, o * per tutto",
+        TextKey::TaxonPlaceholder => "un nome, un QID o * per tutto",
         TextKey::Examples => "Esempi",
         TextKey::ExampleSets => "Imposta il campo su",
         TextKey::StructureSmilesOrMol => "SMILES o Molfile",
@@ -128,7 +126,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::KetcherIframeTitle => "Editor di strutture Ketcher",
         TextKey::KetcherClickToLoad => "Clicca per caricare l'editor di strutture Ketcher.",
         TextKey::KetcherNotBundled => {
-            "L'editor di strutture non e incluso in questa build. Esegui `cargo run -p lotus-web-assets --bin fetch-assets` e ricompila."
+            "L'editor di strutture non è incluso in questa build. Esegui `cargo run -p lotus-web-assets --bin fetch-assets` e ricompila."
         }
         TextKey::KetcherPreparing => {
             "Preparazione dell'editor di strutture (solo al primo avvio)..."

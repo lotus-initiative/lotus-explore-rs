@@ -6,7 +6,7 @@ use super::Locale;
 pub fn aria_search_inchikey(locale: Locale, ik: &str) -> String {
     match locale {
         Locale::En => format!("Search Wikidata for InChIKey {ik}"),
-        Locale::Fr => format!("Rechercher dans Wikidata la cle InChIKey {ik}"),
+        Locale::Fr => format!("Rechercher dans Wikidata la clé InChIKey {ik}"),
         Locale::De => format!("InChIKey {ik} in Wikidata suchen"),
         Locale::It => format!("Cerca InChIKey {ik} in Wikidata"),
     }

@@ -13,7 +13,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::ShareableLink => "Lien partageable",
         TextKey::TsvFileUpload => "Fichier TSV",
         TextKey::Copy => "Copier",
-        TextKey::Copied => "Copié!",
+        TextKey::Copied => "Copié\u{202f}!",
         TextKey::CopyToClipboard => "Copier dans le presse-papiers",
         TextKey::Notice => "Note",
         TextKey::Error => "Erreur",
@@ -41,7 +41,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::CopyFullQueryHash => "Copier le hash complet de la requête (SHA-256)",
         TextKey::CopyFullResultHash => "Copier le hash complet du résultat (SHA-256)",
         TextKey::CopyShareableLink => "Copier le lien à partager",
-        TextKey::Unique => "Uniques",
+        TextKey::Unique => "uniques",
         TextKey::LoadingTitle => "Interrogation de Wikidata via QLever...",
         TextKey::LoadingHint => "Les grands jeux de résultats peuvent prendre du temps.",
         TextKey::LoadingResolvingTaxon => "Résolution du taxon...",
@@ -87,20 +87,20 @@ pub const fn fr_t(key: TextKey) -> &'static str {
             "Les libellés privilégient 'mul' et utilisent 'en' en repli afin de garantir des résultats comparables."
         }
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
-        TextKey::TaxonPlaceholder => "un nom, un QID Wikidata, ou * pour tout",
+        TextKey::TaxonPlaceholder => "un nom, un QID, ou * pour tout",
         TextKey::Examples => "Exemples",
         TextKey::ExampleSets => "Remplir le champ avec",
         TextKey::StructureSmilesOrMol => "SMILES ou Molfile",
         TextKey::StructurePlaceholder => "SMILES, ou un Molfile (V2000 / V3000)",
         TextKey::Substructure => "Sous-structure",
         TextKey::Similarity => "Similarité",
-        TextKey::StructureSearchMode => "Mode de recherche par structure",
+        TextKey::StructureSearchMode => "Recherche par structure",
 
         TextKey::EditCopyDaylightSmiles => "Édition -> Copier en tant que SMILES Daylight",
         TextKey::CopyExtendedSmilesMol => "Copier au format SMILES étendu / MOL V3000",
 
-        TextKey::FormulaFilter => "Filtre formule",
-        TextKey::ExactFormula | TextKey::Formula => "Formule brute",
+        TextKey::FormulaFilter => "Filtre de formule",
+        TextKey::ExactFormula | TextKey::Formula => "Formule exacte",
         TextKey::MinCount => "min",
         TextKey::MaxCount => "max",
         TextKey::MinCountAria => "compte minimum",
@@ -131,10 +131,10 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::KetcherIframeTitle => "Éditeur de structure Ketcher",
         TextKey::KetcherClickToLoad => "Cliquez pour charger l'éditeur de structure Ketcher.",
         TextKey::KetcherNotBundled => {
-            "L'editeur de structure n'a pas ete inclus dans cette version. Lancez `cargo run -p lotus-web-assets --bin fetch-assets` puis recompilez."
+            "L'éditeur de structure n'a pas été inclus dans cette version. Lancez `cargo run -p lotus-web-assets --bin fetch-assets` puis recompilez."
         }
         TextKey::KetcherPreparing => {
-            "Preparation de l'editeur de structure (premier lancement uniquement)..."
+            "Préparation de l'éditeur de structure (premier lancement uniquement)..."
         }
         TextKey::KindNoteSmiles => "  Envoyé comme littéral SPARQL sur une seule ligne.",
         TextKey::KindNoteMol2000 => "  Transmis tel quel à SACHEM scoredSubstructureSearch.",
