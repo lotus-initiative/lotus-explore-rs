@@ -95,17 +95,36 @@ script = "cargo nextest run --workspace --profile live --run-ignored only --lock
 [tasks."cov"]
 cwd = "${REPO_ROOT}"
 description = "Coverage report for the library crates, via nextest."
+# Three things here are load-bearing, and all three were wrong at once. That is
+# why the report said 17% for a workspace that is really at 93%: the job stayed
+# green the whole time and the numbers were simply not measuring anything.
+#
+# `nextest`, not `nextest run`. `cargo llvm-cov nextest` shells out to
+# `cargo nextest run` itself, so the extra `run` is consumed as a *test-name
+# filter* rather than a subcommand -- llvm-cov says so in a warning buried in the
+# build output, worded as a note. A filter matching no test name runs almost
+# nothing: 2 of 327 tests ran, because two of them happened to contain the word.
+#
+# `--html`, because without a format llvm-cov writes no file. It prints the
+# summary table, which looks like a successful report, and leaves nothing behind
+# for the artifact upload -- which is where the "No files were found with the
+# provided path" warning came from.
+#
+# `--output-dir`, because `--html` defaults to `target/llvm-cov/html` while the
+# workflow uploads `target/llvm-cov-report/`. Named here so the path written is
+# the path uploaded, rather than two strings that have to agree.
 script = """
-cargo llvm-cov nextest run --locked \\
+cargo llvm-cov nextest --locked \\
   -p lotus-model -p lotus-query -p lotus-curation -p lotus-jsonld -p lotus-search \\
-  --profile ci --no-fail-fast
+  --profile ci --no-fail-fast \\
+  --html --output-dir "${REPO_ROOT}/target/llvm-cov-report"
 """
 
 # The report as text rather than HTML, which is what a diff of two runs needs.
 [tasks."cov-summary"]
 cwd = "${REPO_ROOT}"
 description = "Print the coverage summary table without writing HTML."
-script = "cargo llvm-cov nextest run --locked --summary-only --workspace"
+script = "cargo llvm-cov nextest --locked --summary-only --workspace"
 
 # Mutation testing. `cargo mutants` rewrites one expression at a time and
 # re-runs the tests: a mutant that survives is a behaviour the suite does not
