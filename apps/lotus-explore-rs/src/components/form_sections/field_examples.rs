@@ -57,7 +57,7 @@ pub fn FieldExamples(
     /// The id of the input these examples fill.
     target: String,
     /// The values, as they would be typed.
-    values: Vec<String>,
+    values: &'static [&'static str],
     /// The visible heading, e.g. "Examples".
     heading: TextKey,
     /// Fill the field. The owner knows how; this does not.
@@ -80,7 +80,7 @@ pub fn FieldExamples(
                 class: "flex flex-wrap gap-1.5",
                 for value in values.iter() {
                     {
-                        let value = value.clone();
+                        let value = (*value).to_owned();
                         let onfill = onfill;
                         let target = target.clone();
                         rsx! {
@@ -159,7 +159,7 @@ mod tests {
                 input { id: "taxon-input", "aria-describedby": "taxon-input-examples-heading" }
                 FieldExamples {
                     target: "taxon-input",
-                    values: vec!["Fungi".to_string(), "Plantae".to_string()],
+                    values: &["Fungi", "Plantae"],
                     heading: TextKey::Examples,
                     onfill: move |_value: String| {},
                 }

@@ -129,7 +129,7 @@ fn StructureSection() -> Element {
             }
             FieldExamples {
                 target: "smiles-input",
-                values: STRUCTURE_SUGGESTIONS.iter().map(|s| (*s).to_string()).collect(),
+                values: STRUCTURE_SUGGESTIONS,
                 heading: TextKey::Examples,
                 onfill: move |value: String| ctx.update(FormAction::Smiles(value)),
             }

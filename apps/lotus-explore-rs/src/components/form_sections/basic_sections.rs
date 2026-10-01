@@ -152,7 +152,7 @@ pub fn TaxonInput() -> Element {
             }
             FieldExamples {
                 target: "taxon-input",
-                values: TAXON_SUGGESTIONS.iter().map(|s| (*s).to_string()).collect(),
+                values: TAXON_SUGGESTIONS,
                 heading: TextKey::Examples,
                 onfill: move |value: String| ctx.update(FormAction::Taxon(value)),
             }
