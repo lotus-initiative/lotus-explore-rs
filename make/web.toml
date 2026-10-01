@@ -105,17 +105,23 @@ BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' \\
 # the bundle can answer what the app asks of it. Every desktop-only bug so far
 # -- an unstyled window, a no-op download, a 404 for the toolkit -- compiled
 # cleanly, because nothing built this target.
+# `dx build` is the one step here that is not a task: it has to run from the app
+# crate's directory, because that is where the assets and the output tree are.
+# The two steps after it are dependencies rather than commands, so the runner runs
+# them instead of the script re-entering `cargo make` and fanning out over all
+# eight crates.
 [tasks."desktop"]
 cwd = "${REPO_ROOT}"
 description = "Build the desktop app and verify the bundle can answer every request."
-dependencies = ["assets", "lint-desktop", "test-desktop"]
+dependencies = ["assets", "lint-desktop", "test-desktop", "desktop-build", "verify-bundle", "bundle-icon"]
+
+[tasks."desktop-build"]
+cwd = "${REPO_ROOT}"
+description = "Run dx build for the desktop bundle."
 script = """
 set -euo pipefail
 cd apps/lotus-explore-rs
-dx build --package lotus-explore-rs --desktop --locked --features desktop
-cd ../..
-cargo make verify-bundle
-cargo make bundle-icon
+exec dx build --package lotus-explore-rs --desktop --locked --features desktop
 """
 
 # The optimisation level is declared in three places, and `dx` passes

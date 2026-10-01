@@ -39,13 +39,22 @@ script = "cargo nextest run -p lotus-explore-rs --features desktop --all-targets
 # What CI runs, as one command. The `ci` task calls the per-build tasks
 # separately so a red test names the build it failed in; this is for a human who
 # wants the same set in one invocation.
+# `--no-fail-fast` is passed here rather than being relied on from the profile:
+# `.config/nextest.toml` sets `fail-fast = false` for the `ci` profile, and this
+# is the flag that actually reaches the runner in 0.9.146.
+#
+# The doctests are a `dependency` rather than a second command: a task listed
+# there is run by the runner, and re-entering `cargo make` from inside a script
+# would fan out over all eight crates again.
 [tasks."test-ci"]
 cwd = "${REPO_ROOT}"
 description = "The CI test run: nextest with the ci profile, then the doctests."
-script = """
-cargo nextest run --workspace --locked --profile ci --no-fail-fast
-cargo make test-doc
-"""
+dependencies = ["test-nextest-ci", "test-doc"]
+
+[tasks."test-nextest-ci"]
+cwd = "${REPO_ROOT}"
+description = "Run the suite under the ci nextest profile."
+script = "cargo nextest run --workspace --locked --profile ci --no-fail-fast"
 
 # The doctests, on their own.
 #
