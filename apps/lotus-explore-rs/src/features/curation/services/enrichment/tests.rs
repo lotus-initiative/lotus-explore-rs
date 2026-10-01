@@ -145,8 +145,8 @@ fn a_mass_wikidata_already_records_is_not_overwritten() {
 fn a_row_naming_no_taxon_has_no_dependencies() {
     let fixture = Fixture::new();
     let row = fixture.row(None);
-    assert!(pending_messages(&row).is_empty());
-    assert!(row.dependency_blocks().is_empty());
+    assert_eq!(pending_messages(&row).len(), 0, "expected no entries");
+    assert_eq!(row.dependency_blocks().len(), 0, "expected no entries");
 }
 
 #[test]

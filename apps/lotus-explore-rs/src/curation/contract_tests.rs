@@ -115,12 +115,16 @@ fn extra_columns_past_the_last_interesting_one_are_ignored() {
 
 #[test]
 fn header_only_and_empty_input_yield_no_rows() {
-    assert!(
-        parse_tsv_rows("name\tsmiles\n")
-            .expect("valid TSV")
-            .is_empty()
+    assert_eq!(
+        parse_tsv_rows("name\tsmiles\n").expect("valid TSV").len(),
+        0,
+        "a header row is not a compound"
     );
-    assert!(parse_tsv_rows("").expect("empty is valid").is_empty());
+    assert_eq!(
+        parse_tsv_rows("").expect("empty is valid").len(),
+        0,
+        "expected no entries"
+    );
 }
 
 #[test]
@@ -286,6 +290,6 @@ fn rows_with_nothing_to_say_contribute_nothing_to_the_main_bundle() {
 fn an_empty_result_set_produces_an_empty_bundle() {
     let bundle = build_quickstatements_bundle(&[]);
     assert_eq!(bundle, QuickStatementsBundle::default());
-    assert!(bundle.dependencies.is_empty());
-    assert!(bundle.main.is_empty());
+    assert_eq!(bundle.dependencies.len(), 0, "expected no entries");
+    assert_eq!(bundle.main.len(), 0, "expected no entries");
 }

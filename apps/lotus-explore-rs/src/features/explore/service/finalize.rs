@@ -133,6 +133,9 @@ mod tests {
             false,
             export::SparqlEndpoint::Qlever,
         );
-        assert!(!m.metadata_json.is_empty());
+        // `assert!` rather than `assert_eq!(len, 0)`: clippy 1.99 added
+        // `assert_is_empty` to pedantic, which this workspace denies, and this is
+        // the shape it flags. It also reads as the claim the test makes.
+        assert!(!m.metadata_json.is_empty(), "the metadata JSON is written");
     }
 }

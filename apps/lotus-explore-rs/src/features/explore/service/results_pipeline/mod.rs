@@ -86,7 +86,7 @@ mod tests {
                 .await
                 .expect("download-only should not hit results fetch");
 
-            assert!(outcome.rows.is_empty());
+            assert_eq!(outcome.rows.len(), 0, "expected no entries");
             assert!(outcome.total_matches.is_none());
             assert!(outcome.query.contains("SELECT"));
         });

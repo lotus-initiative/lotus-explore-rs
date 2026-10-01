@@ -40,7 +40,7 @@ fn parse_criteria_structure_without_explicit_taxon_clears_default_taxon() {
 
     let crit = parse_criteria_from_params(&params);
     assert_eq!(crit.structure, "CCO");
-    assert!(crit.taxon.is_empty());
+    assert_eq!(crit.taxon.len(), 0, "expected no entries");
 }
 
 #[test]

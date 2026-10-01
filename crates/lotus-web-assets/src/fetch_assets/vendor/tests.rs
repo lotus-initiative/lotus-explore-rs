@@ -67,7 +67,11 @@ fn an_asset_with_no_files_owns_nothing() {
         version: "0".to_owned(),
         files: vec![],
     };
-    assert!(asset.paths(Path::new("root")).is_empty());
+    // `assert_eq!` against an empty array rather than `assert!(.. .is_empty())`:
+    // clippy 1.99 added the `assert_is_empty` lint, which the workspace denies
+    // through pedantic, and it asks for this form. It is also the better failure
+    // message -- an `assert!` here prints nothing but "assertion failed".
+    assert_eq!(asset.paths(Path::new("root")), [] as [PathBuf; 0]);
 }
 
 #[test]

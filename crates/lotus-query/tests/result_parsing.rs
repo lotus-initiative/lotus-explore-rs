@@ -59,8 +59,8 @@ fn an_absent_taxon_is_empty_rather_than_missing() {
         .iter()
         .find(|r| r.compound_qid.as_ref() == "Q3")
         .expect("Q3 is present");
-    assert!(row.taxon_qid.is_empty());
-    assert!(row.taxon_name.is_empty());
+    assert_eq!(row.taxon_qid.len(), 0, "expected no entries");
+    assert_eq!(row.taxon_name.len(), 0, "expected no entries");
     assert_eq!(row.reference_qid.as_ref(), "Q1001");
 }
 
@@ -229,10 +229,12 @@ fn a_payload_the_endpoint_mangled_still_parses() {
 
 #[test]
 fn an_empty_payload_is_an_empty_result_rather_than_an_error() {
-    assert!(
+    assert_eq!(
         parse_compounds_csv(b"", 10)
             .expect("empty is not malformed")
-            .is_empty()
+            .len(),
+        0,
+        "an empty document yields no rows, and is not malformed"
     );
 }
 
@@ -258,7 +260,7 @@ fn a_taxon_row_needs_both_an_id_and_a_name() {
 #[test]
 fn a_header_only_taxon_payload_is_no_matches() {
     let matches = parse_taxon_csv(b"taxon,taxon_name\n").expect("valid CSV");
-    assert!(matches.is_empty());
+    assert_eq!(matches.len(), 0, "expected no entries");
 }
 
 #[test]

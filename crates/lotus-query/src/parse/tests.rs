@@ -74,14 +74,14 @@ fn a_row_without_a_compound_id_is_not_a_result() {
         10,
     )
     .expect("valid CSV");
-    assert!(rows.is_empty());
+    assert_eq!(rows.len(), 0, "expected no entries");
 }
 
 #[test]
 fn a_row_missing_several_columns_still_parses() {
     let rows = parse_compounds_csv(&csv("Q1,L\n"), 10).expect("valid CSV");
     assert_eq!(rows.len(), 1);
-    assert!(rows[0].taxon_qid.is_empty());
+    assert_eq!(rows[0].taxon_qid.len(), 0, "expected no entries");
     assert!(rows[0].smiles.is_none());
 }
 
@@ -150,10 +150,10 @@ fn taxon_rows_need_both_an_id_and_a_name() {
 
 #[test]
 fn an_empty_payload_is_an_empty_result_not_an_error() {
-    assert!(
-        parse_compounds_csv(b"", 10)
-            .expect("empty is valid")
-            .is_empty()
+    assert_eq!(
+        parse_compounds_csv(b"", 10).expect("empty is valid").len(),
+        0,
+        "an empty document yields no rows, and is not an error"
     );
 }
 
@@ -211,7 +211,7 @@ fn a_header_with_no_recognisable_columns_yields_no_rows() {
     // which is a change to behaviour rather than to a test.
     let bytes = b"\0\0\0not a result set at all\n".to_vec();
     let (rows, _, capped) = parse_compounds_stream(bytes.as_slice(), 10).expect("reads");
-    assert!(rows.is_empty());
+    assert_eq!(rows.len(), 0, "expected no entries");
     assert!(!capped);
 }
 

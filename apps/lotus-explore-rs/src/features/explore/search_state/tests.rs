@@ -30,7 +30,7 @@ fn search_requested_sets_loading_and_clears_result() {
     assert!(next.lifecycle.searched_once);
     assert!(!next.lifecycle.download_only_mode);
     assert_eq!(next.lifecycle.search_request_token, 1);
-    assert!(next.result.entries.is_empty());
+    assert_eq!(next.result.entries.len(), 0, "expected no entries");
     assert!(next.result.sparql_query.is_none());
 }
 

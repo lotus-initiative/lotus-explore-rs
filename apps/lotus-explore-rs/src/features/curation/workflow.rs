@@ -220,7 +220,11 @@ mod tests {
 
         assert_eq!(outcome.result_rows.len(), 2);
         assert_eq!(outcome.result_rows[0].input.name, "A");
-        assert!(outcome.result_rows[0].dependency_blocks.is_empty());
+        assert_eq!(
+            outcome.result_rows[0].dependency_blocks.len(),
+            0,
+            "expected no entries"
+        );
         assert_eq!(outcome.result_rows[0].quickstatements, vec!["MAIN-A"]);
         assert_eq!(outcome.result_rows[1].input.name, "B");
     }
@@ -234,7 +238,11 @@ mod tests {
 
         assert!(!outcome.awaiting_second_pass);
         assert_eq!(outcome.status_message, msg_second_pass_done(Locale::En));
-        assert!(outcome.quickstatements.dependencies.is_empty());
+        assert_eq!(
+            outcome.quickstatements.dependencies.len(),
+            0,
+            "expected no entries"
+        );
         assert_eq!(outcome.quickstatements.main.as_ref(), "MAIN-A");
     }
 }

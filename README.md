@@ -44,7 +44,7 @@ are where they are.
 
 ## Prerequisites
 
-Rust 1.98.1 with `clippy`, `rustfmt` and `wasm32-unknown-unknown`, pinned in
+Rust 1.99.0 with `clippy`, `rustfmt` and `wasm32-unknown-unknown`, pinned in
 `rust-toolchain.toml`. Everything else is installed for you:
 
 ```bash

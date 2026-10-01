@@ -141,5 +141,5 @@ fn a_batch_with_nothing_convertible_sends_nothing() {
         convertible_smiles(&[finding(""), finding(" ")]),
         Vec::<&str>::new()
     );
-    assert!(convertible_smiles(&[]).is_empty());
+    assert_eq!(convertible_smiles(&[]).len(), 0, "expected no entries");
 }
