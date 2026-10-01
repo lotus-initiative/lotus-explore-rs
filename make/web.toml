@@ -64,6 +64,17 @@ dx serve --package lotus-explore-rs --platform web --locked --open=false \\
 # Dioxus supplies a different entry point per renderer and two of them cannot be
 # enabled at once, so the renderer is chosen by a feature. Without `--features
 # desktop` a native build has no user interface and exits immediately.
+# The API on its own, for developing against it without the Dioxus dev server.
+# The dev server proxies `/v1` to `127.0.0.1:8787` (see the `[[web.proxy]]` entry
+# in Dioxus.toml), so this is the other half of `./mk web-dev` when you need a
+# real query path rather than a fixture.
+[tasks."web-dev-api"]
+cwd = "${REPO_ROOT}"
+description = "Run the HTTP API on http://127.0.0.1:8787."
+script = """
+exec cargo run --locked --features server -p lotus-explore-rs
+"""
+
 [tasks."web-dev-desktop"]
 cwd = "${REPO_ROOT}"
 description = "Run the dev server for the native-window build."

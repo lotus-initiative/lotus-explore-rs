@@ -67,6 +67,11 @@ is not needed, because Dioxus builds the Tailwind itself.
 `./mk --list-all-steps` is the list of tasks. It is the authoritative one:
 a copy of it in this file would be a copy that goes stale.
 
+`./mk` is a script at the repository root and the only command to learn. It runs
+`cargo make --no-workspace`, and the flag is the point: without it cargo-make
+re-runs each task once per crate, so `./mk ci` is 71s and a bare `cargo make ci`
+is 578s — the same checks, eight times over. The comment in `mk` has the detail.
+
 [`CONTRIBUTING.md`](CONTRIBUTING.md) has the full list, where a change belongs, and how to
 refresh the fixtures.
 

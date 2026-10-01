@@ -27,15 +27,27 @@ all three. The endpoints are overridable with `LOTUS_QLEVER_ENDPOINT`,
 ## Web
 
 ```bash
-cd apps/lotus-explore-rs
-cargo run -p lotus-web-assets --bin fetch-assets   # once, fetches RDKit/Ketcher
-dx serve --platform web --package lotus-explore-rs --locked
+./mk web-dev
 ```
 
-Optional API alongside it:
+That fetches the assets and starts the dev server, with the rustc flags that
+make it usable: the dev bundle is dominated by debug info rather than code, and
+`docs/PERFORMANCE.md` has the measurements. Running `dx serve` by hand does not,
+and the difference is 63.6 MiB of payload against 6.4 MiB.
+
+The commands underneath, if you want to run them directly:
 
 ```bash
-cargo run --locked --features server -p lotus-explore-rs
+cd apps/lotus-explore-rs
+cargo run -p lotus-web-assets --bin fetch-assets   # fetches RDKit/Ketcher, ~115 MB
+dx serve --platform web --package lotus-explore-rs --locked \
+  --rustc-args="-Cdebuginfo=0 -Cstrip=debuginfo"
+```
+
+Optional API alongside it, from the repository root:
+
+```bash
+./mk web-dev-api
 # then open http://localhost:8080/?api_base=http://127.0.0.1:8787
 ```
 
