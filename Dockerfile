@@ -88,6 +88,11 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
       ca-certificates pkg-config libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# The binary from the planner, rather than a second `cargo install`: cargo-chef is
+# a Rust program and compiling it from source is several minutes, in a layer that
+# invalidates whenever cargo-chef itself is upgraded.
+COPY --from=planner /usr/local/cargo/bin/cargo-chef /usr/local/cargo/bin/cargo-chef
+
 WORKDIR /build
 COPY --from=planner /build/recipe.json recipe.json
 
@@ -104,11 +109,17 @@ FROM rust:${RUST_VERSION}-slim-trixie AS builder
 # ends up carrying a binary the kernel cannot execute.
 COPY --from=platform /musl-target /tmp/musl-target
 
+# `curl` is here because `utoipa-swagger-ui`'s build script downloads the Swagger
+# UI assets at compile time and its only fallback is the `curl` binary. That is a
+# build-time network fetch inside the image build, and it fails the build rather
+# than producing a server with no docs endpoint -- which is the right way round,
+# but it does mean the image build is not hermetic.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates pkg-config libssl-dev musl-tools \
+      ca-certificates curl pkg-config libssl-dev musl-tools \
     && rm -rf /var/lib/apt/lists/*
+
 
 WORKDIR /build
 COPY --from=chef /build/target /build/target
@@ -239,7 +250,18 @@ COPY --from=wasm-builder /build/target/dx/lotus-explore-rs/release/web/public/in
 # and nothing else. There is no shell in the image, so `--read-only` plus
 # `--security-opt no-new-privileges` is not a hardening measure here -- it is the
 # only configuration the image can run in.
-FROM gcr.io/distroless/cc-debian12:nonroot AS runtime
+#
+# `debian13` and not `debian12`, and the reason is specific: the builder is
+# `rust:*-slim-trixie`, so the binary is linked against glibc 2.40, and
+# `debian12` provides 2.36. The image does not start -- with
+#
+#   /usr/local/bin/lotus-explore-rs: /lib/aarch64-linux-gnu/libc.so.6:
+#   version `GLIBC_2.38' not found
+#
+# The two must agree on the glibc the binary is built against. This is the same
+# constraint that already forces the wasm stage onto trixie for `dx`, arrived at
+# a second time and from the other direction.
+FROM gcr.io/distroless/cc-debian13:nonroot AS runtime
 
 ARG RUST_VERSION
 ARG VCS_REF=unknown
@@ -299,6 +321,7 @@ LABEL org.opencontainers.image.title="lotus-explore-rs-web" \
 
 COPY --from=wasm-builder /build/target/dx/lotus-explore-rs/release/web/public /usr/share/nginx/html
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/snippets/security-headers.conf /etc/nginx/snippets/security-headers.conf
 
 EXPOSE 8080
 

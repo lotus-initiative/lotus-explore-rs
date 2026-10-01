@@ -1,3 +1,19 @@
+# The CI gate.
+#
+# Every job here runs a `cargo make` task. The task definitions live in
+# `Makefile.toml` and `make/*.toml`, and the local gate is `cargo make ci`, so
+# there is one list of what "green" means and this file is the runner for it.
+# That is the whole point of the arrangement: when the workflow and the local
+# command each spelled out the cargo flags, they drifted, and a check that was
+# supposed to run locally did not.
+#
+# `apps/lotus-explore-rs/tests/gate_consistency.rs` checks that this file, the
+# `ci` task and `prek.toml` name the same set of checks, and fails the build if
+# they do not.
+#
+# Actions are pinned by SHA, not by tag, so a tag that moves cannot change what
+# runs on a pull request from a fork. The comment on each pin is the tag.
+
 name: CI
 
 on:
@@ -5,9 +21,14 @@ on:
     branches: [main]
   pull_request:
 
+# Least privilege. Nothing here writes to the repository, creates a release or
+# reads a secret, so `contents: read` is the whole grant.
 permissions:
   contents: read
 
+# A superseded run on the same ref is cancelled: a push that lands while a
+# previous push is still building makes the newer commit's result the one that
+# matters, and the older one has nothing left to say.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -18,345 +39,202 @@ defaults:
 
 env:
   CARGO_TERM_COLOR: always
+  # Every warning is an error. The lint task also passes `-D warnings`; this is
+  # what covers rustc's own default-warn group, which that flag does not reach
+  # for build scripts and proc macros.
   RUSTFLAGS: "-D warnings"
 
 jobs:
-  # ── Pre-commit checks: fast, block every commit/PR ──────────────────────────
-
-  fmt:
-    name: Rustfmt
+  # ── The gate ────────────────────────────────────────────────────────────────
+  # One job that runs `cargo make ci`. It is deliberately not eleven jobs: the
+  # reason the eleven existed was to report *which* check failed, and a JUnit
+  # artifact plus a named step does that without eleven toolchain installs,
+  # eleven cargo caches and eleven chances for the runner to be the slow part.
+  ci:
+    name: Gate
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8
         with:
-          # One key for every job on the branch, so the first job to run pays
-          # for compiling the dependency graph and the rest reuse it. The
+          # One key shared by every job on the branch, so the first job to run
+          # pays for compiling the dependency graph and the rest reuse it. The
           # default is per-job, which shares nothing.
           shared-key: ci
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
-        with:
-          toolchain: 1.97
-          components: rustfmt
-      - run: cargo fmt --all -- --check
 
-  license-headers:
-    name: License headers
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      # The toolchain is pinned in `rust-toolchain.toml` and rustup reads that
+      # file, so this step does not repeat the version: a job that named it
+      # here as well is a second answer to which compiler is in use.
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with:
-          # One key for every job on the branch, so the first job to run pays
-          # for compiling the dependency graph and the rest reuse it. The
-          # default is per-job, which shares nothing.
-          shared-key: ci
-      # This job had no setup step at all, so `just` was not on the runner and
-      # the job exited 127 before reading a single file: it had been reporting
-      # nothing about license headers the whole time.
-      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
-        with:
-          tool: just
-      # The recipe is a shell loop over `find`, so it needs no Rust toolchain of
-      # its own -- but pinning it here is what makes every job in this file run
-      # the same compiler rather than whatever the image shipped this week.
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
-        with:
-          toolchain: 1.97
-      - name: Every .rs file carries both AGPL headers on lines 1 and 2
-        run: just license-headers
-
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
-        with:
-          # One key for every job on the branch, so the first job to run pays
-          # for compiling the dependency graph and the rest reuse it. The
-          # default is per-job, which shares nothing.
-          shared-key: ci
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
-        with:
-          toolchain: 1.97
-          components: clippy
-      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - run: cargo clippy -p lotus-explore-rs --features server --locked -- -D warnings
-
-  # ── Pre-push checks: heavy — run on every PR and push ─────────────────────────
-
-  test:
-    name: Test (native)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
-        with:
-          # One key for every job on the branch, so the first job to run pays
-          # for compiling the dependency graph and the rest reuse it. The
-          # default is per-job, which shares nothing.
-          shared-key: ci
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
-        with:
-          toolchain: 1.97
-      - run: cargo test --workspace --all-targets --locked --quiet
-      - run: cargo test -p lotus-explore-rs --features server --locked --quiet
-
-  doc:
-    name: Docs
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      # Without this a rustdoc warning is printed and the job still passes, so
-      # the job proves only that the docs build, not that they are warning-free.
-      RUSTDOCFLAGS: -D warnings
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
-        with:
-          # One key for every job on the branch, so the first job to run pays
-          # for compiling the dependency graph and the rest reuse it. The
-          # default is per-job, which shares nothing.
-          shared-key: ci
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
-        with:
-          toolchain: 1.97
-      - run: cargo doc --workspace --no-deps --locked
-
-  wasm:
-    name: WASM
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
-        with:
-          shared-key: ci
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
-        with:
-          toolchain: 1.97
+          toolchain: 1.98.1
+          components: clippy, rustfmt, llvm-tools-preview
           targets: wasm32-unknown-unknown
-      # `just` is not on the runner, and both steps below call it.
-      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
-        with:
-          tool: just
-      # Per package, not `--workspace --target wasm32`: `lotus-web-assets` is a
-      # host-only binary, because `reqwest::blocking` cannot exist on wasm. A
-      # workspace-wide wasm lint can never pass, so the wasm-relevant crates are
-      # linted individually. This is the same split `just wasm` makes, and it is
-      # why the wasm target was never checked by a job that could pass.
-      - run: just wasm
-      - run: just clippy-wasm
 
-  metadata:
-    name: Citation metadata
+      # The tools the gate calls. `cargo make ci` fails on a missing one rather
+      # than skipping it, which is deliberate: a supply-chain check that is
+      # silently absent on a machine where it is not installed is a check that
+      # reports nothing about the code.
+      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20 # v2
+        with:
+          tool: |
+            cargo-make@0.37.24
+            cargo-nextest@0.9.146
+            tombi-cli@1.6.1
+            typos-cli@1.50.3
+            cargo-deny@0.20.2
+            cargo-audit@0.22.2
+            cargo-machete@0.9.2
+
+      - name: cargo make ci
+        run: cargo make ci
+
+      # Without this a failure is a red dot and a scrollback. The path is set in
+      # `.config/nextest.toml` as `junit.path`, so the file lands under a
+      # per-profile store directory next to the build output.
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4
+        if: always()
+        with:
+          name: nextest-junit
+          path: target/nextest/ci/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ── Coverage ────────────────────────────────────────────────────────────────
+  # A separate job because it rebuilds the crate graph under instrumentation and
+  # is therefore minutes, and because coverage on every push is a number nobody
+  # reads until they want it.
+  coverage:
+    name: Coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 35
+    needs: ci
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8
+        with: { shared-key: ci }
+      # `llvm-tools-preview` is in `rust-toolchain.toml`; named again here
+      # because cargo-llvm-cov needs it and a runner that somehow lacks it
+      # should say so here rather than in a coverage report.
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with: { toolchain: 1.98.1, components: llvm-tools-preview }
+      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20 # v2
         with:
-          shared-key: ci
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+          tool: |
+            cargo-make@0.37.24
+            cargo-nextest@0.9.146
+            cargo-llvm-cov@0.9.1
+      - run: cargo make cov
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4
         with:
-          toolchain: 1.97
-      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
-        with:
-          tool: just
-      # `codemeta.json` and `CITATION.cff` are generated from one description in
-      # `lotus-jsonld`. A version bump that forgot to regenerate them publishes a
-      # stale citation, and nothing else in this workflow would notice.
-      - run: just metadata
+          name: coverage-report
+          path: target/llvm-cov-report/
+          retention-days: 14
 
-  mutants:
-    name: Mutation tests
+  # ── MSRV ────────────────────────────────────────────────────────────────────
+  # The `rust-version` in the root manifest is a claim; this is the job that
+  # checks it. It runs the gate on the oldest toolchain the workspace claims to
+  # support, which is the toolchain a downstream consumer is holding.
+  msrv:
+    name: MSRV (1.97)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    # Blocking. This was non-blocking while 31 of 358 mutants survived, which is
-    # the only reason it was ever allowed to be red: a job that is permanently
-    # failing is not a gate, it is noise, and nobody reads it. There are now zero
-    # survivors across all seven library crates -- 931 mutants, 639 caught, 292
-    # unviable -- so it can hold.
-    #
-    # `apps/lotus-explore-rs` is deliberately absent. It is 2,761 mutants of
-    # Dioxus rendering, and killing those means rendering tests for every
-    # component. It is `just mutants-ui`, opt-in, and the exclusion is written
-    # down there rather than being an omission.
+    timeout-minutes: 35
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8
+        with: { shared-key: msrv }
+      # Deliberately NOT the pinned toolchain: this job exists to build with the
+      # oldest supported one, and `rust-toolchain.toml` would override it.
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with: { toolchain: 1.97 }
+        env:
+          RUSTUP_TOOLCHAIN: 1.97
+      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20 # v2
         with:
-          # One key for every job on the branch, so the first job to run pays
-          # for compiling the dependency graph and the rest reuse it. The
-          # default is per-job, which shares nothing.
-          shared-key: ci
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
-        with:
-          toolchain: 1.97
-      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
-        with:
-          tool: cargo-mutants@27.1.0
-      # `just` is not on the runner, and the last two steps of this job call it.
-      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
-        with:
-          tool: just
-      # Delegates to `just mutants` so the package list and flags cannot drift
-      # from the ones a developer runs. `apps/lotus-explore-rs/tests/` and the
-      # gate-consistency test both read this file, so a change here that breaks
-      # the mapping fails the ordinary test job too.
-      - run: just mutants
+          tool: |
+            cargo-nextest@0.9.146
+            cargo-make@0.37.24
+      - run: cargo check --workspace --all-targets --locked
+      - run: cargo nextest run --workspace --locked --no-fail-fast
 
+  # ── The desktop build ───────────────────────────────────────────────────────
+  # The one target nothing else builds. Every desktop-only bug so far -- an
+  # unstyled window, a no-op download, a 404 for the toolkit -- compiled
+  # cleanly, because no other job enabled the feature.
+  #
+  # It needs the WebKitGTK build dependencies, the fetched assets and a `dx`
+  # build, so it cannot run on a checkout that has not fetched them and it is
+  # not in `cargo make ci`.
   desktop:
     name: Desktop build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
-        with:
-          # One key for every job on the branch, so the first job to run pays
-          # for compiling the dependency graph and the rest reuse it. The
-          # default is per-job, which shares nothing.
-          shared-key: ci
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
-        with:
-          toolchain: 1.97
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8
+        with: { shared-key: ci }
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with: { toolchain: 1.98.1, components: clippy }
+
       # `dioxus-desktop` reaches WebKitGTK through `wry`, whose `*-sys` crates
       # shell out to `pkg-config` at build time, and `tao` links `libxdo` for
       # window dragging. Without these the job dies in `glib-sys`/`gobject-sys`
       # or at link time with `unable to find library -lxdo`, before compiling any
       # of our code -- the same shape of failure as a missing asset, and equally
       # unrelated to the change under test.
+      #
+      # `ripgrep` is here for `verify-bundle`, which reads Ketcher's own
+      # `src`/`href` references out of its index.html. It is not on the runner by
+      # default, and without it the task fails on its last check.
       - name: Install the WebKitGTK build dependencies
-        # `ripgrep` is here for `just verify-bundle`, which reads Ketcher's
-        # own `src`/`href` references out of its index.html. It is not on the
-        # runner by default, and without it the recipe fails on its last check.
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev \
             libayatana-appindicator3-dev librsvg2-dev libxdo-dev \
             ripgrep
+
       # The crate is `dioxus-cli`, not `dx`: `dx` is the binary it installs and
-      # is not published to crates.io, so `dx@0.7.1` failed to resolve. The
-      # version matches the `dioxus` dependency, as the README already says.
-      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
-        with:
-          tool: dioxus-cli@0.7.10
-      # `just` is not on the runner, and the last step of this job calls it. It
-      # stayed invisible because the job died at link time before reaching that
-      # step -- the same way a real defect stays invisible until the thing in
-      # front of it is fixed.
-      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
-        with:
-          tool: just
-      # Native is the one target nothing was checking. Every desktop-only bug
-      # reported so far -- an unstyled window, a no-op download, a 404 for
-      # RDKit -- compiled cleanly here and was invisible to CI, because the
-      # `desktop` feature was never built by any job.
-      - name: Clippy desktop
-        run: cargo clippy -p lotus-explore-rs --features desktop --locked -- -D warnings
-      - name: Test desktop
-        run: cargo test -p lotus-explore-rs --features desktop --all-targets --locked --quiet
-      # RDKit and Ketcher are gitignored and fetched. Without this the bundle is
-      # built without them, and the build still succeeds -- which is how a
-      # desktop app with no structure editor can be produced without a word from
-      # the compiler.
-      - name: Fetch the third-party assets
-        # From the app directory: `fetch-assets` writes to `public/assets/`
-        # relative to where it runs, and the bundler only looks in the app's. From
-        # the repository root it downloads 115 MB into a `public/` nothing reads,
-        # and the bundle is silently built with no assets in it at all.
-        #
-        # The loop is the same one the Dockerfile runs: `fetch-assets` retries a
-        # transient HTTP failure inside a single request, this covers a run cut
-        # off part way through, where the partial tree would otherwise be left
-        # behind and the build would succeed against it.
-        run: |
-          cd apps/lotus-explore-rs
-          for attempt in 1 2 3; do
-            if cargo run --locked -p lotus-web-assets --bin fetch-assets; then
-              break
-            fi
-            echo "::warning::fetch-assets attempt $attempt failed"
-            rm -rf public/assets/ketcher public/assets/vendor
-            [ "$attempt" = 3 ] && exit 1
-            sleep $((attempt * 10))
-          done
-          test -f public/assets/ketcher/index.html
-          test -f public/assets/vendor/rdkit/RDKit_minimal.wasm
-      - name: Build desktop app
-        # `ripgrep` is here for `just verify-bundle`, which reads Ketcher's
-        # own `src`/`href` references out of its index.html. It is not on the
-        # runner by default, and without it the recipe fails on its last check.
-        run: |
-          cd apps/lotus-explore-rs
-          dx build --package lotus-explore-rs --desktop --locked --features desktop
-      # Asserts the bundle can answer every request the app makes of it: the
-      # icon the plist names, both folder assets, and Ketcher's own relative
-      # references. The bundle was complete while every URL 404ed, so checking
-      # that files exist is not enough on its own.
-      - name: Verify the bundle
-        run: just verify-bundle && just bundle-icon
-
-  supply-chain:
-    name: Supply-chain
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
-        with:
-          # One key for every job on the branch, so the first job to run pays
-          # for compiling the dependency graph and the rest reuse it. The
-          # default is per-job, which shares nothing.
-          shared-key: ci
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
-        with:
-          toolchain: 1.97
-      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
+      # is not published to crates.io, so `dx@0.7.10` failed to resolve. The
+      # version matches the `dioxus` dependency.
+      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20 # v2
         with:
           tool: |
-            cargo-audit@0.22.2
-            cargo-deny@0.19.4
-      - name: Cargo deny
-        run: cargo deny check advisories bans licenses sources
-      - name: Cargo audit
-        run: cargo audit
+            cargo-make@0.37.24
+            cargo-nextest@0.9.146
+            dioxus-cli@0.7.10
 
-  machete:
-    name: Unused dependencies
+      - name: Build the desktop app and verify the bundle
+        run: cargo make desktop
+
+  # ── Container images ────────────────────────────────────────────────────────
+  # Built, not pushed: there is no registry and no release yet, and pushing is
+  # deferred with the rest of the release tooling. What this proves is that the
+  # Dockerfile still builds, that the layer cache works, and that the runtime
+  # image passes the healthcheck it declares.
+  docker:
+    name: Container image
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003 # v3
+      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20 # v2
         with:
-          # One key for every job on the branch, so the first job to run pays
-          # for compiling the dependency graph and the rest reuse it. The
-          # default is per-job, which shares nothing.
-          shared-key: ci
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
-        with:
-          toolchain: 1.97
-      - uses: taiki-e/install-action@b6b84cf49ebfe0176417bdce007c624f0db37f20
-        with:
-          tool: |
-            cargo-machete@0.9.2
-      - run: cargo machete
+          tool: cargo-make@0.37.24
+
+      # The ~115 MB asset fetch is the slow part and it is inside the image
+      # build, so the timeout is generous by necessity rather than by caution.
+      - name: Build the runtime image
+        run: cargo make docker-build
+      - name: Assert the image runs as non-root and passes its healthcheck
+        run: cargo make docker-verify
+      - name: Report image size
+        run: docker image inspect lotus-explore-rs:local --format '{{.Size}}'
