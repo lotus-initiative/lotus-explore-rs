@@ -33,7 +33,7 @@ pub async fn execute_download(
     query: Arc<str>,
     filename: String,
 ) -> Result<String, String> {
-    let dl_timer = perf::start_timer(format.timer_label());
+    let dl_timer = perf::start_timer(export_timer_label(format));
     log::info!("event=download format={} state=started", format.log_name());
 
     #[cfg(target_arch = "wasm32")]
@@ -73,30 +73,26 @@ pub fn trigger_download(filename: &str, mime: &str, content_or_url: &str) -> Res
     }
 }
 
-/// `perf` label for a download of this format.
+/// `perf` label for a download in this format.
 ///
 /// A label rather than the format's own name because the perf panel groups by
 /// timer, and `"LOTUS:download_csv"` is what the existing dashboards key on.
-pub trait ExportTimerLabel {
-    /// The timer label for the download itself.
-    fn timer_label(&self) -> &'static str;
-    /// The timer label for the click that started it, which is a separate
-    /// measurement: a slow download and a slow render are different problems.
-    fn trigger_timer_label(&self) -> String;
+#[must_use]
+pub fn export_timer_label(format: lotus_query::ExportFormat) -> &'static str {
+    match format {
+        lotus_query::ExportFormat::Csv => "LOTUS:download_csv",
+        lotus_query::ExportFormat::Json => "LOTUS:download_json",
+        lotus_query::ExportFormat::Rdf => "LOTUS:download_rdf",
+    }
 }
 
-impl ExportTimerLabel for lotus_query::ExportFormat {
-    fn timer_label(&self) -> &'static str {
-        match self {
-            Self::Csv => "LOTUS:download_csv",
-            Self::Json => "LOTUS:download_json",
-            Self::Rdf => "LOTUS:download_rdf",
-        }
-    }
-
-    fn trigger_timer_label(&self) -> String {
-        format!("{}_trigger", self.timer_label())
-    }
+/// `perf` label for the click that started a download in this format.
+///
+/// A separate measurement from the download itself: a slow download and a slow
+/// render are different problems, and one timer cannot distinguish them.
+#[must_use]
+pub fn export_trigger_timer_label(format: lotus_query::ExportFormat) -> String {
+    format!("{}_trigger", export_timer_label(format))
 }
 
 /// The response format to ask `WDQS` for when downloading this export.

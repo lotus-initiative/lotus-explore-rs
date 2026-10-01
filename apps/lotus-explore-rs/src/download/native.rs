@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::download::ExportTimerLabel;
+use crate::download::{export_timer_label, export_trigger_timer_label};
 use crate::perf;
 use crate::sparql;
 use crate::sparql::wdqs_download_query;
@@ -81,7 +81,7 @@ fn finalize_download(
     dl_timer: perf::TimerHandle,
     filename: &str,
 ) -> Result<String, String> {
-    let fetch_elapsed = perf::end_timer(format.timer_label(), dl_timer);
+    let fetch_elapsed = perf::end_timer(export_timer_label(format), dl_timer);
     perf::log_timing(
         "download",
         &format!(
@@ -92,9 +92,9 @@ fn finalize_download(
         Some(fetch_elapsed),
     );
 
-    let trigger_timer = perf::start_timer(&format.trigger_timer_label());
+    let trigger_timer = perf::start_timer(&export_trigger_timer_label(format));
     let written = trigger_download(filename, format.content_type(), body);
-    let trigger_elapsed = perf::end_timer(&format.trigger_timer_label(), trigger_timer);
+    let trigger_elapsed = perf::end_timer(&export_trigger_timer_label(format), trigger_timer);
     match &written {
         Ok(_) => perf::log_timing(
             "download",
@@ -121,7 +121,7 @@ fn handle_download_error(
     error: &str,
     dl_timer: perf::TimerHandle,
 ) -> Result<String, String> {
-    let elapsed = perf::end_timer(format.timer_label(), dl_timer);
+    let elapsed = perf::end_timer(export_timer_label(format), dl_timer);
     perf::log_timing(
         "download",
         &format!(

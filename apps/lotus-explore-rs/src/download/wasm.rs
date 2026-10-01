@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use crate::api;
-use crate::download::ExportTimerLabel;
+use crate::download::{export_timer_label, export_trigger_timer_label};
 use crate::perf;
 use crate::repositories::is_wdqs_fallback_used;
 use crate::sparql::wdqs_download_query;
@@ -30,7 +30,7 @@ pub(super) async fn execute_download_wasm(
     match api::export_urls(&criteria).await {
         Ok(urls) => {
             let url = append_filename_query(select_export_url(format, &urls), &filename);
-            let fetch_elapsed = perf::end_timer(format.timer_label(), dl_timer);
+            let fetch_elapsed = perf::end_timer(export_timer_label(format), dl_timer);
             perf::log_timing(
                 "download",
                 &format!(
@@ -40,9 +40,10 @@ pub(super) async fn execute_download_wasm(
                 Some(fetch_elapsed),
             );
 
-            let trigger_timer = perf::start_timer(&format.trigger_timer_label());
+            let trigger_timer = perf::start_timer(&export_trigger_timer_label(format));
             let _ = crate::upload::download_url(&url, &filename);
-            let trigger_elapsed = perf::end_timer(&format.trigger_timer_label(), trigger_timer);
+            let trigger_elapsed =
+                perf::end_timer(&export_trigger_timer_label(format), trigger_timer);
             perf::log_timing(
                 "download",
                 &format!(
@@ -94,7 +95,7 @@ async fn execute_download_wasm_wdqs(
         .await
         .map_err(|e| e.to_string())?;
 
-    let fetch_elapsed = perf::end_timer(format.timer_label(), dl_timer);
+    let fetch_elapsed = perf::end_timer(export_timer_label(format), dl_timer);
     perf::log_timing(
         "download",
         &format!(
@@ -108,12 +109,12 @@ async fn execute_download_wasm_wdqs(
     // Determine the MIME type for the downloaded file
     let mime = wdqs_content_type(format);
 
-    let trigger_timer = perf::start_timer(&format.trigger_timer_label());
+    let trigger_timer = perf::start_timer(&export_trigger_timer_label(format));
     if let Err(e) = crate::upload::download_text_as_blob(&body, &filename, "", mime) {
         log::error!("download failed: filename={filename} mime={mime} error={e}");
         return Err(e);
     }
-    let trigger_elapsed = perf::end_timer(&format.trigger_timer_label(), trigger_timer);
+    let trigger_elapsed = perf::end_timer(&export_trigger_timer_label(format), trigger_timer);
     perf::log_timing(
         "download",
         &format!(
@@ -143,7 +144,7 @@ async fn execute_download_wasm_browser_post(
     let prepared_query = format.prepared_query(query.as_ref());
     let action = format.qlever_action().to_string();
 
-    let fetch_elapsed = perf::end_timer(format.timer_label(), dl_timer);
+    let fetch_elapsed = perf::end_timer(export_timer_label(format), dl_timer);
     perf::log_timing(
         "download",
         &format!(
@@ -153,7 +154,7 @@ async fn execute_download_wasm_browser_post(
         Some(fetch_elapsed),
     );
 
-    let trigger_timer = perf::start_timer(&format.trigger_timer_label());
+    let trigger_timer = perf::start_timer(&export_trigger_timer_label(format));
     crate::upload::submit_download_form(
         QLEVER_WIKIDATA,
         &[
@@ -163,7 +164,7 @@ async fn execute_download_wasm_browser_post(
         ],
     )
     .await?;
-    let trigger_elapsed = perf::end_timer(&format.trigger_timer_label(), trigger_timer);
+    let trigger_elapsed = perf::end_timer(&export_trigger_timer_label(format), trigger_timer);
     perf::log_timing(
         "download",
         &format!(
