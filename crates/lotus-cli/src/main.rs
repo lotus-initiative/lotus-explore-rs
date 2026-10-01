@@ -68,7 +68,7 @@ struct CompletionsArgs {
 /// Every filter the web explorer exposes, and the limits a terminal wants.
 #[derive(Debug, clap::Args)]
 struct SearchArgs {
-    /// Taxon name, scientific name, Wikidata QID, or `*` for all organisms.
+    /// Taxon name, scientific name, QID, or `*` for all organisms.
     #[arg(short, long, default_value = "")]
     taxon: String,
 

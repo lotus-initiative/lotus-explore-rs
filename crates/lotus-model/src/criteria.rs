@@ -18,7 +18,7 @@ use crate::stats::{ElementState, SmilesSearchType};
 /// [`Element_bounds`]: element_max
 #[derive(Debug, Clone, PartialEq)]
 pub struct SearchCriteria {
-    /// Taxon name, scientific name, Wikidata QID, or `*` for all taxa.
+    /// Taxon name, scientific name, QID, or `*` for all taxa.
     pub taxon: String,
     /// SMILES or an MDL molfile (V2000/V3000).
     pub structure: String,
