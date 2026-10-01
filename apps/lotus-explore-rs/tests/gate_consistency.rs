@@ -615,3 +615,69 @@ fn the_declarations_are_not_vacuous() -> Result<()> {
     );
     Ok(())
 }
+
+/// The tombi version is written down once, in `prek.toml`, and read from there.
+///
+/// `prek.toml` claims to be the single source for it, and `./mk setup` already
+/// reads it from that line rather than repeating the number. CI does not: its
+/// `setup-tombi` step names the version inline. So the claim holds for a
+/// contributor and not for a runner, which is the same split this file exists to
+/// catch everywhere else -- the hook formats with one tombi and the gate checks
+/// with another.
+///
+/// This reads the version out of each and compares, rather than asserting one
+/// literal, so bumping `prek.toml` and forgetting CI fails here instead of
+/// silently linting with a different tool than the one that formatted the code.
+#[test]
+fn ci_installs_the_tombi_version_the_hook_uses() -> Result<()> {
+    let hooks = read("prek.toml")?;
+    let ci = read(".github/workflows/ci.yml")?;
+
+    // The `rev` on the tombi-pre-commit repo, as a bare version.
+    let hook_version = hooks
+        .lines()
+        .zip(hooks.lines().skip(1))
+        .find(|(repo, _)| repo.contains("tombi-toml/tombi-pre-commit"))
+        .and_then(|(_, next)| next.trim().strip_prefix("rev = \"v"))
+        .and_then(|quoted| quoted.strip_suffix('"'))
+        .map(str::to_string)
+        .ok_or("prek.toml has no tombi-pre-commit rev")?;
+
+    // The `version:` input on the setup-tombi step.
+    let ci_version = ci
+        .lines()
+        .skip_while(|line| !line.contains("setup-tombi"))
+        .find_map(|line| {
+            line.trim()
+                .strip_prefix("version: \"")
+                .and_then(|quoted| quoted.strip_suffix('"'))
+                .map(str::to_string)
+        })
+        .ok_or("ci.yml has no setup-tombi step with a version")?;
+
+    assert_eq!(
+        hook_version, ci_version,
+        "the hook runs tombi {hook_version} and CI runs {ci_version}: the gate \
+         lints with a different tool than the one that formatted the code. \
+         `prek.toml` is the single source -- change it and `ci.yml`, not just one."
+    );
+
+    // The pinned action SHA must be the tag's own commit, or the action and the
+    // binary it installs are two different versions again.
+    let pinned = ci
+        .lines()
+        .find_map(|line| line.split("setup-tombi@").nth(1))
+        .map(|rest| {
+            rest.split_whitespace()
+                .next()
+                .unwrap_or_default()
+                .to_string()
+        })
+        .ok_or("ci.yml does not pin setup-tombi to a commit")?;
+    assert_eq!(
+        pinned.len(),
+        40,
+        "setup-tombi is pinned to {pinned:?}, which is not a 40-character commit"
+    );
+    Ok(())
+}

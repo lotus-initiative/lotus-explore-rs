@@ -118,9 +118,9 @@ jobs:
       # checksum, which a hand-rolled `curl | tar` here would not. Pinned to the
       # tag rather than a SHA because that is what the project's own tags are
       # for; `binary-checksum` pins the artifact itself.
-      - uses: tombi-toml/setup-tombi@64fd5f369deac268b78baf5f03226dead3218645 # v1.6.1
+      - uses: tombi-toml/setup-tombi@6a484780a454f9973b13c65729c14e7afb696ae8 # v1.7.0
         with:
-          version: "1.6.1"
+          version: "1.7.0"
 
       - name: ./mk ci
         run: ./mk ci

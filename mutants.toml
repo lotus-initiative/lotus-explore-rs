@@ -13,7 +13,11 @@
 # 301 unviable, 4 surviving. Two were real gaps (`is_retryable` and the attempt
 # guard in `get` had no test that could observe them) and are now covered; one was
 # the healthcheck exit status, killed by the `probe` extraction; one is the
-# equivalent `&&` written down below. Nothing survives now.
+# equivalent `&&` written down below.
+#
+# Re-run on 2026-10-01 after the taxonomy work and the 1.99 bump: 1015 mutants,
+# 702 caught, 312 unviable, 1 surviving -- the same equivalent `&&`, at the same
+# kind of site, still the only one.
 
 # The app is ~2,700 mutants of Dioxus rendering -- a `match` arm on a `Signal`, an
 # `rswap!`, a literal in a `class` attribute. Killing those means a rendering

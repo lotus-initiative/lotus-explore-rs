@@ -3,6 +3,19 @@
 //! Browser file extraction and streaming line reads.
 //! Native stubs preserve signature parity; they are inert by design.
 
+// This module is one API with two implementations: the real one under wasm and
+// inert stubs for native builds, so that a caller compiles unchanged and the
+// signatures cannot drift apart between the two. That is what the crate-level
+// `build.rs` test target does for the same reason.
+//
+// The cost is that the native side is deliberately inert, and clippy reads that
+// as five separate mistakes. They are not, and they cannot be fixed by editing
+// the stub: the stub has to keep the signature the wasm side has.
+//
+// `unused_async` and `unused_self` -- the native stub awaits nothing and has no
+// fields. `trivially_copy_pass_by_ref` and `needless_pass_by_ref_mut` -- the
+// wasm signature passes by reference, so the stub must too, or the two no longer
+// have the same shape. `doc_markdown` -- doc comments name browser types.
 #![allow(clippy::unused_async)]
 #![allow(clippy::unused_self)]
 #![allow(clippy::trivially_copy_pass_by_ref)]
