@@ -1,0 +1,5 @@
+# Paths excluded from the graphify knowledge graph at graphify-out/.
+
+mutants.out/
+mutants.out.old/
+target/
