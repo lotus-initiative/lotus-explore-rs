@@ -82,7 +82,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
             "Labels prefer 'mul' and fall back to 'en' so results remain comparable."
         }
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
-        TextKey::TaxonPlaceholder => "a name, a Wikidata QID, or * for everything",
+        TextKey::TaxonPlaceholder => "a name, a QID, or * for everything",
         TextKey::Examples => "Examples",
         TextKey::ExampleSets => "Set the field to",
         TextKey::StructureSmilesOrMol => "SMILES or Molfile",
