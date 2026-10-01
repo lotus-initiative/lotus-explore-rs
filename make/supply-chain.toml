@@ -91,11 +91,23 @@ description = "Apply the newest incompatible (major) dependency versions."
 script = "cargo upgrade --incompatible --workspace"
 
 # The real MSRV, measured rather than asserted. `rust-version` in the root
-# manifest is what CI compiles against; this is how that number was arrived at.
+# manifest is what CI compiles against; this is how that number is arrived at, and
+# `msrv-verify` is how a bump that overstates it is caught.
+#
+# `cargo msrv` takes a subcommand in 0.19 -- the bare `--workspace` form older
+# docs show is an error, not a default.
 [tasks."msrv"]
 cwd = "${REPO_ROOT}"
 description = "Find the lowest toolchain the workspace actually builds on."
-script = "cargo msrv --workspace --all-targets"
+script = "cargo msrv find"
+
+# The other direction: does the declared `rust-version` actually work? A floor
+# that is too low is a promise this fails on a contributor's machine; `find` is
+# what tells you where the real floor is, this is what checks the one you shipped.
+[tasks."msrv-verify"]
+cwd = "${REPO_ROOT}"
+description = "Check the declared rust-version actually builds."
+script = "cargo msrv verify"
 
 # The version floor that is really required, and the check that the declared
 # `rust-version` is not lying about it.

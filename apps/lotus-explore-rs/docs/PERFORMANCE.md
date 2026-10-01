@@ -71,7 +71,8 @@ workspace it produces a binary 10.2 % larger raw and 4.2 % larger brotli. Since
 LCP is transfer-bound and the last 4 % of transfer is worth \~80 ms, the larger
 binary is simply worse on the only axis that matters. `opt-level = "z"` stays,
 in `Cargo.toml`, in `Dioxus.toml`'s `wasm_opt.level`, and in the `--rustc-args`
-of every `just` recipe, so all three entry points agree.
+of every `dx` invocation in `make/web.toml`, so all three entry points agree.
+`cargo make opt-levels` asserts it and is in the gate.
 
 ### `panic = "abort"` cannot shrink this module
 

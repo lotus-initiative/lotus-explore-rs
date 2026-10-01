@@ -148,7 +148,7 @@ fn every_documented_task_exists() -> Result<(), String> {
     //
     // It scans every document `DOCUMENTS` lists, not just the two at the root,
     // because the task names moved into `apps/lotus-explore-rs/README.md` and
-    // `docs/FRONTENDS.md` when `just` went.
+    // `docs/FRONTENDS.md` when the task runner replaced the justfile.
     let root = repo_root()?;
 
     // Every task defined across the root makefile and the files under `make/`.

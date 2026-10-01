@@ -22,7 +22,13 @@ rustup show active-toolchain || rustup toolchain install
 # repeated, because the two drifting is the failure this whole task exists to
 # stop: `dx` building an app against a different Dioxus is a build that
 # succeeds and an app that does not run.
-DX_VERSION=$(sed -n 's/^dioxus = { version = "=\(.*\)".*/\1/p' Cargo.toml | head -1)
+# The `.*` is deliberately non-greedy in the version itself and the closing
+# quote is explicit: a greedy match runs past the version to the *last* quote on
+# the line, which is the one closing `features = [...]`, so the result was
+# `0.7.10", default-features = false, features = ["asset", ...`. It failed as an
+# argument to `cargo install --version` and named dioxus-cli as the cause, which
+# is the worst kind of wrong.
+DX_VERSION=$(sed -n 's/^dioxus = { version = "=\([^"]*\)".*/\1/p' Cargo.toml | head -1)
 : "${DX_VERSION:?could not read the dioxus version from Cargo.toml}"
 
 have_binstall=false
@@ -30,7 +36,7 @@ if command -v cargo-binstall >/dev/null 2>&1; then
   have_binstall=true
 fi
 
-install() {
+install_tool() {
   local crate="$1" version="$2"
   local spec="$crate@$version"
   echo "==> $spec"
@@ -46,37 +52,37 @@ install() {
 }
 
 # Test runner. Without this every other task that mentions tests is wrong.
-install cargo-nextest 0.9.146
+install_tool cargo-nextest 0.9.146
 # This task runner. Installing it is a chicken-and-egg for `cargo make setup`,
 # which is why the first thing to try is a plain `cargo install`.
-install cargo-make 0.37.24
+install_tool cargo-make 0.37.24
 
 # Lints and manifest hygiene.
-install cargo-hack 0.6.45       # feature combinations
-install cargo-edit 0.13.13     # `cargo upgrade`, `cargo add`, `cargo rm`
-install cargo-msrv 0.19.3       # the real MSRV, rather than the asserted one
-install typos-cli 1.50.3       # spelling
+install_tool cargo-hack 0.6.45       # feature combinations
+install_tool cargo-edit 0.13.13     # `cargo upgrade`, `cargo add`, `cargo rm`
+install_tool cargo-msrv 0.19.3       # the real MSRV, rather than the asserted one
+install_tool typos-cli 1.50.3       # spelling
 
 # Supply chain.
-install cargo-deny 0.20.2
-install cargo-audit 0.22.2
-install cargo-machete 0.9.2
-install cargo-outdated 0.19.0
+install_tool cargo-deny 0.20.2
+install_tool cargo-audit 0.22.2
+install_tool cargo-machete 0.9.2
+install_tool cargo-outdated 0.19.0
 # `cargo geiger` for the transitive unsafe audit, `cargo udeps` for unused
 # dependencies the manifest scan cannot see. Both are on the weekly schedule
 # rather than the gate, so a slow or advisory-heavy one cannot turn the gate
 # red.
-install cargo-geiger 0.13.0
-install cargo-udeps 0.1.61
+install_tool cargo-geiger 0.13.0
+install_tool cargo-udeps 0.1.61
 
 # Coverage and mutation testing. The nextest integration is what makes the
 # coverage report describe the same run the suite performs.
-install cargo-llvm-cov 0.9.1
-install cargo-mutants 27.1.0
+install_tool cargo-llvm-cov 0.9.1
+install_tool cargo-mutants 27.1.0
 
 # Build time and the wasm bundle. `twiggy` is superseded by `wasm-opt` for size
 # work and `cargo bloat` for the native binaries, and neither is in the gate.
-install cargo-bloat 0.12.1
+install_tool cargo-bloat 0.12.1
 
 # tombi is the TOML formatter and linter, and the tool the git hooks already run
 # via `tombi-pre-commit`. It is NOT on crates.io: `tombi-cli` there is a 0.0.1
@@ -99,7 +105,7 @@ if ! command -v tombi >/dev/null 2>&1 || [ "$(tombi --version 2>/dev/null)" != "
   curl -fsSL --retry 3 --retry-all-errors \
     "https://github.com/tombi-toml/tombi/releases/download/v${TOMBI_VERSION}/${tombi_asset}" \
     | tar xz -C "$tombi_dir"
-  install -m 755 "$tombi_dir"/*/tombi "${CARGO_HOME:-$HOME/.cargo}/bin/tombi"
+  command install -m 755 "$tombi_dir"/*/tombi "${CARGO_HOME:-$HOME/.cargo}/bin/tombi"
   rm -rf "$tombi_dir"
 else
   echo "    tombi is already ${TOMBI_VERSION}"

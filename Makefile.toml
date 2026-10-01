@@ -52,6 +52,7 @@ CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = "true"
 # order. Everything here needs no network access.
 
 [tasks."ci"]
+cwd = "${REPO_ROOT}"
 description = "Every check CI runs, in CI's order. No network access needed."
 dependencies = [
   "fmt-check",
@@ -76,6 +77,7 @@ dependencies = [
 # What the pre-push hook runs. `ci` minus the supply-chain checks, which are the
 # slowest part of the gate and the ones that only change when a dependency does.
 [tasks."ci-fast"]
+cwd = "${REPO_ROOT}"
 description = "What a pre-push hook runs: the gate minus the supply-chain checks."
 dependencies = [
   "fmt-check",
@@ -100,14 +102,20 @@ dependencies = [
 # rather than a verdict. `desktop` needs the fetched assets and a `dx` build, so
 # it cannot run on a checkout that has not fetched them.
 [tasks."ci-slow"]
+cwd = "${REPO_ROOT}"
 description = "The slow CI jobs: mutation testing and the desktop build."
 dependencies = ["mutants", "desktop"]
 
 [tasks."setup"]
+cwd = "${REPO_ROOT}"
 description = "Install every tool the other tasks call, at a pinned version."
-script = { file = "${REPO_ROOT}/make/scripts/setup.sh" }
+script = """
+set -euo pipefail
+exec bash make/scripts/setup.sh
+"""
 
 [tasks."clean"]
+cwd = "${REPO_ROOT}"
 description = "Remove build output. Does not touch the fetched assets."
 script = """
 #!/usr/bin/env bash
