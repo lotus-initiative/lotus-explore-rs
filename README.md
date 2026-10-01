@@ -39,27 +39,33 @@ lotus search --taxon "Gentiana lutea" --format csv
 | `apps/lotus-explore-rs` | the app: WASM client, optional native server, optional desktop window |
 
 Each library crate has a README that is compiled as its documentation, so the example in it is
-checked by `cargo test`. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) says why the boundaries
+checked as a doctest. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) says why the boundaries
 are where they are.
 
 ## Prerequisites
 
-Rust 1.97 with `clippy`, `rustfmt` and `wasm32-unknown-unknown`, pinned in `rust-toolchain.toml`.
-`just` for the repository commands. `dx` for the web app, and Node.js is not needed because
-Dioxus builds the Tailwind itself:
+Rust 1.98.1 with `clippy`, `rustfmt` and `wasm32-unknown-unknown`, pinned in
+`rust-toolchain.toml`. Everything else is installed for you:
 
 ```bash
-cargo install dioxus-cli --version 0.7.10 --locked
+cargo make setup
 ```
+
+That installs the test runner, the task runner, the linters and the supply-chain
+tools, each at a pinned version. `dx` for the web app comes from it too. Node.js
+is not needed, because Dioxus builds the Tailwind itself.
 
 ## Working on it
 
-`just ci` is every check CI runs, in order. It needs no network access.
+`cargo make ci` is every check CI runs, in order. It needs no network access.
 
 ```bash
-just ci       # formatting, clippy, tests, docs, wasm, supply chain
-just mutants  # mutation testing: a passing test run cannot tell you this
+cargo make ci       # formatting, clippy, tests, docs, wasm, supply chain
+cargo make mutants  # mutation testing: a passing test run cannot tell you this
 ```
+
+`cargo make --list-all-steps` is the list of tasks. It is the authoritative one:
+a copy of it in this file would be a copy that goes stale.
 
 [`CONTRIBUTING.md`](CONTRIBUTING.md) has the full list, where a change belongs, and how to
 refresh the fixtures.

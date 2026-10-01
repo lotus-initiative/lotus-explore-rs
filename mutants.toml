@@ -1,6 +1,6 @@
 # Mutation testing.
 #
-# `just mutants` covers every library crate in the workspace and nothing else.
+# `cargo make mutants` covers every library crate in the workspace and nothing else.
 # This file says why `apps/lotus-explore-rs` is the one omission, so the gap is a
 # decision rather than an oversight; `apps/lotus-explore-rs/tests/
 # gate_consistency.rs` checks that the exclusion is still the one this file states.
@@ -12,7 +12,7 @@
 # The app is ~2,700 mutants of Dioxus rendering -- a `match` arm on a `Signal`, an
 # `rswap!`, a literal in a `class` attribute. Killing those means a rendering
 # test for every component: a large piece of work with a poor ratio. It is
-# `just mutants-ui`, opt-in.
+# `cargo make mutants-ui`, opt-in.
 [package.lotus-explore-rs]
 exclude = true
 

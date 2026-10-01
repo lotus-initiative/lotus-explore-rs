@@ -2,19 +2,42 @@
 # See https://prek.j178.dev for more information.
 #:schema https://www.schemastore.org/prek.json
 #
-# All Rust check recipes are defined once in the `justfile`; these hooks delegate
-# to them (`just <recipe>`) to keep a single source of truth and avoid the
-# drift that happened when prek and justfile each hardcoded the cargo flags.
+# Every Rust check is a `cargo make` task; these hooks delegate to them
+# (`cargo make <task>`) so there is one source of truth for the cargo flags. The
+# drift this avoids is not hypothetical: when the hooks and the task runner each
+# hardcoded the flags, they disagreed and a check was being run in one place and
+# not the other.
+#
+# `apps/lotus-explore-rs/tests/gate_consistency.rs` holds the three lists --
+# these hooks, the `ci` task, and the CI workflow -- to the same set of checks,
+# and fails the build if they drift. A hook pointing at a task that no longer
+# exists is caught there rather than at the next push.
 
 default_stages = ["pre-commit"]
 fail_fast = false
 
 # ── Pre-commit hooks: fast, block every commit ────────────────────────────────
+# Text and TOML only. Nothing here compiles Rust: the Rust checks are the
+# pre-push ones below, because a hook that takes a minute stops being run.
 
 [[repos]]
 repo = "https://github.com/pre-commit/pre-commit-hooks"
 rev = "v6.0.0"
-hooks = [{ id = "end-of-file-fixer", exclude = "(apps/lotus-explore-rs/public/assets/)" }, { id = "check-case-conflict" }, { id = "check-merge-conflict" }, { id = "check-symlinks" }, { id = "check-executables-have-shebangs" }, { id = "check-shebang-scripts-are-executable" }, { id = "check-toml" }, { id = "check-json" }, { id = "check-yaml" }, { id = "mixed-line-ending" }, { id = "trailing-whitespace", exclude = "(apps/lotus-explore-rs/public/assets/)" }]
+hooks = [{ id = "end-of-file-fixer", exclude = "(apps/lotus-explore-rs/public/assets/)" }, { id = "check-case-conflict" }, { id = "check-merge-conflict" }, { id = "check-symlinks" }, { id = "check-executables-have-shebangs" }, { id = "check-shebang-scripts-are-executable" }, { id = "check-json" }, { id = "check-yaml" }, { id = "mixed-line-ending" }, { id = "trailing-whitespace", exclude = "(apps/lotus-explore-rs/public/assets/)" }]
+
+# TOML formatting and schema linting.
+#
+# `check-toml` is deliberately absent from the list above: tombi covers the same
+# ground and, unlike a parse check, it validates a `Cargo.toml` against Cargo's
+# own schema. It is the tool that caught a `[target.'cfg(...)']` table silently
+# owning every key written after it.
+#
+# The `rev` here is the single source of the tombi version: `cargo make setup`
+# reads it from this line rather than repeating it.
+[[repos]]
+repo = "https://github.com/tombi-toml/tombi-pre-commit"
+rev = "v1.6.1"
+hooks = [{ id = "tombi-format" }, { id = "tombi-lint" }]
 
 [[repos]]
 repo = "https://github.com/crate-ci/typos"
@@ -24,38 +47,46 @@ hooks = [{ id = "typos" }]
 [[repos]]
 repo = "local"
 hooks = [
-  # ── Fast Rust checks (pre-commit) — delegate to justfile ───────────────────
-  { id = "cargo-fmt-check", name = "cargo-fmt-check", language = "system", entry = "just fmt", pass_filenames = false, always_run = true, files = "(?!.*public/assets/).*$" },
-  { id = "cargo-check", name = "cargo-check", language = "system", entry = "just check", pass_filenames = false, always_run = true, files = "(?!.*public/assets/).*$" },
-  { id = "cargo-clippy", name = "cargo-clippy", language = "system", entry = "just clippy", pass_filenames = false, always_run = true, files = "(?!.*public/assets/).*$" },
+  # ── Pre-commit (pre-commit stage): seconds, no compilation ────────────────
   # Text-only, so it belongs on the fast path: without it a commit lands with a
   # missing header and CI rejects it, which is a pointless round trip.
-  { id = "license-headers", name = "license-headers", language = "system", entry = "just license-headers", pass_filenames = false, always_run = true, files = "(?!.*public/assets/).*$" },
+  { id = "license-headers", name = "license-headers", language = "system", entry = "cargo make license-headers", pass_filenames = false, always_run = true, files = "(?!.*public/assets/).*$" },
 
-  # ── Heavy Rust checks (pre-push only) — delegate to justfile ───────────────
-  { id = "cargo-test", name = "cargo-test", language = "system", entry = "just test", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  # ── Pre-push: the gate ───────────────────────────────────────────────────
+  # The same set as `cargo make ci-fast`. A commit that passes these and fails
+  # `cargo make ci` is a commit that needs a network or a fetched asset; a
+  # commit that fails these will fail CI, which is a slower way to find out.
+  #
+  # `files` is `(?!.*public/assets/).*$` on the hooks that read the source tree,
+  # so a change to a fetched asset -- which is gitignored and not ours -- does
+  # not trigger a full workspace check.
+  { id = "cargo-fmt-check", name = "cargo-fmt-check", language = "system", entry = "cargo make fmt-check", pass_filenames = false, always_run = true, stages = ["pre-push"], files = "(?!.*public/assets/).*$" },
+  { id = "tombi-check", name = "tombi-check", language = "system", entry = "cargo make tombi-check", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  { id = "tombi-lint", name = "tombi-lint", language = "system", entry = "cargo make tombi-lint", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  { id = "cargo-check", name = "cargo-check", language = "system", entry = "cargo make check", pass_filenames = false, always_run = true, stages = ["pre-push"], files = "(?!.*public/assets/).*$" },
+  { id = "cargo-clippy", name = "cargo-clippy", language = "system", entry = "cargo make lint", pass_filenames = false, always_run = true, stages = ["pre-push"], files = "(?!.*public/assets/).*$" },
+  # The cfg-gated code no other build compiles, which is how the desktop-only
+  # and server-only paths rotted unnoticed.
+  { id = "lint-native-builds", name = "lint-native-builds", language = "system", entry = "cargo make lint-native-builds", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  { id = "cargo-test", name = "cargo-test", language = "system", entry = "cargo make test", pass_filenames = false, always_run = true, stages = ["pre-push"] },
   # Per-app WASM checks (NOT `--workspace --target wasm32`, which flags
   # wasm-incompatible code paths in non-WASM crates).
-  { id = "cargo-check-wasm", name = "cargo-check-wasm", language = "system", entry = "just wasm", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  { id = "cargo-clippy-wasm", name = "cargo-clippy-wasm", language = "system", entry = "just clippy-wasm", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  { id = "cargo-doc", name = "cargo-doc", language = "system", entry = "just doc", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  # The cfg-gated code no other build compiles, which is how desktop-only and
-  # server-only paths rotted unnoticed.
-  { id = "clippy-native-builds", name = "clippy-native-builds", language = "system", entry = "just clippy-native-builds", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  { id = "check-wasm", name = "check-wasm", language = "system", entry = "cargo make check-wasm", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  { id = "lint-wasm", name = "lint-wasm", language = "system", entry = "cargo make lint-wasm", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  { id = "cargo-doc", name = "cargo-doc", language = "system", entry = "cargo make doc", pass_filenames = false, always_run = true, stages = ["pre-push"] },
 
   # ── Supply chain (pre-push only) ───────────────────────────────────────────
-  { id = "cargo-machete", name = "cargo-machete", language = "system", entry = "just machete", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  { id = "cargo-audit", name = "cargo-audit", language = "system", entry = "just audit", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  { id = "cargo-deny", name = "cargo-deny", language = "system", entry = "just deny", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  { id = "cargo-outdated", name = "cargo-outdated", language = "system", entry = "just outdated", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  { id = "cargo-machete", name = "cargo-machete", language = "system", entry = "cargo make machete", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  { id = "cargo-deny", name = "cargo-deny", language = "system", entry = "cargo make deny", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  { id = "cargo-audit", name = "cargo-audit", language = "system", entry = "cargo make audit", pass_filenames = false, always_run = true, stages = ["pre-push"] },
 
   # Declared in three places and built in one; drift here is a silently slow
   # release. Same for the repository metadata `cargo package` depends on.
-  { id = "metadata", name = "metadata", language = "system", entry = "just metadata", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  { id = "opt-levels", name = "opt-levels", language = "system", entry = "just opt-levels", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  #
+  # `outdated` is here and not in the gate: a dependency being behind is not a
+  # defect, and a hook that fails on it teaches people to skip the hook. It is
+  # also on the weekly workflow, where the answer is a list someone reads.
+  { id = "metadata", name = "metadata", language = "system", entry = "cargo make metadata", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  { id = "opt-levels", name = "opt-levels", language = "system", entry = "cargo make opt-levels", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  { id = "cargo-outdated", name = "cargo-outdated", language = "system", entry = "cargo make outdated", pass_filenames = false, always_run = true, stages = ["pre-push"] },
 ]
-
-[[repos]]
-repo = "https://github.com/tombi-toml/tombi-pre-commit"
-rev = "v1.6.1"
-hooks = [{ id = "tombi-format" }, { id = "tombi-lint" }]

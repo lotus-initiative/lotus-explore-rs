@@ -139,48 +139,80 @@ fn every_relative_link_resolves() -> Result<(), String> {
 }
 
 #[test]
-fn every_documented_command_exists() -> Result<(), String> {
-    // `just` recipes named in the developer docs have to exist, or the
-    // instructions cannot be followed.
+fn every_documented_task_exists() -> Result<(), String> {
+    // A `cargo make <task>` named in the developer docs has to exist, or the
+    // instructions cannot be followed. This is the same drift check the old
+    // justfile version did, ported to the task runner: a doc that says
+    // `cargo make mutants` and a makefile with no `mutants` task is a
+    // contributor copying a command that fails.
+    //
+    // It scans every document `DOCUMENTS` lists, not just the two at the root,
+    // because the task names moved into `apps/lotus-explore-rs/README.md` and
+    // `docs/FRONTENDS.md` when `just` went.
     let root = repo_root()?;
-    let justfile = read(&root.join("justfile"))?;
 
-    let recipes: Vec<&str> = justfile
-        .lines()
-        .filter_map(|line| line.split(':').next())
-        .filter(|name| {
-            !name.is_empty()
-                && name
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-        })
-        .collect();
+    // Every task defined across the root makefile and the files under `make/`.
+    let mut tasks: Vec<String> = Vec::new();
+    let mut sources = vec![root.join("Makefile.toml")];
+    if let Ok(entries) = std::fs::read_dir(root.join("make")) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().is_some_and(|e| e == "toml") {
+                sources.push(path);
+            }
+        }
+    }
+    sources.sort();
 
-    let contributing = read(&root.join("CONTRIBUTING.md"))?;
-    let readme = read(&root.join("README.md"))?;
-
-    let mut missing = Vec::new();
-    for document in [("README.md", &readme), ("CONTRIBUTING.md", &contributing)] {
-        for (index, line) in document.1.lines().enumerate() {
-            let Some(rest) = line.split("just ").nth(1) else {
+    for source in &sources {
+        let text =
+            std::fs::read_to_string(source).map_err(|e| format!("{}: {e}", source.display()))?;
+        for line in text.lines() {
+            let Some(rest) = line.strip_prefix("[tasks.") else {
                 continue;
             };
-            let name: String = rest
+            let name = rest.split(']').next().unwrap_or_default().trim_matches('"');
+            if !name.is_empty() {
+                tasks.push(name.to_owned());
+            }
+        }
+    }
+    assert!(
+        !tasks.is_empty(),
+        "no tasks found: the makefiles are missing or the scraper is wrong, and \
+         a check that finds nothing passes everything"
+    );
+
+    let mut missing = Vec::new();
+    for name in DOCUMENTS {
+        let path = root.join(name);
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        for (index, line) in text.lines().enumerate() {
+            let Some(rest) = line.split("cargo make ").nth(1) else {
+                continue;
+            };
+            let task: String = rest
                 .chars()
                 .take_while(|c| c.is_ascii_alphanumeric() || *c == '-')
                 .collect();
-            if name.is_empty() {
+            // `--list-all-steps` and friends are flags, not task names, and they
+            // are the one thing the docs tell a contributor to run instead of
+            // reading the list. Skipping anything starting with `-` covers the
+            // flags without a list that has to be kept up to date.
+            if task.is_empty() || task.starts_with('-') {
                 continue;
             }
-            if !recipes.contains(&name.as_str()) {
-                missing.push(format!("{}:{}: just {name}", document.0, index + 1));
+            if !tasks.iter().any(|t| t == &task) {
+                missing.push(format!("{name}:{}: cargo make {task}", index + 1));
             }
         }
     }
 
     assert!(
         missing.is_empty(),
-        "these recipes are documented but do not exist:\n  {}",
+        "these tasks are documented but do not exist:\n  {}",
         missing.join("\n  ")
     );
     Ok(())

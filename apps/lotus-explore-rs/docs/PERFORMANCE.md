@@ -1,7 +1,7 @@
 # LOTUS performance
 
 Every number here was measured, not estimated. The recipe that produces the byte
-table is `just web-bytes`; the Lighthouse figures come from a static server that
+table is `cargo make web-bytes`; the Lighthouse figures come from a static server that
 negotiates the precompressed `.br` siblings, because the Dioxus dev server
 serves neither the `.br` files nor `_headers` and therefore overstates every
 transfer.
@@ -47,7 +47,7 @@ run-to-run spread of a metric whose dominant term is a 2.3 s download.
 ## What was tried and rejected
 
 Each of these was built and measured rather than reasoned about. Sizes are
-`just web-bytes` output for a release `dx build`.
+`cargo make web-bytes` output for a release `dx build`.
 
   | Experiment                        | raw     | br     | gz     | verdict                  |
   | --------------------------------- | ------- | ------ | ------ | ------------------------ |
@@ -60,7 +60,7 @@ Each of these was built and measured rather than reasoned about. Sizes are
 All of the above were taken with a bare `dx build`. The release build --- the
 path the Dockerfile runs --- was compiling at `opt-level=s` for part of this
 work, so its outputs came out 185300 raw bytes larger. The `opt-level=z` row is
-the one that ships, and `just opt-levels` now keeps the three declarations in
+the one that ships, and `cargo make opt-levels` now keeps the three declarations in
 agreement.
 
 ### `opt-level = "s"` is not the counter-intuitive win it is claimed to be
@@ -182,7 +182,7 @@ appends `--rustc-args` last, so the justfile wins and the profile is decorative.
 They drifted: the justfile said `s`, the profile said `z`, and every every
 release build shipped a module 185300 raw / 27843 brotli bytes larger than
 intended. CI stayed green, because each file was individually valid and nothing
-compared them. `just opt-levels` now runs in `ci` and fails on any disagreement.
+compared them. `cargo make opt-levels` now runs in `ci` and fails on any disagreement.
 
 The cost was not only the bytes. A bare `dx build` and the release build were
 compiling at different levels from identical source, so they produced different
@@ -227,9 +227,9 @@ ETag the repeats become 304s and the same page measures 499 KB.
 Any harness that serves the bundle must send a validator, or it will report a
 phantom cost. The other thing to know is that `build.rs` runs
 `clean_dx_output()`, which deletes `target/dx/<app>/<profile>/web/public` on
-*any* wasm compile of the app. `just ci` runs
+*any* wasm compile of the app. `cargo make ci` runs
 `cargo check --target wasm32-unknown-unknown`, so the CI gate silently destroys
-the last `dx` bundle. Always run `dx build` after `just ci` if you intend to
+the last `dx` bundle. Always run `dx build` after `cargo make ci` if you intend to
 measure afterwards.
 
 ## Render path

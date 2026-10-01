@@ -83,7 +83,7 @@ alternates are rewritten from `window.location.origin`, so they cannot go stale.
 # 2. edit og:url and the JSON-LD url in index.html
 # 3. regenerate, and let the tests confirm nothing was missed
 cargo build -p lotus-explore-rs
-cargo test -p lotus-explore-rs --test buildrs
+cargo nextest run -p lotus-explore-rs --test buildrs
 ```
 
 **The tests are the safety net, so read a failure rather than skipping it.**
@@ -100,10 +100,11 @@ cargo test -p lotus-explore-rs --test buildrs
   following the source is caught without touching the real config.
 
 There is no separate step for these: the `buildrs` target is declared in
-`apps/lotus-explore-rs/Cargo.toml` and runs under `just test` and CI, because
-`cargo test` does not otherwise compile `build.rs` as a test target and tests
-written there are silently never run (verified: one reports "0 passed" under
-`cargo test --all-targets`).
+`apps/lotus-explore-rs/Cargo.toml` and runs under `cargo make test` and CI. It
+needs declaring because the test target has to name a file other than
+`build.rs` — a path that is both a build script and a test target makes Cargo
+warn — and because the tests have to be somewhere Cargo will compile. Run it
+alone with the nextest command above.
 
 ## `llms.txt` fails the Lighthouse audit, and the file is fine
 

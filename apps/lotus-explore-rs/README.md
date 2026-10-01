@@ -66,7 +66,7 @@ web, desktop and CLI front ends differ from each other.
 ### Running as a desktop app
 
 ```bash
-just serve-desktop   # from the repo root
+cargo make web-dev-desktop   # from the repo root
 ```
 
 The desktop build reuses these components unchanged; what differs is that `dx`
@@ -81,8 +81,12 @@ consequences.
 Run the workspace test suite:
 
 ```bash
-cargo test --workspace --all-targets --locked
+cargo make test   # nextest for every build, then the doctests
 ```
+
+The suite runs under `cargo-nextest` rather than `cargo test`, so the README
+examples in the library crates are checked as doctests in a second step —
+`cargo make test` runs both, in that order.
 
 For production-sized local performance and Lighthouse checks, build the release
 bundle first and serve that directory with any static file server:

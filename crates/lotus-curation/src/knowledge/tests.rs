@@ -9,8 +9,8 @@
 //! made here deliberately, where the mistake would otherwise be invisible.
 //!
 //! Nothing here touches the network. Every fixture is a recorded answer and the
-//! transport is scripted, so there is nothing to refresh: `cargo test -p
-//! lotus-curation`.
+//! transport is scripted, so there is nothing to refresh:
+//! `cargo nextest run -p lotus-curation`.
 
 mod fixtures {
     pub(super) const COMPOUND_FOUND: &str = r#"{

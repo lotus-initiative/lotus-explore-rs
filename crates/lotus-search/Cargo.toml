@@ -19,28 +19,32 @@ thiserror = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
 
+# The retry backoff needs a timer. wasm has no reactor, so it blocks instead
+# and does not need tokio at all -- which is what keeps this crate wasm-clean.
+#
+# `tokio` is declared before the `reqwest` sub-table below because a TOML table
+# owns every key that follows it. Written the other way round, this line became a
+# key of `reqwest`, and `tombi lint` -- which checks the manifest against Cargo's
+# schema rather than only whether it parses -- was right to reject it.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { workspace = true, features = ["time"] }
+
+# A sub-table rather than a multi-line inline table, which is invalid TOML: an
+# inline table may not contain a newline. It compiles because Cargo's parser is
+# more lenient than the spec, so the file was invalid to every other tool that
+# reads it. `tombi format --check` is what caught it.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.reqwest]
+version = "0.13"
+default-features = false
+features = ["default-tls", "gzip"]
+optional = true
+
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 # The scripted transport hands back `bytes::Bytes`, so the trait is implemented
 # against a type this crate only has as a dependency in test builds.
 bytes = "1.12"
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-reqwest = {
-  version = "0.13",
-  default-features = false,
-  features = [
-    "default-tls",
-    "gzip",
-  ],
-  optional = true
-}
-# The retry backoff needs a timer. wasm has no reactor, so it blocks instead
-# and does not need tokio at all -- which is what keeps this crate wasm-clean.
-tokio = { workspace = true, features = ["time"] }
-
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-# A timer the browser can actually drive, for the retry backoff. `tokio`'s
-# needs a reactor, which does not exist here.
 futures-timer = "3"
 reqwest = { version = "0.13", default-features = false, features = [], optional = true }
 
