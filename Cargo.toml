@@ -165,7 +165,7 @@ debug = 1
 [profile.release]
 opt-level = "z"
 debug = false
-strip = "symbols"
+strip = "debuginfo"
 debug-assertions = false
 overflow-checks = false
 lto = "fat"

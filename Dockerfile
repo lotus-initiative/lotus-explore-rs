@@ -32,7 +32,7 @@
 # Declared once and inherited by every stage via `ARG`s, so the toolchain
 # version is written down exactly once in this file.
 
-# 1.99.0 is the pin in rust-toolchain.toml. Reading it from here would be
+# 1.98.1 is the pin in rust-toolchain.toml. Reading it from here would be
 # better; Docker has no way to read a file before the first FROM, so the one
 # thing that has to be true of both is checked by `tests/gate_consistency.rs`.
 ARG RUST_VERSION=1.98.1 # no Docker image yet
