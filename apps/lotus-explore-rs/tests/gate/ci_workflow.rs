@@ -131,3 +131,114 @@ mod tests {
         Ok(())
     }
 }
+
+/// The toolchain version is written down once per consumer, and they agree.
+///
+/// `rust-toolchain.toml` is the real pin. The Dockerfile cannot read it -- there
+/// is no way to read a file before the first `FROM` -- so it repeats the number
+/// in an `ARG`, and `compose.yaml` and the CI jobs repeat it again. Five places,
+/// nothing enforcing that they match, and a contributor who bumps one has
+/// shipped a local build on one toolchain and an image on another.
+///
+/// The Dockerfile comment claims this is already checked. It was not.
+#[test]
+fn every_toolchain_pin_agrees_with_rust_toolchain_toml() -> Result<()> {
+    let pinned = read("rust-toolchain.toml")?
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("channel = \""))
+        .and_then(|quoted| quoted.strip_suffix('"'))
+        .ok_or("rust-toolchain.toml has no [toolchain] channel")?
+        .to_owned();
+
+    // `ARG RUST_VERSION=1.99.0`
+    let dockerfile = read("Dockerfile")?;
+    let in_dockerfile = dockerfile
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("ARG RUST_VERSION="))
+        .map(|rest| rest.split('#').next().unwrap_or(rest).trim())
+        .ok_or("the Dockerfile has no ARG RUST_VERSION")?;
+    assert_eq!(
+        in_dockerfile, pinned,
+        "the Dockerfile builds on {in_dockerfile} and the repository pins {pinned}. \
+         A local `dx build` and the container would not be the same toolchain."
+    );
+
+    // The comment directly above the ARG names the version; it drifts silently.
+    // Only the four lines before the ARG are considered, so this is the comment
+    // that is about this line rather than any comment in the file.
+    let all_lines: Vec<&str> = dockerfile.lines().collect();
+    let arg_at = all_lines
+        .iter()
+        .position(|line| line.trim_start().starts_with("ARG RUST_VERSION="))
+        .ok_or("the Dockerfile has no ARG RUST_VERSION")?;
+    let mut comment_above = None;
+    for line in all_lines.iter().take(arg_at).rev().take(4) {
+        if let Some(text) = line.trim().strip_prefix("# ")
+            && text.contains("is the pin in rust-toolchain.toml")
+        {
+            comment_above = Some(text);
+            break;
+        }
+    }
+    let comment_above = comment_above.ok_or("the ARG has no comment above it naming the pin")?;
+
+    assert!(
+        comment_above.contains(&pinned),
+        "the Dockerfile comment says {comment_above:?} but the ARG says {pinned}. \
+         The comment is what a reader trusts when the two disagree."
+    );
+
+    // `RUST_VERSION: "1.99.0"` under the build service.
+    let compose = read("compose.yaml")?;
+    let in_compose = compose
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("RUST_VERSION:"))
+        .map(|rest| rest.trim_matches(|c: char| c == '"' || c.is_whitespace()))
+        .ok_or("compose.yaml has no RUST_VERSION")?;
+    assert_eq!(
+        in_compose, pinned,
+        "compose builds on {in_compose} and the repository pins {pinned}."
+    );
+
+    // Every non-MSRV job. The MSRV job deliberately builds with the oldest
+    // supported toolchain, not the pinned one, so it is not in this set.
+    let workflow = read(".github/workflows/ci.yml")?;
+    for job in ci_jobs(&workflow)? {
+        // Scoped to this job's own block. Scanning the whole file for every job
+        // means the MSRV job's `toolchain: 1.97` is attributed to the `ci` job
+        // as well, which is how the first version of this test reported a
+        // mismatch that did not exist.
+        let start = workflow
+            .lines()
+            .position(|line| line == format!("  {job}:"))
+            .ok_or_else(|| format!("no block for job {job}"))?;
+        let block: String = workflow
+            .lines()
+            .skip(start + 1)
+            .take_while(|line| line.starts_with("   ") || line.trim().is_empty())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for line in block.lines() {
+            let Some(toolchain) = line
+                .trim()
+                .strip_prefix("toolchain: ")
+                .or_else(|| line.trim().strip_prefix("with: { toolchain: "))
+                .and_then(|rest| rest.split([',', ' ']).next())
+            else {
+                continue;
+            };
+            if job == "msrv" {
+                assert_ne!(
+                    toolchain, pinned,
+                    "the MSRV job must build with the oldest supported toolchain, not the pin"
+                );
+                continue;
+            }
+            assert_eq!(
+                toolchain, pinned,
+                "CI job `{job}` builds on {toolchain} and the repository pins {pinned}."
+            );
+        }
+    }
+    Ok(())
+}

@@ -32,10 +32,10 @@
 # Declared once and inherited by every stage via `ARG`s, so the toolchain
 # version is written down exactly once in this file.
 
-# 1.98.1 is the pin in rust-toolchain.toml. Reading it from here would be
+# 1.99.0 is the pin in rust-toolchain.toml. Reading it from here would be
 # better; Docker has no way to read a file before the first FROM, so the one
 # thing that has to be true of both is checked by `tests/gate_consistency.rs`.
-ARG RUST_VERSION=1.98.1 # no Docker image yet
+ARG RUST_VERSION=1.99.0
 # cargo-chef's version. Pinned because the `prepare`/`cook` output is a lockfile
 # of recipes: a cargo-chef that formats a recipe differently invalidates every
 # cached layer without the source having changed.
