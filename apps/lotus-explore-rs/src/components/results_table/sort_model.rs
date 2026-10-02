@@ -8,9 +8,8 @@ use std::sync::{Arc, Mutex};
 
 // --- Lazy sort index cache ---------------------------------------------------
 
-/// Number of sortable columns (one slot per `SortColumn` variant).
-const NUM_SORT_COLS: usize = 6;
-
+/// The cache slot for a column: one per `SortColumn` variant, and the order is
+/// what the match below says it is.
 const fn sort_column_index(col: SortColumn) -> usize {
     match col {
         SortColumn::Name => 0,
@@ -21,6 +20,17 @@ const fn sort_column_index(col: SortColumn) -> usize {
         SortColumn::RefTitle => 5,
     }
 }
+
+/// Number of sortable columns.
+///
+/// Derived from the match rather than written down beside it: a variant added to
+/// `SortColumn` without a slot here would silently index past the end of the cache
+/// array, and a literal `6` is exactly the kind of thing that survives adding a
+/// seventh variant.
+const NUM_SORT_COLS: usize = match SortColumn::all().last() {
+    Some(last) => sort_column_index(*last) + 1,
+    None => 0,
+};
 
 struct SortCacheInner {
     rows: Arc<[CompoundEntry]>,
@@ -62,9 +72,6 @@ pub(super) fn build_sort_index_cache(rows: Arc<[CompoundEntry]>) -> SortIndexCac
 }
 
 impl SortIndexCache {
-    // `idx` comes from the exhaustive `sort_column_index` match, so it is
-    // always `< NUM_SORT_COLS`; indexing a fixed-size array is safe here.
-    #[allow(clippy::indexing_slicing)]
     fn ascending_for(&self, col: SortColumn) -> Arc<[u32]> {
         let idx = sort_column_index(col);
         // Fast path: return the cached value while holding the lock briefly.
@@ -75,7 +82,7 @@ impl SortIndexCache {
                 .asc_by_col
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if let Some(cached) = &guard[idx] {
+            if let Some(Some(cached)) = guard.get(idx) {
                 return cached.clone();
             }
         }
@@ -85,17 +92,25 @@ impl SortIndexCache {
         // Store and return; a benign race on native means two threads might
         // both compute the same column — both results are identical, so the
         // last writer's value is silently discarded by get_or_insert.
-        let mut guard = self
-            .0
-            .asc_by_col
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        guard[idx].get_or_insert(computed).clone()
+        // `if let Some` rather than `expect`: `expect_used` is denied, and this
+        // is an invariant the type system cannot see -- `sort_column_index`
+        // returns a `usize` with no upper bound. A variant added to `SortColumn`
+        // without a slot in `all()` would land here, and the honest result is the
+        // freshly computed indices with nothing cached, not a panic in a render
+        // path.
+        {
+            let mut guard = self
+                .0
+                .asc_by_col
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            match guard.get_mut(idx) {
+                Some(slot) => slot.get_or_insert(computed).clone(),
+                None => computed,
+            }
+        }
     }
 
-    // `idx` comes from the exhaustive `sort_column_index` match, so it is
-    // always `< NUM_SORT_COLS`; indexing a fixed-size array is safe here.
-    #[allow(clippy::indexing_slicing)]
     fn descending_for(&self, col: SortColumn) -> Arc<[u32]> {
         let idx = sort_column_index(col);
         // Fast path: return the cached value while holding the lock briefly.
@@ -106,7 +121,7 @@ impl SortIndexCache {
                 .desc_by_col
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if let Some(cached) = &guard[idx] {
+            if let Some(Some(cached)) = guard.get(idx) {
                 return cached.clone();
             }
         }
@@ -114,12 +129,23 @@ impl SortIndexCache {
         let ascending = self.ascending_for(col);
         let computed = reversed_indices(&ascending);
 
-        let mut guard = self
-            .0
-            .desc_by_col
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        guard[idx].get_or_insert(computed).clone()
+        // `if let Some` rather than `expect`: `expect_used` is denied, and this
+        // is an invariant the type system cannot see -- `sort_column_index`
+        // returns a `usize` with no upper bound. A variant added to `SortColumn`
+        // without a slot in `all()` would land here, and the honest result is the
+        // freshly computed indices with nothing cached, not a panic in a render
+        // path.
+        {
+            let mut guard = self
+                .0
+                .desc_by_col
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            match guard.get_mut(idx) {
+                Some(slot) => slot.get_or_insert(computed).clone(),
+                None => computed,
+            }
+        }
     }
 }
 

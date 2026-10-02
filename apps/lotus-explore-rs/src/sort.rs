@@ -25,6 +25,25 @@ pub enum SortColumn {
     RefTitle,
 }
 
+impl SortColumn {
+    /// Every column, in the order the cache and the header cells use.
+    ///
+    /// A caller that needs "how many are there" reads it from here rather than
+    /// writing a number beside the enum, which is how a seventh variant ends up
+    /// with a sixth slot.
+    #[must_use]
+    pub const fn all() -> [Self; 6] {
+        [
+            Self::Name,
+            Self::Mass,
+            Self::Formula,
+            Self::TaxonName,
+            Self::PubYear,
+            Self::RefTitle,
+        ]
+    }
+}
+
 /// Sort direction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SortDir {
