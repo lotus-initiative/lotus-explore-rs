@@ -5,7 +5,7 @@
 //! Everything here is generic over [`Http`], so the retry and fallback policy is
 //! testable with a scripted client and no network.
 
-use crate::client::{Http, HttpResponse};
+use crate::client::{ChunkedBody, Http, HttpResponse};
 use crate::error::{FetchError, ResponseFormat};
 use crate::{QLEVER_WIKIDATA, WDQS_SCHOLARLY, WDQS_WIKIDATA};
 #[cfg(target_arch = "wasm32")]
@@ -135,6 +135,16 @@ pub struct Answer {
     pub body: Vec<u8>,
 }
 
+impl std::fmt::Debug for StreamAnswer {
+    /// The endpoint and nothing else: the body has not been read, and reading it
+    /// to describe it would defeat the point of having streamed it.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StreamAnswer")
+            .field("endpoint", &self.endpoint)
+            .finish_non_exhaustive()
+    }
+}
+
 impl Answer {
     /// The body as UTF-8.
     ///
@@ -238,6 +248,28 @@ async fn send<H: Http>(
     query: &str,
     format: ResponseFormat,
 ) -> Result<Vec<u8>, FetchError> {
+    let bytes = send_response(http, endpoint, query, format)
+        .await?
+        .bytes()
+        .await?;
+    if bytes.is_empty() {
+        return Err(FetchError::Empty);
+    }
+    Ok(bytes.to_vec())
+}
+
+/// POST `query` and hand back the response without reading its body.
+///
+/// The status is checked here, because a rejection carries the endpoint's
+/// explanation in the body and a gateway's is an HTML page -- so the error has to
+/// be read before it can be reported, which is the one case where reading the body
+/// whole is the right thing to do.
+async fn send_response<H: Http>(
+    http: &H,
+    endpoint: &str,
+    query: &str,
+    format: ResponseFormat,
+) -> Result<H::Response, FetchError> {
     let body = format!("query={}", urlencode(query));
     let response = http.post(endpoint, format.accept(), body).await?;
 
@@ -264,11 +296,88 @@ async fn send<H: Http>(
         }
     };
 
-    let bytes = response.bytes().await?;
-    if bytes.is_empty() {
-        return Err(FetchError::Empty);
+    Ok(response)
+}
+
+/// A response whose body has not been read.
+///
+/// Returned by [`execute_streaming`]. `endpoint` is kept so the provenance can
+/// still say which service answered: by the time the body has been read, the
+/// response that carried the headers is gone.
+pub struct StreamAnswer {
+    /// Where it came from, which the provenance should record.
+    pub endpoint: Endpoint,
+    /// The body, read one chunk at a time.
+    pub chunks: ChunkedBody,
+}
+
+/// POST `query`, and hand back its body to be read in chunks instead of at once.
+///
+/// The difference from [`execute`] is the whole point: a result set whose payload
+/// does not fit in memory cannot be fetched with a method that assembles it
+/// first.
+///
+/// There is no empty-body check, because finding out whether the body is empty
+/// means reading it, and reading it is what this method exists to avoid. A query
+/// that matches nothing returns a header row, which the CSV reader accepts and
+/// which becomes an empty result set.
+///
+/// # Errors
+/// Returns [`FetchError`] if the request could not be sent or the endpoint
+/// answered with a non-2xx status. A failure a retry cannot fix is returned on
+/// the first attempt rather than after the backoff.
+pub async fn execute_streaming<H: Http>(
+    http: &H,
+    endpoint: Endpoint,
+    query: &str,
+    format: ResponseFormat,
+) -> Result<StreamAnswer, FetchError> {
+    let mut last = None;
+
+    let target = endpoint.url().to_string();
+    for attempt in 1..=MAX_ATTEMPTS {
+        match send_response(http, &target, query, format).await {
+            Ok(response) => {
+                let chunks = response.into_chunks()?;
+                return Ok(StreamAnswer { endpoint, chunks });
+            }
+            Err(err) => {
+                let worth_retrying = err.is_retryable() && attempt < MAX_ATTEMPTS;
+                if !worth_retrying {
+                    return Err(err);
+                }
+                last = Some(err);
+                backoff(RETRY_BACKOFF).await;
+            }
+        }
     }
-    Ok(bytes.to_vec())
+
+    Err(last.unwrap_or(FetchError::Empty))
+}
+
+/// Run `query` against `QLever` and stream the body, falling back to WDQS when
+/// the endpoint is unreachable.
+///
+/// # Errors
+/// Returns [`FetchError`] from either endpoint, and the WDQS failure if `QLever`
+/// was unreachable and WDQS then failed too.
+pub async fn execute_streaming_with_fallback<H: Http>(
+    http: &H,
+    query: &str,
+    format: ResponseFormat,
+) -> Result<StreamAnswer, FetchError> {
+    match execute_streaming(http, Endpoint::new(Service::Qlever), query, format).await {
+        Ok(answer) => Ok(answer),
+        Err(err) if err.is_endpoint_unavailable() => {
+            let (service, rewritten) = lotus_query::wdqs_fallback(query);
+            let service = match service {
+                FallbackService::Scholarly => Service::Scholarly,
+                FallbackService::Main => Service::Wdqs,
+            };
+            execute_streaming(http, Endpoint::new(service), &rewritten, format).await
+        }
+        Err(err) => Err(err),
+    }
 }
 
 const fn is_success(status: u16) -> bool {

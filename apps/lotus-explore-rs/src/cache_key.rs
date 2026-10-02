@@ -10,18 +10,31 @@
 //! populates. A key is therefore an interface between the two, and a key
 //! derived differently on each side would show up as a cache miss on every
 //! request — correct, but slow enough to look like the endpoint is down.
+//!
+//! Two keys: one for a search response and one for an export. Neither is the
+//! browser's cache key — the browser keys its finished result sets on the query
+//! text itself, in `crate::cache`. What is hashed here is what the **server**
+//! caches, because the client and the server read each other's maps and the key
+//! is an interface between them.
 
 // The panic lints keep library code off `expect`; a test that trips one is
 // reporting a failure, not unwinding.
 #![allow(clippy::expect_used, clippy::panic)]
 
+// Only the server's two keys hash anything, and both are native-only.
+#[cfg(not(target_arch = "wasm32"))]
 use sha2::{Digest, Sha256};
 
-/// The key for a search result page.
+/// The key for a search response, on the server's side.
 ///
 /// The SPARQL is hashed rather than the filter values, so two searches that
 /// build the same query share a cache entry. The limit and the counts flag are
-/// mixed in because they change what the endpoint is asked to send.
+/// mixed in because they change what the endpoint is asked to send -- and the
+/// limit is still a real thing here: this is the REST surface, which serves bulk
+/// callers and caps its own responses, not the browser's streaming path.
+// Only the server caches search responses; the browser keys its own finished
+// sets on the query text. So this has no caller in a wasm build.
+#[cfg(not(target_arch = "wasm32"))]
 #[must_use]
 pub fn build_search_cache_key(query: &str, limit: usize, include_counts: bool) -> String {
     let mut hasher = Sha256::new();
@@ -49,6 +62,7 @@ pub fn build_export_cache_key(query: &str) -> String {
 }
 
 /// Lowercase hex encoding of a finalized digest.
+#[cfg(not(target_arch = "wasm32"))]
 fn sha256_hex(bytes: impl AsRef<[u8]>) -> String {
     let bytes = bytes.as_ref();
     let mut out = String::with_capacity(bytes.len() * 2);
@@ -62,7 +76,9 @@ fn sha256_hex(bytes: impl AsRef<[u8]>) -> String {
 }
 
 /// The character for a nibble, or `None` if the input was not a nibble.
+#[cfg(not(target_arch = "wasm32"))]
 const HEX: &[u8; 16] = b"0123456789abcdef";
+#[cfg(not(target_arch = "wasm32"))]
 fn hex_char(nibble: usize) -> Option<char> {
     HEX.get(nibble).map(|&c| char::from(c))
 }
@@ -71,12 +87,9 @@ fn hex_char(nibble: usize) -> Option<char> {
 mod tests {
     use super::*;
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn the_same_query_gives_the_same_key() {
-        assert_eq!(
-            build_search_cache_key("SELECT 1", 10, true),
-            build_search_cache_key("SELECT 1", 10, true)
-        );
         assert_eq!(
             build_export_cache_key("SELECT 1"),
             build_export_cache_key("SELECT 1")
@@ -96,15 +109,34 @@ mod tests {
         );
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn each_search_input_changes_the_key() {
+        // If any of these collided, one search would be served another's rows.
+        let base = build_search_cache_key("SELECT 1", 10, true);
+        assert_ne!(base, build_search_cache_key("SELECT 2", 10, true), "query");
+        assert_ne!(base, build_search_cache_key("SELECT 1", 11, true), "limit");
+        assert_ne!(
+            base,
+            build_search_cache_key("SELECT 1", 10, false),
+            "counts"
+        );
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn search_and_export_keys_cannot_collide() {
         // The prefix is what stops an export being served from the search
         // cache. The two hash different inputs, so this also guards against
         // someone dropping the prefix as "redundant".
-        assert!(build_search_cache_key("SELECT 1", 10, true).starts_with("search:"));
+        assert!(
+            build_search_cache_key("SELECT 1", 10, true).starts_with("search:"),
+            "the prefix is what stops an export being served from the search cache"
+        );
         assert!(build_export_cache_key("SELECT 1").starts_with("export:"));
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn keys_are_hex_of_the_right_length() {
         // A SHA-256 digest is 32 bytes, so 64 hex characters. Anything shorter

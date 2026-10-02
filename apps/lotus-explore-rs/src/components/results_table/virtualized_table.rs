@@ -9,19 +9,13 @@ use super::table_header::TableHeader;
 use super::table_view_model::TableViewModel;
 use super::virtualization_controller::use_results_table_virtualization;
 use crate::features::explore::interactions::use_explore_interactions;
-use crate::features::explore::selectors::ArcPtrEq;
 use crate::i18n::{TextKey, t};
 use dioxus::prelude::*;
-use lotus_model::CompoundEntry;
 
 #[component]
-pub(super) fn VirtualizedResultsTable(
-    entries: Memo<ArcPtrEq<[CompoundEntry]>>,
-    table_view_model: Memo<TableViewModel>,
-) -> Element {
+pub(super) fn VirtualizedResultsTable(table_view_model: Memo<TableViewModel>) -> Element {
     let locale = crate::hooks::use_locale();
     let interactions = use_explore_interactions();
-    let entries_ref = entries.read();
     // Virtualization is driven by the rows on screen, which is the sorted order
     // minus whatever the column filters exclude — not by the rows the search
     // returned. Spacing off the unfiltered count would leave blank bands at the
@@ -102,11 +96,9 @@ pub(super) fn VirtualizedResultsTable(
                     ResultsRowsWindow {
                         locale,
                         text,
-                        rows: entries_ref.0.clone(),
+                        rows: render_model.rows.clone(),
                         prepared_rows: render_model.prepared_rows.clone(),
-                        order: render_model.sorted_indices.clone(),
-                        start_row: render_model.start_row,
-                        end_row: render_model.end_row,
+                        keys: render_model.keys.clone(),
                     }
                     if render_model.has_bottom_spacer() {
                         tr { aria_hidden: "true",

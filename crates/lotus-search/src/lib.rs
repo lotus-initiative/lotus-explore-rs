@@ -15,13 +15,17 @@ mod execute;
 mod result;
 mod search;
 
-pub use client::{Http, HttpResponse, ResponseBody};
+pub use client::{BodyChunks, ChunkFuture, ChunkedBody, Http, HttpResponse, ResponseBody};
 pub use error::{FetchError, ResponseFormat, is_retryable_status};
-pub use execute::{Answer, Endpoint, Service, execute, execute_with_fallback, fetch_url};
-pub use result::{SearchRequest, SearchResult, TaxonNote, TaxonResolution};
+pub use execute::{
+    Answer, Endpoint, Service, StreamAnswer, execute, execute_streaming,
+    execute_streaming_with_fallback, execute_with_fallback, fetch_url,
+};
+pub use result::{ColumnarSearchResult, SearchRequest, SearchResult, TaxonNote, TaxonResolution};
 pub use search::{
-    DEFAULT_ROW_LIMIT, SearchError, StructurePlan, build_base_query, build_execution_query, counts,
-    is_qid, normalize_structure, resolve_taxon, search, standardize_taxon_name,
+    DEFAULT_ROW_LIMIT, SearchError, StructurePlan, build_base_query, build_execution_query,
+    columnar_from_chunks, counts, is_qid, normalize_structure, resolve_taxon, search,
+    search_columnar, standardize_taxon_name,
 };
 
 #[cfg(feature = "reqwest")]

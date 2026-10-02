@@ -21,12 +21,10 @@ fn build_search_succeeded_action_applies_finalized_counts() {
         SearchCommand::Interactive,
     );
     let outcome = SearchOutcome {
-        rows: Vec::new(),
+        set: std::sync::Arc::new(lotus_model::ColumnarResultSet::default()),
         qid: Some("Q42".to_string()),
         warnings: Vec::new(),
         query: "SELECT * WHERE {}".to_string(),
-        total_matches: Some(7),
-        total_stats: None,
         display_capped_rows: true,
         endpoint: crate::export::SparqlEndpoint::Qlever,
     };
@@ -34,13 +32,14 @@ fn build_search_succeeded_action_applies_finalized_counts() {
     let action = build_search_succeeded_action_for_tests(&request, outcome);
     match action {
         ExploreAction::SearchSucceeded {
-            total_matches,
-            total_stats,
+            set,
             display_capped_rows,
             ..
         } => {
-            assert_eq!(total_matches, Some(7));
-            assert!(total_stats.is_some());
+            // The counts are no longer carried on the action: the set holds them,
+            // so there is no field that could disagree with the rows on screen.
+            assert_eq!(set.row_count(), 0);
+            assert_eq!(set.stats().n_entries, 0);
             assert!(display_capped_rows);
         }
         _ => panic!("expected SearchSucceeded action"),

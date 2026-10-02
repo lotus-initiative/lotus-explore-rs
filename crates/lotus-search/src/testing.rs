@@ -32,7 +32,7 @@ use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
 
-use crate::{FetchError, Http, HttpResponse, ResponseBody};
+use crate::{ChunkFuture, ChunkedBody, FetchError, Http, HttpResponse, ResponseBody};
 
 /// A canned reply. A status of 0 stands for "the request never arrived", which
 /// the transport has to be able to tell apart from a rejection.
@@ -53,13 +53,29 @@ struct Fake {
 pub struct Scripted {
     replies: Arc<Mutex<VecDeque<Fake>>>,
     seen: Arc<Mutex<Vec<String>>>,
+    /// The largest piece each body is handed over in. Zero means one piece.
+    chunk_size: usize,
 }
 
 impl Scripted {
     /// Answer the given replies, in order, as `(status, body)`.
     #[must_use]
     pub fn new(replies: Vec<(u16, &str)>) -> Self {
+        Self::with_chunk_size(replies, 0)
+    }
+
+    /// Answer the given replies, in order, handing each body over in pieces of at
+    /// most `size` bytes.
+    ///
+    /// A size of zero means one piece. Anything else simulates a body that
+    /// arrives in pieces, which is the case the streaming path exists for and the
+    /// one a whole-body double cannot test: a payload that is only ever read in
+    /// one go proves nothing about a reader that has to carry a record across the
+    /// boundary.
+    #[must_use]
+    pub fn with_chunk_size(replies: Vec<(u16, &str)>, size: usize) -> Self {
         Self {
+            chunk_size: size,
             replies: Arc::new(Mutex::new(
                 replies
                     .into_iter()
@@ -165,7 +181,10 @@ impl Http for Scripted {
         if reply.status == 0 {
             return Err(FetchError::Network("connection refused".into()));
         }
-        Ok(ScriptedResponse(reply))
+        Ok(ScriptedResponse {
+            fake: reply,
+            chunk_size: self.chunk_size,
+        })
     }
 
     async fn post_json(&self, url: &str, body: String) -> Result<Self::Response, FetchError> {
@@ -175,7 +194,10 @@ impl Http for Scripted {
         if reply.status == 0 {
             return Err(FetchError::Network("connection refused".into()));
         }
-        Ok(ScriptedResponse(reply))
+        Ok(ScriptedResponse {
+            fake: reply,
+            chunk_size: self.chunk_size,
+        })
     }
 
     async fn get(&self, url: &str, accept: &str) -> Result<Self::Response, FetchError> {
@@ -185,29 +207,71 @@ impl Http for Scripted {
         if reply.status == 0 {
             return Err(FetchError::Network("connection refused".into()));
         }
-        Ok(ScriptedResponse(reply))
+        Ok(ScriptedResponse {
+            fake: reply,
+            chunk_size: self.chunk_size,
+        })
     }
 }
 
 /// The reply [`Scripted`] hands back.
 #[derive(Debug)]
-pub struct ScriptedResponse(Fake);
+pub struct ScriptedResponse {
+    /// The scripted reply.
+    fake: Fake,
+    /// The largest piece the body is handed over in.
+    chunk_size: usize,
+}
 
 impl HttpResponse for ScriptedResponse {
     fn status(&self) -> u16 {
-        self.0.status
+        self.fake.status
     }
 
     async fn bytes(self) -> Result<ResponseBody, FetchError> {
-        Ok(Bytes::from(self.0.body.as_bytes().to_vec()))
+        Ok(Bytes::from(self.fake.body.as_bytes().to_vec()))
     }
 
     async fn text(self) -> Result<String, FetchError> {
-        Ok(self.0.body.to_string())
+        Ok(self.fake.body.to_string())
     }
 
     async fn chunk(&mut self) -> Result<Option<ResponseBody>, FetchError> {
         Ok(None)
+    }
+
+    fn into_chunks(self) -> Result<ChunkedBody, FetchError> {
+        let body = Bytes::from(self.fake.body.as_bytes().to_vec());
+        let size = if self.chunk_size == 0 {
+            body.len().max(1)
+        } else {
+            self.chunk_size
+        };
+        Ok(Box::new(ScriptedChunks { body, size, at: 0 }))
+    }
+}
+
+/// A scripted body, handed over in pieces of `size` bytes.
+struct ScriptedChunks {
+    /// The whole body.
+    body: Bytes,
+    /// The largest piece to hand over at a time.
+    size: usize,
+    /// How much has been handed over.
+    at: usize,
+}
+
+impl crate::BodyChunks for ScriptedChunks {
+    fn next_chunk(&mut self) -> ChunkFuture<'_> {
+        Box::pin(async move {
+            if self.at >= self.body.len() {
+                return Ok(None);
+            }
+            let end = self.at.saturating_add(self.size).min(self.body.len());
+            let piece = self.body.slice(self.at..end);
+            self.at = end;
+            Ok(Some(piece))
+        })
     }
 }
 

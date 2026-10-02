@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use lotus_model::{CompoundEntry, SearchCriteria};
+#[cfg(test)]
+use lotus_model::CompoundEntry;
+use lotus_model::{ColumnarResultSet, SearchCriteria};
 use sha2::{Digest, Sha256};
 use std::borrow::Cow;
 use std::fmt::Write as _;
@@ -39,7 +41,7 @@ pub fn sanitize_taxon_input(taxon: &str) -> String {
 pub fn compute_hashes(
     qid: &str,
     criteria: &SearchCriteria,
-    rows: &[CompoundEntry],
+    set: &ColumnarResultSet,
 ) -> (String, String) {
     let normalized_qid = if qid.trim().is_empty() { "*" } else { qid };
     let normalized_taxon = criteria.taxon.trim();
@@ -62,16 +64,11 @@ pub fn compute_hashes(
     }
     let query_hash = to_hex_lower(&Sha256::digest(query_source.as_bytes()));
 
-    let mut compounds = rows
-        .iter()
-        .map(|e| e.compound_qid.as_ref())
-        .collect::<Vec<_>>();
-    compounds.sort_unstable();
-    compounds.dedup();
-
-    // Stream QIDs directly into the hasher — avoids allocating a joined String.
+    // The compound dictionary is already the distinct set of QIDs, so there is
+    // nothing to collect and nothing to sort: iterate it and stream each QID into
+    // the hasher, which avoids allocating a joined String as well.
     let mut result_hasher = Sha256::new();
-    for (i, qid) in compounds.iter().enumerate() {
+    for (i, qid) in set.compound_qids().enumerate() {
         if i > 0 {
             result_hasher.update(b"|");
         }
@@ -142,8 +139,12 @@ mod tests {
             pub_year: None,
             statement: None,
         };
-        let (q1, r1) = compute_hashes("QX", &crit, std::slice::from_ref(&row));
-        let (q2, r2) = compute_hashes("QX", &crit, &[row]);
+        let (q1, r1) = compute_hashes(
+            "QX",
+            &crit,
+            &ColumnarResultSet::from_entries(std::slice::from_ref(&row)),
+        );
+        let (q2, r2) = compute_hashes("QX", &crit, &ColumnarResultSet::from_entries(&[row]));
         assert_eq!(q1, q2);
         assert_eq!(r1, r2);
     }

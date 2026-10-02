@@ -7,7 +7,7 @@ use crate::features::explore::command::SearchCommand;
 use crate::features::explore::types::{DomainError, QueryPhase, QueryStage, ValidationFault};
 use crate::repositories::RepositoryError;
 use crate::sort::{SortColumn, SortDir};
-use lotus_model::{CompoundEntry, SearchCriteria};
+use lotus_model::SearchCriteria;
 use std::sync::Arc;
 
 fn default_state() -> ExploreState {
@@ -30,7 +30,7 @@ fn search_requested_sets_loading_and_clears_result() {
     assert!(next.lifecycle.searched_once);
     assert!(!next.lifecycle.download_only_mode);
     assert_eq!(next.lifecycle.search_request_token, 1);
-    assert_eq!(next.result.entries.len(), 0, "expected no entries");
+    assert_eq!(next.result.set.row_count(), 0, "expected no entries");
     assert!(next.result.sparql_query.is_none());
 }
 
@@ -78,18 +78,16 @@ fn phase_changed_updates_only_phase() {
 fn search_succeeded_clears_loading_and_stores_result() {
     let mut state = default_state();
     state.lifecycle.loading = true;
-    let rows: Vec<CompoundEntry> = vec![];
+    let set = std::sync::Arc::new(lotus_model::ColumnarResultSet::default());
     let metadata = Arc::<str>::from(r#"{"test":"metadata"}"#);
     let endpoint = crate::export::SparqlEndpoint::Qlever;
     let next = reduce(
         state,
         ExploreAction::SearchSucceeded {
-            rows,
+            set,
             qid: Some("Q123".into()),
             warnings: Vec::new(),
             query: "SELECT ?x WHERE {}".into(),
-            total_matches: Some(42),
-            total_stats: None,
             display_capped_rows: true,
             query_hash: "qh".into(),
             result_hash: "rh".into(),
@@ -99,7 +97,13 @@ fn search_succeeded_clears_loading_and_stores_result() {
     );
     assert!(!next.lifecycle.loading);
     assert_eq!(next.result.resolved_qid.as_deref(), Some("Q123"));
-    assert_eq!(next.result.total_matches, Some(42));
+    // The total is the set's own count. There is no field to disagree with it, which
+    // is the point: the old shape carried a number the reducer could not check.
+    assert_eq!(next.result.total_matches, Some(0));
+    assert_eq!(
+        next.result.total_stats.map(|s| s.n_entries),
+        Some(next.result.set.row_count())
+    );
     assert!(next.result.display_capped_rows);
     assert_eq!(next.result.query_hash.as_deref(), Some("qh"));
     assert_eq!(next.result.result_hash.as_deref(), Some("rh"));

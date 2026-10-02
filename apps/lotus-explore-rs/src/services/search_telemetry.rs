@@ -229,13 +229,12 @@ pub fn query_build_after_server_filters(has_service: bool, has_filter: bool) {
     );
 }
 
-pub fn results_fetch_started(display_limit: usize) {
-    log_debug_evt(
-        "search",
-        "fetching_results",
-        "started",
-        Some(&format!("display_limit={display_limit}")),
-    );
+/// The results fetch has started.
+///
+/// There is no row budget to report. The fetch asks for every row the endpoint
+/// has, so a "display limit" in this event would be a number nothing enforces.
+pub fn results_fetch_started() {
+    log_debug_evt("search", "fetching_results", "started", None);
 }
 
 pub fn results_fetch_done(elapsed: Duration, rows: usize, total_matches: usize) {

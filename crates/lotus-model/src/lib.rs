@@ -3,6 +3,7 @@
 #![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
 
+mod columnar;
 mod criteria;
 mod entry;
 mod identify;
@@ -11,6 +12,10 @@ mod stats;
 mod structure;
 mod validate;
 
+pub use columnar::{
+    Bitmask, ColumnarBuilder, ColumnarResultSet, Dictionary, FilterPlan, FilterSpec, NO_VALUE,
+    Range, RawRow, SparseStrings, StatementId, contains_folded, folded,
+};
 pub use criteria::{SearchCriteria, TaxonNomenclature};
 pub use entry::{CompoundEntry, Rows, TaxonMatch, TaxonNameSource};
 pub use identify::{non_empty, normalize_doi, normalize_qid};

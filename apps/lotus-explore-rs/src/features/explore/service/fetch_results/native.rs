@@ -14,11 +14,12 @@ use crate::features::explore::types::{DomainError, ParseFault, QueryStage};
 use crate::perf;
 use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
-use lotus_model::{CompoundEntry, DatasetStats};
+use lotus_model::ColumnarResultSet;
 // Named here because only the native fetch path streams a file; going through the
 // shared shims made it look unused on the wasm build.
-use lotus_query::parse_compounds_stream;
+use lotus_query::parse_compounds_columnar;
 use std::io::{BufReader, Seek};
+use std::sync::Arc;
 use std::time::Duration;
 
 struct FetchedResultsCsv {
@@ -31,10 +32,7 @@ enum FetchedResultsPayload {
 }
 
 struct ProcessedResults {
-    rows: Vec<CompoundEntry>,
-    total_stats: DatasetStats,
-    total_matches: usize,
-    display_capped_rows: bool,
+    set: Arc<ColumnarResultSet>,
     parse_elapsed: Duration,
 }
 
@@ -48,22 +46,18 @@ pub(super) async fn fetch_results<R: LotusRepository>(
     metrics.add_network(fetched.network_elapsed);
     on_processing();
 
-    let processed = process_full_results_csv(fetched.payload, plan.display_limit)?;
+    let processed = process_full_results_csv(fetched.payload)?;
     metrics.add_parse(processed.parse_elapsed);
+
+    let stats = processed.set.stats();
     telemetry::results_fetch_done(
         fetched
             .network_elapsed
             .saturating_add(processed.parse_elapsed),
-        processed.rows.len(),
-        processed.total_matches,
+        stats.n_entries,
+        stats.n_entries,
     );
-
-    Ok(FetchResult {
-        rows: processed.rows,
-        total_stats: Some(processed.total_stats),
-        total_matches: Some(processed.total_matches),
-        display_capped_rows: processed.display_capped_rows,
-    })
+    Ok(FetchResult::from_set(processed.set))
 }
 
 async fn fetch_results_csv<R: LotusRepository>(
@@ -83,31 +77,33 @@ async fn fetch_results_csv<R: LotusRepository>(
     })
 }
 
+/// Fold the spooled body into a columnar set.
+///
+/// The body is spooled to a file first, which is how the native path keeps a large
+/// result off the heap while the endpoint is still answering. The file is then
+/// read back through the incremental CSV reader, so the peak is the finished set
+/// rather than the set plus the whole payload.
 fn process_full_results_csv(
     payload: FetchedResultsPayload,
-    display_limit: usize,
 ) -> Result<ProcessedResults, DomainError> {
     let parse_timer = perf::start_timer("LOTUS:results_parse");
-    let (rows, total_stats, parse_capped) = match payload {
+    let set = match payload {
         FetchedResultsPayload::TempFile(mut file) => {
+            // The spool left the cursor at the end of what it wrote, and reading
+            // through a handle that shares that cursor would find nothing.
             file.as_file_mut().rewind().map_err(|e| {
                 DomainError::Parse(ParseFault::ResultsCsv {
                     details: format!("tempfile rewind failed: {e}"),
                 })
             })?;
-            parse_compounds_stream(BufReader::new(file.as_file_mut()), display_limit)
+            parse_compounds_columnar(BufReader::new(file.as_file_mut()))
         }
     }
     .map_err(results_csv_parse_error)?;
     let parse_elapsed = perf::end_timer("LOTUS:results_parse", parse_timer);
 
-    let total_matches = total_stats.n_entries;
-    let display_capped_rows = parse_capped || total_matches > rows.len();
     Ok(ProcessedResults {
-        rows,
-        total_stats,
-        total_matches,
-        display_capped_rows,
+        set: Arc::new(set),
         parse_elapsed,
     })
 }
@@ -125,7 +121,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn process_stage_marks_capped_and_preserves_full_counts() {
+    fn the_whole_body_becomes_a_set_with_exact_counts() {
         let payload = {
             use std::io::Write;
 
@@ -137,10 +133,16 @@ mod tests {
             FetchedResultsPayload::TempFile(file)
         };
 
-        let processed = process_full_results_csv(payload, 1).expect("csv should parse");
-        assert_eq!(processed.rows.len(), 1);
-        assert_eq!(processed.total_matches, 2);
-        assert_eq!(processed.total_stats.n_entries, 2);
-        assert!(processed.display_capped_rows);
+        let processed = process_full_results_csv(payload).expect("csv should parse");
+        let stats = processed.set.stats();
+
+        assert_eq!(
+            processed.set.row_count(),
+            2,
+            "both rows are kept: nothing caps the native path either"
+        );
+        assert_eq!(stats.n_entries, 2);
+        assert_eq!(stats.n_entries_unique, 2);
+        assert_eq!(stats.n_compounds, 2);
     }
 }

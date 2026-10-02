@@ -6,7 +6,7 @@ use crate::export::SparqlEndpoint;
 use crate::features::explore::command::SearchCommand;
 use crate::features::explore::types::{DomainError, LookupNotice, QueryPhase};
 use crate::sort::SortColumn;
-use lotus_model::{CompoundEntry, DatasetStats, SearchCriteria};
+use lotus_model::SearchCriteria;
 use std::sync::Arc;
 
 /// All state transitions that can occur in the Explore feature.
@@ -23,14 +23,12 @@ pub enum ExploreAction {
 
     /// Commit a successful search result set.
     SearchSucceeded {
-        rows: Vec<CompoundEntry>,
+        set: std::sync::Arc<lotus_model::ColumnarResultSet>,
         qid: Option<String>,
         /// Structured notices about how this search went; formatted at render
         /// time. Empty in the common case.
         warnings: Vec<LookupNotice>,
         query: String,
-        total_matches: Option<usize>,
-        total_stats: Option<DatasetStats>,
         display_capped_rows: bool,
         query_hash: Arc<str>,
         result_hash: Arc<str>,

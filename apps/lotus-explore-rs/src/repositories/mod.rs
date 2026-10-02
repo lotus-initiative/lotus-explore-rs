@@ -12,6 +12,7 @@ pub use hybrid::{get_wdqs_transformed_query, is_wdqs_fallback_used, reset_wdqs_f
 pub use hybrid::HybridRepository;
 
 use crate::api::SearchResponse;
+use lotus_model::ColumnarResultSet;
 use lotus_search::SearchCriteria;
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::{Seek, Write};
@@ -67,6 +68,31 @@ pub trait LotusRepository: Clone + 'static {
     /// Execute a SPARQL query and return the raw response body.
     async fn sparql_body(&self, query: &str)
     -> Result<lotus_search::ResponseBody, RepositoryError>;
+
+    /// Execute a result query and fold the whole answer into a columnar set.
+    ///
+    /// This is the interactive path. It differs from [`Self::sparql_body`] in the
+    /// one way that matters: the body is never assembled. A result set that does
+    /// not fit in memory cannot be fetched by a method that holds it in memory
+    /// first, and the widest search measures about 470 MB of decompressed CSV
+    /// against a 200 MB budget.
+    ///
+    /// `query` must be the *unlimited* query. A `LIMIT` here would put the old
+    /// truncation back, server-side, where nothing downstream could undo it.
+    ///
+    /// The default refuses rather than silently falling back to
+    /// [`Self::sparql_body`]: a transport that cannot stream has to say so,
+    /// because the alternative looks like it worked and exhausts memory later.
+    ///
+    /// # Errors
+    /// Returns [`RepositoryError::Network`] if this transport cannot read a body
+    /// incrementally.
+    async fn sparql_columnar(&self, query: &str) -> Result<ColumnarResultSet, RepositoryError> {
+        let _ = query;
+        Err(RepositoryError::network(
+            "this transport cannot read a response body in chunks",
+        ))
+    }
 
     #[cfg(not(target_arch = "wasm32"))]
     async fn sparql_tempfile(

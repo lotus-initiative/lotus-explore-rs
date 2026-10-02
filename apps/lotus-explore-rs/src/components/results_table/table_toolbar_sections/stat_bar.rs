@@ -5,7 +5,6 @@ use crate::features::explore::use_toolbar_result_snapshot;
 use crate::i18n::{CountNoun, TextKey, count_label, format_count, t};
 use crate::state::use_results_context;
 use dioxus::prelude::*;
-use lotus_model::DatasetStats;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StatStripe {
@@ -89,23 +88,16 @@ fn StatBadge(
 pub fn StatBar() -> Element {
     let locale = crate::hooks::use_locale();
     let explore = use_results_context().explore;
-    let entries_arc =
-        crate::features::explore::selectors::use_result_arc_selector(explore, |result| {
-            result.entries.clone()
-        });
     let toolbar_snapshot = use_toolbar_result_snapshot(explore);
-    let fallback_stats: Memo<DatasetStats> =
-        use_memo(move || DatasetStats::from_entries(entries_arc.read().0.as_ref()));
     let snapshot_ref = toolbar_snapshot.read();
-    let fallback_stats_ref = fallback_stats.read();
-    let stats = snapshot_ref
-        .total_stats
-        .as_ref()
-        .unwrap_or(&fallback_stats_ref);
-    let entries_value = snapshot_ref
-        .total_matches
-        .or_else(|| snapshot_ref.total_stats.as_ref().map(|s| s.n_entries))
-        .unwrap_or(stats.n_entries);
+    // The result set always carries its own exact counts, so there is no fallback
+    // to compute: the value that used to be recomputed from the rows on every
+    // render is now the answer the fetch already had.
+    // The set always carries its own counts, so this is never absent in
+    // practice. It is read as `Option` because the snapshot is shared with the
+    // toolbar and with the download-only path, where no result was fetched.
+    let stats = snapshot_ref.total_stats.clone().unwrap_or_default();
+    let entries_value = stats.n_entries;
     let entries_unique_value = stats.n_entries_unique;
 
     rsx! {

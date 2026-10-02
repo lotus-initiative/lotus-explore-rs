@@ -7,6 +7,7 @@ use crate::api::SearchResponse;
 use crate::repositories::{LotusRepository, RepositoryError};
 use crate::sparql::transform_query_for_wdqs;
 use crate::sparql::{self, FetchError, WDQS_WIKIDATA};
+use lotus_model::ColumnarResultSet;
 use lotus_search::SearchCriteria;
 use std::cell::RefCell;
 
@@ -33,7 +34,7 @@ pub fn get_wdqs_transformed_query() -> Option<String> {
 /// Remove a trailing `LIMIT nnn` (case-insensitive) clause from a query string.
 fn strip_limit_clause(query: &str) -> String {
     // Strip a trailing `LIMIT nnn` clause so downloads aren't capped at
-    // the interactive display limit (e.g. 500 from runtime_table_row_limit()).
+    // a client-side row limit (there is no longer one on the interactive path).
     let trimmed = query.trim_end();
     let lower = trimmed.to_ascii_lowercase();
     // Find the last occurrence of "limit" preceded by whitespace or start of string
@@ -129,6 +130,23 @@ impl LotusRepository for HybridRepository {
             }
             result => result.map_err(map_fetch_error),
         }
+    }
+
+    async fn sparql_columnar(&self, query: &str) -> Result<ColumnarResultSet, RepositoryError> {
+        let chunks = match sparql::execute_sparql_chunks(query).await {
+            Ok(chunks) => chunks,
+            Err(err) if is_qlever_unavailable(&err) => {
+                log::warn!("event=qlever_unavailable action=fallback_wdqs_scholarly");
+                let wdqs_query = prepare_wdqs_fallback_query(query);
+                sparql::execute_sparql_chunks_at(&wdqs_query, WDQS_WIKIDATA)
+                    .await
+                    .map_err(map_fetch_error)?
+            }
+            Err(err) => return Err(map_fetch_error(err)),
+        };
+        lotus_search::columnar_from_chunks(chunks)
+            .await
+            .map_err(map_fetch_error)
     }
 
     #[cfg(not(target_arch = "wasm32"))]

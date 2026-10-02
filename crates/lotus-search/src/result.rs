@@ -29,6 +29,24 @@ impl SearchResult {
     }
 }
 
+/// A whole result set, in memory that fits, with its exact counts.
+///
+/// What [`search_columnar`](crate::search_columnar) returns. There is no
+/// `truncated` field and no separate `stats`: the set holds every row the endpoint
+/// returned and computes its own counts, so a caller cannot report a total that
+/// disagrees with the rows it is showing.
+#[derive(Debug, Clone, Default)]
+pub struct ColumnarSearchResult {
+    /// Every row, stored by column.
+    pub set: lotus_model::ColumnarResultSet,
+    /// How the taxon's input was interpreted, or `None` for a structure-only
+    /// search.
+    pub taxon: Option<TaxonResolution>,
+    /// The query that produced the rows, so a caller can download the same set by
+    /// another route or show it to the reader.
+    pub query: String,
+}
+
 /// How a taxon's input was interpreted.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TaxonResolution {

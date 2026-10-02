@@ -111,8 +111,8 @@ where
         let total_elapsed = perf::end_timer("LOTUS:search_total", search_timer);
         telemetry::search_complete(
             total_elapsed,
-            outcome.rows.len(),
-            outcome.total_matches.unwrap_or(outcome.rows.len()),
+            outcome.set.row_count(),
+            outcome.set.stats().n_entries,
         );
         emit_search_summary(total_elapsed, metrics);
         Ok(outcome)

@@ -8,6 +8,12 @@
 //! result set is already in memory — filtering it costs a linear scan and no
 //! network.
 //!
+//! **The whole result set is in memory.** The fetch asks the endpoint for every
+//! row rather than for one screen's worth, so a filter answers a question about
+//! the result set rather than about the first 500 rows of it. See
+//! [`ColumnFilters::to_spec`] for how the filters are handed to the columnar
+//! store.
+//!
 //! Each column gets the kind of control its data is:
 //!
 //! - names and formulas are matched as text, case-insensitively, on substring;
@@ -19,7 +25,7 @@
 //! zero would quietly put every unreported compound in the low-mass bucket.
 
 use crate::sort::SortColumn;
-use lotus_model::CompoundEntry;
+use lotus_model::{FilterSpec, Range};
 
 /// The control a column's filter needs, which follows from what the column holds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,7 +57,8 @@ impl FilterKind {
 /// Kept as the raw strings and numbers the inputs hold, not as a compiled
 /// predicate, because this is also what the inputs are rendered from — a control
 /// whose value is not readable back out of state is a control that cannot be
-/// cleared. [`CompiledFilters`] is the derived form used per row.
+/// cleared. [`to_spec`](ColumnFilters::to_spec) is the derived form the columnar
+/// store compiles.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ColumnFilters {
     pub compound: String,
@@ -93,6 +100,28 @@ impl ColumnFilters {
     #[must_use]
     pub fn is_active(&self) -> bool {
         self.active_count() > 0
+    }
+
+    /// The filters as the columnar store wants them.
+    ///
+    /// This is the whole of the app's filtering contract now. The store compiles
+    /// a spec into one bitmap per constrained dictionary, so the per-row work is
+    /// four bit tests rather than a substring search over thirteen fields — which
+    /// is what lets a keystroke scan millions of rows instead of hundreds.
+    ///
+    /// A blank text box becomes an empty needle, which is not a filter -- the same
+    /// rule the row-at-a-time predicate applied, kept because it is the rule the
+    /// filter row's controls were built against.
+    #[must_use]
+    pub fn to_spec(&self) -> FilterSpec {
+        FilterSpec {
+            compound: self.compound.trim().to_owned(),
+            formula: self.formula.trim().to_owned(),
+            taxon: self.taxon.trim().to_owned(),
+            reference: self.reference.trim().to_owned(),
+            mass: range_spec(self.mass_min, self.mass_max),
+            year: range_spec(self.year_min, self.year_max),
+        }
     }
 
     /// How many columns are filtering, for a "3 filters" affordance.
@@ -174,131 +203,19 @@ pub enum Bound {
     Max,
 }
 
-/// The filters with their text needles already lowered and trimmed, so testing a
-/// row allocates nothing and a blank input matches everything it is next to.
-#[derive(Debug, Clone, Default)]
-pub struct CompiledFilters {
-    compound: String,
-    formula: String,
-    taxon: String,
-    reference: String,
-    mass: Option<Range>,
-    year: Option<Range>,
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Range {
-    min: Option<f64>,
-    max: Option<f64>,
-}
-
-impl Range {
-    /// Whether `value` falls inside the bounds.
-    ///
-    /// A missing `value` never matches: see the module comment.
-    fn accepts(self, value: Option<f64>) -> bool {
-        let Some(value) = value else {
-            return false;
-        };
-        self.min.is_none_or(|min| value >= min) && self.max.is_none_or(|max| value <= max)
-    }
-}
-
-impl CompiledFilters {
-    #[must_use]
-    pub fn new(filters: &ColumnFilters) -> Self {
-        Self {
-            compound: needle(&filters.compound),
-            formula: needle(&filters.formula),
-            taxon: needle(&filters.taxon),
-            reference: needle(&filters.reference),
-            mass: range(filters.mass_min, filters.mass_max),
-            year: range(filters.year_min, filters.year_max),
-        }
-    }
-
-    #[must_use]
-    pub fn is_active(&self) -> bool {
-        !self.compound.is_empty()
-            || !self.formula.is_empty()
-            || !self.taxon.is_empty()
-            || !self.reference.is_empty()
-            || self.mass.is_some()
-            || self.year.is_some()
-    }
-
-    /// Whether one row survives every active filter.
-    ///
-    /// **Across columns, and.** Each filter is a separate thing the user asked
-    /// for, so combining them with OR would return rows that fail the constraint
-    /// they just typed.
-    ///
-    /// **Within a column, or.** A column shows several values — a taxon column
-    /// shows the name and the QID — and a user who types a QID means that
-    /// column, not that particular field. Demanding the text of *every* value in
-    /// the column would make searching for a QID return only rows whose name
-    /// also contains the QID, which is none of them.
-    #[must_use]
-    pub fn matches(&self, entry: &CompoundEntry) -> bool {
-        any_text(
-            &self.compound,
-            [
-                Some(entry.name.as_ref()),
-                Some(entry.compound_qid.as_ref()),
-                entry.inchikey.as_deref(),
-            ],
-        ) && any_text(&self.formula, [entry.formula.as_deref()])
-            && any_text(
-                &self.taxon,
-                [
-                    Some(entry.taxon_name.as_ref()),
-                    Some(entry.taxon_qid.as_ref()),
-                ],
-            )
-            && any_text(
-                &self.reference,
-                [
-                    Some(entry.reference_qid.as_ref()),
-                    entry.ref_title.as_deref(),
-                    entry.ref_doi.as_deref(),
-                ],
-            )
-            && self.mass.is_none_or(|range| range.accepts(entry.mass))
-            && self
-                .year
-                .is_none_or(|range| range.accepts(entry.pub_year.map(f64::from)))
-    }
-}
-
-/// A trimmed, lowercased needle; empty means "no filter on this column".
-fn needle(raw: &str) -> String {
-    raw.trim().to_lowercase()
-}
-
-fn range(min: Option<f64>, max: Option<f64>) -> Option<Range> {
-    (min.is_some() || max.is_some()).then_some(Range { min, max })
-}
-
-/// Whether `needle` appears in any of a column's values.
+/// A range over the columnar store, or `None` when neither bound is set.
 ///
-/// An empty needle is a filter that is not set, so it matches even a row with no
-/// value in the column at all. A non-empty needle with nothing to match against
-/// is not a match: filtering the formula column by `C15` should not return rows
-/// that have no formula.
-fn any_text<'a>(needle: &str, fields: impl IntoIterator<Item = Option<&'a str>>) -> bool {
-    if needle.is_empty() {
-        return true;
-    }
-    fields
-        .into_iter()
-        .flatten()
-        .any(|field| field.to_lowercase().contains(needle))
+/// `None` for "neither" rather than for "a range with no bounds", because the
+/// second would match every row and silently do nothing the reader asked for.
+fn range_spec(min: Option<f64>, max: Option<f64>) -> Option<Range> {
+    (min.is_some() || max.is_some()).then_some(Range { min, max })
 }
 
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]
     use super::*;
+    use lotus_model::{ColumnarResultSet, CompoundEntry};
     use std::sync::Arc;
 
     fn entry() -> CompoundEntry {
@@ -319,8 +236,14 @@ mod tests {
         }
     }
 
+    /// Whether the filter admits `entry`.
+    ///
+    /// Goes through a one-row columnar set, which is the only path a filter takes
+    /// now. A helper that called a predicate directly would keep testing a code
+    /// path the app no longer has.
     fn matches(filters: &ColumnFilters, entry: &CompoundEntry) -> bool {
-        CompiledFilters::new(filters).matches(entry)
+        let set = ColumnarResultSet::from_entries(std::slice::from_ref(entry));
+        set.plan_filter(&filters.to_spec()).accepts(&set, 0)
     }
 
     #[test]

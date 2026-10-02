@@ -23,7 +23,7 @@ pub fn FilterStatus(shown: usize) -> Element {
     let locale = crate::hooks::use_locale();
     let state = use_results_context();
     let interactions = use_explore_interactions();
-    let total = use_result_selector(state.explore, |result| result.entries.len());
+    let total = use_result_selector(state.explore, |result| result.set.row_count());
     let filters = use_result_selector(state.explore, |result| result.filters.clone());
 
     rsx! {

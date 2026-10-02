@@ -42,13 +42,13 @@ pub fn ResultsTable() -> Element {
     // Narrow selectors — each memo fires only for its own slice of state.
     // `entries_arc` uses Arc pointer equality, so sort changes never cause
     // an O(N) deep-equality scan of the result set.
-    let entries_arc = use_result_arc_selector(explore, |r| r.entries.clone());
+    let set_arc = use_result_arc_selector(explore, |r| r.set.clone());
     let sort = use_result_selector(explore, |r| r.sort);
     let filters = use_result_selector(explore, |r| r.filters.clone());
 
-    // Expensive step: row-text derivation + lazy sort-index cache allocation.
-    // Depends on `entries_arc` (ptr equality) so it is skipped on sort changes.
-    let prepared_state = use_memo(move || prepare_table_state(entries_arc.read().0.clone()));
+    // Expensive step: the lazy sort-index cache. Depends on `set_arc` (pointer
+    // equality) so it is skipped on sort and filter changes.
+    let prepared_state = use_memo(move || prepare_table_state(set_arc.read().0.clone()));
 
     // Cheap step: pick the right sort indices, then drop what the column
     // filters exclude. Fires whenever entries, sort or filters change.
@@ -58,7 +58,7 @@ pub fn ResultsTable() -> Element {
 
     // What the search returned, as opposed to what the filters let through. The
     // two are reported separately so a filter cannot look like a smaller result.
-    let total = entries_arc.read().0.len();
+    let total = set_arc.read().0.row_count();
     let shown = table_view_model.read().visible_row_count();
 
     rsx! {
@@ -90,11 +90,7 @@ pub fn ResultsTable() -> Element {
              } else {
                  FilterStatus { shown }
                  div { class: "results-table-container min-h-0 w-full mt-3 px-0",
-                     VirtualizedResultsTable {
-
-                        entries: entries_arc,
-                        table_view_model,
-                     }
+                     VirtualizedResultsTable { table_view_model }
                  }
              }
         }

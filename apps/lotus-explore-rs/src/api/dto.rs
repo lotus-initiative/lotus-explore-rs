@@ -160,8 +160,14 @@ pub struct SearchResponse {
     pub warning: Option<String>,
     pub query: String,
     pub rows: Vec<RowDto>,
+    /// How many rows the whole result set has.
+    ///
+    /// Used only to decide whether the rows that arrived are the whole set: a
+    /// partial page is declined, because the columnar store takes its counts from
+    /// the rows it holds and a page would understate the total. The API's own
+    /// `stats` block is not read -- the set computes the same five numbers, and
+    /// exactly, from the rows themselves.
     pub total_matches: usize,
-    pub stats: SearchStats,
 }
 
 #[cfg(target_arch = "wasm32")]

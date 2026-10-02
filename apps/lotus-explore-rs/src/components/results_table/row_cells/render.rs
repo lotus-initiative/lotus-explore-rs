@@ -16,27 +16,31 @@ use super::row_text::RowText;
 pub(in crate::components::results_table) use super::row_text::row_text;
 
 #[component]
-// `end` is clamped to `order.len()`, and `i` is drawn from `order`, whose
-// entries are row offsets into the same `rows`/`prepared_rows` arrays, so
-// every index here stays in bounds.
+// `rows` and `prepared_rows` are the visible window and `keys` holds one key per
+// row of it, so the two index the same range and every index stays in bounds.
+//
+// The window arrives already sliced and already materialised: with the whole
+// result set in memory, deriving a row means reading it out of the columnar store
+// and formatting a dozen strings, and doing that for three million rows to draw
+// thirty would cost more than the whole store. `keys` are row offsets into the
+// result set rather than positions in the window, so a row keeps its DOM identity
+// as the window scrolls.
 #[allow(
     clippy::indexing_slicing,
-    reason = "row offsets come from the sort order, so every index is within the rows it indexes"
+    reason = "`keys` has one entry per row of `rows`/`prepared_rows`, so every index is within them"
 )]
 pub(in crate::components::results_table) fn ResultsRowsWindow(
     locale: Locale,
     text: RowText,
     rows: Arc<[CompoundEntry]>,
     prepared_rows: Arc<[PreparedRow]>,
-    order: Arc<[u32]>,
-    start_row: usize,
-    end_row: usize,
+    keys: Arc<[u32]>,
 ) -> Element {
-    let start = start_row.min(order.len());
-    let end = end_row.min(order.len()).max(start);
     rsx! {
-        for i in order[start..end].iter().copied() {
-            {row_view(locale, text, &rows[i as usize], &prepared_rows[i as usize], i)}
+        for (i, key) in keys.iter().copied().enumerate() {
+            if let (Some(row), Some(prepared)) = (rows.get(i), prepared_rows.get(i)) {
+                {row_view(locale, text, row, prepared, key)}
+            }
         }
     }
 }

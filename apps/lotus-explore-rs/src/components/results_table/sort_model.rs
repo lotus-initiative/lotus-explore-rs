@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use crate::sort::{SortColumn, SortDir, SortState};
+use lotus_model::ColumnarResultSet;
+#[cfg(test)]
 use lotus_model::CompoundEntry;
 use std::cmp::Ordering;
 use std::sync::{Arc, Mutex};
@@ -33,7 +35,7 @@ const NUM_SORT_COLS: usize = match SortColumn::all().last() {
 };
 
 struct SortCacheInner {
-    rows: Arc<[CompoundEntry]>,
+    set: Arc<ColumnarResultSet>,
     /// Ascending sort indices per column; `None` until first access.
     asc_by_col: Mutex<[Option<Arc<[u32]>>; NUM_SORT_COLS]>,
     /// Descending sort indices per column; derived from ascending once and then reused.
@@ -47,25 +49,29 @@ pub(super) struct SortIndexCache(Arc<SortCacheInner>);
 
 impl PartialEq for SortIndexCache {
     fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0.rows, &other.0.rows)
+        Arc::ptr_eq(&self.0.set, &other.0.set)
     }
 }
 
 impl std::fmt::Debug for SortIndexCache {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SortIndexCache")
-            .field("rows_len", &self.0.rows.len())
+            .field("row_count", &self.0.set.row_count())
             .finish_non_exhaustive()
     }
 }
 
-/// Build a new lazy sort index cache backed by `rows`.
+/// Build a new lazy sort index cache backed by `set`.
 /// No sort work is performed here; indices are computed on first access per
 /// column.
+///
+/// The cache is keyed on the set's identity rather than its contents, so replacing
+/// the result set replaces every cached order and a stale order cannot outlive
+/// the data it was sorted from.
 #[must_use]
-pub(super) fn build_sort_index_cache(rows: Arc<[CompoundEntry]>) -> SortIndexCache {
+pub(super) fn build_sort_index_cache(set: Arc<ColumnarResultSet>) -> SortIndexCache {
     SortIndexCache(Arc::new(SortCacheInner {
-        rows,
+        set,
         asc_by_col: Mutex::new(Default::default()),
         desc_by_col: Mutex::new(Default::default()),
     }))
@@ -88,7 +94,7 @@ impl SortIndexCache {
         }
         // Compute outside the lock so that other columns can be accessed
         // concurrently on native; on WASM the Mutex is a no-op anyway.
-        let computed = build_sorted_indices_for_column(&self.0.rows, col);
+        let computed = build_sorted_indices_for_column(&self.0.set, col);
         // Store and return; a benign race on native means two threads might
         // both compute the same column — both results are identical, so the
         // last writer's value is silently discarded by get_or_insert.
@@ -160,10 +166,16 @@ pub(super) fn indices_for_sort(cache: &SortIndexCache, sort: SortState) -> Arc<[
 }
 
 /// Test-only helper: directly build a sorted index from a slice without caching.
+///
+/// Takes [`CompoundEntry`] values so the tests can state a result set as rows
+/// without knowing how one is stored. The path under test is the columnar one:
+/// the rows are folded into a set and sorted out of it, so a reader bug in either
+/// the builder or the comparison shows up here.
 #[cfg(test)]
 #[must_use]
 pub(super) fn build_sorted_indices(rows: &[CompoundEntry], sort: SortState) -> Arc<[u32]> {
-    let ascending = build_sorted_indices_for_column(rows, sort.col);
+    let set = Arc::new(ColumnarResultSet::from_entries(rows));
+    let ascending = build_sorted_indices_for_column(&set, sort.col);
     if sort.dir == SortDir::Asc {
         ascending
     } else {
@@ -173,11 +185,10 @@ pub(super) fn build_sorted_indices(rows: &[CompoundEntry], sort: SortState) -> A
 
 #[allow(clippy::cast_possible_truncation)] // `rows.len()` far below `u32::MAX` for any displayable table
 #[allow(clippy::indexing_slicing)] // `a`/`b` drawn from `0..rows.len()`, always in bounds
-fn build_sorted_indices_for_column(rows: &[CompoundEntry], column: SortColumn) -> Arc<[u32]> {
-    let mut idx: Vec<u32> = (0..rows.len() as u32).collect();
-    idx.sort_by(|&a, &b| {
-        compare_entries(&rows[a as usize], &rows[b as usize], column).then_with(|| a.cmp(&b))
-    });
+fn build_sorted_indices_for_column(set: &ColumnarResultSet, column: SortColumn) -> Arc<[u32]> {
+    let rows = set.row_count();
+    let mut idx: Vec<u32> = (0..u32::try_from(rows).unwrap_or(0)).collect();
+    idx.sort_by(|&a, &b| compare_rows(set, a as usize, b as usize, column).then_with(|| a.cmp(&b)));
     Arc::from(idx.into_boxed_slice())
 }
 
@@ -187,14 +198,23 @@ fn reversed_indices(indices: &[u32]) -> Arc<[u32]> {
     Arc::from(reversed.into_boxed_slice())
 }
 
-fn compare_entries(a: &CompoundEntry, b: &CompoundEntry, column: SortColumn) -> Ordering {
+/// Compare two rows of `set` on one column.
+///
+/// Every field is read straight out of the set. Comparing
+/// [`CompoundEntry`] values would work and would be wrong: building one costs
+/// thirteen `Arc<str>`s, and a sort of three million rows would allocate thirty
+/// nine million of them to answer a question about one column.
+fn compare_rows(set: &ColumnarResultSet, a: usize, b: usize, column: SortColumn) -> Ordering {
     match column {
-        SortColumn::Name => a.name.cmp(&b.name),
-        SortColumn::Mass => a.mass.partial_cmp(&b.mass).unwrap_or(Ordering::Equal),
-        SortColumn::Formula => a.formula.cmp(&b.formula),
-        SortColumn::TaxonName => a.taxon_name.cmp(&b.taxon_name),
-        SortColumn::PubYear => a.pub_year.cmp(&b.pub_year),
-        SortColumn::RefTitle => a.ref_title.cmp(&b.ref_title),
+        SortColumn::Name => set.compound_label(a).cmp(&set.compound_label(b)),
+        SortColumn::Mass => set
+            .mass(a)
+            .partial_cmp(&set.mass(b))
+            .unwrap_or(Ordering::Equal),
+        SortColumn::Formula => set.formula(a).cmp(&set.formula(b)),
+        SortColumn::TaxonName => set.taxon_label(a).cmp(&set.taxon_label(b)),
+        SortColumn::PubYear => set.pub_year(a).cmp(&set.pub_year(b)),
+        SortColumn::RefTitle => set.reference_title(a).cmp(&set.reference_title(b)),
     }
 }
 

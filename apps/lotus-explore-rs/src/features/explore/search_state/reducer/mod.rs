@@ -29,12 +29,10 @@ pub fn reduce_mut(state: &mut ExploreState, action: ExploreAction) {
             lifecycle::phase_changed(&mut state.lifecycle, phase);
         }
         ExploreAction::SearchSucceeded {
-            rows,
+            set,
             qid,
             warnings,
             query,
-            total_matches,
-            total_stats,
             display_capped_rows,
             query_hash,
             result_hash,
@@ -45,12 +43,10 @@ pub fn reduce_mut(state: &mut ExploreState, action: ExploreAction) {
             result_data::search_succeeded(
                 &mut state.result,
                 result_data::SearchSuccessPayload {
-                    rows,
+                    set,
                     qid,
                     warnings,
                     query,
-                    total_matches,
-                    total_stats,
                     display_capped_rows,
                     query_hash,
                     result_hash,

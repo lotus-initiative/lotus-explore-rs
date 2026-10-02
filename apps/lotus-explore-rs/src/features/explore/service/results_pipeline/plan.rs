@@ -66,12 +66,10 @@ impl ResultsExecutionPlan {
             .unwrap_or_else(|| self.execution_query.clone());
 
         ResultsPipelineOutcome {
-            rows: fetch_result.rows,
+            set: fetch_result.set,
             qid: self.taxon_resolution.qid,
             warnings,
             query,
-            total_matches: fetch_result.total_matches,
-            total_stats: fetch_result.total_stats,
             display_capped_rows: fetch_result.display_capped_rows,
             endpoint,
         }

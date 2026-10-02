@@ -132,12 +132,10 @@ fn validate_search_criteria(criteria: &SearchCriteria) -> Result<(), DomainError
 
 fn build_search_succeeded_action(request: &SearchRequest, outcome: SearchOutcome) -> ExploreAction {
     let SearchOutcome {
-        rows,
+        set,
         qid,
         warnings,
         query,
-        total_matches,
-        total_stats,
         display_capped_rows,
         endpoint,
     } = outcome;
@@ -145,20 +143,16 @@ fn build_search_succeeded_action(request: &SearchRequest, outcome: SearchOutcome
     let meta = finalize::finalize(
         request.criteria(),
         qid.as_deref(),
-        &rows,
-        total_matches,
-        total_stats,
+        &set,
         request.direct_download(),
         endpoint,
     );
 
     ExploreAction::SearchSucceeded {
-        rows,
+        set,
         qid,
         warnings,
         query,
-        total_matches: meta.filtered_matches,
-        total_stats: meta.filtered_stats,
         display_capped_rows,
         query_hash: meta.query_hash,
         result_hash: meta.result_hash,

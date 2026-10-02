@@ -9,9 +9,53 @@
 #![cfg_attr(target_arch = "wasm32", allow(clippy::future_not_send))]
 
 use crate::error::FetchError;
+use std::future::Future;
+use std::pin::Pin;
 
 /// A response body, not yet decoded.
 pub type ResponseBody = bytes::Bytes;
+
+/// What [`BodyChunks::next_chunk`] hands back.
+///
+/// A boxed future rather than an `async fn` in the trait, because a trait whose
+/// methods return `impl Future` cannot have a `Box<dyn Trait>` of it, and this
+/// one has to be held behind a box: the two platforms get their chunks from two
+/// unrelated pieces of their HTTP stacks.
+///
+/// The lifetime is tied to the borrow of the reader, not `'static`, because the
+/// future reads from that reader. It is `Send` on native and not on wasm, because
+/// the browser's stream is not `Send` and there is only one thread to send it to.
+#[cfg(not(target_arch = "wasm32"))]
+pub type ChunkFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<Option<ResponseBody>, FetchError>> + Send + 'a>>;
+
+/// What [`BodyChunks::next_chunk`] hands back, in the browser.
+#[cfg(target_arch = "wasm32")]
+pub type ChunkFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<Option<ResponseBody>, FetchError>> + 'a>>;
+
+/// A response body being read a chunk at a time.
+///
+/// This is what makes a result set larger than memory possible: the payload is
+/// never assembled, so peak cost is the finished set plus one chunk. Reading a
+/// response with [`HttpResponse::text`] instead costs the whole payload at once,
+/// which for the widest search measured is 470 MB of CSV against a 200 MB budget.
+pub trait BodyChunks {
+    /// The next chunk, or `None` at end of body.
+    fn next_chunk(&mut self) -> ChunkFuture<'_>;
+}
+
+/// A response body held for incremental reading.
+///
+/// `Send` on native, not on wasm: the browser's stream is not `Send`, and the
+/// module-level allow for `future_not_send` is about exactly that. Nothing
+/// needs it to be, because there is one thread.
+#[cfg(not(target_arch = "wasm32"))]
+pub type ChunkedBody = Box<dyn BodyChunks + Send>;
+
+/// A response body held for incremental reading, in the browser.
+#[cfg(target_arch = "wasm32")]
+pub type ChunkedBody = Box<dyn BodyChunks>;
 
 /// A response being read.
 ///
@@ -30,6 +74,25 @@ pub trait HttpResponse {
 
     /// Read the next chunk of the body, or `None` at end of input.
     fn chunk(&mut self) -> impl Future<Output = Result<Option<ResponseBody>, FetchError>>;
+
+    /// Take the response apart so its body can be read in chunks.
+    ///
+    /// The default refuses, because a transport that cannot stream still has to
+    /// satisfy the trait. Callers that need a large body to fit should treat the
+    /// refusal as "this transport cannot do that" rather than as a network
+    /// error, which is why it is a distinct message.
+    ///
+    /// # Errors
+    /// Returns [`FetchError::Network`] if this transport has no way to read a
+    /// body incrementally, which the default implementation always does.
+    fn into_chunks(self) -> Result<ChunkedBody, FetchError>
+    where
+        Self: Sized,
+    {
+        Err(FetchError::Network(
+            "this transport cannot read a response body in chunks".into(),
+        ))
+    }
 }
 
 /// Sends SPARQL queries.

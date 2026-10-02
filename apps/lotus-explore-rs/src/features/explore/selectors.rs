@@ -10,7 +10,7 @@ use lotus_model::{DatasetStats, SearchCriteria};
 use std::sync::Arc;
 
 /// Wrapper around `Arc<T>` that compares by pointer identity.
-/// This is useful for large immutable payloads (for example `Arc<[CompoundEntry]>`)
+/// This is useful for large immutable payloads (for example the result set)
 /// where deep `PartialEq` checks are unnecessarily expensive.
 #[derive(Clone)]
 pub struct ArcPtrEq<T: ?Sized>(pub Arc<T>);
@@ -107,7 +107,7 @@ impl ExploreUiState {
             searched_once: explore_read.lifecycle.searched_once,
             download_only_mode: explore_read.lifecycle.download_only_mode,
             download_dispatching: explore_read.lifecycle.download_dispatching,
-            has_entries: !explore_read.result.entries.is_empty(),
+            has_entries: !explore_read.result.set.is_empty(),
             has_query: explore_read.result.sparql_query.is_some(),
             has_resolved_qid: explore_read.result.resolved_qid.is_some(),
             criteria_dirty,
@@ -182,7 +182,7 @@ mod tests {
             searched_once: explore.lifecycle.searched_once,
             download_only_mode: explore.lifecycle.download_only_mode,
             download_dispatching: explore.lifecycle.download_dispatching,
-            has_entries: !explore.result.entries.is_empty(),
+            has_entries: !explore.result.set.is_empty(),
             has_query: explore.result.sparql_query.is_some(),
             has_resolved_qid: explore.result.resolved_qid.is_some(),
             criteria_dirty: false,

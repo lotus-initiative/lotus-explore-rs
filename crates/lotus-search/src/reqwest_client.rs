@@ -10,7 +10,7 @@
 // this module on wasm is the browser, which has one thread by definition.
 #![cfg_attr(target_arch = "wasm32", allow(clippy::future_not_send))]
 
-use super::{FetchError, Http, HttpResponse, ResponseBody};
+use super::{BodyChunks, ChunkFuture, ChunkedBody, FetchError, Http, HttpResponse, ResponseBody};
 use std::sync::OnceLock;
 
 /// One client for the process, so that connections are pooled.
@@ -104,8 +104,8 @@ impl HttpResponse for reqwest::Response {
             .map_err(|e| FetchError::Network(e.to_string()))
     }
 
-    // The wasm `Response` has no inherent `chunk`, and the streaming path is
-    // native-only, so this exists to satisfy the trait and is never called.
+    // The wasm `Response` has no inherent `chunk`, so this exists to satisfy the
+    // trait and is never called: the streaming path goes through `into_chunks`.
     //
     // `HttpResponse` is an async-fn-in-trait, so `async fn` is the spelling the
     // trait requires; there is nothing to await because nothing runs.
@@ -116,8 +116,64 @@ impl HttpResponse for reqwest::Response {
     )]
     async fn chunk(&mut self) -> Result<Option<ResponseBody>, FetchError> {
         Err(FetchError::Network(
-            "streaming is not available here".into(),
+            "incremental reads go through `into_chunks` here".into(),
         ))
+    }
+
+    fn into_chunks(self) -> Result<ChunkedBody, FetchError> {
+        #[cfg(target_arch = "wasm32")]
+        {
+            // `bytes_stream` is the browser's `ReadableStream` underneath, so the
+            // body arrives already decompressed and in pieces. That is exactly
+            // what is wanted: the decompressed payload is never in one piece.
+            Ok(Box::new(WasmChunks {
+                inner: Box::pin(self.bytes_stream()),
+            }))
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            Ok(Box::new(NativeChunks { response: self }))
+        }
+    }
+}
+
+/// Native streaming: the response's own `chunk`, which reads as the socket
+/// delivers and holds no more than one chunk.
+#[cfg(not(target_arch = "wasm32"))]
+struct NativeChunks {
+    response: reqwest::Response,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl BodyChunks for NativeChunks {
+    fn next_chunk(&mut self) -> ChunkFuture<'_> {
+        Box::pin(async {
+            self.response
+                .chunk()
+                .await
+                .map_err(|e| FetchError::Network(e.to_string()))
+        })
+    }
+}
+
+/// Wasm streaming: `reqwest`'s `ReadableStream` as a `Stream` of `Bytes`.
+#[cfg(target_arch = "wasm32")]
+struct WasmChunks {
+    inner: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseBody, reqwest::Error>>>>,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl BodyChunks for WasmChunks {
+    fn next_chunk(&mut self) -> ChunkFuture<'_> {
+        Box::pin(async {
+            use futures::StreamExt;
+            self.inner
+                .next()
+                .await
+                .transpose()
+                .map_err(|e| FetchError::Network(e.to_string()))
+        })
     }
 }
 

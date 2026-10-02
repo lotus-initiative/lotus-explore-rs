@@ -17,6 +17,7 @@ use std::io::Read;
 use std::sync::Arc;
 
 /// Where each result column sits, resolved from the header row.
+#[derive(Debug, Clone, Copy)]
 struct Columns {
     compound: Option<usize>,
     label: Option<usize>,
@@ -37,6 +38,46 @@ struct Columns {
 impl Columns {
     fn detect(headers: &csv::ByteRecord) -> Self {
         let find = |name: &str| headers.iter().position(|h| h == name.as_bytes());
+        Self {
+            compound: find("compound"),
+            label: find("compoundLabel"),
+            inchikey: find("compound_inchikey"),
+            smiles_iso: find("compound_smiles_iso"),
+            smiles_conn: find("compound_smiles_conn"),
+            mass: find("compound_mass"),
+            formula: find("compound_formula"),
+            taxon: find("taxon"),
+            taxon_name: find("taxon_name"),
+            reference: find("ref_qid"),
+            ref_title: find("ref_title"),
+            ref_doi: find("ref_doi"),
+            ref_date: find("ref_date"),
+            statement: find("statement"),
+        }
+    }
+}
+
+impl Columns {
+    /// Whether any column the result set needs was found in the header.
+    ///
+    /// A header naming no known column means the query and the parser disagree,
+    /// and every row would read as empty. That is a failure the table cannot show
+    /// as a failure, so it is reported instead.
+    const fn resolves_any(&self) -> bool {
+        self.compound.is_some()
+            || self.taxon.is_some()
+            || self.reference.is_some()
+            || self.statement.is_some()
+    }
+
+    /// Resolve the columns from header names already read as strings.
+    ///
+    /// The streaming reader sees its header as owned `String`s because it has
+    /// to hand the names to a caller; this is the same resolution
+    /// [`Columns::detect`] does over a borrowed header.
+    #[must_use]
+    fn from_names(names: &[String]) -> Self {
+        let find = |name: &str| names.iter().position(|h| h == name);
         Self {
             compound: find("compound"),
             label: find("compoundLabel"),
@@ -492,6 +533,11 @@ pub fn parse_compounds_stream<R: Read>(
     reader.read_to_end(&mut buf).map_err(ParseError::new)?;
     parse_compounds_csv_capped(&buf, max_rows)
 }
+
+#[path = "parse/stream.rs"]
+mod stream;
+
+pub use stream::{CsvColumnarReader, CsvSplitter, parse_compounds_columnar};
 
 #[cfg(test)]
 #[path = "parse/tests.rs"]

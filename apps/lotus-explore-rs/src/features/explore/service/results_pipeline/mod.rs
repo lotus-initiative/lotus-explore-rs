@@ -18,17 +18,13 @@ use crate::features::explore::request::SearchRequest;
 use crate::features::explore::search_metrics::SearchMetrics;
 use crate::features::explore::types::{DomainError, LookupNotice, QueryPhase};
 use crate::repositories::LotusRepository;
-use crate::table_budget::runtime_table_row_limit;
-use lotus_model::{CompoundEntry, DatasetStats};
 
 #[derive(Debug)]
 pub struct ResultsPipelineOutcome {
-    pub rows: Vec<CompoundEntry>,
+    pub set: std::sync::Arc<lotus_model::ColumnarResultSet>,
     pub qid: Option<String>,
     pub warnings: Vec<LookupNotice>,
     pub query: String,
-    pub total_matches: Option<usize>,
-    pub total_stats: Option<DatasetStats>,
     pub display_capped_rows: bool,
     pub endpoint: crate::export::SparqlEndpoint,
 }
@@ -48,10 +44,8 @@ pub async fn execute<R: LotusRepository>(
         return Ok(plan.into_download_only_outcome());
     }
 
-    let display_limit = runtime_table_row_limit();
     let fetch_result = fetch_results::fetch(
         plan.execution_query(),
-        display_limit,
         repo,
         metrics,
         fetch_results::FetchHooks::new(
@@ -92,8 +86,8 @@ mod tests {
                 .await
                 .expect("download-only should not hit results fetch");
 
-            assert_eq!(outcome.rows.len(), 0, "expected no entries");
-            assert!(outcome.total_matches.is_none());
+            assert_eq!(outcome.set.row_count(), 0, "expected no entries");
+            assert_eq!(outcome.set.row_count(), 0, "nothing was fetched");
             assert!(outcome.query.contains("SELECT"));
         });
     }
@@ -118,9 +112,13 @@ mod tests {
                 .await
                 .expect("interactive pipeline should fetch results");
 
-            assert_eq!(outcome.rows.len(), 2);
-            assert_eq!(outcome.total_matches, Some(2));
-            assert!(outcome.total_stats.is_some());
+            assert_eq!(outcome.set.row_count(), 2);
+            assert_eq!(
+                outcome.set.stats().n_entries,
+                2,
+                "the set carries the count"
+            );
+            assert_eq!(outcome.set.stats().n_entries_unique, 2);
         });
     }
 }

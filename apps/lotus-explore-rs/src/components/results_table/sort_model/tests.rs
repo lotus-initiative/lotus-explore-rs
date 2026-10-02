@@ -7,6 +7,7 @@
 //! therefore compares the cached order against the directly-sorted one.
 
 use super::*;
+use lotus_model::ColumnarResultSet;
 use std::sync::Arc;
 
 fn entry(
@@ -18,20 +19,36 @@ fn entry(
     ref_title: Option<&str>,
 ) -> CompoundEntry {
     CompoundEntry {
-        compound_qid: Arc::<str>::from(format!("Q-{name}")),
+        compound_qid: qid_for("Q", name),
         name: Arc::<str>::from(name),
         inchikey: None,
         smiles: None,
         mass,
         formula: formula.map(Arc::<str>::from),
-        taxon_qid: Arc::<str>::from(format!("T-{taxon_name}")),
+        taxon_qid: qid_for("Q", taxon_name),
         taxon_name: Arc::<str>::from(taxon_name),
-        reference_qid: Arc::<str>::from("R-1"),
+        // One reference per row: a title, a DOI and a year belong to the
+        // *reference*, so rows sharing one cannot disagree about them.
+        reference_qid: qid_for("Q", name),
         ref_title: ref_title.map(Arc::<str>::from),
         ref_doi: None,
         pub_year,
         statement: None,
     }
+}
+
+/// A deterministic Wikidata QID for a test's label.
+///
+/// The store only keeps a cell it recognises as a QID -- `Q-Alpha` is not one,
+/// and a row keyed by nothing is dropped rather than shown with a broken link --
+/// so a fixture has to use numeric ids. Derived from the label so a test states
+/// one thing per row instead of inventing an id to go with it.
+fn qid_for(prefix: &str, label: &str) -> Arc<str> {
+    let mut n: u32 = 2_166_136_261;
+    for byte in label.bytes() {
+        n = n.wrapping_mul(16_777_619).wrapping_add(u32::from(byte));
+    }
+    Arc::<str>::from(format!("{prefix}{}", n % 1_000_000 + 1))
 }
 
 #[test]
@@ -167,8 +184,7 @@ fn cache_returns_same_indices_as_direct_sort_for_asc_and_desc() {
         ),
     ];
 
-    let rows_arc: Arc<[CompoundEntry]> = Arc::from(rows.as_slice());
-    let cache = build_sort_index_cache(rows_arc);
+    let cache = build_sort_index_cache(Arc::new(ColumnarResultSet::from_entries(&rows)));
     let asc = indices_for_sort(
         &cache,
         SortState {
@@ -268,8 +284,7 @@ fn descending_indices_are_cached_per_column() {
         ),
     ];
 
-    let rows_arc: Arc<[CompoundEntry]> = Arc::from(rows.as_slice());
-    let cache = build_sort_index_cache(rows_arc);
+    let cache = build_sort_index_cache(Arc::new(ColumnarResultSet::from_entries(&rows)));
     let first = indices_for_sort(
         &cache,
         SortState {

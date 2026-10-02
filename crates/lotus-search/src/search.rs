@@ -12,13 +12,17 @@
 
 use crate::client::Http;
 use crate::error::{FetchError, ResponseFormat};
-use crate::result::{SearchRequest, SearchResult, TaxonNote, TaxonResolution};
+use crate::result::{
+    ColumnarSearchResult, SearchRequest, SearchResult, TaxonNote, TaxonResolution,
+};
 use lotus_model::{DatasetStats, SearchCriteria, SmilesSearchType, ValidationError};
+use lotus_query::{
+    CsvColumnarReader, parse_compounds_csv_capped, parse_counts_csv, parse_taxon_csv,
+};
 use lotus_query::{
     Nomenclature, all_compounds_query, compounds_by_taxon_query_with, counts_query, limit_query,
     structure_search_query_with, taxon_lookup_query, with_filters,
 };
-use lotus_query::{parse_compounds_csv_capped, parse_counts_csv, parse_taxon_csv};
 
 /// How a structure search should be run, once the structure is known.
 #[derive(Debug, Clone, PartialEq)]
@@ -273,6 +277,106 @@ pub async fn search<H: Http>(
         query,
         truncated,
     })
+}
+
+/// A search that returns the whole result set, exactly, and in memory that fits.
+///
+/// This is the path the browser takes. It differs from [`search`] in three ways,
+/// each of which is a decision rather than a convenience:
+///
+/// - **No `LIMIT`.** The query asks for every row. The old path asked for 500
+///   and then counted separately, which is why its filters could only ever see
+///   500 rows: the truncation was server-side, so nothing downstream could undo
+///   it. Here the whole set arrives and the table can filter all of it.
+/// - **No `COUNT` query.** [`ColumnarResultSet`] deduplicates nothing and holds
+///   every row, so its statistics *are* the endpoint's counts. The second query
+///   is not needed, and with it goes the `counts_query` construction whose
+///   deletion of two named blocks could silently make a filter count nothing.
+/// - **The body is never assembled.** The response is read through
+///   [`BodyChunks`] and folded into the set a chunk at a time, so peak memory is
+///   the set plus one chunk rather than the set plus the payload. For the widest
+///   search measured, that is the difference between 470 MB of CSV and none.
+///
+/// # Errors
+/// Returns [`SearchError::Invalid`] if the criteria cannot be turned into a
+/// query, and [`SearchError::Transport`] if the taxon lookup, the results query
+/// or the body fails.
+pub async fn search_columnar<H: Http>(
+    http: &H,
+    request: &SearchRequest,
+) -> Result<ColumnarSearchResult, SearchError> {
+    let year_max = request.year_max;
+    lotus_model::validate_criteria(&request.criteria, year_max).map_err(SearchError::Invalid)?;
+
+    let taxon = resolve_taxon(http, &request.criteria.taxon)
+        .await
+        .map_err(|e| SearchError::Transport {
+            stage: "taxon",
+            source: e,
+        })?;
+
+    let query = build_execution_query(request, taxon.qid.as_deref());
+    let mut body = crate::execute_streaming_with_fallback(http, &query, ResponseFormat::Csv)
+        .await
+        .map_err(|e| SearchError::Transport {
+            stage: "results",
+            source: e,
+        })?
+        .chunks;
+
+    let mut reader = CsvColumnarReader::new();
+    loop {
+        let chunk = body
+            .next_chunk()
+            .await
+            .map_err(|e| SearchError::Transport {
+                stage: "results",
+                source: e,
+            })?;
+        let Some(bytes) = chunk else { break };
+        reader.feed(&bytes).map_err(|e| SearchError::Transport {
+            stage: "results",
+            source: e.into(),
+        })?;
+    }
+
+    let set = reader.finish().map_err(|e| SearchError::Transport {
+        stage: "results",
+        source: e.into(),
+    })?;
+
+    Ok(ColumnarSearchResult {
+        set,
+        taxon: Some(taxon),
+        query,
+    })
+}
+
+/// Fold a response body, read a chunk at a time, into a columnar set.
+///
+/// The loop lives here because a `BodyChunks` is not a `Read`: bridging the two
+/// means buffering, which is the thing being avoided. So the payload passes
+/// through exactly one place at a time, and peak memory is the finished set plus
+/// the largest single chunk.
+///
+/// # Errors
+/// Returns [`FetchError::Parse`] if the body cannot be read as the CSV the
+/// result queries produce, and propagates any transport failure.
+pub async fn columnar_from_chunks(
+    mut body: crate::ChunkedBody,
+) -> Result<lotus_model::ColumnarResultSet, FetchError> {
+    let mut reader = CsvColumnarReader::new();
+    loop {
+        let Some(chunk) = body.next_chunk().await? else {
+            break;
+        };
+        reader
+            .feed(&chunk)
+            .map_err(|e| FetchError::Parse(e.to_string()))?;
+    }
+    reader
+        .finish()
+        .map_err(|e| FetchError::Parse(e.to_string()))
 }
 
 /// The endpoint's own counts for a query.

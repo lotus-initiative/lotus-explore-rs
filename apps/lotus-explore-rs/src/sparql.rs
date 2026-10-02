@@ -16,7 +16,7 @@
 //! which is routing rather than transport.
 
 use lotus_search::reqwest_client::ReqwestClient;
-use lotus_search::{Endpoint, Service};
+use lotus_search::{Endpoint, Service, execute_streaming};
 
 pub use lotus_search::{
     FetchError, HttpResponse, QLEVER_WIKIDATA, ResponseBody, ResponseFormat, WDQS_SCHOLARLY,
@@ -36,6 +36,43 @@ fn endpoint_for(url: &str) -> Endpoint {
     } else {
         Endpoint::new(Service::Qlever)
     }
+}
+
+/// Run a query and hand back its body to be read a chunk at a time.
+///
+/// This is what the browser uses for a whole result set. The alternative --
+/// [`execute_sparql_body`] -- assembles the payload first, and the widest search
+/// measures about 470 MB of decompressed CSV, which is more than the module has.
+///
+/// # Errors
+/// Propagates any transport or status failure. There is no empty-body check,
+/// because finding out whether the body is empty means reading it.
+pub async fn execute_sparql_chunks(sparql: &str) -> Result<lotus_search::ChunkedBody, FetchError> {
+    let http = ReqwestClient::new()?;
+    Ok(execute_streaming(
+        &http,
+        Endpoint::new(Service::Qlever),
+        sparql,
+        ResponseFormat::Csv,
+    )
+    .await?
+    .chunks)
+}
+
+/// The streaming body against an explicit endpoint URL, for the WDQS fallback.
+///
+/// # Errors
+/// Propagates any transport or status failure.
+pub async fn execute_sparql_chunks_at(
+    sparql: &str,
+    url: &str,
+) -> Result<lotus_search::ChunkedBody, FetchError> {
+    let http = ReqwestClient::new()?;
+    Ok(
+        execute_streaming(&http, endpoint_for(url), sparql, ResponseFormat::Csv)
+            .await?
+            .chunks,
+    )
 }
 
 // Only the native and server paths reach this; the browser client has its
@@ -149,11 +186,6 @@ pub async fn execute_sparql_tempfile_at(
     Ok(file)
 }
 
-/// Run a query and write the answer to a file, on `QLever`.
-///
-/// # Errors
-/// Propagates transport failures and any problem creating or writing the file.
-#[cfg(not(target_arch = "wasm32"))]
 // Only the native and server paths reach this; the browser client has its
 // own fetch path, so a wasm build has no caller for it.
 #[cfg(not(target_arch = "wasm32"))]

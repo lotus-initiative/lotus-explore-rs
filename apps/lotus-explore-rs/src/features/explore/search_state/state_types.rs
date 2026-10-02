@@ -3,7 +3,7 @@
 use crate::features::explore::types::{DomainError, LookupNotice, QueryPhase};
 use crate::filters::ColumnFilters;
 use crate::sort::SortState;
-use lotus_model::{CompoundEntry, DatasetStats, Rows, SearchCriteria};
+use lotus_model::{ColumnarResultSet, DatasetStats, SearchCriteria};
 use std::sync::Arc;
 
 /// Lifecycle-related fields: loading flag, current error, phase indicator,
@@ -45,7 +45,13 @@ impl Default for SearchLifecycleState {
 /// table, toolbar, header-meta row, and taxon notice.
 #[derive(Clone, PartialEq)]
 pub struct ResultDataState {
-    pub entries: Rows,
+    /// The whole result set, stored by column.
+    ///
+    /// Every row the endpoint returned: there is no row limit on this path, and
+    /// no separate count query, because the set computes its own counts. Rows are
+    /// only turned into [`CompoundEntry`](lotus_model::CompoundEntry) values for
+    /// the handful on screen.
+    pub set: Arc<ColumnarResultSet>,
     /// Everything worth telling the user about how the taxon resolved, rendered
     /// as one notice line each.
     pub lookup_notices: Vec<LookupNotice>,
@@ -72,7 +78,7 @@ pub struct ResultDataState {
 impl Default for ResultDataState {
     fn default() -> Self {
         Self {
-            entries: Arc::<[CompoundEntry]>::from([]),
+            set: Arc::new(ColumnarResultSet::default()),
             lookup_notices: Vec::new(),
             resolved_qid: None,
             query_hash: None,
