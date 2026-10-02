@@ -17,7 +17,7 @@ use super::shared::{normalized_year_input_max, parse_f64_input, parse_u16_input}
 /// rank, because a rank is not a taxon the endpoint resolves: `Plantae` is a clade
 /// with no compound, so it returns nothing and reads as a broken search.
 pub(super) const TAXON_SUGGESTIONS: &[&str] =
-    &["Gentiana lutea", "Q15584175", "Fungi", "Plantae", "*"];
+    &["bitterwort", "Gentianales", "Q178265", "Plantae", "*"];
 
 /// The four nomenclatural relationships a taxon search can follow.
 ///
@@ -116,12 +116,12 @@ pub fn TaxonInput() -> Element {
             label {
                 class: "text-body font-semibold text-text",
                 r#for: "taxon-input",
-                "{t(locale, TextKey::Taxon)}"
+                "{t(locale, TextKey::TaxonField)}"
             }
             input {
                 id: "taxon-input",
                 name: "taxon",
-                "toolparamdescription": "Taxon name, Wikidata QID, or * for all taxa.",
+                "toolparamdescription": "Taxon scientific name (P225), common name (P1843), Wikidata QID, or * for all taxa.",
                 r#type: "text",
                 autocomplete: "off",
                 spellcheck: "false",

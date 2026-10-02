@@ -228,6 +228,9 @@
   }
 }
 @layer utilities {
+  .\@container {
+    container-type: inline-size;
+  }
   .collapse {
     visibility: collapse;
   }
@@ -1842,11 +1845,6 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
-  .md\:grid-cols-4 {
-    @media (width >= 48rem) {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-  }
   .lg\:w-\[12ch\] {
     @media (width >= 64rem) {
       width: 12ch;
@@ -1897,9 +1895,19 @@
       padding-inline: var(--spacing-8);
     }
   }
-  .xl\:grid-cols-8 {
-    @media (width >= 80rem) {
-      grid-template-columns: repeat(8, minmax(0, 1fr));
+  .\@lg\:grid-cols-3 {
+    @container (width >= 32rem) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .\@3xl\:grid-cols-4 {
+    @container (width >= 48rem) {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  .\@5xl\:grid-cols-6 {
+    @container (width >= 64rem) {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
     }
   }
   .\[\&\>\*\]\:shrink-0 {

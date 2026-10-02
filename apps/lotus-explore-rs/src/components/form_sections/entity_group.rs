@@ -144,7 +144,13 @@ fn AdvancedFilters(
             }
             div {
                 id: "{body_id}",
-                class: "flex w-full min-w-0 flex-col gap-3 border-t border-shell-border p-2",
+                // A query container, because what is inside this panel is sized
+                // by the panel and not by the window. The group is one cell of a
+                // one-to-three column grid, so at a desktop width it can be a
+                // third of the page -- and a layout keyed to viewport breakpoints
+                // reads that narrow column as a wide screen and packs eight
+                // fields into it.
+                class: "@container flex w-full min-w-0 flex-col gap-3 border-t border-shell-border p-2",
                 {children}
             }
         }
