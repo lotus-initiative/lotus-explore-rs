@@ -338,16 +338,30 @@ fn compounds_query(
             // The occurrence triple becomes optional here, because a compound
             // with no occurrence data is exactly what a name search is looking
             // for. See the doc comment on `exact_compound_query`.
+            //
+            // The block is wrapped in its own subquery, and the seed repeated
+            // inside it, because `OPTIONAL` costs this endpoint twenty times
+            // what the same patterns cost on their own. Measured on Q3613679:
+            // 4.3s as a bare `OPTIONAL`, 0.2s as a seeded subquery, for the same
+            // 20 rows. The block is what makes it slow, not the patterns --
+            // `?c p:P703 ?statement . ?statement ps:P703 ?t` and the three hops
+            // after it run in 0.1s outside an `OPTIONAL` -- so the subquery is
+            // there to hand the planner a left side of its own size instead of
+            // one it has to assume. Without the repeated `VALUES` inside, the
+            // subquery inherits the binding and the slow plan comes back.
+            let seeded = escape_sparql_string(qid);
             format!(
-                "VALUES ?c {{ wd:{} }}
+                "VALUES ?c {{ wd:{seeded} }}
           OPTIONAL {{
-            ?c p:P703 ?statement .\
-            ?statement ps:P703 ?t ;\
-                       prov:wasDerivedFrom ?ref .\
-            ?ref pr:P248 ?r .\
-            ?t wdt:P225 ?taxon_name .{ancestry}
-          }}",
-                escape_sparql_string(qid)
+            {{ SELECT * WHERE {{
+              VALUES ?c {{ wd:{seeded} }}
+              ?c p:P703 ?statement .\
+              ?statement ps:P703 ?t ;\
+                         prov:wasDerivedFrom ?ref .\
+              ?ref pr:P248 ?r .\
+              ?t wdt:P225 ?taxon_name .{ancestry}
+            }} }}
+          }}"
             )
         },
     );

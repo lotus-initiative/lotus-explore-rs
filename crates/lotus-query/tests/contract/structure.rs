@@ -174,6 +174,35 @@ fn a_compound_identity_query_keeps_occurrences_optional() {
 }
 
 #[test]
+fn the_optional_occurrences_are_planned_apart_from_the_seed() {
+    // This is a performance contract, and the shape is the only part of it that
+    // is visible here.
+    //
+    // The occurrence chain costs 0.1s on its own against this endpoint and 4.3s
+    // inside a bare `OPTIONAL` -- measured on Q3613679, 20 rows either way. It is
+    // the `OPTIONAL` and not the patterns, so the block is wrapped in its own
+    // subquery to hand the planner a left side of a known size.
+    //
+    // The repeated `VALUES` inside the subquery is the part that makes it work
+    // and the part that looks redundant. Without it the subquery inherits `?c`
+    // from the enclosing scope, the planner is back where it started, and the
+    // twenty-fold cost comes straight back -- verified by removing it.
+    let query = exact_compound_query("Q18216", None);
+    let occurrences_at = query.find("?c p:P703 ?statement").unwrap_or_else(|| {
+        panic!("the occurrence chain should still be there:\n{query}");
+    });
+    let before = &query[..occurrences_at];
+    assert!(
+        before.rfind("VALUES ?c { wd:Q18216 }").is_some(),
+        "the seed has to be repeated inside the block, or the slow plan returns:\n{query}"
+    );
+    assert!(
+        before.rfind("{ SELECT * WHERE {").is_some(),
+        "the occurrence block has to be planned as its own subquery:\n{query}"
+    );
+}
+
+#[test]
 fn a_compound_identity_query_inside_a_taxon_still_follows_the_nomenclature() {
     let query = exact_compound_query("Q18216", Some(("Q156598", &Nomenclature::ALL_ON)));
     assert!(query.contains("VALUES ?c { wd:Q18216 }"));

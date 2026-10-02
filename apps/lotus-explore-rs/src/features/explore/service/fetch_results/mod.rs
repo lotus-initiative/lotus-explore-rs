@@ -66,6 +66,36 @@ struct PlannedResultsFetch<'a> {
     display_limit: usize,
 }
 
+/// Whether the rows fetched are the whole result set.
+///
+/// A page that came back shorter than the budget cannot be hiding anything, so
+/// the count is known without asking anyone. This is the common case by a wide
+/// margin — most searches match fewer rows than the table's ceiling — and it is
+/// what lets a small search cost one query instead of two.
+///
+/// A page that came back *full* is ambiguous: it may be everything, or the first
+/// `display_limit` of something larger. Only the count query can tell those
+/// apart, so this is the one case where it earns its cost.
+#[must_use]
+pub(super) fn page_is_whole_result_set(rows_fetched: usize, display_limit: usize) -> bool {
+    rows_fetched < display_limit
+}
+
+/// Whether the table is showing fewer rows than matched.
+///
+/// Known without the endpoint when the page is the whole result set, which is
+/// most searches. When the page was full it is only known if the count came back
+/// and exceeded what was fetched — and a full page whose count failed counts as
+/// capped, because that is what it might be, and saying "not capped" on no
+/// evidence would hide the truncation from the reader.
+#[must_use]
+pub(super) fn display_is_capped(rows: usize, display_limit: usize, total: Option<usize>) -> bool {
+    if page_is_whole_result_set(rows, display_limit) {
+        return false;
+    }
+    total.is_none_or(|t| t > rows)
+}
+
 /// Fetch full results with a single query and cap rendered rows locally.
 /// `on_fetching` is called before the network fetch begins and `on_processing`
 /// before CSV parsing/stat aggregation; in tests pass `|| ()`.
@@ -120,5 +150,59 @@ const fn plan_full_results_fetch(
     PlannedResultsFetch {
         execution_query,
         display_limit,
+    }
+}
+
+#[cfg(test)]
+mod paging_tests {
+    use super::{display_is_capped, page_is_whole_result_set};
+
+    #[test]
+    fn a_page_that_came_back_short_is_the_whole_result_set() {
+        // The case that makes a small search cost one query rather than two: an
+        // `InChIKey` that resolves to a compound with a few dozen rows comes
+        // back against a 500 budget, and there is nothing left to fetch.
+        assert!(page_is_whole_result_set(0, 500));
+        assert!(page_is_whole_result_set(20, 500));
+        assert!(page_is_whole_result_set(499, 500));
+    }
+
+    #[test]
+    fn a_page_that_came_back_full_might_not_be_the_whole_result_set() {
+        // Exactly `display_limit` rows is the ambiguous case, and the reason the
+        // count query still exists at all. Testing `>=` here instead of `>` is
+        // the whole difference between a correct answer and one that silently
+        // under-reports on every full page.
+        assert!(!page_is_whole_result_set(500, 500));
+        assert!(!page_is_whole_result_set(501, 500));
+    }
+
+    #[test]
+    fn a_short_page_is_never_reported_as_capped() {
+        // Including when a total is present and larger, which cannot happen from
+        // `from_entries` but is the shape a bug would take.
+        assert!(!display_is_capped(20, 500, Some(20)));
+        assert!(!display_is_capped(20, 500, Some(500)));
+        assert!(!display_is_capped(20, 500, None));
+    }
+
+    #[test]
+    fn a_full_page_is_capped_only_when_the_count_says_there_is_more() {
+        assert!(
+            display_is_capped(500, 500, Some(12_000)),
+            "12,000 matched and 500 are shown"
+        );
+        assert!(
+            !display_is_capped(500, 500, Some(500)),
+            "500 matched and 500 are shown: the page is everything"
+        );
+    }
+
+    #[test]
+    fn a_full_page_whose_count_failed_is_reported_as_capped() {
+        // The honest answer. A full page might be truncated, and nothing came
+        // back to say it is not, so claiming completeness would hide the
+        // truncation from the reader.
+        assert!(display_is_capped(500, 500, None));
     }
 }

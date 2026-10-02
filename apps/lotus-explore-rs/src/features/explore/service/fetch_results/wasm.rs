@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use super::{FetchResult, PlannedResultsFetch};
+use super::{FetchResult, PlannedResultsFetch, display_is_capped, page_is_whole_result_set};
 use crate::features::explore::search_metrics::SearchMetrics;
 use crate::features::explore::types::{DomainError, ParseFault, QueryStage};
 use crate::perf;
 use crate::repositories::LotusRepository;
 use crate::repositories::RepositoryError;
 use crate::services::search_telemetry as telemetry;
+use lotus_model::DatasetStats;
 // Named at the use site rather than through the shared shims: only the wasm
 // fetch path needs these, and re-exporting them from a shared module made them
 // look unused on the native build, where this file does not exist.
@@ -56,30 +57,43 @@ pub(super) async fn fetch_results<R: LotusRepository>(
     let results_parse_elapsed = perf::end_timer("LOTUS:results_page_parse", results_parse_timer);
     metrics.add_parse(results_parse_elapsed);
 
-    // COUNT query — back from QLever, but made safe for the anonymous quota:
-    //  (a) fired strictly AFTER the display query succeeds (sequential, never
-    //      `try_join!`), so it cannot create a burst by racing the display; and
-    //  (b) best-effort — a 429 on it is swallowed (`None`) so it never fails or
-    //      retry-amplifies the search. Once Qlever's window resets (no more
-    //      burst), this returns the true total for the taxon.
-    // `query_counts_from_base` is the "dumb pagination" COUNT(DISTINCT …) over
-    // the base (incl. REFERENCE_METADATA_OPTIONAL/PROPERTIES_OPTIONAL, no LIMIT);
-    // it is the heavy request that 429'd when fired concurrently with the
-    // display query.
+    // The COUNT query is only worth asking when the page came back full.
+    //
+    // If the display query returned fewer rows than the budget, then there is
+    // nothing more to fetch: the row set is the whole result set, its size is
+    // already known, and `from_entries` gives the same arithmetic the count
+    // query would have done over the same rows. Asking again costs a second
+    // execution of the same joins — measured at 4.5s for a search that returned
+    // 20 rows out of a 500 budget, to learn what the first answer already said.
+    //
+    // It used to run unconditionally, which made every search that fit on one
+    // screen cost two queries where one was enough. The expensive case is the
+    // truncated one, and that is exactly the case where the total is unknown and
+    // therefore worth asking for.
+    let page_was_full = !page_is_whole_result_set(rows.len(), plan.display_limit);
     let count_timer = perf::start_timer("LOTUS:results_count_query");
-    let total_stats = repo
-        .sparql_body(&count_query)
-        .await
-        .ok()
-        .and_then(|c| parse_counts_csv(&c).ok());
+    let total_stats = if page_was_full {
+        repo.sparql_body(&count_query)
+            .await
+            .ok()
+            .and_then(|c| parse_counts_csv(&c).ok())
+    } else {
+        Some(DatasetStats::from_entries(&rows))
+    };
     let count_elapsed = perf::end_timer("LOTUS:results_count_query", count_timer);
-    if total_stats.is_some() {
+    if page_was_full && total_stats.is_some() {
         metrics.add_network(count_elapsed);
     }
 
     let total_matches = total_stats.as_ref().map(|s| s.n_entries);
-    let display_capped_rows =
-        total_matches.map_or(rows.len() >= plan.display_limit, |t| t > rows.len());
+    let display_capped_rows = display_is_capped(rows.len(), plan.display_limit, total_matches);
+    telemetry::results_fetch_done(
+        results_elapsed
+            .saturating_add(count_elapsed)
+            .saturating_add(results_parse_elapsed),
+        rows.len(),
+        total_matches.unwrap_or(rows.len()),
+    );
     telemetry::results_fetch_done(
         results_elapsed
             .saturating_add(count_elapsed)
