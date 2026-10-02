@@ -30,8 +30,29 @@ name = "lotus-healthcheck"
 path = "src/healthcheck.rs"
 
 [dependencies]
-reqwest = { version = "0.13", features = ["blocking", "gzip"] }
+# `default-features = false` and then `default-tls` named, rather than leaving the
+# default feature set on. Every other reqwest consumer in this workspace does the
+# same -- the workspace entry is `default-features = false`, and each one adds the
+# features it needs by name. This crate is the exception, and an exception that is
+# never exercised is a feature set that drifts silently: `default` is a moving
+# target, so a reqwest release that changes what it enables changes this binary
+# without anything in this repository changing.
+#
+# It is a host-only binary -- three bins, no library, nothing depends on it -- so
+# naming `default-tls` costs nothing in wasm size. It is here to be explicit about
+# the one thing it does need, which is a TLS backend.
+reqwest = {
+  version = "0.13",
+  default-features = false,
+  features = [
+    "default-tls",
+    "blocking",
+    "gzip",
+  ]
+}
 serde_json = { workspace = true }
+# Only this crate uses `zip`, and nothing depends on this crate, so a workspace
+# entry for it would be a second place to update for a single consumer.
 zip = "8.6"
 
 [lints]
