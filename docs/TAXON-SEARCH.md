@@ -12,6 +12,94 @@ gave, plus every other name Wikidata links to it, plus the descendants of all
 of them. There are **four independent relationships** it can follow, all on by
 default, and each of them is a separate question.
 
+## From the name you type to a taxon
+
+The closure starts from a QID, so something has to turn the text in the box into
+one first. Two properties are consulted, in this order, and which one answered is
+carried through to the notice bar:
+
+| Order | Property | What it is | Advice |
+| --- | --- | --- | --- |
+| first | [`P225`](https://www.wikidata.org/wiki/Property:P225) *taxon name* | the scientific name | **type this one** |
+| fallback | [`P1843`](https://www.wikidata.org/wiki/Property:P1843) *taxon common name* | what prose calls the organism | resolves, with a notice saying so |
+
+The fallback exists because refusing it is a worse answer than a labelled one.
+Someone who typed `bitterwort` and got "not found" would go to Wikidata to perform
+the lookup this tool had just done, and would come back with the same QID and less
+context than the notice gives them. So it resolves, and it says that it resolved
+by the common name — a name that is not what publications file compounds under,
+and the same word can name unrelated organisms in different languages.
+
+The four nomenclatural switches below are about a different axis entirely. Those
+expand *one* taxon into *its other names*. This is about finding the taxon at all,
+from text. They compose: a common name gets you the QID, and then the closure
+does its usual work from there.
+
+### Why the two lookups are not the same query
+
+The scientific lookup is a `VALUES` served from an index, about 0.3s on QLever.
+The common-name lookup cannot be shaped that way, and the reasons are three
+separate facts about how Wikidata stores these two properties. Each was found by
+a name that returned nothing when it should not have.
+
+**`P1843` has to be read as statements, not as truthy values.** `wdt:P1843`
+collapses a taxon to its *preferred rank* value. *Gentiana lutea*
+([Q158572](https://www.wikidata.org/wiki/Q158572)) carries **72** common names in
+**33** languages; `wdt:P1843` returns exactly one of them, *Great Yellow Gentian*.
+Everything else — including `bitterwort` and `yellow gentian` — is unreachable
+through it. `p:P1843/ps:P1843` returns all 72.
+
+The same collapse applies to `P225`, at a scale worth writing down rather than
+discovering: 3,998,241 triples through `wdt:P225` against 3,998,534 through the
+statement path, so 293 values are invisible. A taxon has one accepted scientific
+name, so this is a rounding error in practice — but it is a gap, not a guarantee,
+and the scientific path is left on the fast index anyway precisely so it does not
+have to become a scan.
+
+**`P1843` values are language-tagged; `P225` values are not.** `bitterwort` is
+`bitterwort` with an `@en` tag, and a bare literal is not equal to a tagged one in
+SPARQL. So `VALUES ?name { "bitterwort" } ?taxon wdt:P1843 ?name` matches nothing
+— at any capitalisation, for any input. The scientific query works precisely
+because `Gentiana lutea` is an *untagged* literal, which is why the difference
+looks like missing data rather than a broken query. Matching `STR()` against the
+lexical form drops the tag, and the tag has to go: a common name is the word a
+reader reaches for in *their* language, so pinning the match to `@en` would break
+the feature for most of the people who would use it.
+
+**Case is not consistent.** `P1843` stores whatever a curator typed. Q158572
+carries `bitterwort`, `Common wormwood` and `Bijvoet` in the same breath, so the
+comparison folds case on both sides.
+
+### Why the common-name lookup is a second request
+
+Because the fallback is a scan and the scientific lookup is not. Comparing lexical
+forms across every `P1843` statement — 818,120 of them, on 237,221 taxa — is the
+only way to match a tagged and inconsistently capitalised literal, and it measures
+about **2.5s** on QLever against **0.3s** for the indexed scientific lookup.
+
+Folding both into one query with a `UNION` would charge every taxon search the
+2.5s, including the overwhelming majority that match a scientific name on the first
+request and never need the second. Two requests, in order, means the fast path
+stays fast and only a name that missed entirely pays for the scan — which is
+exactly the reader who is already stuck.
+
+A transport failure is fatal rather than falling through to the second lookup: if
+the endpoint is unreachable, the scan would be too, and two failed round trips is
+a slower way to learn the same thing.
+
+### What each lookup costs, measured
+
+| Lookup | Shape | Rows scanned | Time (QLever) |
+| --- | --- | --- | --- |
+| scientific name | `VALUES` + `wdt:P225` | indexed | ~0.3s |
+| common name | `p:P1843/ps:P1843` + `LCASE(STR())` | 818,120 | ~2.5s |
+| either, once resolved | cached in process | — | ~0s |
+
+The cache holds the QID, the chosen label, **and which property it came from**, so
+a repeat search reproduces the same notice rather than silently losing the
+common-name one — which is the failure that made the notice look unreliable in the
+first place.
+
 ## The four relationships
 
 Each is stored twice in Wikidata, once from each end, and the four are
@@ -256,6 +344,25 @@ could audit. It is documented here instead.
 | URL | `?taxon_basionyms=false` and friends; each written only when off |
 | CLI | `--no-accepted-synonyms`, `--no-basionyms`, `--no-protonyms`, `--no-replacements` |
 | UI | four checkboxes grouped under the taxon field, all on |
+
+## Where the name lookup lives
+
+The four switches above are not name *resolution*. Where that lives:
+
+| Surface | How |
+| --- | --- |
+| Model | `TaxonMatch { qid, name, source }`, `TaxonNameSource { Scientific, Common }` |
+| Query | `taxon_lookup_query(name)` — `VALUES` + `wdt:P225`; `taxon_common_name_lookup_query(name)` — `p:P1843/ps:P1843` + `LCASE(STR())` |
+| Parse | `parse_taxon_csv` reads the `?matched_by` column and defaults to `Scientific` when it is absent |
+| Search | `resolve_taxon::resolve` runs the first, and only if it came back empty runs the second |
+| Cache | `taxon_cache::CachedTaxon` carries the QID, the label, **the source** and the candidate list |
+| Notice | `LookupNotice::CommonName`, formatted by `warn_taxon_common_name` in all four locales |
+| UI | the field label is `TaxonField` ("Taxon scientific or common name"); the group heading stays `Taxon` |
+
+The cache carrying the source is the load-bearing row. Without it a repeat search
+answers from the cache, has no idea which property answered, and reports only the
+standardization notice — which is what made the two notices look like they were
+taking turns.
 
 `TaxonNomenclature` in the model is the single place that knows which boolean is
 which relationship, and everything else delegates to it — `Nomenclature` in
