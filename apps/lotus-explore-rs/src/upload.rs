@@ -332,6 +332,59 @@ fn blob_url_from_str(content: &str, mime: &str) -> Result<String, String> {
         .map_err(|e| format!("failed to create object URL: {e:?}"))
 }
 
+/// Download bytes that arrived in pieces, as `{filename}{extension}` with `mime`.
+///
+/// The pieces are copied into JavaScript-owned memory as they arrive and the Rust
+/// buffer for each is dropped before the next is read, so the WebAssembly heap
+/// never holds more than one chunk. That is the whole reason this exists rather
+/// than the `download_text_as_blob` below: an export of two million rows is
+/// around 600 MB of CSV, and decoding it into one `String` first means the tab
+/// holds the raw bytes, the decoded string and the `Blob` at the same time.
+///
+/// Whether the *browser* then keeps those pieces on the heap or spills them to
+/// disk is the browser's business, and Chromium spills large `Blob`s -- which is
+/// the second half of why this helps. What is guaranteed here is only the half
+/// this code controls.
+///
+/// # Errors
+/// Returns a message if the download cannot be triggered.
+#[cfg(target_arch = "wasm32")]
+pub fn download_byte_chunks_as_blob(
+    chunks: &[js_sys::Uint8Array],
+    filename: &str,
+    extension: &str,
+    mime: &str,
+) -> Result<(), String> {
+    let safe_name = if extension.is_empty() {
+        sanitize_filename(filename)
+    } else {
+        let name = sanitize_filename(filename);
+        if name.ends_with(extension) {
+            name
+        } else {
+            format!("{name}{extension}")
+        }
+    };
+
+    let parts = Array::new();
+    for chunk in chunks {
+        parts.push(chunk.as_ref());
+    }
+    let blob = {
+        let options = web_sys::BlobPropertyBag::new();
+        options.set_type(mime);
+        UploadBlob::new_with_buffer_source_sequence_and_options(&parts, &options)
+            .or_else(|_| UploadBlob::new_with_buffer_source_sequence(&parts))
+    }
+    .map_err(|e| format!("failed to create blob: {e:?}"))?;
+
+    let url = Url::create_object_url_with_blob(&blob)
+        .map_err(|e| format!("failed to create object URL: {e:?}"))?;
+    click_download_anchor(&url, &safe_name, false)
+        .map(|_| ())
+        .map_err(|e| format!("download failed: {e}"))
+}
+
 /// Download `content` as `{filename}{extension}` with `mime`.
 /// # Errors
 /// Returns a message if the download cannot be triggered.

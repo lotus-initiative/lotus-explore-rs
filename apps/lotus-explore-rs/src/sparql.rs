@@ -59,20 +59,20 @@ pub async fn execute_sparql_chunks(sparql: &str) -> Result<lotus_search::Chunked
     .chunks)
 }
 
-/// The streaming body against an explicit endpoint URL, for the WDQS fallback.
+/// The streaming body against an explicit endpoint URL, for the WDQS fallback
+/// and for exports in a format other than CSV.
 ///
 /// # Errors
 /// Propagates any transport or status failure.
 pub async fn execute_sparql_chunks_at(
     sparql: &str,
     url: &str,
+    format: ResponseFormat,
 ) -> Result<lotus_search::ChunkedBody, FetchError> {
     let http = ReqwestClient::new()?;
-    Ok(
-        execute_streaming(&http, endpoint_for(url), sparql, ResponseFormat::Csv)
-            .await?
-            .chunks,
-    )
+    Ok(execute_streaming(&http, endpoint_for(url), sparql, format)
+        .await?
+        .chunks)
 }
 
 // Only the native and server paths reach this; the browser client has its
