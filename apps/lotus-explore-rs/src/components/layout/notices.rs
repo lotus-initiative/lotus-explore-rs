@@ -27,6 +27,10 @@ pub fn ShareNotice(shareable_url: Memo<Option<Arc<str>>>) -> Element {
     let Some(share) = share.as_deref() else {
         return rsx! {};
     };
+    // The field shows what the button copies. A reader who selects the text by
+    // hand -- which is what a phone does when there is no clipboard -- was
+    // getting `/search?...` and pasting something that resolves to nothing.
+    let share = absolute_share_url(share);
     rsx! {
         NoticeBar {
             label: t(locale, TextKey::Share).to_string(),
@@ -51,7 +55,7 @@ pub fn ShareNotice(shareable_url: Memo<Option<Arc<str>>>) -> Element {
                 class: "min-w-0 flex-1 truncate font-mono w-full rounded-xl border border-border bg-surface px-2 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
             }
             CopyButton {
-                text: Arc::<str>::from(absolute_share_url(share)),
+                text: Arc::<str>::from(share.clone()),
                 title: t(locale, TextKey::CopyShareableLink),
                 locale,
             }
