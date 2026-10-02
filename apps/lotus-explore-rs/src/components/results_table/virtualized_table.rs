@@ -52,10 +52,12 @@ pub(super) fn VirtualizedResultsTable(
 
             table {
                 aria_label: "{t(locale, TextKey::TableTriplesAria)}",
-                // Wide enough that the filter row's two-bound fields fit their
-                // columns: mass and year hold two number inputs and a separator,
-                // which the 4 digits of a year on their own do not leave room for.
-                class: "w-full min-w-[1600px] table-auto border-collapse text-ui",
+                // A floor, not a width. The `colgroup` below states what each
+                // column asks for; this only stops `table-auto` crushing them
+                // on a narrow viewport. It sits about 50px above the widest
+                // breakpoint's sum, which is the slack the table had before the
+                // filter row needed room in the mass and year columns.
+                class: "w-full min-w-[1500px] table-auto border-collapse text-ui",
                 caption { class: "sr-only", "{t(locale, TextKey::TableTriplesAria)}" }
                 colgroup {
                     col { class: "w-[50px] sm:w-[50px] lg:w-[50px] min-w-[50px] max-w-[50px]" }
@@ -63,7 +65,7 @@ pub(super) fn VirtualizedResultsTable(
                     col { class: "w-[16ch] sm:w-[16ch] lg:w-[16ch]" }
                     col { class: "w-[12ch] sm:w-[12ch] lg:w-[12ch]" }
                     col { class: "w-[22ch] sm:w-[24ch] lg:w-[26ch]" }
-                    col { class: "w-[26ch] sm:w-[28ch] lg:w-[30ch]" }
+                    col { class: "w-[24ch] sm:w-[26ch] lg:w-[28ch]" }
                     col { class: "w-[13ch] sm:w-[13ch] lg:w-[13ch]" }
                 }
                 thead {
