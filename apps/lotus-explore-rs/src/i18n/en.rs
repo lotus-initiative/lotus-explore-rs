@@ -84,6 +84,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::LabelLanguagePolicy => {
             "Labels prefer 'mul' and fall back to 'en' so results remain comparable."
         }
+        TextKey::AdvancedFilters => "Advanced filters",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonPlaceholder => "a name, a QID, or * for everything",
         TextKey::TaxonNomenclature => "Also search other names",

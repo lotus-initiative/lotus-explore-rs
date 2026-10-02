@@ -1,9 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Search panel and its subsection components.
+//!
+//! The panel is three groups — compound, taxon, reference — not one input per
+//! criteria field. Every filter here constrains one of the three things a
+//! result row is about, and the four boxes this replaced were grouped by input
+//! type instead, which is why a molecular mass and a publication year looked
+//! like peers of a taxon name. See `form_sections::entity_group` for the rule
+//! that decides what is always visible and what is collapsed.
 
 use crate::components::form_sections::{
-    FieldExamples, FormulaSection, MassRangeInput, TaxonInput, YearRangeInput,
+    EntityFilters, FieldExamples, FilterEntity, FormulaSection, MassRangeInput, TaxonInput,
+    TaxonNomenclatureFilters, YearRangeInput,
 };
 use crate::features::explore::{FormAction, use_criteria_selector};
 
@@ -70,14 +78,10 @@ pub fn SearchPanel() -> Element {
             },
             div {
                 id: SEARCH_PANEL_BODY_ID,
-                class: "search-panel-body flex flex-col gap-2",
-                div { class: "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4",
-                    TaxonInput {}
-                    StructureSection {}
-                    MassRangeInput {}
-                    YearRangeInput {}
-                }
-                FormulaSection {}
+                class: "search-panel-body grid grid-cols-1 items-start gap-3 md:grid-cols-2 lg:grid-cols-3",
+                CompoundFilters {}
+                TaxonFilters {}
+                ReferenceFilters {}
             }
 
             SearchButton {
@@ -89,26 +93,82 @@ pub fn SearchPanel() -> Element {
     }
 }
 
+/// Compound: the structure, plus everything that narrows a structure — how it
+/// is matched, how heavy it is, and what it is made of.
 #[component]
-fn StructureSection() -> Element {
+fn CompoundFilters() -> Element {
+    let primary = rsx! { StructureInput {} };
+    let advanced = rsx! {
+        div { class: "flex flex-col gap-3",
+            StructureSearchOptions {}
+            MassRangeInput {}
+            FormulaSection {}
+        }
+    };
+
+    rsx! {
+        EntityFilters {
+            entity: FilterEntity::Compound,
+            primary,
+            advanced: Some(advanced),
+        }
+    }
+}
+
+/// Taxon: the name as typed, plus how far back in its naming history to look.
+#[component]
+fn TaxonFilters() -> Element {
+    let primary = rsx! { TaxonInput {} };
+    let advanced = rsx! { TaxonNomenclatureFilters {} };
+
+    rsx! {
+        EntityFilters {
+            entity: FilterEntity::Taxon,
+            primary,
+            advanced: Some(advanced),
+        }
+    }
+}
+
+/// Reference: when it was published.
+///
+/// The only criterion a reference carries today, so this group has no advanced
+/// disclosure at all. It is drawn anyway: the three groups are a set, and a
+/// result row is always about all three things whether or not you constrain all
+/// three.
+#[component]
+fn ReferenceFilters() -> Element {
+    let primary = rsx! { YearRangeInput {} };
+
+    rsx! {
+        EntityFilters {
+            entity: FilterEntity::Reference,
+            primary,
+            advanced: None,
+        }
+    }
+}
+
+/// The structure field: the compound group's primary filter, plus what kind of
+/// input it currently holds.
+#[component]
+fn StructureInput() -> Element {
     let locale = crate::hooks::use_locale();
     let ctx = use_form_criteria_context();
-    let c = ctx.criteria;
-    let structure_fields = use_criteria_selector(c, |criteria| {
-        (
-            criteria.structure.clone(),
-            criteria.structure_search,
-            criteria.structure_threshold,
-        )
+    // Only the two fields this actually draws. The threshold is not one of them,
+    // and subscribing to it would re-render the field on every tick of the
+    // slider that lives in the advanced panel.
+    let structure_fields = use_criteria_selector(ctx.criteria, |criteria| {
+        (criteria.structure.clone(), criteria.structure_search)
     });
-    let (smiles, smiles_search_type, smiles_threshold) = structure_fields.read().clone();
+    let (smiles, smiles_search_type) = structure_fields.read().clone();
     let smiles_for_kind = smiles.clone();
     let kind = use_memo(move || classify_structure(&smiles_for_kind));
     let kind_value = *kind.read();
     let view_model = structure_model::build_structure_section_model(kind_value, smiles_search_type);
 
     rsx! {
-        div { class: "flex flex-col gap-1.5 rounded-xl border border-shell-border bg-shell-raised p-1.5",
+        div { class: "flex min-w-0 flex-col gap-1.5",
             label {
                 class: "text-body font-semibold text-text",
                 r#for: "smiles-input",
@@ -142,41 +202,66 @@ fn StructureSection() -> Element {
                     span { "{t(locale, note_key)}" }
                 }
             }
+        }
+    }
+}
 
-            fieldset { class: "m-0 flex flex-wrap gap-3 border-0 p-0",
-                // On the fieldset, not on each radio: WebMCP describes a radio
-                // group as one parameter, and repeating it on both controls
-                // synthesises a conflicting property and fails schema validation.
-                "toolparamdescription": "Structure search mode: substructure or similarity.",
-                legend { class: "sr-only", "{t(locale, TextKey::StructureSearchMode)}" }
-                label { class: "inline-flex items-center gap-1.5 text-ui text-muted",
-                    input {
-                        r#type: "radio",
-                        id: "smiles-search-type-substructure",
-                        name: "stype",
-                        autocomplete: "off",
-                        class: "accent-accent h-4 w-4 cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
-                        checked: smiles_search_type == SmilesSearchType::Substructure,
-                        onchange: move |_| {
-                            ctx.update(FormAction::SmilesSearchType(SmilesSearchType::Substructure));
-                        },
-                    }
-                    "{t(locale, TextKey::Substructure)}"
+/// How the structure is matched: contains a substructure, or is similar to it.
+///
+/// Advanced rather than primary because it changes what the structure field
+/// *means* rather than narrowing it, and a search that never touches it gets
+/// the documented default. The similarity threshold follows this control, so it
+/// is here too rather than sitting in the compound group's primary slot.
+#[component]
+fn StructureSearchOptions() -> Element {
+    let locale = crate::hooks::use_locale();
+    let ctx = use_form_criteria_context();
+    let structure_fields = use_criteria_selector(ctx.criteria, |criteria| {
+        (
+            criteria.structure.clone(),
+            criteria.structure_search,
+            criteria.structure_threshold,
+        )
+    });
+    let (smiles, smiles_search_type, smiles_threshold) = structure_fields.read().clone();
+    let kind = use_memo(move || classify_structure(&smiles.clone()));
+    let view_model =
+        structure_model::build_structure_section_model(*kind.read(), smiles_search_type);
+
+    rsx! {
+        fieldset { class: "m-0 flex flex-col gap-1.5 border-0 p-0",
+            // On the fieldset, not on each radio: WebMCP describes a radio
+            // group as one parameter, and repeating it on both controls
+            // synthesises a conflicting property and fails schema validation.
+            "toolparamdescription": "Structure search mode: substructure or similarity.",
+            legend { class: "text-micro font-semibold uppercase tracking-wide text-subtle", "{t(locale, TextKey::StructureSearchMode)}" }
+            label { class: "inline-flex items-center gap-1.5 text-ui text-muted",
+                input {
+                    r#type: "radio",
+                    id: "smiles-search-type-substructure",
+                    name: "stype",
+                    autocomplete: "off",
+                    class: "accent-accent h-4 w-4 cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                    checked: smiles_search_type == SmilesSearchType::Substructure,
+                    onchange: move |_| {
+                        ctx.update(FormAction::SmilesSearchType(SmilesSearchType::Substructure));
+                    },
                 }
-                label { class: "inline-flex items-center gap-1.5 text-ui text-muted",
-                    input {
-                        r#type: "radio",
-                        id: "smiles-search-type-similarity",
-                        name: "stype",
-                        autocomplete: "off",
-                        class: "accent-accent h-4 w-4 cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
-                        checked: smiles_search_type == SmilesSearchType::Similarity,
-                        onchange: move |_| {
-                            ctx.update(FormAction::SmilesSearchType(SmilesSearchType::Similarity));
-                        },
-                    }
-                    "{t(locale, TextKey::Similarity)}"
+                "{t(locale, TextKey::Substructure)}"
+            }
+            label { class: "inline-flex items-center gap-1.5 text-ui text-muted",
+                input {
+                    r#type: "radio",
+                    id: "smiles-search-type-similarity",
+                    name: "stype",
+                    autocomplete: "off",
+                    class: "accent-accent h-4 w-4 cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                    checked: smiles_search_type == SmilesSearchType::Similarity,
+                    onchange: move |_| {
+                        ctx.update(FormAction::SmilesSearchType(SmilesSearchType::Similarity));
+                    },
                 }
+                "{t(locale, TextKey::Similarity)}"
             }
             if view_model.show_similarity_threshold {
                 div { class: "flex flex-col gap-1",

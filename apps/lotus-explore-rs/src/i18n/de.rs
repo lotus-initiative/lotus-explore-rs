@@ -89,6 +89,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::LabelLanguagePolicy => {
             "Beschriftungen bevorzugen 'mul' und verwenden 'en' als Fallback, damit Ergebnisse vergleichbar bleiben."
         }
+        TextKey::AdvancedFilters => "Erweiterte Filter",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonPlaceholder => "ein Name, eine QID oder * für alles",
         TextKey::TaxonNomenclature => "Auch unter anderen Namen suchen",

@@ -128,8 +128,8 @@ pub fn FormulaSection() -> Element {
     let enabled = criteria.formula_enabled;
 
     rsx! {
-        div { class: "flex flex-col gap-1.5 rounded-xl border border-shell-border bg-shell-raised p-1.5",
-            label { class: "flex cursor-pointer items-center gap-1.5 text-ui text-muted",
+        div { class: "flex flex-col gap-2",
+            label { class: "flex cursor-pointer items-center gap-1.5 text-ui font-semibold text-muted",
                 input {
                     r#type: "checkbox",
                     id: "formula-enabled",

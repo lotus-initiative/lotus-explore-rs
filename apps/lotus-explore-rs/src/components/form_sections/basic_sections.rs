@@ -110,15 +110,9 @@ pub fn TaxonInput() -> Element {
     let ctx = use_form_criteria_context();
     let interactions = use_explore_interactions();
     let taxon = use_criteria_selector(ctx.criteria, |c| c.taxon.clone());
-    // A selector per toggle rather than one selector for the set: each checkbox
-    // re-renders on its own value changing, and a single selector holding all
-    // four would re-render all of them on any one. Each reads through
-    // `NomenclatureToggle::read`, so which field backs which checkbox is stated
-    // once, here, rather than repeated in the closure and in the action.
-    let nomenclature = NomenclatureToggle::ALL
-        .map(|toggle| use_criteria_selector(ctx.criteria, move |c| toggle.read(c)));
+
     rsx! {
-        div { class: "flex flex-col gap-1.5 rounded-xl border border-shell-border bg-shell-raised p-1.5",
+        div { class: "flex min-w-0 flex-col gap-1.5",
             label {
                 class: "text-body font-semibold text-text",
                 r#for: "taxon-input",
@@ -156,41 +150,58 @@ pub fn TaxonInput() -> Element {
                 heading: TextKey::Examples,
                 onfill: move |value: String| ctx.update(FormAction::Taxon(value)),
             }
-            // Four separate toggles rather than one "include synonyms", because
-            // the four are independent nomenclatural relationships. A
-            // basionym is a rename with a chronology behind it; an accepted
-            // name's synonym is not, and lumping them together means a user
-            // who unticks one has no way to say which they meant.
-            //
-            // They sit under a `role="group"` with a visible heading rather
-            // than as four loose checkboxes, because the group is one decision
-            // ("how far back in this taxon's naming history to look") and a
-            // screen reader user needs to hear that before the first option.
-            div {
-                role: "group",
-                aria_labelledby: "taxon-nomenclature-heading",
-                class: "flex flex-col gap-1 border-t border-shell-border pt-1.5",
-                p {
-                    id: "taxon-nomenclature-heading",
-                    class: "text-micro font-semibold uppercase tracking-wide text-subtle",
-                    "{t(locale, TextKey::TaxonNomenclature)}"
-                }
-                for (toggle, is_on) in NomenclatureToggle::ALL.into_iter().zip(nomenclature) {
-                    label {
-                        key: "{toggle.key()}",
-                        class: "flex cursor-pointer items-start gap-1.5 text-ui text-muted",
-                        input {
-                            r#type: "checkbox",
-                            id: "taxon-{toggle.key()}-input",
-                            name: "taxon_{toggle.key()}",
-                            "toolparamdescription": "{toggle.description()}",
-                            autocomplete: "off",
-                            class: "accent-accent mt-0.5 cursor-pointer",
-                            checked: *is_on.read(),
-                            onchange: move |e| ctx.update(FormAction::TaxonNomenclature { relation: toggle.relation(), on: e.checked() }),
-                        }
-                        span { "{t(locale, toggle.label())}" }
+        }
+    }
+}
+
+/// The taxon's other names — the advanced half of the taxon group.
+///
+/// Four separate toggles rather than one "include synonyms", because the four
+/// are independent nomenclatural relationships. A basionym is a rename with a
+/// chronology behind it; an accepted name's synonym is not, and lumping them
+/// together means a user who unticks one has no way to say which they meant.
+///
+/// They sit under a `role="group"` with a visible heading rather than as four
+/// loose checkboxes, because the group is one decision ("how far back in this
+/// taxon's naming history to look") and a screen reader user needs to hear that
+/// before the first option.
+#[component]
+pub fn TaxonNomenclatureFilters() -> Element {
+    let locale = crate::hooks::use_locale();
+    let ctx = use_form_criteria_context();
+    // A selector per toggle rather than one selector for the set: each checkbox
+    // re-renders on its own value changing, and a single selector holding all
+    // four would re-render all of them on any one. Each reads through
+    // `NomenclatureToggle::read`, so which field backs which checkbox is stated
+    // once, here, rather than repeated in the closure and in the action.
+    let nomenclature = NomenclatureToggle::ALL
+        .map(|toggle| use_criteria_selector(ctx.criteria, move |c| toggle.read(c)));
+
+    rsx! {
+        div {
+            role: "group",
+            aria_labelledby: "taxon-nomenclature-heading",
+            class: "flex flex-col gap-1",
+            p {
+                id: "taxon-nomenclature-heading",
+                class: "text-micro font-semibold uppercase tracking-wide text-subtle",
+                "{t(locale, TextKey::TaxonNomenclature)}"
+            }
+            for (toggle, is_on) in NomenclatureToggle::ALL.into_iter().zip(nomenclature) {
+                label {
+                    key: "{toggle.key()}",
+                    class: "flex cursor-pointer items-start gap-1.5 text-ui text-muted",
+                    input {
+                        r#type: "checkbox",
+                        id: "taxon-{toggle.key()}-input",
+                        name: "taxon_{toggle.key()}",
+                        "toolparamdescription": "{toggle.description()}",
+                        autocomplete: "off",
+                        class: "accent-accent mt-0.5 cursor-pointer",
+                        checked: *is_on.read(),
+                        onchange: move |e| ctx.update(FormAction::TaxonNomenclature { relation: toggle.relation(), on: e.checked() }),
                     }
+                    span { "{t(locale, toggle.label())}" }
                 }
             }
         }
@@ -208,8 +219,8 @@ pub fn MassRangeInput() -> Element {
         div {
             role: "group",
             aria_labelledby: "mass-range-label",
-            class: "flex flex-col gap-1.5 rounded-xl border border-shell-border bg-shell-raised p-1.5",
-            p { id: "mass-range-label", class: "text-body font-semibold text-text", "{t(locale, TextKey::MolecularMass)}" }
+            class: "flex flex-col gap-1.5",
+            p { id: "mass-range-label", class: "text-micro font-semibold uppercase tracking-wide text-subtle", "{t(locale, TextKey::MolecularMass)}" }
             div { class: "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2",
                 div { class: "flex min-w-0 flex-col gap-0.5",
                     label {
@@ -277,8 +288,8 @@ pub fn YearRangeInput() -> Element {
         div {
             role: "group",
             aria_labelledby: "year-range-label",
-            class: "flex flex-col gap-1.5 rounded-xl border border-shell-border bg-shell-raised p-1.5",
-            p { id: "year-range-label", class: "text-body font-semibold text-text", "{t(locale, TextKey::PublicationYear)}" }
+            class: "flex flex-col gap-1.5",
+            p { id: "year-range-label", class: "text-micro font-semibold uppercase tracking-wide text-subtle", "{t(locale, TextKey::PublicationYear)}" }
             div { class: "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2",
                 div { class: "flex min-w-0 flex-col gap-0.5",
                     label {

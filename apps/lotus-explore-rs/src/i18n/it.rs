@@ -89,6 +89,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::LabelLanguagePolicy => {
             "Le etichette preferiscono 'mul' e ricorrono a 'en' come fallback per mantenere confrontabili i risultati."
         }
+        TextKey::AdvancedFilters => "Filtri avanzati",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonPlaceholder => "un nome, un QID o * per tutto",
         TextKey::TaxonNomenclature => "Cerca anche con altri nomi",

@@ -140,6 +140,8 @@ pub enum TextKey {
     ExampleQueryAdvanced,
     LabelLanguagePolicy,
     // Search panel
+    /// Heading of the collapsed sub-filter disclosure in each entity group.
+    AdvancedFilters,
     Taxon,
     TaxonPlaceholder,
     TaxonNomenclature,

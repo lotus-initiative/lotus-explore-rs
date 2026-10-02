@@ -89,6 +89,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::LabelLanguagePolicy => {
             "Les libellés privilégient 'mul' et utilisent 'en' en repli afin de garantir des résultats comparables."
         }
+        TextKey::AdvancedFilters => "Filtres avancés",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonPlaceholder => "un nom, un QID, ou * pour tout",
         TextKey::TaxonNomenclature => "Chercher aussi sous d’autres noms",
