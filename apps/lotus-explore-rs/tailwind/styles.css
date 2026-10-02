@@ -505,6 +505,47 @@ legend {
     }
 }
 
+/* A number field in the results table's filter row, without its spin buttons.
+
+   `appearance: none` is the Firefox spelling; WebKit still draws its own pair
+   unless the pseudo-elements are removed too, so both are needed and neither is
+   optional. The field keeps every other affordance: the typed value is still
+   there, the caret still works, and the arrow keys still move it.
+
+   The reason is the two-bound filters. A mass or a year column is a dozen
+   characters wide, and two spin buttons cost about 28px of that -- enough that a
+   year could not be read back after being typed. They also step by `step`, which
+   is `any` for a mass, so the mass spinners did nothing at all, and they swallow
+   the arrow keys that are how a mistyped year is corrected. Neither input becomes
+   a spinner by losing its arrows: both stay typable, and both keep a numeric
+   keypad on a phone, which is what `inputmode` is for. */
+
+@utility filter-field {
+    appearance: none;
+    -moz-appearance: textfield;
+
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+        appearance: none;
+        -webkit-appearance: none;
+        margin: 0;
+    }
+}
+
+/* A field in the search panel, resizable like the Molfile box is.
+   Every text and number field in the panel carries this, and the reason is that
+   the textarea already did: what a person wants from a taller box is to see what
+   they pasted, and a long taxon name or a long formula wants that as much as a
+   Molfile does. One field out of twelve with a resize handle is a distinction
+   nobody can act on.
+
+   `min-h-*` on the call site is what gives the handle somewhere to travel -- an
+   input at its intrinsic height has no overflow to grab. It does nothing to a
+   field left at its default size. */
+@utility resize-field {
+    resize: vertical;
+}
+
 /* ========================================
    FOCUS-VISIBLE SAFETY NET (zero-specificity :where)
    ======================================== */
