@@ -12,15 +12,18 @@ mod it;
 /// submodule function.  Handles the four arity/return-type combinations used
 /// by the curation i18n tables.
 ///
-/// The per-locale functions are `pub(super)` and only reachable through the
-/// wrapper this macro generates, so without the allow below the dead-code lint
-/// reports every one of them in all four locales -- 240 findings for 60 strings
-/// that are all used. The allow is on the macro rather than at the crate root
-/// so it covers exactly what the macro produces and nothing else.
+/// The per-locale functions are `pub(super)` and reachable only through the
+/// wrapper this macro generates, which is the shape that would normally need a
+/// `dead_code` suppression -- the call site is in a different module, so the lint
+/// cannot see the use.
+///
+/// It does not need one. This file carried `#[allow(dead_code)]` on all four arms
+/// and the lint turned out not to fire on any of them, on either target or in any
+/// build configuration. The suppression had outlived whatever it was for, and the
+/// reason it survived is that an `allow` reports nothing when it is unnecessary.
 macro_rules! dispatch {
     // no args → &'static str
     ($name:ident) => {
-        #[allow(dead_code)]
         pub fn $name(locale: Locale) -> &'static str {
             match locale {
                 Locale::En => en::$name(),
@@ -32,7 +35,6 @@ macro_rules! dispatch {
     };
     // no args → String
     ($name:ident => String) => {
-        #[allow(dead_code)]
         pub fn $name(locale: Locale) -> String {
             match locale {
                 Locale::En => en::$name(),
@@ -44,7 +46,6 @@ macro_rules! dispatch {
     };
     // one &str arg → String
     ($name:ident, $arg:ident: &str -> String) => {
-        #[allow(dead_code)]
         pub fn $name(locale: Locale, $arg: &str) -> String {
             match locale {
                 Locale::En => en::$name($arg),
@@ -56,7 +57,6 @@ macro_rules! dispatch {
     };
     // one &str arg → &'static str
     ($name:ident, $arg:ident: &str -> &'static str) => {
-        #[allow(dead_code)]
         pub fn $name(locale: Locale, $arg: &str) -> &'static str {
             match locale {
                 Locale::En => en::$name($arg),

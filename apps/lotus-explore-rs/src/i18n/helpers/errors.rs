@@ -8,13 +8,15 @@ mod en;
 mod fr;
 mod it;
 
-/// Each generated wrapper is the only path to its per-locale functions, so the
-/// dead-code lint cannot see the use. Scoped to the macro's output rather than
-/// the crate root.
+/// The per-locale functions are reachable only through the wrapper this macro
+/// generates, which is the shape that would normally want a `dead_code`
+/// suppression. It does not need one: this file carried `#[allow(dead_code)]` on
+/// all five arms and the lint fired on none of them, on either target or in any
+/// build configuration. An `allow` reports nothing when it is unnecessary, which
+/// is how a suppression outlives whatever it was for.
 macro_rules! dispatch {
     // no args → String
     ($name:ident) => {
-        #[allow(dead_code)]
         pub fn $name(locale: Locale) -> String {
             match locale {
                 Locale::En => en::$name(),
@@ -27,7 +29,6 @@ macro_rules! dispatch {
     // no args → String (with cfg)
     ($name:ident with_cfg $cfg:literal) => {
         #[$cfg]
-        #[allow(dead_code)]
         pub fn $name(locale: Locale) -> String {
             match locale {
                 Locale::En => en::$name(),
@@ -39,7 +40,6 @@ macro_rules! dispatch {
     };
     // one &str arg → String
     ($name:ident, $arg:ident: &str) => {
-        #[allow(dead_code)]
         pub fn $name(locale: Locale, $arg: &str) -> String {
             match locale {
                 Locale::En => en::$name($arg),
@@ -51,7 +51,6 @@ macro_rules! dispatch {
     };
     // two &str args → String
     ($name:ident, $a:ident: &str, $b:ident: &str) => {
-        #[allow(dead_code)]
         pub fn $name(locale: Locale, $a: &str, $b: &str) -> String {
             match locale {
                 Locale::En => en::$name($a, $b),
@@ -63,7 +62,6 @@ macro_rules! dispatch {
     };
     // three &str args → String
     ($name:ident, $a:ident: &str, $b:ident: &str, $c:ident: &str) => {
-        #[allow(dead_code)]
         pub fn $name(locale: Locale, $a: &str, $b: &str, $c: &str) -> String {
             match locale {
                 Locale::En => en::$name($a, $b, $c),
