@@ -372,3 +372,51 @@ fn every_filter_something_counts_query_keeps_still_has_its_binding() {
         }
     }
 }
+
+// ── The reference constraint ───────────────────────────────────────────────
+
+#[test]
+fn a_reference_constraint_binds_the_referenced_item() {
+    // `?r` is the reference item, the same variable the year filter already binds,
+    // so the constraint is a `VALUES` on it rather than a filter over a projected
+    // value: a row with no reference has to fail the join, not compare against an
+    // unbound variable and be kept.
+    let criteria = SearchCriteria {
+        reference: "Q34460861".to_string(),
+        ..criteria()
+    };
+    let base = compounds_by_taxon_query("Q158572");
+    let filtered = with_filters(&base, &criteria, NOW);
+    assert!(
+        filtered.contains("VALUES ?r { wd:Q34460861 }"),
+        "{filtered}"
+    );
+}
+
+#[test]
+fn no_reference_constraint_writes_nothing() {
+    let criteria = SearchCriteria::up_to_year(2026);
+    let base = compounds_by_taxon_query("Q158572");
+    let filtered = with_filters(&base, &criteria, NOW);
+    assert!(!filtered.contains("VALUES ?r"), "{filtered}");
+}
+
+#[test]
+fn a_reference_constraint_composes_with_the_year_filter() {
+    // Both bind `?r` and both must survive: the year one adds `?r wdt:P577`, and
+    // the two are separate things the reader asked for.
+    let criteria = SearchCriteria {
+        reference: "Q34460861".to_string(),
+        year_min: 2020,
+        year_max: 2021,
+        ..criteria()
+    };
+    let base = compounds_by_taxon_query("Q158572");
+    let filtered = with_filters(&base, &criteria, NOW);
+    assert!(
+        filtered.contains("VALUES ?r { wd:Q34460861 }"),
+        "{filtered}"
+    );
+    assert!(filtered.contains("?r wdt:P577 ?ref_date"), "{filtered}");
+    assert!(filtered.contains("FILTER(YEAR(?ref_date)"), "{filtered}");
+}

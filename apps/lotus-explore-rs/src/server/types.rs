@@ -58,6 +58,8 @@ impl From<ApiElementState> for lotus_model::ElementState {
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct SearchRequest {
     pub(crate) taxon: Option<String>,
+    /// A Wikidata QID or a DOI naming the reference to constrain by.
+    pub(crate) reference: Option<String>,
     /// Whether the taxon filter also collects the compounds recorded against
     /// the taxon's other names.
     ///

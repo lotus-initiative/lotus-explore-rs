@@ -48,6 +48,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::LoadingTitle => "Interrogazione di Wikidata tramite QLever...",
         TextKey::LoadingHint => "Un numero elevato di risultati può richiedere alcuni secondi.",
         TextKey::LoadingResolvingStructure => "Risoluzione della struttura...",
+        TextKey::LoadingResolvingReference => "Risoluzione del riferimento...",
         TextKey::LoadingResolvingTaxon => "Risoluzione del taxon...",
         TextKey::LoadingFetchingResults => "Recupero risultati...",
         TextKey::LoadingProcessingResults => "Elaborazione dei conteggi risultati...",
@@ -110,6 +111,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::Substructure => "Sottostruttura",
         TextKey::Similarity => "Somiglianza",
         TextKey::StructureSearchMode => "Modalità di ricerca per struttura",
+        TextKey::ReferenceField => "QID o DOI del riferimento",
 
         TextKey::EditCopyDaylightSmiles => "Modifica -> Copia come SMILES Daylight",
         TextKey::CopyExtendedSmilesMol => "Copia come SMILES esteso / MOL V3000",

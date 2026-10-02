@@ -15,6 +15,7 @@ use crate::features::explore::search_metrics::SearchMetrics;
 use crate::features::explore::service::{
     build_query::{ResolvedStructure, apply_server_filters, build_sparql_query},
     fetch_results::FetchResult,
+    resolve_reference,
     resolve_structure::{self, StructureResolution},
     resolve_taxon::{self, TaxonResolution},
 };
@@ -106,12 +107,48 @@ pub(super) async fn build_execution_plan<R: LotusRepository>(
         resolve_structure::resolve(normalized_smiles, repo, metrics).await?
     };
 
+    // The reference is resolved for the same reason the taxon is, and then
+    // written back into a copy of the criteria as the QID it resolved to. The
+    // seed in the query binds `?r`, so it has to be the item rather than the text
+    // the reader typed -- a DOI is not a QID and `VALUES ?r { wd:10.1002/… }`
+    // matches nothing.
+    //
+    // A copy rather than the criteria themselves: those are what the form renders
+    // from, and the field must keep showing the DOI that was typed.
+    let reference = request.criteria().reference.trim();
+    let reference_resolution = if resolve_reference::requires_remote_lookup(reference) {
+        on_phase(QueryPhase::ResolvingReference);
+        resolve_reference::resolve(reference, repo, metrics).await?
+    } else {
+        resolve_reference::ReferenceResolution {
+            qid: None,
+            notices: Vec::new(),
+        }
+    };
+    let mut criteria = request.criteria().clone();
+    criteria
+        .reference
+        .clone_from(&reference_resolution.qid.unwrap_or_default());
+
+    // Said here because it is the first point where both fields are known, and
+    // neither resolver could see the other's emptiness on its own.
+    let notices = if crate::features::explore::form_validation::is_unconstrained(&criteria) {
+        vec![crate::features::explore::types::LookupNotice::Unconstrained]
+    } else {
+        Vec::new()
+    };
+    let structure_resolution =
+        crate::features::explore::service::resolve_structure::StructureResolution {
+            notices: [notices, structure_resolution.notices].concat(),
+            ..structure_resolution
+        };
+
     let sparql_query = build_sparql_query(
         &structure_resolution.resolved,
-        request.criteria(),
+        &criteria,
         taxon_resolution.qid.as_deref(),
     );
-    let execution_query = apply_server_filters(&sparql_query, request.criteria());
+    let execution_query = apply_server_filters(&sparql_query, &criteria);
 
     Ok(ResultsExecutionPlan {
         taxon_resolution,

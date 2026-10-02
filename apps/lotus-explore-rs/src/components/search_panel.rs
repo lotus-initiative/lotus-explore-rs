@@ -31,7 +31,7 @@ use lotus_model::STRUCTURE_INPUT_EXAMPLES as STRUCTURE_SUGGESTIONS;
 use lotus_model::SmilesSearchType;
 
 /// JSON Schema for search form autofill / MCP tooling introspection.
-const SEARCH_SCHEMA: &str = r#"{"type":"object","properties":{"taxon":{"type":"string","description":"Taxon name, Wikidata QID, or * for all taxa"},"smiles":{"type":"string","description":"Structure, compound name or InChIKey. A name or InChIKey is resolved to its Wikidata compound; anything else is sent to the structure service as written."},"mass_min":{"type":"number","description":"Minimum molecular mass in Da"},"mass_max":{"type":"number","description":"Maximum molecular mass in Da"},"year_min":{"type":"integer","description":"Minimum publication year"},"year_max":{"type":"integer","description":"Maximum publication year"},"formula_exact":{"type":"string","description":"Exact molecular formula filter, e.g. C7H5O5N"},"formula_enabled":{"type":"boolean","description":"Whether the formula filter is applied"},"stype":{"type":"string","enum":["exact","substructure","similarity"],"description":"How the resolved compound is searched: that compound only, or every compound containing / similar to it"}},"additionalProperties":true}"#;
+const SEARCH_SCHEMA: &str = r#"{"type":"object","properties":{"taxon":{"type":"string","description":"Taxon name, Wikidata QID, or * for all taxa"},"reference":{"type":"string","description":"Reference as a Wikidata QID or a DOI"},"smiles":{"type":"string","description":"Structure, compound name or InChIKey. A name or InChIKey is resolved to its Wikidata compound; anything else is sent to the structure service as written."},"mass_min":{"type":"number","description":"Minimum molecular mass in Da"},"mass_max":{"type":"number","description":"Maximum molecular mass in Da"},"year_min":{"type":"integer","description":"Minimum publication year"},"year_max":{"type":"integer","description":"Maximum publication year"},"formula_exact":{"type":"string","description":"Exact molecular formula filter, e.g. C7H5O5N"},"formula_enabled":{"type":"boolean","description":"Whether the formula filter is applied"},"stype":{"type":"string","enum":["exact","substructure","similarity"],"description":"How the resolved compound is searched: that compound only, or every compound containing / similar to it"}},"additionalProperties":true}"#;
 
 pub fn SearchPanel() -> Element {
     let state = use_results_context();
@@ -127,21 +127,57 @@ fn TaxonFilters() -> Element {
     }
 }
 
-/// Reference: when it was published.
+/// Reference: which paper, and when it was published.
 ///
-/// The only criterion a reference carries today, so this group has no advanced
-/// disclosure at all. It is drawn anyway: the three groups are a set, and a
-/// result row is always about all three things whether or not you constrain all
-/// three.
+/// The identifier is what makes this group a search rather than a filter. A
+/// reference has no short common string — it has a title, which is prose — so
+/// what a reader has is a DOI off a paper they are reading, or a QID if they went
+/// and looked it up. Both name exactly one item, so both resolve the same way the
+/// taxon and structure fields do.
 #[component]
 fn ReferenceFilters() -> Element {
-    let primary = rsx! { YearRangeInput {} };
+    let primary = rsx! { ReferenceInput {} };
+    let advanced = rsx! {
+        div { class: "flex flex-col gap-3",
+            YearRangeInput {}
+        }
+    };
 
     rsx! {
         EntityFilters {
             entity: FilterEntity::Reference,
             primary,
-            advanced: None,
+            advanced: Some(advanced),
+        }
+    }
+}
+
+/// The reference identifier field: a Wikidata QID or a DOI.
+#[component]
+fn ReferenceInput() -> Element {
+    let locale = crate::hooks::use_locale();
+    let ctx = use_form_criteria_context();
+    let reference = use_criteria_selector(ctx.criteria, |criteria| criteria.reference.clone());
+
+    rsx! {
+        div { class: "flex min-w-0 flex-col gap-1.5",
+            label {
+                class: "text-body font-semibold text-text",
+                r#for: "reference-input",
+                "{t(locale, TextKey::ReferenceField)}"
+            }
+            input {
+                id: "reference-input",
+                name: "reference",
+                r#type: "text",
+                "toolparamdescription": "A Wikidata QID or a DOI.",
+                autocomplete: "off",
+                spellcheck: "false",
+                placeholder: "10.1002/andp.18280880206",
+                value: "{reference.read()}",
+                oninput: move |e| ctx.update(FormAction::Reference(e.value())),
+                class: "font-mono w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+            }
         }
     }
 }

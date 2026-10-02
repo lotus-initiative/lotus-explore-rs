@@ -15,6 +15,7 @@ use lotus_model::{SearchCriteria, TaxonMatch};
 pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
     let mut c = SearchCriteria {
         taxon: req.taxon.clone().unwrap_or_default(),
+        reference: req.reference.clone().unwrap_or_default(),
         structure: req.smiles.clone().unwrap_or_default(),
         ..SearchCriteria::up_to_year(crate::clock::current_year())
     };

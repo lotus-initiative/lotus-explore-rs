@@ -46,6 +46,8 @@ impl From<ElementState> for ApiElementState {
 #[derive(Debug, Serialize)]
 pub struct SearchRequest {
     taxon: Option<String>,
+    /// A Wikidata QID or a DOI. Resolved server-side, like `taxon`.
+    reference: Option<String>,
     structure: Option<String>,
     structure_search: Option<ApiSmilesSearchType>,
     structure_threshold: Option<f64>,
@@ -83,6 +85,10 @@ impl SearchRequest {
 
         Self {
             taxon: (!taxon.is_empty()).then(|| taxon.to_string()),
+            reference: {
+                let reference = criteria.reference.trim();
+                (!reference.is_empty()).then(|| reference.to_string())
+            },
             structure: has_smiles.then_some(smiles),
             structure_search: has_smiles.then_some(criteria.structure_search.into()),
             structure_threshold: (criteria.structure_search == SmilesSearchType::Similarity

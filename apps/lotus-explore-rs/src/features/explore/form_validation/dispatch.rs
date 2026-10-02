@@ -13,10 +13,6 @@ use lotus_search::SearchCriteria;
 /// This validator returns domain-native `ValidationFault` so `start_search`
 /// can fail fast without translating from UI-oriented validation error keys.
 pub fn validate_dispatch_criteria(criteria: &SearchCriteria) -> Result<(), ValidationFault> {
-    if primary_filters_empty(criteria) {
-        return Err(ValidationFault::EmptyInput);
-    }
-
     // `validation_errors` only ever fails with at least one error, because each
     // rule is added by `push_error`, which takes an `Option`. That was a comment
     // and an `expect`; it is now a `map_or` whose fallback arm names the same
@@ -64,10 +60,23 @@ fn validation_errors(criteria: &SearchCriteria) -> Result<(), Vec<ValidationErro
     }
 }
 
-fn primary_filters_empty(criteria: &SearchCriteria) -> bool {
+/// Whether this search scans the whole of LOTUS.
+///
+/// **Structure, taxon *and* reference**, and the third is the one that is easy to
+/// forget: a reference names a specific paper, so "every compound reported by this
+/// one article" is a small and perfectly ordinary answer. A warning that called
+/// that the whole database would be wrong in exactly the case where the reader
+/// knows best, which is the case the field exists for.
+///
+/// Not a validation rule, which is why it lives beside them rather than inside
+/// them: a search that says nothing is answered rather than refused, and the only
+/// thing owed to the reader is a notice saying what they are about to be looking
+/// at. [`LookupNotice::Unconstrained`] carries it.
+#[must_use]
+pub fn is_unconstrained(criteria: &SearchCriteria) -> bool {
     criteria.taxon.trim().is_empty()
         && criteria.structure.trim().is_empty()
-        && !criteria.formula_enabled
+        && criteria.reference.trim().is_empty()
 }
 
 fn push_error(errors: &mut Vec<ValidationError>, result: Result<(), ValidationError>) {

@@ -375,6 +375,40 @@ fn taxon_name_source(token: &str) -> TaxonNameSource {
     }
 }
 
+/// A reference a lookup matched.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReferenceMatch {
+    /// Wikidata QID, taken from the item URI.
+    pub qid: String,
+}
+
+/// Parse reference-lookup rows.
+///
+/// Rows with no item are dropped rather than kept as an empty match: a lookup
+/// that returned one would mean a reference was found where there is none, and
+/// the caller would search for compounds reported by nothing.
+///
+/// # Errors
+/// Returns [`ParseError`] if the payload cannot be read as CSV.
+pub fn parse_reference_lookup_csv(bytes: &[u8]) -> Result<Vec<ReferenceMatch>, ParseError> {
+    let mut reader = csv::ReaderBuilder::new()
+        .has_headers(true)
+        .flexible(true)
+        .from_reader(bytes);
+    let headers = reader.headers().map_err(ParseError::new)?.clone();
+    let at = headers.iter().position(|h| h.trim() == "ref");
+
+    let mut matches = Vec::new();
+    for record in reader.records() {
+        let record = record.map_err(ParseError::new)?;
+        let qid = normalize_qid(&text_field(&record, at));
+        if !qid.is_empty() {
+            matches.push(ReferenceMatch { qid });
+        }
+    }
+    Ok(matches)
+}
+
 /// One compound a structure lookup matched.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompoundMatch {

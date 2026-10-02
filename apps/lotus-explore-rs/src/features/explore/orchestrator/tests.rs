@@ -48,7 +48,10 @@ fn build_search_succeeded_action_applies_finalized_counts() {
 }
 
 #[test]
-fn validate_search_criteria_rejects_empty_input() {
+fn validate_search_criteria_accepts_a_search_that_names_nothing() {
+    // The orchestrator no longer refuses this. A search with no structure and no
+    // taxon is answered, with a notice saying it covers all of LOTUS -- which is
+    // what makes the answer legible rather than surprising.
     let criteria = SearchCriteria {
         taxon: " ".into(),
         structure: "".into(),
@@ -57,10 +60,7 @@ fn validate_search_criteria_rejects_empty_input() {
     };
 
     let result = validate_search_criteria_for_tests(&criteria);
-    assert_eq!(
-        result,
-        Err(DomainError::Validation(ValidationFault::EmptyInput))
-    );
+    assert_eq!(result, Ok(()));
 }
 
 #[test]

@@ -61,6 +61,16 @@ pub fn err_taxon_not_found(taxon: &str) -> String {
     format!("Taxon '{taxon}' not found in Wikidata.")
 }
 
+/// A reference input that matched nothing in Wikidata.
+pub fn err_reference_not_found(input: &str) -> String {
+    format!("Reference '{input}' not found in Wikidata.")
+}
+
+/// A reference input that is neither a QID nor a DOI.
+pub fn err_reference_not_an_identifier(input: &str) -> String {
+    format!("A reference must be a Wikidata QID or a DOI; '{input}' is neither.")
+}
+
 pub fn warn_input_standardized(original: &str, normalized: &str) -> String {
     format!("Input standardized from '{original}' to '{normalized}'.")
 }
@@ -82,6 +92,13 @@ pub fn warn_compound_resolved(label: &str, qid: &str) -> String {
 
 pub fn warn_ambiguous_taxon(best_name: &str, best_qid: &str, names: &str) -> String {
     format!("Ambiguous taxon name; using {best_name} ({best_qid}). Candidates: {names}")
+}
+
+/// The search names no structure, no taxon and no reference, so it walks all of
+/// LOTUS. Said as a fact about the scan rather than about the answer, because
+/// filters set alongside it narrow the answer without narrowing the walk.
+pub fn warn_unconstrained() -> String {
+    "No structure, taxon or reference — this search scans the whole of LOTUS. Any filters you set are applied on top.".to_string()
 }
 
 pub fn warn_wdqs_fallback() -> String {

@@ -10,10 +10,11 @@ use crate::i18n::error_hint_memory;
 use crate::i18n::{
     Locale, TextKey, err_api_not_configured, err_compound_not_found, err_element_count_too_high,
     err_invalid_search_input, err_mass_out_of_range, err_mass_range_invalid,
-    err_query_stage_failed, err_similarity_threshold_invalid, err_structure_too_long,
-    err_taxon_not_found, err_taxon_parse_failed, err_taxon_too_long, err_unsupported_format,
-    err_year_out_of_range, err_year_range_invalid, t, warn_ambiguous_taxon, warn_compound_resolved,
-    warn_input_standardized, warn_taxon_common_name, warn_wdqs_fallback,
+    err_query_stage_failed, err_reference_not_an_identifier, err_reference_not_found,
+    err_similarity_threshold_invalid, err_structure_too_long, err_taxon_not_found,
+    err_taxon_parse_failed, err_taxon_too_long, err_unsupported_format, err_year_out_of_range,
+    err_year_range_invalid, t, warn_ambiguous_taxon, warn_compound_resolved,
+    warn_input_standardized, warn_taxon_common_name, warn_unconstrained, warn_wdqs_fallback,
 };
 use crate::repositories::RepositoryError;
 
@@ -61,6 +62,7 @@ fn format_taxon_warning(locale: Locale, warning: &LookupNotice) -> String {
         } => warn_ambiguous_taxon(locale, chosen_name, chosen_qid, &candidates.join(", ")),
         LookupNotice::ApiMessage(msg) => msg.clone(),
         LookupNotice::WdqsFallback => warn_wdqs_fallback(locale),
+        LookupNotice::Unconstrained => warn_unconstrained(locale),
     }
 }
 
@@ -161,6 +163,10 @@ fn format_validation_fault(locale: Locale, fault: &ValidationFault) -> String {
         ValidationFault::SimilarityThresholdInvalid => err_similarity_threshold_invalid(locale),
         ValidationFault::CompoundNotFound { input } => err_compound_not_found(locale, input),
         ValidationFault::TaxonNotFound { input } => err_taxon_not_found(locale, input),
+        ValidationFault::ReferenceNotFound { input } => err_reference_not_found(locale, input),
+        ValidationFault::ReferenceNotAnIdentifier { input } => {
+            err_reference_not_an_identifier(locale, input)
+        }
         ValidationFault::UnsupportedFormat { format } => err_unsupported_format(locale, format),
     }
 }

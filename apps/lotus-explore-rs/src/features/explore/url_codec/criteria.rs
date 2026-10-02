@@ -8,6 +8,10 @@ use std::str::FromStr;
 #[derive(Clone, Debug, Default, PartialEq)]
 struct CriteriaQueryDto {
     taxon: Option<String>,
+    /// A Wikidata QID or a DOI, as typed. `Option` because absent has to stay
+    /// absent: a link written before the field existed must not arrive with an
+    /// empty-but-present reference.
+    reference: Option<String>,
     /// The four nomenclatural toggles, `None` when a parameter is absent, so an
     /// old shared link parses to the model defaults rather than to a search
     /// that turns things off nobody asked it to.
@@ -141,6 +145,13 @@ pub fn criteria_query_params(criteria: &SearchCriteria, year_max: u16) -> QueryP
         }
     }
 
+    // Written as typed, not as resolved: a shared link should show and reproduce
+    // the DOI a reader passed, and the lookup is cheap and identical either way.
+    let reference = criteria.reference.trim();
+    if !reference.is_empty() {
+        params.insert("reference".to_string(), reference.to_string());
+    }
+
     let structure = criteria.structure.trim();
     if !structure.is_empty() {
         params.insert("structure".to_string(), structure.to_string());
@@ -203,9 +214,11 @@ pub fn criteria_query_params(criteria: &SearchCriteria, year_max: u16) -> QueryP
 impl CriteriaQueryDto {
     fn parse(params: &QueryParams) -> Self {
         let taxon = params.get("taxon").cloned();
+        let reference = params.get("reference").cloned();
         Self {
             has_explicit_taxon: taxon.is_some(),
             taxon,
+            reference,
             taxon_names: PartialNomenclature::parse(params),
             structure: params
                 .get("structure")
@@ -242,6 +255,9 @@ impl CriteriaQueryDto {
         let mut criteria = SearchCriteria::up_to_year(crate::clock::current_year());
         if let Some(taxon) = self.taxon {
             criteria.taxon = taxon;
+        }
+        if let Some(reference) = self.reference {
+            criteria.reference = reference;
         }
         self.taxon_names.apply(&mut criteria.taxon_names);
         if let Some(structure) = self.structure {

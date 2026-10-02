@@ -241,6 +241,44 @@ fn the_matching_mode_survives_a_named_compound_in_the_criteria() {
 }
 
 #[test]
+fn a_reference_round_trips_through_a_shareable_link_as_typed() {
+    // The link carries the DOI, not the QID it resolves to. The reader shared what
+    // they typed, and the lookup is the same either way.
+    let criteria = SearchCriteria {
+        reference: "10.1002/andp.18280880206".to_owned(),
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
+    };
+    let url = build_shareable_url(&criteria).expect("a reference is a search");
+    assert!(
+        url.contains("reference=10.1002%2Fandp.18280880206"),
+        "{url}"
+    );
+
+    // Decoded the way the browser hands them over, so this exercises the same
+    // round trip a pasted link does rather than comparing raw text.
+    let mut params = QueryParams::new();
+    for pair in url.trim_start_matches("/search?").split('&') {
+        let (k, v) = pair.split_once('=').expect("a pair");
+        params.insert(
+            urlencoding::decode(k).expect("valid key").into_owned(),
+            urlencoding::decode(v).expect("valid value").into_owned(),
+        );
+    }
+    let parsed = parse_criteria_from_params(&params);
+    assert_eq!(parsed.reference, "10.1002/andp.18280880206");
+}
+
+#[test]
+fn no_reference_in_the_link_means_no_reference_constraint() {
+    let params = QueryParams::new();
+    let parsed = parse_criteria_from_params(&params);
+    assert!(
+        parsed.reference.is_empty(),
+        "a link written before the field existed must not arrive with one"
+    );
+}
+
+#[test]
 fn criteria_with_nothing_set_have_no_shareable_url() {
     // A URL that encodes no search is not a search, and offering one would put
     // an empty query string in someone's address bar.

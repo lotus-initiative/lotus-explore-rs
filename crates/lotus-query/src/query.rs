@@ -609,6 +609,55 @@ LIMIT {STRUCTURE_LOOKUP_LIMIT}",
 /// How many compounds one structure resolution may report.
 const STRUCTURE_LOOKUP_LIMIT: usize = 5;
 
+/// Resolve a DOI to the reference that carries it.
+///
+/// **The DOI is uppercased before it is asked for, because that is how Wikidata
+/// stores them.** `?ref wdt:P356 "10.1002/andp.18280880206"` returns nothing;
+/// `?ref wdt:P356 "10.1002/ANDP.18280880206"` returns the item, in about 0.3s on
+/// `QLever`. A DOI is case-insensitive by specification, so lowercasing here would
+/// be as wrong as uppercasing a chemical formula, and the failure is silent —
+/// a lookup that matches nothing looks exactly like a DOI that does not exist.
+///
+/// Resolver prefixes are stripped first, since `doi:10.1002/andp.18280880206` and
+/// `https://doi.org/10.1002/andp.18280880206` are the same DOI and both are things a
+/// reader pastes out of a paper.
+///
+/// Deliberately bare: a `SELECT ?ref WHERE {` with no `SERVICE` and no `OPTIONAL`.
+/// That is the shape [`is_reference_lookup`] recognises, which is what routes it to
+/// the WDQS scholarly subgraph when `QLever` is unreachable — the one WDQS service
+/// that answers `P356` quickly. Adding an English label would break that
+/// detection, and a title is not worth losing the fast route over: the rows that
+/// come back have the reference in them.
+#[must_use]
+pub fn reference_by_doi_query(doi: &str) -> String {
+    format!(
+        "{PREFIXES}
+SELECT ?ref WHERE {{
+  ?ref wdt:P356 \"{}\" .
+}}",
+        escape_sparql_string(&lotus_model::strip_doi_prefix(doi).to_ascii_uppercase())
+    )
+}
+
+/// Resolve a Wikidata QID to the reference it names.
+///
+/// A `VALUES` and nothing to match, so it is as cheap as a compound lookup by QID.
+/// Same bare shape as [`reference_by_doi_query`] so one parser and one
+/// [`is_reference_lookup`] detection cover both routes; a `VALUES` is answered by
+/// any service, so the scholarly fallback is harmless here.
+#[must_use]
+pub fn reference_by_qid_query(qid: &str) -> String {
+    // The whole QID goes in, prefix included: `wd:` takes a local name, so
+    // `wd:Q23118` is the item and `wd:23118` is a name nothing is bound to.
+    format!(
+        "{PREFIXES}
+SELECT ?ref WHERE {{
+  VALUES ?ref {{ wd:{} }}
+}}",
+        escape_sparql_string(&qid.trim().to_ascii_uppercase())
+    )
+}
+
 /// Look a compound up by the QID the reader typed.
 ///
 /// A QID is already an identifier, so this is the cheapest of the four lookups: a
@@ -972,6 +1021,23 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
         let _ = writeln!(required, "?r wdt:P577 ?ref_date .");
     }
 
+    // A reference constrains which *reported* compounds are wanted, so it binds
+    // `?r` rather than filtering a projected value -- the same shape the year
+    // filter above uses, and for the same reason: `?r` is the item the reference
+    // is.
+    //
+    // It is a `VALUES` and not a `FILTER(?r = wd:Q…)` because that is the
+    // indexed form, and because an unbound `?r` -- a compound with no occurrence,
+    // which a structure search exists to find -- simply fails to join rather than
+    // comparing against an error.
+    if !criteria.reference.trim().is_empty() {
+        let _ = writeln!(
+            required,
+            "VALUES ?r {{ wd:{} }}",
+            escape_sparql_string(criteria.reference.trim())
+        );
+    }
+
     formula_filter(criteria, &mut required, &mut filters);
 
     // One buffer decides this, not both. Every branch above writes to `required`
@@ -983,10 +1049,9 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
     // because the two are written independently: a branch that filtered without
     // binding, or bound without filtering, would leave a filter that silently
     // never applies rather than one that fails loudly.
-    debug_assert_eq!(
-        required.is_empty(),
-        filters.is_empty(),
-        "a filter branch must write to both buffers or neither, or a filter is dropped"
+    debug_assert!(
+        filters.is_empty() || !required.is_empty(),
+        "a filter branch must bind what it filters on, or every row is dropped"
     );
     if required.is_empty() {
         return base.to_string();

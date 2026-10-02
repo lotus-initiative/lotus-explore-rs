@@ -86,10 +86,14 @@ dispatch!(err_element_count_too_high);
 dispatch!(err_similarity_threshold_invalid);
 dispatch!(warn_wdqs_fallback);
 
+dispatch!(warn_unconstrained);
+
 dispatch!(err_unsupported_format, fmt: &str);
 dispatch!(err_taxon_parse_failed, detail: &str);
 dispatch!(err_compound_not_found, input: &str);
 dispatch!(err_taxon_not_found, taxon: &str);
+dispatch!(err_reference_not_found, input: &str);
+dispatch!(err_reference_not_an_identifier, input: &str);
 
 dispatch!(err_query_stage_failed, stage: &str, detail: &str);
 

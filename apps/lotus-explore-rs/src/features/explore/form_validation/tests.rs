@@ -83,17 +83,79 @@ fn validate_element_count_rejects_unreasonably_high_counts() {
 }
 
 #[test]
-fn validate_dispatch_criteria_rejects_empty_primary_filters() {
+fn validate_dispatch_criteria_accepts_a_search_that_names_nothing() {
+    // Refusing this was a kindness that cost the reader their question. "Everything
+    // published in 2019" is a real one, and it needs no structure and no taxon --
+    // so the answer is a notice saying what it covers, not an error.
     let criteria = SearchCriteria {
         taxon: "   ".into(),
         structure: "".into(),
         formula_enabled: false,
         ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
-    assert_eq!(
-        validate_dispatch_criteria(&criteria),
-        Err(ValidationFault::EmptyInput)
-    );
+    assert_eq!(validate_dispatch_criteria(&criteria), Ok(()));
+}
+
+#[test]
+fn a_search_is_unconstrained_only_when_it_names_nothing_at_all() {
+    use crate::features::explore::form_validation::is_unconstrained;
+    let year = crate::clock::current_year();
+
+    // Blank in all three is the case the notice exists for: nothing narrows the
+    // scan, so the whole database is walked.
+    assert!(is_unconstrained(&SearchCriteria {
+        taxon: "  ".into(),
+        structure: "".into(),
+        reference: "  ".into(),
+        ..SearchCriteria::up_to_year(year)
+    }));
+
+    // A reference names one paper, and one paper's compounds is a small, ordinary
+    // answer. Calling that "every compound LOTUS holds" would be wrong in exactly
+    // the case where the reader already knows what they asked for.
+    assert!(!is_unconstrained(&SearchCriteria {
+        taxon: "".into(),
+        structure: "".into(),
+        reference: "10.1002/andp.18280880206".into(),
+        ..SearchCriteria::up_to_year(year)
+    }));
+
+    // Mass and year are filters on top of the same scan, not a narrower subject,
+    // so they do not silence the notice.
+    assert!(is_unconstrained(&SearchCriteria {
+        taxon: "".into(),
+        structure: "".into(),
+        mass_min: 100.0,
+        year_min: 2019,
+        ..SearchCriteria::up_to_year(year)
+    }));
+
+    assert!(!is_unconstrained(&SearchCriteria {
+        taxon: "Gentiana lutea".into(),
+        structure: "".into(),
+        ..SearchCriteria::up_to_year(year)
+    }));
+    assert!(!is_unconstrained(&SearchCriteria {
+        taxon: "".into(),
+        structure: "CCO".into(),
+        ..SearchCriteria::up_to_year(year)
+    }));
+}
+
+#[test]
+fn a_formula_only_search_is_still_a_whole_database_scan() {
+    // A formula narrows which rows pass, not which compounds are searched for, so
+    // the walk underneath it is the same one. That is the whole point of wording
+    // the notice as a fact about the scan: it stays true here.
+    use crate::features::explore::form_validation::is_unconstrained;
+    let criteria = SearchCriteria {
+        taxon: "".into(),
+        structure: "".into(),
+        formula_enabled: true,
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
+    };
+    assert!(is_unconstrained(&criteria));
+    assert_eq!(validate_dispatch_criteria(&criteria), Ok(()));
 }
 
 #[test]

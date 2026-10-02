@@ -8,7 +8,7 @@ mod dispatch;
 mod rules;
 mod types;
 
-pub use dispatch::validate_dispatch_criteria;
+pub use dispatch::{is_unconstrained, validate_dispatch_criteria};
 
 #[cfg(test)]
 mod tests;

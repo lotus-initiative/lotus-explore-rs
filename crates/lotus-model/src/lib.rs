@@ -6,6 +6,7 @@
 mod criteria;
 mod entry;
 mod identify;
+mod reference;
 mod stats;
 mod structure;
 mod validate;
@@ -13,6 +14,7 @@ mod validate;
 pub use criteria::{SearchCriteria, TaxonNomenclature};
 pub use entry::{CompoundEntry, Rows, TaxonMatch, TaxonNameSource};
 pub use identify::{non_empty, normalize_doi, normalize_qid};
+pub use reference::{looks_like_doi, looks_like_reference_qid, strip_doi_prefix};
 pub use stats::{DEFAULT_STRUCTURE_THRESHOLD, DatasetStats, ElementState, SmilesSearchType};
 pub use structure::{
     InputKind, STRUCTURE_INPUT_EXAMPLES, StructureKind, classify_structure,

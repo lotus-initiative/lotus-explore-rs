@@ -20,6 +20,14 @@ use crate::stats::{DEFAULT_STRUCTURE_THRESHOLD, ElementState, SmilesSearchType};
 pub struct SearchCriteria {
     /// Taxon name, scientific name, QID, or `*` for all taxa.
     pub taxon: String,
+    /// A Wikidata QID or a DOI, naming the reference whose reported compounds to
+    /// show. Empty means no reference constraint.
+    ///
+    /// Resolved to a QID before the query is built, the way `taxon` is. Not a
+    /// title: a title is prose, and matching prose against 400,000 references is
+    /// a question with no useful answer — but a DOI and a QID both name exactly
+    /// one item.
+    pub reference: String,
     /// Which nomenclatural relationships a taxon search follows, beyond the
     /// taxon name as typed. All four default to `true`.
     ///
@@ -214,6 +222,7 @@ impl SearchCriteria {
     pub const fn up_to_year(year_max: u16) -> Self {
         Self {
             taxon: String::new(),
+            reference: String::new(),
             taxon_names: TaxonNomenclature::ALL_ON,
             structure: String::new(),
             structure_search: SmilesSearchType::Exact,

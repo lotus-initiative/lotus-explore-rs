@@ -61,6 +61,18 @@ pub fn err_taxon_not_found(taxon: &str) -> String {
     format!("Taxon '{taxon}' non trovato in Wikidata.")
 }
 
+/// Un riferimento che Wikidata non conosce.
+pub fn err_reference_not_found(input: &str) -> String {
+    format!("Riferimento '{input}' non trovato in Wikidata.")
+}
+
+/// Un riferimento che non è né un QID né un DOI.
+pub fn err_reference_not_an_identifier(input: &str) -> String {
+    format!(
+        "Un riferimento deve essere un QID di Wikidata o un DOI; '{input}' non è né l'uno né l'altro."
+    )
+}
+
 pub fn warn_input_standardized(original: &str, normalized: &str) -> String {
     format!("Input standardizzato da '{original}' a '{normalized}'.")
 }
@@ -82,6 +94,13 @@ pub fn warn_compound_resolved(label: &str, qid: &str) -> String {
 
 pub fn warn_ambiguous_taxon(best_name: &str, best_qid: &str, names: &str) -> String {
     format!("Nome taxon ambiguo; uso {best_name} ({best_qid}). Candidati: {names}")
+}
+
+/// La ricerca non nomina né struttura né taxon né riferimento, quindi scandisce
+/// tutto LOTUS. Detto come fatto sulla scansione e non sulla risposta, perché i
+/// filtri impostati restringono la risposta senza restringere la scansione.
+pub fn warn_unconstrained() -> String {
+    "Nessuna struttura, taxon o riferimento — questa ricerca scansiona tutto LOTUS. I filtri impostati vengono applicati sopra.".to_string()
 }
 
 pub fn warn_wdqs_fallback() -> String {

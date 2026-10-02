@@ -78,6 +78,7 @@ pub fn query_phase_text(locale: Locale, phase: QueryPhase) -> &'static str {
         QueryPhase::Idle | QueryPhase::PreparingQuery => t(locale, TextKey::LoadingTitle),
         QueryPhase::ResolvingTaxon => t(locale, TextKey::LoadingResolvingTaxon),
         QueryPhase::ResolvingStructure => t(locale, TextKey::LoadingResolvingStructure),
+        QueryPhase::ResolvingReference => t(locale, TextKey::LoadingResolvingReference),
         QueryPhase::FetchingResults => t(locale, TextKey::LoadingFetchingResults),
         QueryPhase::ProcessingResults => t(locale, TextKey::LoadingProcessingResults),
         QueryPhase::Rendering => t(locale, TextKey::LoadingRendering),

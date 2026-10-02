@@ -20,6 +20,8 @@ pub enum FormAction {
         on: bool,
     },
     Smiles(String),
+    /// A Wikidata QID or a DOI in the reference field.
+    Reference(String),
     SmilesSearchType(SmilesSearchType),
     SimilarityThreshold(f64),
 
@@ -67,6 +69,7 @@ pub fn apply_form_action_mut(criteria: &mut SearchCriteria, action: FormAction) 
             criteria.taxon_names.set_for_relation(relation, on);
         }
         FormAction::Smiles(v) => criteria.structure = v,
+        FormAction::Reference(v) => criteria.reference = v,
         FormAction::SmilesSearchType(v) => criteria.structure_search = v,
         FormAction::SimilarityThreshold(v) => criteria.structure_threshold = v,
         FormAction::MassMin(v) => criteria.mass_min = v,

@@ -6,6 +6,7 @@ pub mod api_pipeline;
 pub mod build_query;
 pub mod fetch_results;
 pub mod finalize;
+pub mod resolve_reference;
 pub mod resolve_structure;
 pub mod resolve_taxon;
 pub mod results_pipeline;

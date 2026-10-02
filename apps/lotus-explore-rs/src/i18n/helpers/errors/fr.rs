@@ -61,6 +61,18 @@ pub fn err_taxon_not_found(taxon: &str) -> String {
     format!("Taxon '{taxon}' introuvable dans Wikidata.")
 }
 
+/// Une référence introuvable dans Wikidata.
+pub fn err_reference_not_found(input: &str) -> String {
+    format!("Référence '{input}' introuvable dans Wikidata.")
+}
+
+/// Une référence qui n'est ni un QID ni un DOI.
+pub fn err_reference_not_an_identifier(input: &str) -> String {
+    format!(
+        "Une référence doit être un QID Wikidata ou un DOI ; '{input}' n'est ni l'un ni l'autre."
+    )
+}
+
 pub fn warn_input_standardized(original: &str, normalized: &str) -> String {
     format!("Entrée standardisée de '{original}' à '{normalized}'.")
 }
@@ -82,6 +94,13 @@ pub fn warn_compound_resolved(label: &str, qid: &str) -> String {
 
 pub fn warn_ambiguous_taxon(best_name: &str, best_qid: &str, names: &str) -> String {
     format!("Nom de taxon ambigu; utilisation de {best_name} ({best_qid}). Candidats : {names}")
+}
+
+/// La recherche ne nomme ni structure, ni taxon, ni référence : tout LOTUS est
+/// parcouru. Dit comme un fait sur le parcours et non sur la réponse, car les
+/// filtres posés en plus restreignent la réponse sans restreindre le parcours.
+pub fn warn_unconstrained() -> String {
+    "Aucune structure, taxon ni référence — cette recherche parcourt tout LOTUS. Les filtres définis s'appliquent par-dessus.".to_string()
 }
 
 pub fn warn_wdqs_fallback() -> String {
