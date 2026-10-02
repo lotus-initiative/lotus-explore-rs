@@ -71,8 +71,18 @@ pub fn strip_doi_prefix(text: &str) -> &str {
     let lowered = text.trim();
     // Matched case-insensitively: `HTTPS://DOI.ORG/` is a URL a reader can have.
     for prefix in PREFIXES {
-        if lowered.len() >= prefix.len() && lowered[..prefix.len()].eq_ignore_ascii_case(prefix) {
-            return &lowered[prefix.len()..];
+        // `get(..)` rather than a range, because `prefix.len()` is a byte count
+        // and the input need not be ASCII. A non-ASCII reader can type a string
+        // whose `prefix.len()`-th byte is inside a character, and slicing there
+        // panics. `None` is the right answer for that case rather than a reason
+        // to keep going: a span ending mid-character cannot equal an ASCII prefix.
+        if lowered
+            .get(..prefix.len())
+            .is_some_and(|head| head.eq_ignore_ascii_case(prefix))
+        {
+            // `head` is exactly `prefix.len()` bytes and matched it byte for byte,
+            // so the remainder starts on a character boundary.
+            return lowered.get(prefix.len()..).unwrap_or(lowered);
         }
     }
     lowered
@@ -161,5 +171,25 @@ mod tests {
         // round trip asking Wikidata to look up a DOI it already holds.
         assert!(!looks_like_doi("Q18216"));
         assert!(!looks_like_reference_qid("10.1000/xyz"));
+    }
+
+    #[test]
+    fn a_non_ascii_reference_field_is_an_answer_rather_than_a_panic() {
+        // Every prefix length is a byte count, so an input whose `prefix.len()`-th
+        // byte lands inside a character makes a range slice split that character.
+        // These two straddle the boundary: one where the split falls inside the
+        // longest prefix, one inside the shortest.
+        let straddles_longest = format!("{}\u{3b1}rest", "A".repeat(15));
+        let straddles_shortest = format!("{}\u{3b1}rest", "A".repeat(4));
+        for text in [&straddles_longest, &straddles_shortest] {
+            assert!(!looks_like_doi(text), "{text:?} is not a DOI");
+            assert_eq!(strip_doi_prefix(text), text);
+            assert!(!looks_like_reference_qid(text));
+        }
+        // The same shape with a prefix already stripped: a DOI is not required to
+        // be ASCII, and the suffix is only checked for emptiness and whitespace,
+        // so this has to reach a verdict rather than panic on the way to one.
+        assert!(!looks_like_doi("\u{3b1}10.1000/xyz"));
+        assert!(looks_like_doi("10.1000/xyz\u{2014}"));
     }
 }

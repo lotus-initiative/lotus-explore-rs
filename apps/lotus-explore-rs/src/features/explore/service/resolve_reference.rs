@@ -30,7 +30,7 @@
 //! [`reference_by_doi_query`]: lotus_query::reference_by_doi_query
 
 use crate::features::explore::search_metrics::SearchMetrics;
-use crate::features::explore::types::{DomainError, QueryStage, ValidationFault};
+use crate::features::explore::types::{DomainError, LookupNotice, QueryStage, ValidationFault};
 use crate::repositories::LotusRepository;
 use lotus_model::{looks_like_doi, looks_like_reference_qid};
 use lotus_query::ReferenceMatch;
@@ -43,7 +43,7 @@ pub struct ReferenceResolution {
     /// `None` means "no constraint", not "not found": a reference that matched
     /// nothing is an error, not an absent filter.
     pub qid: Option<String>,
-    pub notices: Vec<crate::features::explore::types::LookupNotice>,
+    pub notices: Vec<LookupNotice>,
 }
 
 /// Whether this field is worth a round trip at all.
@@ -92,8 +92,10 @@ pub async fn resolve<R: LotusRepository>(
         ));
     };
 
-    let matches = run(&query, repo, metrics).await?;
-    match matches.into_iter().next() {
+    // At most one row can come back -- a QID names one item, and a DOI is unique
+    // in Wikidata -- so the first match is the whole answer.
+    let found = run(&query, repo, metrics).await?.into_iter().next();
+    match found {
         Some(ReferenceMatch { qid }) => Ok(ReferenceResolution {
             qid: Some(qid),
             notices: Vec::new(),

@@ -19,8 +19,9 @@ use lotus_query::{
     Nomenclature, all_compounds_query, compound_alias_query, compound_by_qid_query,
     compound_inchikey_query, compound_label_query, compounds_by_taxon_query,
     compounds_by_taxon_query_with, construct_from_select, escape_structure_literal, export_query,
-    is_reference_lookup, structure_compound_lookup_query, taxon_common_name_lookup_query,
-    taxon_lookup_query, with_filters,
+    is_reference_lookup, reference_by_doi_query, reference_by_qid_query,
+    structure_compound_lookup_query, taxon_common_name_lookup_query, taxon_lookup_query,
+    with_filters,
 };
 
 use super::common::{NOW, carbon_ranged_filter, criteria, subquery_depth};
@@ -426,7 +427,82 @@ fn both_bounds_together_emit_both_ends() {
     );
 }
 
+// ── The reference lookup queries ──────────────────────────────────────────────
+
+#[test]
+fn a_doi_lookup_asks_p356_for_the_uppercased_doi() {
+    // Every assertion here is a query that would run, be answered, and return
+    // nothing. That is the failure mode of all of them, so each has to be pinned.
+    let query = reference_by_doi_query("10.1002/andp.18280880206");
+    // Wikidata stores DOIs uppercased and `QLever` returns nothing for a
+    // lowercased one, so this is the whole reason the lookup finds anything.
+    assert!(
+        query.contains(r#"?ref wdt:P356 "10.1002/ANDP.18280880206""#),
+        "{query}"
+    );
+    // The three prefixes a reader pastes from a paper, an email and a reference
+    // manager, none of which Wikidata has ever heard of.
+    for pasted in [
+        "doi:10.1002/andp.18280880206",
+        "https://doi.org/10.1002/andp.18280880206",
+        "http://dx.doi.org/10.1002/andp.18280880206",
+    ] {
+        assert_eq!(reference_by_doi_query(pasted), query, "{pasted}");
+    }
+}
+
+#[test]
+fn a_doi_lookup_escapes_the_doi_rather_than_interpolating_it() {
+    // A DOI is external input. A quote or a backslash in it ends the literal and
+    // lets the rest of the string become query text.
+    let query = reference_by_doi_query(r#"10.1000/a". ?ref ?o ."#);
+    assert!(
+        !query.contains(r#"P356 "10.1000/A". ?ref ?o .""#),
+        "{query}"
+    );
+    assert!(query.contains(r#"\""#), "{query}");
+}
+
+#[test]
+fn a_qid_lookup_is_a_values_and_nothing_to_match() {
+    // `VALUES` is served from an index and costs about what a compound lookup by
+    // QID does. A `FILTER`, or an `LCASE` to match case-insensitively, turns this
+    // into a scan of every item.
+    let query = reference_by_qid_query("Q23118");
+    assert!(query.contains("VALUES ?ref { wd:Q23118 }"), "{query}");
+    assert!(!query.contains("FILTER"), "{query}");
+    assert!(!query.contains("LCASE"), "{query}");
+    // The `Q` goes in with the number: `wd:` takes a local name, so `wd:Q23118`
+    // is the item and `wd:23118` is a name nothing is bound to.
+    assert!(!query.contains("wd:23118"), "{query}");
+}
+
+#[test]
+fn a_qid_lookup_accepts_a_lowercase_q_and_surrounding_space() {
+    // A reader who types `q23118` means Q23118, the same as in the taxon field,
+    // and a pasted value carries whatever space a line break left behind.
+    assert_eq!(
+        reference_by_qid_query("q23118"),
+        reference_by_qid_query("Q23118")
+    );
+    assert_eq!(
+        reference_by_qid_query("  Q23118  "),
+        reference_by_qid_query("Q23118")
+    );
+}
+
 // ── Reference-lookup detection ────────────────────────────────────────────────
+
+#[test]
+fn a_doi_lookup_is_recognised_but_a_qid_lookup_is_not() {
+    // The distinction is what routes a failed DOI to the WDQS scholarly subgraph,
+    // the one service that answers `P356` at all. A `VALUES` is answered anywhere,
+    // so routing it there would buy nothing.
+    assert!(is_reference_lookup(&reference_by_doi_query(
+        "10.1002/andp.18280880206"
+    )));
+    assert!(!is_reference_lookup(&reference_by_qid_query("Q23118")));
+}
 
 #[test]
 fn a_bare_doi_lookup_is_recognised() {

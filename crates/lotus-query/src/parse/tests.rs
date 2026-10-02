@@ -336,3 +336,73 @@ fn a_stream_that_cannot_be_read_is_an_error() {
     }
     assert!(parse_compounds_stream(Broken, 10).is_err());
 }
+
+// ── The reference lookup reader ──────────────────────────────────────────────
+
+#[test]
+fn a_reference_lookup_reads_the_qid_out_of_the_item_uri() {
+    // The query projects `?ref` as a URI, so the reader has to take the local name
+    // off `http://www.wikidata.org/entity/` before it is a QID.
+    let csv = b"ref\nhttp://www.wikidata.org/entity/Q23118\n";
+    let matches = parse_reference_lookup_csv(csv).expect("reads");
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].qid, "Q23118");
+}
+
+#[test]
+fn a_reference_lookup_reads_every_row_in_order() {
+    // Not the first row only. The resolver takes the first match, so the parser
+    // has to hand them all over rather than stopping early: a DOI scan against
+    // the scholarly subgraph can answer with more than one item.
+    let csv = b"ref\n\
+        http://www.wikidata.org/entity/Q23118\n\
+        http://www.wikidata.org/entity/Q42\n";
+    let matches = parse_reference_lookup_csv(csv).expect("reads");
+    assert_eq!(matches.len(), 2);
+    assert_eq!(matches[0].qid, "Q23118");
+    assert_eq!(matches[1].qid, "Q42");
+}
+
+#[test]
+fn an_empty_reference_lookup_is_an_answer_rather_than_a_parse_error() {
+    // "Wikidata does not have this reference" arrives as zero rows under a
+    // perfectly good header, and it has to read as no match -- that is what the
+    // resolver turns into "not found", as distinct from a transport failure that
+    // would send the reader off to retry instead of to correct their DOI.
+    let with_no_rows = parse_reference_lookup_csv(b"ref\n").expect("reads");
+    assert_eq!(with_no_rows.len(), 0, "a header and no rows is no match");
+    let with_no_header_rows = parse_reference_lookup_csv(b"ref").expect("reads");
+    assert_eq!(with_no_header_rows.len(), 0, "a bare header is no match");
+}
+
+#[test]
+fn a_reference_row_with_no_usable_uri_is_dropped() {
+    // An empty or unparseable cell is not a reference, and offering it as one
+    // would put an empty QID into the `VALUES` that constrains the search.
+    let csv = b"ref\n\nnot-a-uri\nhttp://www.wikidata.org/entity/Q23118\n";
+    let matches = parse_reference_lookup_csv(csv).expect("reads");
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].qid, "Q23118");
+}
+
+#[test]
+fn a_reference_lookup_tolerates_a_padded_header_and_extra_columns() {
+    // `?ref` comes back padded, or renamed by whichever service answered, and the
+    // scholarly subgraph projects columns the main one does not. Neither should
+    // cost the QID.
+    let csv = b" ref ,other\n  http://www.wikidata.org/entity/Q23118  ,ignored\n";
+    let matches = parse_reference_lookup_csv(csv).expect("reads");
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].qid, "Q23118");
+}
+
+#[test]
+fn a_reference_lookup_without_a_ref_column_is_an_empty_answer() {
+    // Nothing to read the QID from, so no rows. An error would be right only if a
+    // missing column meant a broken query, and it does not: it is a lookup that
+    // matched nothing, wearing a header that is not the one we asked for.
+    let matches =
+        parse_reference_lookup_csv(b"something_else\nhttp://www.wikidata.org/entity/Q1\n")
+            .expect("reads");
+    assert_eq!(matches.len(), 0, "no ref column means nothing to read");
+}
