@@ -68,13 +68,14 @@ fn rows_sharing_a_compound_agree_on_its_properties() {
         1,
         "two rows naming one compound is one dictionary entry"
     );
-    // One mass column, not two, so the two rows cannot both keep a mass. A later
-    // row wins, which is stated in `SparseStrings::set` and is as defensible as
-    // the first: the query asks for the same property the same way every time.
+    // One mass column, not two, so the two rows cannot both keep a mass. The
+    // first row wins, which is what makes the write once per compound rather than
+    // once per row: the query asks for the same property the same way every time,
+    // so the two values are the same value in every case that is not a bug.
     assert_eq!(
         set.compound_mass(0),
-        Some(999.0),
-        "the last value read wins, because there is only one slot to hold it"
+        Some(100.0),
+        "one slot per compound, filled by the first row that mentions it"
     );
 }
 
@@ -432,5 +433,46 @@ fn a_mass_is_absent_when_it_is_not_a_number() {
         set.compound_mass(0),
         None,
         "NaN is the absence marker, not a mass"
+    );
+}
+
+#[test]
+fn a_uuid_statement_takes_the_sixteen_byte_path_and_not_the_text_one() {
+    // The round-trip text is the same either way, so a text-only assertion passes
+    // whether the UUID was parsed or the whole string was kept. This one measures
+    // the thing that distinguishes them.
+    let mut row = entry("Q3613679", "Q2", "Q3");
+    row.statement = Some(arc(
+        "http://www.wikidata.org/entity/statement/Q3613679-0D8245CF-C1C0-45AA-8994-6BEBFF6B15EE",
+    ));
+    let set = ColumnarResultSet::from_entries(std::slice::from_ref(&row));
+
+    assert_eq!(
+        set.statement_fallback_entries(),
+        0,
+        "a well-formed statement must not be kept as text: it costs a string per \\
+         row instead of sixteen bytes"
+    );
+    assert_eq!(
+        set.statement_text(0).as_deref(),
+        Some("Q3613679-0D8245CF-C1C0-45AA-8994-6BEBFF6B15EE")
+    );
+}
+
+#[test]
+fn a_statement_whose_prefix_disagrees_keeps_its_own_text() {
+    // The UUID form rebuilds its text from the row's compound, so a statement
+    // belonging to a different entity has to keep its own or it would come back
+    // pointing at the wrong one. This is the 0.03% of real rows.
+    let mut row = entry("Q3613679", "Q2", "Q3");
+    row.statement = Some(arc(
+        "http://www.wikidata.org/entity/statement/Q99999-0D8245CF-C1C0-45AA-8994-6BEBFF6B15EE",
+    ));
+    let set = ColumnarResultSet::from_entries(std::slice::from_ref(&row));
+
+    assert_eq!(
+        set.statement_text(0).as_deref(),
+        Some("Q99999-0D8245CF-C1C0-45AA-8994-6BEBFF6B15EE"),
+        "the wrong compound must not be substituted into the identifier"
     );
 }

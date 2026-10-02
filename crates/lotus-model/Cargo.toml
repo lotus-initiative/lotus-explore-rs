@@ -11,6 +11,14 @@ categories = ["science"]
 publish = false
 
 [dependencies]
+# `FxHashMap` for the dictionaries. The standard `HashMap` hashes with SipHash,
+# which is a deliberate choice against hash-flooding and costs roughly an order of
+# magnitude on short keys -- which is every key here. Three million rows make six
+# million dictionary lookups on `Q123`-length strings, and the build was paying
+# for collision resistance against an attacker who cannot reach this code.
+#
+# The domain is a SPARQL endpoint's answer, not user input, so the trade is free.
+rustc-hash = "2.1"
 serde = { workspace = true }
 thiserror = { workspace = true }
 

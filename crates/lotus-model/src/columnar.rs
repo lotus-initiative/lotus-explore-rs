@@ -59,7 +59,7 @@
 //! from deduplicating the dictionaries.
 
 use super::{CompoundEntry, DatasetStats, WIKIDATA_ENTITY_BASE, WIKIDATA_STATEMENT_BASE};
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -89,7 +89,7 @@ pub const NO_VALUE: u32 = u32::MAX;
 #[derive(Debug, Default, Clone)]
 pub struct Dictionary {
     values: Vec<Arc<str>>,
-    index: HashMap<Arc<str>, u32>,
+    index: FxHashMap<Arc<str>, u32>,
 }
 
 impl Dictionary {
@@ -139,6 +139,12 @@ impl Dictionary {
     #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.values.is_empty()
+    }
+
+    /// The bytes of the strings it holds, excluding any per-entry overhead.
+    #[must_use]
+    fn string_bytes(&self) -> usize {
+        self.values.iter().map(|v| v.len()).sum()
     }
 
     /// The ids that actually appear in `ids`, as a bitmap over dictionary ids.
@@ -220,6 +226,15 @@ impl Bitmask {
 #[derive(Debug, Default, Clone)]
 pub struct SparseStrings {
     values: Vec<Arc<str>>,
+    /// Maps a value to its id in `values`, so a value repeated across a million
+    /// rows is one allocation.
+    ///
+    /// Without this the column is not sparse at all: it stored a fresh copy per
+    /// *row* that mentioned the value and pointed the slot at the last one, which
+    /// for a taxon name shared by half a million rows cost 37 MB to hold 135
+    /// distinct strings. Interning is what makes the column's cost a function of
+    /// how many distinct values there are.
+    index: FxHashMap<Arc<str>, u32>,
     ids: Vec<u32>,
 }
 
@@ -230,22 +245,27 @@ impl SparseStrings {
         Self::default()
     }
 
-    /// Record `value` for dictionary slot `slot`, replacing what was there.
+    /// Record `value` for dictionary slot `slot`.
     ///
-    /// Slots are filled in ascending order by [`ColumnarBuilder`], which is what
-    /// makes this an append in the common case: a slot is created by the first
-    /// row mentioning the compound, so there is never a gap to skip.
+    /// **First write wins.** A slot is created by the first row that mentions the
+    /// compound, and every later row for that compound carries the same value --
+    /// the query asks for the property the same way each time. So a slot that
+    /// already holds a value is left alone, which turns this into one array read
+    /// per row instead of a hash of the string.
+    ///
+    /// That is the whole reason it is cheap: interning on every row made the build
+    /// slower than not interning at all, because three million rows would hash
+    /// three million copies of a string that was already there.
     pub fn set(&mut self, slot: usize, value: Option<&str>) {
+        if self.ids.get(slot).is_some_and(|id| *id != NO_VALUE) {
+            return;
+        }
         let id = value
-            .map(str::trim)
-            .filter(|v| !v.is_empty())
-            .map_or(NO_VALUE, |v| {
-                let Ok(id) = u32::try_from(self.values.len()) else {
-                    return NO_VALUE;
-                };
-                self.values.push(Arc::from(v));
-                id
-            });
+            .and_then(|v| {
+                let trimmed = v.trim();
+                (!trimmed.is_empty()).then_some(trimmed)
+            })
+            .map_or(NO_VALUE, |v| self.intern(v));
         if slot == self.ids.len() {
             self.ids.push(id);
         } else if let Some(existing) = self.ids.get_mut(slot) {
@@ -260,6 +280,32 @@ impl SparseStrings {
     #[must_use]
     pub fn next_id(&self) -> u32 {
         u32::try_from(self.values.len()).unwrap_or(NO_VALUE)
+    }
+
+    /// The id for `value`, minting one if it is new.
+    fn intern(&mut self, value: &str) -> u32 {
+        if let Some(id) = self.index.get(value) {
+            return *id;
+        }
+        let Ok(id) = u32::try_from(self.values.len()) else {
+            return NO_VALUE;
+        };
+        let shared: Arc<str> = Arc::from(value);
+        self.values.push(Arc::clone(&shared));
+        self.index.insert(shared, id);
+        id
+    }
+
+    /// How many slots have values or have been filled.
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.ids.len()
+    }
+
+    /// Whether no slot has been filled.
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.ids.is_empty()
     }
 
     /// The value recorded for `slot`.
@@ -306,14 +352,25 @@ enum ParsedStatement {
 impl StatementId {
     /// Read a statement cell, which may be a full URI or an already-bare id.
     ///
-    /// `raw` must be the cell with the URI prefix already stripped, because the
+    /// `raw` must be the cell with the URI prefix already stripped, because that
     /// prefix is the row's compound QID and is not carried here.
-    fn parse(raw: &str) -> ParsedStatement {
+    ///
+    /// `compound_qid` is checked rather than assumed. The UUID is only kept if the
+    /// statement really does belong to this row's compound -- measured at 99.97%,
+    /// so the check almost never fires -- because the 16-byte form rebuilds its
+    /// text from the compound, and a statement whose prefix disagrees would come
+    /// back pointing at the wrong entity. Those few keep their own text.
+    fn parse(raw: &str, compound_qid: &str) -> ParsedStatement {
         let bare = raw.trim();
         if bare.is_empty() {
             return ParsedStatement::Absent;
         }
-        if let Some((_, uuid)) = bare.rsplit_once('-')
+        // `split_once`, not `rsplit_once`: a UUID contains hyphens of its own, so
+        // splitting at the last one leaves twelve characters and never parses.
+        // That mistake made every statement take the fallback path and cost 63 MB
+        // at a million rows.
+        if let Some((prefix, uuid)) = bare.split_once('-')
+            && prefix == compound_qid
             && let Some(bytes) = parse_uuid(uuid)
         {
             return ParsedStatement::Uuid(bytes);
@@ -341,24 +398,44 @@ fn strip_statement_prefix(cell: &str) -> &str {
 }
 
 /// Sixteen bytes from a hyphenated UUID, or `None` if it is not one.
+///
+/// Two hex characters make a byte, so the loop alternates between the high and low
+/// half of the byte it is filling. Advancing the byte index on every *nibble*
+/// instead -- which is what this did first -- writes past the end of a sixteen-byte
+/// array after the first sixteen characters and returns `None` for every UUID ever
+/// seen. It went unnoticed because the caller keeps the whole string when this
+/// returns `None`, and the rebuilt text is the same either way: a round-trip test
+/// cannot tell the two paths apart, which is why
+/// `a_uuid_statement_takes_the_sixteen_byte_path_and_not_the_text_one` asserts on
+/// the storage instead.
 fn parse_uuid(text: &str) -> Option<[u8; 16]> {
     /// Byte widths of the five groups of a hyphenated UUID.
     const WIDTHS: [usize; 5] = [8, 4, 4, 4, 12];
     let mut out = [0u8; 16];
-    let mut at = 0;
+    let mut at = 0usize;
+    let mut low_half = false;
+
     for (index, group) in text.split('-').enumerate() {
-        let width = WIDTHS.get(index).copied()?;
-        if group.len() != width {
+        if group.len() != WIDTHS.get(index).copied()? {
             return None;
         }
         for byte in group.bytes() {
-            let nibble = char::from(byte).to_digit(16)?;
+            let nibble = u8::try_from(char::from(byte).to_digit(16)?).ok()?;
             let slot = out.get_mut(at)?;
-            *slot = (*slot << 4) | u8::try_from(nibble).ok()?;
-            at += 1;
+            if low_half {
+                *slot |= nibble;
+                at += 1;
+                low_half = false;
+            } else {
+                *slot = nibble << 4;
+                low_half = true;
+            }
         }
     }
-    (at == 16).then_some(out)
+
+    // A well-formed UUID has 32 hex characters, which is exactly 16 bytes with no
+    // half-filled one left over.
+    (at == out.len() && !low_half).then_some(out)
 }
 
 /// The hyphenated uppercase form of a UUID.
@@ -457,6 +534,13 @@ impl PartialEq for ColumnarResultSet {
         self.generation == other.generation
     }
 }
+
+/// How many bytes a bare QID is copied into before the statement check gives up.
+///
+/// A Wikidata QID is a `Q` and up to about eleven digits today. The bound is
+/// generous; exceeding it only means the statement keeps its own text, which is
+/// what happened for every statement before this check existed.
+const QID_BUFFER: usize = 24;
 
 /// The mass column's absence marker.
 ///
@@ -563,6 +647,123 @@ impl ColumnarResultSet {
     #[must_use]
     pub const fn compound_count(&self) -> usize {
         self.compounds.len()
+    }
+
+    /// How many statements are kept as text because they are not `{QID}-{UUID}`.
+    ///
+    /// Expected to be zero, and worth measuring rather than assuming: the
+    /// round-tripped text is identical either way, so a test that only checks the
+    /// text cannot tell a sixteen-byte statement from a whole string of one.
+    #[must_use]
+    pub const fn statement_fallback_entries(&self) -> usize {
+        self.statement_fallbacks.len()
+    }
+
+    /// What each dictionary costs, so an optimisation can be aimed at the largest
+    /// one rather than at the most obvious.
+    ///
+    /// Returns `(label, entries, bytes)`. `bytes` counts the string data, one fat
+    /// pointer per string and one slot per map entry -- what the structure holds,
+    /// not what the allocator has reserved.
+    #[must_use]
+    pub fn dictionary_costs(&self) -> Vec<(&'static str, usize, usize)> {
+        const PTR: usize = std::mem::size_of::<Arc<str>>();
+        let dict = |d: &Dictionary| d.len() * (PTR + 40) + d.string_bytes();
+        let sparse = |s: &SparseStrings| {
+            s.values.len() * PTR
+                + s.values.iter().map(|v| v.len()).sum::<usize>()
+                + s.ids.len() * std::mem::size_of::<u32>()
+        };
+        vec![
+            ("compound qids", self.compounds.len(), dict(&self.compounds)),
+            (
+                "compound names",
+                self.compound_names.len(),
+                sparse(&self.compound_names),
+            ),
+            (
+                "compound inchikeys",
+                self.compound_inchikeys.len(),
+                sparse(&self.compound_inchikeys),
+            ),
+            (
+                "compound smiles",
+                self.compound_smiles.len(),
+                sparse(&self.compound_smiles),
+            ),
+            (
+                "compound formulas",
+                self.compound_formulas.len(),
+                sparse(&self.compound_formulas),
+            ),
+            (
+                "compound masses",
+                self.compound_masses.len(),
+                self.compound_masses.len() * 8,
+            ),
+            ("taxon qids", self.taxa.len(), dict(&self.taxa)),
+            (
+                "taxon names",
+                self.taxon_names.len(),
+                sparse(&self.taxon_names),
+            ),
+            (
+                "reference qids",
+                self.references.len(),
+                dict(&self.references),
+            ),
+            (
+                "reference titles",
+                self.reference_titles.len(),
+                sparse(&self.reference_titles),
+            ),
+            (
+                "reference dois",
+                self.reference_dois.len(),
+                sparse(&self.reference_dois),
+            ),
+            (
+                "reference years",
+                self.reference_years.len(),
+                self.reference_years.len() * 4,
+            ),
+            (
+                "statement fallbacks",
+                self.statement_fallbacks.len(),
+                sparse(&self.statement_fallbacks),
+            ),
+        ]
+    }
+
+    /// The bytes the dictionaries hold, for a measurement rather than for
+    /// anything the app needs.
+    ///
+    /// Counts the string bytes plus a slot each, which is what a `HashSet` of
+    /// those strings costs. Deliberately not a measurement of the allocator: on
+    /// wasm it would report the module's high-water mark rather than what this
+    /// type holds, and the question being asked is the second one.
+    #[must_use]
+    pub fn total_dictionary_bytes(&self) -> usize {
+        let dictionary =
+            |d: &Dictionary| d.len() * std::mem::size_of::<Arc<str>>() + d.string_bytes();
+        let sparse = |s: &SparseStrings| {
+            s.ids.len() * std::mem::size_of::<u32>()
+                + s.values.len() * std::mem::size_of::<Arc<str>>()
+                + s.values.iter().map(|v| v.len()).sum::<usize>()
+        };
+        dictionary(&self.compounds)
+            + sparse(&self.compound_names)
+            + sparse(&self.compound_inchikeys)
+            + sparse(&self.compound_smiles)
+            + sparse(&self.compound_formulas)
+            + self.compound_masses.len() * std::mem::size_of::<f64>()
+            + dictionary(&self.taxa)
+            + sparse(&self.taxon_names)
+            + dictionary(&self.references)
+            + sparse(&self.reference_titles)
+            + sparse(&self.reference_dois)
+            + self.reference_years.len() * std::mem::size_of::<Option<i16>>()
+            + sparse(&self.statement_fallbacks)
     }
 
     /// Every distinct compound QID the set holds, in first-seen order.
@@ -935,6 +1136,28 @@ impl ColumnarBuilder {
         }
         let compound_slot = compound_id as usize;
         self.grow_compounds(compound_slot);
+        // The bare QID, copied out of the dictionary, because the cell carries the
+        // full URI and the statement check needs the bare form -- and because a
+        // borrow of the dictionary would be held across the rest of the row.
+        //
+        // A stack buffer rather than a `String`: this runs three million times and
+        // a QID is short and fixed-width in practice. A longer one falls through to
+        // the text-keeping path, which is correct, so the bound costs nothing.
+        let mut qid_buffer = [0u8; QID_BUFFER];
+        let qid = self
+            .set
+            .compounds
+            .get(compound_id)
+            .filter(|qid| qid.len() <= QID_BUFFER)
+            .unwrap_or_default();
+        let qid_len = qid.len();
+        if let Some(slot) = qid_buffer.get_mut(..qid_len)
+            && let Some(source) = qid.get(..qid_len)
+        {
+            slot.copy_from_slice(source.as_bytes());
+        }
+        let qid_text =
+            std::str::from_utf8(qid_buffer.get(..qid_len).unwrap_or_default()).unwrap_or_default();
         self.set
             .compound_names
             .set(compound_slot, present(row.name));
@@ -944,8 +1167,11 @@ impl ColumnarBuilder {
         if let Some(smiles) = non_empty(row.smiles) {
             self.set.compound_smiles.set(compound_slot, Some(smiles));
         }
+        // First write wins, like every other compound column: see
+        // `SparseStrings::set` for why, and for what it costs to do otherwise.
         if let Some(mass) = row.mass.filter(|m| m.is_finite())
             && let Some(cell) = self.set.compound_masses.get_mut(compound_slot)
+            && cell.is_nan()
         {
             *cell = mass;
         }
@@ -983,11 +1209,13 @@ impl ColumnarBuilder {
         let statement =
             row.statement
                 .map(strip_statement_prefix)
-                .map_or(StatementId::Absent, |cell| match StatementId::parse(cell) {
-                    ParsedStatement::Absent => StatementId::Absent,
-                    ParsedStatement::Uuid(bytes) => StatementId::Uuid(bytes),
-                    ParsedStatement::Other => {
-                        StatementId::Other(self.intern_statement_fallback(cell))
+                .map_or(StatementId::Absent, |cell| {
+                    match StatementId::parse(cell, qid_text) {
+                        ParsedStatement::Absent => StatementId::Absent,
+                        ParsedStatement::Uuid(bytes) => StatementId::Uuid(bytes),
+                        ParsedStatement::Other => {
+                            StatementId::Other(self.intern_statement_fallback(cell))
+                        }
                     }
                 });
 

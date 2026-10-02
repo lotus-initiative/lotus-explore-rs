@@ -85,37 +85,64 @@ impl CsvSplitter {
     ///
     /// `out` is appended to rather than replaced, so a caller can reuse one
     /// vector for the lifetime of the stream and drain it after each chunk.
+    ///
+    /// Ordinary bytes are copied a *run* at a time rather than one at a time. The
+    /// obvious loop -- inspect a byte, `push` it, repeat -- spent 2.5 seconds of a
+    /// 1M-row build here, against about 0.4 for this, because it paid a capacity
+    /// check and a bounds check for every one of 291 million bytes. Between the
+    /// delimiters there is nothing to inspect, so the run goes across in one
+    /// `extend_from_slice` and the per-byte work happens only where a delimiter
+    /// actually is.
     pub fn feed(&mut self, chunk: &[u8], out: &mut Vec<Record>) {
-        for &byte in chunk {
+        let mut at = 0;
+        while at < chunk.len() {
             if self.quote_pending {
+                // A `""` inside a quoted field is one literal quote; anything else
+                // means the pending quote closed the field and this byte is outside
+                // it. Deciding needs the lookahead, which is what this flag is for.
+                let byte = chunk.get(at).copied().unwrap_or_default();
                 self.quote_pending = false;
                 if byte == b'"' {
-                    // `""` inside a quoted field: one literal quote, and the
-                    // field is still open.
                     self.line.push(b'"');
+                    at += 1;
                     continue;
                 }
-                // The pending quote closed the field, so this byte is outside it.
                 self.in_quotes = false;
             }
 
             if self.in_quotes {
-                if byte == b'"' {
+                let rest = chunk.get(at..).unwrap_or_default();
+                if let Some(offset) = find_byte(rest, b'"') {
+                    self.line
+                        .extend_from_slice(rest.get(..offset).unwrap_or_default());
+                    at += offset + 1;
                     self.quote_pending = true;
                 } else {
-                    self.line.push(byte);
+                    self.line.extend_from_slice(rest);
+                    at = chunk.len();
                 }
                 continue;
             }
 
-            match byte {
+            let rest = chunk.get(at..).unwrap_or_default();
+            let Some(offset) = find_delimiter(rest) else {
+                self.line.extend_from_slice(rest);
+                break;
+            };
+            self.line
+                .extend_from_slice(rest.get(..offset).unwrap_or_default());
+            let delimiter = rest.get(offset).copied().unwrap_or_default();
+            at += offset + 1;
+            match delimiter {
+                // A quote only opens a field at its start; one in the middle of a
+                // field is malformed input and is kept as a literal character.
                 b'"' if self.line.is_empty() => self.in_quotes = true,
                 b',' => self.end_field(),
                 b'\n' => self.end_record(out),
                 // A CR is dropped: an endpoint that ends lines with CRLF would
                 // otherwise leave a stray carriage return on the last field.
                 b'\r' => {}
-                _ => self.line.push(byte),
+                _ => self.line.push(delimiter),
             }
         }
     }
@@ -147,6 +174,37 @@ impl CsvSplitter {
         self.in_quotes = false;
         self.quote_pending = false;
     }
+}
+
+/// Whether a byte is a delimiter, indexed by value.
+///
+/// A table rather than four comparisons, so the scan in [`find_delimiter`] is one
+/// branch per byte. A 256-entry table is 256 bytes of the module's data, which is
+/// worth more than the branch it saves on a 291-megabyte payload.
+#[allow(
+    clippy::indexing_slicing,
+    reason = "the four indices are literals inside a 256-entry array; the alternative \
+              is a `const fn`, and `slice::get` is not `const` on this toolchain"
+)]
+static DELIMITERS: [bool; 256] = {
+    let mut table = [false; 256];
+    table[34] = true; // `"`
+    table[44] = true; // `,`
+    table[10] = true; // `\n`
+    table[13] = true; // `\r`
+    table
+};
+
+/// The first `needle` in `haystack`.
+fn find_byte(haystack: &[u8], needle: u8) -> Option<usize> {
+    haystack.iter().position(|byte| *byte == needle)
+}
+
+/// The first byte that ends or escapes a field, outside any quoted run.
+fn find_delimiter(haystack: &[u8]) -> Option<usize> {
+    haystack
+        .iter()
+        .position(|byte| DELIMITERS.get(*byte as usize).copied().unwrap_or(false))
 }
 
 /// A record's field, trimmed, as UTF-8, or empty.
