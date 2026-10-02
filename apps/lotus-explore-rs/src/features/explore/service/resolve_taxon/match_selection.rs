@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::features::explore::types::{DomainError, ParseFault, TaxonWarning};
+use crate::features::explore::taxon_cache::CachedTaxon;
+use crate::features::explore::types::{DomainError, ParseFault};
 use lotus_model::TaxonMatch;
+
+/// How many candidates the ambiguity notice lists before it truncates.
+const MAX_LISTED_CANDIDATES: usize = 4;
 
 fn eq_casefold(a: &str, b: &str) -> bool {
     if a.is_ascii() && b.is_ascii() {
@@ -13,9 +17,28 @@ fn eq_casefold(a: &str, b: &str) -> bool {
         .eq(b.chars().flat_map(char::to_lowercase))
 }
 
+/// The resolution a candidate list yields: a chosen match, plus the candidates
+/// that make it worth telling the user about.
+///
+/// The notice itself is not built here. It is derived from these two fields, so
+/// the first run and a cached repeat run cannot describe the same match two
+/// different ways.
 pub(super) struct MatchSelection<'a> {
     pub best: &'a TaxonMatch,
-    pub warning: Option<TaxonWarning>,
+    /// `"Name (QID)"` strings, empty when the match was unambiguous.
+    pub candidates: Vec<String>,
+}
+
+impl MatchSelection<'_> {
+    /// The cached form of this resolution, ready to store and to replay.
+    #[must_use]
+    pub(super) fn to_cached(&self) -> CachedTaxon {
+        CachedTaxon {
+            qid: self.best.qid.clone(),
+            label: self.best.name.clone(),
+            candidates: self.candidates.clone(),
+        }
+    }
 }
 
 pub(super) fn pick_best_match<'a>(
@@ -44,21 +67,17 @@ pub(super) fn pick_best_match<'a>(
         })
     })?;
 
-    let warning = if multiple_exact || (first_exact.is_none() && matches.len() > 1) {
-        Some(TaxonWarning::Ambiguous {
-            chosen_name: best.name.clone(),
-            chosen_qid: best.qid.clone(),
-            candidates: matches
-                .iter()
-                .take(4)
-                .map(|candidate| format!("{} ({})", candidate.name, candidate.qid))
-                .collect(),
-        })
+    let candidates = if multiple_exact || (first_exact.is_none() && matches.len() > 1) {
+        matches
+            .iter()
+            .take(MAX_LISTED_CANDIDATES)
+            .map(|candidate| format!("{} ({})", candidate.name, candidate.qid))
+            .collect()
     } else {
-        None
+        Vec::new()
     };
 
-    Ok(MatchSelection { best, warning })
+    Ok(MatchSelection { best, candidates })
 }
 
 #[cfg(test)]
@@ -81,7 +100,8 @@ mod tests {
         let selection = pick_best_match("rosa", &matches).expect("selection should succeed");
 
         assert_eq!(selection.best.qid, "Q1");
-        assert!(selection.warning.is_none());
+        assert_eq!(selection.candidates.len(), 0);
+        assert!(selection.to_cached().warning().is_none());
     }
 
     #[test]
@@ -94,10 +114,12 @@ mod tests {
         let selection = pick_best_match("rosa", &matches).expect("selection should succeed");
 
         assert_eq!(selection.best.qid, "Q2");
-        assert!(matches!(
-            selection.warning,
-            Some(TaxonWarning::Ambiguous { .. })
-        ));
+        let cached = selection.to_cached();
+        assert_eq!(
+            cached.candidates,
+            vec!["Rosa rubiginosa (Q2)", "Rosa canina (Q3)"]
+        );
+        assert!(cached.warning().is_some());
     }
 
     #[test]
@@ -107,9 +129,19 @@ mod tests {
         let selection = pick_best_match("rosa", &matches).expect("selection should succeed");
 
         assert_eq!(selection.best.qid, "Q1");
-        assert!(matches!(
-            selection.warning,
-            Some(TaxonWarning::Ambiguous { .. })
-        ));
+        assert!(selection.to_cached().warning().is_some());
+    }
+
+    #[test]
+    fn the_candidate_list_is_truncated_but_never_empty() {
+        let matches = (0..6)
+            .map(|i| candidate(&format!("Taxon {i}"), &format!("Q{i}")))
+            .collect::<Vec<_>>();
+
+        let selection = pick_best_match("taxon", &matches).expect("selection should succeed");
+
+        let cached = selection.to_cached();
+        assert_eq!(cached.candidates.len(), MAX_LISTED_CANDIDATES);
+        assert!(cached.warning().is_some());
     }
 }

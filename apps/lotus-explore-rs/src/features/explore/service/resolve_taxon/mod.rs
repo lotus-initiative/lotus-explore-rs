@@ -83,13 +83,15 @@ pub async fn resolve<R: LotusRepository>(
         })
     };
 
-    // Fast path: cache hit.
-    if let Some(cached_qid) = taxon_cache::lookup(&sanitized) {
+    // Fast path: cache hit. The notice comes back out of the cache rather than
+    // being recomputed, so a repeat search reports what the first one reported.
+    if let Some(cached) = taxon_cache::lookup(&sanitized) {
         let taxon_elapsed = perf::end_timer("LOTUS:taxon_resolution", taxon_timer);
-        telemetry::taxon_cache_hit(taxon_elapsed, &sanitized, &cached_qid);
+        telemetry::taxon_cache_hit(taxon_elapsed, &sanitized, &cached.qid);
+        let warning = cached.warning().or(standardized_warning);
         return Ok(TaxonResolution {
-            qid: Some(cached_qid),
-            warning: standardized_warning,
+            qid: Some(cached.qid),
+            warning,
         });
     }
 
@@ -123,11 +125,14 @@ pub async fn resolve<R: LotusRepository>(
     }
 
     let selection = match_selection::pick_best_match(&sanitized, &matches)?;
-    let warning = selection.warning.or(standardized_warning);
+    let cached = selection.to_cached();
+    // One notice, derived from the resolution itself, so the slow path and the
+    // cache path above cannot disagree about what happened.
+    let warning = cached.warning().or(standardized_warning);
 
-    taxon_cache::store(&sanitized, &selection.best.qid);
+    taxon_cache::store(&sanitized, &cached);
     Ok(TaxonResolution {
-        qid: Some(selection.best.qid.clone()),
+        qid: Some(cached.qid),
         warning,
     })
 }
@@ -282,6 +287,39 @@ mod tests {
                 ))
             ),
             "expected TaxonNotFound, got: {result:?}"
+        );
+    }
+
+    #[test]
+    fn a_repeat_search_reports_the_same_notice_as_the_first() {
+        // The reported symptom: searching a name that both needed standardizing
+        // and matched two candidates said one thing on the first run and another
+        // on the second, because the second run read the answer from the cache
+        // and the cache held only the QID.
+        //
+        // A name unique to this test, because the cache is process-wide.
+        let csv = "taxon,taxon_name\nQ900001,Bacteriostaticum\nQ900002,Bacteriostaticum\n";
+        let repo = StubRepo::ok(csv);
+
+        let first = futures::executor::block_on(resolve(
+            "bacteriostaticum",
+            &repo,
+            &mut SearchMetrics::default(),
+        ))
+        .expect("first run resolves");
+        let second = futures::executor::block_on(resolve(
+            "bacteriostaticum",
+            &repo,
+            &mut SearchMetrics::default(),
+        ))
+        .expect("second run resolves");
+
+        assert_eq!(first.qid.as_deref(), Some("Q900001"));
+        assert_eq!(first.warning, second.warning);
+        assert!(
+            matches!(first.warning, Some(TaxonWarning::Ambiguous { .. })),
+            "expected the ambiguity notice both times, got: {:?}",
+            first.warning
         );
     }
 }
