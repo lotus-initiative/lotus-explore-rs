@@ -6,6 +6,14 @@ apps/lotus-explore-rs/public/assets/vendor/
 # fetch-assets` and is reproducible from the versions in that binary.
 crates/lotus-web-assets/public/
 
+# The same tree, at the workspace root, which is where `fetch-assets` writes if it
+# is run from there rather than from the app crate. The Dockerfile comment says why
+# that matters -- a root-level `public/` is one nothing reads, so the build then
+# succeeds with no assets in it -- which is a bad enough failure that it is worth
+# being unable to commit by accident rather than merely unlikely to.
+/public/assets/
+/public/
+
 target/
 
 # macOS Finder junk; it is not tracked but a local `dx build` copies anything

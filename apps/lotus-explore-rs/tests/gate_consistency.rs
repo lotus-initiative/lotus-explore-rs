@@ -681,3 +681,78 @@ fn ci_installs_the_tombi_version_the_hook_uses() -> Result<()> {
     );
     Ok(())
 }
+
+/// The fetched asset trees stay untracked, in the two places they belong.
+///
+/// `fetch-assets` writes `public/assets/ketcher` and `public/assets/vendor`
+/// relative to the working directory, so the same binary run from two places
+/// produces two trees. Only one of them is where the bundler looks. The
+/// Dockerfile says so in a comment; this says it in a way that fails.
+///
+/// The two failures this catches are both quiet. A commit that tracks them
+/// puts 115 MB of third-party code in history and makes the `.gitignore` entries
+/// look wrong. A `dx build` at the root copies the stray tree into the bundle
+/// instead of the real one, and the build succeeds with no structure editor in
+/// it -- which is the failure the retry loop in the Dockerfile exists to prevent,
+/// arriving by a different route.
+#[test]
+fn the_fetched_asset_trees_are_not_tracked() -> Result<()> {
+    // Every tracked path, filtered here rather than by a `git ls-files` pathspec.
+    // A pathspec is matched against the repository root, so `-- public/` from the
+    // root means the root's own `public/` -- which is one of the trees being
+    // checked for, not all of them. The first version of this test passed with a
+    // real asset staged because the pathspec matched nothing and an empty result
+    // reads as "clean".
+    let tracked = std::process::Command::new("git")
+        .args(["ls-files"])
+        .current_dir(repo_root())
+        .output()?;
+    let listed = String::from_utf8_lossy(&tracked.stdout);
+    let offenders: Vec<&str> = listed
+        .lines()
+        .filter(|path| {
+            path.contains("/public/assets/ketcher/")
+                || path.contains("/public/assets/vendor/")
+                || path.starts_with("public/assets/ketcher/")
+                || path.starts_with("public/assets/vendor/")
+        })
+        .collect();
+    assert!(
+        offenders.is_empty(),
+        "these fetched assets are tracked. They are downloaded, not source:\n  {}\n\
+         Untrack them with `git rm -r --cached` on the paths above; the files on \
+         disk are fine and are rebuilt by `fetch-assets`.",
+        offenders.join("\n  ")
+    );
+    Ok(())
+}
+
+/// `.gitignore` covers the wrong-directory case, not just the right one.
+///
+/// The root `public/` is the tree `fetch-assets` creates when run from the
+/// workspace root instead of the app crate. Nothing reads it, so it is easy to
+/// create and easy to commit. The root `.gitignore` used to name only the app
+/// path and the `lotus-web-assets` one, which left this hole open until a test
+/// run wrote one.
+#[test]
+fn the_wrong_directory_asset_tree_is_ignored() -> Result<()> {
+    let root = repo_root();
+    for candidate in ["public", "public/assets/ketcher", "public/assets/vendor"] {
+        let probe = root.join(candidate);
+        if !probe.exists() {
+            continue;
+        }
+        let out = std::process::Command::new("git")
+            .args(["check-ignore", "-q", candidate])
+            .current_dir(&root)
+            .output()?;
+        assert!(
+            out.status.success(),
+            "`{candidate}` exists and is not ignored. It was written by \
+             `fetch-assets` running from the workspace root rather than from the \
+             app crate, and committing it would put a third-party tree in the \
+             repository. Add it to the root `.gitignore`."
+        );
+    }
+    Ok(())
+}
