@@ -237,12 +237,14 @@ impl UploadBlobLines {
 /// Extract a blob from the first entry of `evt.data().files()`.
 /// # Errors
 /// Returns a message if the file is not a `Blob`.
-// `Result` is genuinely used: the wasm path returns `Err` for a file that is not
-// a `Blob`. The native branch only ever returns `Ok(None)`, and clippy sees only
-// that branch, so it calls the wrapper pointless. The signature is the contract.
-#[expect(
+// `Result` is genuinely used: the wasm branch returns `Err` for a file that is not
+// a `Blob`. It is an `allow` rather than an `expect` because the lint fires on one
+// target and not the other -- an `expect` is unfulfilled wherever it does not, and
+// `unfulfilled_lint_expectations` is denied, so the wasm and native builds would
+// each fail the other's expectation.
+#[allow(
     clippy::unnecessary_wraps,
-    reason = "the wasm half returns `Err`; the native half is the only one clippy sees"
+    reason = "the wasm branch returns `Err`; the lint fires only where that branch is compiled"
 )]
 pub fn extract_blob_from_file_data(
     files: &[dioxus::html::FileData],
