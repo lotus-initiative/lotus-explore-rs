@@ -107,6 +107,13 @@ fn ColumnFilterCell(
         th {
             scope: "col",
             class: "px-2 sm:px-3 py-2 font-normal",
+            // The cell needs text of its own, because an `<input>` has none: a
+            // header whose only content is a control reads as an empty header to
+            // an accessibility checker, and to anyone navigating by cell. The
+            // name is already the control's accessible name, so this is the same
+            // word twice on the way in, and the right one for a screen reader
+            // arriving at the cell before the field.
+            span { class: "sr-only", "{name}" }
             if kind == FilterKind::Text {
                 input {
                     id: "{filter_id(column)}",
@@ -120,7 +127,7 @@ fn ColumnFilterCell(
                     aria_label: "{name}",
                     value: "{filters.text(column)}",
                     oninput: move |e| on_text.call((column, e.value())),
-                    class: "w-full min-w-0 rounded-lg border border-border bg-surface px-2 py-1 text-ui text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                    class: "filter-field resize-field min-h-7 w-full min-w-0 rounded-lg border border-border bg-surface px-1.5 py-1 text-ui text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                 }
             } else {
                 RangeFilter {
@@ -136,6 +143,12 @@ fn ColumnFilterCell(
 }
 
 /// A two-box numeric range, grouped so the column's name covers both ends.
+///
+/// `filter-field` drops the spin buttons. They cost about 14px a side, which in a
+/// column 12 characters wide is the difference between a number you can read back
+/// and a number you cannot; they step by `step`, which is `any` for a mass, so
+/// they do nothing useful either; and they eat the arrow keys, which are how you
+/// correct a mistyped year.
 #[component]
 fn RangeFilter(
     column: SortColumn,
@@ -146,8 +159,8 @@ fn RangeFilter(
 ) -> Element {
     let name = label_for(locale, column);
     // Years are whole numbers; masses are not. The step is what tells the
-    // spinner buttons which way to count, and a mass step of 1 would make a
-    // 250.25 row unreachable from the keyboard.
+    // keyboard which way to count, and a mass step of 1 would make a 250.25 row
+    // unreachable without retyping it.
     let step = if matches!(column, SortColumn::PubYear) {
         "1"
     } else {
@@ -169,7 +182,7 @@ fn RangeFilter(
                 aria_label: "{name} {t(locale, TextKey::Min)}",
                 value: "{min.map_or_else(String::new, format_bound)}",
                 oninput: move |e| on_bound.call((column, Bound::Min, parse_bound(&e.value()))),
-                class: "tabular-nums w-full min-w-0 rounded-lg border border-border bg-surface px-1.5 py-1 text-ui text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                class: "filter-field resize-field min-h-7 tabular-nums w-full min-w-0 rounded-lg border border-border bg-surface px-1 py-1 text-micro text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
             }
             span { aria_hidden: "true", class: "text-subtle", "-" }
             input {
@@ -182,7 +195,7 @@ fn RangeFilter(
                 aria_label: "{name} {t(locale, TextKey::Max)}",
                 value: "{max.map_or_else(String::new, format_bound)}",
                 oninput: move |e| on_bound.call((column, Bound::Max, parse_bound(&e.value()))),
-                class: "tabular-nums w-full min-w-0 rounded-lg border border-border bg-surface px-1.5 py-1 text-ui text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                class: "filter-field resize-field min-h-7 tabular-nums w-full min-w-0 rounded-lg border border-border bg-surface px-1 py-1 text-micro text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
             }
         }
     }
@@ -218,6 +231,129 @@ fn format_bound(value: f64) -> String {
 mod tests {
     #![allow(clippy::expect_used)]
     use super::*;
+    use crate::features::explore::ExploreInteractions;
+    use crate::features::explore::orchestrator::SearchTaskController;
+    use crate::features::explore::search_state::ExploreState;
+    use crate::repositories::HybridRepository;
+    use crate::state::{FormCriteriaContext, ResultsContext};
+    use lotus_model::SearchCriteria;
+
+    // ── What the markup says, not what the source says ───────────────────────
+    //
+    // The first version of this row put a bare `<input>` in each `<th>`, which is
+    // an empty table header by any measure: an input has no text content, so a
+    // cell whose only child is a control has nothing for a screen reader to read
+    // and nothing for an accessibility checker to find. `THTexts` below is that
+    // rule, written out.
+
+    #[component]
+    fn Subject() -> Element {
+        use_context_provider(|| Signal::new(Locale::En));
+        let explore = use_signal(ExploreState::default);
+        let criteria = use_signal(|| SearchCriteria::up_to_year(crate::clock::current_year()));
+        let baseline = use_signal(|| SearchCriteria::up_to_year(crate::clock::current_year()));
+        let interactions = ExploreInteractions::new(
+            criteria,
+            FormCriteriaContext::new(criteria, baseline),
+            explore,
+            SearchTaskController::new(),
+            HybridRepository,
+        );
+        use_context_provider(|| ResultsContext::new(explore));
+        use_context_provider(|| interactions);
+        rsx! {
+            table {
+                // The row under test is the header row the sort buttons live in;
+                // this one is here only so the table is not header-only.
+                tr { td { "a row" } }
+                TableFilterRow {}
+            }
+        }
+    }
+
+    fn render() -> String {
+        let mut dom = VirtualDom::new(Subject);
+        dom.rebuild_in_place();
+        dioxus_ssr::render(&dom)
+    }
+
+    /// The text content of every `<th>` in `html`, in order.
+    ///
+    /// A string scan rather than a DOM walk, because that is what an accessibility
+    /// checker does too, and because a test that reads the same tree the checker
+    /// reads can only agree with it by accident.
+    fn th_texts(html: &str) -> Vec<String> {
+        let mut out = Vec::new();
+        let mut rest = html;
+        while let Some(open) = rest.find("<th") {
+            rest = &rest[open..];
+            let Some(after_open) = rest.find('>') else {
+                break;
+            };
+            rest = &rest[after_open + 1..];
+            let Some(end) = rest.find("</th>") else {
+                break;
+            };
+            out.push(rest[..end].trim().to_string());
+            rest = &rest[end..];
+        }
+        out
+    }
+
+    #[test]
+    fn no_table_header_in_the_filter_row_is_empty() {
+        let html = render();
+        let headers = th_texts(&html);
+        assert_eq!(headers.len(), 7, "one cell per column:\n{html}");
+        for (index, text) in headers.iter().enumerate() {
+            assert!(
+                !text.is_empty(),
+                "header {index} has no text of its own, which is what an \
+                 accessibility checker calls an empty table header:\n{html}"
+            );
+        }
+    }
+
+    #[test]
+    fn every_filter_row_header_names_its_column() {
+        let html = render();
+        let headers = th_texts(&html);
+        // Structure's cell is the spacer and says so; the other six name the
+        // column they filter, so a screen reader arriving at the cell knows what
+        // the field in it does before it reaches the field.
+        let expected = [
+            "Structure",
+            "Compound",
+            "Mass",
+            "Formula",
+            "Taxon",
+            "Reference",
+            "Year",
+        ];
+        assert_eq!(headers.len(), expected.len(), "\n{html}");
+        for (header, label) in headers.iter().zip(expected) {
+            assert!(
+                header.contains(label),
+                "a header saying {label:?} is expected, got {header:?}:\n{html}"
+            );
+        }
+    }
+
+    #[test]
+    fn every_filter_field_opts_out_of_the_native_spinners() {
+        // Not a visual assertion: the utility is what removes them, and its
+        // presence in the class list is the thing that can regress silently.
+        // Four text filters and four range bounds.
+        let html = render();
+        assert_eq!(html.matches("type=\"number\"").count(), 4);
+        assert_eq!(
+            html.matches("filter-field").count(),
+            8,
+            "every field in the row opts in:\n{html}"
+        );
+    }
+
+    // ── Parsing ──────────────────────────────────────────────────────────────
 
     #[test]
     fn an_empty_box_is_no_bound() {
