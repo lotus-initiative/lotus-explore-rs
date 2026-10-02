@@ -54,7 +54,7 @@ pub fn SearchExamples() -> Element {
                                     DownloadExampleRow {
                                         locale,
                                         format: t(locale, TextKey::ExampleQueryStructure),
-                                        query: "?structure=c1ccccc1&structure_search_type=similarity&smiles_threshold=0.85&download=true&format=json",
+                                        query: "?structure=c1ccccc1&structure_search_type=similarity&similarity_threshold=0.85&download=true&format=json",
                                         id: "example-query-structure",
                                         name: "example-query-structure",
                                     }

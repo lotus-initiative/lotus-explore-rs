@@ -12,13 +12,13 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use crate::features::explore::types::TaxonWarning;
+use crate::features::explore::types::LookupNotice;
 use lotus_model::TaxonNameSource;
 
 /// A resolved taxon name, together with the candidates that made it ambiguous.
 ///
 /// `candidates` is empty when exactly one candidate matched; a non-empty list
-/// is what [`TaxonWarning::Ambiguous`] is reconstructed from.
+/// is what [`LookupNotice::Ambiguous`] is reconstructed from.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CachedTaxon {
     /// The chosen Wikidata QID.
@@ -39,16 +39,16 @@ impl CachedTaxon {
     /// came from travel with the QID through the cache rather than being
     /// re-derived from a lookup that may not happen again.
     #[must_use]
-    pub fn warnings(&self) -> Vec<TaxonWarning> {
+    pub fn warnings(&self) -> Vec<LookupNotice> {
         let mut warnings = Vec::new();
         if self.source == TaxonNameSource::Common {
-            warnings.push(TaxonWarning::CommonName {
+            warnings.push(LookupNotice::CommonName {
                 chosen_name: self.label.clone(),
                 chosen_qid: self.qid.clone(),
             });
         }
         if !self.candidates.is_empty() {
-            warnings.push(TaxonWarning::Ambiguous {
+            warnings.push(LookupNotice::Ambiguous {
                 chosen_name: self.label.clone(),
                 chosen_qid: self.qid.clone(),
                 candidates: self.candidates.clone(),
@@ -133,7 +133,7 @@ mod tests {
 
         let warnings = lookup("Gentian").map(|hit| hit.warnings());
         assert!(
-            matches!(warnings, Some(ref w) if matches!(w[..], [TaxonWarning::CommonName { .. }])),
+            matches!(warnings, Some(ref w) if matches!(w[..], [LookupNotice::CommonName { .. }])),
             "expected the common-name notice, got {warnings:?}"
         );
     }
@@ -154,8 +154,8 @@ mod tests {
         assert!(matches!(
             cached.warnings().as_slice(),
             [
-                TaxonWarning::CommonName { .. },
-                TaxonWarning::Ambiguous { .. }
+                LookupNotice::CommonName { .. },
+                LookupNotice::Ambiguous { .. }
             ]
         ));
     }
@@ -185,7 +185,7 @@ mod tests {
         );
         assert!(matches!(
             first.as_deref(),
-            Some([TaxonWarning::Ambiguous { .. }])
+            Some([LookupNotice::Ambiguous { .. }])
         ));
     }
 }

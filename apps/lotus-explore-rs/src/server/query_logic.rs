@@ -36,10 +36,10 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
     if let Some(v) = req.smiles_search_type {
         c.structure_search = v.into();
     }
-    if let Some(v) = req.smiles_threshold {
+    if let Some(v) = req.similarity_threshold {
         if v <= 0.0 {
             return Err(ApiError::bad_request(
-                "smiles_threshold must be greater than 0",
+                "similarity_threshold must be greater than 0",
             ));
         }
         c.structure_threshold = v.clamp(0.05, 1.0);

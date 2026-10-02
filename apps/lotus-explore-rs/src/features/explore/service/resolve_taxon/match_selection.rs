@@ -99,7 +99,7 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::*;
-    use crate::features::explore::types::TaxonWarning;
+    use crate::features::explore::types::LookupNotice;
 
     fn candidate(name: &str, qid: &str) -> TaxonMatch {
         TaxonMatch {
@@ -237,7 +237,7 @@ mod tests {
         assert!(
             warnings
                 .iter()
-                .all(|w| matches!(w, TaxonWarning::CommonName { .. })),
+                .all(|w| matches!(w, LookupNotice::CommonName { .. })),
             "the only notice is the one about the source: {warnings:?}"
         );
     }

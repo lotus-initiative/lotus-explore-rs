@@ -4,7 +4,7 @@
 
 use crate::api::SearchResponse;
 use crate::features::explore::service::results_pipeline::ResultsPipelineOutcome;
-use crate::features::explore::types::TaxonWarning;
+use crate::features::explore::types::LookupNotice;
 use lotus_model::{CompoundEntry, DatasetStats};
 
 /// The raw outcome from a completed search execution.
@@ -14,7 +14,7 @@ pub struct SearchOutcome {
     /// Everything to tell the user about how this search went. Usually nothing;
     /// more than one entry when a taxon name both needed standardizing and was
     /// ambiguous, or when the endpoint had to change.
-    pub warnings: Vec<TaxonWarning>,
+    pub warnings: Vec<LookupNotice>,
     pub query: String,
     pub total_matches: Option<usize>,
     pub total_stats: Option<DatasetStats>,
@@ -42,7 +42,7 @@ impl SearchOutcome {
         let warnings = response
             .warning
             .into_iter()
-            .map(TaxonWarning::ApiMessage)
+            .map(LookupNotice::ApiMessage)
             .collect();
 
         Self {

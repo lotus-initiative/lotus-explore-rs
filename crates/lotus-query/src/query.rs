@@ -180,6 +180,15 @@ PREFIX sachem: <http://bioinfo.uochb.cas.cz/rdf/v1.0/sachem#>
 PREFIX idsm:   <https://idsm.elixir-czech.cz/sparql/endpoint/>
 ";
 
+/// The base prefixes plus `skos`, for the alias lookup.
+const PREFIXES_WITH_SKOS: &str = "\
+PREFIX xsd:    <http://www.w3.org/2001/XMLSchema#>
+PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX wd:     <http://www.wikidata.org/entity/>
+PREFIX wdt:    <http://www.wikidata.org/prop/direct/>
+PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
+";
+
 /// The result columns. QIDs are projected as integers so that the CSV they come
 /// back in is already the bare `Q…` form the parsers expect.
 #[must_use]
@@ -253,7 +262,7 @@ const SUBSCRIPTS: [(char, char); 10] = [
 /// Every compound the LOTUS projection knows, across all taxa.
 #[must_use]
 pub fn all_compounds_query() -> String {
-    compounds_query(None)
+    compounds_query(None, None)
 }
 
 /// Compounds found in `taxon_qid` and its descendants (`P171*`), following
@@ -274,13 +283,74 @@ pub fn compounds_by_taxon_query(taxon_qid: &str) -> String {
 /// [`Nomenclature`]: crate::Nomenclature
 #[must_use]
 pub fn compounds_by_taxon_query_with(taxon_qid: &str, nomenclature: &Nomenclature) -> String {
-    compounds_query(Some((taxon_qid, nomenclature)))
+    compounds_query(None, Some((taxon_qid, nomenclature)))
 }
 
-fn compounds_query(taxon_qid: Option<(&str, &Nomenclature)>) -> String {
+/// One compound, by identity, with its occurrences.
+///
+/// This is what [`SmilesSearchType::Exact`] is built on, and the reason it is a
+/// separate builder is that it does not call the structure service at all.
+/// Everything the structure field holds is resolved to a Wikidata compound first,
+/// and once it is, "this compound" is an identity question that Wikidata answers
+/// with an index scan. Substructure and similarity both have to load a structure
+/// index and score every candidate in it, which is a different order of magnitude
+/// for a question whose answer is one row.
+///
+/// The occurrence triples stay `OPTIONAL`, for the same reason they do in the
+/// taxon-less structure search: a compound with no occurrence data is precisely
+/// the compound someone is looking for when they search by name, and requiring
+/// one would hide it.
+#[must_use]
+pub fn exact_compound_query(
+    compound_qid: &str,
+    taxon_qid: Option<(&str, &Nomenclature)>,
+) -> String {
+    compounds_query(Some(compound_qid), taxon_qid)
+}
+
+/// Both seeds are optional and neither implies the other: a query with a
+/// compound seed asks for that compound, and one with a taxon seed asks for
+/// everything in that taxon. A structure search has the second; an exact search
+/// has the first.
+fn compounds_query(
+    compound_seed: Option<&str>,
+    taxon_qid: Option<(&str, &Nomenclature)>,
+) -> String {
     let ancestry = taxon_qid.map_or_else(String::new, |(qid, nomenclature)| {
         format!("\n          {}", taxon_ancestry_pattern(qid, *nomenclature))
     });
+
+    let core = compound_seed.map_or_else(
+        || {
+            // Every taxon-less row is an occurrence: this query is about what was
+            // reported where.
+            format!(
+                "?c wdt:P235 ?compound_inchikey ;\
+             wdt:P233 ?compound_smiles_conn .\
+          ?c p:P703 ?statement .\
+          ?statement ps:P703 ?t ;\
+                     prov:wasDerivedFrom ?ref .\
+          ?ref pr:P248 ?r .\
+          ?t wdt:P225 ?taxon_name .{ancestry}"
+            )
+        },
+        |qid| {
+            // The occurrence triple becomes optional here, because a compound
+            // with no occurrence data is exactly what a name search is looking
+            // for. See the doc comment on `exact_compound_query`.
+            format!(
+                "VALUES ?c {{ wd:{} }}
+          OPTIONAL {{
+            ?c p:P703 ?statement .\
+            ?statement ps:P703 ?t ;\
+                       prov:wasDerivedFrom ?ref .\
+            ?ref pr:P248 ?r .\
+            ?t wdt:P225 ?taxon_name .{ancestry}
+          }}",
+                escape_sparql_string(qid)
+            )
+        },
+    );
 
     format!(
         "{PREFIXES}
@@ -293,13 +363,7 @@ WHERE {{
       {{
         SELECT {CORE_VARS}
         WHERE {{
-          ?c wdt:P235 ?compound_inchikey ;
-             wdt:P233 ?compound_smiles_conn .
-          ?c p:P703 ?statement .
-          ?statement ps:P703 ?t ;
-                     prov:wasDerivedFrom ?ref .
-          ?ref pr:P248 ?r .
-          ?t wdt:P225 ?taxon_name .{ancestry}
+          {core}
         }}
       }}
       {REFERENCE_METADATA}
@@ -459,7 +523,202 @@ WHERE {{
     )
 }
 
+/// Language tags a compound's name is looked up under.
+///
+/// A `rdfs:label` or `skos:altLabel` is language-tagged, so matching one means
+/// matching the tag too -- see [`compound_label_query`] for why that cannot be
+/// worked around. This is therefore a list rather than a wildcard, and it is a
+/// deliberate trade: these are the languages a chemical name is most likely to
+/// be typed in, and a name in one of the remaining ~280 will not resolve.
+///
+/// Ordered roughly by how much chemistry is published in each, so truncating the
+/// list costs the least.
+const COMPOUND_NAME_LANGUAGES: [&str; 15] = [
+    "en", "de", "fr", "es", "nl", "it", "pt", "sv", "pl", "ru", "tr", "ja", "zh", "la", "cs",
+];
+
+/// The `VALUES` rows for `name` under every `COMPOUND_NAME_LANGUAGES` tag.
+fn tagged_name_values(name: &str) -> String {
+    let escaped = escape_sparql_string(name);
+    let rows = COMPOUND_NAME_LANGUAGES
+        .iter()
+        .map(|tag| format!("\"{escaped}\"@{tag}"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    format!("VALUES ?name {{ {rows} }}")
+}
+
+/// Resolve a structure to the Wikidata compound it is.
+///
+/// The one lookup the structure service answers, and it is asked the narrowest
+/// question that has an answer: *is this structure a compound Wikidata has?* The
+/// cutoff is 1.0, so it only comes back for a structure that matches an indexed
+/// compound exactly.
+///
+/// This runs for every structure input, including in an exact search, because the
+/// exact route needs a QID and a structure is not one. It is still much cheaper
+/// than the searches it precedes: the service is asked to identify one structure
+/// rather than to rank an index, and the query that follows is an index scan on a
+/// single QID rather than a scan of every candidate compound.
+///
+/// A miss is not an error here, unlike the other three lookups. A SMILES that
+/// Wikidata does not have is a perfectly good structure — it is simply not a
+/// compound in the database, and the search carries on with the reader's own
+/// structure. That is the asymmetry with a name: a name that matches nothing is a
+/// claim about a compound that does not exist, and a structure is not a claim at
+/// all.
+///
+/// `LIMIT` is there because a structure can match more than one compound at 1.0 —
+/// stereoisomers and salts of the same thing. The cap keeps the resolution cheap;
+/// the caller reports the extras as an ambiguity rather than hiding them.
+#[must_use]
+pub fn structure_compound_lookup_query(structure: &str) -> String {
+    format!(
+        "{PREFIXES_WITH_STRUCTURE}
+SELECT DISTINCT (xsd:integer(STRAFTER(STR(?compound), \"Q\")) AS ?compound_qid) ?compound_label ?canonical_smiles ?matched_by
+WHERE {{
+  SERVICE idsm:wikidata {{
+    ?compound sachem:similarCompoundSearch [
+      sachem:query {literal};
+      sachem:cutoff \"1\"^^xsd:double
+    ].
+  }}
+  OPTIONAL {{ ?compound rdfs:label ?compound_label . FILTER(LANG(?compound_label) = \"en\") }}
+  OPTIONAL {{ ?compound wdt:P233 ?canonical_smiles . }}
+  BIND(\"structure\" AS ?matched_by)
+}}
+LIMIT {STRUCTURE_LOOKUP_LIMIT}",
+        literal = escape_structure_literal(structure),
+    )
+}
+
+/// How many compounds one structure resolution may report.
+const STRUCTURE_LOOKUP_LIMIT: usize = 5;
+
+/// Look a compound up by the QID the reader typed.
+///
+/// A QID is already an identifier, so this is the cheapest of the four lookups: a
+/// `VALUES` and an optional label, with no matching anywhere. It runs anyway,
+/// for one reason — a mistyped QID otherwise produces an identity query that
+/// matches nothing and returns an empty table, which reads as "this compound has
+/// no results" rather than "that is not a compound". Confirming the item exists
+/// turns one of those into the other, with the input quoted back.
+///
+/// The same shape as the other three, so all four return the same columns and the
+/// parser reads them the same way.
+///
+/// A lowercase `q` is accepted, the way the taxon field accepts one: a reader who
+/// types `q18216` means Q18216.
+#[must_use]
+pub fn compound_by_qid_query(qid: &str) -> String {
+    let qid = qid.trim();
+    let uppercase = qid.to_ascii_uppercase();
+    format!(
+        "{PREFIXES}
+SELECT (xsd:integer(STRAFTER(STR(?compound), \"Q\")) AS ?compound_qid) ?compound_label ?canonical_smiles ?matched_by
+WHERE {{
+  VALUES ?compound {{ wd:{uppercase} }}
+  OPTIONAL {{ ?compound rdfs:label ?compound_label . FILTER(LANG(?compound_label) = \"en\") }}
+  OPTIONAL {{ ?compound wdt:P233 ?canonical_smiles . }}
+  BIND(\"qid\" AS ?matched_by)
+}}"
+    )
+}
+
+/// Look a compound up by `InChIKey` (`P235`).
+///
+/// The one unambiguous identifier route: an `InChIKey`'s shape is fixed by the
+/// standard, so there is no question of a structure string being mistaken for a
+/// name. And it is the easiest of the three name-ish lookups by a wide margin —
+/// one indexed equality on a value that is unique in practice, against a name
+/// lookup's `VALUES` over fifteen language tags with a fallback query behind it.
+///
+/// `P233` (canonical SMILES) comes back alongside. An exact search of the result
+/// does not need it, but a substructure or similarity search does: those ask
+/// about *other* compounds, and this is the structure they have to go to the
+/// service with.
+///
+/// Indexed and cheap: measured at ~0.2s on `QLever`.
+#[must_use]
+pub fn compound_inchikey_query(inchikey: &str) -> String {
+    format!(
+        "{PREFIXES}
+SELECT (xsd:integer(STRAFTER(STR(?compound), \"Q\")) AS ?compound_qid) ?compound_label ?canonical_smiles ?matched_by
+WHERE {{
+  VALUES ?name {{ \"{}\" }}
+  ?compound wdt:P235 ?name .
+  OPTIONAL {{ ?compound rdfs:label ?compound_label . FILTER(LANG(?compound_label) = \"en\") }}
+  OPTIONAL {{ ?compound wdt:P233 ?canonical_smiles . }}
+  BIND(\"inchikey\" AS ?matched_by)
+}}",
+        escape_sparql_string(inchikey)
+    )
+}
+
+/// Look a compound up by its label (`rdfs:label`).
+///
+/// The shape is forced by measurement. Three ways to match a language-tagged
+/// literal were tried against the live endpoint:
+///
+/// - `FILTER(LCASE(STR(?label)) = ...)` — a scan of 17.9M labels. **Times out.**
+/// - `?label ql:contains-word "..."` — accepted by `QLever`, but the text index is
+///   not loaded on this endpoint, so it silently returns nothing.
+/// - `VALUES ?name { "aspirin"@en ... }` — index-served, **~0.15s**. This one.
+///
+/// So the language tag has to be enumerated rather than discarded, which is why
+/// `COMPOUND_NAME_LANGUAGES` exists.
+///
+/// `?compound_qid` is projected as an integer so the CSV carries a bare `Q…`,
+/// and `STRSTARTS` keeps lexemes out: `?compound rdfs:label "aspirin"@en` also
+/// matches three senses of the English lexeme, which are not compounds.
+#[must_use]
+pub fn compound_label_query(name: &str) -> String {
+    format!(
+        "{PREFIXES}
+SELECT (xsd:integer(STRAFTER(STR(?compound), \"Q\")) AS ?compound_qid) ?compound_label ?canonical_smiles ?matched_by
+WHERE {{
+  {values}
+  ?compound rdfs:label ?name .
+  FILTER(STRSTARTS(STR(?compound), \"http://www.wikidata.org/entity/Q\"))
+  OPTIONAL {{ ?compound rdfs:label ?compound_label . FILTER(LANG(?compound_label) = \"en\") }}
+  OPTIONAL {{ ?compound wdt:P233 ?canonical_smiles . }}
+  BIND(\"label\" AS ?matched_by)
+}}",
+        values = tagged_name_values(name),
+    )
+}
+
+/// Look a compound up by alias (`skos:altLabel`), on the terms of
+/// [`compound_label_query`].
+///
+/// A separate query rather than a `UNION` with the label one, and the reason is
+/// measured rather than stylistic: `QLever` will not push a `VALUES` down into both
+/// arms of a union, so it scans each property instead. `label UNION altLabel`
+/// **times out** where each alone answers in under a quarter of a second.
+#[must_use]
+pub fn compound_alias_query(name: &str) -> String {
+    format!(
+        "{PREFIXES_WITH_SKOS}
+SELECT (xsd:integer(STRAFTER(STR(?compound), \"Q\")) AS ?compound_qid) ?compound_label ?canonical_smiles ?matched_by
+WHERE {{
+  {values}
+  ?compound skos:altLabel ?name .
+  FILTER(STRSTARTS(STR(?compound), \"http://www.wikidata.org/entity/Q\"))
+  OPTIONAL {{ ?compound rdfs:label ?compound_label . FILTER(LANG(?compound_label) = \"en\") }}
+  OPTIONAL {{ ?compound wdt:P233 ?canonical_smiles . }}
+  BIND(\"alias\" AS ?matched_by)
+}}",
+        values = tagged_name_values(name),
+    )
+}
+
 /// A structure search through the IDSM/Sachem service.
+///
+/// This is the route for [`SmilesSearchType::Substructure`] and
+/// [`SmilesSearchType::Similarity`], and — for input that resolved to no compound
+/// at all — for [`SmilesSearchType::Exact`] too. Exact has its own builder,
+/// [`exact_compound_query`], which is cheaper and is used whenever a QID is
+/// available.
 ///
 /// Without `taxon_qid` the occurrence triple is optional, so a compound with
 /// no occurrence data is still returned — structure search is how such
@@ -498,12 +757,22 @@ pub fn structure_search_query_with(
     let literal = escape_structure_literal(structure);
     let is_multiline = literal.starts_with("'''");
 
+    // A structure only reaches this function when it did *not* resolve to a
+    // Wikidata compound; an input that named one is answered by
+    // `exact_compound_query` without a service at all. Nothing that reaches here
+    // has an identity to search for, so the substructure service is the only thing
+    // that can answer. Documented rather than silent: see
+    // `docs/STRUCTURE-SEARCH.md`.
     let service = match search {
-        SmilesSearchType::Similarity => format!(
+        // `Exact` is answered by `exact_compound_query` before it gets here. It
+        // reaches this function only when the input named nothing, so the closest
+        // answer the service can give is the same molecule: an identical
+        // fingerprint, which is a similarity search at a cutoff of 1.
+        SmilesSearchType::Exact => format!(
             "SERVICE idsm:wikidata {{
     ?c sachem:similarCompoundSearch [
       sachem:query {literal};
-      sachem:cutoff \"{threshold}\"^^xsd:double
+      sachem:cutoff \"1\"^^xsd:double
     ].
   }}"
         ),
@@ -524,6 +793,14 @@ pub fn structure_search_query_with(
       ].
   }}"
         ),
+        SmilesSearchType::Similarity => format!(
+            "SERVICE idsm:wikidata {{
+    ?c sachem:similarCompoundSearch [
+      sachem:query {literal};
+      sachem:cutoff \"{threshold}\"^^xsd:double
+    ].
+  }}"
+        ),
         SmilesSearchType::Substructure => format!(
             "SERVICE idsm:wikidata {{
     ?c sachem:substructureSearch [
@@ -533,7 +810,7 @@ pub fn structure_search_query_with(
         ),
     };
 
-    // With a taxon, the service runs in its own subquery so that QLever can
+    // With a taxon, the service runs in its own subquery so that `QLever` can
     // pre-filter before enriching, and the occurrence triple is *required* —
     // a match outside the requested taxon should not come back.
     //

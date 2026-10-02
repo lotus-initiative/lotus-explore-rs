@@ -3,17 +3,17 @@
 //! User-facing formatting for domain errors and warnings.
 
 use crate::features::explore::{
-    DomainError, ErrorKind, ParseFault, QueryStage, TaxonWarning, ValidationFault,
+    DomainError, ErrorKind, LookupNotice, ParseFault, QueryStage, ValidationFault,
 };
 #[cfg(target_arch = "wasm32")]
 use crate::i18n::error_hint_memory;
 use crate::i18n::{
-    Locale, TextKey, err_api_not_configured, err_element_count_too_high, err_invalid_search_input,
-    err_mass_out_of_range, err_mass_range_invalid, err_query_stage_failed,
-    err_similarity_threshold_invalid, err_structure_too_long, err_taxon_not_found,
-    err_taxon_parse_failed, err_taxon_too_long, err_unsupported_format, err_year_out_of_range,
-    err_year_range_invalid, t, warn_ambiguous_taxon, warn_input_standardized,
-    warn_taxon_common_name, warn_wdqs_fallback,
+    Locale, TextKey, err_api_not_configured, err_compound_not_found, err_element_count_too_high,
+    err_invalid_search_input, err_mass_out_of_range, err_mass_range_invalid,
+    err_query_stage_failed, err_similarity_threshold_invalid, err_structure_too_long,
+    err_taxon_not_found, err_taxon_parse_failed, err_taxon_too_long, err_unsupported_format,
+    err_year_out_of_range, err_year_range_invalid, t, warn_ambiguous_taxon, warn_compound_resolved,
+    warn_input_standardized, warn_taxon_common_name, warn_wdqs_fallback,
 };
 use crate::repositories::RepositoryError;
 
@@ -33,30 +33,34 @@ pub fn format_domain_error(locale: Locale, err: &DomainError) -> String {
 /// differently from `Bacteria` and ambiguous, and both are true. Returning a
 /// single string is what made one of them disappear, depending on which code
 /// path produced it.
-pub fn format_taxon_warnings(locale: Locale, warnings: &[TaxonWarning]) -> Vec<String> {
+pub fn format_taxon_warnings(locale: Locale, warnings: &[LookupNotice]) -> Vec<String> {
     warnings
         .iter()
         .map(|w| format_taxon_warning(locale, w))
         .collect()
 }
 
-fn format_taxon_warning(locale: Locale, warning: &TaxonWarning) -> String {
+fn format_taxon_warning(locale: Locale, warning: &LookupNotice) -> String {
     match warning {
-        TaxonWarning::Standardized {
+        LookupNotice::Standardized {
             original,
             standardized,
         } => warn_input_standardized(locale, original, standardized),
-        TaxonWarning::CommonName {
+        LookupNotice::CommonName {
             chosen_name,
             chosen_qid,
         } => warn_taxon_common_name(locale, chosen_name, chosen_qid),
-        TaxonWarning::Ambiguous {
+        LookupNotice::CompoundResolved {
+            chosen_label,
+            chosen_qid,
+        } => warn_compound_resolved(locale, chosen_label, chosen_qid),
+        LookupNotice::Ambiguous {
             chosen_name,
             chosen_qid,
             candidates,
         } => warn_ambiguous_taxon(locale, chosen_name, chosen_qid, &candidates.join(", ")),
-        TaxonWarning::ApiMessage(msg) => msg.clone(),
-        TaxonWarning::WdqsFallback => warn_wdqs_fallback(locale),
+        LookupNotice::ApiMessage(msg) => msg.clone(),
+        LookupNotice::WdqsFallback => warn_wdqs_fallback(locale),
     }
 }
 
@@ -155,6 +159,7 @@ fn format_validation_fault(locale: Locale, fault: &ValidationFault) -> String {
         ValidationFault::YearRangeInvalid => err_year_range_invalid(locale),
         ValidationFault::ElementCountTooHigh => err_element_count_too_high(locale),
         ValidationFault::SimilarityThresholdInvalid => err_similarity_threshold_invalid(locale),
+        ValidationFault::CompoundNotFound { input } => err_compound_not_found(locale, input),
         ValidationFault::TaxonNotFound { input } => err_taxon_not_found(locale, input),
         ValidationFault::UnsupportedFormat { format } => err_unsupported_format(locale, format),
     }
@@ -162,14 +167,16 @@ fn format_validation_fault(locale: Locale, fault: &ValidationFault) -> String {
 
 fn format_parse_fault(locale: Locale, fault: &ParseFault) -> String {
     match fault {
+        ParseFault::CompoundCsv { details } | ParseFault::TaxonPick { details } => {
+            err_query_stage_failed(
+                locale,
+                stage_display_label(locale, QueryStage::TaxonSearch),
+                &compact_error_text(details),
+            )
+        }
         ParseFault::TaxonCsv { details } => {
             err_taxon_parse_failed(locale, &compact_error_text(details))
         }
-        ParseFault::TaxonPick { details } => err_query_stage_failed(
-            locale,
-            stage_display_label(locale, QueryStage::TaxonSearch),
-            &compact_error_text(details),
-        ),
         ParseFault::ResultsCsv { details } => err_query_stage_failed(
             locale,
             stage_display_label(locale, QueryStage::ResultsQuery),
@@ -183,18 +190,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn both_taxon_notices_are_formatted_and_neither_is_dropped() {
+    fn both_lookup_notices_are_formatted_and_neither_is_dropped() {
         // `bacteria` is two true things at once: spelled differently from the
         // name it matched, and matched by more than one taxon. Formatting takes
         // a list precisely so neither can be the one that gets lost.
         let lines = format_taxon_warnings(
             Locale::En,
             &[
-                TaxonWarning::Standardized {
+                LookupNotice::Standardized {
                     original: "bacteria".into(),
                     standardized: "Bacteria".into(),
                 },
-                TaxonWarning::Ambiguous {
+                LookupNotice::Ambiguous {
                     chosen_name: "Bacteria".into(),
                     chosen_qid: "Q10876".into(),
                     candidates: vec!["Bacteria (Q10876)".into(), "Bacteria (Q4034791)".into()],
@@ -215,7 +222,7 @@ mod tests {
     }
 
     #[test]
-    fn no_taxon_notices_formats_to_no_lines() {
+    fn no_lookup_notices_formats_to_no_lines() {
         assert_eq!(format_taxon_warnings(Locale::En, &[]).len(), 0);
     }
 

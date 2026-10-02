@@ -114,10 +114,11 @@ async fn a_lone_q_is_a_search_term_not_an_identifier() {
 }
 
 #[tokio::test]
-async fn a_molfile_asked_for_as_similarity_is_run_as_a_substructure_search() {
-    // The similarity service cannot take a multi-line literal, so a molfile
-    // with a similarity threshold is downgraded. The web app had this guard and
-    // the API did not, which is why it lives here now.
+async fn a_molfile_asked_for_as_similarity_runs_as_a_similarity_search() {
+    // The mode asked for is the mode run. This used to downgrade a molfile to
+    // substructure on the belief that the similarity service could not take a
+    // multi-line literal; measured against the live endpoint it accepts a CTAB
+    // and answers a cutoff search, so the downgrade only hid the reader's choice.
     let http = Scripted::new(vec![(200, ROWS_CSV), (200, COUNTS_CSV)]);
     let request = SearchRequest::new(
         SearchCriteria {
@@ -131,10 +132,33 @@ async fn a_molfile_asked_for_as_similarity_is_run_as_a_substructure_search() {
     let result = search(&http, &request).await.expect("the search succeeds");
 
     assert!(
-        result.query.contains("sachem:scoredSubstructureSearch"),
-        "a molfile runs as a substructure search"
+        result.query.contains("sachem:similarCompoundSearch"),
+        "a molfile runs as the similarity search that was asked for: {}",
+        result.query
     );
-    assert!(!result.query.contains("sachem:similarCompoundSearch"));
+    assert!(result.query.contains("sachem:cutoff"));
+    assert!(!result.query.contains("sachem:scoredSubstructureSearch"));
+}
+
+#[tokio::test]
+async fn a_molfile_asked_for_as_substructure_still_runs_as_one() {
+    let http = Scripted::new(vec![(200, ROWS_CSV), (200, COUNTS_CSV)]);
+    let request = SearchRequest::new(
+        SearchCriteria {
+            structure: MOLFILE.into(),
+            structure_search: lotus_search::SmilesSearchType::Substructure,
+            ..criteria("")
+        },
+        NOW,
+    );
+
+    let result = search(&http, &request).await.expect("the search succeeds");
+
+    assert!(
+        result.query.contains("sachem:scoredSubstructureSearch"),
+        "a multi-line CTAB needs the scoring substructure service: {}",
+        result.query
+    );
     assert!(!result.query.contains("sachem:cutoff"));
 }
 

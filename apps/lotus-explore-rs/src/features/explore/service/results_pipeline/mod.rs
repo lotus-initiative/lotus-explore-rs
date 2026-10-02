@@ -16,7 +16,7 @@ mod plan;
 
 use crate::features::explore::request::SearchRequest;
 use crate::features::explore::search_metrics::SearchMetrics;
-use crate::features::explore::types::{DomainError, QueryPhase, TaxonWarning};
+use crate::features::explore::types::{DomainError, LookupNotice, QueryPhase};
 use crate::repositories::LotusRepository;
 use crate::table_budget::runtime_table_row_limit;
 use lotus_model::{CompoundEntry, DatasetStats};
@@ -25,7 +25,7 @@ use lotus_model::{CompoundEntry, DatasetStats};
 pub struct ResultsPipelineOutcome {
     pub rows: Vec<CompoundEntry>,
     pub qid: Option<String>,
-    pub warnings: Vec<TaxonWarning>,
+    pub warnings: Vec<LookupNotice>,
     pub query: String,
     pub total_matches: Option<usize>,
     pub total_stats: Option<DatasetStats>,

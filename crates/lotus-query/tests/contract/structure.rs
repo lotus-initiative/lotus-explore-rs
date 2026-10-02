@@ -15,7 +15,8 @@
 )]
 use lotus_model::SmilesSearchType;
 use lotus_query::{
-    Nomenclature, escape_structure_literal, structure_search_query, structure_search_query_with,
+    Nomenclature, all_compounds_query, compounds_by_taxon_query, escape_structure_literal,
+    exact_compound_query, structure_search_query, structure_search_query_with,
 };
 
 #[test]
@@ -130,4 +131,67 @@ fn a_single_line_smiles_substructure_search_uses_the_cheap_service() {
         molfile.contains("scoredSubstructureSearch"),
         "a molfile substructure search needs the scored path"
     );
+}
+
+// ── Exact: the query that does not call the structure service ────────────────
+
+#[test]
+fn a_compound_query_never_touches_the_structure_service() {
+    // The whole point of the identity path. Substructure and similarity both have
+    // to load a substructure index and score every candidate in it; an identity
+    // question is an index scan for one item.
+    let query = exact_compound_query("Q18216", None);
+    assert!(
+        !query.contains("SERVICE"),
+        "exact must not call IDSM:\n{query}"
+    );
+    assert!(
+        !query.contains("sachem"),
+        "exact must not call IDSM:\n{query}"
+    );
+}
+
+#[test]
+fn a_compound_identity_query_seeds_on_the_compound_it_was_given() {
+    let query = exact_compound_query("Q18216", None);
+    assert!(query.contains("VALUES ?c { wd:Q18216 }"), "{query}");
+    assert!(
+        !query.contains("wdt:P235 ?compound_inchikey ;"),
+        "the seed replaces the index scan, it does not join it:\n{query}"
+    );
+}
+
+#[test]
+fn a_compound_identity_query_keeps_occurrences_optional() {
+    // A compound with no occurrence data is exactly what a name search is
+    // looking for, so requiring one would hide the thing that was asked for.
+    let query = exact_compound_query("Q18216", None);
+    assert!(query.contains("OPTIONAL {"), "{query}");
+    assert!(
+        !query.contains("?c p:P703 ?statement .\n          ?statement ps:P703"),
+        "the occurrence triple must not be required:\n{query}"
+    );
+}
+
+#[test]
+fn a_compound_identity_query_inside_a_taxon_still_follows_the_nomenclature() {
+    let query = exact_compound_query("Q18216", Some(("Q156598", &Nomenclature::ALL_ON)));
+    assert!(query.contains("VALUES ?c { wd:Q18216 }"));
+    assert!(query.contains("wdt:P225 ?taxon_name"));
+    assert!(
+        query.contains("VALUES ?seed { wd:Q156598 }"),
+        "the taxon's closure is still expanded:\n{query}"
+    );
+}
+
+#[test]
+fn the_taxon_and_all_compounds_queries_are_unchanged_by_the_exact_seed() {
+    // The compound seed is an addition, not a rewrite: with none of them the two
+    // queries are byte-for-byte what they were.
+    let all = all_compounds_query();
+    assert!(all.contains("?c wdt:P235 ?compound_inchikey ;"));
+    assert!(all.contains("?c p:P703 ?statement ."));
+    assert!(all.contains("?t wdt:P225 ?taxon_name"));
+    let by_taxon = compounds_by_taxon_query("Q156598");
+    assert!(by_taxon.contains("VALUES ?seed { wd:Q156598 }"));
 }

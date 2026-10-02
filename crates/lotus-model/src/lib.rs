@@ -13,8 +13,12 @@ mod validate;
 pub use criteria::{SearchCriteria, TaxonNomenclature};
 pub use entry::{CompoundEntry, Rows, TaxonMatch, TaxonNameSource};
 pub use identify::{non_empty, normalize_doi, normalize_qid};
-pub use stats::{DatasetStats, ElementState, SmilesSearchType};
-pub use structure::{StructureKind, classify_structure};
+pub use stats::{DEFAULT_STRUCTURE_THRESHOLD, DatasetStats, ElementState, SmilesSearchType};
+pub use structure::{
+    InputKind, STRUCTURE_INPUT_EXAMPLES, StructureKind, classify_structure,
+    classify_structure_input, could_be_a_compound_name, looks_like_a_compound_qid,
+    looks_like_inchikey, names_a_compound,
+};
 pub use validate::{ValidationError, validate_criteria};
 
 /// Base URI for Wikidata entities (`Q123` → `<BASE>Q123`).

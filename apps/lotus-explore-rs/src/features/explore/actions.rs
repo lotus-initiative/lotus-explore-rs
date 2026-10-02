@@ -4,7 +4,7 @@
 
 use crate::export::SparqlEndpoint;
 use crate::features::explore::command::SearchCommand;
-use crate::features::explore::types::{DomainError, QueryPhase, TaxonWarning};
+use crate::features::explore::types::{DomainError, LookupNotice, QueryPhase};
 use crate::sort::SortColumn;
 use lotus_model::{CompoundEntry, DatasetStats, SearchCriteria};
 use std::sync::Arc;
@@ -27,7 +27,7 @@ pub enum ExploreAction {
         qid: Option<String>,
         /// Structured notices about how this search went; formatted at render
         /// time. Empty in the common case.
-        warnings: Vec<TaxonWarning>,
+        warnings: Vec<LookupNotice>,
         query: String,
         total_matches: Option<usize>,
         total_stats: Option<DatasetStats>,

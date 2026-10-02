@@ -375,6 +375,63 @@ fn taxon_name_source(token: &str) -> TaxonNameSource {
     }
 }
 
+/// One compound a structure lookup matched.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompoundMatch {
+    /// Wikidata QID.
+    pub qid: String,
+    /// The English label, when the item has one, for the notice and the
+    /// ambiguity list. May be empty: a compound with no English label is still
+    /// a legitimate match.
+    pub label: String,
+    /// `P233`, the canonical SMILES, when the item has one.
+    ///
+    /// This is what the structure service is handed when the reader asks for a
+    /// substructure or a similarity search on an input that named a compound: the
+    /// compound's own structure, not whatever the reader typed. Empty means the
+    /// item has no canonical SMILES, and the reader's own input is used instead.
+    pub canonical_smiles: String,
+}
+
+/// Parse compound-lookup rows, dropping any that has no QID.
+///
+/// # Errors
+/// Returns [`ParseError`] if the payload cannot be read as CSV.
+pub fn parse_compound_lookup_csv(bytes: &[u8]) -> Result<Vec<CompoundMatch>, ParseError> {
+    let mut reader = csv::ReaderBuilder::new()
+        .has_headers(true)
+        .flexible(true)
+        .from_reader(bytes);
+
+    let headers = reader.headers().map_err(ParseError::new)?.clone();
+    let qid_at = headers.iter().position(|h| h == "compound_qid");
+    let label_at = headers.iter().position(|h| h == "compound_label");
+    let smiles_at = headers.iter().position(|h| h == "canonical_smiles");
+
+    let mut matches = Vec::new();
+    for record in reader.records() {
+        let record = record.map_err(ParseError::new)?;
+        let qid = normalize_qid(&text_field(&record, qid_at));
+        if qid.is_empty() {
+            continue;
+        }
+        matches.push(CompoundMatch {
+            qid,
+            label: text_field(&record, label_at),
+            canonical_smiles: text_field(&record, smiles_at),
+        });
+    }
+    Ok(matches)
+}
+
+fn text_field(record: &csv::StringRecord, at: Option<usize>) -> String {
+    record
+        .get(at.unwrap_or(usize::MAX))
+        .unwrap_or("")
+        .trim()
+        .to_owned()
+}
+
 fn field(record: &csv::ByteRecord, at: Option<usize>) -> &str {
     at.and_then(|i| record.get(i))
         .and_then(|b| std::str::from_utf8(b).ok())

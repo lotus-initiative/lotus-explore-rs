@@ -75,7 +75,11 @@ pub struct SearchRequest {
     pub(crate) taxon_replacements: Option<bool>,
     pub(crate) smiles: Option<String>,
     pub(crate) smiles_search_type: Option<ApiSmilesSearchType>,
-    pub(crate) smiles_threshold: Option<f64>,
+    /// Tanimoto cutoff for a similarity structure search. Read under the name it
+    /// now has; the old `smiles_threshold` is still accepted, because links
+    /// naming it are already in people's clipboard histories.
+    #[serde(alias = "smiles_threshold")]
+    pub(crate) similarity_threshold: Option<f64>,
     pub(crate) mass_min: Option<f64>,
     pub(crate) mass_max: Option<f64>,
     pub(crate) year_min: Option<u16>,

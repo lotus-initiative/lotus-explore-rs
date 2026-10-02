@@ -4,7 +4,7 @@
 
 use super::element_max;
 use super::{MASS_MAX, YEAR_MIN};
-use crate::stats::{ElementState, SmilesSearchType};
+use crate::stats::{DEFAULT_STRUCTURE_THRESHOLD, ElementState, SmilesSearchType};
 
 /// Every filter the explorer can apply.
 ///
@@ -32,7 +32,7 @@ pub struct SearchCriteria {
     pub taxon_names: TaxonNomenclature,
     /// SMILES or an MDL molfile (V2000/V3000).
     pub structure: String,
-    /// How `structure` is matched. [`SmilesSearchType::Substructure`] unless set.
+    /// How `structure` is matched. [`SmilesSearchType::Similarity`] unless set.
     pub structure_search: SmilesSearchType,
     /// Tanimoto cutoff in 0.0..=1.0, used only for similarity search.
     pub structure_threshold: f64,
@@ -216,8 +216,8 @@ impl SearchCriteria {
             taxon: String::new(),
             taxon_names: TaxonNomenclature::ALL_ON,
             structure: String::new(),
-            structure_search: SmilesSearchType::Substructure,
-            structure_threshold: 0.8,
+            structure_search: SmilesSearchType::Exact,
+            structure_threshold: DEFAULT_STRUCTURE_THRESHOLD,
             mass_min: 0.0,
             mass_max: MASS_MAX,
             year_min: YEAR_MIN,

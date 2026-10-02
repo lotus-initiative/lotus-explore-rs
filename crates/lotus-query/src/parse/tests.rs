@@ -157,6 +157,115 @@ fn an_empty_payload_is_an_empty_result_not_an_error() {
     );
 }
 
+// ── The taxon and compound lookup readers ─────────────────────────────────
+//
+// Both read a small result set whose columns are named, not positional, and
+// both are looked up by name so that a query gaining or reordering a projection
+// does not silently shift every field. These fixtures put the wanted columns
+// somewhere other than first on purpose: a reader that took the first column it
+// recognised, or the wrong one of several, would still produce rows here and only
+// the values would be wrong.
+
+#[test]
+fn a_taxon_row_carries_which_property_answered() {
+    // The notice about a common name is only worth showing when the endpoint
+    // actually said so, so the token has to survive parsing rather than being
+    // normalised away into "scientific".
+    let bytes = b"taxon,taxon_name,matched_by\nQ1,bitterwort,common\n";
+    let matches = parse_taxon_csv(bytes).expect("valid CSV");
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].source, TaxonNameSource::Common);
+}
+
+#[test]
+fn a_taxon_row_without_the_token_is_a_scientific_name() {
+    // The query binds the token, so a row without one is an older or hand-made
+    // fixture. Scientific is the safe reading: it is the claim that needs no
+    // caveat.
+    let bytes = b"taxon,taxon_name\nQ1,Gentiana lutea\n";
+    let matches = parse_taxon_csv(bytes).expect("valid CSV");
+    assert_eq!(matches[0].source, TaxonNameSource::Scientific);
+}
+
+#[test]
+fn an_unrecognised_token_is_a_scientific_name() {
+    let bytes = b"taxon,taxon_name,matched_by\nQ1,x,vernacular\n";
+    let matches = parse_taxon_csv(bytes).expect("valid CSV");
+    assert_eq!(
+        matches[0].source,
+        TaxonNameSource::Scientific,
+        "only the one token the query binds may claim a common name"
+    );
+}
+
+#[test]
+fn taxon_columns_are_found_by_name_and_not_by_position() {
+    // `taxon_name` is second and `taxon` third, so a positional reader would
+    // swap them and report the wrong name against the wrong item.
+    let bytes = b"taxon_name,matched_by,taxon\nGentiana lutea,scientific,Q1\n";
+    let matches = parse_taxon_csv(bytes).expect("valid CSV");
+    assert_eq!(matches[0].qid, "Q1");
+    assert_eq!(matches[0].name, "Gentiana lutea");
+}
+
+#[test]
+fn a_compound_lookup_row_carries_its_id_label_and_structure() {
+    // The structure is what the two IDSM modes hand to the service, so a reader
+    // that dropped it would leave a resolved compound with nothing to search.
+    let bytes =
+        b"compound_qid,compound_label,canonical_smiles\n18216,aspirin,CC(=O)OC1=CC=CC=C1C(=O)O\n";
+    let matches = parse_compound_lookup_csv(bytes).expect("valid CSV");
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].qid, "Q18216", "the bare integer regains its Q");
+    assert_eq!(matches[0].label, "aspirin");
+    assert_eq!(matches[0].canonical_smiles, "CC(=O)OC1=CC=CC=C1C(=O)O");
+}
+
+#[test]
+fn compound_lookup_columns_are_found_by_name_and_not_by_position() {
+    // Same reason as the taxon reader: three named columns, none of them first.
+    let bytes = b"canonical_smiles,compound_qid,compound_label\nCC(=O)O,18216,aspirin\n";
+    let matches = parse_compound_lookup_csv(bytes).expect("valid CSV");
+    assert_eq!(matches[0].qid, "Q18216");
+    assert_eq!(matches[0].label, "aspirin");
+    assert_eq!(matches[0].canonical_smiles, "CC(=O)O");
+}
+
+#[test]
+fn a_compound_row_with_no_id_is_not_a_match() {
+    // A row the endpoint could not project an item for. Counting it would put a
+    // compound in the candidate list that has no identity to search.
+    let bytes = b"compound_qid,compound_label,canonical_smiles\n,orphan,\nQ18216,aspirin,CC(=O)O\n";
+    let matches = parse_compound_lookup_csv(bytes).expect("valid CSV");
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].qid, "Q18216");
+}
+
+#[test]
+fn a_compound_with_no_label_or_structure_still_parses() {
+    // Both are `OPTIONAL` in the query, so both are legitimately absent. The row
+    // is still a match, and the caller falls back rather than dropping the
+    // compound.
+    let bytes = b"compound_qid,compound_label,canonical_smiles\n18216,,\n";
+    let matches = parse_compound_lookup_csv(bytes).expect("valid CSV");
+    assert_eq!(matches.len(), 1);
+    assert_eq!(matches[0].label, "");
+    assert_eq!(matches[0].canonical_smiles, "");
+}
+
+#[test]
+fn a_lookup_payload_with_none_of_the_columns_is_no_rows() {
+    // The reader is `flexible(true)` and finds each column by name, so bytes
+    // that are not a lookup result parse to nothing rather than to an error.
+    let bytes = b"something,else\n1,2\n";
+    assert_eq!(
+        parse_compound_lookup_csv(bytes).expect("valid CSV").len(),
+        0,
+        "no recognised column, so nothing to read"
+    );
+    assert_eq!(parse_taxon_csv(bytes).expect("valid CSV").len(), 0);
+}
+
 // ── The streaming reader ────────────────────────────────────────────────
 //
 // `parse_compounds_stream` is the path used for a result too large to hold

@@ -150,7 +150,7 @@ pub fn criteria_query_params(criteria: &SearchCriteria, year_max: u16) -> QueryP
         );
         if criteria.structure_search == SmilesSearchType::Similarity {
             params.insert(
-                "smiles_threshold".to_string(),
+                "similarity_threshold".to_string(),
                 format!("{:.2}", criteria.structure_threshold),
             );
         }
@@ -217,7 +217,10 @@ impl CriteriaQueryDto {
                 .or_else(|| params.get("smiles_search_type").map(String::as_str))
                 .map(parse_search_type),
             structure_threshold: parse_positive_threshold(
-                params.get("smiles_threshold").map(String::as_str),
+                params
+                    .get("similarity_threshold")
+                    .or_else(|| params.get("smiles_threshold"))
+                    .map(String::as_str),
             ),
             mass_filter: RangeF64Dto::parse_when_enabled(
                 params,
@@ -415,12 +418,10 @@ fn parse_element_state(params: &QueryParams, name: &str) -> Option<ElementState>
         .map(|value| ElementState::from_str(value).unwrap_or_default())
 }
 
+/// The model owns the spellings; a second copy here is a second answer to what
+/// `stype=fuzzy` means.
 fn parse_search_type(value: &str) -> SmilesSearchType {
-    if value.eq_ignore_ascii_case("similarity") {
-        SmilesSearchType::Similarity
-    } else {
-        SmilesSearchType::Substructure
-    }
+    SmilesSearchType::parse(value)
 }
 
 fn parse_positive_threshold(value: Option<&str>) -> Option<f64> {

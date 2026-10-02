@@ -96,15 +96,22 @@ impl SearchLifecycleCoordinator {
 }
 
 fn dispatch_error(explore: Signal<ExploreState>, error: DomainError, request: &SearchRequest) {
-    use crate::features::explore::service::build_query::build_sparql_query;
-    use crate::features::explore::service::build_query::normalize_smiles;
+    use crate::features::explore::service::build_query::{
+        ResolvedStructure, build_sparql_query, normalize_smiles,
+    };
 
-    // Try to build the query that was being attempted
-    let smiles = normalize_smiles(&request.criteria().structure);
-    let query = explore.peek().result.resolved_qid.as_deref().map_or_else(
-        || Some(build_sparql_query(&smiles, request.criteria(), None)),
-        |qid| Some(build_sparql_query(&smiles, request.criteria(), Some(qid))),
-    );
+    // Try to build the query that was being attempted. It is rebuilt from the
+    // criteria alone, so a search that resolved a name shows the unresolved
+    // shape -- which is the best that can be done without re-resolving, and is
+    // enough to point a reader at what was attempted.
+    let target = ResolvedStructure::unresolved(&normalize_smiles(&request.criteria().structure));
+    let query = explore
+        .peek()
+        .result
+        .resolved_qid
+        .as_deref()
+        .map(|qid| build_sparql_query(&target, request.criteria(), Some(qid)))
+        .or_else(|| Some(build_sparql_query(&target, request.criteria(), None)));
 
     dispatch_explore_action(explore, ExploreAction::SearchFailed { error, query });
 }

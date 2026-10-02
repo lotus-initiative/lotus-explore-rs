@@ -13,6 +13,8 @@ pub enum QueryPhase {
     Idle,
     PreparingQuery,
     ResolvingTaxon,
+    /// A name or `InChIKey` in the structure field is being looked up.
+    ResolvingStructure,
     FetchingResults,
     ProcessingResults,
     Rendering,
@@ -56,11 +58,18 @@ impl std::fmt::Display for QueryStage {
     }
 }
 
-// ── Taxon warning (structured, formatted at UI boundary) ─────────────────────
+// ── Lookup notices (structured, formatted at UI boundary) ────────────────────
 
-/// A structured warning about taxon resolution, formatted by the UI layer.
+/// Something true about how a search's free-text input resolved, formatted by
+/// the UI layer.
+///
+/// Named for the act rather than for one of the two things that resolves,
+/// because both do: the taxon field becomes a QID and the structure field
+/// becomes a Wikidata compound. They share a channel so that every fact about a
+/// search reaches the notice bar together, rather than one of them having to be
+/// dropped because there was only room for one.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum TaxonWarning {
+pub enum LookupNotice {
     /// The raw input was normalized before lookup.
     Standardized {
         original: String,
@@ -78,7 +87,24 @@ pub enum TaxonWarning {
         chosen_name: String,
         chosen_qid: String,
     },
-    /// Multiple candidates found; `chosen_*` is the one we used.
+    /// A structure field resolved to a Wikidata compound, by one of the routes
+    /// that is not an identifier.
+    ///
+    /// Named rather than reused from [`LookupNotice::CommonName`] because the
+    /// two are not the same advice: a taxon common name is a poor way to pick an
+    /// organism, while a compound's label or alias is how that compound is
+    /// actually written about, and only the structure search mode changes what
+    /// happens next.
+    CompoundResolved {
+        /// The label or alias that was typed.
+        chosen_label: String,
+        /// The compound it resolved to.
+        chosen_qid: String,
+    },
+    /// More than one candidate matched; `chosen_*` is the one that was used.
+    ///
+    /// Shared by both lookups, because ambiguity is the same event either way
+    /// and the reader's decision -- pick one, or narrow the input -- is the same.
     Ambiguous {
         chosen_name: String,
         chosen_qid: String,
@@ -114,6 +140,8 @@ pub enum ValidationFault {
     ElementCountTooHigh,
     #[error("similarity threshold must be greater than 0")]
     SimilarityThresholdInvalid,
+    #[error("compound not found: {input}")]
+    CompoundNotFound { input: String },
     #[error("taxon not found: {input}")]
     TaxonNotFound { input: String },
     #[error("unsupported download format: {format}")]
@@ -126,6 +154,8 @@ pub enum ValidationFault {
 pub enum ParseFault {
     #[error("taxon csv parse failed: {details}")]
     TaxonCsv { details: String },
+    #[error("compound csv parse failed: {details}")]
+    CompoundCsv { details: String },
     #[error("taxon candidate selection failed: {details}")]
     TaxonPick { details: String },
     #[error("results csv parse failed: {details}")]

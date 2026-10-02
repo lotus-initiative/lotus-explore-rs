@@ -6,7 +6,7 @@ use super::routes::{Route, normalize_empty_query};
 use crate::app_state::AppState;
 use crate::components::layout::footer::Footer;
 use crate::components::layout::header_meta::HeaderMetaSection;
-use crate::components::layout::notices::{ErrorNotice, ShareNotice, TaxonNotice};
+use crate::components::layout::notices::{ErrorNotice, LookupNotice, ShareNotice};
 use crate::components::layout::page_header::PageHeader;
 use crate::components::layout::structured_data::StructuredDataHead;
 use crate::components::results_viewport::ResultsViewport;
@@ -245,7 +245,7 @@ pub(crate) fn ExplorePage() -> Element {
             h2 { class: "sr-only", id: "search-page-heading", "{t(locale, TextKey::Search)}" }
             div { class: "w-full rounded-xl border border-shell-border bg-shell-raised overflow-hidden",
                 div { class: "page-body flex min-h-0 flex-col gap-4 px-4 pb-4 pt-5 sm:px-6 sm:pb-6 sm:pt-6",
-                    TaxonNotice {}
+                    LookupNotice {}
                     ErrorNotice {}
                     SearchPanelInline {}
                     SearchExamples {}

@@ -16,9 +16,11 @@
 use lotus_model::ElementState;
 use lotus_model::SearchCriteria;
 use lotus_query::{
-    Nomenclature, all_compounds_query, compounds_by_taxon_query, compounds_by_taxon_query_with,
-    construct_from_select, escape_structure_literal, export_query, is_reference_lookup,
-    taxon_common_name_lookup_query, taxon_lookup_query, with_filters,
+    Nomenclature, all_compounds_query, compound_alias_query, compound_by_qid_query,
+    compound_inchikey_query, compound_label_query, compounds_by_taxon_query,
+    compounds_by_taxon_query_with, construct_from_select, escape_structure_literal, export_query,
+    is_reference_lookup, structure_compound_lookup_query, taxon_common_name_lookup_query,
+    taxon_lookup_query, with_filters,
 };
 
 use super::common::{NOW, carbon_ranged_filter, criteria, subquery_depth};
@@ -258,6 +260,155 @@ fn the_scientific_lookup_stays_on_the_index_and_says_which_property_it_used() {
         "the common name is a second query"
     );
     assert!(query.contains(r#"BIND("scientific" AS ?matched_by)"#));
+}
+
+// ── The compound lookups ─────────────────────────────────────────────────────
+
+#[test]
+fn a_compound_lookup_never_unions_two_label_properties() {
+    // The shape is forced by measurement, not taste: QLever will not push a
+    // `VALUES` into both arms of a union, so it scans each property instead,
+    // and scanning `rdfs:label` means 17.9M rows and a timeout. Each label route
+    // is its own request, and each of them answers in about a fifth of a second.
+    let label = compound_label_query("aspirin");
+    let alias = compound_alias_query("aspirin");
+    assert!(label.contains("?compound rdfs:label ?name ."));
+    assert!(alias.contains("?compound skos:altLabel ?name ."));
+    assert!(!label.contains("UNION"), "label query:\n{label}");
+    assert!(!alias.contains("UNION"), "alias query:\n{alias}");
+}
+
+#[test]
+fn a_compound_name_lookup_matches_a_language_tag_rather_than_discarding_it() {
+    // A label *is* language-tagged, so -- the opposite of P1843 -- the tag has to
+    // be part of the match. A lexical-form filter would drop it and times out
+    // over 17.9M rows; enumerating the tags is what makes it index-served.
+    let query = compound_label_query("aspirin");
+    assert!(query.contains(r#""aspirin"@en"#));
+    assert!(query.contains(r#""aspirin"@de"#));
+    assert!(
+        !query.contains("LCASE(STR("),
+        "a lexical-form filter is the timeout:\n{query}"
+    );
+}
+
+#[test]
+fn a_compound_name_lookup_keeps_lexemes_out() {
+    // `?compound rdfs:label "aspirin"@en` also matches three senses of the
+    // English lexeme, which are not compounds.
+    let query = compound_label_query("aspirin");
+    assert!(
+        query.contains(r#"STRSTARTS(STR(?compound), "http://www.wikidata.org/entity/Q")"#),
+        "{query}"
+    );
+}
+
+#[test]
+fn every_lookup_brings_back_the_compounds_own_structure() {
+    // An exact search does not need it, but substructure and similarity do: they
+    // ask about other compounds, and the compound's own canonical SMILES is what
+    // they have to hand the service. A lookup that omitted it would fall back to
+    // the text the reader typed -- which, for a name, is not a structure at all.
+    for query in [
+        compound_by_qid_query("Q23118"),
+        compound_inchikey_query("BSYNRYMUTXBXSQ-UHFFFAOYSA-N"),
+        compound_label_query("aspirin"),
+        compound_alias_query("aspirin"),
+        structure_compound_lookup_query("C[C@H](O)CO"),
+    ] {
+        assert!(query.contains("wdt:P233"), "{query}");
+        assert!(query.contains("canonical_smiles"), "{query}");
+    }
+}
+
+#[test]
+fn every_compound_lookup_returns_the_same_columns() {
+    // One parser reads all of them, so the projection has to be identical. A
+    // column added to one and not the others parses as an empty field on the
+    // rest, which is how a resolved compound ends up with no structure to search.
+    for query in [
+        compound_by_qid_query("Q23118"),
+        compound_inchikey_query("BSYNRYMUTXBXSQ-UHFFFAOYSA-N"),
+        compound_label_query("aspirin"),
+        compound_alias_query("aspirin"),
+        structure_compound_lookup_query("C[C@H](O)CO"),
+    ] {
+        assert!(
+            query.contains("?compound_qid) ?compound_label ?canonical_smiles ?matched_by"),
+            "{query}"
+        );
+    }
+}
+
+#[test]
+fn the_resolution_query_takes_no_cutoff_from_the_reader() {
+    // The reader's threshold is for the search they asked for. Resolution is a
+    // separate question -- "is this structure a compound you have?" -- and it is
+    // asked at 1.0 whatever they set. If it borrowed their cutoff, a lenient
+    // search would resolve a structure to a near-neighbour and the exact route
+    // would then report that near-neighbour as the compound they named.
+    //
+    // The guarantee is structural: the function has no threshold parameter to
+    // borrow.
+    let query = structure_compound_lookup_query("C[C@H](O)CO");
+    assert!(
+        query.contains(r#"sachem:cutoff "1"^^xsd:double"#),
+        "{query}"
+    );
+    assert!(
+        !query.contains("similarCompoundSearch [\n        sachem:query"),
+        "one search, one cutoff: {query}"
+    );
+}
+
+#[test]
+fn a_structure_is_resolved_at_a_cutoff_of_one_and_only_one() {
+    // Also the guard on the wording above: exactly one cutoff appears, so there is
+    // no second one to be influenced.
+    let query = structure_compound_lookup_query("c1ccccc1");
+    assert_eq!(query.matches("sachem:cutoff").count(), 1, "{query}");
+}
+
+#[test]
+fn a_structure_resolution_is_bounded() {
+    // A structure can match several compounds at 1.0 -- stereoisomers, salts,
+    // isotopologues. The cap keeps the resolution cheap; the caller reports the
+    // rest as an ambiguity rather than hiding it.
+    let query = structure_compound_lookup_query("CC(=O)OC1=CC=CC=C1C(=O)O");
+    assert!(query.contains("LIMIT 5"), "{query}");
+}
+
+#[test]
+fn a_qid_lookup_seeds_on_the_item_and_matches_nothing() {
+    // There is no property to match: the point is to confirm the item exists, so
+    // the only way to fail is for the `VALUES` row to name nothing.
+    let query = compound_by_qid_query("Q23118");
+    assert!(query.contains("VALUES ?compound { wd:Q23118 }"), "{query}");
+    assert!(!query.contains("wdt:P235"), "{query}");
+    assert!(!query.contains("rdfs:label ?name"), "{query}");
+}
+
+#[test]
+fn a_lowercase_qid_is_accepted_the_way_the_taxon_field_accepts_one() {
+    // A reader who types `q23118` means Q23118. The prefix is part of the local
+    // name, so dropping it would seed the query with a bare number and match
+    // nothing at all.
+    assert!(compound_by_qid_query("q23118").contains("wd:Q23118"));
+}
+
+#[test]
+fn a_compound_lookup_reports_the_bare_qid_the_parser_expects() {
+    let query = compound_label_query("aspirin");
+    assert!(
+        query.contains("AS ?compound_qid"),
+        "the CSV must carry a bare Q, not a URI:\n{query}"
+    );
+}
+
+#[test]
+fn a_compound_name_lookup_escapes_its_literal() {
+    let query = compound_label_query(r#"Gentiana "lutea" \ x"#);
+    assert!(query.contains(r#""Gentiana \"lutea\" \\ x"@en"#), "{query}");
 }
 
 #[test]

@@ -15,6 +15,19 @@ pub(in crate::components::results_table::row_cells) fn reference_cell(
     prepared: &PreparedRow,
     reference_qid: &str,
 ) -> Element {
+    // Same rule as the taxon cell: with no reference QID there is nothing to
+    // link to, and the badge would render as " • Scholia" pointing at a Scholia
+    // search for the empty string.
+    if reference_qid.trim().is_empty() {
+        return rsx! {
+            td {
+                "property": "wdt:P248",
+                "typeof": "ScholarlyArticle",
+                class: "min-w-0 px-3 py-2.5 align-middle text-ui shadow-[inset_3px_0_0_var(--footer-wd-reference)]",
+            }
+        };
+    }
+
     let doi = prepared.doi.as_deref();
     let statement_id = prepared.statement_id.as_deref();
     rsx! {

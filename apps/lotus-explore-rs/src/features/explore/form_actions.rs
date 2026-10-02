@@ -21,7 +21,7 @@ pub enum FormAction {
     },
     Smiles(String),
     SmilesSearchType(SmilesSearchType),
-    SmilesThreshold(f64),
+    SimilarityThreshold(f64),
 
     // Mass range
     MassMin(f64),
@@ -68,7 +68,7 @@ pub fn apply_form_action_mut(criteria: &mut SearchCriteria, action: FormAction) 
         }
         FormAction::Smiles(v) => criteria.structure = v,
         FormAction::SmilesSearchType(v) => criteria.structure_search = v,
-        FormAction::SmilesThreshold(v) => criteria.structure_threshold = v,
+        FormAction::SimilarityThreshold(v) => criteria.structure_threshold = v,
         FormAction::MassMin(v) => criteria.mass_min = v,
         FormAction::MassMax(v) => criteria.mass_max = v,
         FormAction::YearMin(v) => criteria.year_min = v,

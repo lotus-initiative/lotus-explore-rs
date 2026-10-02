@@ -108,12 +108,12 @@ struct SearchArgs {
     #[arg(short, long, default_value = "")]
     structure: String,
 
-    /// How to match the structure: substructure or similarity.
-    #[arg(long, value_enum, default_value_t = StructureSearch::Substructure)]
+    /// How to search: exact (that compound only), substructure, or similarity.
+    #[arg(long, value_enum, default_value_t = StructureSearch::Exact)]
     structure_search: StructureSearch,
 
     /// Tanimoto cutoff for a similarity search, 0 to 1.
-    #[arg(long, default_value_t = 0.8, value_parser = parse_threshold)]
+    #[arg(long, default_value_t = lotus_model::DEFAULT_STRUCTURE_THRESHOLD, value_parser = parse_threshold)]
     threshold: f64,
 
     /// Lowest molecular mass, in daltons.
@@ -179,6 +179,7 @@ struct SearchArgs {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum StructureSearch {
+    Exact,
     Substructure,
     Similarity,
 }
@@ -186,6 +187,7 @@ enum StructureSearch {
 impl From<StructureSearch> for lotus_model::SmilesSearchType {
     fn from(value: StructureSearch) -> Self {
         match value {
+            StructureSearch::Exact => Self::Exact,
             StructureSearch::Substructure => Self::Substructure,
             StructureSearch::Similarity => Self::Similarity,
         }

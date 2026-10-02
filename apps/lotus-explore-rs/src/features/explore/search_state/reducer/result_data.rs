@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use crate::export::SparqlEndpoint;
-use crate::features::explore::types::TaxonWarning;
+use crate::features::explore::types::LookupNotice;
 use crate::filters::ColumnFilters;
 use crate::sort::{SortColumn, SortDir};
 use std::sync::Arc;
@@ -13,7 +13,7 @@ use lotus_model::{CompoundEntry, DatasetStats};
 pub(super) struct SearchSuccessPayload {
     pub rows: Vec<CompoundEntry>,
     pub qid: Option<String>,
-    pub warnings: Vec<TaxonWarning>,
+    pub warnings: Vec<LookupNotice>,
     pub query: String,
     pub total_matches: Option<usize>,
     pub total_stats: Option<DatasetStats>,
@@ -34,7 +34,7 @@ pub(super) fn clear(state: &mut ResultDataState) {
 
 pub(super) fn search_succeeded(state: &mut ResultDataState, payload: SearchSuccessPayload) {
     state.entries = Arc::from(payload.rows.into_boxed_slice());
-    state.taxon_notices = payload.warnings;
+    state.lookup_notices = payload.warnings;
     state.resolved_qid = payload.qid.map(Arc::from);
     state.query_hash = Some(payload.query_hash);
     state.result_hash = Some(payload.result_hash);

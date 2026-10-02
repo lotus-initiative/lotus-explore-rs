@@ -55,36 +55,71 @@ impl DatasetStats {
     }
 }
 
-/// How a structure string is matched against the endpoint's index.
+/// How a structure literal is matched against the endpoint's index.
+///
+/// Whatever the structure field holds is resolved to a Wikidata compound first --
+/// a QID, an `InChIKey` or a name by a lookup query, a SMILES or a molfile by
+/// asking the structure service which compound it is. This type then decides what
+/// happens to that compound.
+///
+/// [`Self::Exact`] is the default because "this compound" is what a reader who
+/// types a compound is asking for, and it is the cheap answer: one row, found by
+/// an index scan on the QID. The other two are broader questions about *other*
+/// compounds, and both of them load a structure index and score every candidate in
+/// it. They have to be asked for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize)]
 pub enum SmilesSearchType {
-    /// The query structure is a substructure of the indexed compound.
+    /// Only the compound the input resolved to. No structure service.
     #[default]
+    Exact,
+    /// The query structure is a substructure of the indexed compound.
     Substructure,
     /// The query structure is at least `structure_threshold` similar.
     Similarity,
 }
 
 impl SmilesSearchType {
+    /// Whether answering this one requires the structure service.
+    ///
+    /// Exact does not, and the query is built accordingly. This is the single
+    /// place that says so, so the builder and the panel cannot pick differently.
+    #[must_use]
+    pub const fn needs_structure_service(self) -> bool {
+        !matches!(self, Self::Exact)
+    }
+}
+
+/// The Tanimoto cutoff a similarity search uses when the reader does not set one.
+///
+/// 1.0 means an identical fingerprint: the same molecule. A default below that
+/// would return near-neighbours to a reader who did not ask for any, which is the
+/// same failure as answering a name with a substructure search -- more rows, and
+/// none of them the compound that was named.
+pub const DEFAULT_STRUCTURE_THRESHOLD: f64 = 1.0;
+
+impl SmilesSearchType {
     /// The spelling used in URLs, JSON and on the command line.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
+            Self::Exact => "exact",
             Self::Substructure => "substructure",
             Self::Similarity => "similarity",
         }
     }
 
-    /// Parse the spelling above, or anything else as substructure.
+    /// Parse the spelling above, or anything else as the default.
     ///
     /// Infallible by design: an unrecognised value narrows to the default
     /// rather than failing a search over a bad URL parameter.
     #[must_use]
     pub fn parse(s: &str) -> Self {
-        if s.trim().eq_ignore_ascii_case("similarity") {
+        if s.trim().eq_ignore_ascii_case("substructure") {
+            Self::Substructure
+        } else if s.trim().eq_ignore_ascii_case("similarity") {
             Self::Similarity
         } else {
-            Self::Substructure
+            Self::Exact
         }
     }
 }
@@ -184,6 +219,7 @@ impl DatasetStats {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::criteria::SearchCriteria;
     use std::sync::Arc;
 
     fn entry(compound: &str, taxon: &str, reference: &str) -> CompoundEntry {
@@ -228,6 +264,21 @@ mod tests {
     }
 
     #[test]
+    fn a_default_search_asks_for_that_one_compound() {
+        assert_eq!(SmilesSearchType::default(), SmilesSearchType::Exact);
+        assert!(
+            !SmilesSearchType::Exact.needs_structure_service(),
+            "the default must not load a structure index to answer a name"
+        );
+        assert!(SmilesSearchType::Substructure.needs_structure_service());
+        assert!(SmilesSearchType::Similarity.needs_structure_service());
+
+        let criteria = SearchCriteria::up_to_year(2026);
+        assert_eq!(criteria.structure_search, SmilesSearchType::Exact);
+        assert_eq!(criteria.structure_threshold, 1.0);
+    }
+
+    #[test]
     fn search_type_and_element_state_round_trip_through_their_spellings() {
         for v in [SmilesSearchType::Substructure, SmilesSearchType::Similarity] {
             assert_eq!(SmilesSearchType::parse(v.as_str()), v);
@@ -243,10 +294,7 @@ mod tests {
 
     #[test]
     fn an_unrecognised_spelling_falls_back_to_the_default() {
-        assert_eq!(
-            SmilesSearchType::parse("fuzzy"),
-            SmilesSearchType::Substructure
-        );
+        assert_eq!(SmilesSearchType::parse("fuzzy"), SmilesSearchType::Exact);
         assert_eq!(ElementState::parse("maybe"), ElementState::Allowed);
     }
 }
@@ -343,10 +391,7 @@ mod spelling_tests {
             ElementState::Allowed,
             "the default is the absence of a constraint"
         );
-        assert_eq!(
-            SmilesSearchType::parse("fuzzy"),
-            SmilesSearchType::Substructure
-        );
+        assert_eq!(SmilesSearchType::parse("fuzzy"), SmilesSearchType::Exact);
     }
 }
 

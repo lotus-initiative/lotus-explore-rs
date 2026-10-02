@@ -13,7 +13,7 @@ pub use selectors::{
     ExploreUiState, use_criteria_selector, use_header_meta_snapshot, use_lifecycle_selector,
     use_toolbar_result_snapshot,
 };
-pub use types::{DomainError, ErrorKind, ParseFault, QueryStage, TaxonWarning, ValidationFault};
+pub use types::{DomainError, ErrorKind, LookupNotice, ParseFault, QueryStage, ValidationFault};
 pub use url_state::{
     InitialUrlState, absolute_current_url_with_query, absolute_share_url, build_shareable_url,
     initial_url_state, is_true_flag,
@@ -43,6 +43,7 @@ pub mod search_utils;
 pub mod selectors;
 pub mod service;
 mod sparql_errors;
+pub mod structure_cache;
 pub mod taxon_cache;
 mod transport_classification;
 pub mod types;

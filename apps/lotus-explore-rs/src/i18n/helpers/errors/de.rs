@@ -53,6 +53,10 @@ pub fn err_query_stage_failed(stage: &str, detail: &str) -> String {
     format!("Schritt {stage} fehlgeschlagen: {detail}")
 }
 
+pub fn err_compound_not_found(input: &str) -> String {
+    format!("Verbindung „{input}“ nicht in Wikidata gefunden.")
+}
+
 pub fn err_taxon_not_found(taxon: &str) -> String {
     format!("Taxon '{taxon}' wurde in Wikidata nicht gefunden.")
 }
@@ -66,6 +70,15 @@ pub fn warn_input_standardized(original: &str, normalized: &str) -> String {
 pub fn warn_taxon_common_name(name: &str, qid: &str) -> String {
     format!(
         "Die Suche nach einem Trivialnamen wird nicht empfohlen: „{name}“ wurde Taxon {qid} über den Trivialnamen (P1843) zugeordnet, nicht über den wissenschaftlichen Namen (P225)."
+    )
+}
+
+/// The structure-resolved notice. Says which compound the name became,
+/// because that is the actionable part: the search now runs against a
+/// different structure than the one that was typed.
+pub fn warn_compound_resolved(label: &str, qid: &str) -> String {
+    format!(
+        "„{label}“ wurde zur Verbindung {qid} aufgelöst, über InChIKey, Bezeichnung oder Alias."
     )
 }
 

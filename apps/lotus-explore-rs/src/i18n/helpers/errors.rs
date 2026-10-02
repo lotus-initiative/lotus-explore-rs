@@ -88,12 +88,14 @@ dispatch!(warn_wdqs_fallback);
 
 dispatch!(err_unsupported_format, fmt: &str);
 dispatch!(err_taxon_parse_failed, detail: &str);
+dispatch!(err_compound_not_found, input: &str);
 dispatch!(err_taxon_not_found, taxon: &str);
 
 dispatch!(err_query_stage_failed, stage: &str, detail: &str);
 
 dispatch!(warn_input_standardized, original: &str, normalized: &str);
 dispatch!(warn_taxon_common_name, name: &str, qid: &str);
+dispatch!(warn_compound_resolved, label: &str, qid: &str);
 dispatch!(warn_ambiguous_taxon, best_name: &str, best_qid: &str, names: &str);
 
 #[cfg(target_arch = "wasm32")]

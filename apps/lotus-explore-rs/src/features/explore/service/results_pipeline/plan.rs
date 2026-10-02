@@ -13,8 +13,9 @@ use crate::export::SparqlEndpoint;
 use crate::features::explore::request::SearchRequest;
 use crate::features::explore::search_metrics::SearchMetrics;
 use crate::features::explore::service::{
-    build_query::{apply_server_filters, build_sparql_query},
+    build_query::{ResolvedStructure, apply_server_filters, build_sparql_query},
     fetch_results::FetchResult,
+    resolve_structure::{self, StructureResolution},
     resolve_taxon::{self, TaxonResolution},
 };
 use crate::features::explore::types::{DomainError, QueryPhase};
@@ -22,6 +23,7 @@ use crate::repositories::{LotusRepository, is_wdqs_fallback_used};
 
 pub(super) struct ResultsExecutionPlan {
     taxon_resolution: TaxonResolution,
+    structure_resolution: StructureResolution,
     execution_query: String,
 }
 
@@ -50,13 +52,14 @@ impl ResultsExecutionPlan {
         } else {
             SparqlEndpoint::Qlever
         };
-        // The endpoint is a fact about this search and the taxon resolution is
-        // another; a fallback used to replace the taxon's notices rather than
-        // add to them, so a name that needed standardizing stopped being
-        // reported the moment the endpoint had to change.
+        // The endpoint is a fact about this search and the two resolutions are
+        // others; a fallback used to replace the taxon's notices rather than add
+        // to them, so a name that needed standardizing stopped being reported
+        // the moment the endpoint had to change.
         let mut warnings = self.taxon_resolution.warnings;
+        warnings.extend(self.structure_resolution.notices.clone());
         if is_wdqs_fallback_used() {
-            warnings.push(crate::features::explore::types::TaxonWarning::WdqsFallback);
+            warnings.push(crate::features::explore::types::LookupNotice::WdqsFallback);
         }
         let query = crate::repositories::get_wdqs_transformed_query()
             .unwrap_or_else(|| self.execution_query.clone());
@@ -87,8 +90,24 @@ pub(super) async fn build_execution_plan<R: LotusRepository>(
     }
 
     let taxon_resolution = resolve_taxon::resolve(taxon, repo, metrics).await?;
+
+    // The structure field is resolved the same way the taxon field is, and for
+    // the same reason: whatever is typed here should find the compound it names.
+    // It runs for every input, a structure included, because the mode decides what
+    // happens next and two of the three need a QID. Which is also why it happens
+    // before the query is built rather than inside it.
+    let structure_resolution = if normalized_smiles.trim().is_empty() {
+        StructureResolution {
+            resolved: ResolvedStructure::unresolved(""),
+            notices: Vec::new(),
+        }
+    } else {
+        on_phase(QueryPhase::ResolvingStructure);
+        resolve_structure::resolve(normalized_smiles, repo, metrics).await?
+    };
+
     let sparql_query = build_sparql_query(
-        normalized_smiles,
+        &structure_resolution.resolved,
         request.criteria(),
         taxon_resolution.qid.as_deref(),
     );
@@ -96,6 +115,7 @@ pub(super) async fn build_execution_plan<R: LotusRepository>(
 
     Ok(ResultsExecutionPlan {
         taxon_resolution,
+        structure_resolution,
         execution_query,
     })
 }

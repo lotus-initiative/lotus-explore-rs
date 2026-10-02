@@ -53,6 +53,10 @@ pub fn err_query_stage_failed(stage: &str, detail: &str) -> String {
     format!("{stage} failed: {detail}")
 }
 
+pub fn err_compound_not_found(input: &str) -> String {
+    format!("Compound '{input}' not found in Wikidata.")
+}
+
 pub fn err_taxon_not_found(taxon: &str) -> String {
     format!("Taxon '{taxon}' not found in Wikidata.")
 }
@@ -67,6 +71,13 @@ pub fn warn_taxon_common_name(name: &str, qid: &str) -> String {
     format!(
         "Searching by common name is discouraged: '{name}' matched taxon {qid} by its common name (P1843) rather than its scientific name (P225)."
     )
+}
+
+/// The structure-resolved notice. Says which compound the name became,
+/// because that is the actionable part: the search now runs against a
+/// different structure than the one that was typed.
+pub fn warn_compound_resolved(label: &str, qid: &str) -> String {
+    format!("Resolved '{label}' to compound {qid}, by InChIKey, label or alias.")
 }
 
 pub fn warn_ambiguous_taxon(best_name: &str, best_qid: &str, names: &str) -> String {

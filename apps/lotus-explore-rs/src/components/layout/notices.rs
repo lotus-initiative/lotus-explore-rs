@@ -64,11 +64,11 @@ pub fn ShareNotice(shareable_url: Memo<Option<Arc<str>>>) -> Element {
 }
 
 #[component]
-pub fn TaxonNotice() -> Element {
+pub fn LookupNotice() -> Element {
     let locale = crate::hooks::use_locale();
     let dark_mode = use_app_state_context().state.read().dark_mode;
     let explore = use_results_context().explore;
-    let notices = use_result_selector(explore, |result| result.taxon_notices.clone());
+    let notices = use_result_selector(explore, |result| result.lookup_notices.clone());
     let notices = notices.read();
     if notices.is_empty() {
         return rsx! {};

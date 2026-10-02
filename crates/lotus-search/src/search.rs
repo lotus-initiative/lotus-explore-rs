@@ -25,8 +25,9 @@ use lotus_query::{parse_compounds_csv_capped, parse_counts_csv, parse_taxon_csv}
 pub struct StructurePlan {
     /// The normalised structure text.
     pub structure: String,
-    /// The search to run. A molfile is always a substructure search: the
-    /// similarity service cannot take a multi-line literal.
+    /// The search to run, as asked for. A molfile takes either mode: the
+    /// similarity service was measured accepting a multi-line CTAB literal and
+    /// answering a cutoff search, so the format does not decide the mode.
     pub search: SmilesSearchType,
     /// Tanimoto cutoff, when `search` is a similarity search.
     pub threshold: f64,
@@ -43,14 +44,9 @@ impl StructurePlan {
             return None;
         }
         let is_molfile = lotus_model::classify_structure(&structure).is_molfile();
-        let search = if is_molfile {
-            SmilesSearchType::Substructure
-        } else {
-            criteria.structure_search
-        };
         Some(Self {
             structure,
-            search,
+            search: criteria.structure_search,
             threshold: criteria.structure_threshold,
             is_molfile,
         })

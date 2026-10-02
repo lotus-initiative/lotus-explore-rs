@@ -116,6 +116,7 @@ pub enum TextKey {
     LoadingTitle,
     LoadingHint,
     LoadingResolvingTaxon,
+    LoadingResolvingStructure,
     LoadingFetchingResults,
     LoadingProcessingResults,
     LoadingRendering,
@@ -158,6 +159,8 @@ pub enum TextKey {
     ExampleSets,
     StructureSmilesOrMol,
     StructurePlaceholder,
+    /// The compound the input resolved to, and nothing else.
+    Exact,
     Substructure,
     Similarity,
     StructureSearchMode,
@@ -191,9 +194,6 @@ pub enum TextKey {
     KetcherClickToLoad,
     KetcherNotBundled,
     KetcherPreparing,
-    KindNoteSmiles,
-    KindNoteMol2000,
-    KindNoteMol3000,
     // Error stage labels (used in transport error messages)
     StageTaxonSearch,
     StageResultsQuery,

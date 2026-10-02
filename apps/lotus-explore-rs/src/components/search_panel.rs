@@ -15,9 +15,6 @@ use crate::components::form_sections::{
 };
 use crate::features::explore::{FormAction, use_criteria_selector};
 
-#[path = "search_panel/structure_model.rs"]
-mod structure_model;
-
 use crate::components::form_inputs::SearchButton;
 use crate::features::explore::{use_explore_interactions, use_lifecycle_selector};
 use crate::i18n::{TextKey, t, threshold_label};
@@ -25,16 +22,16 @@ use crate::state::{use_form_criteria_context, use_results_context};
 use crate::ui::a11y_contract::SEARCH_PANEL_BODY_ID;
 use dioxus::prelude::*;
 
-/// Four structures, chosen to show the three shapes a structure field is usually
-/// given: a straight chain, an aromatic ring, and a stereocentre. A stereocentre
-/// is the one worth an example, because it is the case a person cannot type from
-/// memory and would otherwise go looking for a tool to draw one.
-const STRUCTURE_SUGGESTIONS: &[&str] = &["CC", "CCC", "c1ccccc1", "C[C@H](O)CO"];
+/// The example buttons, one of each kind the field accepts.
+///
+/// The list and the explanation of it live in `lotus-model`, next to the code
+/// that classifies an input, so the buttons and the resolver cannot disagree
+/// about which one is a name and which is a structure.
+use lotus_model::STRUCTURE_INPUT_EXAMPLES as STRUCTURE_SUGGESTIONS;
 use lotus_model::SmilesSearchType;
-use lotus_model::classify_structure;
 
 /// JSON Schema for search form autofill / MCP tooling introspection.
-const SEARCH_SCHEMA: &str = r#"{"type":"object","properties":{"taxon":{"type":"string","description":"Taxon name, Wikidata QID, or * for all taxa"},"smiles":{"type":"string","description":"SMILES or Molfile input"},"mass_min":{"type":"number","description":"Minimum molecular mass in Da"},"mass_max":{"type":"number","description":"Maximum molecular mass in Da"},"year_min":{"type":"integer","description":"Minimum publication year"},"year_max":{"type":"integer","description":"Maximum publication year"},"formula_exact":{"type":"string","description":"Exact molecular formula filter, e.g. C7H5O5N"},"formula_enabled":{"type":"boolean","description":"Whether the formula filter is applied"},"stype":{"type":"string","enum":["substructure","similarity"],"description":"Structure search mode"}},"additionalProperties":true}"#;
+const SEARCH_SCHEMA: &str = r#"{"type":"object","properties":{"taxon":{"type":"string","description":"Taxon name, Wikidata QID, or * for all taxa"},"smiles":{"type":"string","description":"Structure, compound name or InChIKey. A name or InChIKey is resolved to its Wikidata compound; anything else is sent to the structure service as written."},"mass_min":{"type":"number","description":"Minimum molecular mass in Da"},"mass_max":{"type":"number","description":"Maximum molecular mass in Da"},"year_min":{"type":"integer","description":"Minimum publication year"},"year_max":{"type":"integer","description":"Maximum publication year"},"formula_exact":{"type":"string","description":"Exact molecular formula filter, e.g. C7H5O5N"},"formula_enabled":{"type":"boolean","description":"Whether the formula filter is applied"},"stype":{"type":"string","enum":["exact","substructure","similarity"],"description":"How the resolved compound is searched: that compound only, or every compound containing / similar to it"}},"additionalProperties":true}"#;
 
 pub fn SearchPanel() -> Element {
     let state = use_results_context();
@@ -60,17 +57,17 @@ pub fn SearchPanel() -> Element {
             // convention kept for tooling that predates WebMCP — they register
             // nothing on their own. See docs/DESIGN_SYSTEM.md.
             "toolname": "search_lotus",
-            "tooldescription": "Search LOTUS compounds by taxon, structure, mass range, publication year, and formula.",
+            "tooldescription": "Search LOTUS compounds by taxon, structure or compound name, mass range, publication year, and formula.",
             "toolautosubmit": "true",
             "data-webmcp-id": "lotus-search-form",
             "data-webmcp-type": "form",
             "data-webmcp-name": "LOTUS search form",
-            "data-webmcp-description": "Search compounds by taxon, SMILES or Molfile, mass range, publication year, and formula constraints.",
+            "data-webmcp-description": "Search compounds by taxon, structure or compound name, mass range, publication year, and formula constraints.",
             "data-webmcp-schema": "{SEARCH_SCHEMA}",
             "data-mcp-id": "lotus-search-form",
             "data-mcp-type": "form",
             "data-mcp-name": "LOTUS search form",
-            "data-mcp-description": "Search compounds by taxon, SMILES or Molfile, mass range, publication year, and formula constraints.",
+            "data-mcp-description": "Search compounds by taxon, structure or compound name, mass range, publication year, and formula constraints.",
             "data-mcp-schema": "{SEARCH_SCHEMA}",
             onsubmit: move |evt: Event<FormData>| {
                 evt.prevent_default();
@@ -161,11 +158,7 @@ fn StructureInput() -> Element {
     let structure_fields = use_criteria_selector(ctx.criteria, |criteria| {
         (criteria.structure.clone(), criteria.structure_search)
     });
-    let (smiles, smiles_search_type) = structure_fields.read().clone();
-    let smiles_for_kind = smiles.clone();
-    let kind = use_memo(move || classify_structure(&smiles_for_kind));
-    let kind_value = *kind.read();
-    let view_model = structure_model::build_structure_section_model(kind_value, smiles_search_type);
+    let (smiles, _smiles_search_type) = structure_fields.read().clone();
 
     rsx! {
         div { class: "flex min-w-0 flex-col gap-1.5",
@@ -177,7 +170,7 @@ fn StructureInput() -> Element {
             textarea {
                 id: "smiles-input",
                 name: "smiles",
-                "toolparamdescription": "SMILES or Molfile input.",
+                "toolparamdescription": "Structure, compound name or InChIKey.",
                 autocomplete: "off",
                 spellcheck: "false",
                 placeholder: "{t(locale, TextKey::StructurePlaceholder)}",
@@ -189,18 +182,9 @@ fn StructureInput() -> Element {
             }
             FieldExamples {
                 target: "smiles-input",
-                values: STRUCTURE_SUGGESTIONS,
+                values: &STRUCTURE_SUGGESTIONS,
                 heading: TextKey::Examples,
                 onfill: move |value: String| ctx.update(FormAction::Smiles(value)),
-            }
-            if let Some(note_key) = view_model.note_key {
-                p { class: "flex flex-wrap items-center gap-2 text-micro text-subtle",
-                    span {
-                        class: "rounded-full bg-accent/10 px-1.5 py-0.5 font-semibold text-accent",
-                        "{kind_value.label()}"
-                    }
-                    span { "{t(locale, note_key)}" }
-                }
             }
         }
     }
@@ -208,10 +192,19 @@ fn StructureInput() -> Element {
 
 /// How the structure is matched: contains a substructure, or is similar to it.
 ///
-/// Advanced rather than primary because it changes what the structure field
-/// *means* rather than narrowing it, and a search that never touches it gets
-/// the documented default. The similarity threshold follows this control, so it
-/// is here too rather than sitting in the compound group's primary slot.
+/// Available for every kind of input, not just for structures. A name, an
+/// `InChIKey` and a QID all resolve to a compound, and a reader who wants
+/// "compounds containing this one" is asking a real question that the answer to
+/// which compound does not settle. Reserving the control for SMILES would have
+/// meant the two narrower modes were unreachable from the input people actually
+/// use.
+///
+/// Exact is the default and needs no control of its own to be understood: it is
+/// the answer to "which compound did I just name", and it is the one route that
+/// does not call the structure service.
+///
+/// The threshold follows the mode, so it is here too rather than sitting in the
+/// compound group's primary slot.
 #[component]
 fn StructureSearchOptions() -> Element {
     let locale = crate::hooks::use_locale();
@@ -223,18 +216,30 @@ fn StructureSearchOptions() -> Element {
             criteria.structure_threshold,
         )
     });
-    let (smiles, smiles_search_type, smiles_threshold) = structure_fields.read().clone();
-    let kind = use_memo(move || classify_structure(&smiles.clone()));
-    let view_model =
-        structure_model::build_structure_section_model(*kind.read(), smiles_search_type);
+    let (_smiles, smiles_search_type, similarity_threshold) = structure_fields.read().clone();
+    let show_similarity_threshold = smiles_search_type == SmilesSearchType::Similarity;
 
     rsx! {
         fieldset { class: "m-0 flex flex-col gap-1.5 border-0 p-0",
             // On the fieldset, not on each radio: WebMCP describes a radio
             // group as one parameter, and repeating it on both controls
             // synthesises a conflicting property and fails schema validation.
-            "toolparamdescription": "Structure search mode: substructure or similarity.",
+            "toolparamdescription": "How the resolved compound is searched: exact (that compound only), substructure, or similarity.",
             legend { class: "text-micro font-semibold uppercase tracking-wide text-subtle", "{t(locale, TextKey::StructureSearchMode)}" }
+            label { class: "inline-flex items-center gap-1.5 text-ui text-muted",
+                input {
+                    r#type: "radio",
+                    id: "smiles-search-type-exact",
+                    name: "stype",
+                    autocomplete: "off",
+                    class: "accent-accent h-4 w-4 cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                    checked: smiles_search_type == SmilesSearchType::Exact,
+                    onchange: move |_| {
+                        ctx.update(FormAction::SmilesSearchType(SmilesSearchType::Exact));
+                    },
+                }
+                "{t(locale, TextKey::Exact)}"
+            }
             label { class: "inline-flex items-center gap-1.5 text-ui text-muted",
                 input {
                     r#type: "radio",
@@ -263,29 +268,29 @@ fn StructureSearchOptions() -> Element {
                 }
                 "{t(locale, TextKey::Similarity)}"
             }
-            if view_model.show_similarity_threshold {
+            if show_similarity_threshold {
                 div { class: "flex flex-col gap-1",
                     label {
                         class: "text-micro font-semibold uppercase tracking-wide text-subtle",
                         r#for: "threshold-input",
-                        "{threshold_label(locale, smiles_threshold)}"
+                        "{threshold_label(locale, similarity_threshold)}"
                     }
                     input {
                         id: "threshold-input",
-                        name: "smiles_threshold",
+                        name: "similarity_threshold",
                         autocomplete: "off",
                         r#type: "range",
                         min: "0.0",
                         max: "1.0",
                         step: "0.01",
-                        value: "{smiles_threshold}",
+                        value: "{similarity_threshold}",
                         aria_valuemin: "0",
                         aria_valuemax: "1",
-                        aria_valuenow: "{smiles_threshold}",
+                        aria_valuenow: "{similarity_threshold}",
                         class: "w-full accent-accent cursor-pointer appearance-none h-2 bg-border rounded-xl focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                         oninput: move |e| {
                             if let Ok(v) = e.value().parse::<f64>() {
-                                ctx.update(FormAction::SmilesThreshold(v));
+                                ctx.update(FormAction::SimilarityThreshold(v));
                             }
                         },
                     }

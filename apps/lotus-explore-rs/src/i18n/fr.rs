@@ -47,6 +47,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::Unique => "uniques",
         TextKey::LoadingTitle => "Interrogation de Wikidata via QLever...",
         TextKey::LoadingHint => "Les grands jeux de résultats peuvent prendre du temps.",
+        TextKey::LoadingResolvingStructure => "Résolution de la structure...",
         TextKey::LoadingResolvingTaxon => "Résolution du taxon...",
         TextKey::LoadingFetchingResults => "Récupération des résultats...",
         TextKey::LoadingProcessingResults => "Traitement des comptages de résultats...",
@@ -103,8 +104,9 @@ pub const fn fr_t(key: TextKey) -> &'static str {
 
         TextKey::Examples => "Exemples",
         TextKey::ExampleSets => "Remplir le champ avec",
-        TextKey::StructureSmilesOrMol => "SMILES ou Molfile",
-        TextKey::StructurePlaceholder => "SMILES, ou un Molfile (V2000 / V3000)",
+        TextKey::StructureSmilesOrMol => "Structure, nom de composé ou InChIKey",
+        TextKey::StructurePlaceholder => "SMILES, un Molfile, un nom ou une clé InChI",
+        TextKey::Exact => "Exact",
         TextKey::Substructure => "Sous-structure",
         TextKey::Similarity => "Similarité",
         TextKey::StructureSearchMode => "Recherche par structure",
@@ -148,11 +150,6 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         }
         TextKey::KetcherPreparing => {
             "Préparation de l'éditeur de structure (premier lancement uniquement)..."
-        }
-        TextKey::KindNoteSmiles => "  Envoyé comme littéral SPARQL sur une seule ligne.",
-        TextKey::KindNoteMol2000 => "  Transmis tel quel à SACHEM scoredSubstructureSearch.",
-        TextKey::KindNoteMol3000 => {
-            "  Transmis tel quel à SACHEM scoredSubstructureSearch (CTAB v3000)."
         }
         TextKey::DatasetStatistics => "Statistiques du jeu de données",
         TextKey::DownloadResults => "Télécharger les résultats",

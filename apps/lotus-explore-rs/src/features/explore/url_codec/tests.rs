@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-#![allow(clippy::float_cmp)]
+#![allow(clippy::expect_used, clippy::float_cmp)]
 
 use super::*;
-use lotus_model::{ElementState, SearchCriteria};
+use lotus_model::{ElementState, SearchCriteria, SmilesSearchType};
 use lotus_query::ExportFormat as DownloadFormat;
 
 #[test]
@@ -141,9 +141,9 @@ fn startup_action_invalid_download_format_is_preserved() {
 }
 
 #[test]
-fn parse_criteria_rejects_non_positive_smiles_threshold() {
+fn parse_criteria_rejects_non_positive_similarity_threshold() {
     let mut params = QueryParams::new();
-    params.insert("smiles_threshold".into(), "0".into());
+    params.insert("similarity_threshold".into(), "0".into());
 
     let crit = parse_criteria_from_params(&params);
     assert_eq!(
@@ -153,9 +153,9 @@ fn parse_criteria_rejects_non_positive_smiles_threshold() {
 }
 
 #[test]
-fn parse_criteria_clamps_low_positive_smiles_threshold() {
+fn parse_criteria_clamps_low_positive_similarity_threshold() {
     let mut params = QueryParams::new();
-    params.insert("smiles_threshold".into(), "0.01".into());
+    params.insert("similarity_threshold".into(), "0.01".into());
 
     let crit = parse_criteria_from_params(&params);
     assert_eq!(crit.structure_threshold, 0.05);
@@ -175,6 +175,69 @@ fn shareable_search_urls_use_the_search_route() {
         build_shareable_url(&criteria),
         Some("/search?taxon=Gentiana%20lutea".to_string())
     );
+}
+
+#[test]
+fn a_shareable_link_for_a_structure_carries_the_matching_mode() {
+    let criteria = SearchCriteria {
+        structure: "C[C@H](O)CO".into(),
+        structure_search: SmilesSearchType::Similarity,
+        structure_threshold: 0.85,
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
+    };
+    let url = build_shareable_url(&criteria).expect("a structure is a search");
+    assert!(url.contains("structure=C%5BC%40H%5D%28O%29CO"), "{url}");
+    assert!(url.contains("structure_search_type=similarity"), "{url}");
+    assert!(url.contains("similarity_threshold=0.85"), "{url}");
+}
+
+#[test]
+fn a_named_compound_carries_the_mode_too() {
+    // The mode applies to every input kind, not only to structures: a reader who
+    // asks for compounds containing amarogentin gets them, and the link has to
+    // say so or the search it reproduces comes back narrower than the one shared.
+    let criteria = SearchCriteria {
+        structure: "amarogentina".into(),
+        structure_search: SmilesSearchType::Similarity,
+        structure_threshold: 1.0,
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
+    };
+    let url = build_shareable_url(&criteria).expect("a name is a search");
+    assert!(url.contains("structure=amarogentina"), "{url}");
+    assert!(url.contains("structure_search_type=similarity"), "{url}");
+    assert!(url.contains("similarity_threshold=1.00"), "{url}");
+}
+
+#[test]
+fn a_shareable_link_records_the_exact_mode_rather_than_omitting_it() {
+    // Exact is the default, so leaving it out would work — until the day it does
+    // not, and a link for a substructure search silently comes back as one row.
+    let criteria = SearchCriteria {
+        structure: "Q23118".into(),
+        structure_search: SmilesSearchType::Exact,
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
+    };
+    let url = build_shareable_url(&criteria).expect("a QID is a search");
+    assert!(url.contains("structure=Q23118"), "{url}");
+    assert!(url.contains("structure_search_type=exact"), "{url}");
+    assert!(
+        !url.contains("similarity_threshold"),
+        "exact has no cutoff: {url}"
+    );
+}
+
+#[test]
+fn the_matching_mode_survives_a_named_compound_in_the_criteria() {
+    // Hidden is not discarded. Putting a structure back into the field should
+    // find the mode the reader had chosen, not the default.
+    let criteria = SearchCriteria {
+        structure: "amarogentina".into(),
+        structure_search: SmilesSearchType::Substructure,
+        structure_threshold: 0.7,
+        ..SearchCriteria::up_to_year(crate::clock::current_year())
+    };
+    assert_eq!(criteria.structure_search, SmilesSearchType::Substructure);
+    assert!((criteria.structure_threshold - 0.7).abs() < f64::EPSILON);
 }
 
 #[test]

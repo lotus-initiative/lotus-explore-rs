@@ -167,12 +167,35 @@ fn a_similarity_search_carries_its_cutoff_and_a_substructure_does_not() {
     assert!(query.contains(r#"sachem:cutoff "0.9"^^xsd:double"#));
 
     let sub = lotus()
-        .args(["search", "--structure", "c1ccccc1", "--explain"])
+        .args([
+            "search",
+            "--structure",
+            "c1ccccc1",
+            "--structure-search",
+            "substructure",
+            "--explain",
+        ])
         .assert()
         .success();
     let query = String::from_utf8(sub.get_output().stdout.clone()).expect("UTF-8");
     assert!(query.contains("sachem:substructureSearch"));
     assert!(!query.contains("sachem:cutoff"));
+}
+
+#[test]
+fn a_bare_structure_search_asks_for_the_same_molecule() {
+    // The default is similarity at 1.0, which is "this compound" for a structure
+    // no Wikidata item has. Substructure has to be asked for.
+    let output = lotus()
+        .args(["search", "--structure", "c1ccccc1", "--explain"])
+        .assert()
+        .success();
+    let query = String::from_utf8(output.get_output().stdout.clone()).expect("UTF-8");
+    assert!(query.contains("sachem:similarCompoundSearch"));
+    assert!(
+        query.contains(r#"sachem:cutoff "1"^^xsd:double"#),
+        "1.0 is written as 1; the default must be an exact-fingerprint match: {query}"
+    );
 }
 
 #[test]

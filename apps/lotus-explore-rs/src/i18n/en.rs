@@ -46,6 +46,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::Unique => "Unique",
         TextKey::LoadingTitle => "Querying Wikidata via QLever...",
         TextKey::LoadingHint => "Large result sets may take several seconds.",
+        TextKey::LoadingResolvingStructure => "Resolving structure...",
         TextKey::LoadingResolvingTaxon => "Resolving taxon...",
         TextKey::LoadingFetchingResults => "Fetching results...",
         TextKey::LoadingProcessingResults => "Processing result counts...",
@@ -98,8 +99,9 @@ pub const fn en_t(key: TextKey) -> &'static str {
 
         TextKey::Examples => "Examples",
         TextKey::ExampleSets => "Set the field to",
-        TextKey::StructureSmilesOrMol => "SMILES or Molfile",
-        TextKey::StructurePlaceholder => "SMILES, or a Molfile (V2000 / V3000)",
+        TextKey::StructureSmilesOrMol => "Structure, compound name or InChIKey",
+        TextKey::StructurePlaceholder => "SMILES, a Molfile, a name or an InChIKey",
+        TextKey::Exact => "Exact",
         TextKey::Substructure => "Substructure",
         TextKey::Similarity => "Similarity",
         TextKey::StructureSearchMode => "Structure search mode",
@@ -135,11 +137,6 @@ pub const fn en_t(key: TextKey) -> &'static str {
             "The structure editor was not included in this build. Run `cargo run -p lotus-web-assets --bin fetch-assets` and rebuild."
         }
         TextKey::KetcherPreparing => "Preparing the structure editor (first launch only)...",
-        TextKey::KindNoteSmiles => "  Sent as a single-line SPARQL literal.",
-        TextKey::KindNoteMol2000 => "  Forwarded verbatim to SACHEM scoredSubstructureSearch.",
-        TextKey::KindNoteMol3000 => {
-            "  Forwarded verbatim to SACHEM scoredSubstructureSearch (CTAB v3000)."
-        }
         TextKey::DatasetStatistics => "Dataset statistics",
         TextKey::DownloadResults => "Download results",
         TextKey::PreparingDownload => "Preparing download...",

@@ -46,6 +46,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::Unique => "eindeutige",
         TextKey::LoadingTitle => "Wikidata wird über QLever abgefragt...",
         TextKey::LoadingHint => "Große Ergebnismengen können einige Sekunden dauern.",
+        TextKey::LoadingResolvingStructure => "Struktur wird aufgelöst...",
         TextKey::LoadingResolvingTaxon => "Taxon wird aufgelöst...",
         TextKey::LoadingFetchingResults => "Ergebnisse werden geladen...",
         TextKey::LoadingProcessingResults => "Ergebnisanzahlen werden verarbeitet...",
@@ -101,8 +102,9 @@ pub const fn de_t(key: TextKey) -> &'static str {
 
         TextKey::Examples => "Beispiele",
         TextKey::ExampleSets => "Feld auf",
-        TextKey::StructureSmilesOrMol => "SMILES oder Molfile",
-        TextKey::StructurePlaceholder => "SMILES oder ein Molfile (V2000 / V3000)",
+        TextKey::StructureSmilesOrMol => "Struktur, Verbindungsname oder InChIKey",
+        TextKey::StructurePlaceholder => "SMILES, ein Molfile, ein Name oder ein InChIKey",
+        TextKey::Exact => "Exakt",
         TextKey::Substructure => "Substruktur",
         TextKey::Similarity => "Ähnlichkeit",
         TextKey::StructureSearchMode => "Struktursuche",
@@ -143,13 +145,6 @@ pub const fn de_t(key: TextKey) -> &'static str {
             "Der Struktureditor war in diesem Build nicht enthalten. Führen Sie `cargo run -p lotus-web-assets --bin fetch-assets` aus und bauen Sie neu."
         }
         TextKey::KetcherPreparing => "Struktureditor wird vorbereitet (nur beim ersten Start)...",
-        TextKey::KindNoteSmiles => "  Wird als einzeiliges SPARQL-Literal gesendet.",
-        TextKey::KindNoteMol2000 => {
-            "  Wird unverändert an SACHEM scoredSubstructureSearch weitergegeben."
-        }
-        TextKey::KindNoteMol3000 => {
-            "  Wird unverändert an SACHEM scoredSubstructureSearch weitergegeben (CTAB v3000)."
-        }
         TextKey::DatasetStatistics => "Datensatz-Statistiken",
         TextKey::DownloadResults => "Ergebnisse herunterladen",
         TextKey::PreparingDownload => "Download wird vorbereitet...",

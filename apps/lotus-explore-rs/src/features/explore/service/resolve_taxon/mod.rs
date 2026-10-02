@@ -13,7 +13,7 @@ mod match_selection;
 
 use crate::features::explore::search_metrics::SearchMetrics;
 use crate::features::explore::types::{
-    DomainError, ParseFault, QueryStage, TaxonWarning, ValidationFault,
+    DomainError, LookupNotice, ParseFault, QueryStage, ValidationFault,
 };
 use crate::features::explore::{search_utils::sanitize_taxon_input, taxon_cache};
 use crate::perf;
@@ -35,7 +35,7 @@ pub struct TaxonResolution {
     /// ambiguous. Collapsing them to one would mean deciding which to drop, and
     /// that decision is not the resolver's to make — they are two true things
     /// about the same resolution.
-    pub warnings: Vec<TaxonWarning>,
+    pub warnings: Vec<LookupNotice>,
 }
 
 #[must_use]
@@ -81,7 +81,7 @@ pub async fn resolve<R: LotusRepository>(
     let taxon_timer = perf::start_timer("LOTUS:taxon_resolution");
     let sanitized = sanitize_taxon_input(taxon);
 
-    let standardized_warning = (sanitized != taxon).then(|| TaxonWarning::Standardized {
+    let standardized_warning = (sanitized != taxon).then(|| LookupNotice::Standardized {
         original: taxon.into(),
         standardized: sanitized.clone(),
     });
@@ -176,10 +176,10 @@ async fn lookup<R: LotusRepository>(
 /// than at either call site, so the query path and the cache path cannot order
 /// them differently -- which is the bug this replaced.
 fn notices(
-    standardized: Option<TaxonWarning>,
+    standardized: Option<LookupNotice>,
     cached: &taxon_cache::CachedTaxon,
-) -> Vec<TaxonWarning> {
-    let mut warnings: Vec<TaxonWarning> = standardized.into_iter().collect();
+) -> Vec<LookupNotice> {
+    let mut warnings: Vec<LookupNotice> = standardized.into_iter().collect();
     warnings.extend(cached.warnings());
     warnings
 }
@@ -366,11 +366,11 @@ mod tests {
         assert_eq!(
             first.warnings,
             vec![
-                TaxonWarning::Standardized {
+                LookupNotice::Standardized {
                     original: "bacteriostaticum".into(),
                     standardized: "Bacteriostaticum".into(),
                 },
-                TaxonWarning::Ambiguous {
+                LookupNotice::Ambiguous {
                     chosen_name: "Bacteriostaticum".into(),
                     chosen_qid: "Q900001".into(),
                     candidates: vec![

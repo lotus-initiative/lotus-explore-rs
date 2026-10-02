@@ -10,6 +10,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "lowercase")]
 enum ApiSmilesSearchType {
+    Exact,
     Substructure,
     Similarity,
 }
@@ -17,6 +18,7 @@ enum ApiSmilesSearchType {
 impl From<SmilesSearchType> for ApiSmilesSearchType {
     fn from(value: SmilesSearchType) -> Self {
         match value {
+            SmilesSearchType::Exact => Self::Exact,
             SmilesSearchType::Substructure => Self::Substructure,
             SmilesSearchType::Similarity => Self::Similarity,
         }
