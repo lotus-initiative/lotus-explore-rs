@@ -13,14 +13,16 @@ mod it;
 /// by the curation i18n tables.
 ///
 /// The per-locale functions are `pub(super)` and reachable only through the
-/// wrapper this macro generates, which is the shape that would normally need a
+/// wrapper this macro generates, which is the shape that would normally want a
 /// `dead_code` suppression -- the call site is in a different module, so the lint
 /// cannot see the use.
 ///
-/// It does not need one. This file carried `#[allow(dead_code)]` on all four arms
-/// and the lint turned out not to fire on any of them, on either target or in any
-/// build configuration. The suppression had outlived whatever it was for, and the
-/// reason it survived is that an `allow` reports nothing when it is unnecessary.
+/// It does not need one, and there is not one here. This file carried
+/// `#[allow(dead_code)]` on all four arms and the lint turned out to fire on none
+/// of them, on either target or in any build configuration: the `pub(super)`
+/// visibility is enough. An `allow` reports nothing when it is unnecessary, which
+/// is how a suppression outlives whatever it was for -- so it is worth noticing
+/// that this macro has none.
 macro_rules! dispatch {
     // no args → &'static str
     ($name:ident) => {

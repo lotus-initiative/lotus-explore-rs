@@ -18,9 +18,15 @@
 // Crate-level allows for the build script pulled in below, which cannot carry
 // inner attributes of its own once it is a module. `unused_crate_dependencies`
 // is ignored inside a module, hence here rather than on the `mod`.
-#![allow(unused_crate_dependencies)]
+#![allow(
+    unused_crate_dependencies,
+    reason = "the build script is pulled in as a module of a test target, so the crate-attribute has to be here rather than on the `mod`"
+)]
 // `fn main` is dead code here: this target runs the tests, not the build script.
-#![allow(dead_code)]
+#![allow(
+    dead_code,
+    reason = "`fn main` belongs to the build-script target; this target runs the tests in the same file"
+)]
 
 #[path = "build.rs"]
 mod build_script;

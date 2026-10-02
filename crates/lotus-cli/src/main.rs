@@ -11,11 +11,17 @@
 // dev-dependencies are linked in and the binary itself uses none of them, so
 // `unused_crate_dependencies` cannot be satisfied under `--all-targets`. The
 // real dependencies are checked in `src/` by not being listed unless used.
-#![allow(unused_crate_dependencies)]
+#![allow(
+    unused_crate_dependencies,
+    reason = "the `--test` build links the dev-dependencies without the binary using them"
+)]
 // This is a binary: there is nothing outside the crate for `pub` to reach, so
 // `unreachable_pub` reports every module and item that cross a module boundary.
 // The items are `pub` only so that `main` can name them.
-#![allow(unreachable_pub)]
+#![allow(
+    unreachable_pub,
+    reason = "a binary has no external consumer, so every `pub` item crosses a module boundary for nothing"
+)]
 
 use std::io::{self, Write};
 use std::process::ExitCode;

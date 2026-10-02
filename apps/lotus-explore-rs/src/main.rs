@@ -11,9 +11,16 @@
 // catches things in `lotus` and `lotus-web-assets`.
 #![allow(unused_crate_dependencies)]
 // `pub` inside a module that only exists on some targets is unreachable from the
-// others. `missing_const_for_fn` fires on locale-dispatch helpers that cannot be
-// `const` without cascading into all four locale tables.
-#![allow(unreachable_pub, clippy::missing_const_for_fn)]
+// others -- a `#[cfg(not(target_arch = "wasm32"))]` module is `pub` for the server
+// build and absent for the browser one.
+#![allow(
+    unreachable_pub,
+    reason = "a `pub` item in a target-gated module is unreachable from the other target"
+)]
+#![allow(
+    clippy::missing_const_for_fn,
+    reason = "fires on the locale-dispatch helpers, which cannot be `const` without cascading into all four locale tables"
+)]
 // `dead_code` is denied, and allowed only where the code in this crate is not
 // the program being built. See the `cfg_attr` below for which those are.
 #![cfg_attr(
@@ -26,7 +33,12 @@
 )]
 //! `lotus-explore-rs` — LOTUS Explorer.
 
-#![allow(non_snake_case)] // Dioxus PascalCase component naming convention
+// Dioxus components are PascalCase by convention, so every `#[component]` fn in
+// this crate is named `SomeComponent` rather than `some_component`.
+#![allow(
+    non_snake_case,
+    reason = "Dioxus names `#[component]` functions in PascalCase"
+)]
 
 #[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod api;

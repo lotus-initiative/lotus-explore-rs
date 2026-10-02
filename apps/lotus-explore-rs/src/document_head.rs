@@ -7,7 +7,10 @@
 // fixed by the framework and cannot be made volatile-compatible at the call
 // site. The lint is suppressed for the whole module because every flagged
 // expression is an `asset!` invocation of exactly this shape.
-#![allow(clippy::volatile_composites)]
+#![allow(
+    clippy::volatile_composites,
+    reason = "expands from Dioxus's `asset!` macro, which reads bytes through a volatile pointer; the shape is fixed by the macro"
+)]
 
 use dioxus::prelude::*;
 

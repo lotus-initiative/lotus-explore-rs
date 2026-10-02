@@ -11,7 +11,10 @@
 //! forgot to regenerate them fails the build instead of publishing a stale
 //! citation.
 
-#![allow(unused_crate_dependencies)]
+#![allow(
+    unused_crate_dependencies,
+    reason = "a binary links its dependencies to run, not to call them"
+)]
 // A binary exists to be run, not to be called, so a panic here is a bug report
 // rather than a way to handle bad input from a caller.
 #![allow(

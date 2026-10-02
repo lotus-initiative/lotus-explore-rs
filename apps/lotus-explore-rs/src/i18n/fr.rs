@@ -6,7 +6,10 @@ use crate::i18n::TextKey;
 
 // One flat match arm per `TextKey` variant; splitting the table into helper
 // fns would hurt readability more than the line count helps it.
-#[allow(clippy::too_many_lines)]
+#[allow(
+    clippy::too_many_lines,
+    reason = "one flat table of translations; splitting it would mean a key is not findable by name"
+)]
 pub const fn fr_t(key: TextKey) -> &'static str {
     match key {
         TextKey::Share => "Partager",

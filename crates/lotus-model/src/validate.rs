@@ -12,10 +12,15 @@ use thiserror::Error;
 
 /// A filter that cannot be turned into a query.
 ///
-/// The `#[error]` attribute on each variant is its user-facing message, so a doc
-/// comment on the variant would only restate it.
+/// `missing_docs` is not allowed on the variants because the `#[error]` attribute
+/// on each one *is* its user-facing message, and a doc comment beside it would
+/// restate that message in prose. The reason is on the attribute so that a reader
+/// who wonders why the docs stop here finds the answer.
 #[derive(Debug, Clone, PartialEq, Error)]
-#[allow(missing_docs)]
+#[allow(
+    missing_docs,
+    reason = "each variant's `#[error]` message is its documentation; a doc comment would restate it"
+)]
 pub enum ValidationError {
     #[error("taxon is longer than {limit} characters")]
     TaxonTooLong { limit: usize },
