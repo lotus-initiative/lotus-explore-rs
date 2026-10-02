@@ -66,6 +66,18 @@ pub enum TaxonWarning {
         original: String,
         standardized: String,
     },
+    /// The name matched a taxon's common name (`P1843`) rather than its
+    /// scientific name (`P225`).
+    ///
+    /// It resolved, which is the point: refusing it would send the reader to
+    /// Wikidata to perform a lookup this tool has already done. But a common
+    /// name is what prose calls the organism rather than what the compounds are
+    /// filed under, and the same word is used for unrelated taxa in different
+    /// languages, so the reader is told what it resolved to.
+    CommonName {
+        chosen_name: String,
+        chosen_qid: String,
+    },
     /// Multiple candidates found; `chosen_*` is the one we used.
     Ambiguous {
         chosen_name: String,

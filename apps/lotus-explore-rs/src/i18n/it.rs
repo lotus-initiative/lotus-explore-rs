@@ -91,6 +91,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         }
         TextKey::AdvancedFilters => "Filtri avanzati",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
+        TextKey::TaxonField => "Nome scientifico o comune del taxon",
         TextKey::TaxonPlaceholder => "un nome, un QID o * per tutto",
         TextKey::TaxonNomenclature => "Cerca anche con altri nomi",
         TextKey::TaxonNomenclatureAccepted => "nome accettato e suoi sinonimi",

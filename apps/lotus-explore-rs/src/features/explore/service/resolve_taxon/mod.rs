@@ -20,6 +20,7 @@ use crate::perf;
 use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
 use crate::sparql;
+use lotus_model::TaxonMatch;
 
 /// Output of a successful taxon resolution.
 #[derive(Debug, Clone)]
@@ -97,28 +98,29 @@ pub async fn resolve<R: LotusRepository>(
         });
     }
 
-    // Slow path: SPARQL query.
-    let query = lotus_query::taxon_lookup_query(&sanitized);
-    let csv = match repo.sparql_body(&query).await {
-        Ok(csv) => csv,
-        Err(error) => {
-            let _ = perf::end_timer("LOTUS:taxon_resolution", taxon_timer);
-            return Err(DomainError::Transport {
-                stage: QueryStage::TaxonSearch,
-                source: error,
-            });
-        }
-    };
+    // Slow path: SPARQL query, scientific name first.
+    //
+    // The common-name lookup is a *second* round trip rather than a second
+    // branch of this one, and that is the whole design. The scientific lookup is
+    // served from an index and answers in about 0.3s; the common-name lookup
+    // cannot be (every `P1843` value is language-tagged and inconsistently
+    // capitalised, so it has to compare lexical forms, which is a scan of every
+    // statement -- about 2.5s measured). Folding it in with a UNION would make
+    // every taxon search pay the 2.5s, including the overwhelming majority that
+    // hit a scientific name and never needed it.
+    let mut matches = lookup(repo, metrics, lotus_query::taxon_lookup_query(&sanitized)).await?;
 
-    let taxon_elapsed = perf::end_timer("LOTUS:taxon_resolution", taxon_timer);
-    metrics.add_network(taxon_elapsed);
-    telemetry::taxon_sparql_done(taxon_elapsed);
-
-    let matches = sparql::parse_taxon_csv(csv.as_ref()).map_err(|e| {
-        DomainError::Parse(ParseFault::TaxonCsv {
-            details: e.to_string(),
-        })
-    })?;
+    if matches.is_empty() {
+        // No scientific name, so try the common one. Resolving rather than
+        // refusing is deliberate: sending the reader to Wikidata to perform the
+        // lookup this tool just did is a worse answer than a labelled one.
+        matches = lookup(
+            repo,
+            metrics,
+            lotus_query::taxon_common_name_lookup_query(&sanitized),
+        )
+        .await?;
+    }
 
     if matches.is_empty() {
         return Err(DomainError::Validation(ValidationFault::TaxonNotFound {
@@ -134,6 +136,36 @@ pub async fn resolve<R: LotusRepository>(
     Ok(TaxonResolution {
         qid: Some(cached.qid),
         warnings,
+    })
+}
+
+/// Run one taxon lookup and parse it, charging the round trip to `metrics`.
+///
+/// A transport failure here is fatal rather than falling through to the next
+/// lookup: if the endpoint is unreachable, the common-name scan would be too,
+/// and two failed round trips is a slower way to learn the same thing.
+async fn lookup<R: LotusRepository>(
+    repo: &R,
+    metrics: &mut SearchMetrics,
+    query: String,
+) -> Result<Vec<TaxonMatch>, DomainError> {
+    let timer = perf::start_timer("LOTUS:taxon_resolution");
+    let csv = repo.sparql_body(&query).await.map_err(|error| {
+        let _ = perf::end_timer("LOTUS:taxon_resolution", timer);
+        DomainError::Transport {
+            stage: QueryStage::TaxonSearch,
+            source: error,
+        }
+    })?;
+
+    let elapsed = perf::end_timer("LOTUS:taxon_resolution", timer);
+    metrics.add_network(elapsed);
+    telemetry::taxon_sparql_done(elapsed);
+
+    sparql::parse_taxon_csv(csv.as_ref()).map_err(|e| {
+        DomainError::Parse(ParseFault::TaxonCsv {
+            details: e.to_string(),
+        })
     })
 }
 

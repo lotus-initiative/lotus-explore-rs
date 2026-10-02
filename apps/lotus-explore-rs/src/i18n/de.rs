@@ -91,6 +91,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         }
         TextKey::AdvancedFilters => "Erweiterte Filter",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
+        TextKey::TaxonField => "Wissenschaftlicher oder Trivialname des Taxons",
         TextKey::TaxonPlaceholder => "ein Name, eine QID oder * für alles",
         TextKey::TaxonNomenclature => "Auch unter anderen Namen suchen",
         TextKey::TaxonNomenclatureAccepted => "akzeptierter Name und seine Synonyme",

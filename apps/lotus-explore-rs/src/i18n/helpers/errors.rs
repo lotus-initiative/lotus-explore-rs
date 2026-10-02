@@ -93,6 +93,7 @@ dispatch!(err_taxon_not_found, taxon: &str);
 dispatch!(err_query_stage_failed, stage: &str, detail: &str);
 
 dispatch!(warn_input_standardized, original: &str, normalized: &str);
+dispatch!(warn_taxon_common_name, name: &str, qid: &str);
 dispatch!(warn_ambiguous_taxon, best_name: &str, best_qid: &str, names: &str);
 
 #[cfg(target_arch = "wasm32")]

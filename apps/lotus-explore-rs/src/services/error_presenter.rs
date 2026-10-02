@@ -12,7 +12,8 @@ use crate::i18n::{
     err_mass_out_of_range, err_mass_range_invalid, err_query_stage_failed,
     err_similarity_threshold_invalid, err_structure_too_long, err_taxon_not_found,
     err_taxon_parse_failed, err_taxon_too_long, err_unsupported_format, err_year_out_of_range,
-    err_year_range_invalid, t, warn_ambiguous_taxon, warn_input_standardized, warn_wdqs_fallback,
+    err_year_range_invalid, t, warn_ambiguous_taxon, warn_input_standardized,
+    warn_taxon_common_name, warn_wdqs_fallback,
 };
 use crate::repositories::RepositoryError;
 
@@ -45,6 +46,10 @@ fn format_taxon_warning(locale: Locale, warning: &TaxonWarning) -> String {
             original,
             standardized,
         } => warn_input_standardized(locale, original, standardized),
+        TaxonWarning::CommonName {
+            chosen_name,
+            chosen_qid,
+        } => warn_taxon_common_name(locale, chosen_name, chosen_qid),
         TaxonWarning::Ambiguous {
             chosen_name,
             chosen_qid,

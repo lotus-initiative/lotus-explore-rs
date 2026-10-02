@@ -61,6 +61,14 @@ pub fn warn_input_standardized(original: &str, normalized: &str) -> String {
     format!("Input standardizzato da '{original}' a '{normalized}'.")
 }
 
+/// The common-name notice. Says which property matched, because that is
+/// the actionable part: P1843 rather than P225.
+pub fn warn_taxon_common_name(name: &str, qid: &str) -> String {
+    format!(
+        "La ricerca per nome comune è sconsigliata: «{name}» è stato abbinato al taxon {qid} tramite il nome comune (P1843) anziché quello scientifico (P225)."
+    )
+}
+
 pub fn warn_ambiguous_taxon(best_name: &str, best_qid: &str, names: &str) -> String {
     format!("Nome taxon ambiguo; uso {best_name} ({best_qid}). Candidati: {names}")
 }

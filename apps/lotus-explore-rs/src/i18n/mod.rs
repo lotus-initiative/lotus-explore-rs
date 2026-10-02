@@ -142,7 +142,12 @@ pub enum TextKey {
     // Search panel
     /// Heading of the collapsed sub-filter disclosure in each entity group.
     AdvancedFilters,
+    /// The green heading of the taxon filter group.
     Taxon,
+    /// The black label on the taxon input itself. A different key from
+    /// [`Taxon`] because the field now accepts two kinds of name and says so,
+    /// while the group it belongs to is about the organism either way.
+    TaxonField,
     TaxonPlaceholder,
     TaxonNomenclature,
     TaxonNomenclatureAccepted,

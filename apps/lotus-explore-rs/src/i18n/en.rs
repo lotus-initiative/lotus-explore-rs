@@ -86,6 +86,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
         }
         TextKey::AdvancedFilters => "Advanced filters",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
+        TextKey::TaxonField => "Taxon scientific or common name",
         TextKey::TaxonPlaceholder => "a name, a QID, or * for everything",
         TextKey::TaxonNomenclature => "Also search other names",
         TextKey::TaxonNomenclatureAccepted => "accepted name and its synonyms",

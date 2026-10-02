@@ -13,6 +13,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use crate::features::explore::types::TaxonWarning;
+use lotus_model::TaxonNameSource;
 
 /// A resolved taxon name, together with the candidates that made it ambiguous.
 ///
@@ -24,6 +25,9 @@ pub struct CachedTaxon {
     pub qid: String,
     /// The chosen candidate's display name, as the ambiguity notice shows it.
     pub label: String,
+    /// Which of P225 and P1843 the name came from, which is what earns the
+    /// common-name notice.
+    pub source: TaxonNameSource,
     /// `"Name (QID)"` strings for the candidates offered, empty when unambiguous.
     pub candidates: Vec<String>,
 }
@@ -31,19 +35,26 @@ pub struct CachedTaxon {
 impl CachedTaxon {
     /// The notices this resolution earns, in the order they apply.
     ///
-    /// Same answer on every run, because the candidate list travels with the
-    /// QID through the cache rather than being re-derived from a lookup that
-    /// may not happen again.
+    /// Same answer on every run, because the candidate list and the property it
+    /// came from travel with the QID through the cache rather than being
+    /// re-derived from a lookup that may not happen again.
     #[must_use]
     pub fn warnings(&self) -> Vec<TaxonWarning> {
-        (!self.candidates.is_empty())
-            .then(|| TaxonWarning::Ambiguous {
+        let mut warnings = Vec::new();
+        if self.source == TaxonNameSource::Common {
+            warnings.push(TaxonWarning::CommonName {
+                chosen_name: self.label.clone(),
+                chosen_qid: self.qid.clone(),
+            });
+        }
+        if !self.candidates.is_empty() {
+            warnings.push(TaxonWarning::Ambiguous {
                 chosen_name: self.label.clone(),
                 chosen_qid: self.qid.clone(),
                 candidates: self.candidates.clone(),
-            })
-            .into_iter()
-            .collect()
+            });
+        }
+        warnings
     }
 }
 
@@ -87,6 +98,7 @@ mod tests {
         CachedTaxon {
             qid: qid.to_owned(),
             label: label.to_owned(),
+            source: TaxonNameSource::Scientific,
             candidates: Vec::new(),
         }
     }
@@ -110,6 +122,45 @@ mod tests {
     }
 
     #[test]
+    fn a_common_name_resolution_earns_the_common_name_notice_on_every_read() {
+        let cached = CachedTaxon {
+            qid: "Q777".to_owned(),
+            label: "Gentian".to_owned(),
+            source: TaxonNameSource::Common,
+            candidates: Vec::new(),
+        };
+        store("gentian", &cached);
+
+        let warnings = lookup("Gentian").map(|hit| hit.warnings());
+        assert!(
+            matches!(warnings, Some(ref w) if matches!(w[..], [TaxonWarning::CommonName { .. }])),
+            "expected the common-name notice, got {warnings:?}"
+        );
+    }
+
+    #[test]
+    fn a_scientific_resolution_earns_nothing() {
+        assert_eq!(resolved("Q1", "Gentiana lutea").warnings().len(), 0);
+    }
+
+    #[test]
+    fn a_common_name_that_is_also_ambiguous_earns_both_notices() {
+        let cached = CachedTaxon {
+            qid: "Q777".to_owned(),
+            label: "Gentian".to_owned(),
+            source: TaxonNameSource::Common,
+            candidates: vec!["Gentian (Q777)".to_owned(), "Gentian (Q778)".to_owned()],
+        };
+        assert!(matches!(
+            cached.warnings().as_slice(),
+            [
+                TaxonWarning::CommonName { .. },
+                TaxonWarning::Ambiguous { .. }
+            ]
+        ));
+    }
+
+    #[test]
     fn an_ambiguous_resolution_reproduces_the_same_notice_on_every_read() {
         let candidates = vec![
             "Bacteria (Q10876)".to_owned(),
@@ -120,6 +171,7 @@ mod tests {
             &CachedTaxon {
                 qid: "Q10876".to_owned(),
                 label: "Bacteria".to_owned(),
+                source: TaxonNameSource::Scientific,
                 candidates,
             },
         );
