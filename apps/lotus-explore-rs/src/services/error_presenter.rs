@@ -14,7 +14,8 @@ use crate::i18n::{
     err_similarity_threshold_invalid, err_structure_too_long, err_taxon_not_found,
     err_taxon_parse_failed, err_taxon_too_long, err_unsupported_format, err_year_out_of_range,
     err_year_range_invalid, t, warn_ambiguous_taxon, warn_compound_resolved,
-    warn_input_standardized, warn_taxon_common_name, warn_unconstrained, warn_wdqs_fallback,
+    warn_ambiguous_compound, warn_input_standardized, warn_taxon_common_name, warn_unconstrained,
+    warn_wdqs_fallback,
 };
 use crate::repositories::RepositoryError;
 
@@ -55,11 +56,16 @@ fn format_taxon_warning(locale: Locale, warning: &LookupNotice) -> String {
             chosen_label,
             chosen_qid,
         } => warn_compound_resolved(locale, chosen_label, chosen_qid),
-        LookupNotice::Ambiguous {
+        LookupNotice::AmbiguousTaxon {
             chosen_name,
             chosen_qid,
             candidates,
         } => warn_ambiguous_taxon(locale, chosen_name, chosen_qid, &candidates.join(", ")),
+        LookupNotice::AmbiguousCompound {
+            chosen_name,
+            chosen_qid,
+            candidates,
+        } => warn_ambiguous_compound(locale, chosen_name, chosen_qid, &candidates.join(", ")),
         LookupNotice::ApiMessage(msg) => msg.clone(),
         LookupNotice::WdqsFallback => warn_wdqs_fallback(locale),
         LookupNotice::Unconstrained => warn_unconstrained(locale),
@@ -207,7 +213,7 @@ mod tests {
                     original: "bacteria".into(),
                     standardized: "Bacteria".into(),
                 },
-                LookupNotice::Ambiguous {
+                LookupNotice::AmbiguousTaxon {
                     chosen_name: "Bacteria".into(),
                     chosen_qid: "Q10876".into(),
                     candidates: vec!["Bacteria (Q10876)".into(), "Bacteria (Q4034791)".into()],
@@ -225,6 +231,64 @@ mod tests {
             joined.contains("Q10876") && joined.contains("Q4034791"),
             "{joined}"
         );
+    }
+
+    #[test]
+    fn a_compound_ambiguity_does_not_call_itself_a_taxon() {
+        // The bug this pins: `c1ccccc1` resolves to several compounds, and the
+        // notice said "Ambiguous taxon name" because both lookups shared one
+        // variant and the presenter had the taxon wording hardcoded for it. The
+        // reader was pointed at the field they did not type into.
+        let lines = format_taxon_warnings(
+            Locale::En,
+            &[LookupNotice::AmbiguousCompound {
+                chosen_name: "benzene".into(),
+                chosen_qid: "Q2270".into(),
+                candidates: vec![
+                    "benzene (Q2270)".into(),
+                    "deuterated benzene (Q1101314)".into(),
+                ],
+            }],
+        );
+        let joined = lines.join("\n");
+        assert!(!joined.to_lowercase().contains("taxon"), "{joined}");
+        assert!(joined.contains("compound"), "{joined}");
+        assert!(joined.contains("Q2270"), "{joined}");
+        assert!(joined.contains("deuterated benzene (Q1101314)"), "{joined}");
+    }
+
+    #[test]
+    fn each_ambiguity_names_its_own_kind_of_thing_in_every_locale() {
+        // The sentence is not the English one in the other three, so asserting
+        // English phrasing there would pass for the wrong reason. What has to hold
+        // everywhere is that each names a taxon or a compound, and not the other.
+        for locale in [Locale::En, Locale::Fr, Locale::De, Locale::It] {
+            let taxon = format_taxon_warnings(
+                locale,
+                &[LookupNotice::AmbiguousTaxon {
+                    chosen_name: "Bacteria".into(),
+                    chosen_qid: "Q10876".into(),
+                    candidates: vec!["Bacteria (Q10876)".into()],
+                }],
+            )
+            .join("\n");
+            let compound = format_taxon_warnings(
+                locale,
+                &[LookupNotice::AmbiguousCompound {
+                    chosen_name: "benzene".into(),
+                    chosen_qid: "Q2270".into(),
+                    candidates: vec!["benzene (Q2270)".into()],
+                }],
+            )
+            .join("\n");
+
+            assert_ne!(taxon, compound, "{locale:?}: the two read the same");
+            assert!(!taxon.to_lowercase().contains("compound"), "{locale:?}: {taxon}");
+            assert!(
+                !compound.to_lowercase().contains("taxon"),
+                "{locale:?}: {compound}"
+            );
+        }
     }
 
     #[test]

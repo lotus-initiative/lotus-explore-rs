@@ -370,7 +370,7 @@ mod tests {
                     original: "bacteriostaticum".into(),
                     standardized: "Bacteriostaticum".into(),
                 },
-                LookupNotice::Ambiguous {
+                LookupNotice::AmbiguousTaxon {
                     chosen_name: "Bacteriostaticum".into(),
                     chosen_qid: "Q900001".into(),
                     candidates: vec![

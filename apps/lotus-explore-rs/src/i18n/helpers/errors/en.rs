@@ -94,6 +94,15 @@ pub fn warn_ambiguous_taxon(best_name: &str, best_qid: &str, names: &str) -> Str
     format!("Ambiguous taxon name; using {best_name} ({best_qid}). Candidates: {names}")
 }
 
+/// More than one compound matched, and the one that was used is named.
+///
+/// Split from `warn_ambiguous_taxon` rather than shared: the reader's next move is
+/// the same, but naming a compound "an ambiguous taxon name" points them at the
+/// field they did not type into.
+pub fn warn_ambiguous_compound(best_name: &str, best_qid: &str, names: &str) -> String {
+    format!("Ambiguous compound; using {best_name} ({best_qid}). Candidates: {names}")
+}
+
 /// The search names no structure, no taxon and no reference, so it walks all of
 /// LOTUS. Said as a fact about the scan rather than about the answer, because
 /// filters set alongside it narrow the answer without narrowing the walk.

@@ -103,11 +103,23 @@ pub enum LookupNotice {
         /// The compound it resolved to.
         chosen_qid: String,
     },
-    /// More than one candidate matched; `chosen_*` is the one that was used.
+    /// More than one taxon matched; `chosen_*` is the one that was used.
+    AmbiguousTaxon {
+        chosen_name: String,
+        chosen_qid: String,
+        /// Top candidates as `"Name (QID)"` strings.
+        candidates: Vec<String>,
+    },
+    /// More than one compound matched a structure or a label; `chosen_*` is the
+    /// one that was used.
     ///
-    /// Shared by both lookups, because ambiguity is the same event either way
-    /// and the reader's decision -- pick one, or narrow the input -- is the same.
-    Ambiguous {
+    /// Split from [`LookupNotice::AmbiguousTaxon`] rather than shared with it,
+    /// for the same reason [`LookupNotice::CompoundResolved`] is split from
+    /// [`LookupNotice::CommonName`]: the reader's next move is the same, but the
+    /// sentence is not. "Ambiguous taxon name" on a structure search names the
+    /// wrong kind of thing, and points the reader at the field they did not type
+    /// into.
+    AmbiguousCompound {
         chosen_name: String,
         chosen_qid: String,
         /// Top candidates as `"Name (QID)"` strings.

@@ -207,7 +207,7 @@ fn to_notices(cached: &CachedCompound) -> Vec<LookupNotice> {
                 chosen_name,
                 chosen_qid,
                 candidates,
-            } => LookupNotice::Ambiguous {
+            } => LookupNotice::AmbiguousCompound {
                 chosen_name,
                 chosen_qid,
                 candidates,
@@ -602,7 +602,7 @@ mod tests {
         assert!(
             matches!(
                 resolution.notices.last(),
-                Some(LookupNotice::Ambiguous { .. })
+                Some(LookupNotice::AmbiguousCompound { .. })
             ),
             "ambiguity comes second, after what it resolved to"
         );

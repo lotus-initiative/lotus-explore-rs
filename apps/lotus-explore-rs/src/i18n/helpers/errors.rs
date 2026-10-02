@@ -101,6 +101,7 @@ dispatch!(warn_input_standardized, original: &str, normalized: &str);
 dispatch!(warn_taxon_common_name, name: &str, qid: &str);
 dispatch!(warn_compound_resolved, label: &str, qid: &str);
 dispatch!(warn_ambiguous_taxon, best_name: &str, best_qid: &str, names: &str);
+dispatch!(warn_ambiguous_compound, best_name: &str, best_qid: &str, names: &str);
 
 #[cfg(target_arch = "wasm32")]
 pub fn error_hint_memory(locale: Locale) -> &'static str {

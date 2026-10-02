@@ -98,6 +98,15 @@ pub fn warn_ambiguous_taxon(best_name: &str, best_qid: &str, names: &str) -> Str
     format!("Mehrdeutiger Taxonname; verwende {best_name} ({best_qid}). Kandidaten: {names}")
 }
 
+/// More than one compound matched, and the one that was used is named.
+///
+/// Split from `warn_ambiguous_taxon` rather than shared: the reader's next move is
+/// the same, but naming a compound "an ambiguous taxon name" points them at the
+/// field they did not type into.
+pub fn warn_ambiguous_compound(best_name: &str, best_qid: &str, names: &str) -> String {
+    format!("Mehrdeutige Verbindung; verwende {best_name} ({best_qid}). Kandidaten: {names}")
+}
+
 /// Die Suche nennt weder Struktur noch Taxon noch Referenz und durchsucht daher
 /// ganz LOTUS. Als Aussage über den Durchlauf formuliert und nicht über die Antwort,
 /// weil zusätzliche Filter die Antwort einengen, ohne den Durchlauf einzuengen.

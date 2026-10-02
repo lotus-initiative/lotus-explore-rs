@@ -18,7 +18,7 @@ use lotus_model::TaxonNameSource;
 /// A resolved taxon name, together with the candidates that made it ambiguous.
 ///
 /// `candidates` is empty when exactly one candidate matched; a non-empty list
-/// is what [`LookupNotice::Ambiguous`] is reconstructed from.
+/// is what [`LookupNotice::AmbiguousTaxon`] is reconstructed from.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CachedTaxon {
     /// The chosen Wikidata QID.
@@ -48,7 +48,7 @@ impl CachedTaxon {
             });
         }
         if !self.candidates.is_empty() {
-            warnings.push(LookupNotice::Ambiguous {
+            warnings.push(LookupNotice::AmbiguousTaxon {
                 chosen_name: self.label.clone(),
                 chosen_qid: self.qid.clone(),
                 candidates: self.candidates.clone(),
@@ -155,7 +155,7 @@ mod tests {
             cached.warnings().as_slice(),
             [
                 LookupNotice::CommonName { .. },
-                LookupNotice::Ambiguous { .. }
+                LookupNotice::AmbiguousTaxon { .. }
             ]
         ));
     }
@@ -185,7 +185,7 @@ mod tests {
         );
         assert!(matches!(
             first.as_deref(),
-            Some([LookupNotice::Ambiguous { .. }])
+            Some([LookupNotice::AmbiguousTaxon { .. }])
         ));
     }
 }

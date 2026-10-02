@@ -96,6 +96,15 @@ pub fn warn_ambiguous_taxon(best_name: &str, best_qid: &str, names: &str) -> Str
     format!("Nom de taxon ambigu; utilisation de {best_name} ({best_qid}). Candidats : {names}")
 }
 
+/// More than one compound matched, and the one that was used is named.
+///
+/// Split from `warn_ambiguous_taxon` rather than shared: the reader's next move is
+/// the same, but naming a compound "an ambiguous taxon name" points them at the
+/// field they did not type into.
+pub fn warn_ambiguous_compound(best_name: &str, best_qid: &str, names: &str) -> String {
+    format!("Composé ambigu; utilisation de {best_name} ({best_qid}). Candidats : {names}")
+}
+
 /// La recherche ne nomme ni structure, ni taxon, ni référence : tout LOTUS est
 /// parcouru. Dit comme un fait sur le parcours et non sur la réponse, car les
 /// filtres posés en plus restreignent la réponse sans restreindre le parcours.
