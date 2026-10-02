@@ -162,9 +162,10 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::DownloadCsvTitle => "Télécharger les résultats en CSV",
         TextKey::DownloadJsonTitle => "Télécharger les résultats en JSON",
         TextKey::DownloadRdfTitle => "Télécharger les résultats en RDF (Turtle)",
-        TextKey::DownloadMetadataTitle | TextKey::DownloadMetadataLabel => {
-            "Télécharger les métadonnées"
+        TextKey::DownloadMetadataTitle => {
+            "Télécharger les métadonnées de la requête (JSON-LD Schema.org)"
         }
+        TextKey::DownloadMetadataLabel => "Télécharger les métadonnées de la requête",
         TextKey::OpenInQlever => "Ouvrir dans QLever",
         TextKey::OpenInQleverTitle => "Ouvrir cette requête dans l'interface web de QLever",
         TextKey::OpenInEndpoint => "Ouvrir dans l'endpoint",

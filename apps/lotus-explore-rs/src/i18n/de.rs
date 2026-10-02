@@ -159,7 +159,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::DownloadJsonTitle => "Ergebnisse als JSON herunterladen",
         TextKey::DownloadRdfTitle => "Ergebnisse als RDF (Turtle) herunterladen",
         TextKey::DownloadMetadataTitle => "Schema.org-Metadaten herunterladen (JSON-LD)",
-        TextKey::DownloadMetadataLabel => "Metadaten herunterladen",
+        TextKey::DownloadMetadataLabel => "Abfrage-Metadaten herunterladen",
         TextKey::OpenInQlever => "In QLever öffnen",
         TextKey::OpenInQleverTitle => "Diese Abfrage in der QLever-Weboberfläche öffnen",
         TextKey::OpenInEndpoint => "In Endpoint öffnen",

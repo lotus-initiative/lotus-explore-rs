@@ -149,7 +149,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::DownloadJsonTitle => "Download results as JSON",
         TextKey::DownloadRdfTitle => "Download results as RDF (Turtle)",
         TextKey::DownloadMetadataTitle => "Download Schema.org metadata (JSON-LD)",
-        TextKey::DownloadMetadataLabel => "Download metadata",
+        TextKey::DownloadMetadataLabel => "Download query metadata",
         TextKey::OpenInQlever => "Open in QLever",
         TextKey::OpenInQleverTitle => "Open this query in the QLever web interface",
         TextKey::OpenInEndpoint => "Open in endpoint",

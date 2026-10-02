@@ -160,7 +160,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::DownloadJsonTitle => "Scarica i risultati in JSON",
         TextKey::DownloadRdfTitle => "Scarica i risultati in RDF (Turtle)",
         TextKey::DownloadMetadataTitle => "Scarica metadati Schema.org (JSON-LD)",
-        TextKey::DownloadMetadataLabel => "Scarica metadati",
+        TextKey::DownloadMetadataLabel => "Scarica metadati della query",
         TextKey::OpenInQlever => "Apri in QLever",
         TextKey::OpenInQleverTitle => "Apri questa query nell'interfaccia web di QLever",
         TextKey::OpenInEndpoint => "Apri nell'endpoint",
