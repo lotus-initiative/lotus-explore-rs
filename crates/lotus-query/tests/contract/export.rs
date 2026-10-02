@@ -18,7 +18,7 @@ use lotus_model::SearchCriteria;
 use lotus_query::{
     Nomenclature, all_compounds_query, compounds_by_taxon_query, compounds_by_taxon_query_with,
     construct_from_select, escape_structure_literal, export_query, is_reference_lookup,
-    taxon_lookup_query, with_filters,
+    taxon_common_name_lookup_query, taxon_lookup_query, with_filters,
 };
 
 use super::common::{NOW, carbon_ranged_filter, criteria, subquery_depth};
@@ -208,6 +208,63 @@ fn a_taxon_lookup_is_an_exact_values_match() {
     // case-insensitively, turns this into a scan of every label.
     assert!(!query.contains("FILTER"));
     assert!(!query.contains("LCASE"));
+}
+
+// ── The common-name fallback ─────────────────────────────────────────────────
+//
+// Each assertion below is a bug that shipped. They are pinned here because the
+// failure mode in every case is the same and it is invisible: the query runs,
+// the endpoint is happy, and the answer is simply empty.
+
+#[test]
+fn a_common_name_lookup_walks_the_statement_path_not_the_truthy_one() {
+    let query = taxon_common_name_lookup_query("bitterwort");
+    // `wdt:P1843` collapses a taxon to its preferred-rank value. *Gentiana
+    // lutea* carries 65 common names and `wdt:` returns one of them, so
+    // `bitterwort` was unreachable. The statement path returns all 65.
+    assert!(
+        query.contains("?taxon p:P1843/ps:P1843 ?taxon_name ."),
+        "the truthy path hides every non-preferred common name:\n{query}"
+    );
+    assert!(
+        !query.contains("wdt:P1843"),
+        "reaching for wdt: here is the bug:\n{query}"
+    );
+}
+
+#[test]
+fn a_common_name_lookup_compares_lexical_forms() {
+    let query = taxon_common_name_lookup_query("bitterwort");
+    // Every `P1843` value is language-tagged -- `bitterwort` is
+    // `bitterwort@en` -- and a bare literal is not equal to a tagged one. So the
+    // comparison has to go through `STR()`, or the query matches nothing at all.
+    // It has to be case-insensitive too: `P1843` stores whatever a curator
+    // typed, so one taxon carries `bitterwort`, `Common wormwood` and
+    // `Bijvoet` side by side.
+    assert!(
+        query.contains(r#"FILTER(LCASE(STR(?taxon_name)) = LCASE("bitterwort"))"#),
+        "tag and case both have to be discarded to match a common name:\n{query}"
+    );
+    assert!(query.contains(r#"BIND("common" AS ?matched_by)"#));
+}
+
+#[test]
+fn the_scientific_lookup_stays_on_the_index_and_says_which_property_it_used() {
+    // The fallback exists so this one need not become a scan. If it ever grows a
+    // FILTER, every taxon search pays for the common-name lookup it did not need.
+    let query = taxon_lookup_query("Gentiana lutea");
+    assert!(
+        !query.contains("P1843"),
+        "the common name is a second query"
+    );
+    assert!(query.contains(r#"BIND("scientific" AS ?matched_by)"#));
+}
+
+#[test]
+fn a_common_name_lookup_escapes_its_literal() {
+    // The name goes inside a FILTER now, where a quote would end the string.
+    let query = taxon_common_name_lookup_query(r#"Gentiana "lutea" \ x"#);
+    assert!(query.contains(r#"LCASE("Gentiana \"lutea\" \\ x")"#));
 }
 
 #[test]

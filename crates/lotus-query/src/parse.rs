@@ -9,7 +9,8 @@
 
 use crate::error::ParseError;
 use lotus_model::{
-    CompoundEntry, DatasetStats, TaxonMatch, non_empty, normalize_doi, normalize_qid,
+    CompoundEntry, DatasetStats, TaxonMatch, TaxonNameSource, non_empty, normalize_doi,
+    normalize_qid,
 };
 use std::collections::HashSet;
 use std::io::Read;
@@ -322,6 +323,11 @@ pub fn parse_counts_csv(bytes: &[u8]) -> Result<DatasetStats, ParseError> {
 
 /// Parse taxon lookup rows, dropping any that has no QID or no name.
 ///
+/// `?matched_by` is read when the payload carries it and defaults to
+/// [`TaxonNameSource::Scientific`] when it does not, so a payload from before
+/// the common-name branch existed still parses — and still parses as the
+/// optimistic reading, which is the one that needs no notice.
+///
 /// # Errors
 /// Returns [`ParseError`] if the payload cannot be read as CSV.
 pub fn parse_taxon_csv(bytes: &[u8]) -> Result<Vec<TaxonMatch>, ParseError> {
@@ -333,6 +339,7 @@ pub fn parse_taxon_csv(bytes: &[u8]) -> Result<Vec<TaxonMatch>, ParseError> {
     let headers = reader.headers().map_err(ParseError::new)?.clone();
     let qid_at = headers.iter().position(|h| h == "taxon");
     let name_at = headers.iter().position(|h| h == "taxon_name");
+    let source_at = headers.iter().position(|h| h == "matched_by");
 
     let mut matches = Vec::new();
     for record in reader.records() {
@@ -344,10 +351,28 @@ pub fn parse_taxon_csv(bytes: &[u8]) -> Result<Vec<TaxonMatch>, ParseError> {
             .trim()
             .to_string();
         if !qid.is_empty() && !name.is_empty() {
-            matches.push(TaxonMatch { qid, name });
+            matches.push(TaxonMatch {
+                qid,
+                name,
+                source: taxon_name_source(
+                    record.get(source_at.unwrap_or(usize::MAX)).unwrap_or(""),
+                ),
+            });
         }
     }
     Ok(matches)
+}
+
+/// Read the `?matched_by` token [`taxon_lookup_query`] binds.
+///
+/// Anything that is not the one token it uses for a common name is read as a
+/// scientific name, because that is the safe direction: a notice about a common
+/// name is worth showing only when the endpoint actually said so.
+fn taxon_name_source(token: &str) -> TaxonNameSource {
+    match token.trim() {
+        "common" => TaxonNameSource::Common,
+        _ => TaxonNameSource::Scientific,
+    }
 }
 
 fn field(record: &csv::ByteRecord, at: Option<usize>) -> &str {

@@ -11,7 +11,7 @@ mod structure;
 mod validate;
 
 pub use criteria::{SearchCriteria, TaxonNomenclature};
-pub use entry::{CompoundEntry, Rows, TaxonMatch};
+pub use entry::{CompoundEntry, Rows, TaxonMatch, TaxonNameSource};
 pub use identify::{non_empty, normalize_doi, normalize_qid};
 pub use stats::{DatasetStats, ElementState, SmilesSearchType};
 pub use structure::{StructureKind, classify_structure};

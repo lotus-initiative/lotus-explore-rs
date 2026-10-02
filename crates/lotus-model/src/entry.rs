@@ -42,11 +42,35 @@ pub struct CompoundEntry {
 /// A result set. Cloning shares the rows rather than copying them.
 pub type Rows = Arc<[CompoundEntry]>;
 
+/// Which property a taxon name was matched on.
+///
+/// This is not a detail of the lookup: it decides whether the search gets a note
+/// telling the reader that the name they typed is the discouraged kind. See
+/// [`TaxonNameSource::Common`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize)]
+pub enum TaxonNameSource {
+    /// The scientific name, `P225` — the name a taxonomic authority endorses and
+    /// the one a publication is filed under.
+    #[default]
+    Scientific,
+    /// The common name, `P1843` — what people call the organism in prose.
+    ///
+    /// Resolvable, and deliberately so: refusing it would send the reader to
+    /// Wikidata to do the lookup this tool already did. But it is not the name
+    /// the compounds are filed under, it is ambiguous across languages and
+    /// regions in a way a binomial is not, and two organisms may share it. So it
+    /// always wins over a common-name reading of the input and always produces a
+    /// notice saying what it resolved to.
+    Common,
+}
+
 /// One hit from a taxon name lookup.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TaxonMatch {
     /// Wikidata QID.
     pub qid: String,
-    /// Scientific name (P225) or alias, as the endpoint reported it.
+    /// Scientific name (P225) or common name (P1843), as the endpoint reported it.
     pub name: String,
+    /// Which of the two the name came from.
+    pub source: TaxonNameSource,
 }

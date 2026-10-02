@@ -18,6 +18,6 @@ pub use query::{
     FallbackService, Nomenclature, all_compounds_query, compounds_by_taxon_query,
     compounds_by_taxon_query_with, construct_from_select, counts_query, escape_sparql_string,
     escape_structure_literal, export_query, is_reference_lookup, limit_query,
-    normalize_digits_expr, structure_search_query, structure_search_query_with, taxon_lookup_query,
-    wdqs_fallback, with_filters,
+    normalize_digits_expr, structure_search_query, structure_search_query_with,
+    taxon_common_name_lookup_query, taxon_lookup_query, wdqs_fallback, with_filters,
 };
