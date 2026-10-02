@@ -130,7 +130,7 @@ pub fn TaxonInput() -> Element {
                 // The examples are a described group of buttons, not a hint in the
                 // placeholder, so the input points at them by name.
                 "aria-describedby": "taxon-input-examples-heading",
-                class: "w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                class: "resize-field w-full min-h-9 rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                 list: "taxon-suggestions",
                 oninput: move |e| ctx.update(FormAction::Taxon(e.value())),
                 onkeydown: move |e| {
@@ -238,7 +238,7 @@ pub fn MassRangeInput() -> Element {
                         max: "10000",
                         step: "1",
                         value: "{min_value}",
-                        class: "w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                        class: "resize-field w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                         oninput: move |e| {
                             if let Some(v) = parse_f64_input(&e.value()) {
                                 ctx.update(FormAction::MassMin(v));
@@ -263,7 +263,7 @@ pub fn MassRangeInput() -> Element {
                         max: "10000",
                         step: "1",
                         value: "{max_value}",
-                        class: "w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                        class: "resize-field w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                         oninput: move |e| {
                             if let Some(v) = parse_f64_input(&e.value()) {
                                 ctx.update(FormAction::MassMax(v));
@@ -307,7 +307,7 @@ pub fn YearRangeInput() -> Element {
                         max: "{current}",
                         step: "1",
                         value: "{min_value}",
-                        class: "w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                        class: "resize-field w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                         oninput: move |e| {
                             if let Some(v) = parse_u16_input(&e.value()) {
                                 ctx.update(FormAction::YearMin(v));
@@ -332,7 +332,7 @@ pub fn YearRangeInput() -> Element {
                         max: "{current}",
                         step: "1",
                         value: "{max_value}",
-                        class: "w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                        class: "resize-field w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                         oninput: move |e| {
                             if let Some(v) = parse_u16_input(&e.value()) {
                                 ctx.update(FormAction::YearMax(v));
