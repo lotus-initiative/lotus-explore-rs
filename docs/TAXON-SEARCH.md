@@ -100,6 +100,14 @@ a repeat search reproduces the same notice rather than silently losing the
 common-name one — which is the failure that made the notice look unreliable in the
 first place.
 
+## The other free-text field
+
+The structure field resolves too, and for the same reason: a name typed there
+names a compound rather than a shape. Its routes, its guards and its measured
+costs are written down in [STRUCTURE-SEARCH.md](STRUCTURE-SEARCH.md), which
+stands on its own because none of it composes with the nomenclatural
+relationships below.
+
 ## The four relationships
 
 Each is stored twice in Wikidata, once from each end, and the four are
@@ -357,6 +365,7 @@ The four switches above are not name *resolution*. Where that lives:
 | Search | `resolve_taxon::resolve` runs the first, and only if it came back empty runs the second |
 | Cache | `taxon_cache::CachedTaxon` carries the QID, the label, **the source** and the candidate list |
 | Notice | `LookupNotice::CommonName`, formatted by `warn_taxon_common_name` in all four locales |
+| Field label | `TaxonField` reads *Taxon scientific or common name*; the group heading stays `Taxon` |
 | UI | the field label is `TaxonField` ("Taxon scientific or common name"); the group heading stays `Taxon` |
 
 The cache carrying the source is the load-bearing row. Without it a repeat search

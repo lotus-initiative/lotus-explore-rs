@@ -18,6 +18,16 @@
 # Re-run on 2026-10-01 after the taxonomy work and the 1.99 bump: 1015 mutants,
 # 702 caught, 312 unviable, 1 surviving -- the same equivalent `&&`, at the same
 # kind of site, still the only one.
+#
+# Re-run on 2026-10-02 after the structure resolution work: 1074 mutants, 743
+# caught, 331 unviable, 0 surviving. The first run of it reported 8, all in
+# `parse.rs` and all the same gap: `parse_compound_lookup_csv` and the `?matched_by`
+# column of `parse_taxon_csv` had no tests in this crate at all. They were covered
+# only through the app, which is the crate mutants does not run, so nothing here
+# could observe them. What killed them was fixtures that put the wanted columns
+# somewhere other than first -- a reader that matched `!=` against the header
+# would still produce rows, just the wrong ones, which is why every one of those
+# tests is about *which* column was read rather than whether a row appeared.
 
 # The app is ~2,700 mutants of Dioxus rendering -- a `match` arm on a `Signal`, an
 # `rswap!`, a literal in a `class` attribute. Killing those means a rendering

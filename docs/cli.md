@@ -45,7 +45,7 @@ lotus search --taxon "Isaria cicadae" --year-min 2015 --year-max 2024
   | `--no-protonyms`                                                               | Ignore the original combination, as first published (`P1403`)     |
   | `--no-replacements`                                                            | Ignore replacement names and what they replaced (`P694`)          |
   | `--structure`                                                                  | SMILES, or an MDL molfile (V2000/V3000)                          |
-  | `--structure-search`                                                           | `substructure` or `similarity`                                   |
+  | `--structure-search`                                                           | `exact` (default), `substructure` or `similarity`               |
   | `--threshold`                                                                  | Tanimoto cutoff for a similarity search, 0 to 1                  |
   | `--mass-min`, `--mass-max`                                                     | Molecular mass range, in daltons                                 |
   | `--year-min`, `--year-max`                                                     | Publication year range                                           |
@@ -79,6 +79,13 @@ taxonomic judgement that can change, the second a nomenclatural fact that does
 not, and Wikidata stores them under four separate property pairs. Pass any
 `--no-…` flag to switch one relationship off. See
 [TAXON-SEARCH.md](TAXON-SEARCH.md) for the properties and the traversal.
+
+`--structure-search exact` asks for one molecule. With a structure that is a
+similarity search at a cutoff of 1, since there is nothing else to search by; the
+web app resolves names, InChIKeys and QIDs to a compound first and then asks for
+that compound directly, which `--structure` does not do — the flag takes a
+structure, as its description says. See
+[STRUCTURE-SEARCH.md](STRUCTURE-SEARCH.md) for the app-side routes.
 
 An element range is written `MIN..MAX`, and either end may be omitted:
 `--carbon ..20` is at most 20 carbons, `--carbon 5..` is at least 5. A bare

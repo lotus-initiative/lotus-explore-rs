@@ -81,3 +81,7 @@ that it cannot go stale.
 - [`ARCHITECTURE.md`](../apps/lotus-explore-rs/docs/ARCHITECTURE.md) --- the
   application side, and why the clock lives there
 - [`cli.md`](cli.md) --- the command line
+- [`TAXON-SEARCH.md`](TAXON-SEARCH.md) --- how a taxon name becomes a QID, and the
+  four nomenclatural relationships
+- [`STRUCTURE-SEARCH.md`](STRUCTURE-SEARCH.md) --- how a name, an InChIKey or a QID
+  becomes a compound identity, and when the structure service is called at all
