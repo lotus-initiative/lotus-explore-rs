@@ -50,18 +50,21 @@ impl ResultsExecutionPlan {
         } else {
             SparqlEndpoint::Qlever
         };
-        let warning = if is_wdqs_fallback_used() {
-            Some(crate::features::explore::types::TaxonWarning::WdqsFallback)
-        } else {
-            self.taxon_resolution.warning
-        };
+        // The endpoint is a fact about this search and the taxon resolution is
+        // another; a fallback used to replace the taxon's notices rather than
+        // add to them, so a name that needed standardizing stopped being
+        // reported the moment the endpoint had to change.
+        let mut warnings = self.taxon_resolution.warnings;
+        if is_wdqs_fallback_used() {
+            warnings.push(crate::features::explore::types::TaxonWarning::WdqsFallback);
+        }
         let query = crate::repositories::get_wdqs_transformed_query()
             .unwrap_or_else(|| self.execution_query.clone());
 
         ResultsPipelineOutcome {
             rows: fetch_result.rows,
             qid: self.taxon_resolution.qid,
-            warning,
+            warnings,
             query,
             total_matches: fetch_result.total_matches,
             total_stats: fetch_result.total_stats,

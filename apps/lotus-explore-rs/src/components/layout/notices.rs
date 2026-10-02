@@ -11,7 +11,7 @@ use crate::features::explore::types::ErrorKind;
 use crate::features::explore::url_state::absolute_share_url;
 use crate::i18n::{TextKey, t};
 use crate::services::error_presenter::{
-    error_hint_text, format_domain_error, format_taxon_warning,
+    error_hint_text, format_domain_error, format_taxon_warnings,
 };
 use crate::state::{use_app_state_context, use_results_context};
 use crate::ui::prelude::{NoticeBar, NoticeTone};
@@ -64,12 +64,15 @@ pub fn TaxonNotice() -> Element {
     let locale = crate::hooks::use_locale();
     let dark_mode = use_app_state_context().state.read().dark_mode;
     let explore = use_results_context().explore;
-    let notice = use_result_selector(explore, |result| result.taxon_notice.clone());
-    let notice = notice.read();
-    let Some(warning) = notice.as_ref() else {
+    let notices = use_result_selector(explore, |result| result.taxon_notices.clone());
+    let notices = notices.read();
+    if notices.is_empty() {
         return rsx! {};
-    };
-    let text = format_taxon_warning(locale, warning);
+    }
+    // One line per notice, not one line holding all of them. Two facts about one
+    // taxon name are two things to read; run together with a separator they read
+    // as one long sentence about two unrelated problems.
+    let lines = format_taxon_warnings(locale, notices.as_slice());
     rsx! {
         NoticeBar {
             label: t(locale, TextKey::Notice).to_string(),
@@ -77,7 +80,11 @@ pub fn TaxonNotice() -> Element {
             role: "status",
             aria_live: "polite",
             dark: dark_mode,
-            span { class: "flex-1 min-w-0 text-ui text-muted break-words leading-snug", "{text}" }
+            ul { class: "flex-1 min-w-0 list-none space-y-0.5",
+                for line in lines.iter() {
+                    li { class: "text-ui text-muted break-words leading-snug", "{line}" }
+                }
+            }
         }
     }
 }

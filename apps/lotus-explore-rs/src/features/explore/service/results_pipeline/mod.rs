@@ -25,7 +25,7 @@ use lotus_model::{CompoundEntry, DatasetStats};
 pub struct ResultsPipelineOutcome {
     pub rows: Vec<CompoundEntry>,
     pub qid: Option<String>,
-    pub warning: Option<TaxonWarning>,
+    pub warnings: Vec<TaxonWarning>,
     pub query: String,
     pub total_matches: Option<usize>,
     pub total_stats: Option<DatasetStats>,

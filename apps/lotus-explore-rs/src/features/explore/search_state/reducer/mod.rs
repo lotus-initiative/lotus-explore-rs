@@ -31,7 +31,7 @@ pub fn reduce_mut(state: &mut ExploreState, action: ExploreAction) {
         ExploreAction::SearchSucceeded {
             rows,
             qid,
-            warning,
+            warnings,
             query,
             total_matches,
             total_stats,
@@ -47,7 +47,7 @@ pub fn reduce_mut(state: &mut ExploreState, action: ExploreAction) {
                 result_data::SearchSuccessPayload {
                     rows,
                     qid,
-                    warning,
+                    warnings,
                     query,
                     total_matches,
                     total_stats,

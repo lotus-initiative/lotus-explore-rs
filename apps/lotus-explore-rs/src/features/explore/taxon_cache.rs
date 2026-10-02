@@ -29,18 +29,21 @@ pub struct CachedTaxon {
 }
 
 impl CachedTaxon {
-    /// The notice this resolution earns, or `None` when it earned none.
+    /// The notices this resolution earns, in the order they apply.
     ///
     /// Same answer on every run, because the candidate list travels with the
     /// QID through the cache rather than being re-derived from a lookup that
     /// may not happen again.
     #[must_use]
-    pub fn warning(&self) -> Option<TaxonWarning> {
-        (!self.candidates.is_empty()).then(|| TaxonWarning::Ambiguous {
-            chosen_name: self.label.clone(),
-            chosen_qid: self.qid.clone(),
-            candidates: self.candidates.clone(),
-        })
+    pub fn warnings(&self) -> Vec<TaxonWarning> {
+        (!self.candidates.is_empty())
+            .then(|| TaxonWarning::Ambiguous {
+                chosen_name: self.label.clone(),
+                chosen_qid: self.qid.clone(),
+                candidates: self.candidates.clone(),
+            })
+            .into_iter()
+            .collect()
     }
 }
 
@@ -103,7 +106,7 @@ mod tests {
 
     #[test]
     fn an_unambiguous_resolution_earns_no_notice() {
-        assert_eq!(resolved("Q1", "Rosa").warning(), None);
+        assert_eq!(resolved("Q1", "Rosa").warnings().len(), 0);
     }
 
     #[test]
@@ -121,13 +124,16 @@ mod tests {
             },
         );
 
-        let first = lookup("bacteria").and_then(|cached| cached.warning());
-        let second = lookup("Bacteria").and_then(|cached| cached.warning());
+        let first = lookup("bacteria").map(|cached| cached.warnings());
+        let second = lookup("Bacteria").map(|cached| cached.warnings());
 
         assert_eq!(
             first, second,
-            "the notice must not depend on the cache path"
+            "the notices must not depend on the cache path"
         );
-        assert!(matches!(first, Some(TaxonWarning::Ambiguous { .. })));
+        assert!(matches!(
+            first.as_deref(),
+            Some([TaxonWarning::Ambiguous { .. }])
+        ));
     }
 }

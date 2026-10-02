@@ -46,7 +46,9 @@ impl Default for SearchLifecycleState {
 #[derive(Clone, PartialEq)]
 pub struct ResultDataState {
     pub entries: Rows,
-    pub taxon_notice: Option<TaxonWarning>,
+    /// Everything worth telling the user about how the taxon resolved, rendered
+    /// as one notice line each.
+    pub taxon_notices: Vec<TaxonWarning>,
     pub resolved_qid: Option<Arc<str>>,
     pub query_hash: Option<Arc<str>>,
     pub result_hash: Option<Arc<str>>,
@@ -71,7 +73,7 @@ impl Default for ResultDataState {
     fn default() -> Self {
         Self {
             entries: Arc::<[CompoundEntry]>::from([]),
-            taxon_notice: None,
+            taxon_notices: Vec::new(),
             resolved_qid: None,
             query_hash: None,
             result_hash: None,

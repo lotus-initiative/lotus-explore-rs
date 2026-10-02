@@ -27,8 +27,14 @@ pub struct TaxonResolution {
     /// The resolved Wikidata QID (e.g. `"Q12345"`), or `None` if the criteria
     /// contained no taxon, or `Some("*")` for the "all taxa" wildcard.
     pub qid: Option<String>,
-    /// Optional structured warning to be formatted at the UI boundary.
-    pub warning: Option<TaxonWarning>,
+    /// Everything worth telling the user about how this name resolved.
+    ///
+    /// A list rather than an `Option` because a single lookup can raise more
+    /// than one: `bacteria` is both spelled differently from `Bacteria` and
+    /// ambiguous. Collapsing them to one would mean deciding which to drop, and
+    /// that decision is not the resolver's to make — they are two true things
+    /// about the same resolution.
+    pub warnings: Vec<TaxonWarning>,
 }
 
 #[must_use]
@@ -67,31 +73,27 @@ pub async fn resolve<R: LotusRepository>(
     if !requires_remote_lookup(taxon) {
         return Ok(TaxonResolution {
             qid: Some(taxon.to_uppercase()),
-            warning: None,
+            warnings: Vec::new(),
         });
     }
 
     let taxon_timer = perf::start_timer("LOTUS:taxon_resolution");
     let sanitized = sanitize_taxon_input(taxon);
 
-    let standardized_warning = if sanitized == taxon {
-        None
-    } else {
-        Some(TaxonWarning::Standardized {
-            original: taxon.into(),
-            standardized: sanitized.clone(),
-        })
-    };
+    let standardized_warning = (sanitized != taxon).then(|| TaxonWarning::Standardized {
+        original: taxon.into(),
+        standardized: sanitized.clone(),
+    });
 
     // Fast path: cache hit. The notice comes back out of the cache rather than
     // being recomputed, so a repeat search reports what the first one reported.
     if let Some(cached) = taxon_cache::lookup(&sanitized) {
         let taxon_elapsed = perf::end_timer("LOTUS:taxon_resolution", taxon_timer);
         telemetry::taxon_cache_hit(taxon_elapsed, &sanitized, &cached.qid);
-        let warning = cached.warning().or(standardized_warning);
+        let warnings = notices(standardized_warning, &cached);
         return Ok(TaxonResolution {
             qid: Some(cached.qid),
-            warning,
+            warnings,
         });
     }
 
@@ -126,26 +128,39 @@ pub async fn resolve<R: LotusRepository>(
 
     let selection = match_selection::pick_best_match(&sanitized, &matches)?;
     let cached = selection.to_cached();
-    // One notice, derived from the resolution itself, so the slow path and the
-    // cache path above cannot disagree about what happened.
-    let warning = cached.warning().or(standardized_warning);
+    let warnings = notices(standardized_warning, &cached);
 
     taxon_cache::store(&sanitized, &cached);
     Ok(TaxonResolution {
         qid: Some(cached.qid),
-        warning,
+        warnings,
     })
+}
+
+/// Everything true about how `taxon` resolved, in reading order.
+///
+/// Standardized first because it is about what was typed; ambiguous second
+/// because it is about what the typing turned out to mean. Built here rather
+/// than at either call site, so the query path and the cache path cannot order
+/// them differently -- which is the bug this replaced.
+fn notices(
+    standardized: Option<TaxonWarning>,
+    cached: &taxon_cache::CachedTaxon,
+) -> Vec<TaxonWarning> {
+    let mut warnings: Vec<TaxonWarning> = standardized.into_iter().collect();
+    warnings.extend(cached.warnings());
+    warnings
 }
 
 fn immediate_resolution(taxon: &str) -> Option<TaxonResolution> {
     match taxon {
         "" => Some(TaxonResolution {
             qid: None,
-            warning: None,
+            warnings: Vec::new(),
         }),
         "*" => Some(TaxonResolution {
             qid: Some("*".into()),
-            warning: None,
+            warnings: Vec::new(),
         }),
         _ => None,
     }
@@ -214,7 +229,7 @@ mod tests {
         ));
         let r = result.unwrap();
         assert!(r.qid.is_none());
-        assert!(r.warning.is_none());
+        assert_eq!(r.warnings.len(), 0);
     }
 
     #[test]
@@ -315,11 +330,24 @@ mod tests {
         .expect("second run resolves");
 
         assert_eq!(first.qid.as_deref(), Some("Q900001"));
-        assert_eq!(first.warning, second.warning);
-        assert!(
-            matches!(first.warning, Some(TaxonWarning::Ambiguous { .. })),
-            "expected the ambiguity notice both times, got: {:?}",
-            first.warning
+        assert_eq!(first.warnings, second.warnings);
+        assert_eq!(
+            first.warnings,
+            vec![
+                TaxonWarning::Standardized {
+                    original: "bacteriostaticum".into(),
+                    standardized: "Bacteriostaticum".into(),
+                },
+                TaxonWarning::Ambiguous {
+                    chosen_name: "Bacteriostaticum".into(),
+                    chosen_qid: "Q900001".into(),
+                    candidates: vec![
+                        "Bacteriostaticum (Q900001)".into(),
+                        "Bacteriostaticum (Q900002)".into(),
+                    ],
+                },
+            ],
+            "both notices, both times"
         );
     }
 }

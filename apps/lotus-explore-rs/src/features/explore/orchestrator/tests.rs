@@ -23,7 +23,7 @@ fn build_search_succeeded_action_applies_finalized_counts() {
     let outcome = SearchOutcome {
         rows: Vec::new(),
         qid: Some("Q42".to_string()),
-        warning: None,
+        warnings: Vec::new(),
         query: "SELECT * WHERE {}".to_string(),
         total_matches: Some(7),
         total_stats: None,

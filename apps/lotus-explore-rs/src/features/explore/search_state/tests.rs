@@ -86,7 +86,7 @@ fn search_succeeded_clears_loading_and_stores_result() {
         ExploreAction::SearchSucceeded {
             rows,
             qid: Some("Q123".into()),
-            warning: None,
+            warnings: Vec::new(),
             query: "SELECT ?x WHERE {}".into(),
             total_matches: Some(42),
             total_stats: None,

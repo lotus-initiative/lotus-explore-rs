@@ -25,8 +25,9 @@ pub enum ExploreAction {
     SearchSucceeded {
         rows: Vec<CompoundEntry>,
         qid: Option<String>,
-        /// Structured taxon resolution warning; formatted at render time.
-        warning: Option<TaxonWarning>,
+        /// Structured notices about how this search went; formatted at render
+        /// time. Empty in the common case.
+        warnings: Vec<TaxonWarning>,
         query: String,
         total_matches: Option<usize>,
         total_stats: Option<DatasetStats>,

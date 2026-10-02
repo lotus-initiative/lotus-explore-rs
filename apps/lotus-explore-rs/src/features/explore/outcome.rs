@@ -11,7 +11,10 @@ use lotus_model::{CompoundEntry, DatasetStats};
 pub struct SearchOutcome {
     pub rows: Vec<CompoundEntry>,
     pub qid: Option<String>,
-    pub warning: Option<TaxonWarning>,
+    /// Everything to tell the user about how this search went. Usually nothing;
+    /// more than one entry when a taxon name both needed standardizing and was
+    /// ambiguous, or when the endpoint had to change.
+    pub warnings: Vec<TaxonWarning>,
     pub query: String,
     pub total_matches: Option<usize>,
     pub total_stats: Option<DatasetStats>,
@@ -36,12 +39,16 @@ impl SearchOutcome {
             .into_iter()
             .map(CompoundEntry::from)
             .collect::<Vec<_>>();
-        let warning = response.warning.map(TaxonWarning::ApiMessage);
+        let warnings = response
+            .warning
+            .into_iter()
+            .map(TaxonWarning::ApiMessage)
+            .collect();
 
         Self {
             rows,
             qid: response.resolved_taxon_qid,
-            warning,
+            warnings,
             query: response.query,
             total_matches: Some(response.total_matches),
             total_stats: Some(response.stats.into()),
@@ -55,7 +62,7 @@ impl SearchOutcome {
         Self {
             rows: outcome.rows,
             qid: outcome.qid,
-            warning: outcome.warning,
+            warnings: outcome.warnings,
             query: outcome.query,
             total_matches: outcome.total_matches,
             total_stats: outcome.total_stats,

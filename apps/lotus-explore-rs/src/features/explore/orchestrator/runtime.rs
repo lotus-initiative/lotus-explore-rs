@@ -134,7 +134,7 @@ fn build_search_succeeded_action(request: &SearchRequest, outcome: SearchOutcome
     let SearchOutcome {
         rows,
         qid,
-        warning,
+        warnings,
         query,
         total_matches,
         total_stats,
@@ -155,7 +155,7 @@ fn build_search_succeeded_action(request: &SearchRequest, outcome: SearchOutcome
     ExploreAction::SearchSucceeded {
         rows,
         qid,
-        warning,
+        warnings,
         query,
         total_matches: meta.filtered_matches,
         total_stats: meta.filtered_stats,

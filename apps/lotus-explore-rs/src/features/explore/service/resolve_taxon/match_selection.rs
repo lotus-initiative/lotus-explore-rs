@@ -101,7 +101,7 @@ mod tests {
 
         assert_eq!(selection.best.qid, "Q1");
         assert_eq!(selection.candidates.len(), 0);
-        assert!(selection.to_cached().warning().is_none());
+        assert_eq!(selection.to_cached().warnings().len(), 0);
     }
 
     #[test]
@@ -119,7 +119,7 @@ mod tests {
             cached.candidates,
             vec!["Rosa rubiginosa (Q2)", "Rosa canina (Q3)"]
         );
-        assert!(cached.warning().is_some());
+        assert_eq!(cached.warnings().len(), 1);
     }
 
     #[test]
@@ -129,7 +129,7 @@ mod tests {
         let selection = pick_best_match("rosa", &matches).expect("selection should succeed");
 
         assert_eq!(selection.best.qid, "Q1");
-        assert!(selection.to_cached().warning().is_some());
+        assert_eq!(selection.to_cached().warnings().len(), 1);
     }
 
     #[test]
@@ -142,6 +142,6 @@ mod tests {
 
         let cached = selection.to_cached();
         assert_eq!(cached.candidates.len(), MAX_LISTED_CANDIDATES);
-        assert!(cached.warning().is_some());
+        assert_eq!(cached.warnings().len(), 1);
     }
 }

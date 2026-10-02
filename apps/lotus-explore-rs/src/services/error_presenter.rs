@@ -26,7 +26,20 @@ pub fn format_domain_error(locale: Locale, err: &DomainError) -> String {
     }
 }
 
-pub fn format_taxon_warning(locale: Locale, warning: &TaxonWarning) -> String {
+/// One string per notice, in the order they apply.
+///
+/// A list because a taxon name can raise two: `bacteria` is both spelled
+/// differently from `Bacteria` and ambiguous, and both are true. Returning a
+/// single string is what made one of them disappear, depending on which code
+/// path produced it.
+pub fn format_taxon_warnings(locale: Locale, warnings: &[TaxonWarning]) -> Vec<String> {
+    warnings
+        .iter()
+        .map(|w| format_taxon_warning(locale, w))
+        .collect()
+}
+
+fn format_taxon_warning(locale: Locale, warning: &TaxonWarning) -> String {
     match warning {
         TaxonWarning::Standardized {
             original,
@@ -163,6 +176,43 @@ fn format_parse_fault(locale: Locale, fault: &ParseFault) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn both_taxon_notices_are_formatted_and_neither_is_dropped() {
+        // `bacteria` is two true things at once: spelled differently from the
+        // name it matched, and matched by more than one taxon. Formatting takes
+        // a list precisely so neither can be the one that gets lost.
+        let lines = format_taxon_warnings(
+            Locale::En,
+            &[
+                TaxonWarning::Standardized {
+                    original: "bacteria".into(),
+                    standardized: "Bacteria".into(),
+                },
+                TaxonWarning::Ambiguous {
+                    chosen_name: "Bacteria".into(),
+                    chosen_qid: "Q10876".into(),
+                    candidates: vec!["Bacteria (Q10876)".into(), "Bacteria (Q4034791)".into()],
+                },
+            ],
+        );
+
+        assert_eq!(lines.len(), 2, "one line per notice: {lines:?}");
+        let joined = lines.join("\n");
+        assert!(
+            joined.contains("bacteria") && joined.contains("Bacteria"),
+            "{joined}"
+        );
+        assert!(
+            joined.contains("Q10876") && joined.contains("Q4034791"),
+            "{joined}"
+        );
+    }
+
+    #[test]
+    fn no_taxon_notices_formats_to_no_lines() {
+        assert_eq!(format_taxon_warnings(Locale::En, &[]).len(), 0);
+    }
 
     #[test]
     fn compact_error_text_uses_exception_from_json() {
