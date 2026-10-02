@@ -50,52 +50,44 @@ pub struct SearchCriteria {
     pub formula_enabled: bool,
     /// Exact formula, compared after subscript-digit normalisation.
     pub formula_exact: String,
-    /// Inclusive atom-count ranges for the six filterable elements. Each
-    /// `<x>_max` defaults to its [`element_max`] constant, and narrowing either
-    /// bound is a filter.
-    ///
-    /// [`element_max`]: crate::element_max
-    #[allow(missing_docs)] // see the note on `f_state` below
+    // Each `<x>_max` defaults to its [`element_max`] constant, and narrowing
+    // either bound is a filter; an unbound maximum means "no constraint".
+    //
+    // [`element_max`]: crate::element_max
+    /// Lower bound on the atom count of carbon.
     pub c_min: u16,
-    #[allow(missing_docs)] // see the note on `f_state` below
+    /// Upper bound on the atom count of carbon.
     pub c_max: u16,
-    #[allow(missing_docs)] // see the note on `f_state` below
+    /// Lower bound on the atom count of hydrogen.
     pub h_min: u16,
-    #[allow(missing_docs)] // see the note on `f_state` below
+    /// Upper bound on the atom count of hydrogen.
     pub h_max: u16,
-    #[allow(missing_docs)] // see the note on `f_state` below
+    /// Lower bound on the atom count of nitrogen.
     pub n_min: u16,
-    #[allow(missing_docs)] // see the note on `f_state` below
+    /// Upper bound on the atom count of nitrogen.
     pub n_max: u16,
-    #[allow(missing_docs)] // see the note on `f_state` below
+    /// Lower bound on the atom count of oxygen.
     pub o_min: u16,
-    #[allow(missing_docs)] // see the note on `f_state` below
+    /// Upper bound on the atom count of oxygen.
     pub o_max: u16,
-    #[allow(missing_docs)] // see the note on `f_state` below
+    /// Lower bound on the atom count of phosphorus.
     pub p_min: u16,
-    #[allow(missing_docs)] // see the note on `f_state` below
+    /// Upper bound on the atom count of phosphorus.
     pub p_max: u16,
-    #[allow(missing_docs)] // see the note on `f_state` below
+    /// Lower bound on the atom count of sulfur.
     pub s_min: u16,
-    #[allow(missing_docs)] // see the note on `f_state` below
+    /// Upper bound on the atom count of sulfur.
     pub s_max: u16,
-    /// Presence requirement for each optional halogen.
-    ///
-    /// `missing_docs` is allowed on this field and on the twelve above it
-    /// because all sixteen are the same shape twice -- a bound pair per element,
-    /// then a state per halogen -- and documenting each one separately would
-    /// write "minimum carbon count" and its eleven variations. The doc comment
-    /// on the group above names the convention. Grouping the fields into a
-    /// nested struct would read better and is deliberately not done: it is a
-    /// change to a type 66 call sites use across five crates, which is a rename
-    /// wearing a refactor's coat, not a documentation fix.
-    #[allow(missing_docs)]
+    // Halogens are optional, so each is a presence requirement rather than
+    // a count: a compound has fluorine or it does not, and there is no
+    // meaningful "one and a half fluorines".
+    /// Whether fluorine must be present, must be absent, or is unconstrained.
     pub f_state: ElementState,
-    #[allow(missing_docs)] // see the note on `f_state` above
+    /// Whether chlorine must be present, must be absent, or is unconstrained.
     pub cl_state: ElementState,
-    #[allow(missing_docs)] // see the note on `f_state` above
+    /// Whether bromine must be present, must be absent, or is unconstrained.
     pub br_state: ElementState,
-    #[allow(missing_docs)] // see the note on `f_state` above
+    /// Whether iodine must be present, must be absent, or is unconstrained.
     pub i_state: ElementState,
 }
 

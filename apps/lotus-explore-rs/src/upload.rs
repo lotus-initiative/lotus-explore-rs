@@ -16,11 +16,6 @@
 // fields. `trivially_copy_pass_by_ref` and `needless_pass_by_ref_mut` -- the
 // wasm signature passes by reference, so the stub must too, or the two no longer
 // have the same shape. `doc_markdown` -- doc comments name browser types.
-#![allow(clippy::unused_async)]
-#![allow(clippy::unused_self)]
-#![allow(clippy::trivially_copy_pass_by_ref)]
-#![allow(clippy::needless_pass_by_ref_mut)]
-#![allow(clippy::doc_markdown)]
 
 #[cfg(target_arch = "wasm32")]
 use gloo_timers::future::TimeoutFuture;
@@ -196,18 +191,43 @@ pub struct UploadBlobLines;
 
 #[cfg(not(target_arch = "wasm32"))]
 impl UploadBlobLines {
+    // The three allows below are on the native stub and nowhere else, because the
+    // stub is the only reason they fire: the wasm half of this module awaits a
+    // real `Blob::slice`, takes real references and returns real data. Clipping
+    // any of it would mean the two halves no longer have the same shape, and a
+    // caller that compiles against one and not the other is exactly the bug this
+    // pairing exists to prevent.
+    // Zero-sized on native, so there is nothing to copy either way, but the wasm
+    // half takes a reference and the two signatures have to match. This is a
+    // whole-function allow rather than one on the parameter because clippy reports
+    // it on the signature, not the binding.
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "the wasm half takes `&UploadBlob`; the pair must match"
+    )]
     #[must_use]
     pub fn new(_blob: &UploadBlob) -> Self {
         Self
     }
 
-    // The wasm build above awaits `Blob::slice`, so this is the same signature
-    // with a different answer. `std::future::ready` would return a future
-    // instead of an `async fn`, and the caller's `.await` would be awaiting a
-    // value rather than this reader's state.
+    // `std::future::ready` would return a future rather than an `async fn`, and
+    // the caller's `.await` would then be awaiting a value instead of this
+    // reader's state -- the signature is the contract, not the body.
+    // Both names, because the stub is an inherent method rather than a trait
+    // impl: `unused_async_trait_impl` and `unused_async` are separate lints and
+    // which one fires depends on how clippy classifies the item. Naming one and
+    // getting the other is a build failure.
+    #[expect(
+        clippy::unused_async,
+        reason = "the wasm half of this method awaits `Blob::slice`; the pair must match"
+    )]
     #[expect(
         clippy::unused_async_trait_impl,
-        reason = "the wasm twin of this method is an `async fn`; the pair must match"
+        reason = "same reason as unused_async above; both lints cover this stub"
+    )]
+    #[expect(
+        clippy::needless_pass_by_ref_mut,
+        reason = "the wasm half takes `&mut self` because the reader has state; the pair must match"
     )]
     pub async fn next_line(&mut self) -> Result<Option<String>, UploadError> {
         Err(UploadError::BrowserOnly)
@@ -217,9 +237,13 @@ impl UploadBlobLines {
 /// Extract a blob from the first entry of `evt.data().files()`.
 /// # Errors
 /// Returns a message if the file is not a `Blob`.
-#[allow(clippy::unnecessary_wraps)]
-// The wasm path returns `Err` for unsupported types, so `Result` is genuinely
-// used; the native branch only returns `Ok(None)`, which trips the lint.
+// `Result` is genuinely used: the wasm path returns `Err` for a file that is not
+// a `Blob`. The native branch only ever returns `Ok(None)`, and clippy sees only
+// that branch, so it calls the wrapper pointless. The signature is the contract.
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "the wasm half returns `Err`; the native half is the only one clippy sees"
+)]
 pub fn extract_blob_from_file_data(
     files: &[dioxus::html::FileData],
 ) -> Result<Option<ExtractedFile>, String> {
@@ -332,8 +356,8 @@ pub fn download_text_as_blob(
         .map_err(|e| format!("download failed: {e}"))
 }
 
-/// Triggers a browser download of a URL (e.g. a QLever export URL or a remote file).
-/// Opens the URL in a new tab / triggers an anchor click.  Returns `false` if
+/// Triggers a browser download of a URL: a `QLever` export URL, a remote file.
+/// Opens the URL in a new tab / triggers an anchor click. Returns `false` if
 /// the browser does not support programmatic clicks (extremely rare).
 #[cfg(target_arch = "wasm32")]
 pub fn download_url(url: &str, filename: &str) -> bool {
@@ -420,7 +444,6 @@ pub async fn submit_download_form(endpoint: &str, fields: &[(&str, &str)]) -> Re
 mod tests {
     // The panic lints keep shipped code free of panics on external input. A test
     // that fails to create its temp dir is reporting, not panicking.
-    #![allow(clippy::expect_used)]
 
     use super::sanitize_filename;
 
