@@ -79,6 +79,33 @@ pedantic = { level = "deny", priority = -2 }
 
 # Clippy nursery lints (experimental, may be noisy)
 nursery = { level = "deny", priority = -3 }
+#
+# `future_not_send` is in here, and it is denied, and the app still carries a
+# `#[allow]` for it in fifteen modules. That is not a gap left over: the app is a
+# Dioxus program, `spawn` is single-threaded by design, and the thing the lint
+# objects to -- a future holding a Dioxus `Signal`, which is a `RefCell` -- is
+# how a component updates state.
+#
+# The fix was attempted and does not close. `LotusRepository: Send + Sync` is
+# real and is in `repositories/mod.rs`, and it removes one of the three causes.
+# The other two are the coordinator and the executor, both of which exist to hold
+# the `Signal`:
+#
+#   - naming the concrete type in a future's signature is what sends the compiler
+#     looking inside the `Signal`, so `SearchLifecycle` was added to hide it
+#   - behind a trait, `&dyn SearchLifecycle` is `Send` only if the trait is
+#     `Sync`, and it cannot be: the implementor holds a `RefCell`
+#   - `Box<dyn SearchLifecycle>` is `Send` only if the trait is `Send`, and it
+#     cannot be, for the same reason
+#
+# So every route back to a type the compiler can see through is a route to the
+# same error. Making the future `Send` would mean not holding the `Signal` in it,
+# which means reporting search progress by some channel other than Dioxus state.
+# That is a change to how the app is built, not a lint fix, and it is not one to
+# make inside a cleanup.
+#
+# Everything else in `nursery` stays denied: the deny is what catches the things
+# that are fixable, and the fifteen suppressions are the ones that are not.
 
 # Clippy cargo lints (Cargo.toml hygiene)
 # Note: multiple_crate_versions is allow-listed due to transitive deps from dioxus

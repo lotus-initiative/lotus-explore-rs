@@ -66,12 +66,16 @@ struct CompletionsArgs {
 }
 
 /// Every filter the web explorer exposes, and the limits a terminal wants.
-// The four `--no-*` nomenclatural flags make this the fifth boolean here. A clap
-// args struct is a flat mirror of the command line, one field per flag, and
-// folding four independent switches into a nested struct would mean the flag
-// names stop being the field names — which is the property that keeps
-// `docs_in_sync` worth having.
-#[allow(clippy::struct_excessive_bools)]
+///
+/// The four `--no-*` nomenclatural flags make this the fifth boolean here. A clap
+/// args struct is a flat mirror of the command line, one field per flag, and
+/// folding four independent switches into a nested struct would mean the flag
+/// names stop being the field names -- which is the property that keeps
+/// `docs_in_sync` worth having.
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "clap derives one field per flag, and the field names are what `docs_in_sync` checks"
+)]
 #[derive(Debug, clap::Args)]
 struct SearchArgs {
     /// Taxon name, scientific name, QID, or `*` for all organisms.

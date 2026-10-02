@@ -97,14 +97,19 @@ pub struct SearchCriteria {
 /// compounds than the literature holds is the failure mode this exists to
 /// prevent — see [`crate::taxon_nomenclature`] for the relationships and
 /// `docs/TAXON-SEARCH.md` for worked examples.
+/// Which nomenclatural relationships a taxon search follows.
+///
+/// Four independent toggles, and that is the shape they have to be: each names a
+/// distinct relationship, each can be on with the other three off, and the state
+/// space is genuinely 2^4. The lint's own suggestions -- a state machine, or a
+/// two-variant enum per field -- would replace four readable `bool`s with sixteen
+/// named states and no way to say "all of them", which is the value a caller
+/// reaches for most often. [`ALL_ON`](Self::ALL_ON) is that expression.
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "four independent toggles over a 16-state space; a state machine would have no way to say `ALL_ON`"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-// Four independent toggles, and that is the shape they have to be: each names
-// a distinct nomenclatural relationship, each can be on with the other three
-// off, and the state space is genuinely 2^4. The lint's own suggestions — a
-// state machine, or a two-variant enum per field — would replace four readable
-// `bool`s with sixteen named states and no way to say "all of them", which is
-// the value a caller reaches for most often.
-#[allow(clippy::struct_excessive_bools)]
 pub struct TaxonNomenclature {
     /// Accepted name ↔ its synonyms (`P1420` / `P12763`).
     ///
