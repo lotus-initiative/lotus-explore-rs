@@ -18,7 +18,13 @@
 
 // A `WebView` round trip, so these futures are not `Send`. Every caller is on a
 // component's own single-threaded task, which is the right shape for it.
-#![allow(clippy::future_not_send)]
+// The search future is not `Send`: `on_phase` is a closure over a Dioxus
+// `Signal`, which is a `RefCell`. See the full explanation in
+// `features/explore/executor.rs`, which is the same cause reached from here.
+#![expect(
+    clippy::future_not_send,
+    reason = "`on_phase` captures a Dioxus `Signal`, which is a `RefCell` and not `Sync`"
+)]
 
 use dioxus::prelude::*;
 use serde_json::Value;

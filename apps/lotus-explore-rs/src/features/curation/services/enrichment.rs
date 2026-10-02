@@ -7,7 +7,13 @@
 //! that fill gaps in an item Wikidata already has, [`create_new`] writes the
 //! statements that make the item. Both consume the same converted structure and
 //! the same resolved dependencies.
-#![allow(clippy::future_not_send)]
+// The search future is not `Send`: `on_phase` is a closure over a Dioxus
+// `Signal`, which is a `RefCell`. See the full explanation in
+// `features/explore/executor.rs`, which is the same cause reached from here.
+#![expect(
+    clippy::future_not_send,
+    reason = "`on_phase` captures a Dioxus `Signal`, which is a `RefCell` and not `Sync`"
+)]
 
 use super::occurrence::Resolved;
 use super::occurrence_cache::{

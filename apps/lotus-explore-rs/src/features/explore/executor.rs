@@ -2,6 +2,23 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Search execution pipeline for the Explore feature.
 
+// The search future is not `Send`, and cannot be made so without changing what
+// the code is. `on_phase` is a closure over a Dioxus `Signal`, which is a
+// `RefCell` and therefore not `Sync`; the closure is held across an `.await`, so
+// the future it is part of is not `Send`.
+//
+// The fix is not a bound. Adding `Send + Sync` to the callback is refused by the
+// compiler at the one place that constructs it, which is the evidence that the
+// bound is wrong rather than missing. Making it work means not capturing the
+// signal in the callback -- passing the phase out and updating it on the caller's
+// side -- which is a change to how search progress is reported, not a lint fix.
+//
+// So the allow stands, and it stands here for every module on this path. The
+// eighteen others are the same cause reached from different directions.
+//
+// This lint is in `nursery`, which the workspace denies. It is worth keeping the
+// deny and this one allow: the other eighteen-eighteen sites that are genuinely
+// fixable are what the rest of the deny is for.
 #![allow(clippy::future_not_send)]
 
 use crate::features::explore::outcome::SearchOutcome;

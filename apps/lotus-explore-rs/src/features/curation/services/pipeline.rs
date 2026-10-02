@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-#![allow(clippy::future_not_send)]
+// The search future is not `Send`: `on_phase` is a closure over a Dioxus
+// `Signal`, which is a `RefCell`. See the full explanation in
+// `features/explore/executor.rs`, which is the same cause reached from here.
+#![expect(
+    clippy::future_not_send,
+    reason = "`on_phase` captures a Dioxus `Signal`, which is a `RefCell` and not `Sync`"
+)]
 
 use crate::i18n::Locale;
 use lotus_curation::{
