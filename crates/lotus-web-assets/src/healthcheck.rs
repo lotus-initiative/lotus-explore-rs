@@ -198,6 +198,12 @@ mod tests {
                 })
                 .expect("a connection within the accept timeout");
             let mut stream = stream;
+            // The accepted socket can inherit the listener's non-blocking flag, and
+            // where it does, every read below returns `WouldBlock` rather than
+            // waiting. Blocking it again is what makes the reads behave.
+            stream
+                .set_nonblocking(false)
+                .expect("the accepted stream can be made blocking");
             // Read the request before answering, so the client is never writing into
             // a socket the server has already closed.
             let mut reader = BufReader::new(&stream);
