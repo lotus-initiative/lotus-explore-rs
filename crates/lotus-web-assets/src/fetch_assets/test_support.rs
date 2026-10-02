@@ -91,6 +91,16 @@ pub fn http_status(code: u16, reason: &str) -> String {
     format!("HTTP/1.1 {code} {reason}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
 }
 
+/// Accept the connection and close it without sending a response, which is what a
+/// load balancer does when it drops a request it has already accepted.
+///
+/// `reqwest` reports this as a transport error with no status, which is the
+/// branch `is_retryable(None)` covers and the one that cannot be reached by queueing
+/// an HTTP response: the server has to fail *before* speaking the protocol.
+pub fn http_hangup() -> String {
+    String::new()
+}
+
 pub fn http_redirect_to_self(location: &str) -> String {
     format!(
         "HTTP/1.1 302 Found\r\nLocation: {{SELF}}{location}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"

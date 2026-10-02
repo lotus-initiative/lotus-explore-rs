@@ -628,13 +628,21 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
 
     formula_filter(criteria, &mut required, &mut filters);
 
-    // `&&` is equivalent to `||` here and cargo-mutants reports the swap as a
-    // survivor, so the redundancy is deliberate rather than missed: every branch
-    // above writes to *both* buffers or to neither, so the two can never disagree
-    // about whether a filter was added. `required.is_empty()` alone would say the
-    // same thing, and `&&` states the intent -- nothing to inject -- rather than
-    // relying on that coupling.
-    if required.is_empty() && filters.is_empty() {
+    // One buffer decides this, not both. Every branch above writes to `required`
+    // and `filters` together or to neither, so they cannot disagree about whether a
+    // filter was added, and testing the second one is a second opinion about a
+    // question the first already answered.
+    //
+    // The `debug_assert` is the invariant that makes it safe, and it is there
+    // because the two are written independently: a branch that filtered without
+    // binding, or bound without filtering, would leave a filter that silently
+    // never applies rather than one that fails loudly.
+    debug_assert_eq!(
+        required.is_empty(),
+        filters.is_empty(),
+        "a filter branch must write to both buffers or neither, or a filter is dropped"
+    );
+    if required.is_empty() {
         return base.to_string();
     }
 

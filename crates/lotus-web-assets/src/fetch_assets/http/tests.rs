@@ -17,7 +17,8 @@ use std::path::Path;
 
 use super::*;
 use crate::test_support::{
-    MockServer, client, commit_id, err, http_ok, http_redirect_to_self, http_status, temp_dir,
+    MockServer, client, commit_id, err, http_hangup, http_ok, http_redirect_to_self, http_status,
+    temp_dir,
 };
 
 #[test]
@@ -265,6 +266,31 @@ fn a_transient_failure_is_retried_and_then_succeeds() {
         read_json(&client(3000), &server.url("/flaky")).unwrap_or_default()["version"],
         Value::from("2"),
         "the second attempt succeeds"
+    );
+}
+
+#[test]
+fn a_dropped_connection_is_retried_and_then_succeeds() {
+    // The other retry test hangs a *status* on the first attempt. This one drops
+    // the connection instead, because that is a different arm of the `match` in
+    // `get` and it is guarded separately: `is_retryable(None)` for the decision,
+    // and `attempt == ATTEMPTS` for when to stop.
+    //
+    // Neither guard is observable from the tests above. A server that always hangs
+    // up gives the same "could not reach" message whether the loop stopped on
+    // attempt one or attempt three, and a server that answers 503 first gives the
+    // other branch. Here the first attempt hangs up and the second succeeds, so
+    // the loop has to have continued past a transport failure for the assertion
+    // to hold.
+    let server = MockServer::start(vec![http_hangup(), http_ok(r#"{"version":"2"}"#)]);
+    assert_eq!(
+        read_json(&client(3000), &server.url("/dropped")).unwrap_or_default()["version"],
+        Value::from("2"),
+        "a dropped connection was retried and the second attempt succeeded"
+    );
+    assert!(
+        server.next_request().starts_with("GET /dropped"),
+        "the retry went to the same URL"
     );
 }
 
