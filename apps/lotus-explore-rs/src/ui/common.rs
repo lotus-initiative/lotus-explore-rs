@@ -17,7 +17,10 @@ pub enum ContentPhase {
 
 // The booleans are independent UI flags read by separate components; packing
 // them into a state-machine enum would couple unrelated rendering concerns.
-#[allow(clippy::struct_excessive_bools)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent UI flags; a state machine would couple unrelated rendering concerns"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct LifecycleBooleans {
     pub loading: bool,

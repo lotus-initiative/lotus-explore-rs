@@ -19,7 +19,10 @@ pub(in crate::components::results_table) use super::row_text::row_text;
 // `end` is clamped to `order.len()`, and `i` is drawn from `order`, whose
 // entries are row offsets into the same `rows`/`prepared_rows` arrays, so
 // every index here stays in bounds.
-#[allow(clippy::indexing_slicing)]
+#[allow(
+    clippy::indexing_slicing,
+    reason = "row offsets come from the sort order, so every index is within the rows it indexes"
+)]
 pub(in crate::components::results_table) fn ResultsRowsWindow(
     locale: Locale,
     text: RowText,

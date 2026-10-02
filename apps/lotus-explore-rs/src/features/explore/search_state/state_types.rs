@@ -11,7 +11,10 @@ use std::sync::Arc;
 // The booleans are independent UI flags consumed by separate selectors/
 // components (loading overlay, download toolbar, error strip); packing them
 // into a state-machine enum would couple unrelated rendering concerns.
-#[allow(clippy::struct_excessive_bools)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent UI flags; a state machine would couple unrelated rendering concerns"
+)]
 #[derive(Clone, PartialEq, Eq)]
 pub struct SearchLifecycleState {
     pub loading: bool,

@@ -35,7 +35,10 @@ pub struct TaxonResolution {
 // Bounds are established two lines below: every index reads `bytes[0]` and
 // `bytes[1]` only after the `bytes.len() > 1` guard, and reading the first
 // byte of a non-empty slice can never panic.
-#[allow(clippy::indexing_slicing)]
+#[allow(
+    clippy::indexing_slicing,
+    reason = "both reads are behind a `len() > 1` guard, and byte 0 of a non-empty slice is always in bounds"
+)]
 pub fn requires_remote_lookup(taxon: &str) -> bool {
     if taxon.is_empty() || taxon == "*" {
         return false;

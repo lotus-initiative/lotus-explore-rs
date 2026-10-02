@@ -9,7 +9,6 @@ use lotus_search::SearchCriteria;
 
 // Name mirrors the Dioxus `App{…}` component it feeds; `AppBootstrap` reads
 // naturally and renaming would obscure the shared `App` prefix convention.
-#[allow(clippy::module_name_repetitions)]
 #[derive(Clone, PartialEq)]
 pub struct AppBootstrap {
     pub app_state: AppState,

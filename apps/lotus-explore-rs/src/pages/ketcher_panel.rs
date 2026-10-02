@@ -258,7 +258,6 @@ pub fn KetcherPanel() -> Element {
 /// The two are separate functions rather than one tree with a `#[cfg]` on a node
 /// because `rsx!` will not take one.
 #[cfg(target_arch = "wasm32")]
-#[allow(unused_variables)] // the desktop signals are declared on both targets
 fn panel(
     editor: Signal<EditorState>,
     locale: crate::i18n::Locale,

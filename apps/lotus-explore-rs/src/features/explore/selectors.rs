@@ -75,7 +75,10 @@ pub fn use_criteria_selector<T: PartialEq + Clone + 'static>(
 /// across results viewport, table, and toolbar sections.
 // Each bool is an independent UI flag read by separate components; collapsing
 // them into a state machine would couple unrelated rendering concerns.
-#[allow(clippy::struct_excessive_bools)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent UI flags; a state machine would couple unrelated rendering concerns"
+)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct ExploreUiState {
     pub loading: bool,
