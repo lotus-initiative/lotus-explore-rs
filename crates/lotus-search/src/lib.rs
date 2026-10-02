@@ -2,6 +2,12 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 #![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
+// Awaiting a retry backoff on the browser means awaiting a JS promise, and a JS
+// promise is `!Send` -- it holds an `Rc`. There is no `Send`-preserving way to
+// hand control back to the single-threaded runtime that owns it, so every future
+// here is `!Send` when built for wasm. Native keeps the guarantee; see the
+// workspace's `nursery` note on why the deny is worth keeping.
+#![cfg_attr(target_arch = "wasm32", allow(clippy::future_not_send))]
 
 mod client;
 mod error;

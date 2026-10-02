@@ -8,9 +8,15 @@
 use crate::client::{Http, HttpResponse};
 use crate::error::{FetchError, ResponseFormat};
 use crate::{QLEVER_WIKIDATA, WDQS_SCHOLARLY, WDQS_WIKIDATA};
+#[cfg(target_arch = "wasm32")]
+use js_sys::Promise;
 use lotus_query::FallbackService;
 use std::fmt::Write as _;
 use std::time::Duration;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsValue;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_futures::JsFuture;
 
 /// How many times a request is sent before giving up. One retry covers a
 /// dropped connection; more would just multiply load on an endpoint that is
@@ -359,17 +365,29 @@ async fn backoff(duration: Duration) {
 
 /// The wasm counterpart, which yields instead of waiting.
 ///
-/// `wasm_bindgen_futures::yield_to_thread` rather than nothing: the retry loop
-/// is driven from a single-threaded web runtime, and a chain of requests that
-/// resolve without ever handing control back would block the page. Yielding
-/// costs a turn of the event loop instead of the backoff, which is the right
-/// trade on a network failure.
+/// Awaiting a resolved promise is the platform's own "resume on the next turn of
+/// the event loop", and a retry loop driven from a single-threaded browser
+/// runtime needs it: a chain of requests that resolve without ever handing
+/// control back would block the page. It costs a turn of the loop instead of the
+/// backoff, which is the right trade on a network failure.
+///
+/// Not `futures_timer::Delay`, which was here first and **panicked in the
+/// browser**: on `wasm32-unknown-unknown` it falls back to `std::time::Instant`,
+/// which is unimplemented, so the failure read `time not implemented on this
+/// platform` from inside a retry -- reached only once a request had already
+/// failed, which is exactly when nobody is watching the console. The build was
+/// green and the app died on its first network error.
 #[cfg(target_arch = "wasm32")]
 async fn backoff(_duration: Duration) {
     // A client that cannot reach the endpoint will not reach it in a
     // millisecond either, and blocking the browser's only thread to find that
     // out is worse than retrying immediately.
-    futures_timer::Delay::new(std::time::Duration::ZERO).await;
+    // A resolved promise is the platform's own "run this on the next turn of the
+    // event loop", and awaiting one is how a future yields on a single-threaded
+    // browser runtime.
+    // The `Result` cannot be awaited to anything useful: an already-resolved
+    // promise does not reject, and there is nothing here for a failure to abort.
+    let _ = JsFuture::from(Promise::resolve(&JsValue::UNDEFINED)).await;
 }
 
 impl From<lotus_query::ExportFormat> for ResponseFormat {

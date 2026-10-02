@@ -45,8 +45,10 @@ optional = true
 bytes = "1.12"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-futures-timer = "3"
+js-sys = { workspace = true }
 reqwest = { version = "0.13", default-features = false, features = [], optional = true }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
 
 # `reqwest` is the only place this workspace knows about HTTP. With the feature
 # off the crate still builds, and the search is testable against a two-method
