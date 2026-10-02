@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 use crate::features::explore::types::{DomainError, QueryPhase, TaxonWarning};
+use crate::filters::ColumnFilters;
 use crate::sort::SortState;
 use lotus_model::{CompoundEntry, DatasetStats, Rows, SearchCriteria};
 use std::sync::Arc;
@@ -55,6 +56,13 @@ pub struct ResultDataState {
     pub total_stats: Option<DatasetStats>,
     pub display_capped_rows: bool,
     pub sort: SortState,
+    /// Client-side narrowing of the rows already fetched.
+    ///
+    /// Part of the result state rather than of the form criteria on purpose:
+    /// these never reach the SPARQL query, they are not in the URL, and a new
+    /// search clears them along with the rows they were filtering. See
+    /// [`crate::filters`].
+    pub filters: ColumnFilters,
     /// The SPARQL endpoint used (Qlever by default, WDQS on fallback from 502)
     pub endpoint: crate::export::SparqlEndpoint,
 }
@@ -73,6 +81,7 @@ impl Default for ResultDataState {
             total_stats: None,
             display_capped_rows: false,
             sort: SortState::default(),
+            filters: ColumnFilters::empty(),
             endpoint: crate::export::SparqlEndpoint::Qlever,
         }
     }

@@ -170,6 +170,12 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::DisplayCappedHint => {
             "Aus Speichergründen werden auf diesem Gerät nur die ersten Zeilen angezeigt. Die Gesamtzahlen bleiben exakt."
         }
+        TextKey::FilterColumn => "Filtern",
+        TextKey::FilterTextPlaceholder => "Filtern…",
+        TextKey::FilterShowing => "Angezeigt",
+        TextKey::FilterOf => "von",
+        TextKey::FilterNoMatches => "Keine Zeile entspricht diesen Filtern.",
+        TextKey::ClearFilters => "Filter zurücksetzen",
         TextKey::Structure => "Struktur",
         TextKey::Compound => "Verbindung",
         TextKey::Mass => "Masse",

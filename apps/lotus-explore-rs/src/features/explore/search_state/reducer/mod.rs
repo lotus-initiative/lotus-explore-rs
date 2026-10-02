@@ -80,5 +80,11 @@ pub fn reduce_mut(state: &mut ExploreState, action: ExploreAction) {
         ExploreAction::SortToggled(column) => {
             result_data::sort_toggled(&mut state.result, column);
         }
+        ExploreAction::FiltersChanged(filters) => {
+            result_data::filters_changed(&mut state.result, filters);
+        }
+        ExploreAction::FiltersCleared => {
+            result_data::filters_cleared(&mut state.result);
+        }
     }
 }

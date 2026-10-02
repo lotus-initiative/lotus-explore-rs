@@ -14,6 +14,7 @@ mod row_cells;
 mod scroll_runtime;
 mod sort_helpers;
 mod sort_model;
+mod table_filter_row;
 mod table_header;
 mod table_toolbar_sections;
 mod table_view_model;
@@ -21,7 +22,8 @@ mod toolbar;
 mod virtualization_controller;
 mod virtualized_table;
 
-use table_view_model::{apply_sort, prepare_table_state};
+use table_toolbar_sections::FilterStatus;
+use table_view_model::{apply_sort_and_filters, prepare_table_state};
 use toolbar::ResultsToolbar;
 use virtualized_table::VirtualizedResultsTable;
 
@@ -42,16 +44,22 @@ pub fn ResultsTable() -> Element {
     // an O(N) deep-equality scan of the result set.
     let entries_arc = use_result_arc_selector(explore, |r| r.entries.clone());
     let sort = use_result_selector(explore, |r| r.sort);
+    let filters = use_result_selector(explore, |r| r.filters.clone());
 
     // Expensive step: row-text derivation + lazy sort-index cache allocation.
     // Depends on `entries_arc` (ptr equality) so it is skipped on sort changes.
     let prepared_state = use_memo(move || prepare_table_state(entries_arc.read().0.clone()));
 
-    // Cheap step: pick the right sort indices without re-running row prep.
-    // Fires whenever entries change OR sort changes.
-    let table_view_model = use_memo(move || apply_sort(&prepared_state.read(), *sort.read()));
+    // Cheap step: pick the right sort indices, then drop what the column
+    // filters exclude. Fires whenever entries, sort or filters change.
+    let table_view_model = use_memo(move || {
+        apply_sort_and_filters(&prepared_state.read(), *sort.read(), &filters.read())
+    });
 
+    // What the search returned, as opposed to what the filters let through. The
+    // two are reported separately so a filter cannot look like a smaller result.
     let total = entries_arc.read().0.len();
+    let shown = table_view_model.read().visible_row_count();
 
     rsx! {
         section {
@@ -80,14 +88,15 @@ pub fn ResultsTable() -> Element {
                     }
                 }
              } else {
-                 div { class: "results-table-container min-h-0 w-full mt-5 px-0",
+                 FilterStatus { shown }
+                 div { class: "results-table-container min-h-0 w-full mt-3 px-0",
                      VirtualizedResultsTable {
 
                         entries: entries_arc,
                         table_view_model,
-                    }
-                }
-            }
+                     }
+                 }
+             }
         }
     }
 }

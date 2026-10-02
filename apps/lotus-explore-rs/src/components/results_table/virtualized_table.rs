@@ -4,6 +4,7 @@
 
 use super::render_model::build_virtualized_table_render_model;
 use super::row_cells::{ResultsRowsWindow, row_text};
+use super::table_filter_row::TableFilterRow;
 use super::table_header::TableHeader;
 use super::table_view_model::TableViewModel;
 use super::virtualization_controller::use_results_table_virtualization;
@@ -21,11 +22,15 @@ pub(super) fn VirtualizedResultsTable(
     let locale = crate::hooks::use_locale();
     let interactions = use_explore_interactions();
     let entries_ref = entries.read();
-    let total = entries_ref.0.len();
+    // Virtualization is driven by the rows on screen, which is the sorted order
+    // minus whatever the column filters exclude — not by the rows the search
+    // returned. Spacing off the unfiltered count would leave blank bands at the
+    // bottom of the scroll area whenever a filter was narrowing.
+    let view_model = table_view_model.read();
+    let total = view_model.visible_row_count();
     let virtualization = use_results_table_virtualization(total);
     let text = row_text(locale);
 
-    let view_model = table_view_model.read();
     let render_model = build_virtualized_table_render_model(&view_model, virtualization.state);
     let mut effect_virtualization = virtualization.clone();
     let scroll_virtualization = virtualization.clone();
@@ -64,6 +69,7 @@ pub(super) fn VirtualizedResultsTable(
                         current_sort: render_model.current_sort,
                         on_sort_toggle: move |col| interactions.toggle_sort(col),
                     }
+                    TableFilterRow {}
                 }
                 tbody {
                     if render_model.has_top_spacer() {
@@ -72,6 +78,19 @@ pub(super) fn VirtualizedResultsTable(
                                 colspan: "7",
                                 class: "virtual-spacer",
                                 style: "height: {render_model.top_spacer_px}px",
+                            }
+                        }
+                    }
+                    // Filters that exclude everything have to say so. An empty
+                    // table under a filter row reads as a broken table, and the
+                    // filter row itself is what is wrong, so the way out has to be
+                    // on screen rather than up in the toolbar.
+                    if total == 0 {
+                        tr {
+                            td {
+                                colspan: "7",
+                                class: "px-3 py-6 text-center text-ui text-muted",
+                                "{t(locale, TextKey::FilterNoMatches)}"
                             }
                         }
                     }

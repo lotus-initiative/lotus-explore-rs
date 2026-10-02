@@ -160,6 +160,12 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::DisplayCappedHint => {
             "Displaying the first rows only for memory safety on this device. Counts remain exact."
         }
+        TextKey::FilterColumn => "Filter",
+        TextKey::FilterTextPlaceholder => "Filter…",
+        TextKey::FilterShowing => "Showing",
+        TextKey::FilterOf => "of",
+        TextKey::FilterNoMatches => "No rows match these filters.",
+        TextKey::ClearFilters => "Clear filters",
         TextKey::Structure => "Structure",
         TextKey::Compound => "Compound",
         TextKey::Mass => "Mass",

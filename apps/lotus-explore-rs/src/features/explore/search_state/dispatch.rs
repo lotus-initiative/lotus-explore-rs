@@ -12,6 +12,8 @@ fn is_noop(current: &ExploreState, action: &ExploreAction) -> bool {
         ExploreAction::ErrorDismissed => current.lifecycle.error.is_none(),
         ExploreAction::DownloadDispatchStarted => current.lifecycle.download_dispatching,
         ExploreAction::DownloadDispatchFinished => !current.lifecycle.download_dispatching,
+        ExploreAction::FiltersChanged(filters) => current.result.filters == *filters,
+        ExploreAction::FiltersCleared => !current.result.filters.is_active(),
         ExploreAction::SearchRequested { .. }
         | ExploreAction::SearchSucceeded { .. }
         | ExploreAction::SearchFailed { .. }

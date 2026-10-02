@@ -52,4 +52,14 @@ pub enum ExploreAction {
 
     /// Toggle a results-table sort column.
     SortToggled(SortColumn),
+
+    /// Replace the results table's column filters.
+    ///
+    /// The whole set rather than one field, because a keystroke in one column
+    /// filter is a keystroke in a set of independent inputs and sending a
+    /// partial patch would make the other five fields something to reconstruct.
+    FiltersChanged(crate::filters::ColumnFilters),
+
+    /// Forget every column filter.
+    FiltersCleared,
 }

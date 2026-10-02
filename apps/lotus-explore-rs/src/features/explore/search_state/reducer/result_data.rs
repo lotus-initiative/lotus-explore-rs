@@ -3,6 +3,7 @@
 
 use crate::export::SparqlEndpoint;
 use crate::features::explore::types::TaxonWarning;
+use crate::filters::ColumnFilters;
 use crate::sort::{SortColumn, SortDir};
 use std::sync::Arc;
 
@@ -62,4 +63,12 @@ pub(super) fn sort_toggled(state: &mut ResultDataState, column: SortColumn) {
         state.sort.col = column;
         state.sort.dir = SortDir::Asc;
     }
+}
+
+pub(super) fn filters_changed(state: &mut ResultDataState, filters: ColumnFilters) {
+    state.filters = filters;
+}
+
+pub(super) fn filters_cleared(state: &mut ResultDataState) {
+    state.filters.clear();
 }

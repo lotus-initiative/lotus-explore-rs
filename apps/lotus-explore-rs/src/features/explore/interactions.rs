@@ -6,6 +6,7 @@ use crate::features::explore::actions::ExploreAction;
 use crate::features::explore::command::SearchCommand;
 use crate::features::explore::orchestrator::{SearchTaskController, start_search};
 use crate::features::explore::search_state::{ExploreState, dispatch_explore_action};
+use crate::filters::ColumnFilters;
 use crate::repositories::HybridRepository;
 use crate::sort::SortColumn;
 use crate::state::FormCriteriaContext;
@@ -57,6 +58,16 @@ impl ExploreInteractions {
 
     pub fn toggle_sort(&self, column: SortColumn) {
         dispatch_explore_action(self.explore, ExploreAction::SortToggled(column));
+    }
+
+    /// Narrow the rows already fetched. Never re-runs the query: the filters
+    /// read what came back, so this is a local pass over the result set.
+    pub fn set_filters(&self, filters: ColumnFilters) {
+        dispatch_explore_action(self.explore, ExploreAction::FiltersChanged(filters));
+    }
+
+    pub fn clear_filters(&self) {
+        dispatch_explore_action(self.explore, ExploreAction::FiltersCleared);
     }
 
     fn start(&self, command: SearchCommand) {

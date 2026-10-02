@@ -213,6 +213,13 @@ pub enum TextKey {
     OpenInEndpointTitle,
     NoResults,
     DisplayCappedHint,
+    // Column filters
+    FilterColumn,
+    FilterTextPlaceholder,
+    FilterShowing,
+    FilterOf,
+    FilterNoMatches,
+    ClearFilters,
     // Columns
     Structure,
     Compound,

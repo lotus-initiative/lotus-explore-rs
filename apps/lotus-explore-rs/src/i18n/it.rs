@@ -173,6 +173,12 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::DisplayCappedHint => {
             "Per sicurezza di memoria su questo dispositivo vengono mostrate solo le prime righe. I conteggi restano esatti."
         }
+        TextKey::FilterColumn => "Filtra",
+        TextKey::FilterTextPlaceholder => "Filtra…",
+        TextKey::FilterShowing => "Visualizzate",
+        TextKey::FilterOf => "di",
+        TextKey::FilterNoMatches => "Nessuna riga corrisponde a questi filtri.",
+        TextKey::ClearFilters => "Azzera i filtri",
         TextKey::Structure => "Struttura",
         TextKey::Compound => "Composto",
         TextKey::Mass => "Massa",

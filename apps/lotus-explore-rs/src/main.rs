@@ -71,6 +71,8 @@ mod export;
 #[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod features;
 #[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
+mod filters;
+#[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod hooks;
 #[cfg(any(target_arch = "wasm32", feature = "desktop", feature = "server", test))]
 mod i18n;

@@ -40,6 +40,7 @@ src/
   clock.rs      the one place that reads a clock
   cache_key.rs  cache keys shared by the client and the server
   sort.rs       how the results table is ordered
+  filters.rs    how the fetched rows are narrowed again, per column
   table_budget.rs  how many rows this machine will render
   sparql.rs     the app's HTTP layer: the only place that names reqwest
   download/     download effects (wasm + native)

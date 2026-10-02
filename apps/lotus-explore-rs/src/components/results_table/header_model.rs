@@ -16,12 +16,15 @@ pub(super) struct SortableHeaderModel {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-struct HeaderColumnSpec {
-    col: SortColumn,
-    label: TextKey,
+pub(super) struct HeaderColumnSpec {
+    pub(super) col: SortColumn,
+    pub(super) label: TextKey,
 }
 
-const SORTABLE_COLUMNS: [HeaderColumnSpec; 6] = [
+/// The sortable columns, and — deliberately from the same list — the columns
+/// that can be filtered. One list, so a filter control cannot end up under a
+/// header it does not filter, or be missing for one that needs it.
+pub(super) const SORTABLE_COLUMNS: [HeaderColumnSpec; 6] = [
     HeaderColumnSpec {
         col: SortColumn::Name,
         label: TextKey::Compound,

@@ -178,6 +178,12 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::DisplayCappedHint => {
             "Affichage des premières lignes uniquement pour préserver la mémoire de l'appareil. Les totaux restent exacts."
         }
+        TextKey::FilterColumn => "Filtrer",
+        TextKey::FilterTextPlaceholder => "Filtrer…",
+        TextKey::FilterShowing => "Affichage de",
+        TextKey::FilterOf => "sur",
+        TextKey::FilterNoMatches => "Aucune ligne ne correspond à ces filtres.",
+        TextKey::ClearFilters => "Effacer les filtres",
         TextKey::Structure => "Structure",
         TextKey::Compound => "Composé",
         TextKey::Mass => "Masse",
