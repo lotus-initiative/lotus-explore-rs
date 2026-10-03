@@ -27,4 +27,4 @@ draft of this file had estimated times and they were wrong.
 | 23:38 | `513e77c` | E: MUTANTS.md | full accounting: 80 survivors grouped, 1 equivalent, 3 needing a human |
 | 23:41 | `a8f88c5` | E: cache-key attempt | not the mutants.toml exclusion; the suite is not hermetic. Corrected |
 | 23:50 | — | final gates | fmt/clippy/clippy-wasm/docs_in_sync all pass; 1239 web, 631 server, 590 desktop |
-| 23:52 | `?` | handoff | SUMMARY.md: commit table, one behaviour change called out, what was not measured |
+| 23:52 | `b1aabd3` | handoff | SUMMARY.md: commit table, one behaviour change called out, what was not measured |
