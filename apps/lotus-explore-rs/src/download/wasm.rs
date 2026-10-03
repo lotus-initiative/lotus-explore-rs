@@ -50,7 +50,7 @@ pub(super) async fn execute_download_from_rows(
     let mut exporter = RowExporter::new(format, set);
     let mut bytes = 0usize;
 
-    let mut sink = open_sink(format, &safe, rows).await;
+    let mut sink = open_sink(&safe, rows).await;
 
     // One chunk produced, handed over, and released before the next is asked for.
     // Holding the exporter's buffer and the JavaScript copy at once is two copies of
@@ -115,7 +115,7 @@ pub(super) async fn execute_download_from_rows(
 ///
 /// Every step down is logged with its reason, because "the download was slow" and "the
 /// browser made us buffer 600 MB" look identical from the outside.
-async fn open_sink(format: DownloadFormat, filename: &str, rows: usize) -> Sink {
+async fn open_sink(filename: &str, rows: usize) -> Sink {
     debug_assert_eq!(
         super::SINK_PREFERENCE[0],
         SinkPreference::UserChosenFile,
