@@ -152,11 +152,38 @@ impl CsvSplitter {
     /// A payload that ends mid-record -- an unterminated quote, or a transport
     /// that cut the body short -- yields the record it has rather than dropping
     /// the row. A payload that ends cleanly flushes nothing.
-    pub fn end_of_input(&mut self, out: &mut Vec<Record>) {
+    /// End the stream, flushing whatever the last bytes left open.
+    ///
+    /// Returns `true` if the input stopped inside a quoted field, which is the one
+    /// truncation that is unambiguously detectable.
+    ///
+    /// That case matters because it used to pass for data. A response cut short by a
+    /// timeout, a proxy or a cancelled query can stop anywhere, and when it stopped
+    /// inside a quoted field this closed the partial record and handed it over like any
+    /// other. A short result set is then indistinguishable from a query that genuinely
+    /// matched fewer rows -- and every count, hash and export built on it describes rows
+    /// that were never returned.
+    ///
+    /// What cannot be detected is worth being exact about: a body that stops *between*
+    /// fields, or after a row's last field with no trailing newline, is byte-for-byte
+    /// identical to a complete final row. CSV allows the last record to omit its
+    /// terminator, so treating that as truncation would reject well-formed responses
+    /// from an endpoint that simply does not end with a newline. Only the unterminated
+    /// quote is unambiguous, and it is the common shape for a cut inside a title or a
+    /// SMILES -- the columns most likely to be mid-field when a response dies.
+    pub fn end_of_input(&mut self, out: &mut Vec<Record>) -> bool {
+        // `in_quotes && !quote_pending`, not `in_quotes`. The flag is what makes the
+        // difference: a `"` seen inside a quoted field leaves the decision pending until
+        // the next byte says whether it closed the field or escaped a literal quote, so
+        // a field closed by the very last byte of the body is still flagged as in-quotes
+        // with a pending quote. That is a complete row. An *unresolved* flag is the
+        // opposite: the quote opened and nothing ever closed it.
+        let truncated = self.in_quotes && !self.quote_pending;
         self.quote_pending = false;
         if self.is_mid_record() {
             self.end_record(out);
         }
+        truncated
     }
 
     /// Close the current field.
@@ -332,15 +359,31 @@ impl CsvColumnarReader {
     /// # Errors
     /// Returns [`ParseError`] if the payload held no header row, because then
     /// no column was ever identified and every row would be silently empty.
+    /// Finish the body, or refuse it if it stopped mid-record.
+    ///
+    /// # Errors
+    /// [`ParseError`] if the response ended inside a quoted field, or has no header row.
+    /// A truncated body is refused rather than parsed: the rows before the cut are
+    /// valid, and returning them would present an incomplete answer as a complete one.
     pub fn finish(mut self) -> Result<ColumnarResultSet, ParseError> {
         let mut scratch = std::mem::take(&mut self.scratch);
         scratch.clear();
-        self.splitter.end_of_input(&mut scratch);
+        if self.splitter.end_of_input(&mut scratch) {
+            return Err(ParseError::new(INCOMPLETE_BODY));
+        }
         self.absorb(scratch)?;
         self.check_header()?;
         Ok(self.builder.build())
     }
 }
+
+/// The message a truncated body produces.
+///
+/// Named rather than inlined because a caller may want to match on it, and because the
+/// wording is the only thing standing between "the endpoint was slow" and a result set
+/// that is quietly wrong.
+pub(super) const INCOMPLETE_BODY: &str = "the response ended in the middle of a row, so the result set is incomplete; \
+     this usually means the endpoint timed out and the rows below are missing";
 
 /// The size of one read from a native reader.
 ///

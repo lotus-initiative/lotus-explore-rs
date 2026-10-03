@@ -107,17 +107,57 @@ fn a_quote_split_across_two_chunks_is_still_a_quote() {
 
 #[test]
 fn a_payload_ending_inside_a_quote_still_yields_its_record() {
-    // An unterminated quote is tolerated: the reader keeps what it has rather
-    // than discarding the row.
+    // An unterminated quote is *reported*, not tolerated. This used to be flushed as if
+    // it were a complete row, which is how a response that died mid-body came back as a
+    // shorter result set rather than as an error.
     let mut splitter = CsvSplitter::new();
     let mut out = Vec::new();
     splitter.feed(b"Q1,\"unterminated", &mut out);
 
     assert!(out.is_empty(), "the record is genuinely incomplete");
 
-    // Flushing the field is what `CsvColumnarReader::finish` relies on.
-    splitter.end_of_input(&mut out);
+    let truncated = splitter.end_of_input(&mut out);
+    assert!(
+        truncated,
+        "ending inside a quoted field must be reported as truncation"
+    );
+    // The bytes are still flushed, because the flag is what the caller acts on.
     assert_eq!(as_strings(&out), vec![vec!["Q1", "unterminated"]]);
+}
+
+#[test]
+fn a_final_row_without_a_trailing_newline_is_not_truncation() {
+    // The other half of the contract, and the reason truncation is only detectable
+    // inside a quote: CSV lets the last record omit its terminator, so a body ending on
+    // a complete row is indistinguishable from a body cut between fields -- and treating
+    // it as truncated would reject well-formed responses from an endpoint that simply
+    // does not end with a newline.
+    let mut splitter = CsvSplitter::new();
+    let mut out = Vec::new();
+    splitter.feed(b"Q1,name\nQ2,other", &mut out);
+
+    assert!(
+        !splitter.end_of_input(&mut out),
+        "a clean ending is not truncation"
+    );
+    assert_eq!(
+        as_strings(&out),
+        vec![vec!["Q1", "name"], vec!["Q2", "other"]]
+    );
+}
+
+#[test]
+fn a_quoted_final_field_is_not_truncation() {
+    // A body ending on the closing quote of a quoted field leaves the quote pending, and
+    // a pending quote is not an open one.
+    let mut splitter = CsvSplitter::new();
+    let mut out = Vec::new();
+    splitter.feed(b"Q1,\"a name\"", &mut out);
+
+    assert!(
+        !splitter.end_of_input(&mut out),
+        "a closed quoted field is a complete row"
+    );
 }
 
 #[test]
