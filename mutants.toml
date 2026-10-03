@@ -36,6 +36,7 @@
 [package.lotus-explore-rs]
 exclude = true
 
+
 # No mutant survives in lotus-web-assets.
 #
 # It used to be one, and the record is kept because the reason it was ever allowed
@@ -68,3 +69,4 @@ exclude = true
 # different arity, a function replaced with a body of the wrong type. They are not a
 # gap in the tests: cargo-mutants reports a build failure as unviable rather than
 # caught.
+

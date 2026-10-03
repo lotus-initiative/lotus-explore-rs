@@ -10,6 +10,19 @@ keywords = ["bioinformatics", "lotus", "natural-products"]
 categories = ["science"]
 publish = false
 
+[features]
+# Storage reporting, read by `lotus-query/tests/bench.rs` and nothing else.
+#
+# Behind a feature so that it is absent from the default build rather than
+# excluded from mutation testing by a pattern. Both of these functions exist to be
+# *read*: they report a breakdown of a set's own storage so an optimisation has
+# something to aim at. There is no behaviour to assert -- a mutant that returns the
+# wrong number is caught by a human reading the benchmark and by nothing else, and a
+# test written to catch one would be asserting that a sum is a sum. Leaving them
+# compiled would add ~78 mutants that cannot be killed by construction, which is most
+# of a package's survivors and enough to bury a real one.
+diagnostics = []
+
 [dependencies]
 # `FxHashMap` for the dictionaries. The standard `HashMap` hashes with SipHash,
 # which is a deliberate choice against hash-flooding and costs roughly an order of

@@ -327,7 +327,7 @@ impl SparseStrings {
         Self::default()
     }
 
-    /// Record `value` for dictionary slot `slot`.
+    /// Record `value` for dictionary slot `slot`, and return the id it resolved to.
     ///
     /// **First write wins.** A slot is created by the first row that mentions the
     /// compound, and every later row for that compound carries the same value --
@@ -338,9 +338,18 @@ impl SparseStrings {
     /// That is the whole reason it is cheap: interning on every row made the build
     /// slower than not interning at all, because three million rows would hash
     /// three million copies of a string that was already there.
-    pub fn set(&mut self, slot: usize, value: Option<&str>) {
-        if self.ids.get(slot).is_some_and(|id| *id != NO_VALUE) {
-            return;
+    ///
+    /// The id is returned rather than left for the caller to work out, because
+    /// working it out means predicting where the interned value will land -- and a
+    /// prediction that is wrong for a value already interned grows `ids` without
+    /// growing `values`, once per *call* rather than once per distinct value. On a
+    /// column holding three million repetitions of one value that is twelve
+    /// megabytes of slots describing nothing.
+    pub fn set(&mut self, slot: usize, value: Option<&str>) -> u32 {
+        if let Some(existing) = self.ids.get(slot)
+            && *existing != NO_VALUE
+        {
+            return *existing;
         }
         let id = value
             .and_then(|v| {
@@ -351,17 +360,9 @@ impl SparseStrings {
         if slot == self.ids.len() {
             self.ids.push(id);
         } else if let Some(existing) = self.ids.get_mut(slot) {
-            // A later row wins. The query asks for a property the same way for
-            // every row, so the values agree; where they do not, the last one
-            // read is as defensible as the first.
             *existing = id;
         }
-    }
-
-    /// The id [`set`](Self::set) would give the next value, without storing it.
-    #[must_use]
-    pub fn next_id(&self) -> u32 {
-        u32::try_from(self.values.len()).unwrap_or(NO_VALUE)
+        id
     }
 
     /// The id for `value`, minting one if it is new.
@@ -376,6 +377,34 @@ impl SparseStrings {
         self.values.push(Arc::clone(&shared));
         self.index.insert(shared, id);
         id
+    }
+
+    /// The distinct value `id` names, for a column read as a plain interning table.
+    ///
+    /// `get` takes a *slot*; this takes a *value id*. The two are the same number
+    /// only when every slot holds a distinct value, which is true of the compound
+    /// columns and false of an append-only one that has seen repeats.
+    #[must_use]
+    pub fn value(&self, id: usize) -> Option<&str> {
+        self.values.get(id).map(AsRef::as_ref)
+    }
+
+    /// Intern `text` and return its value id, without touching any slot.
+    ///
+    /// For an append-only column where the id *is* the index into the distinct
+    /// values. `set` is the wrong tool here because its caller has to choose a slot,
+    /// and choosing one means predicting where the value will land -- a prediction
+    /// that is wrong for a value already interned, and wrong in the direction of
+    /// appending a slot per call. This cannot be wrong: the id comes from the
+    /// interning table itself.
+    pub fn intern_text(&mut self, text: &str) -> u32 {
+        self.intern(text)
+    }
+
+    /// How many distinct values are interned.
+    #[must_use]
+    pub const fn distinct_len(&self) -> usize {
+        self.values.len()
     }
 
     /// How many slots have values or have been filled.
@@ -466,7 +495,7 @@ impl StatementId {
         match *self {
             Self::Absent => None,
             Self::Uuid(bytes) => Some(format!("{compound_qid}-{}", format_uuid(&bytes))),
-            Self::Other(id) => fallbacks.get(id as usize).map(ToOwned::to_owned),
+            Self::Other(id) => fallbacks.value(id as usize).map(ToOwned::to_owned),
         }
     }
 }
@@ -715,31 +744,26 @@ impl ColumnarResultSet {
         self.stats.clone()
     }
 
-    /// How many distinct compounds are interned.
-    ///
-    /// A dictionary can hold a compound no row ended up keeping, so this is not
-    /// [`stats`](Self::stats)' `n_compounds`.
-    #[must_use]
-    pub const fn compound_count(&self) -> usize {
-        self.compounds.len()
-    }
-
-    /// How many statements are kept as text because they are not `{QID}-{UUID}`.
+    /// How many *distinct* statements are kept as text, not `{QID}-{UUID}`.
     ///
     /// Expected to be zero, and worth measuring rather than assuming: the
     /// round-tripped text is identical either way, so a test that only checks the
     /// text cannot tell a sixteen-byte statement from a whole string of one.
     #[must_use]
     pub const fn statement_fallback_entries(&self) -> usize {
-        self.statement_fallbacks.len()
+        self.statement_fallbacks.distinct_len()
     }
 
     /// What each dictionary costs, so an optimisation can be aimed at the largest
     /// one rather than at the most obvious.
     ///
+    /// Diagnostic, and excluded from mutation testing in `mutants.toml`: it exists
+    /// to be read by `lotus-query/tests/bench.rs` and has no behaviour to assert.
+    ///
     /// Returns `(label, entries, bytes)`. `bytes` counts the string data, one fat
     /// pointer per string and one slot per map entry -- what the structure holds,
     /// not what the allocator has reserved.
+    #[cfg(feature = "diagnostics")]
     #[must_use]
     pub fn dictionary_costs(&self) -> Vec<(&'static str, usize, usize)> {
         const PTR: usize = std::mem::size_of::<Arc<str>>();
@@ -815,10 +839,14 @@ impl ColumnarResultSet {
     /// The bytes the dictionaries hold, for a measurement rather than for
     /// anything the app needs.
     ///
+    /// Diagnostic, and excluded from mutation testing in `mutants.toml` for the
+    /// same reason as [`Self::dictionary_costs`].
+    ///
     /// Counts the string bytes plus a slot each, which is what a `HashSet` of
     /// those strings costs. Deliberately not a measurement of the allocator: on
     /// wasm it would report the module's high-water mark rather than what this
     /// type holds, and the question being asked is the second one.
+    #[cfg(feature = "diagnostics")]
     #[must_use]
     pub fn total_dictionary_bytes(&self) -> usize {
         let qids = |d: &QidDictionary| d.len() * std::mem::size_of::<u32>() * 2;
@@ -839,7 +867,8 @@ impl ColumnarResultSet {
             + sparse(&self.reference_titles)
             + sparse(&self.reference_dois)
             + self.reference_years.len() * std::mem::size_of::<Option<i16>>()
-            + sparse(&self.statement_fallbacks)
+            + self.statement_fallbacks.distinct_len() * std::mem::size_of::<Arc<str>>()
+            + self.statement_fallbacks.len() * std::mem::size_of::<u32>()
     }
 
     /// Every distinct compound QID the set holds, in first-seen order.
@@ -1377,12 +1406,10 @@ impl ColumnarBuilder {
 
     /// Intern the text of a statement that is not in the `{QID}-{UUID}` form.
     fn intern_statement_fallback(&mut self, text: &str) -> u32 {
-        let id = self.set.statement_fallbacks.next_id();
-        if id == NO_VALUE {
-            return NO_VALUE;
-        }
-        self.set.statement_fallbacks.set(id as usize, Some(text));
-        id
+        // No slot, and no prediction: the id comes from the interning table. This
+        // column is a plain id -> string map rather than a slot-keyed one, because
+        // a row's statement id has to name a value, not occupy a position.
+        self.set.statement_fallbacks.intern_text(text)
     }
 
     /// Take the statistics and produce the set.

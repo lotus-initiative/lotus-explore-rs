@@ -64,9 +64,9 @@ fn rows_sharing_a_compound_agree_on_its_properties() {
 
     assert_eq!(set.row_count(), 2);
     assert_eq!(
-        set.compound_count(),
+        set.stats().n_compounds,
         1,
-        "two rows naming one compound is one dictionary entry"
+        "two rows naming one compound is one compound"
     );
     // One mass column, not two, so the two rows cannot both keep a mass. The
     // first row wins, which is what makes the write once per compound rather than
@@ -557,5 +557,220 @@ fn a_row_costs_the_documented_number_of_bytes() {
         set.row_count(),
         1,
         "one row, so the set's own cost is the dictionaries and nothing else"
+    );
+}
+
+#[test]
+fn a_repeated_statement_does_not_grow_the_fallback_column() {
+    // Regression, and the shape of bug that only shows up as unexplained growth.
+    //
+    // The fallback column used to be given the slot index it *predicted* the value
+    // would land at -- `values.len()` before the write -- and that prediction is
+    // wrong for a value already interned: `set` then appended a slot pointing at
+    // the existing string. One slot per *call* instead of per distinct value, so a
+    // result whose statements are all the same grew by four bytes a row while its
+    // strings stayed at one.
+    //
+    // Three million of those is twelve megabytes describing a single value, and it
+    // is why the benchmark once reported 63 MB of "fallbacks" for a column that
+    // held a million distinct statements.
+    let mut builder = ColumnarBuilder::new();
+    for _ in 0..1_000 {
+        builder.push(RawRow {
+            compound_qid: "Q1",
+            statement: Some("http://www.wikidata.org/entity/statement/Q1-not-a-uuid"),
+            ..RawRow::default()
+        });
+    }
+    let set = builder.build();
+
+    assert_eq!(
+        set.statement_fallback_entries(),
+        1,
+        "one thousand identical statements, one stored string"
+    );
+    assert_eq!(set.row_count(), 1_000, "and every row is still there");
+}
+
+#[test]
+fn two_equality_semantics_the_table_depends_on() {
+    // `ResultDataState` derives `PartialEq`, so a new result set has to compare
+    // unequal to the one it replaced or the table does not re-render. Comparing the
+    // contents instead would mean walking millions of rows on every comparison,
+    // which is why the identity is compared -- and that is only safe if a set is
+    // equal to itself and nothing else.
+    let first = ColumnarResultSet::from_entries(&[entry("Q1", "Q2", "Q3")]);
+    let same_rows_built_again = ColumnarResultSet::from_entries(&[entry("Q1", "Q2", "Q3")]);
+    let different = ColumnarResultSet::from_entries(&[entry("Q9", "Q2", "Q3")]);
+    let empty = ColumnarResultSet::default();
+
+    assert_eq!(first, first, "a set equals itself");
+    assert_ne!(
+        first, same_rows_built_again,
+        "two sets holding the same rows are not the same set: \
+         otherwise a re-fetch of an identical result would not re-render"
+    );
+    assert_ne!(first, different);
+    assert_ne!(first, empty);
+    assert_eq!(
+        empty, empty,
+        "and two 'no search has run' states are equal, or every reset looks \
+         like a change"
+    );
+    assert_ne!(empty, first, "an empty state is never a result");
+}
+
+#[test]
+fn every_row_reader_reads_the_field_it_names() {
+    // The row accessors are what the table's sort reads, and they are read only
+    // from the app -- which mutation testing does not run, because it is ~2,700
+    // mutants of Dioxus rendering for a few hundred of everything else. So a
+    // reader that quietly returned the wrong column would be invisible to the
+    // mutant run *and* to the app's own tests. One row with every field filled and
+    // one with none is what closes that.
+    let full = CompoundEntry {
+        compound_qid: arc("Q3613679"),
+        name: arc("Quercetin"),
+        inchikey: Some(arc("ABCDEF-GHIJKL-M")),
+        smiles: Some(arc("O=c1cc(-c2ccccc2)oc2cc(O)cc(O)c12")),
+        mass: Some(302.24),
+        formula: Some(arc("C15H10O7")),
+        taxon_qid: arc("Q128267"),
+        taxon_name: arc("Quercus robur"),
+        reference_qid: arc("Q100000001"),
+        ref_title: Some(arc("Flavonoid isolation")),
+        ref_doi: Some(arc("10.1000/ABC")),
+        pub_year: Some(2019),
+        statement: Some(arc("Q3613679-0D8245CF-C1C0-45AA-8994-6BEBFF6B15EE")),
+    };
+    let blank = CompoundEntry::default();
+
+    let set = ColumnarResultSet::from_entries(&[full, blank]);
+
+    assert_eq!(set.inchikey(0), Some("ABCDEF-GHIJKL-M"));
+    assert_eq!(set.smiles(0), Some("O=c1cc(-c2ccccc2)oc2cc(O)cc(O)c12"));
+    assert_eq!(set.formula(0), Some("C15H10O7"));
+    assert_eq!(set.mass(0), Some(302.24));
+    assert_eq!(set.compound_label(0), Some("Quercetin"));
+    assert_eq!(set.taxon_label(0), Some("Quercus robur"));
+    assert_eq!(set.reference_title(0), Some("Flavonoid isolation"));
+    assert_eq!(set.pub_year(0), Some(2019));
+    assert_eq!(
+        set.compound_qid_text(0).as_deref(),
+        Some("Q3613679"),
+        "and the QID readers render back what the cell held"
+    );
+    assert_eq!(set.taxon_qid_text(0).as_deref(), Some("Q128267"));
+    assert_eq!(set.reference_qid_text(0).as_deref(), Some("Q100000001"));
+
+    // And the empty row reads as empty for all of them, rather than as the first
+    // row's values: an accessor that forgot its own column would pass the checks
+    // above and fail these.
+    assert_eq!(set.inchikey(1), None);
+    assert_eq!(set.smiles(1), None);
+    assert_eq!(set.formula(1), None);
+    assert_eq!(set.mass(1), None);
+    assert_eq!(set.compound_label(1), None);
+    assert_eq!(set.taxon_label(1), None);
+    assert_eq!(set.reference_title(1), None);
+    assert_eq!(set.pub_year(1), None);
+
+    // A row index past the end reads as absent rather than panicking, which is
+    // what lets the virtualiser ask for a window it has not scrolled to yet.
+    assert_eq!(set.inchikey(99), None);
+    assert_eq!(set.mass(99), None);
+    assert_eq!(set.pub_year(99), None);
+}
+
+#[test]
+fn a_uuid_of_the_wrong_shape_is_kept_as_text_rather_than_half_read() {
+    // `parse_uuid` accepts a string only when every group is the right width and
+    // the hex characters pair up into whole bytes. A near-miss has to fall through
+    // to the text path, because half a UUID is a different identifier and the
+    // column is a link.
+    for malformed in [
+        // An odd number of hex characters: a half-filled final byte.
+        "Q1-0D8245CF-C1C0-45AA-8994-6BEBFF6B15E", // 11 in the last group
+        "Q1-0D8245CF-C1C0-45AA-8994-6BEBFF6B15EEE", // 13
+        // A group of the wrong width.
+        "Q1-0D8245C-C1C0-45AA-8994-6BEBFF6B15EE", // 7 in the first group
+        // Too few groups: a bare identifier with no UUID at all.
+        "Q1-0D8245CF",
+        // Not hex.
+        "Q1-0D8245CF-C1C0-45AA-8994-6BEBFF6B15ZZ",
+    ] {
+        let row = entry("Q1", "Q2", "Q3");
+        let mut row = row;
+        row.statement = Some(arc(&format!(
+            "http://www.wikidata.org/entity/statement/{malformed}"
+        )));
+        let set = ColumnarResultSet::from_entries(std::slice::from_ref(&row));
+
+        assert_eq!(
+            set.statement_text(0).as_deref(),
+            Some(malformed),
+            "{malformed:?} must be kept exactly as it arrived"
+        );
+    }
+}
+
+#[test]
+fn the_collections_report_emptiness_before_and_after_a_row() {
+    // `len` and `is_empty` come in pairs because the lint profile requires it, and
+    // an accessor nobody calls is an accessor nobody checks. These are the states
+    // the empty case reaches.
+    let empty = ColumnarResultSet::default();
+    assert!(empty.is_empty());
+    assert_eq!(empty.row_count(), 0);
+
+    let one = ColumnarResultSet::from_entries(&[entry("Q1", "Q2", "Q3")]);
+    assert!(!one.is_empty());
+    assert_eq!(one.row_count(), 1);
+
+    let bitmask = lotus_model::Bitmask::with_len(0);
+    assert!(bitmask.is_empty());
+    let mut filled = lotus_model::Bitmask::with_len(64);
+    filled.insert(3);
+    assert!(!filled.is_empty());
+    assert_eq!(filled.len(), 1);
+
+    let mut builder = ColumnarBuilder::new();
+    assert_eq!(builder.row_count(), 0);
+    builder.push(RawRow {
+        compound_qid: "Q1",
+        ..RawRow::default()
+    });
+    assert_eq!(builder.row_count(), 1);
+}
+
+#[test]
+fn the_compound_dictionary_is_walkable_for_a_hash_that_must_not_change() {
+    // `compound_qids` feeds the result hash, so it has to yield every distinct
+    // compound once, and in a stable order: a set built twice has to hash to the
+    // same digest or every shared link stops resolving.
+    let rows: Vec<CompoundEntry> = ["Q7", "Q3", "Q5"]
+        .iter()
+        .map(|q| entry(q, "Q2", "Q3"))
+        .collect();
+    let set = ColumnarResultSet::from_entries(&rows);
+
+    let first: Vec<u32> = set.compound_qids().collect();
+    let rebuilt = ColumnarResultSet::from_entries(&rows);
+    let second: Vec<u32> = rebuilt.compound_qids().collect();
+
+    assert_eq!(first.len(), 3, "three compounds, counted once each");
+    assert_eq!(first, second, "first-seen order is stable across builds");
+    assert_eq!(
+        first,
+        vec![7, 3, 5],
+        "and it is the order the rows arrived in, not a sort"
+    );
+
+    assert!(
+        ColumnarResultSet::default()
+            .compound_qids()
+            .next()
+            .is_none(),
+        "an empty set yields nothing to hash"
     );
 }
