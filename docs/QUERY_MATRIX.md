@@ -90,18 +90,37 @@ result size rather than a bug fix, so it is left for a human — see
 constraint at all. That is the largest answer this app can produce, and the
 narrowest reading of "I typed nothing" is that nothing is constrained.
 
-It is bounded rather than prevented, in three places:
+**This is deliberate, and the reasoning is written down** in
+`apps/lotus-explore-rs/src/table_budget.rs`. An earlier 500-row ceiling was
+removed on purpose, because it was a row-count bound standing in for a memory
+bound, and it had three bad consequences:
 
-- `DEFAULT_ROW_LIMIT` in `lotus-search` caps the rows fetched by one search, and
-  `limit_query` puts the `LIMIT` in the query rather than truncating afterwards.
-- `counts_query` runs alongside it, so the page can say how many rows matched in
-  total rather than implying the cap is the whole answer.
-- `table_budget.rs` in the app caps what the table will hold.
+- It was applied server-side by a `LIMIT`, so the table's filters could only ever
+  see the first 500 rows while the toolbar reported the whole set's count. The
+  two disagreed by construction.
+- It stepped down per device, so a phone was told a smaller lie than a desktop.
+- It is why a second `COUNT` query existed at all.
 
-What is *not* checked by an automated test is that the reader is told the result
-is capped and by what. If that signal is missing in the UI, that is a
-documentation and UI question, not a query-builder one, and it belongs to task D
-rather than here.
+The interactive path now asks for **every** row, streams the answer into a
+columnar set, and takes its counts from that set rather than from a second query.
+Rendering cost is decoupled from result size: the set holds a row as three
+dictionary ids and the table materialises only the thirty rows on screen.
+
+So for these cells there is deliberately **no `LIMIT`** and no `truncated` flag
+on the web path — `display_capped_rows` is a constant `false`, with the reason in
+`features/explore/outcome.rs`. What remains is a ceiling on a single request's
+payload, which belongs to the server rather than to the query.
+
+Two things follow that are worth a human's attention rather than a change here:
+
+- The **CLI** goes through `lotus-search::search`, which *does* cap at
+  `DEFAULT_ROW_LIMIT` (500) and sets a `truncated` flag, because it is a library
+  default rather than the interactive path. The two front ends therefore have
+  genuinely different limits, which is defensible but should be known.
+- An empty taxon therefore really does ask the endpoint for the entire
+  projection — measured elsewhere in this repo at 2,990,730 rows and ~873 MB of
+  CSV. Nothing caps it below that on the web path. Whether the reader is *told*
+  that before waiting for it is a UI question; see `docs/sweep/REVIEW.md`.
 
 ## What this table does not cover
 

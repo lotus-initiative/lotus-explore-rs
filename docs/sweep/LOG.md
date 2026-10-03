@@ -12,4 +12,4 @@ One line per item: time, commit, item, result. Times are local, 2026-10-03.
 | 22:10 | `62dd958` | C (wasm gate) | **fixed** `open_sink`'s unused `format` param; `lint-wasm` green, all builds still pass, no test edits |
 | 22:14 | — | baseline: runtime + memory | parse+build 2049/3869/5523 ms and retained 87.9/171.4/254.2 MB at 1M/2M/2.99M rows || 22:40 | — | A: query matrix | 12 cells enumerated; `*` vs absent found identical. See below |
 | 22:55 | `d07b061` | A: matrix tests + `*` fix | **behaviour change**: `*` now requires `P703`. 1224→1231 web, 631/590 unchanged |
-| 23:20 | `2b6f5c8` | B: SPARQL generation bench | baseline added: median 9.8 µs/query, cell medians 7.5–15.9 µs, 30 samples |
+| 23:20 | `7beb904` | B: SPARQL generation bench | baseline added: median 9.8 µs/query, cell medians 7.5–15.9 µs, 30 samples |

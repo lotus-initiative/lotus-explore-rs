@@ -104,3 +104,30 @@ of `lotus-search` and parse all twelve cells plus the filter and export variants
 
 *(none yet — see the FAQ task; anything uncertain goes here rather than into a
 commit)*
+## 10. An empty taxon fetches the entire projection, and the reader is not told
+
+`taxon=absent structure=absent` builds the query with no `LIMIT`, and the
+interactive path deliberately removed its 500-row ceiling
+(`apps/lotus-explore-rs/src/table_budget.rs` explains why, and the reasoning is
+sound). So submitting the form with an empty taxon box asks the endpoint for every
+compound in LOTUS — measured elsewhere in this repo at 2,990,730 rows and ~873 MB
+of CSV — and nothing caps it below that on the web path.
+
+That is a deliberate design decision and this sweep did not touch it. What is
+missing is a *signal*: there is no test, and no FAQ entry, asserting that the
+reader is told a search is going to return the whole graph before they wait for
+it. The FAQ's "How many rows can a search return?" currently says only that every
+matching row is returned.
+
+**Recommended:** either warn when the taxon box is empty and no other constraint
+is set, or add a FAQ entry saying plainly that an empty taxon box means the whole
+projection and roughly how long that takes. Needs a human because it is a product
+call about whether to constrain the request or only to explain it.
+
+## 11. The CLI and the web app have different row limits
+
+`lotus-search::search` — the CLI's path — caps at `DEFAULT_ROW_LIMIT` (500) and
+reports a `truncated` flag. The interactive path fetches every row and reports
+`display_capped_rows: false` always. Defensible (one is a library default, the
+other an interactive session), but it means "not limited" is true of one front end
+and false of the other. Worth deciding whether the CLI should say so explicitly.
