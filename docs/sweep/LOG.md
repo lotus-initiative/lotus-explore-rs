@@ -14,4 +14,7 @@ One line per item: time, commit, item, result. Times are local, 2026-10-03.
 | 22:55 | `d07b061` | A: matrix tests + `*` fix | **behaviour change**: `*` now requires `P703`. 1224→1231 web, 631/590 unchanged |
 | 23:20 | `7beb904` | B: SPARQL generation bench | baseline added: median 9.8 µs/query, cell medians 7.5–15.9 µs, 30 samples |
 | 23:55 | `bca6b1a` | A/D: correct the empty-taxon bound | my own claim was wrong; the 500-row cap was deliberately removed. No code change |
-| 00:20 | `?` | D: FAQ entries | +3 entries x4 locales: structure-only, wildcard-taxon, empty-taxon-box |
+| 00:20 | `68abea2` | D: FAQ entries | +3 entries x4 locales: structure-only, wildcard-taxon, empty-taxon-box |
+| 22:40 | — | E: mutation, query builder | 115 mutants, 88 caught, 27 unviable, **0 missed** (6 min) |
+| 22:47 | — | E: mutation, parsing | 79 mutants, 46 caught, 31 unviable, **2 missed** (3 min) |
+| 23:05 | `pending` | E: kill the 2 parsing mutants | `\|\|`→`&&` in `Columns::resolves_any`; 46→48 caught, 0 missed |

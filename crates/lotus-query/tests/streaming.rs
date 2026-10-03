@@ -359,3 +359,52 @@ fn the_isomeric_smiles_wins_over_the_connection_table() {
         "a compound with only the connection-table SMILES still has one"
     );
 }
+
+/// A header naming exactly **one** known column is enough.
+///
+/// The reader refuses a payload whose header resolves to nothing, because a query
+/// and a parser that have drifted apart otherwise produce an empty set that reads
+/// as "found nothing". The check is `any` of the four identity columns, not `all`
+/// of them: a response carrying only taxa, or only references, is a real shape --
+/// it is what a projection with no compound column would hand back -- and refusing
+/// it would be refusing a partial answer rather than an unrecognisable one.
+///
+/// Two headers rather than one, because `taxon` and `ref_qid` sit at different
+/// positions in the `||` chain, and a single-column case only pins the position it
+/// happens to occupy. Mutation testing found both of these: `||` weakened to `&&`
+/// survives a header naming only `compound`.
+#[test]
+fn a_header_naming_one_known_column_is_enough_to_parse() {
+    for header in ["taxon", "ref_qid", "statement", "compound"] {
+        let payload = format!("{header}\nQ1\n");
+        // The property is that the header is *recognised*, not that the row
+        // survives: a row with no compound is dropped by a separate rule, so only
+        // the `compound` case carries one through.
+        parse_compounds_columnar(payload.as_bytes())
+            .unwrap_or_else(|e| panic!("a `{header}`-only header must parse, not be refused: {e}"));
+    }
+
+    let set = parse_compounds_columnar(&b"compound\nQ1\n"[..])
+        .expect("a compound-only header is a well formed payload");
+    assert_eq!(
+        set.row_count(),
+        1,
+        "a compound-only header must yield its row"
+    );
+}
+
+/// A header naming no known column is still refused.
+///
+/// The other half of the same `any`: a payload that resolves to none of the four
+/// is the drift case, and the two tests together are what make the `||` chain
+/// mean "any of these" rather than something looser or tighter.
+#[test]
+fn a_header_naming_no_known_column_is_refused() {
+    let error = parse_compounds_columnar(&b"compoundLabel,compound_mass\nQuercetin,180.16\n"[..])
+        .expect_err("no identity column is present");
+
+    assert!(
+        error.to_string().contains("expected columns"),
+        "the error should say what was missing: {error}"
+    );
+}
