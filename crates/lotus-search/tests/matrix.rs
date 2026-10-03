@@ -571,3 +571,75 @@ fn every_cell_is_substantial_and_the_table_does_not_drift() {
         );
     }
 }
+
+/// How long generating a query takes, across all twelve cells.
+///
+/// Release profile, and `#[ignore]`d, like `lotus-query`'s `bench.rs`: this is a
+/// measurement that prints rather than asserts, because a benchmark that fails on
+/// a loaded machine is a test that gets deleted.
+///
+/// ```bash
+/// cargo test -p lotus-search --release --test matrix -- --ignored --nocapture bench_matrix
+/// ```
+///
+/// Median and spread rather than a mean, because the distribution here is
+/// dominated by the allocator and a single slow sample would move a mean far more
+/// than it moves a median. The samples are the same twelve cells each round, so a
+/// slow round is slow for all of them.
+#[test]
+#[ignore = "a benchmark: prints its numbers, asserts nothing"]
+fn bench_matrix_query_generation() {
+    use std::time::Instant;
+
+    const SAMPLES: usize = 30;
+    let queries: Vec<String> = MATRIX.iter().map(query_for).collect();
+
+    // One untimed round, so the first round is not paying for a cold allocator.
+    for query in &queries {
+        std::hint::black_box(query.len());
+    }
+
+    let mut per_cell_ns: Vec<Vec<u128>> = vec![Vec::with_capacity(SAMPLES); queries.len()];
+    for _ in 0..SAMPLES {
+        for cell in 0..queries.len() {
+            let start = Instant::now();
+            let rebuilt = query_for(&MATRIX[cell]);
+            let elapsed = start.elapsed().as_nanos();
+            std::hint::black_box(rebuilt);
+            per_cell_ns[cell].push(elapsed);
+        }
+    }
+
+    println!("\nSPARQL generation, {SAMPLES} samples per cell, nanoseconds");
+    println!("{:<52} {:>9} {:>9} {:>9}", "cell", "median", "min", "max");
+    let mut totals = Vec::with_capacity(SAMPLES);
+    for (cell, samples) in per_cell_ns.iter().enumerate() {
+        let mut sorted = samples.clone();
+        sorted.sort_unstable();
+        let median = sorted[sorted.len() / 2];
+        let min = sorted[0];
+        let max = sorted[sorted.len() - 1];
+        totals.push(median);
+        println!(
+            "{:<52} {:>9} {:>9} {:>9}",
+            label(&MATRIX[cell]),
+            median,
+            min,
+            max
+        );
+    }
+    totals.sort_unstable();
+    let median = totals[totals.len() / 2];
+    println!(
+        "\nmedian of the twelve cell medians: {median} ns ({} us)",
+        // Integer microseconds. A fractional one would need a float cast, and
+        // `clippy::cast_precision_loss` is denied workspace-wide; at this scale
+        // the fractional part is noise anyway.
+        median / 1000
+    );
+    println!(
+        "spread of the cell medians:         {} ns .. {} ns",
+        totals[0],
+        totals[totals.len() - 1]
+    );
+}

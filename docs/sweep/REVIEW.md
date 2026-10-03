@@ -66,7 +66,41 @@ property of a sort and is much more likely this host's load or a threshold
 inside the sort. Flagged rather than optimised: it needs a re-measurement on a
 quiet machine before anyone treats it as a real cliff.
 
-## 7. Untranslated strings
+## 7. `*` with a structure search still does not filter on the root taxon
+
+The taxon wildcard is now read from `criteria.taxon` rather than the resolved QID
+(`d07b061`), so `*` with no structure requires `P703` as documented. The
+structure half of the same gap was deliberately **not** changed.
+
+`build_base_query` maps a wildcard to the root taxon `Q2382443` in the structure
+branch, from which `P171*` reaches everything. That arm is unreachable today,
+because `resolve_taxon` resolves `*` to `qid: None`, so the query actually built
+is "every taxon, unfiltered, occurrence optional" — which is arguably the correct
+reading of `*` and returns at least as much.
+
+Making the documented arm live would switch the structure cells from
+`optional` to `required`, and `P171*` from `Q2382443` does not necessarily reach
+every taxon in the projection. So the change would likely return **fewer** rows
+for `*` + structure. That is a product judgement about what `*` should mean, not
+a bug fix, and it needs a recorded-fixture row count to make it safely — which
+this sweep did not have. Left as is; `docs/QUERY_MATRIX.md` records the current
+behaviour in rows 11 and 12 so the decision is visible.
+
+## 8. The SPARQL matrix tests check structure, not grammar
+
+`matrix.rs` verifies balanced delimiters, scoped `^` in property paths, no empty
+`FILTER`, and the block each pattern sits in. That catches a malformed query, and
+it is what caught the wildcard bug, but it is not a parse: a query can be
+balanced and still be invalid SPARQL.
+
+Honest validation needs a real parser — `oxigraph` or `spareval` — behind a
+dev-dependency. Both are substantial and neither is in the tree today, and adding
+one to a workspace that currently reaches the endpoint only through a scripted
+`Http` trait is a decision worth making deliberately. **Recommended:** add
+`spareval` (pure Rust, parse-only, much smaller than oxigraph) as a dev-dependency
+of `lotus-search` and parse all twelve cells plus the filter and export variants.
+
+## 9. Untranslated strings
 
 *(none yet — see the FAQ task; anything uncertain goes here rather than into a
 commit)*
