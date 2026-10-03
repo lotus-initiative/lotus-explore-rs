@@ -24,4 +24,7 @@ draft of this file had estimated times and they were wrong.
 | 23:05 | — | E: mutation, dedup/count | 368 mutants: 233 caught, 27 unviable, **103 missed**, 5 timeouts (23 min) || 23:05 | — | E: mutation, dedup/count | 368 mutants: 233 caught, 27 unviable, 103 missed, 5 timeouts (23 min) |
 | 23:52 | — | E: kill 23 columnar mutants | +6 tests; 233→256 caught, **103→80 missed**. Found a real compound-filter bug |
 | 23:52 | `7400fc1` | E: kill 23 columnar mutants | +6 tests; 103→80 missed; compound-filter bug written up, not fixed blind |
-| 00:05 | `?` | E: MUTANTS.md | full accounting: 80 survivors grouped, 1 equivalent, 3 needing a human |
+| 23:38 | `513e77c` | E: MUTANTS.md | full accounting: 80 survivors grouped, 1 equivalent, 3 needing a human |
+| 23:41 | `a8f88c5` | E: cache-key attempt | not the mutants.toml exclusion; the suite is not hermetic. Corrected |
+| 23:50 | — | final gates | fmt/clippy/clippy-wasm/docs_in_sync all pass; 1239 web, 631 server, 590 desktop |
+| 23:52 | `?` | handoff | SUMMARY.md: commit table, one behaviour change called out, what was not measured |
