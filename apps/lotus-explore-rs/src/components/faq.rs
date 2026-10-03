@@ -82,7 +82,19 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
                     class: "mt-6",
                     aria_label: "{chrome.contents_label}",
                     h3 { class: "text-subtitle font-semibold text-text", "{chrome.contents_heading}" }
-                    ul { class: "mt-2 flex flex-wrap gap-x-4 gap-y-1 list-disc pl-5",
+                    // No list markers here, deliberately.
+                    //
+                    // A `ul` that is `display: flex` lays its items out as flex
+                    // boxes, and a marker is drawn *outside* the box it belongs to. So
+                    // `gap` spaces the items while the dots stay pinned to the
+                    // container's padding edge, and the two drift apart as the row
+                    // narrows: on a phone the dots end up hard against the text. It is
+                    // the same in both directions -- the marker is not part of the
+                    // layout the gap is measuring.
+                    //
+                    // Four short links read better as inline links than as a bulleted
+                    // list anyway, and a row of them wants no bullet.
+                    ul { class: "mt-2 flex list-none flex-wrap items-baseline gap-x-4 gap-y-1 text-body",
                         for (category, _) in questions_by_category.iter() {
                             li {
                                 a {
@@ -219,7 +231,9 @@ fn render_block(block: FaqBlock, first: bool) -> Element {
             p { class: "{top} text-body leading-relaxed text-muted", "{text}" }
         },
         FaqBlock::List(items) => rsx! {
-            ul { class: "{top} flex list-disc flex-col gap-1 pl-5 text-body leading-relaxed text-muted",
+            // Block flow, not flex, for the same reason as the contents list above: a
+            // flex container puts the marker outside the gap it is measuring.
+            ul { class: "{top} flex list-none flex-col gap-1 text-body leading-relaxed text-muted",
                 for item in items.iter() {
                     li { "{*item}" }
                 }
@@ -340,6 +354,48 @@ mod tests {
                 "`{field}` is not rendered, so the lookup is not actually used"
             );
         }
+    }
+
+    /// A `ul` here must not be both a flex container and bulleted.
+    ///
+    /// The two interact: a marker is painted outside the box it belongs to, so a flex
+    /// container's `gap` spaces the items while the dots stay at the container's padding
+    /// edge. The pair looks correct at a wide viewport and collapses at a narrow one,
+    /// which is why this only showed up on a phone.
+    #[test]
+    fn no_list_combines_a_flex_layout_with_markers() {
+        let source = include_str!("faq.rs");
+        let mut checked = 0;
+
+        for (index, line) in source.lines().enumerate() {
+            // The `ul` and its class attribute are on one line in this file, which is
+            // how rsx! formats a single-attribute element. An earlier version of this
+            // scanner looked for the class on the *following* line, matched nothing,
+            // and was saved from passing by the count assertion at the end.
+            if !line.contains("ul {") {
+                continue;
+            }
+            let Some(class) = line
+                .split_once("class: \"")
+                .and_then(|(_, rest)| rest.split_once('"'))
+                .map(|(class, _)| class)
+            else {
+                continue;
+            };
+            checked += 1;
+            assert!(
+                !(class.contains("flex") && class.contains("list-disc")),
+                "faq.rs:{}: a flex list with markers puts the dots outside the gap: {class}",
+                index + 1
+            );
+            assert!(
+                !class.contains("list-disc") || class.contains("pl-"),
+                "faq.rs:{}: a bulleted list needs its indent, or the text sits on the \
+                 dots: {class}",
+                index + 1
+            );
+        }
+        assert!(checked > 0, "the scanner found no lists: it is not looking");
     }
 
     #[test]
