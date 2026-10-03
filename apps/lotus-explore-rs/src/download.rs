@@ -16,8 +16,14 @@ mod local_file;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use local_file::open_externally;
+#[cfg(target_arch = "wasm32")]
+mod file_sink;
 #[cfg(not(target_arch = "wasm32"))]
 mod native;
+#[cfg(target_arch = "wasm32")]
+pub use file_sink::arm_file_sink;
+#[cfg(target_arch = "wasm32")]
+pub use file_sink::clear_file_sink;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
 
@@ -52,6 +58,7 @@ pub async fn execute_download(
     #[cfg(target_arch = "wasm32")]
     if let Some(set) = rows {
         return wasm::execute_download_from_rows(format, &set, &filename, dl_timer)
+            .await
             .map(|()| filename);
     }
 
