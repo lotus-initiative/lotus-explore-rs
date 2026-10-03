@@ -145,11 +145,23 @@ script = "cargo llvm-cov nextest --locked --summary-only --workspace"
 # rendering test for every component. That is a large piece of work with a poor
 # ratio, so it is `mutants-ui`, opt-in, and the exclusion is written down in
 # `mutants.toml` rather than being an omission.
+# A preflight, because the failure this guards against is a wedged machine rather
+# than a red task. See make/scripts/mutants-preflight.sh: `cargo mutants` rebuilds the
+# workspace once per mutant, which a normal build never does, and two runs of this at
+# `--jobs 8` crashed a 16 GB laptop with a 94%-full volume. It refuses to start below
+# 20 GB free and says how to reclaim it; `MUTANTS_MIN_FREE_GB=0` overrides.
+#
+# `--jobs` defaults to 4 rather than 8. Be clear that this is not a fix: the second
+# crash happened at `--jobs 2`, so concurrency is not the cause and no value of this
+# flag is known to be safe. It is reduced because it is the one knob that plausibly
+# moves memory pressure, not because 4 has been shown to work. `MUTANTS_JOBS=1`, one
+# package at a time, is the form that has a chance.
 [tasks."mutants"]
 cwd = "${REPO_ROOT}"
 description = "Mutation testing over the library crates, using nextest."
 script = """
-cargo mutants --test-tool nextest --jobs 8 --timeout 300 \\
+./make/scripts/mutants-preflight.sh && \\
+cargo mutants --test-tool nextest --jobs "${MUTANTS_JOBS:-4}" --timeout 300 \\
   --package lotus-model --package lotus-search --package lotus-query \\
   --package lotus-curation --package lotus-jsonld \\
   --package lotus-cli --package lotus-web-assets
@@ -159,7 +171,11 @@ cargo mutants --test-tool nextest --jobs 8 --timeout 300 \\
 [tasks."mutants-ui"]
 cwd = "${REPO_ROOT}"
 description = "Mutation testing over the app crate. Large and mostly unkillable."
-script = "cargo mutants --test-tool nextest --package lotus-explore-rs --jobs 8 --timeout 300"
+script = """
+./make/scripts/mutants-preflight.sh && \\
+cargo mutants --test-tool nextest --package lotus-explore-rs \\
+  --jobs "${MUTANTS_JOBS:-4}" --timeout 300
+"""
 
 # The same packages, listed without running them. Use this to see what a change
 # added before paying for the run.
