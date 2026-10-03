@@ -212,6 +212,84 @@ pub const ENTRIES: &[FaqEntry] = &[
         ],
     },
     FaqEntry {
+        id: "structure-only",
+        category: FaqCategory::Searching,
+        translations: &[
+            (
+                Locale::En,
+                "What happens if I give only a structure?",
+                "The structure is matched on its own, with no taxon filter, and occurrences are optional. That is deliberate: a compound nobody has recorded an organism for is still returned, which is how a compound with no occurrence data gets found at all. Add a taxon and the filter applies, and every row is then an occurrence in that taxon.",
+            ),
+            (
+                Locale::Fr,
+                "Que se passe-t-il si je donne seulement une structure ?",
+                "La structure est recherchée seule, sans filtre de taxon, et les occurrences sont facultatives. C'est délibéré : un composé auquel aucun organisme n'a été associé est quand même renvoyé, ce qui est justement la façon de trouver un composé sans aucune donnée d'occurrence. Ajoutez un taxon et le filtre s'applique ; chaque ligne est alors une occurrence dans ce taxon.",
+            ),
+            (
+                Locale::De,
+                "Was passiert, wenn ich nur eine Struktur angebe?",
+                "Die Struktur wird für sich allein gesucht, ohneTaxon-Filter, und Vorkommen sind optional. Das ist beabsichtigt: Einen Stoff, dem kein Organismus zugeordnet wurde, wird trotzdem zurückgegeben – so findet man einen Stoff ganz ohne Vorkommensdaten. Geben Sie zusätzlich ein Taxon an, greift der Filter und jede Zeile ist dann ein Vorkommen in diesem Taxon.",
+            ),
+            (
+                Locale::It,
+                "Cosa succede se indico solo una struttura?",
+                "La struttura viene cercata da sola, senza filtro sul taxon, e le occorrenze sono facoltative. È intenzionale: un composto a cui non è stato associato alcun organismo viene comunque restituito, ed è così che si trovano i composti privi di dati di occorrenza. Aggiungi un taxon e il filtro si applica: ogni riga è allora un'occorrenza in quel taxon.",
+            ),
+        ],
+    },
+    FaqEntry {
+        id: "wildcard-taxon",
+        category: FaqCategory::Searching,
+        translations: &[
+            (
+                Locale::En,
+                "What does * mean in the taxon box?",
+                "* asks for everything that has a recorded occurrence, across all taxa. It is not the same as leaving the box empty: an empty box also returns the compounds nobody has tied to an organism, and * leaves those out.",
+            ),
+            (
+                Locale::Fr,
+                "Que signifie * dans le champ taxon ?",
+                "* demande tout ce qui possède une occurrence enregistrée, dans tous les taxons. Ce n'est pas la même chose que de laisser le champ vide : un champ vide renvoie aussi les composés auxquels aucun organisme n'a été associé, et * les exclut.",
+            ),
+            (
+                Locale::De,
+                "Was bedeutet * im Taxon-Feld?",
+                "* fragt alles ab, was ein erfasstes Vorkommen hat, über alle Taxa hinweg. Das ist nicht dasselbe wie ein leeres Feld: Ein leeres Feld liefert auch die Stoffe, denen kein Organismus zugeordnet wurde, und * lässt sie weg.",
+            ),
+            (
+                Locale::It,
+                "Che cosa significa * nel campo taxon?",
+                "* chiede tutto ciò che ha un'occorrenza registrata, in tutti i taxa. Non è la stessa cosa di lasciare il campo vuoto: un campo vuoto restituisce anche i composti a cui non è stato associato alcun organismo, mentre * li esclude.",
+            ),
+        ],
+    },
+    FaqEntry {
+        id: "empty-taxon-box",
+        category: FaqCategory::Searching,
+        translations: &[
+            (
+                Locale::En,
+                "Why does an empty taxon box return so much?",
+                "An empty box constrains nothing, so the search asks for every compound in LOTUS, including those with no organism recorded. Nothing is sampled and nothing is capped: you get every matching row, which is a lot of data on a projection this size. Add a taxon, a structure or a reference to narrow it.",
+            ),
+            (
+                Locale::Fr,
+                "Pourquoi un champ taxon vide renvoie-t-il autant de résultats ?",
+                "Un champ vide n'applique aucune contrainte : la recherche demande donc tous les composés de LOTUS, y compris ceux sans organisme enregistré. Rien n'est échantillonné ni plafonné : vous obtenez toutes les lignes correspondantes, soit beaucoup de données sur un graphe de cette taille. Ajoutez un taxon, une structure ou une référence pour restreindre la recherche.",
+            ),
+            (
+                Locale::De,
+                "Warum liefert ein leeres Taxon-Feld so viele Ergebnisse?",
+                "Ein leeres Feld legt keine Einschränkung fest, also fragt die Suche jeden Stoff in LOTUS ab – auch die ohne zugeordneten Organismus. Es wird nichts abgetastet und nichts begrenzt: Sie erhalten jede passende Zeile, bei einem Graphen dieser Größe also sehr viele Daten. Geben Sie ein Taxon, eine Struktur oder eine Referenz an, um die Suche einzugrenzen.",
+            ),
+            (
+                Locale::It,
+                "Perché un campo taxon vuoto restituisce così tanto?",
+                "Un campo vuoto non impone alcun vincolo, quindi la ricerca chiede tutti i composti di LOTUS, compresi quelli senza organismo registrato. Nulla viene campionato e nulla viene limitato: ottieni tutte le righe corrispondenti, che su un grafo di queste dimensioni sono molti dati. Aggiungi un taxon, una struttura o un riferimento per restringere la ricerca.",
+            ),
+        ],
+    },
+    FaqEntry {
         id: "taxon-not-found",
         category: FaqCategory::Searching,
         translations: &[
