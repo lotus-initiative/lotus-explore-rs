@@ -1,5 +1,18 @@
 # Taxon search and nomenclatural names
 
+> **Reader-facing answer lives on the FAQ.**
+> The behaviour described here — what a search does, and what each switch changes — is
+> now on `/faq`, translated, and is the page a reader is sent to. This file keeps the
+> *engineering rationale*: why the query is shaped this way, what was measured, and which
+> failure each decision avoids. If you are here to find out how the tool behaves, use the
+> FAQ; if you are here to find out why it is built this way, keep reading.
+>
+> Concretely, these have moved and are not repeated below: the four relationships and
+> what each one means, the measured table of what each switch changes, the
+> accepted/synonym versus old/new distinction, and the deliberate omissions — hybrids,
+> and the `Mentha` over-reach. Kept here because they are what the rationale refers to.
+
+
 A taxon search in LOTUS does not ask one question. It asks *"which compounds
 were reported from this organism?"*, and the organism a paper names is rarely
 the organism Wikidata files the compound under. Taxonomy is revised; the
@@ -44,10 +57,14 @@ a name that returned nothing when it should not have.
 
 **`P1843` has to be read as statements, not as truthy values.** `wdt:P1843`
 collapses a taxon to its *preferred rank* value. *Gentiana lutea*
-([Q158572](https://www.wikidata.org/wiki/Q158572)) carries **72** common names in
-**33** languages; `wdt:P1843` returns exactly one of them, *Great Yellow Gentian*.
-Everything else — including `bitterwort` and `yellow gentian` — is unreachable
-through it. `p:P1843/ps:P1843` returns all 72.
+([Q158572](https://www.wikidata.org/wiki/Q158572)) carries **65** common names; `wdt:P1843` returns exactly one of
+them. Everything else — including `bitterwort` and `yellow gentian` — is unreachable
+through it. `p:P1843/ps:P1843` returns all 65.
+
+Wikidata is a live graph, so that number is a snapshot and drifts as curation proceeds.
+It was **72** here at one point, which is worth recording as the reason the tests assert
+the *behaviour* ("the statement path returns every common name the truthy path hides")
+rather than the figure.
 
 The same collapse applies to `P225`, at a scale worth writing down rather than
 discovering: 3,998,241 triples through `wdt:P225` against 3,998,534 through the
@@ -192,8 +209,11 @@ A test asserts `P1531` stays out, so adding it later is a deliberate act.
 
 This is the reason the four are separate. For each taxon below, the bolded
 column is the **one** switch that matters — turning it off loses compounds that
-the other three would have found. Counts are distinct compounds, from the same
-`counts_query` the UI's stat cards use.
+the other three would have found. Counts are distinct compounds, taken from the same
+`counts_query` the CLI and the server count with. The browser does **not** run it: it
+holds every row in a columnar set and takes the counts from that set, so the number in
+the UI cannot disagree with the rows on screen. A test asserts no count query is issued
+on that path.
 
 | Taxon | accepted/synonym off | basionym off | original comb. off | replacement off | all four on |
 | --- | --- | --- | --- | --- | --- |

@@ -122,7 +122,7 @@ is the fastest way to check a query, and the only front end that is easy to put
 in a pipeline.
 
 - Output is plain text by default, with `--format` for JSON, CSV and TSV.
-- `lotus curate` audits a `.json` file against Wikidata and reports per entry.
+- `lotus curate` audits a `.tsv` file against Wikidata and reports per entry.
 - `docs/cli.md` is the reference, and `crates/lotus-cli/tests/docs_in_sync.rs`
   fails if it drifts from `--help`.
 

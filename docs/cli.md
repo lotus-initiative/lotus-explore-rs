@@ -39,7 +39,7 @@ lotus search --taxon "Isaria cicadae" --year-min 2015 --year-max 2024
 
   | Flag                                                                           | Meaning                                                          |
   | ---                                                                            | ---                                                              |
-  | `--taxon`                                                                      | Scientific name, Wikidata QID, or `*` for every organism         |
+  | `--taxon`                                                                      | Scientific name, Wikidata QID, or `*` for every compound with an occurrence |
   | `--no-accepted-synonyms`                                                       | Ignore the accepted name's synonyms (`P1420`)                      |
   | `--no-basionyms`                                                               | Ignore the basionym, the name first described under (`P566`)      |
   | `--no-protonyms`                                                               | Ignore the original combination, as first published (`P1403`)     |

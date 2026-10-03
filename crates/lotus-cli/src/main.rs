@@ -84,7 +84,7 @@ struct CompletionsArgs {
 )]
 #[derive(Debug, clap::Args)]
 struct SearchArgs {
-    /// Taxon name, scientific name, QID, or `*` for all organisms.
+    /// Taxon name, scientific name, QID, or `*` for every compound with an occurrence.
     #[arg(short, long, default_value = "")]
     taxon: String,
 
