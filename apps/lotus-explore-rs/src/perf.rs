@@ -202,6 +202,8 @@ mod tests {
     //! not something a unit test can arrange.
 
     use super::Timer;
+    #[cfg(target_arch = "wasm32")]
+    use super::release_timer;
     use std::collections::BTreeMap;
     use std::path::{Path, PathBuf};
     use std::time::Duration;

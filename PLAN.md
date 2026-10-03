@@ -40,7 +40,7 @@ Last updated: start of session.
 
 ## TASK-1 — `Timer "LOTUS:taxon_resolution" already exists.`
 
-- **Status:** doing
+- **Status:** done — committed `9e6714f` (1224 tests, clippy clean native + wasm)
 - **Two distinct defects, both confirmed by reading the code:**
   1. `apps/lotus-explore-rs/src/perf.rs` tracks open labels in a **`thread_local!`**
      `OPEN_TIMERS`, but a `console.time` label is global to the document.** Dioxus
@@ -110,6 +110,12 @@ Last updated: start of session.
 
 ## Session log
 
+- Timer `LOTUS:taxon_resolution` fixed and committed as `9e6714f`. Root cause was
+  two defects, not one: a `thread_local!` guarding a document-global resource, and a
+  timer left open on two of three return paths. `perf::Timer` now closes on scope
+  exit. Known left in place for TASK-3: the download timers are dynamic labels
+  opened in `download.rs` and closed in `download/wasm.rs`, invisible to the
+  per-label scanner tests.
 - Found and fixed the per-row sparse-column growth defect → committed `ec060c3`
   (1221 tests passing, clippy clean native and wasm at that point).
 - Two `cargo mutants` runs crashed the machine. Cause measured (see BLOCKER-1).

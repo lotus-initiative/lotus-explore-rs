@@ -18,18 +18,34 @@ pub(super) async fn execute_download_wasm(
     filename: String,
     dl_timer: perf::TimerHandle,
 ) -> Result<(), String> {
-    // If WDQS fallback was used for the interactive query, download from WDQS directly
-    if is_wdqs_fallback_used() {
-        log::warn!(
-            "event=download format={} phase=fetch state=wdqs_fallback fallback=true",
-            format.log_name()
-        );
-        return execute_download_wasm_wdqs(format, query, filename, dl_timer).await;
-    }
-
+    // The API export is tried first, unconditionally.
+    //
+    // It used to be gated behind `!is_wdqs_fallback_used()`, which meant that any
+    // search served by QLever produced a QLever download -- so one flag, set by
+    // whichever transport happened to answer the *search*, silently chose the
+    // transport for the *export* too. The two are unrelated: a search can fall back
+    // while the API is perfectly able to serve an export, and then the reader was
+    // sent to a third-party endpoint for no reason. Gating on "was the search
+    // answered by QLever" confuses which service answered with which service should.
+    //
+    // The fallback is not removed, only demoted: if the API cannot produce a URL,
+    // QLever is still what serves the file, because a download that fails is worse
+    // than one from the wrong host.
+    //
+    // This changes nothing about what is in the file. Both routes export the
+    // server-side `query` and neither applies the client-side column filters, so the
+    // download matches the result set rather than the filtered view either way.
     match api::export_urls(&criteria).await {
         Ok(urls) => {
-            let url = append_filename_query(select_export_url(format, &urls), &filename);
+            let Some(url) = api_export_url(format, &urls) else {
+                log::warn!(
+                    "event=download format={} phase=fetch state=no_api_url detail=\"the API \
+                     returned no URL for this format\"",
+                    format.log_name()
+                );
+                return qlever_route(format, query, filename, dl_timer).await;
+            };
+            let url = append_filename_query(url, &filename);
             let fetch_elapsed = perf::end_timer(export_timer_label(format), dl_timer);
             perf::log_timing(
                 "download",
@@ -59,17 +75,29 @@ pub(super) async fn execute_download_wasm(
                 "event=download format={} phase=fetch state=fallback reason=api_export_urls_failed detail={err}",
                 format.log_name()
             );
-            if is_wdqs_fallback_used() {
-                log::warn!(
-                    "event=download format={} phase=fetch state=wdqs_fallback_from_api_error",
-                    format.log_name()
-                );
-                execute_download_wasm_wdqs(format, query, filename, dl_timer).await
-            } else {
-                execute_download_wasm_browser_post(format, query, filename, dl_timer).await
-            }
+            qlever_route(format, query, filename, dl_timer).await
         }
     }
+}
+
+/// Serve the download from `QLever`, which is what the API route falls back to.
+///
+/// WDQS when the interactive query already fell back, because that endpoint is then
+/// known to answer; a form POST to `QLever` otherwise, which needs no fetch from here.
+async fn qlever_route(
+    format: DownloadFormat,
+    query: Arc<str>,
+    filename: String,
+    dl_timer: perf::TimerHandle,
+) -> Result<(), String> {
+    if is_wdqs_fallback_used() {
+        log::warn!(
+            "event=download format={} phase=fetch state=wdqs_fallback fallback=true",
+            format.log_name()
+        );
+        return execute_download_wasm_wdqs(format, query, filename, dl_timer).await;
+    }
+    execute_download_wasm_browser_post(format, query, filename, dl_timer).await
 }
 
 /// Stream an export from WDQS into a file, without holding it in memory.
@@ -232,12 +260,18 @@ async fn execute_download_wasm_browser_post(
     Ok(())
 }
 
-fn select_export_url(format: DownloadFormat, urls: &api::ExportUrlResponse) -> &str {
-    match format {
+/// The API's URL for `format`, preferring the gzipped one when it has one.
+///
+/// `None` when the field is present but empty, which is what a backend that has not
+/// finished an export format returns. An empty string is not a usable URL, and
+/// handing one to the browser would produce a download of the current page.
+fn api_export_url(format: DownloadFormat, urls: &api::ExportUrlResponse) -> Option<&str> {
+    let url = match format {
         DownloadFormat::Csv => urls.csv_gz_url.as_deref().unwrap_or(&urls.csv_url),
         DownloadFormat::Json => urls.json_gz_url.as_deref().unwrap_or(&urls.json_url),
         DownloadFormat::Rdf => urls.rdf_gz_url.as_deref().unwrap_or(&urls.rdf_url),
-    }
+    };
+    (!url.trim().is_empty()).then_some(url)
 }
 
 fn append_filename_query(url: &str, filename: &str) -> String {
