@@ -51,6 +51,38 @@ pub const SINK_PREFERENCE: [SinkPreference; 3] = [
     SinkPreference::Memory,
 ];
 
+/// What to tell a reader whose browser can write the file nowhere.
+pub fn blob_path_message(rows: usize, limit: usize) -> String {
+    format!(
+        "this browser cannot write a file directly, so an export of {rows} rows has to be \
+         assembled in memory, which is more than it can hold (the limit here is {limit} \
+         rows). A current version of Safari, Firefox or Chrome writes the file to disk \
+         instead and has no such limit."
+    )
+}
+
+/// The largest export the in-memory path will attempt.
+///
+/// There is no way to make assembling a file in memory not exhaust a tab; the only
+/// question is whether it fails as an error a reader can read or as a killed tab. On the
+/// two writable paths this is never reached, because nothing is accumulated.
+///
+/// 400,000 rows is roughly 100 MB of CSV. That is past the point where holding it stops
+/// being the dominant term on a phone, and low enough that the refusal lands before the
+/// tab does -- a full-size search is three million rows and about 600 MB, so the ceiling
+/// sits an order of magnitude below it and three orders above an ordinary search. A
+/// reader over the limit is told what to do rather than left to reload.
+pub const BLOB_PATH_ROW_LIMIT: usize = 400_000;
+
+/// Whether the in-memory path can carry `rows`.
+///
+/// Checked before a single chunk is produced, so finding out costs one comparison
+/// rather than a killed tab.
+#[must_use]
+pub fn blob_path_can_carry(rows: usize) -> bool {
+    rows <= BLOB_PATH_ROW_LIMIT
+}
+
 /// Execute a download in the given format.
 ///
 /// Returns a message describing the outcome, for display. On a desktop build that
@@ -253,6 +285,41 @@ mod sink_tests {
             seen.len(),
             SINK_PREFERENCE.len(),
             "a duplicated preference means one branch can never be reached"
+        );
+    }
+}
+
+#[cfg(test)]
+mod blob_limit_tests {
+    //! The in-memory fallback has a row ceiling, and this is the policy behind it.
+    //!
+    //! It lives here rather than in the wasm-only download module for the reason the
+    //! sink order does: a policy whose tests never run is not a policy.
+
+    #[test]
+    fn the_in_memory_path_refuses_past_the_ceiling() {
+        // The failure this prevents is a killed tab, not an error message.
+        assert!(super::blob_path_can_carry(0));
+        assert!(super::blob_path_can_carry(10_000));
+        assert!(
+            super::blob_path_can_carry(super::BLOB_PATH_ROW_LIMIT),
+            "the ceiling itself must be allowed"
+        );
+        assert!(
+            !super::blob_path_can_carry(super::BLOB_PATH_ROW_LIMIT + 1),
+            "one row past the ceiling must be refused"
+        );
+    }
+
+    #[test]
+    fn the_message_names_the_browser_limit_and_the_way_out() {
+        let limit = super::BLOB_PATH_ROW_LIMIT;
+        let message = super::blob_path_message(limit + 1, limit);
+        assert!(message.contains(&format!("{limit}")), "{message}");
+        assert!(
+            message.contains("disk"),
+            "a reader who cannot act on the limit needs to be told what would lift it: \
+             {message}"
         );
     }
 }

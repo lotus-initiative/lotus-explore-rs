@@ -43,9 +43,16 @@ use std::fmt::Write as _;
 
 /// Target bytes per chunk.
 ///
-/// Large enough that the per-chunk handoff is not the bottleneck, small enough that
-/// the peak transient allocation stays in single-digit megabytes.
-const CHUNK_TARGET: usize = 256 * 1024;
+/// Small on purpose. The chunk is the *only* copy of the export in memory at any
+/// moment, so this number is the entire transient cost of a download -- and it is
+/// doubled, briefly, while it is copied into JavaScript-owned storage.
+///
+/// 256 KiB was measurably fine on a desktop and was the wrong number on an iPhone: the
+/// per-chunk overhead is a pointer swap and an await, so the difference between 256 KiB
+/// and 64 KiB is a few thousand extra awaits on a 600 MB export -- nothing -- while the
+/// transient peak drops fourfold. Memory is the scarce resource here and latency is not,
+/// so the trade is not close.
+const CHUNK_TARGET: usize = 64 * 1024;
 
 /// The columns a locally-built export carries, in order.
 ///

@@ -50,7 +50,7 @@ pub(super) async fn execute_download_from_rows(
     let mut exporter = RowExporter::new(format, set);
     let mut bytes = 0usize;
 
-    let mut sink = open_sink(&safe).await;
+    let mut sink = open_sink(format, &safe, rows).await;
 
     // One chunk produced, handed over, and released before the next is asked for.
     // Holding the exporter's buffer and the JavaScript copy at once is two copies of
@@ -115,7 +115,7 @@ pub(super) async fn execute_download_from_rows(
 ///
 /// Every step down is logged with its reason, because "the download was slow" and "the
 /// browser made us buffer 600 MB" look identical from the outside.
-async fn open_sink(filename: &str) -> Sink {
+async fn open_sink(format: DownloadFormat, filename: &str, rows: usize) -> Sink {
     debug_assert_eq!(
         super::SINK_PREFERENCE[0],
         SinkPreference::UserChosenFile,
@@ -145,9 +145,22 @@ async fn open_sink(filename: &str) -> Sink {
         }
     }
 
+    if !super::blob_path_can_carry(rows) {
+        // Reached on a browser with neither a save picker nor private storage: old
+        // WebKit, and anything in private browsing on some engines. The export would be
+        // assembled in memory and take the tab with it, so it is refused here instead.
+        log::warn!(
+            "event=download sink=blob state=refused rows={rows} limit={}",
+            super::BLOB_PATH_ROW_LIMIT
+        );
+        return Sink::Unwritable {
+            rows,
+            limit: super::BLOB_PATH_ROW_LIMIT,
+        };
+    }
     log::warn!(
-        "event=download sink=blob state=selected detail=\"no writable file sink; a large \
-         export will be assembled in memory and may exhaust the tab\""
+        "event=download sink=blob state=selected rows={rows} detail=\"assembled in memory; \
+         only safe because the result is small enough\""
     );
     Sink::Blob(Vec::new())
 }
@@ -163,6 +176,8 @@ enum Sink {
     Opfs(OpfsSink),
     /// Last resort: assembled in memory.
     Blob(Vec<js_sys::Uint8Array>),
+    /// No writable sink, and the result too big to assemble. Reports why.
+    Unwritable { rows: usize, limit: usize },
 }
 
 impl Sink {
@@ -171,11 +186,13 @@ impl Sink {
             Self::File(_) => "file",
             Self::Opfs(_) => "opfs",
             Self::Blob(_) => "blob",
+            Self::Unwritable { .. } => "unwritable",
         }
     }
 
     async fn write(&mut self, chunk: &[u8]) -> Result<(), String> {
         match self {
+            Self::Unwritable { rows, limit } => Err(super::blob_path_message(*rows, *limit)),
             Self::File(file) => file.write(chunk).await,
             Self::Opfs(file) => file.write(chunk).await,
             Self::Blob(chunks) => {
@@ -188,6 +205,7 @@ impl Sink {
     /// Close the file, or assemble the Blob and hand it to the browser.
     async fn finish(self, filename: &str, mime: &str) -> Result<(), String> {
         match self {
+            Self::Unwritable { rows, limit } => Err(super::blob_path_message(rows, limit)),
             Self::File(file) => file.close().await,
             Self::Opfs(file) => {
                 // `close` flushes and seals the entry; `hand_to_browser` then reads it
