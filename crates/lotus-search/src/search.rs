@@ -102,6 +102,18 @@ pub fn build_base_query(criteria: &SearchCriteria, qid: Option<&str>) -> String 
         // recorded. `*` is the explicit request for everything with an occurrence, and
         // it keeps requiring one. Sending both to the same query meant an empty box
         // answered the narrower question without saying so.
+        //
+        // The wildcard has to be recognised from `criteria.taxon` rather than from
+        // `qid`, because `resolve_taxon` resolves it to `None` -- it names no Wikidata
+        // entity -- so by the time the query is built the two arrive looking identical.
+        // Reading the difference off the QID alone therefore made `*` and an empty
+        // box build the same query, which is the bug this arm exists to prevent.
+        //
+        // Only the no-structure branch is corrected. In the structure branch above a
+        // wildcard is already expressed by not filtering the taxon, and routing it
+        // through the root taxon there would require an occurrence and so could
+        // return *fewer* compounds than "every taxon" is supposed to.
+        None if criteria.taxon.trim() == "*" => all_compounds_query(),
         None => match qid {
             Some(qid) if qid != "*" => compounds_by_taxon_query_with(qid, &nomenclature),
             Some(_) => all_compounds_query(),
