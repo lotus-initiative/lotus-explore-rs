@@ -174,3 +174,36 @@ a human writes the failing case first with a realistic QID (`Q16521`-scale and
 `Q7000000`-scale), confirms which of the two index spaces is intended, then fixes
 it. The `is_empty`/`len` mutants in this same file (below) are very likely the
 same confusion showing up in a different place.
+
+## 13. The app crate's test suite is not hermetic, which blocks `cargo mutants` on it
+
+Found by attempting the brief's fourth mutation module (`cache_key.rs`) rather
+than assuming it was blocked.
+
+`mutants.toml` excludes the app crate, but `--file` overrides that exclusion, so
+the module is reachable. The run then stops before testing anything:
+
+```
+ERROR cargo test failed in an unmutated tree, so no mutants were tested
+warning: 552/590 tests were not run due to test failure
+```
+
+cargo-mutants runs the tests from a copied tree
+(`…/T/cargo-mutants-lotus-explore-rs-….tmp/target/…`). The crate's
+`gate_consistency::repo_hygiene` tests read the checkout itself — the fetched asset
+trees, `.gitignore`, the tracked-file list — so their answers depend on the
+working directory. In the log the same test both `PASS`es and `FAIL`s, which is
+the signature of a test that is asking about the sandbox rather than about the
+code.
+
+It passes when the binary is run from the repo root **and** from `/tmp`, so this
+is not a plain "assumes cwd == repo root" bug; it is dependence on the tree being
+the real checkout rather than a copy of it.
+
+**Recommended:** have those tests resolve the repository root from
+`CARGO_MANIFEST_DIR` (or `env!("CARGO_MANIFEST_DIR")`) instead of the working
+directory. That is a small, contained change, and it would make the whole app
+crate — ~2,700 mutants — testable by `cargo mutants`, which is worth far more
+than any single module's results. Not done here: it touches gate tests, and a
+gate test that stops checking what it was written to check is worse than a
+documented limitation.

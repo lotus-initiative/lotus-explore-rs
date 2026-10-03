@@ -53,20 +53,44 @@ a pile of gaps.
 
 ## Modules not run
 
-- **`cache_key.rs`** — the brief's fourth priority. It lives in the app crate,
-  and `mutants.toml` excludes that crate outright:
+- **`cache_key.rs`** — the brief's fourth priority, and **attempted**. Two things
+  were found, the second of which is the real blocker.
+
+  First, a correction to an earlier assumption: `mutants.toml` does exclude the
+  app crate,
 
   ```toml
   [package.lotus-explore-rs]
   exclude = true
   ```
 
-  The stated reason is that it is ~2,700 mutants of Dioxus rendering with a poor
-  kill ratio, which is a reasonable argument for the crate as a whole. It is not
-  an argument about `cache_key.rs` specifically, which is hashing and string
-  formatting with no rendering in it. Running it needs that exclusion lifted for
-  one module. **Recommend a human decide**, because the exclusion is a deliberate
-  repo decision and not an oversight to route around.
+  but the exclusion does not apply when `--file` narrows the run, so the module
+  *is* reachable with the brief's limits. 11 mutants were listed.
+
+  Second, the run stops before any mutant is tested:
+
+  ```
+  ERROR cargo test failed in an unmutated tree, so no mutants were tested
+  warning: 552/590 tests were not run due to test failure
+  ```
+
+  cargo-mutants runs each test from a **copied** tree
+  (`…/T/cargo-mutants-lotus-explore-rs-ubrZ6d.tmp/target/…`), and the app crate's
+  `gate_consistency::repo_hygiene` tests read the checkout itself — the fetched
+  asset trees, `.gitignore`, the tracked-file list. In the log the same test both
+  `PASS`es and `FAIL`s, which is the signature of a test whose answer depends on
+  where it is run from rather than on the code.
+
+  **So the app crate's suite is not hermetic, and that — not the mutant count —
+  is what makes it impractical to mutation-test.** The exclusion in `mutants.toml`
+  gives a different reason (2,700 mutants of Dioxus rendering), and that reason
+  may be sound on its own; but even for a 10-mutant module like `cache_key.rs` the
+  run cannot start.
+
+  **Recommend a human decide** whether the repo-hygiene tests should locate the
+  repository root from `CARGO_MANIFEST_DIR` rather than the working directory.
+  That is a small, safe change that would make the whole app crate testable by
+  `cargo mutants`, and it is worth more than any single module's mutants.
 - **Everything else in `lotus-search`, `lotus-curation`, `lotus-jsonld`,
   `lotus-cli`, `lotus-web-assets`** — not attempted. The brief orders mutation
   testing last because it is slowest, and three modules at 3–23 minutes each is
