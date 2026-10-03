@@ -38,6 +38,10 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::PageNotFoundDescription => "La pagina richiesta non esiste.",
         TextKey::ReturnHome => "Torna alla home page",
         TextKey::ResolvedTaxon => "Taxon risolto",
+        TextKey::DuplicateRowsHint => "Perché alcuni composti compaiono più di una volta?",
+        TextKey::DuplicateRowsExplain => {
+            "Ogni riga è un composto così come una fonte lo riporta: un composto trovato da tre articoli occupa tre righe che differiscono solo per il riferimento. Le occorrenze sono distinte, i composti no. Il numero più piccolo accanto al conteggio delle righe è quanti composti distinti contiene il risultato."
+        }
         TextKey::QueryHash => "Hash della query",
         TextKey::ResultHash => "Hash del risultato",
         TextKey::CopyTaxonQid => "Copia QID del taxon",

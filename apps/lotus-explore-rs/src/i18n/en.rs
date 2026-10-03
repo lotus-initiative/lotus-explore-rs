@@ -37,6 +37,10 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::PageNotFoundDescription => "The page you requested does not exist.",
         TextKey::ReturnHome => "Return to the home page",
         TextKey::ResolvedTaxon => "Resolved taxon",
+        TextKey::DuplicateRowsHint => "Why are some compounds listed more than once?",
+        TextKey::DuplicateRowsExplain => {
+            "Each row is one compound as reported by one reference, so a compound found by three papers occupies three rows that differ only in the reference. The occurrences are distinct; the compounds are not. The smaller number beside the row count is how many distinct compounds are in the result."
+        }
         TextKey::QueryHash => "Query hash",
         TextKey::ResultHash => "Result hash",
         TextKey::CopyTaxonQid => "Copy taxon QID",

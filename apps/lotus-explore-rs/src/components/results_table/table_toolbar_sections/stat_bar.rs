@@ -113,6 +113,33 @@ pub fn StatBar() -> Element {
                 plus: false,
                 stripe: StatStripe::Entries,
             }
+            // The pointer a collaborator asked for.
+            //
+            // "1,234 entries / 800 unique" reads as a bug until you know a row is one
+            // compound *as reported by one reference*. It is the reference column that
+            // makes the rows differ, so the explanation goes next to the number that
+            // differs rather than in a help page nobody opens.
+            //
+            // A `<details>` rather than a `title` tooltip: there is no hover on a
+            // phone, and the reader who is confused on a phone is the reader who needs
+            // this. It also stays in the accessibility tree and the document, so a
+            // screen reader reaches the same words.
+            // Only when rows and distinct compounds actually differ: a result with no
+            // duplicates showing "why are compounds listed twice?" invites the reader to
+            // go looking for a problem that is not there.
+            if entries_unique_value != entries_value {
+                details {
+                    class: "flex w-full min-w-0 basis-full justify-center",
+                    summary {
+                        class: "mx-auto cursor-pointer list-none text-center text-sm text-muted underline decoration-dotted underline-offset-4 marker:content-none",
+                        "{t(locale, TextKey::DuplicateRowsHint)}"
+                    }
+                    p {
+                        class: "mx-auto mt-1 max-w-[60ch] text-center text-sm leading-relaxed text-muted",
+                        "{t(locale, TextKey::DuplicateRowsExplain)}"
+                    }
+                }
+            }
             StatBadge {
                 value: stats.n_compounds,
                 secondary_value: None,

@@ -38,6 +38,12 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::PageNotFoundDescription => "La page demandée n'existe pas.",
         TextKey::ReturnHome => "Retour à l'accueil",
         TextKey::ResolvedTaxon => "Taxon résolu",
+        TextKey::DuplicateRowsHint => {
+            "Pourquoi certains composés apparaissent-ils plusieurs fois ?"
+        }
+        TextKey::DuplicateRowsExplain => {
+            "Chaque ligne est un composé tel qu'un document le rapporte : un composé trouvé par trois articles occupe trois lignes qui ne diffèrent que par la référence. Les occurrences sont distinctes, les composés non. Le nombre plus petit à côté du nombre de lignes est le nombre de composés distincts."
+        }
         TextKey::QueryHash => "Hash de la requête",
         TextKey::ResultHash => "Hash du résultat",
         TextKey::CopyTaxonQid => "Copier le QID du taxon",

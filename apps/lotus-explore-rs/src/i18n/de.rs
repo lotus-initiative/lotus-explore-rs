@@ -37,6 +37,10 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::PageNotFoundDescription => "Die angeforderte Seite existiert nicht.",
         TextKey::ReturnHome => "Zurück zur Startseite",
         TextKey::ResolvedTaxon => "Aufgelöstes Taxon",
+        TextKey::DuplicateRowsHint => "Warum stehen manche Verbindungen mehrfach in der Liste?",
+        TextKey::DuplicateRowsExplain => {
+            "Jede Zeile ist eine Verbindung, so wie eine Quelle sie berichtet: Eine in drei Papers gefundene Verbindung belegt drei Zeilen, die sich nur in der Referenz unterscheiden. Die Funde sind verschieden, die Verbindungen nicht. Die kleinere Zahl neben der Zeilenzahl ist die Anzahl verschiedener Verbindungen."
+        }
         TextKey::QueryHash => "Abfrage-Hash",
         TextKey::ResultHash => "Ergebnis-Hash",
         TextKey::CopyTaxonQid => "Taxon-QID kopieren",

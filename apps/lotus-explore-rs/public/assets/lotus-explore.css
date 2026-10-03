@@ -570,6 +570,9 @@
   .max-w-\[50px\] {
     max-width: 50px;
   }
+  .max-w-\[60ch\] {
+    max-width: 60ch;
+  }
   .max-w-\[72ch\] {
     max-width: 72ch;
   }
@@ -656,6 +659,9 @@
   }
   .grow {
     flex-grow: 1;
+  }
+  .basis-full {
+    flex-basis: 100%;
   }
   .table-auto {
     table-layout: auto;
@@ -1283,6 +1289,12 @@
   }
   .underline {
     text-decoration-line: underline;
+  }
+  .decoration-dotted {
+    text-decoration-style: dotted;
+  }
+  .underline-offset-4 {
+    text-underline-offset: 4px;
   }
   .accent-accent {
     accent-color: var(--color-accent);

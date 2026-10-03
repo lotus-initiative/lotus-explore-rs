@@ -110,6 +110,10 @@ pub enum TextKey {
     ReturnHome,
     ResolvedTaxon,
 
+    /// Why one compound can appear on several rows. The label on the disclosure.
+    DuplicateRowsHint,
+    /// The explanation itself.
+    DuplicateRowsExplain,
     QueryHash,
     ResultHash,
     CopyTaxonQid,
