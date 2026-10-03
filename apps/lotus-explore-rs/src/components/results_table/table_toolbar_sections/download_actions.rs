@@ -84,6 +84,11 @@ fn spawn_query_download(
                     log::warn!(
                         "event=download phase=table_query state=error reason=missing_criteria_snapshot"
                     );
+                    // The picker was armed above and no export is going to consume it.
+                    // Left armed it would sit on a handle the reader has already chosen
+                    // a location for, and the next click would overwrite it -- so the
+                    // file they picked would never appear.
+                    crate::download::clear_file_sink();
                     *download_busy.write() = false;
                     *download_status.write() = None;
                     return;
@@ -261,6 +266,20 @@ fn DownloadQueryButton(
                     let criteria_snapshot = Some(Arc::new(criteria.read().clone()));
                     #[cfg(not(target_arch = "wasm32"))]
                     let criteria_snapshot = None;
+
+                    // Here, inside the handler, and nowhere later: `showSaveFilePicker`
+                    // is only permitted while the click is still a user gesture, and
+                    // the export runs in a task `spawn`ed from this handler, which has
+                    // already lost it by the time it asks. Arming it now and letting the
+                    // export collect the handle is what lets a full-size file be
+                    // written to disk instead of assembled in memory.
+                    //
+                    // The suggested name is the one the button already displays, so the
+                    // dialog opens on the filename the reader was promised.
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        crate::download::arm_file_sink(&filename());
+                    }
                     dispatch_query_download_spec(
                         spec,
                         locale,

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
+use super::file_sink::{FileSink, take_file_sink};
 use crate::api;
 use crate::download::{export_timer_label, export_trigger_timer_label};
 use crate::perf;
@@ -32,7 +33,7 @@ use std::sync::Arc;
 /// on top of the rows themselves. Each chunk is copied into JavaScript-owned storage
 /// and the Rust buffer dropped before the next is produced, which is the same
 /// discipline the WDQS path uses for the same reason.
-pub(super) fn execute_download_from_rows(
+pub(super) async fn execute_download_from_rows(
     format: DownloadFormat,
     set: &ColumnarResultSet,
     filename: &str,
@@ -46,15 +47,33 @@ pub(super) fn execute_download_from_rows(
     );
 
     let mut exporter = RowExporter::new(format, set);
-    let mut chunks: Vec<js_sys::Uint8Array> = Vec::with_capacity(64);
     let mut bytes = 0usize;
 
-    // One chunk produced, converted and released before the next is asked for:
-    // holding the exporter's buffer and the JS copy at once is two copies of the
-    // same chunk, which is what the streaming exists to avoid.
+    // Where the bytes go. A file when the browser offered one, otherwise a Blob.
+    //
+    // The file path is what makes a full-size export possible: each chunk is written
+    // and dropped, so peak memory is one chunk instead of the whole file. The Blob path
+    // has to collect, and a file big enough to exhaust the tab collecting it is exactly
+    // the case this exists to survive -- so it is a fallback, not a peer.
+    let mut sink = match take_file_sink() {
+        Some(picker) => match FileSink::open(picker).await {
+            Ok(sink) => Sink::File(sink),
+            Err(reason) => {
+                // Cancelling the dialog, or a browser that has the API and would not
+                // grant it. Either way the reader gets the Blob rather than nothing.
+                log::warn!("event=download sink=file state=fallback reason={reason}");
+                Sink::Blob(Vec::new())
+            }
+        },
+        None => Sink::Blob(Vec::new()),
+    };
+
+    // One chunk produced, handed over, and released before the next is asked for.
+    // Holding the exporter's buffer and the JavaScript copy at once is two copies of
+    // the same chunk, which is what the streaming exists to avoid.
     while let Some(chunk) = exporter.next_chunk() {
         bytes += chunk.len();
-        chunks.push(js_sys::Uint8Array::from(chunk.as_bytes()));
+        sink.write(chunk.as_bytes()).await?;
     }
 
     let elapsed = perf::end_timer(export_timer_label(format), dl_timer);
@@ -62,9 +81,9 @@ pub(super) fn execute_download_from_rows(
         "download",
         &format!(
             "event=download format={} phase=rows state=success source=local_rows rows={rows} \
-             chunks={} bytes={bytes}",
+             bytes={bytes} sink={}",
             format.log_name(),
-            chunks.len()
+            sink.name()
         ),
         Some(elapsed),
     );
@@ -77,8 +96,7 @@ pub(super) fn execute_download_from_rows(
     }
 
     let trigger_timer = perf::start_timer(&export_trigger_timer_label(format));
-    let outcome =
-        crate::upload::download_byte_chunks_as_blob(&chunks, &safe, "", format.content_type());
+    let outcome = sink.finish(&safe, format.content_type()).await;
     let trigger_elapsed = perf::end_timer(&export_trigger_timer_label(format), trigger_timer);
     if let Err(error) = outcome {
         log::error!(
@@ -96,6 +114,45 @@ pub(super) fn execute_download_from_rows(
         Some(trigger_elapsed),
     );
     Ok(())
+}
+
+/// Where an export's bytes are being sent.
+///
+/// Two shapes because the browser offers two. A [`Sink::File`] writes each chunk as it
+/// arrives, so the file never exists in memory; a [`Sink::Blob`] collects them, which
+/// is the only option where the File System Access API is unavailable.
+enum Sink {
+    File(FileSink),
+    Blob(Vec<js_sys::Uint8Array>),
+}
+
+impl Sink {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::File(_) => "file",
+            Self::Blob(_) => "blob",
+        }
+    }
+
+    async fn write(&mut self, chunk: &[u8]) -> Result<(), String> {
+        match self {
+            Self::File(file) => file.write(chunk).await,
+            Self::Blob(chunks) => {
+                chunks.push(js_sys::Uint8Array::from(chunk));
+                Ok(())
+            }
+        }
+    }
+
+    /// Close the file, or assemble the Blob and hand it to the browser.
+    async fn finish(self, filename: &str, mime: &str) -> Result<(), String> {
+        match self {
+            Self::File(file) => file.close().await,
+            Self::Blob(chunks) => {
+                crate::upload::download_byte_chunks_as_blob(&chunks, filename, "", mime)
+            }
+        }
+    }
 }
 
 pub(super) async fn execute_download_wasm(
