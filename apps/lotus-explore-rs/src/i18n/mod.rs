@@ -5,6 +5,9 @@
 mod curation;
 pub use curation::*;
 
+pub mod faq;
+pub use faq::*;
+
 mod de;
 mod en;
 mod fr;

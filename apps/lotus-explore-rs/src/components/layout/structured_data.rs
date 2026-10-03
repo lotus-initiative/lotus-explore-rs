@@ -38,6 +38,19 @@ pub fn escape_for_script_element(json: &str) -> String {
 /// Renders nothing until a search has produced metadata: a JSON-LD block
 /// describing an empty result set is a claim about data that does not exist,
 /// and a consumer cannot tell it apart from a real one.
+/// Make an FAQ JSON-LD string safe to sit inside a `<script>` element.
+///
+/// The same hazard as [`escape_for_script_element`] and the same fix: HTML parsing
+/// ends at the first `</script`, and `serde_json` does not escape `/` because a slash
+/// needs no escape inside a JSON string. The FAQ text is authored rather than derived
+/// from a taxon name, so it cannot currently contain a slash-bracket sequence -- but
+/// that is a property of today's copy, not of the code path, and the next answer that
+/// mentions markup would break the page.
+#[must_use]
+pub fn escape_faq_script_element(json: &str) -> String {
+    escape_for_script_element(json)
+}
+
 #[component]
 pub fn StructuredDataHead() -> Element {
     let explore = use_results_context().explore;

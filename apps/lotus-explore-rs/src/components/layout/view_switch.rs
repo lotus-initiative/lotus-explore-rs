@@ -7,6 +7,7 @@ use crate::app::routes::Route;
 #[cfg(target_arch = "wasm32")]
 use crate::features::explore::url_state::href_with_current_query;
 use crate::hooks::use_locale;
+use crate::i18n::faq::faq_nav_label;
 use crate::i18n::{
     view_label_curation_explorer, view_label_draw, view_label_explorer, view_switch_aria,
 };
@@ -44,6 +45,10 @@ pub fn ViewSwitch() -> Element {
                         label: view_label_draw(locale),
                         value: "draw",
                     },
+                    SegmentedControlItem {
+                        label: faq_nav_label(locale),
+                        value: "faq",
+                    },
                 ],
                 on_select: move |value: String| {
                     let target = route.clone().with_view(&value);
@@ -53,6 +58,7 @@ pub fn ViewSwitch() -> Element {
                             let target_path = match value.as_str() {
                                 "curation" => "/curation",
                                 "draw" => "/draw",
+                                "faq" => "/faq",
                                 _ => "/search",
                             };
                             if let Some(window) = web_sys::window() {

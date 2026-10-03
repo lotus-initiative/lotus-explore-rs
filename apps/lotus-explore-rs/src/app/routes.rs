@@ -76,6 +76,9 @@ pub enum Route {
     #[route("/draw?:..query#:hash")]
     Draw { query: RouteQuery, hash: String },
 
+    #[route("/faq?:..query#:hash")]
+    Faq { query: RouteQuery, hash: String },
+
     #[route("/:..segments")]
     NotFound { segments: Vec<String> },
 }
@@ -93,7 +96,8 @@ impl Route {
             Self::Landing { query, .. }
             | Self::Search { query, .. }
             | Self::Curation { query, .. }
-            | Self::Draw { query, .. } => query.clone(),
+            | Self::Draw { query, .. }
+            | Self::Faq { query, .. } => query.clone(),
             Self::NotFound { .. } => RouteQuery::default(),
         }
     }
@@ -104,6 +108,7 @@ impl Route {
             Self::Search { .. } => "/search".to_string(),
             Self::Curation { .. } => "/curation".to_string(),
             Self::Draw { .. } => "/draw".to_string(),
+            Self::Faq { .. } => "/faq".to_string(),
             Self::NotFound { segments } => format!("/{}", segments.join("/")),
         };
         let query = self.query_value().to_string();
@@ -125,7 +130,8 @@ impl Route {
             Self::Landing { hash, .. }
             | Self::Search { hash, .. }
             | Self::Curation { hash, .. }
-            | Self::Draw { hash, .. } => hash,
+            | Self::Draw { hash, .. }
+            | Self::Faq { hash, .. } => hash,
             Self::NotFound { .. } => "",
         }
     }
@@ -136,6 +142,7 @@ impl Route {
             Self::Search { .. } => "search",
             Self::Curation { .. } => "curation",
             Self::Draw { .. } => "draw",
+            Self::Faq { .. } => "faq",
             Self::NotFound { .. } => "not-found",
         }
     }
@@ -158,6 +165,7 @@ impl Route {
             "search" => Self::Search { query, hash },
             "curation" => Self::Curation { query, hash },
             "draw" => Self::Draw { query, hash },
+            "faq" => Self::Faq { query, hash },
             _ => Self::Landing { query, hash },
         }
     }
@@ -189,6 +197,7 @@ impl Route {
             Self::Search { .. } => Self::Search { query, hash },
             Self::Curation { .. } => Self::Curation { query, hash },
             Self::Draw { .. } => Self::Draw { query, hash },
+            Self::Faq { .. } => Self::Faq { query, hash },
             Self::NotFound { segments } => Self::NotFound { segments },
         }
     }
@@ -256,6 +265,11 @@ pub fn Curation(query: RouteQuery, hash: String) -> Element {
 pub fn Draw(query: RouteQuery, hash: String) -> Element {
     let _ = (query, hash);
     rsx! { DrawPage {} }
+}
+
+#[component]
+pub fn Faq(query: RouteQuery, hash: String) -> Element {
+    rsx! { crate::components::faq::FaqPage { query, hash } }
 }
 
 #[component]
@@ -460,6 +474,54 @@ mod tests {
         };
         let route = route.with_view("draw");
         assert_eq!(route.view_key(), "draw");
+        assert_eq!(route.query_string(), "lang=fr");
+        assert_eq!(route.hash(), "");
+    }
+
+    #[test]
+    fn the_faq_route_parses_and_keeps_its_fragment() {
+        // The fragment is the whole point of a per-question anchor: `/faq#taxon-not-found`
+        // has to survive routing, or every deep link into a question opens the top of
+        // the page.
+        let parsed = "/faq#taxon-not-found".parse::<Route>();
+        assert!(parsed.is_ok(), "faq route should parse");
+        if let Ok(route) = parsed {
+            assert_eq!(route.view_key(), "faq");
+            assert_eq!(route.hash(), "taxon-not-found");
+            assert_eq!(route.navigation_string(), "/faq#taxon-not-found");
+        }
+    }
+
+    #[test]
+    fn the_faq_route_carries_the_preferences_that_survive_a_view_change() {
+        // Language and dark mode live in the query, so navigating to the FAQ and back
+        // must not drop them. `page_query` is what keeps them, which is why this goes
+        // through `with_view` rather than constructing the route.
+        let route = Route::Faq {
+            query: RouteQuery::from_encoded("lang=fr&dark_mode=true"),
+            hash: String::new(),
+        };
+        assert_eq!(route.navigation_string(), "/faq?dark_mode=true&lang=fr");
+
+        let back_to_search = route.with_view("search");
+        assert_eq!(back_to_search.view_key(), "search");
+        assert_eq!(
+            back_to_search.query_string(),
+            "dark_mode=true&lang=fr",
+            "leaving the FAQ for search must keep the locale and theme"
+        );
+    }
+
+    #[test]
+    fn changing_view_onto_the_faq_resets_page_query_and_hash() {
+        // The mirror image: a query written *for* another page must not follow the
+        // reader to the FAQ, where it means nothing and would sit in the URL.
+        let route = Route::Search {
+            query: RouteQuery::from_encoded("taxon=Rosa&lang=fr"),
+            hash: "results".into(),
+        }
+        .with_view("faq");
+        assert_eq!(route.view_key(), "faq");
         assert_eq!(route.query_string(), "lang=fr");
         assert_eq!(route.hash(), "");
     }
