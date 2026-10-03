@@ -79,7 +79,7 @@ Last updated: start of session.
 
 ## TASK-2 — new `/faq` page
 
-- **Status:** todo
+- **Status:** done — committed `8adbcb1` (14 new tests; 1238 passing overall)
 - Routed like the existing pages: a `Route` variant in `src/app/routes.rs` at
   `/faq`, matching the `query`/`hash` and `view_key` conventions, wired in
   `navigation_string`, `hash`, `query_value`, `with_query_and_hash`.
@@ -90,30 +90,50 @@ Last updated: start of session.
   disclosure, `lang`, keyboard reachable, and a skip link if the shell has one.
 - "Crystal clear for MCPS" is read as: stable, predictable URLs and headings, and
   `FAQPage` JSON-LD structured data so the answers are machine-readable.
-- **Verification:** route parsing tests mirroring the existing ones in
-  `src/app/routes.rs`; a test that every route renders; the full workspace gates.
+- **Delivered:** `/faq` route wired like every other page, reachable from the view
+  switcher, 12 questions in 4 groups across all four locales, per-question stable
+  anchors, a table of contents, and `FAQPage` JSON-LD whose `@id` values are the same
+  fragments the headings render.
+- **Verification done:** route parsing/fragment/preference tests mirroring the existing
+  ones; anchor uniqueness and URL-cleanliness; no empty category; no locale silently
+  serving English; JSON-LD parsed and shape-checked rather than string-matched; full
+  workspace gates + wasm clippy.
+- **Verification NOT done:** the page has not been looked at in a browser. Rendering,
+  heading order as a sighted reader sees it, focus order and the deep-link scroll on
+  `/faq#download-formats` are all unverified by anything automated here.
 
 ## TASK-3 — downloads off QLever, onto lotus-api
 
-- **Status:** todo
+- **Status:** done — committed `6344879`. **Feasible: the API exports all three
+  formats** (`ExportUrlResponse` has csv/json/rdf plus gz variants), so no backend
+  change was needed.
 - **Goal:** CSV / RDF / JSON download should use the lotus-api export endpoints
   instead of routing through QLever, if feasible.
-- **Must be evaluated before it is built.** Known already, to be confirmed against
-  the code rather than assumed:
-  - The WASM download path already prefers API export URLs when `api_base` is
-    configured, so this may be partly in place.
-  - The WDQS fallback is the QLever-shaped path and is what would change.
-  - **The open risk to state plainly:** the API export re-runs a query server-side,
-    so it cannot see *client-side column filters*. If there is no
-    "export the current result set" endpoint, switching routes changes what a
-    filtered download contains. That must be surfaced to the user, not silently
-    traded away.
-- **Verification:** tests for the URL selection logic in both directions (API
-  configured and not), and that the fallback still works.
+- **Evaluated, and the change made:** a download was routed by
+  `is_wdqs_fallback_used()`, i.e. by which transport served the *search*. So any search
+  answered by QLever produced a QLever download even when the API could export fine.
+  The API is now tried first, unconditionally; QLever is demoted to the fallback it
+  should have been, and still runs if the API yields no URL.
+- **The obvious risk turned out not to apply, and it is worth recording why:** the API
+  export re-runs the query server-side and so cannot see client-side column filters.
+  But the WDQS route exports the same server-side `query` and does not apply them
+  either. Both routes export the result set, not the filtered view, so switching
+  changes the *host*, not the contents. `filters-vs-query` in the FAQ says this.
+- **`select_export_url` -> `api_export_url`, now `Option`:** an empty URL field used to
+  be handed to the browser, which would download the current page under the name of the
+  results.
+- **Verification:** not done. The URL-selection helper is `#[cfg(target_arch =
+  "wasm32")]`, and **the wasm test target does not compile** (see below), so there is
+  no place to put a test that would execute. This is the one piece of the session with
+  no test on it.
 
 ## TASK-4 — polish
 
-- **Status:** todo
+- **Status:** partly done. Remaining items are open-ended rather than specified.
+- **Done:** removed the four-arm `match` for a label that is the same word in every
+  locale; corrected a comment that claimed `rsx!` could not interpolate an enum (the
+  real reason is that the enum has no `&str`); corrected the PLAN.md disk diagnosis;
+  removed a misleading `#[cfg]`-rationale comment in the FAQ tests.
 - Strip outdated code and comments that no longer describe the code. Priority on the
   files this session already touched, then the download/FAQ code added above.
 - Memory and speed pass over the paths in play. Already done and committed, listed
@@ -121,6 +141,20 @@ Last updated: start of session.
   and UUID packing (`f7a043e`), streamed WDQS export (`da0cae1`), full-result
   columnar set with no 500-row cap (`af00977`), leftovers and stale numbers
   (`4fb3800`), per-row column growth fix (`ec060c3`).
+
+## KNOWN GAP — the wasm test target does not compile
+
+- **Status:** open, pre-existing, not introduced this session
+- `cargo clippy --target wasm32-unknown-unknown -p lotus-explore-rs --all-targets`
+  fails with 11 errors. All are tests reaching for things that are `cfg`'d out on wasm:
+  `RouteQuery::from_encoded`, `build_export_cache_key`, `build_search_cache_key`,
+  `SearchMetrics::add_parse`.
+- **Consequence:** no test in a `#[cfg(target_arch = "wasm32")]` module can run, and CI
+  only lints the wasm *build*, not its test target. So wasm-only code paths -- the
+  download routing above, the streaming export -- have no executing test, and a test
+  written there would look green in review while never having run.
+- **Fix:** gate those helpers for wasm test builds too, or move the pure parts of the
+  wasm paths into a non-gated module. Not started.
 
 ## Session log
 
@@ -132,5 +166,11 @@ Last updated: start of session.
   per-label scanner tests.
 - Found and fixed the per-row sparse-column growth defect → committed `ec060c3`
   (1221 tests passing, clippy clean native and wasm at that point).
-- Two `cargo mutants` runs crashed the machine. Cause measured (see BLOCKER-1).
-  All mutation processes killed; nothing running now.
+- Two `cargo mutants` runs crashed the machine, the second at `--jobs 2`, so the cause
+  is unidentified (see BLOCKER-1). All processes killed; nothing running now.
+- `9e6714f` timer `LOTUS:taxon_resolution` — two defects: a `thread_local!` guarding a
+  document-global resource, and a timer left open on two of three return paths.
+  `perf::Timer` added.
+- `6344879` downloads prefer the API over QLever.
+- `8adbcb1` `/faq` page.
+- `81c5a17` mutation preflight, and the correction to the disk diagnosis.

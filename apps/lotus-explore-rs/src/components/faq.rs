@@ -126,9 +126,10 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
 
 /// The anchor for a category heading.
 ///
-/// `as`-cast is not available for a `#[derive]`-less enum in `rsx!`, so the match is
-/// explicit. Kept next to the heading that uses it so a renamed category cannot leave
-/// the table of contents pointing at nothing.
+/// `rsx!` interpolates a `&str`, so the heading needs a string and `FaqCategory` is an
+/// enum that does not have one. Deriving `as_str` on the enum would put the id next to
+/// the category it names, which is where it belongs; this match keeps it next to the
+/// markup that renders it, and the test below asserts the two cannot drift apart.
 fn category_anchor(category: FaqCategory) -> &'static str {
     match category {
         FaqCategory::About => "faq-about",

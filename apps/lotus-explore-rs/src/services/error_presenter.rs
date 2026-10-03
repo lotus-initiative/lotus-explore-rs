@@ -13,8 +13,8 @@ use crate::i18n::{
     err_query_stage_failed, err_reference_not_an_identifier, err_reference_not_found,
     err_similarity_threshold_invalid, err_structure_too_long, err_taxon_not_found,
     err_taxon_parse_failed, err_taxon_too_long, err_unsupported_format, err_year_out_of_range,
-    err_year_range_invalid, t, warn_ambiguous_taxon, warn_compound_resolved,
-    warn_ambiguous_compound, warn_input_standardized, warn_taxon_common_name, warn_unconstrained,
+    err_year_range_invalid, t, warn_ambiguous_compound, warn_ambiguous_taxon,
+    warn_compound_resolved, warn_input_standardized, warn_taxon_common_name, warn_unconstrained,
     warn_wdqs_fallback,
 };
 use crate::repositories::RepositoryError;
@@ -283,7 +283,10 @@ mod tests {
             .join("\n");
 
             assert_ne!(taxon, compound, "{locale:?}: the two read the same");
-            assert!(!taxon.to_lowercase().contains("compound"), "{locale:?}: {taxon}");
+            assert!(
+                !taxon.to_lowercase().contains("compound"),
+                "{locale:?}: {taxon}"
+            );
             assert!(
                 !compound.to_lowercase().contains("taxon"),
                 "{locale:?}: {compound}"
