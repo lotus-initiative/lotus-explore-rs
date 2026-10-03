@@ -21,4 +21,7 @@ draft of this file had estimated times and they were wrong.
 | 22:33 | — | E: mutation, query builder | 115 mutants: 88 caught, 27 unviable, **0 missed** (6 min) |
 | 22:41 | — | E: mutation, parsing | 79 mutants: 46 caught, 31 unviable, **2 missed** (3 min) |
 | 22:42 | `116edac` | E: kill the 2 parsing mutants | `\|\|`→`&&` in `Columns::resolves_any`; 46→48 caught, **0 missed** |
-| 23:05 | — | E: mutation, dedup/count | 368 mutants: 233 caught, 27 unviable, **103 missed**, 5 timeouts (23 min) |
+| 23:05 | — | E: mutation, dedup/count | 368 mutants: 233 caught, 27 unviable, **103 missed**, 5 timeouts (23 min) || 23:05 | — | E: mutation, dedup/count | 368 mutants: 233 caught, 27 unviable, 103 missed, 5 timeouts (23 min) |
+| 23:52 | — | E: kill 23 columnar mutants | +6 tests; 233→256 caught, **103→80 missed**. Found a real compound-filter bug |
+| 23:52 | `7400fc1` | E: kill 23 columnar mutants | +6 tests; 103→80 missed; compound-filter bug written up, not fixed blind |
+| 00:05 | `?` | E: MUTANTS.md | full accounting: 80 survivors grouped, 1 equivalent, 3 needing a human |
