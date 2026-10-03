@@ -16,6 +16,8 @@ use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
 use dioxus::prelude::*;
 use lotus_search::SearchCriteria;
+#[cfg(target_arch = "wasm32")]
+use std::sync::Arc;
 
 pub fn use_startup_effect<R: LotusRepository>(
     mut app_state: Signal<AppState>,
@@ -171,6 +173,11 @@ pub fn use_download_dispatch_effect(
                         criteria,
                         query,
                         filename,
+                        // Read out of the live result state: the rows for this search
+                        // are already here, so the export is a walk over them rather
+                        // than a second execution of the query.
+                        #[cfg(target_arch = "wasm32")]
+                        Some(Arc::clone(&explore.read().result.set)),
                     )
                     .await
                     {

@@ -53,6 +53,7 @@ fn spawn_query_download(
     filename: String,
     query: Arc<str>,
     signals: DownloadSignals,
+    rows: Arc<lotus_model::ColumnarResultSet>,
 ) {
     let DownloadSignals {
         busy: download_busy,
@@ -91,6 +92,11 @@ fn spawn_query_download(
             },
             query,
             filename,
+            // The rows the table is drawn from, so the file is written from them rather
+            // than by asking a service to run the query again. Browser-only: a desktop
+            // build has no route that builds a file in memory.
+            #[cfg(target_arch = "wasm32")]
+            Some(Arc::clone(&rows)),
         )
         .await;
 
@@ -120,6 +126,7 @@ fn dispatch_query_download_spec(
     filename: String,
     query: Arc<str>,
     signals: DownloadSignals,
+    rows: Arc<lotus_model::ColumnarResultSet>,
 ) {
     spawn_query_download(
         spec.format,
@@ -128,6 +135,7 @@ fn dispatch_query_download_spec(
         filename,
         query,
         signals,
+        rows,
     );
 }
 
@@ -215,6 +223,16 @@ fn DownloadQueryButton(
     disabled: bool,
     signals: DownloadSignals,
     criteria: ReadSignal<SearchCriteria>,
+    /// The rows on screen. The export is written from these rather than by asking a
+    /// service to run the query a second time.
+    ///
+    /// An `ArcPtrEq` memo rather than a plain signal: the set is behind an `Arc` and
+    /// comparing two sets by value would walk every row to decide whether the toolbar
+    /// should re-render. Pointer equality is both correct -- a new set is a new
+    /// pointer -- and free.
+    rows: ReadSignal<
+        crate::features::explore::selectors::ArcPtrEq<lotus_model::ColumnarResultSet>,
+    >,
     filename: String,
 ) -> Element {
     let title = t(locale, spec.title_key);
@@ -250,6 +268,9 @@ fn DownloadQueryButton(
                         filename(),
                         sparql_query.clone(),
                         signals,
+                        // The rows on screen. Read once here so the file can be written
+                        // from them instead of re-running the query elsewhere.
+                        Arc::clone(&rows.read().0),
                     );
                 }
             },
@@ -306,6 +327,11 @@ pub fn DownloadActionsGroup() -> Element {
     // re-renders when any of these specific fields change.
     let criteria = crate::features::explore::selectors::use_ui_selector(explore, |ui| {
         ui.executed_criteria.clone()
+    });
+    // Subscribed separately from `criteria` so the toolbar re-renders when the rows
+    // change, not only when the criteria do. Same reasoning as the other selectors.
+    let rows = crate::features::explore::selectors::use_result_arc_selector(explore, |result| {
+        result.set.clone()
     });
     let toolbar_snapshot = use_toolbar_result_snapshot(explore);
 
@@ -375,6 +401,7 @@ pub fn DownloadActionsGroup() -> Element {
                                 disabled: *signals.busy.read(),
                                 signals,
                                 criteria,
+                                rows: ReadSignal::from(rows),
                                 filename: toolbar_model.read().csv_filename.clone(),
                             }
                         }
@@ -386,6 +413,7 @@ pub fn DownloadActionsGroup() -> Element {
                                 disabled: *signals.busy.read(),
                                 signals,
                                 criteria,
+                                rows: ReadSignal::from(rows),
                                 filename: toolbar_model.read().json_filename.clone(),
                             }
                         }
@@ -397,6 +425,7 @@ pub fn DownloadActionsGroup() -> Element {
                                 disabled: *signals.busy.read(),
                                 signals,
                                 criteria,
+                                rows: ReadSignal::from(rows),
                                 filename: toolbar_model.read().rdf_filename.clone(),
                             }
                         }

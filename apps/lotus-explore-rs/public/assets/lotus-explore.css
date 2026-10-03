@@ -329,6 +329,9 @@
   .mt-6 {
     margin-top: var(--spacing-6);
   }
+  .mt-8 {
+    margin-top: var(--spacing-8);
+  }
   .mb-2 {
     margin-bottom: var(--spacing-2);
   }
@@ -660,6 +663,12 @@
   .scroll-mt-16 {
     scroll-margin-top: calc(var(--spacing) * 16);
   }
+  .scroll-mt-24 {
+    scroll-margin-top: calc(var(--spacing) * 24);
+  }
+  .list-disc {
+    list-style-type: disc;
+  }
   .list-none {
     list-style-type: none;
   }
@@ -726,6 +735,9 @@
   .gap-4 {
     gap: var(--spacing-4);
   }
+  .gap-5 {
+    gap: var(--spacing-5);
+  }
   .space-y-0\.5 {
     :where(& > :not(:last-child)) {
       --tw-space-y-reverse: 0;
@@ -735,6 +747,12 @@
   }
   .gap-x-2\.5 {
     column-gap: calc(var(--spacing) * 2.5);
+  }
+  .gap-x-4 {
+    column-gap: var(--spacing-4);
+  }
+  .gap-y-1 {
+    row-gap: var(--spacing-1);
   }
   .self-end {
     align-self: flex-end;
@@ -1053,6 +1071,9 @@
   }
   .pb-\[6px\] {
     padding-bottom: 6px;
+  }
+  .pl-5 {
+    padding-left: var(--spacing-5);
   }
   .text-center {
     text-align: center;

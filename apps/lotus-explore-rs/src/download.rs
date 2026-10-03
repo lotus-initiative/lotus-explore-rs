@@ -32,9 +32,28 @@ pub async fn execute_download(
     #[cfg(target_arch = "wasm32")] criteria: std::sync::Arc<SearchCriteria>,
     query: Arc<str>,
     filename: String,
+    #[cfg(target_arch = "wasm32")] rows: Option<std::sync::Arc<lotus_model::ColumnarResultSet>>,
 ) -> Result<String, String> {
     let dl_timer = perf::start_timer(export_timer_label(format));
     log::info!("event=download format={} state=started", format.log_name());
+
+    // Built here, from the rows already in memory, before anything is asked of
+    // anybody else.
+    //
+    // This is the route that produces the filename the reader was shown. Handing the
+    // export to `QLever` or the API means that service names the file as well, and it
+    // does not name it the way the toolbar said it would -- so the name on screen and
+    // the name on disk disagreed, with nothing in between able to reconcile them.
+    // It also means re-running a query the tab had already run to get the same rows.
+    //
+    // `rows` is `None` when there is no result set to read, which is the reference-lookup
+    // and metadata paths: those have no row set of their own. Those still go out to a
+    // service, because there is nothing here to build from.
+    #[cfg(target_arch = "wasm32")]
+    if let Some(set) = rows {
+        return wasm::execute_download_from_rows(format, &set, &filename, dl_timer)
+            .map(|()| filename);
+    }
 
     #[cfg(target_arch = "wasm32")]
     {

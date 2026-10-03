@@ -6,10 +6,97 @@ use crate::download::{export_timer_label, export_trigger_timer_label};
 use crate::perf;
 use crate::repositories::is_wdqs_fallback_used;
 use crate::sparql::wdqs_download_query;
+use lotus_model::ColumnarResultSet;
 use lotus_query::ExportFormat as DownloadFormat;
+use lotus_query::RowExporter;
 use lotus_search::QLEVER_WIKIDATA;
 use lotus_search::SearchCriteria;
 use std::sync::Arc;
+
+/// Build the file from the rows in memory, without asking a service for it.
+///
+/// This is the route a result download takes. The rows are already here -- they are
+/// what the table is drawn from -- so the file is written out of them rather than by
+/// re-running the query against a SPARQL endpoint.
+///
+/// Two things follow, and both are the point:
+///
+/// - **The filename is the one that was shown.** No other service names the file, so
+///   there is no second opinion to reconcile with. This is what the toolbar's name
+///   turned out not to be when `QLever` produced the file.
+/// - **The query is not run twice.** The export is not a second execution of the
+///   search; it is a walk over the answer to it.
+///
+/// Streamed through [`RowExporter`] and handed to the browser a chunk at a time, so a
+/// three-million-row export does not need three million rows' worth of CSV in memory
+/// on top of the rows themselves. Each chunk is copied into JavaScript-owned storage
+/// and the Rust buffer dropped before the next is produced, which is the same
+/// discipline the WDQS path uses for the same reason.
+pub(super) fn execute_download_from_rows(
+    format: DownloadFormat,
+    set: &ColumnarResultSet,
+    filename: &str,
+    dl_timer: perf::TimerHandle,
+) -> Result<(), String> {
+    let safe = crate::upload::sanitize_filename(filename);
+    let rows = set.row_count();
+    log::info!(
+        "event=download format={} phase=rows state=started rows={rows} source=local_rows",
+        format.log_name()
+    );
+
+    let mut exporter = RowExporter::new(format, set);
+    let mut chunks: Vec<js_sys::Uint8Array> = Vec::with_capacity(64);
+    let mut bytes = 0usize;
+
+    // One chunk produced, converted and released before the next is asked for:
+    // holding the exporter's buffer and the JS copy at once is two copies of the
+    // same chunk, which is what the streaming exists to avoid.
+    while let Some(chunk) = exporter.next_chunk() {
+        bytes += chunk.len();
+        chunks.push(js_sys::Uint8Array::from(chunk.as_bytes()));
+    }
+
+    let elapsed = perf::end_timer(export_timer_label(format), dl_timer);
+    perf::log_timing(
+        "download",
+        &format!(
+            "event=download format={} phase=rows state=success source=local_rows rows={rows} \
+             chunks={} bytes={bytes}",
+            format.log_name(),
+            chunks.len()
+        ),
+        Some(elapsed),
+    );
+
+    if rows == 0 {
+        log::warn!(
+            "event=download format={} phase=rows state=empty",
+            format.log_name()
+        );
+    }
+
+    let trigger_timer = perf::start_timer(&export_trigger_timer_label(format));
+    let outcome =
+        crate::upload::download_byte_chunks_as_blob(&chunks, &safe, "", format.content_type());
+    let trigger_elapsed = perf::end_timer(&export_trigger_timer_label(format), trigger_timer);
+    if let Err(error) = outcome {
+        log::error!(
+            "event=download format={} phase=rows state=error error={error}",
+            format.log_name()
+        );
+        return Err(error);
+    }
+    perf::log_timing(
+        "download",
+        &format!(
+            "event=download format={} phase=trigger state=success source=local_rows filename={safe}",
+            format.log_name()
+        ),
+        Some(trigger_elapsed),
+    );
+    Ok(())
+}
 
 pub(super) async fn execute_download_wasm(
     format: DownloadFormat,

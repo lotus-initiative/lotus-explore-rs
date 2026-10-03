@@ -3558,6 +3558,7 @@ version = "0.1.0"
 dependencies = [
  "csv",
  "lotus-model",
+ "serde_json",
  "thiserror 2.0.21",
 ]
 

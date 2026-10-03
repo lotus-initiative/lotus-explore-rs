@@ -5,6 +5,8 @@
 
 mod error;
 mod export;
+mod export_rows;
+pub use export_rows::RowExporter;
 mod parse;
 mod query;
 

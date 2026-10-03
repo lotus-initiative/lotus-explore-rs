@@ -19,6 +19,9 @@ thiserror = { workspace = true }
 # The benchmark reads `dictionary_costs`, which is behind the `diagnostics`
 # feature so that it is not in the default build. Only the tests need it.
 lotus-model = { workspace = true, features = ["diagnostics"] }
+# Only the export tests, which parse what the exporter wrote rather than
+# string-matching it: a string match would pass on output that is not valid JSON.
+serde_json = { workspace = true }
 
 [lints]
 workspace = true
