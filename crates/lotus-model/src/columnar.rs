@@ -60,6 +60,7 @@
 
 use super::{CompoundEntry, DatasetStats, WIKIDATA_ENTITY_BASE, WIKIDATA_STATEMENT_BASE};
 use rustc_hash::FxHashMap;
+use std::borrow::Cow;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -81,80 +82,94 @@ fn next_generation() -> u64 {
 /// not need a million compounds of dictionary to be safe to index.
 pub const NO_VALUE: u32 = u32::MAX;
 
-/// A set of interned strings, and the ids that name them.
+/// The `https` form of [`WIKIDATA_ENTITY_BASE`], which a mirror can serve.
+const WIKIDATA_ENTITY_BASE_HTTPS: &str = "https://www.wikidata.org/entity/";
+
+/// The largest bare QID text this module renders into a stack buffer.
 ///
-/// Lookup is by `&str` rather than by `Arc<str>` because every call site has a
-/// borrowed field from a CSV record and no reason to allocate one to find out
-/// whether it has been seen before.
+/// A `Q` and up to ten digits is eleven bytes. Wikidata item numbers are around
+/// 250 million today and grow slowly, so this is generous; a QID that does not fit
+/// renders as nothing rather than as a truncated identifier.
+const QID_BUFFER: usize = 16;
+
+/// Interned Wikidata QIDs, keyed by their numeric part.
+///
+/// A QID is a `Q` and a number, so storing the text spends a hash, an allocation
+/// and sixteen bytes of fat pointer on something that is already an integer once
+/// the prefix is stripped -- and the parser strips it anyway. At one million rows
+/// that is 39 MB and 640,000 allocations for values that fit in four bytes.
+///
+/// Reproducibility is what shapes the API. [`qid_text`] and [`write_qid`] render
+/// the same `Q…` the cell held, so a link, a filter and a hash all still see the
+/// identifier Wikidata knows the item by. The text is produced on demand, for the
+/// thirty rows on screen, rather than stored for every row.
 #[derive(Debug, Default, Clone)]
-pub struct Dictionary {
-    values: Vec<Arc<str>>,
-    index: FxHashMap<Arc<str>, u32>,
+pub struct QidDictionary {
+    /// Numeric QID -> the id naming it.
+    index: FxHashMap<u32, u32>,
+    /// The numeric QIDs in first-seen order, so an id *is* a position.
+    order: Vec<u32>,
 }
 
-impl Dictionary {
+impl QidDictionary {
     /// An empty dictionary.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// The id for `value`, minting one if it is new.
+    /// The id for `numeric`, minting one if it is new.
     ///
-    /// An empty `value` is *not* interned; it yields [`NO_VALUE`]. Two empty
-    /// cells therefore share one absence rather than each taking a dictionary
-    /// slot, which is what keeps a 90%-sparse column from costing a slot per row.
-    pub fn intern(&mut self, value: &str) -> u32 {
-        if value.is_empty() {
+    /// [`NO_VALUE`] is never handed back: no Wikidata item is numbered `u32::MAX`,
+    /// and reserving it keeps "no value" distinguishable from any real one.
+    pub fn intern(&mut self, numeric: u32) -> u32 {
+        if numeric == NO_VALUE {
             return NO_VALUE;
         }
-        if let Some(id) = self.index.get(value) {
+        if let Some(id) = self.index.get(&numeric) {
             return *id;
         }
-        let Ok(id) = u32::try_from(self.values.len()) else {
+        let Ok(id) = u32::try_from(self.order.len()) else {
             return NO_VALUE;
         };
-        let shared: Arc<str> = Arc::from(value);
-        self.values.push(Arc::clone(&shared));
-        self.index.insert(shared, id);
+        self.index.insert(numeric, id);
+        self.order.push(numeric);
         id
     }
 
-    /// The string an id names, or `None` for [`NO_VALUE`] and out-of-range ids.
+    /// The numeric QID an id names, or `None` for [`NO_VALUE`].
+    ///
+    /// `O(1)`: ids are assigned in first-seen order, so one is a position in
+    /// `order`.
     #[must_use]
-    pub fn get(&self, id: u32) -> Option<&str> {
+    pub fn get(&self, id: u32) -> Option<u32> {
         if id == NO_VALUE {
             return None;
         }
-        self.values.get(id as usize).map(AsRef::as_ref)
+        self.order.get(id as usize).copied()
     }
 
-    /// How many distinct values are interned.
+    /// How many distinct QIDs are interned.
     #[must_use]
     pub const fn len(&self) -> usize {
-        self.values.len()
+        self.order.len()
     }
 
     /// Whether nothing has been interned.
     #[must_use]
     pub const fn is_empty(&self) -> bool {
-        self.values.is_empty()
+        self.order.is_empty()
     }
 
-    /// The bytes of the strings it holds, excluding any per-entry overhead.
-    #[must_use]
-    fn string_bytes(&self) -> usize {
-        self.values.iter().map(|v| v.len()).sum()
+    /// Every interned numeric QID, in first-seen order.
+    pub fn numeric_ids(&self) -> impl Iterator<Item = u32> + '_ {
+        self.order.iter().copied()
     }
 
-    /// The ids that actually appear in `ids`, as a bitmap over dictionary ids.
-    ///
-    /// This is how the exact counts are taken. The alternative -- a `HashSet` of
-    /// borrowed strings per count, sized to the row count -- was itself a large
-    /// transient allocation; this is a bitmap sized to the dictionary.
+    /// The ids actually used in `ids`, as a bitmap, for the exact counts.
     #[must_use]
     pub fn used<'a>(&self, ids: impl Iterator<Item = &'a u32>) -> Bitmask {
-        let mut mask = Bitmask::with_len(self.values.len());
+        let mut mask = Bitmask::with_len(self.order.len());
         for id in ids {
             if *id != NO_VALUE {
                 mask.insert(*id);
@@ -164,12 +179,65 @@ impl Dictionary {
     }
 }
 
-/// A fixed-size set of ids, stored as words.
+/// A bare QID as `Q…`, rendered into `out`.
 ///
-/// The filter path needs one of these per constrained column, and building one
-/// costs a pass over a *dictionary* rather than a pass over the rows. That
-/// inversion is what makes filtering a multi-million-row set as fast as
-/// filtering five hundred rows.
+/// Returns the length written, or `0` when the number does not fit, which no
+/// Wikidata item does.
+#[must_use]
+pub fn write_qid(numeric: u32, out: &mut [u8; QID_BUFFER]) -> usize {
+    let mut digits = [0u8; 10];
+    let mut count = 0usize;
+    let mut rest = numeric;
+    loop {
+        let Some(slot) = digits.get_mut(count) else {
+            return 0;
+        };
+        *slot = b'0' + u8::try_from(rest % 10).unwrap_or(0);
+        rest /= 10;
+        count += 1;
+        if rest == 0 {
+            break;
+        }
+    }
+    let Some(first) = out.first_mut() else {
+        return 0;
+    };
+    *first = b'Q';
+    // `digits` is filled least-significant first, so it is emitted in reverse:
+    // forward would render 42 as `Q24`, and a QID that does not round trip is a
+    // dead link on every row that has one.
+    for (offset, digit) in digits.iter().take(count).rev().enumerate() {
+        let Some(slot) = out.get_mut(offset + 1) else {
+            return 0;
+        };
+        *slot = *digit;
+    }
+    count + 1
+}
+
+/// A bare QID as `Q…`, allocated.
+///
+/// For the paths that hand one outside this module: a link, a displayed cell, a
+/// hasher. Called for the rows on screen rather than for every row stored.
+#[must_use]
+pub fn qid_text(numeric: u32) -> String {
+    let mut buffer = [0u8; QID_BUFFER];
+    let length = write_qid(numeric, &mut buffer);
+    String::from_utf8_lossy(buffer.get(..length).unwrap_or_default()).into_owned()
+}
+
+/// Whether a numeric QID's `Q…` text contains `needle`.
+///
+/// Renders into the caller's buffer, so filtering a two-million-compound dictionary
+/// allocates nothing per compound per keystroke; `buffer` is reused for the whole
+/// scan.
+fn qid_matches(numeric: u32, needle: &[char], buffer: &mut [u8; QID_BUFFER]) -> bool {
+    let length = write_qid(numeric, buffer);
+    std::str::from_utf8(buffer.get(..length).unwrap_or_default())
+        .is_ok_and(|text| contains_folded(text, needle))
+}
+
+/// A fixed-size set of ids, stored as words.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Bitmask {
     words: Vec<u64>,
@@ -501,15 +569,15 @@ pub struct ColumnarResultSet {
     taxon_ids: Vec<u32>,
     reference_ids: Vec<u32>,
     statements: Vec<StatementId>,
-    compounds: Dictionary,
+    compounds: QidDictionary,
     compound_names: SparseStrings,
     compound_inchikeys: SparseStrings,
     compound_smiles: SparseStrings,
     compound_masses: Vec<f64>,
     compound_formulas: SparseStrings,
-    taxa: Dictionary,
+    taxa: QidDictionary,
     taxon_names: SparseStrings,
-    references: Dictionary,
+    references: QidDictionary,
     reference_titles: SparseStrings,
     reference_dois: SparseStrings,
     reference_years: Vec<Option<i16>>,
@@ -534,13 +602,6 @@ impl PartialEq for ColumnarResultSet {
         self.generation == other.generation
     }
 }
-
-/// How many bytes a bare QID is copied into before the statement check gives up.
-///
-/// A Wikidata QID is a `Q` and up to about eleven digits today. The bound is
-/// generous; exceeding it only means the statement keeps its own text, which is
-/// what happened for every statement before this check existed.
-const QID_BUFFER: usize = 24;
 
 /// The mass column's absence marker.
 ///
@@ -573,15 +634,15 @@ impl ColumnarResultSet {
             taxon_ids: Vec::new(),
             reference_ids: Vec::new(),
             statements: Vec::new(),
-            compounds: Dictionary::new(),
+            compounds: QidDictionary::new(),
             compound_names: SparseStrings::new(),
             compound_inchikeys: SparseStrings::new(),
             compound_smiles: SparseStrings::new(),
             compound_masses: Vec::new(),
             compound_formulas: SparseStrings::new(),
-            taxa: Dictionary::new(),
+            taxa: QidDictionary::new(),
             taxon_names: SparseStrings::new(),
-            references: Dictionary::new(),
+            references: QidDictionary::new(),
             reference_titles: SparseStrings::new(),
             reference_dois: SparseStrings::new(),
             reference_years: Vec::new(),
@@ -668,14 +729,16 @@ impl ColumnarResultSet {
     #[must_use]
     pub fn dictionary_costs(&self) -> Vec<(&'static str, usize, usize)> {
         const PTR: usize = std::mem::size_of::<Arc<str>>();
-        let dict = |d: &Dictionary| d.len() * (PTR + 40) + d.string_bytes();
+        // A QID dictionary holds integers: a key and a position, plus the map's own
+        // slack, and no string at all. That is the point of the type.
+        let qids = |d: &QidDictionary| d.len() * (std::mem::size_of::<u32>() * 2 + 8);
         let sparse = |s: &SparseStrings| {
             s.values.len() * PTR
                 + s.values.iter().map(|v| v.len()).sum::<usize>()
                 + s.ids.len() * std::mem::size_of::<u32>()
         };
         vec![
-            ("compound qids", self.compounds.len(), dict(&self.compounds)),
+            ("compound qids", self.compounds.len(), qids(&self.compounds)),
             (
                 "compound names",
                 self.compound_names.len(),
@@ -701,7 +764,7 @@ impl ColumnarResultSet {
                 self.compound_masses.len(),
                 self.compound_masses.len() * 8,
             ),
-            ("taxon qids", self.taxa.len(), dict(&self.taxa)),
+            ("taxon qids", self.taxa.len(), qids(&self.taxa)),
             (
                 "taxon names",
                 self.taxon_names.len(),
@@ -710,7 +773,7 @@ impl ColumnarResultSet {
             (
                 "reference qids",
                 self.references.len(),
-                dict(&self.references),
+                qids(&self.references),
             ),
             (
                 "reference titles",
@@ -744,22 +807,21 @@ impl ColumnarResultSet {
     /// type holds, and the question being asked is the second one.
     #[must_use]
     pub fn total_dictionary_bytes(&self) -> usize {
-        let dictionary =
-            |d: &Dictionary| d.len() * std::mem::size_of::<Arc<str>>() + d.string_bytes();
+        let qids = |d: &QidDictionary| d.len() * std::mem::size_of::<u32>() * 2;
         let sparse = |s: &SparseStrings| {
             s.ids.len() * std::mem::size_of::<u32>()
                 + s.values.len() * std::mem::size_of::<Arc<str>>()
                 + s.values.iter().map(|v| v.len()).sum::<usize>()
         };
-        dictionary(&self.compounds)
+        qids(&self.compounds)
             + sparse(&self.compound_names)
             + sparse(&self.compound_inchikeys)
             + sparse(&self.compound_smiles)
             + sparse(&self.compound_formulas)
             + self.compound_masses.len() * std::mem::size_of::<f64>()
-            + dictionary(&self.taxa)
+            + qids(&self.taxa)
             + sparse(&self.taxon_names)
-            + dictionary(&self.references)
+            + qids(&self.references)
             + sparse(&self.reference_titles)
             + sparse(&self.reference_dois)
             + self.reference_years.len() * std::mem::size_of::<Option<i16>>()
@@ -772,26 +834,49 @@ impl ColumnarResultSet {
     /// result: the old row-at-a-time path collected a `Vec<&str>` of every row's
     /// compound QID and sorted it to get here, so for a three-million-row result
     /// it allocated three million entries to find two and a half million.
-    pub fn compound_qids(&self) -> impl Iterator<Item = &str> {
-        self.compounds.values.iter().map(AsRef::as_ref)
+    pub fn compound_qids(&self) -> impl Iterator<Item = u32> + '_ {
+        self.compounds.numeric_ids()
     }
 
-    /// The compound QID of row `row`.
+    /// The compound's numeric QID for row `row`.
+    ///
+    /// The number, not the text: the text is a `Q` and those digits, and a caller
+    /// that wants it calls [`qid_text`]. Every row shares a handful of QIDs, so
+    /// handing back the number keeps a filter or a sort comparing four bytes
+    /// instead of a string.
     #[must_use]
-    pub fn compound_qid(&self, row: usize) -> Option<&str> {
+    pub fn compound_qid(&self, row: usize) -> Option<u32> {
         self.compounds.get(*self.compound_ids.get(row)?)
     }
 
-    /// The taxon QID of row `row`, if it has one.
+    /// The taxon of row `row`, as a numeric QID, if it has one.
     #[must_use]
-    pub fn taxon_qid(&self, row: usize) -> Option<&str> {
+    pub fn taxon_qid(&self, row: usize) -> Option<u32> {
         self.taxa.get(*self.taxon_ids.get(row)?)
     }
 
-    /// The reference QID of row `row`, if it has one.
+    /// The reference of row `row`, as a numeric QID, if it has one.
     #[must_use]
-    pub fn reference_qid(&self, row: usize) -> Option<&str> {
+    pub fn reference_qid(&self, row: usize) -> Option<u32> {
         self.references.get(*self.reference_ids.get(row)?)
+    }
+
+    /// The compound's QID as text, for a link or a displayed cell.
+    #[must_use]
+    pub fn compound_qid_text(&self, row: usize) -> Option<String> {
+        self.compound_qid(row).map(qid_text)
+    }
+
+    /// The taxon of row `row` as text.
+    #[must_use]
+    pub fn taxon_qid_text(&self, row: usize) -> Option<String> {
+        self.taxon_qid(row).map(qid_text)
+    }
+
+    /// The reference of row `row` as text.
+    #[must_use]
+    pub fn reference_qid_text(&self, row: usize) -> Option<String> {
+        self.reference_qid(row).map(qid_text)
     }
 
     /// The compound's label, falling back to its QID.
@@ -805,7 +890,23 @@ impl ColumnarResultSet {
         self.compound_names
             .get(id as usize)
             .filter(|n| !n.is_empty())
-            .or_else(|| self.compounds.get(id))
+    }
+
+    /// The label if the compound has one, and its QID if it does not.
+    ///
+    /// Borrowed where there is a label and allocated where there is not, which is
+    /// what the cell has always shown: a nameless compound is displayed as its
+    /// identifier rather than as nothing.
+    #[must_use]
+    pub fn compound_label_or_qid(&self, row: usize) -> Option<Cow<'_, str>> {
+        let id = *self.compound_ids.get(row)?;
+        self.compound_names
+            .get(id as usize)
+            .filter(|n| !n.is_empty())
+            .map_or_else(
+                || self.compounds.get(id).map(|n| Cow::Owned(qid_text(n))),
+                |label| Some(Cow::Borrowed(label)),
+            )
     }
 
     /// The compound's `InChIKey`, if it has one.
@@ -881,7 +982,7 @@ impl ColumnarResultSet {
     pub fn statement_text(&self, row: usize) -> Option<String> {
         let statement = *self.statements.get(row)?;
         let compound = self.compound_qid(row)?;
-        statement.text(compound, &self.statement_fallbacks)
+        statement.text(&qid_text(compound), &self.statement_fallbacks)
     }
 
     /// The compound's mass, or `None` when it has none.
@@ -914,9 +1015,10 @@ impl ColumnarResultSet {
         let compound_slot = compound_id as usize;
         let reference_slot = reference_id as usize;
         let shared = |text: &str| Arc::<str>::from(text);
+        let owned = |text: Option<String>| Arc::<str>::from(text.unwrap_or_default());
         let optional = |text: Option<&str>| text.map(shared);
         Some(CompoundEntry {
-            compound_qid: shared(self.compound_qid(row)?),
+            compound_qid: shared(&self.compound_qid_text(row)?),
             name: shared(self.compound_label(row).unwrap_or_default()),
             // The three QID cells keep the `Arc<str>`-and-empty convention rather
             // than the `Option` one, because `n_taxa` and `n_references` are
@@ -925,9 +1027,9 @@ impl ColumnarResultSet {
             smiles: optional(self.compound_smiles.get(compound_slot)),
             mass: self.compound_mass(compound_id),
             formula: optional(self.compound_formulas.get(compound_slot)),
-            taxon_qid: shared(self.taxon_qid(row).unwrap_or_default()),
+            taxon_qid: owned(self.taxon_qid_text(row)),
             taxon_name: shared(self.taxon_label(row).unwrap_or_default()),
-            reference_qid: shared(self.reference_qid(row).unwrap_or_default()),
+            reference_qid: owned(self.reference_qid_text(row)),
             ref_title: optional(self.reference_titles.get(reference_slot)),
             ref_doi: optional(self.reference_dois.get(reference_slot)),
             pub_year: self.reference_year(reference_id),
@@ -946,19 +1048,26 @@ impl ColumnarResultSet {
 
         if !spec.compound.trim().is_empty() {
             let needle = folded(&spec.compound);
-            plan.compound = Some(self.mask_compounds(|slot, _id| {
-                self.compound_names
+            let mut buffer = [0u8; QID_BUFFER];
+            let mut mask = Bitmask::with_len(self.compounds.len());
+            for slot in 0..self.compounds.len() {
+                let id = slot_to_id(slot);
+                // The QID arm renders through the reusable stack buffer rather than
+                // allocating a String per compound per keystroke.
+                let hit = self
+                    .compound_names
                     .get(slot)
                     .is_some_and(|n| contains_folded(n, &needle))
                     || self
                         .compound_inchikeys
                         .get(slot)
                         .is_some_and(|k| contains_folded(k, &needle))
-                    || self
-                        .compounds
-                        .get(slot_to_id(slot))
-                        .is_some_and(|q| contains_folded(q, &needle))
-            }));
+                    || qid_matches(id, &needle, &mut buffer);
+                if hit {
+                    mask.insert(id);
+                }
+            }
+            plan.compound = Some(mask);
         }
 
         if !spec.formula.trim().is_empty() {
@@ -977,13 +1086,14 @@ impl ColumnarResultSet {
 
         if !spec.taxon.trim().is_empty() {
             let needle = folded(&spec.taxon);
+            let mut buffer = [0u8; QID_BUFFER];
             let mut mask = Bitmask::with_len(self.taxa.len());
             for slot in 0..self.taxa.len() {
                 let id = slot_to_id(slot);
                 if self
                     .taxa
                     .get(id)
-                    .is_some_and(|q| contains_folded(q, &needle))
+                    .is_some_and(|numeric| qid_matches(numeric, &needle, &mut buffer))
                     || self
                         .taxon_names
                         .get(slot)
@@ -997,13 +1107,14 @@ impl ColumnarResultSet {
 
         if !spec.reference.trim().is_empty() {
             let needle = folded(&spec.reference);
+            let mut buffer = [0u8; QID_BUFFER];
             let mut mask = Bitmask::with_len(self.references.len());
             for slot in 0..self.references.len() {
                 let id = slot_to_id(slot);
                 if self
                     .references
                     .get(id)
-                    .is_some_and(|q| contains_folded(q, &needle))
+                    .is_some_and(|numeric| qid_matches(numeric, &needle, &mut buffer))
                     || self
                         .reference_titles
                         .get(slot)
@@ -1048,22 +1159,24 @@ impl ColumnarResultSet {
     }
 }
 
-/// Intern an entity URI as a bare QID, without allocating.
+/// Intern an entity URI as a numeric QID, without allocating.
 ///
 /// [`normalize_qid`](super::normalize_qid) would do this too, but it returns an
-/// owned `String`, and this is called three times per row. At three million rows
-/// that is nine million allocations spent on a substring.
+/// owned `String` and this is called three times per row -- nine million
+/// allocations at three million rows, spent on a substring and a digit scan.
 ///
 /// Anything that is not a QID -- a property, a blank node, an empty cell -- is an
 /// absence. A blank node in particular must not become a dictionary entry: every
 /// blank node is distinct, so it would cost a slot per row for a value no column
 /// can display.
-///
-/// One `String` is allocated, and only for the bare-integer form.
-fn intern_qid(dictionary: &mut Dictionary, raw: &str) -> u32 {
+fn intern_qid(dictionary: &mut QidDictionary, raw: &str) -> u32 {
     let trimmed = raw.trim();
+    // Both schemes, because Wikidata serves `http` and a mirror or a pasted
+    // fixture can carry `https`, and dropping the second would turn a row that
+    // used to render into a dropped one.
     let stripped = trimmed
         .strip_prefix(WIKIDATA_ENTITY_BASE)
+        .or_else(|| trimmed.strip_prefix(WIKIDATA_ENTITY_BASE_HTTPS))
         .unwrap_or(trimmed);
     // Drop the `"…"^^<…#integer>` wrapper some projections render, then any
     // quotes still on the ends.
@@ -1073,25 +1186,23 @@ fn intern_qid(dictionary: &mut Dictionary, raw: &str) -> u32 {
         .unwrap_or(stripped)
         .trim_matches('"');
 
-    if lexical.strip_prefix('Q').is_some_and(is_digits) {
-        return dictionary.intern(lexical);
+    if let Some(digits) = lexical.strip_prefix('Q') {
+        return parse_numeric_qid(digits).map_or(NO_VALUE, |n| dictionary.intern(n));
     }
     // A bare integer is how `xsd:integer(STRAFTER(STR(?c), "Q"))` renders a QID,
-    // and how a plain-number projection renders one. It has to become `Q…` here:
-    // the cell is rendered into a `wikidata.org/entity/` URL, and a bare number
-    // in that URL is a 404 for every row.
-    if is_digits(lexical) {
-        let mut qid = String::with_capacity(lexical.len() + 1);
-        qid.push('Q');
-        qid.push_str(lexical);
-        return dictionary.intern(&qid);
-    }
-    NO_VALUE
+    // and how a plain-number projection renders one.
+    parse_numeric_qid(lexical).map_or(NO_VALUE, |n| dictionary.intern(n))
 }
 
-/// Whether `text` is one or more ASCII digits and nothing else.
-fn is_digits(text: &str) -> bool {
-    !text.is_empty() && text.bytes().all(|b| b.is_ascii_digit())
+/// The number a run of ASCII digits names, or `None` if it is not one.
+///
+/// [`NO_VALUE`] is refused because it is reserved for "no value".
+fn parse_numeric_qid(digits: &str) -> Option<u32> {
+    if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let value = digits.parse::<u32>().ok()?;
+    (value != NO_VALUE).then_some(value)
 }
 
 /// A dictionary slot as an id.
@@ -1140,22 +1251,13 @@ impl ColumnarBuilder {
         // full URI and the statement check needs the bare form -- and because a
         // borrow of the dictionary would be held across the rest of the row.
         //
-        // A stack buffer rather than a `String`: this runs three million times and
-        // a QID is short and fixed-width in practice. A longer one falls through to
-        // the text-keeping path, which is correct, so the bound costs nothing.
+        // The bare QID, rendered for the statement check below: a statement prefix
+        // is `Q<digits>`, and the cell holds the full URI. A stack buffer keeps it
+        // off the heap, and it is rendered once per row rather than once per
+        // statement.
+        let numeric = self.set.compounds.get(compound_id).unwrap_or_default();
         let mut qid_buffer = [0u8; QID_BUFFER];
-        let qid = self
-            .set
-            .compounds
-            .get(compound_id)
-            .filter(|qid| qid.len() <= QID_BUFFER)
-            .unwrap_or_default();
-        let qid_len = qid.len();
-        if let Some(slot) = qid_buffer.get_mut(..qid_len)
-            && let Some(source) = qid.get(..qid_len)
-        {
-            slot.copy_from_slice(source.as_bytes());
-        }
+        let qid_len = write_qid(numeric, &mut qid_buffer);
         let qid_text =
             std::str::from_utf8(qid_buffer.get(..qid_len).unwrap_or_default()).unwrap_or_default();
         self.set

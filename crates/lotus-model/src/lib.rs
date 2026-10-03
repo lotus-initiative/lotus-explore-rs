@@ -13,8 +13,8 @@ mod structure;
 mod validate;
 
 pub use columnar::{
-    Bitmask, ColumnarBuilder, ColumnarResultSet, Dictionary, FilterPlan, FilterSpec, NO_VALUE,
-    Range, RawRow, SparseStrings, StatementId, contains_folded, folded,
+    Bitmask, ColumnarBuilder, ColumnarResultSet, FilterPlan, FilterSpec, NO_VALUE, QidDictionary,
+    Range, RawRow, SparseStrings, StatementId, contains_folded, folded, qid_text, write_qid,
 };
 pub use criteria::{SearchCriteria, TaxonNomenclature};
 pub use entry::{CompoundEntry, Rows, TaxonMatch, TaxonNameSource};

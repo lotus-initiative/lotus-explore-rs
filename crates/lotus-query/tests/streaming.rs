@@ -270,7 +270,7 @@ fn a_row_shorter_than_its_header_reads_as_missing_trailing_columns() {
     let set = parse_compounds_columnar(payload.as_bytes()).expect("a short row is not an error");
 
     assert_eq!(set.row_count(), 1);
-    assert_eq!(set.compound_qid(0), Some("Q1"));
+    assert_eq!(set.compound_qid_text(0).as_deref(), Some("Q1"));
     assert_eq!(set.taxon_qid(0), None);
     assert_eq!(set.stats().n_taxa, 0);
 }
@@ -290,8 +290,12 @@ fn a_bare_integer_qid_is_read_as_a_qid() {
     let payload = format!("{HEADER}16521,first,,,,16521,Homo,100,\n");
     let set = parse_compounds_columnar(payload.as_bytes()).expect("the payload is well formed");
 
-    assert_eq!(set.compound_qid(0), Some("Q16521"));
-    assert_eq!(set.taxon_qid(0), Some("Q16521"));
+    assert_eq!(
+        set.compound_qid_text(0).as_deref(),
+        Some("Q16521"),
+        "a bare integer is projected back as the QID it stands for"
+    );
+    assert_eq!(set.taxon_qid_text(0).as_deref(), Some("Q16521"));
 }
 
 #[test]

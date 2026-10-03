@@ -65,14 +65,24 @@ pub fn compute_hashes(
     let query_hash = to_hex_lower(&Sha256::digest(query_source.as_bytes()));
 
     // The compound dictionary is already the distinct set of QIDs, so there is
-    // nothing to collect and nothing to sort: iterate it and stream each QID into
-    // the hasher, which avoids allocating a joined String as well.
+    // nothing to collect and nothing to sort: iterate it and stream each one into
+    // the hasher.
+    //
+    // The bytes hashed are `Q` and the digits, the same as when the QID was stored
+    // as text -- a result hash that changed shape would make every previously
+    // shared link look like a different result. They are rendered through one
+    // reusable buffer, because this runs over two and a half million QIDs at the
+    // end of every search and an allocation each would be 2.5 million of them.
     let mut result_hasher = Sha256::new();
+    let mut buffer = [0u8; 16];
     for (i, qid) in set.compound_qids().enumerate() {
         if i > 0 {
             result_hasher.update(b"|");
         }
-        result_hasher.update(qid.as_bytes());
+        let length = lotus_model::write_qid(qid, &mut buffer);
+        if let Some(text) = buffer.get(..length) {
+            result_hasher.update(text);
+        }
     }
     let result_hash = to_hex_lower(&result_hasher.finalize());
 

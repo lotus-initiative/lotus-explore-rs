@@ -149,16 +149,24 @@ async fn lookup<R: LotusRepository>(
     metrics: &mut SearchMetrics,
     query: String,
 ) -> Result<Vec<TaxonMatch>, DomainError> {
-    let timer = perf::start_timer("LOTUS:taxon_resolution");
+    // Its own label, not `LOTUS:taxon_resolution`.
+    //
+    // `console.time` labels are global and one label holds one timer, so opening
+    // the same label from a function the caller has already opened it in is
+    // ignored by the browser: it logs "Timer already exists", the inner `timeEnd`
+    // closes the *outer* timer, and both durations come out wrong. `resolve` opens
+    // `LOTUS:taxon_resolution` around the whole resolution and calls this twice on
+    // the common-name fallback, so the nesting is real rather than theoretical.
+    let timer = perf::start_timer("LOTUS:taxon_lookup");
     let csv = repo.sparql_body(&query).await.map_err(|error| {
-        let _ = perf::end_timer("LOTUS:taxon_resolution", timer);
+        let _ = perf::end_timer("LOTUS:taxon_lookup", timer);
         DomainError::Transport {
             stage: QueryStage::TaxonSearch,
             source: error,
         }
     })?;
 
-    let elapsed = perf::end_timer("LOTUS:taxon_resolution", timer);
+    let elapsed = perf::end_timer("LOTUS:taxon_lookup", timer);
     metrics.add_network(elapsed);
     telemetry::taxon_sparql_done(elapsed);
 

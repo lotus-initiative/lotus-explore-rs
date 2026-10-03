@@ -52,8 +52,9 @@ pub async fn try_execute<R: LotusRepository>(
             // a total that disagrees with the rows is the bug this whole path
             // exists to remove. So a partial page is declined and the caller falls
             // through to the streaming SPARQL path, which returns everything.
+            // The timer is already closed above; ending it again would ask the
+            // browser to close a label that is not open.
             if response.total_matches > response.rows.len() {
-                let _ = perf::end_timer("LOTUS:api_search", api_timer);
                 telemetry::api_fallback_direct(api_elapsed, "reason=api_returned_a_partial_page");
                 return None;
             }

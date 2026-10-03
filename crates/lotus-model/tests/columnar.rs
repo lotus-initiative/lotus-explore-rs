@@ -325,7 +325,12 @@ fn the_absent_id_is_in_no_mask() {
     });
 
     assert!(plan.accepts(&set, 0), "the one row does have taxon Q2");
-    assert_eq!(set.taxon_qid(0), Some("Q2"));
+    assert_eq!(set.taxon_qid(0), Some(2), "a numeric QID is what is stored");
+    assert_eq!(
+        set.taxon_qid_text(0).as_deref(),
+        Some("Q2"),
+        "and the text is rendered back to what the cell held"
+    );
     assert!(
         !lotus_model::Bitmask::with_len(1).contains(NO_VALUE),
         "NO_VALUE must never be found, or an absent value would match"
@@ -408,9 +413,14 @@ fn rows_are_pushed_as_borrowed_fields() {
 
     assert_eq!(set.row_count(), 1);
     assert_eq!(
-        set.compound_qid(0),
+        set.compound_qid_text(0).as_deref(),
         Some("Q42"),
-        "the URI prefix is stripped"
+        "the URI prefix is stripped and the QID renders back identically"
+    );
+    assert_eq!(
+        set.compound_qid(0),
+        Some(42),
+        "and it is stored as the number"
     );
     assert_eq!(
         set.compound_label(0),
@@ -475,4 +485,58 @@ fn a_statement_whose_prefix_disagrees_keeps_its_own_text() {
         Some("Q99999-0D8245CF-C1C0-45AA-8994-6BEBFF6B15EE"),
         "the wrong compound must not be substituted into the identifier"
     );
+}
+
+#[test]
+fn a_stored_qid_renders_back_to_exactly_what_the_cell_held() {
+    // The reason the numeric store is safe: a QID is a number with a `Q` on the
+    // front, and the round trip has to be exact or every Wikidata link is a 404.
+    // Covers a bare id, a full URI, a bare-integer projection, and the range of
+    // magnitudes Wikidata actually uses.
+    for cell in [
+        "Q1",
+        "Q42",
+        "Q3613679",
+        "http://www.wikidata.org/entity/Q3613679",
+        "https://www.wikidata.org/entity/Q3613679",
+        "3613679",
+    ] {
+        let row = CompoundEntry {
+            compound_qid: arc(cell),
+            ..entry("unused", "Q2", "Q3")
+        };
+        let set = ColumnarResultSet::from_entries(std::slice::from_ref(&row));
+        let expected = cell.rsplit('/').next().unwrap_or(cell);
+        let expected = expected.strip_prefix('Q').unwrap_or(expected);
+        let expected = format!("Q{expected}");
+
+        assert_eq!(
+            set.compound_qid_text(0).as_deref(),
+            Some(expected.as_str()),
+            "cell {cell:?} must render back as {expected:?}"
+        );
+    }
+}
+
+#[test]
+fn a_qid_filter_still_matches_the_text_a_reader_types() {
+    // The compound filter's QID arm renders through a stack buffer rather than
+    // holding the text, so this is the test that the buffer is right.
+    let set = ColumnarResultSet::from_entries(&[
+        entry("Q3613679", "Q2", "Q3"),
+        entry("Q42", "Q2", "Q3"),
+        entry("Q999", "Q2", "Q3"),
+    ]);
+
+    for (needle, expected) in [("q3613679", 1), ("Q42", 1), ("3613", 1), ("q9", 1)] {
+        let plan = set.plan_filter(&lotus_model::FilterSpec {
+            compound: needle.to_string(),
+            ..Default::default()
+        });
+        assert_eq!(
+            plan.surviving_count(&set),
+            expected,
+            "needle {needle:?} should match {expected} row"
+        );
+    }
 }
