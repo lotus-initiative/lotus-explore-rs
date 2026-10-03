@@ -2206,8 +2206,8 @@ legend {
     justify-content: center;
   }
   .view-switch button, .lang-switch button {
-    flex: 1 1 0;
-    min-width: 0;
+    flex: 1 0 auto;
+    min-width: max-content;
     padding: 6px 8px;
     font-size: var(--fs-micro);
     line-height: 1.2;

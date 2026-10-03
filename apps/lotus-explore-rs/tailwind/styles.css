@@ -397,8 +397,21 @@ legend {
     }
     .view-switch button,
     .lang-switch button {
-        flex: 1 1 0;
-        min-width: 0;
+        /* `flex: 1 0 auto` rather than `1 1 0`, and `min-width: max-content` rather
+           than `0`.
+           The intent here is for the buttons to share the row evenly on a phone. Both
+           of the old values defeated that in the other direction: `flex-shrink: 1` with
+           `min-width: 0` let a button be squeezed narrower than its own label, and the
+           labels are `white-space: nowrap`, so the text overflowed the rounded end and
+           was clipped by the control's `overflow: hidden`. It was invisible in English
+           and obvious in French, whose "Éditeur de structure" is the longest label in
+           the app -- twenty characters, and the first one to run out of room.
+
+           Growing from a content basis with a content minimum keeps the even
+           distribution when there is space and wraps onto a second row when there is
+           not, which is what the `flex-wrap` on the group is already there to do. */
+        flex: 1 0 auto;
+        min-width: max-content;
         padding: 6px 8px;
         font-size: var(--fs-micro);
         line-height: 1.2;

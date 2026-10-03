@@ -174,6 +174,81 @@ mod tests {
     }
 
     #[test]
+    fn no_narrow_viewport_rule_squeezes_a_nowrap_label() {
+        // The utility classes are not the whole story. `tailwind/styles.css` has a
+        // `max-width: 480px` block that re-declares `flex` and `min-width` on these
+        // buttons, and a media-query rule later in the stylesheet beats a utility class
+        // of the same specificity -- so `min-w-max` on the button was silently
+        // overridden on exactly the viewports where there is least room, and French was
+        // still clipped. Fixing it in only one of the two places is what made this
+        // look fixed and then not be.
+        // Comments are stripped first, because this rule's own explanation quotes the
+        // two declarations it replaced -- and a scanner that read the prose would fail
+        // on the fix.
+        let css = strip_css_comments(include_str!("../../tailwind/styles.css"));
+        let mut in_switch_block = false;
+        for line in css.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("@media") {
+                in_switch_block = false;
+            }
+            if trimmed.contains(".view-switch button") || trimmed.contains(".lang-switch button") {
+                in_switch_block = true;
+            }
+            if in_switch_block {
+                assert!(
+                    !trimmed.contains("min-width: 0"),
+                    "this rule cancels the automatic minimum width of a flex item, so the \
+                     button can be narrower than its nowrap label: {trimmed}"
+                );
+                assert!(
+                    !trimmed.contains("flex: 1 1 0"),
+                    "`flex-shrink: 1` needs a content-based `min-width` beside it or the \
+                     label is what gives: {trimmed}"
+                );
+                if trimmed.contains('}') {
+                    in_switch_block = false;
+                }
+            }
+        }
+    }
+
+    /// The stylesheet with `/* ... */` comments replaced by blanks, preserving lines.
+    fn strip_css_comments(css: &str) -> String {
+        let mut out = String::with_capacity(css.len());
+        let mut rest = css;
+        while let Some(start) = rest.find("/*") {
+            out.push_str(&rest[..start]);
+            match rest[start + 2..].find("*/") {
+                Some(end) => {
+                    // Keep the newlines, so a line number still means what it did.
+                    for ch in rest[start + 2..start + 2 + end].chars() {
+                        out.push(if ch == '\n' { '\n' } else { ' ' });
+                    }
+                    rest = &rest[start + 2 + end + 2..];
+                }
+                None => return out,
+            }
+        }
+        out.push_str(rest);
+        out
+    }
+
+    #[test]
+    fn the_css_comment_stripper_is_not_a_no_op() {
+        // Otherwise the guard above passes because it is scanning nothing.
+        let stripped = strip_css_comments("a\n/* min-width: 0; */\nb\n");
+        assert!(!stripped.contains("min-width"), "{stripped}");
+        assert!(stripped.contains('a'), "real content must survive");
+        assert!(stripped.contains('b'), "real content must survive");
+        assert_eq!(
+            stripped.lines().count(),
+            3,
+            "line numbers must be preserved: {stripped}"
+        );
+    }
+
+    #[test]
     fn the_class_strings_are_the_ones_the_component_actually_renders() {
         // The list above is a copy. A copy drifts, and a guard that checks a stale copy
         // guards nothing -- so it is compared against the source.
