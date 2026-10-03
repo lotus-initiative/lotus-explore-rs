@@ -162,7 +162,10 @@ fn counting_local_rows_cannot_reproduce_the_raw_entry_count() {
     // dedup happened during parsing. The counts query or the capped reader is
     // the only route to the true total.
     let rows = parse_compounds_csv(&fixture("compounds.csv"), 100).expect("valid CSV");
-    let local = DatasetStats::from_deduplicated_entries(&rows);
+    // The same arithmetic, spelled out: a caller holding deduplicated rows cannot
+    // recover the raw count. `DatasetStats::from_deduplicated_entries` said this and
+    // was only used here, so it is written down rather than called.
+    let local = DatasetStats::from_entries(&rows);
     let reported = parse_counts_csv(&fixture("counts.csv")).expect("valid CSV");
 
     assert_eq!(local.n_entries, 3, "the deduplicated count");

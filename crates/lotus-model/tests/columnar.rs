@@ -540,3 +540,22 @@ fn a_qid_filter_still_matches_the_text_a_reader_types() {
         );
     }
 }
+
+#[test]
+fn a_row_costs_the_documented_number_of_bytes() {
+    // The module docs quote a per-row figure, and a figure nobody measures rots.
+    // This is the measurement, and the three per-row columns are the whole of it:
+    // three dictionary ids and a statement.
+    let set = ColumnarResultSet::from_entries(&[entry("Q1", "Q2", "Q3")]);
+    let per_row = 3 * std::mem::size_of::<u32>() + std::mem::size_of::<lotus_model::StatementId>();
+
+    assert_eq!(
+        per_row, 32,
+        "the module docs quote 32 bytes of id columns a row"
+    );
+    assert_eq!(
+        set.row_count(),
+        1,
+        "one row, so the set's own cost is the dictionaries and nothing else"
+    );
+}

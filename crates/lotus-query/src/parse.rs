@@ -13,7 +13,6 @@ use lotus_model::{
     normalize_qid,
 };
 use std::collections::HashSet;
-use std::io::Read;
 use std::sync::Arc;
 
 /// Where each result column sits, resolved from the header row.
@@ -518,20 +517,6 @@ fn normalize_statement(value: &str) -> Option<&str> {
         v.strip_prefix(lotus_model::WIKIDATA_STATEMENT_BASE)
             .unwrap_or(v)
     })
-}
-
-/// Read rows from a stream, for a result too large to hold in memory.
-///
-/// # Errors
-/// Returns [`ParseError`] if the stream cannot be read, or if what it
-/// holds cannot be read as CSV.
-pub fn parse_compounds_stream<R: Read>(
-    mut reader: R,
-    max_rows: usize,
-) -> Result<(Vec<CompoundEntry>, DatasetStats, bool), ParseError> {
-    let mut buf = Vec::new();
-    reader.read_to_end(&mut buf).map_err(ParseError::new)?;
-    parse_compounds_csv_capped(&buf, max_rows)
 }
 
 #[path = "parse/stream.rs"]

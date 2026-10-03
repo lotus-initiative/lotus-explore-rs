@@ -20,41 +20,6 @@ pub struct DatasetStats {
     pub n_entries_unique: usize,
 }
 
-impl DatasetStats {
-    /// Count from rows that have already been deduplicated.
-    ///
-    /// `n_entries` therefore equals `n_entries_unique`, and cannot be the raw
-    /// row count: the dedup happens during parsing, before the rows arrive
-    /// here. Callers that need the raw count use the endpoint's `COUNT` query,
-    /// or a reader that counts before deduplicating.
-    #[must_use]
-    pub fn from_deduplicated_entries(entries: &[CompoundEntry]) -> Self {
-        let mut compounds = HashSet::with_capacity(entries.len());
-        let mut taxa = HashSet::with_capacity(entries.len());
-        let mut references = HashSet::with_capacity(entries.len());
-        let mut triples = HashSet::with_capacity(entries.len());
-
-        for e in entries {
-            compounds.insert(&*e.compound_qid);
-            if !e.taxon_qid.is_empty() {
-                taxa.insert(&*e.taxon_qid);
-            }
-            if !e.reference_qid.is_empty() {
-                references.insert(&*e.reference_qid);
-            }
-            triples.insert((&*e.compound_qid, &*e.taxon_qid, &*e.reference_qid));
-        }
-
-        Self {
-            n_compounds: compounds.len(),
-            n_taxa: taxa.len(),
-            n_references: references.len(),
-            n_entries: entries.len(),
-            n_entries_unique: triples.len(),
-        }
-    }
-}
-
 /// How a structure literal is matched against the endpoint's index.
 ///
 /// Whatever the structure field holds is resolved to a Wikidata compound first --
@@ -184,8 +149,6 @@ impl DatasetStats {
     /// occurrence is not a taxon.
     #[must_use]
     pub fn from_entries(entries: &[CompoundEntry]) -> Self {
-        use std::collections::HashSet;
-
         let mut compounds: HashSet<&str> = HashSet::with_capacity(entries.len());
         let mut taxa: HashSet<&str> = HashSet::with_capacity(entries.len());
         let mut references: HashSet<&str> = HashSet::with_capacity(entries.len());
@@ -220,48 +183,6 @@ impl DatasetStats {
 mod tests {
     use super::*;
     use crate::criteria::SearchCriteria;
-    use std::sync::Arc;
-
-    fn entry(compound: &str, taxon: &str, reference: &str) -> CompoundEntry {
-        CompoundEntry {
-            compound_qid: Arc::from(compound),
-            taxon_qid: Arc::from(taxon),
-            reference_qid: Arc::from(reference),
-            ..CompoundEntry::default()
-        }
-    }
-
-    #[test]
-    fn distinct_ids_are_counted_not_rows() {
-        let rows = vec![
-            entry("Q1", "Q10", "Q100"),
-            entry("Q1", "Q11", "Q100"),
-            entry("Q2", "Q10", "Q101"),
-        ];
-        let s = DatasetStats::from_deduplicated_entries(&rows);
-        assert_eq!(s.n_entries, 3);
-        assert_eq!(s.n_entries_unique, 3);
-        assert_eq!(s.n_compounds, 2);
-        assert_eq!(s.n_taxa, 2);
-        assert_eq!(s.n_references, 2);
-    }
-
-    #[test]
-    fn an_absent_taxon_or_reference_does_not_become_an_id() {
-        // Otherwise every un-referenced compound would share one phantom taxon.
-        let rows = vec![entry("Q1", "", ""), entry("Q2", "", "")];
-        let s = DatasetStats::from_deduplicated_entries(&rows);
-        assert_eq!(s.n_compounds, 2);
-        assert_eq!(s.n_taxa, 0);
-        assert_eq!(s.n_references, 0);
-    }
-
-    #[test]
-    fn already_deduplicated_input_reports_one_count_not_two() {
-        let rows = vec![entry("Q1", "Q10", "Q100")];
-        let s = DatasetStats::from_deduplicated_entries(&rows);
-        assert_eq!(s.n_entries, s.n_entries_unique);
-    }
 
     #[test]
     fn a_default_search_asks_for_that_one_compound() {

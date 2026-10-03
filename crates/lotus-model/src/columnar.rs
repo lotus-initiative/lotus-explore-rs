@@ -13,7 +13,8 @@
 //! re-sorts and re-filters the same set many times over.
 //!
 //! What is stored per row here is three dictionary ids and one statement id --
-//! 28 bytes -- against roughly 200 bytes for the same row as a [`CompoundEntry`].
+//! 32 bytes, measured by `a_row_costs_the_documented_number_of_bytes` -- against
+//! roughly 200 bytes for the same row as a [`CompoundEntry`].
 //!
 //! # The measurements those numbers come from
 //!
@@ -37,9 +38,24 @@
 //!   rows, a SMILES on 15.0%, a mass on 10.3%, a formula on 8.3% -- rather than
 //!   from deduplication.
 //!
-//! At 1.5M rows the whole set is about 112 MB. At the full 3M-edge graph the same
-//! arithmetic lands near 210 MB. That second number is over a 200 MB budget, and
-//! it is the one query where the budget binds: the unfiltered whole-graph search.
+//! # What it actually costs
+//!
+//! Measured, not estimated, by `lotus-query/tests/bench.rs` at
+//! `cargo test -p lotus-query --release -- --ignored --nocapture bench`. This
+//! section quoted estimates for its first two commits and was wrong by more than a
+//! factor of two, so the numbers here are the ones the benchmark prints.
+//!
+//! | rows | resident | per row | as a share of the CSV |
+//! | --- | --- | --- | --- |
+//! | 1,000,000 | 87.9 MB | 92 B | 32% |
+//! | 2,000,000 | 171.4 MB | 90 B | 31% |
+//! | 2,990,730 | 254.2 MB | 89 B | 31% |
+//!
+//! So two million rows fit a 200 MB budget and the whole graph does not: 254 MB is
+//! the one case where it binds, and it is the unfiltered whole-graph search. That
+//! figure is a floor rather than an estimate, because the benchmark's fixture has
+//! two rows per compound where the real graph has 1.2, so its compound dictionary
+//! is smaller than reality's.
 //!
 //! Two properties make the set *exact*, which is the point of the type:
 //!
@@ -51,12 +67,10 @@
 //!   *after* has not happened, so `n_entries` is the endpoint's `COUNT(*)` and
 //!   not a lower bound on it.
 //!
-//! # What it costs
-//!
-//! The set is exact but not free to build. The compound dictionary is close to
-//! one entry per row for a wide search, because the graph holds about 1.2
-//! occurrences per compound, so the saving comes from the id columns rather than
-//! from deduplicating the dictionaries.
+//! The set is exact but not free to build: the compound dictionary is close to one
+//! entry per row for a wide search, because the graph holds about 1.2 occurrences
+//! per compound, so the saving comes from the id columns rather than from
+//! deduplicating the dictionaries.
 
 use super::{CompoundEntry, DatasetStats, WIKIDATA_ENTITY_BASE, WIKIDATA_STATEMENT_BASE};
 use rustc_hash::FxHashMap;
@@ -77,7 +91,7 @@ fn next_generation() -> u64 {
 
 /// The id that means "this row has no value here".
 ///
-/// A real dictionary can never mint it: ids come from [`Dictionary::intern`] in
+/// A real dictionary can never mint it: ids come from [`QidDictionary::intern`] in
 /// row order, and this one is handed out instead. A million-row result set does
 /// not need a million compounds of dictionary to be safe to index.
 pub const NO_VALUE: u32 = u32::MAX;

@@ -39,7 +39,8 @@ pub type ChunkFuture<'a> =
 /// This is what makes a result set larger than memory possible: the payload is
 /// never assembled, so peak cost is the finished set plus one chunk. Reading a
 /// response with [`HttpResponse::text`] instead costs the whole payload at once,
-/// which for the widest search measured is 470 MB of CSV against a 200 MB budget.
+/// which for the widest search measured is 2,990,730 edges at the 314 B/row a real export measures is about 940 MB of CSV against a 200 MB
+/// budget.
 pub trait BodyChunks {
     /// The next chunk, or `None` at end of body.
     fn next_chunk(&mut self) -> ChunkFuture<'_>;

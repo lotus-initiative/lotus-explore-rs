@@ -74,8 +74,9 @@ pub trait LotusRepository: Clone + 'static {
     /// This is the interactive path. It differs from [`Self::sparql_body`] in the
     /// one way that matters: the body is never assembled. A result set that does
     /// not fit in memory cannot be fetched by a method that holds it in memory
-    /// first, and the widest search measures about 470 MB of decompressed CSV
-    /// against a 200 MB budget.
+    /// first, and the widest search measures 2,990,730 edges at the 314 B/row a
+    /// real export averages -- about 940 MB of decompressed CSV -- against a
+    /// 200 MB budget.
     ///
     /// `query` must be the *unlimited* query. A `LIMIT` here would put the old
     /// truncation back, server-side, where nothing downstream could undo it.

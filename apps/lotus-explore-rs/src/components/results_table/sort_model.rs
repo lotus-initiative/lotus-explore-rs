@@ -201,9 +201,9 @@ fn reversed_indices(indices: &[u32]) -> Arc<[u32]> {
 /// Compare two rows of `set` on one column.
 ///
 /// Every field is read straight out of the set. Comparing
-/// [`CompoundEntry`] values would work and would be wrong: building one costs
-/// thirteen `Arc<str>`s, and a sort of three million rows would allocate thirty
-/// nine million of them to answer a question about one column.
+/// [`lotus_model::CompoundEntry`] values would work and would be wrong: building one
+/// costs thirteen `Arc<str>`s, and a sort of three million rows would allocate
+/// thirty-nine million of them to answer a question about one column.
 fn compare_rows(set: &ColumnarResultSet, a: usize, b: usize, column: SortColumn) -> Ordering {
     match column {
         SortColumn::Name => set.compound_label(a).cmp(&set.compound_label(b)),

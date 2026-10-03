@@ -42,7 +42,8 @@ fn endpoint_for(url: &str) -> Endpoint {
 ///
 /// This is what the browser uses for a whole result set. The alternative --
 /// [`execute_sparql_body`] -- assembles the payload first, and the widest search
-/// measures about 470 MB of decompressed CSV, which is more than the module has.
+/// measures 2,990,730 edges at the 314 B/row a real export averages -- about
+/// 940 MB of decompressed CSV -- which is far more than the module has.
 ///
 /// # Errors
 /// Propagates any transport or status failure. There is no empty-body check,

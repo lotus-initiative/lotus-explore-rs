@@ -288,14 +288,16 @@ pub async fn search<H: Http>(
 ///   and then counted separately, which is why its filters could only ever see
 ///   500 rows: the truncation was server-side, so nothing downstream could undo
 ///   it. Here the whole set arrives and the table can filter all of it.
-/// - **No `COUNT` query.** [`ColumnarResultSet`] deduplicates nothing and holds
-///   every row, so its statistics *are* the endpoint's counts. The second query
-///   is not needed, and with it goes the `counts_query` construction whose
-///   deletion of two named blocks could silently make a filter count nothing.
+/// - **No `COUNT` query.** [`lotus_model::ColumnarResultSet`] holds every row and
+///   deduplicates nothing, so its statistics *are* the endpoint's counts. The
+///   second query is not needed, and with it goes the `counts_query`
+///   construction whose deletion of two named blocks could silently make a filter
+///   count nothing.
 /// - **The body is never assembled.** The response is read through
-///   [`BodyChunks`] and folded into the set a chunk at a time, so peak memory is
-///   the set plus one chunk rather than the set plus the payload. For the widest
-///   search measured, that is the difference between 470 MB of CSV and none.
+///   [`crate::BodyChunks`] and folded into the set a chunk at a time, so peak
+///   memory is the set plus one chunk rather than the set plus the payload. For
+///   the widest search -- 2,990,730 edges at the 314 B/row a real export averages
+///   -- that is the difference between about 940 MB of CSV and none.
 ///
 /// # Errors
 /// Returns [`SearchError::Invalid`] if the criteria cannot be turned into a

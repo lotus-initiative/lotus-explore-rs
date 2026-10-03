@@ -9,10 +9,11 @@
 //! so eight wide searches could sit in memory at eight times the peak response,
 //! which is the opposite of what a memory budget needs.
 //!
-//! What it holds now is the finished [`ColumnarResultSet`], which is the thing the
-//! table is built from anyway. Sharing one costs an `Arc` and nothing more, so a
-//! cached entry is not a second copy of the result -- and the bound is one,
-//! because a cache exists to make the back button free, not to hold a history.
+//! What it holds now is the finished [`lotus_model::ColumnarResultSet`], which is the
+//! thing the table is built from anyway. Sharing one costs an `Arc` and nothing
+//! more, so a cached entry is not a second copy of the result -- and the bound is
+//! one, because a cache exists to make the back button free rather than to hold a
+//! history.
 //!
 //! Caching the *set* rather than the body is what makes this possible at all: the
 //! body is no longer in memory, so there is nothing else to cache.

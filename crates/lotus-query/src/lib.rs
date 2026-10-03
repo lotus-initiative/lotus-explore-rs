@@ -13,8 +13,8 @@ pub use export::{ExportFormat, sanitize_download_filename};
 pub use parse::CompoundMatch;
 pub use parse::{
     CsvColumnarReader, CsvSplitter, ReferenceMatch, parse_compound_lookup_csv,
-    parse_compounds_columnar, parse_compounds_csv, parse_compounds_csv_capped,
-    parse_compounds_stream, parse_counts_csv, parse_reference_lookup_csv, parse_taxon_csv,
+    parse_compounds_columnar, parse_compounds_csv, parse_compounds_csv_capped, parse_counts_csv,
+    parse_reference_lookup_csv, parse_taxon_csv,
 };
 pub use query::{
     FallbackService, Nomenclature, all_compounds_query, compound_alias_query,
