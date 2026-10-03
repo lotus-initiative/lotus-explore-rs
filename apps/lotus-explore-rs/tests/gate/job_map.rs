@@ -211,11 +211,15 @@ mod tests {
             })
             .chain(LOCAL_ONLY.iter().map(|(name, _)| (*name).to_string()))
             .collect();
-        // `ci-fast`, `ci-slow` and `setup` are aggregate tasks: they are the
-        // pre-push and one-off entry points, not leaf checks, and they are *run*
-        // rather than *depended on*. They belong in the gate's own vocabulary, not
-        // in the set of leaves it depends on.
-        for aggregate in ["ci-fast", "ci-slow", "setup"] {
+        // `gate`, `ci-fast`, `ci-slow` and `setup` are aggregate tasks: they are the
+        // inner loop, the pre-push and one-off entry points, not leaf checks, and they
+        // are *run* rather than *depended on*. They belong in the gate's own
+        // vocabulary, not in the set of leaves it depends on.
+        //
+        // `gate` being here is what lets it be a strict subset of `ci-fast` without
+        // the test below reading the omission as an unexplained difference: it is an
+        // entry point, and the leaves it names are still accounted for.
+        for aggregate in ["gate", "ci-fast", "ci-slow", "setup"] {
             expected.remove(aggregate);
         }
 

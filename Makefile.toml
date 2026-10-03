@@ -76,6 +76,48 @@ dependencies = [
 
 # What the pre-push hook runs. `ci` minus the supply-chain checks, which are the
 # slowest part of the gate and the ones that only change when a dependency does.
+# The inner loop. `ci-fast` minus the four tasks whose cost is paid whether or not
+# this change touched them.
+#
+# What that leaves out, and why each is not worth a minute of every iteration:
+#
+# - `doc` and the doctests in `test`: rustdoc over the whole workspace, plus every
+#   doctest compiled as its own binary. Slow, and only a change to a doc comment can
+#   break them.
+# - `lint-native-builds` and `lint-wasm`: two more full builds of the app crate, for
+#   the `server` and `desktop` feature sets and for wasm32. A change to the app can
+#   break them, but only if it is the kind of change that would also break `check`.
+# - `check-wasm-build`, inside `check-wasm`: a full release `dx build` and wasm-bindgen
+#   run. This is the single largest item in the gate -- it measured 137 of `gate`'s
+#   189 seconds -- because it links and bundles for release rather than checking
+#   anything.
+#
+# Everything that catches a mistake in the code you just wrote is here, and with a warm
+# `target/` it is seconds. Run `ci-fast` before you push; CI runs `ci`.
+[tasks."gate"]
+cwd = "${REPO_ROOT}"
+description = "The fast inner loop: everything that can break the change you just made."
+dependencies = [
+  "fmt-check",
+  "tombi-check",
+  "tombi-lint",
+  "typos",
+  "license-headers",
+  "check",
+  "lint",
+  "test-nextest",
+  # The three wasm *type-checks*, named individually rather than via the `check-wasm`
+  # aggregate. That aggregate also runs `check-wasm-build`, which is a full release
+  # `dx build` plus wasm-bindgen and measured 137 of the 189 seconds this gate took.
+  # It earns its place -- it is the only thing that sees a bad wasm strip, which
+  # `cargo check` cannot -- but it is a link-and-bundle verification, and its failure
+  # mode is a broken release artefact rather than a mistake in the code just written.
+  # It stays in `ci-fast` and `ci`; it is not an inner-loop check.
+  "check-wasm-pure",
+  "check-wasm-search",
+  "check-wasm-app",
+]
+
 [tasks."ci-fast"]
 cwd = "${REPO_ROOT}"
 description = "What a pre-push hook runs: the gate minus the supply-chain checks."
