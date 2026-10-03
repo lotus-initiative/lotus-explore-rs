@@ -10,15 +10,15 @@ keywords = ["bioinformatics", "lotus", "sparql", "wikidata"]
 categories = ["science", "web-programming"]
 publish = false
 
-[dev-dependencies]
-# The benchmark reads `dictionary_costs`, which is behind the `diagnostics`
-# feature so that it is not in the default build. Only the tests need it.
-lotus-model = { workspace = true, features = ["diagnostics"] }
-
 [dependencies]
 csv = "1.4"
 lotus-model = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+# The benchmark reads `dictionary_costs`, which is behind the `diagnostics`
+# feature so that it is not in the default build. Only the tests need it.
+lotus-model = { workspace = true, features = ["diagnostics"] }
 
 [lints]
 workspace = true

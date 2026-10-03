@@ -78,7 +78,12 @@ pub async fn resolve<R: LotusRepository>(
         });
     }
 
-    let taxon_timer = perf::start_timer("LOTUS:taxon_resolution");
+    // A guard rather than a handle: this function returns from three places below
+    // this line, and only the first of them used to close the timer. The other two --
+    // including the SPARQL path that most searches take -- left
+    // `LOTUS:taxon_resolution` open for the rest of the session, so every later
+    // resolution found the label taken and reported a duration measured from here.
+    let taxon_timer = perf::Timer::start("LOTUS:taxon_resolution");
     let sanitized = sanitize_taxon_input(taxon);
 
     let standardized_warning = (sanitized != taxon).then(|| LookupNotice::Standardized {
@@ -89,7 +94,7 @@ pub async fn resolve<R: LotusRepository>(
     // Fast path: cache hit. The notice comes back out of the cache rather than
     // being recomputed, so a repeat search reports what the first one reported.
     if let Some(cached) = taxon_cache::lookup(&sanitized) {
-        let taxon_elapsed = perf::end_timer("LOTUS:taxon_resolution", taxon_timer);
+        let taxon_elapsed = taxon_timer.end();
         telemetry::taxon_cache_hit(taxon_elapsed, &sanitized, &cached.qid);
         let warnings = notices(standardized_warning, &cached);
         return Ok(TaxonResolution {
@@ -149,14 +154,9 @@ async fn lookup<R: LotusRepository>(
     metrics: &mut SearchMetrics,
     query: String,
 ) -> Result<Vec<TaxonMatch>, DomainError> {
-    // Its own label, not `LOTUS:taxon_resolution`.
-    //
-    // `console.time` labels are global and one label holds one timer, so opening
-    // the same label from a function the caller has already opened it in is
-    // ignored by the browser: it logs "Timer already exists", the inner `timeEnd`
-    // closes the *outer* timer, and both durations come out wrong. `resolve` opens
-    // `LOTUS:taxon_resolution` around the whole resolution and calls this twice on
-    // the common-name fallback, so the nesting is real rather than theoretical.
+    // Its own label, not `LOTUS:taxon_resolution`: a `console.time` label holds one
+    // timer document-wide, so a nested site sharing the outer label would be refused
+    // by the browser and its `timeEnd` would close the outer one instead.
     let timer = perf::start_timer("LOTUS:taxon_lookup");
     let csv = repo.sparql_body(&query).await.map_err(|error| {
         let _ = perf::end_timer("LOTUS:taxon_lookup", timer);

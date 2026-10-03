@@ -10,6 +10,18 @@ keywords = ["bioinformatics", "lotus", "natural-products"]
 categories = ["science"]
 publish = false
 
+[dependencies]
+# `FxHashMap` for the dictionaries. The standard `HashMap` hashes with SipHash,
+# which is a deliberate choice against hash-flooding and costs roughly an order of
+# magnitude on short keys -- which is every key here. Three million rows make six
+# million dictionary lookups on `Q123`-length strings, and the build was paying
+# for collision resistance against an attacker who cannot reach this code.
+#
+# The domain is a SPARQL endpoint's answer, not user input, so the trade is free.
+rustc-hash = "2.1"
+serde = { workspace = true }
+thiserror = { workspace = true }
+
 [features]
 # Storage reporting, read by `lotus-query/tests/bench.rs` and nothing else.
 #
@@ -22,18 +34,6 @@ publish = false
 # compiled would add ~78 mutants that cannot be killed by construction, which is most
 # of a package's survivors and enough to bury a real one.
 diagnostics = []
-
-[dependencies]
-# `FxHashMap` for the dictionaries. The standard `HashMap` hashes with SipHash,
-# which is a deliberate choice against hash-flooding and costs roughly an order of
-# magnitude on short keys -- which is every key here. Three million rows make six
-# million dictionary lookups on `Q123`-length strings, and the build was paying
-# for collision resistance against an attacker who cannot reach this code.
-#
-# The domain is a SPARQL endpoint's answer, not user input, so the trade is free.
-rustc-hash = "2.1"
-serde = { workspace = true }
-thiserror = { workspace = true }
 
 [lints]
 workspace = true
