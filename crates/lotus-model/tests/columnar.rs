@@ -774,3 +774,283 @@ fn the_compound_dictionary_is_walkable_for_a_hash_that_must_not_change() {
         "an empty set yields nothing to hash"
     );
 }
+
+/// One criterion is enough to make a filter active.
+///
+/// `FilterSpec::is_active` and `FilterPlan::is_active` are both a chain of `||`,
+/// and both decide something the reader sees: an inactive filter is skipped
+/// entirely, so a criterion that fails to switch one on is a filter that silently
+/// does nothing while the table still looks filtered somewhere else.
+///
+/// The suite set criteria in pairs or in isolation on the compound column, so
+/// every operand to the right of the first was dead as far as any test could tell.
+/// Mutation testing found all thirteen: `||` weakened to `&&` at each position,
+/// plus `is_active -> false`.
+#[test]
+fn any_single_criterion_makes_a_filter_active() {
+    use lotus_model::{FilterSpec, Range};
+
+    let set = ColumnarResultSet::from_entries(&[entry("Q1", "Q2", "Q3")]);
+    let range = Range {
+        min: Some(0.0),
+        max: Some(1000.0),
+    };
+    // One criterion at a time, each named so a failure says which one was dropped.
+    let each: [(&str, FilterSpec); 6] = [
+        (
+            "compound",
+            FilterSpec {
+                compound: "Q1".to_string(),
+                ..Default::default()
+            },
+        ),
+        (
+            "formula",
+            FilterSpec {
+                formula: "C2H6O".to_string(),
+                ..Default::default()
+            },
+        ),
+        (
+            "taxon",
+            FilterSpec {
+                taxon: "Q2".to_string(),
+                ..Default::default()
+            },
+        ),
+        (
+            "reference",
+            FilterSpec {
+                reference: "Q3".to_string(),
+                ..Default::default()
+            },
+        ),
+        (
+            "mass",
+            FilterSpec {
+                mass: Some(range),
+                ..Default::default()
+            },
+        ),
+        (
+            "year",
+            FilterSpec {
+                year: Some(range),
+                ..Default::default()
+            },
+        ),
+    ];
+
+    for (name, spec) in each {
+        assert!(
+            spec.is_active(),
+            "a spec with only `{name}` set constrains that column"
+        );
+        let plan = set.plan_filter(&spec);
+        assert!(
+            plan.is_active(),
+            "a plan compiled from a spec with only `{name}` set must be active"
+        );
+    }
+
+    // And the other half: nothing set means nothing applied. Without this, a
+    // mutant that made `is_active` always true would survive.
+    let empty = FilterSpec::default();
+    assert!(!empty.is_active(), "an empty spec constrains nothing");
+    assert!(
+        !set.plan_filter(&empty).is_active(),
+        "a plan over an empty spec must not be active"
+    );
+}
+
+/// A nameless compound is shown as its identifier, not as nothing.
+///
+/// `compound_label_or_qid` has three outcomes and the suite only ever saw one of
+/// them: a compound whose name is present. A mutant that returned `None`, or an
+/// empty string, or any constant, passed every existing test -- which means the
+/// table could show a nameless compound as a blank cell and nothing would notice.
+#[test]
+fn a_nameless_compound_falls_back_to_its_identifier() {
+    let mut nameless = entry("Q16521", "Q2", "Q3");
+    nameless.name = arc("");
+    let set = ColumnarResultSet::from_entries(&[nameless, entry("Q42", "Q2", "Q3")]);
+
+    assert_eq!(
+        set.compound_label_or_qid(1),
+        Some(std::borrow::Cow::Borrowed("Q42-name")),
+        "a compound with a name is shown by its name"
+    );
+    assert_eq!(
+        set.compound_label_or_qid(0),
+        Some(std::borrow::Cow::Owned("Q16521".to_string())),
+        "a compound with no name is shown as its QID, never as nothing"
+    );
+}
+
+/// A reference DOI is returned when the reference has one, and nothing when it
+/// does not.
+///
+/// The accessor is one `Option` lookup, and a mutant replacing it with a constant
+/// survived because every fixture's reference carried a DOI. Both directions are
+/// pinned here.
+#[test]
+fn a_reference_doi_is_read_when_present_and_absent_otherwise() {
+    let mut without = entry("Q1", "Q2", "Q5");
+    without.ref_doi = None;
+    let set = ColumnarResultSet::from_entries(&[entry("Q1", "Q2", "Q3"), without]);
+
+    assert_eq!(
+        set.reference_doi(0),
+        Some("10.1/ABC"),
+        "the reference's own DOI is returned"
+    );
+    assert_eq!(
+        set.reference_doi(1),
+        None,
+        "a reference with no DOI has none to return"
+    );
+}
+
+/// A range includes its own bounds and excludes what is outside them.
+///
+/// Both edges are checked against the operator rather than against a value in the
+/// middle, because `value >= min` and `value >= max` differ only at the boundary.
+/// Mutation testing turned `>=` into `<` and `&&` into `||` here and both
+/// survived, which says the suite never sat on an edge.
+#[test]
+fn a_range_includes_its_bounds_and_refuses_what_is_outside() {
+    use lotus_model::Range;
+
+    let bounded = Range {
+        min: Some(10.0),
+        max: Some(20.0),
+    };
+    assert!(bounded.accepts(Some(10.0)), "the lower bound is inside");
+    assert!(bounded.accepts(Some(20.0)), "the upper bound is inside");
+    assert!(bounded.accepts(Some(15.0)), "the middle is inside");
+    assert!(
+        !bounded.accepts(Some(9.999)),
+        "below the lower bound is outside"
+    );
+    assert!(
+        !bounded.accepts(Some(20.001)),
+        "above the upper bound is outside"
+    );
+
+    // An absent value never matches: "an unknown mass is not a small mass".
+    assert!(
+        !bounded.accepts(None),
+        "a missing value is not inside a range, whatever the range"
+    );
+
+    // An unbounded side is no constraint at all.
+    let open_below = Range {
+        min: None,
+        max: Some(20.0),
+    };
+    assert!(
+        open_below.accepts(Some(-1e9)),
+        "with no lower bound, a very small value is inside"
+    );
+    assert!(
+        !open_below.accepts(Some(20.001)),
+        "the upper bound still applies"
+    );
+
+    let open_above = Range {
+        min: Some(10.0),
+        max: None,
+    };
+    assert!(
+        open_above.accepts(Some(1e9)),
+        "with no upper bound, a very large value is inside"
+    );
+    assert!(
+        !open_above.accepts(Some(9.999)),
+        "the lower bound still applies"
+    );
+
+    assert!(
+        Range {
+            min: None,
+            max: None
+        }
+        .accepts(Some(15.0)),
+        "a range with neither bound accepts whatever it is given"
+    );
+}
+
+/// A taxon needle matches a taxon's *name* as well as its QID.
+///
+/// The taxon branch of `plan_filter` accepts a row when either the interned QID
+/// matches or the taxon name contains the needle. The suite only ever searched by
+/// QID, so the name arm was untested and mutation testing turned its `||` into
+/// `&&` without anything failing: a search for a genus name would have silently
+/// matched nothing at all.
+#[test]
+fn a_taxon_needle_matches_the_taxon_name_as_well_as_its_qid() {
+    let mut named = entry("Q1", "Q9999", "Q3");
+    named.taxon_name = arc("Gentiana lutea");
+    let set = ColumnarResultSet::from_entries(&[named]);
+
+    let by_name = set.plan_filter(&lotus_model::FilterSpec {
+        taxon: "gentiana".to_string(),
+        ..Default::default()
+    });
+    assert_eq!(
+        by_name.surviving_count(&set),
+        1,
+        "a taxon name must match a needle that is not the QID"
+    );
+
+    // Case folding: the needle is folded once, and the row is matched folded.
+    let mixed_case = set.plan_filter(&lotus_model::FilterSpec {
+        taxon: "LUTEA".to_string(),
+        ..Default::default()
+    });
+    assert_eq!(
+        mixed_case.surviving_count(&set),
+        1,
+        "a taxon name must match regardless of the needle's case"
+    );
+
+    // And the QID arm still works, or the two cannot be told apart.
+    let by_qid = set.plan_filter(&lotus_model::FilterSpec {
+        taxon: "Q9999".to_string(),
+        ..Default::default()
+    });
+    assert_eq!(by_qid.surviving_count(&set), 1, "the QID arm still matches");
+
+    // A needle matching neither arm matches nothing.
+    let neither = set.plan_filter(&lotus_model::FilterSpec {
+        taxon: "Rosmarinus".to_string(),
+        ..Default::default()
+    });
+    assert_eq!(neither.surviving_count(&set), 0, "no arm, no row");
+}
+
+/// `surviving_rows` returns every surviving row, not the first one.
+///
+/// The suite asserted `surviving_rows == vec![0]` in the one case where row 0 was
+/// the only survivor, so a mutant returning a one-element vector survived. This
+/// is the accessor a selection or an export walks, so a truncated list is a
+/// silently missing row rather than a visible error.
+#[test]
+fn surviving_rows_lists_every_surviving_row() {
+    let set = ColumnarResultSet::from_entries(&[
+        entry("Q1", "Q2", "Q3"),
+        entry("Q4", "Q2", "Q5"),
+        entry("Q6", "Q7", "Q8"),
+    ]);
+
+    let plan = set.plan_filter(&lotus_model::FilterSpec {
+        taxon: "Q2".to_string(),
+        ..Default::default()
+    });
+
+    assert_eq!(
+        plan.surviving_rows(&set),
+        vec![0, 1],
+        "both rows in Q2 survive, and the list is not truncated to one"
+    );
+}

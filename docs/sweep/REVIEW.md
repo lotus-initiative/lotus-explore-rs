@@ -131,3 +131,46 @@ reports a `truncated` flag. The interactive path fetches every row and reports
 `display_capped_rows: false` always. Defensible (one is a library default, the
 other an interactive session), but it means "not limited" is true of one front end
 and false of the other. Worth deciding whether the CLI should say so explicitly.
+
+## 12. The table's compound filter may match rows it should not — needs investigation
+
+Found while writing tests for the mutation survivors, and **not fixed**, because
+the cause is not established and a wrong fix to a filter is worse than a written-up
+bug.
+
+Reproduction, on a two-row set with distinct InChIKeys so nothing is shared
+between the rows (`crates/lotus-model/tests/columnar.rs` builds it):
+
+```text
+row 0: compound Q1, taxon Q2      row 1: compound Q4, taxon Q5
+
+compound filter "Q1"  ->  surviving_rows [0, 1]     <-- row 1 does not match
+compound filter "Q4"  ->  surviving_rows [1]
+compound filter "Q2"  ->  surviving_rows []          (correct: a taxon is not a compound)
+taxon     filter "Q2"  ->  surviving_rows [0]        (correct)
+```
+
+So `"Q4"` behaves and `"Q1"` does not. The asymmetry points at the bit index
+rather than the string match: in `ColumnarResultSet::plan_filter` the compound
+branch builds `Bitmask::with_len(self.compounds.len())` and then calls
+`mask.insert(id)` where `id` comes from `slot_to_id(slot)`, while `FilterPlan::accepts`
+tests `mask.contains(id)` against `set.compound_ids[row]`. `Bitmask` is
+`Vec<u64>` sized `len.div_ceil(64)` words, and `insert` silently ignores an id
+whose word is out of range while `contains` answers `false` for the same id — so
+the two only agree while every id fits inside `len.div_ceil(64) * 64`.
+
+`len` is the number of distinct compounds and the ids are **numeric Wikidata
+QIDs**, which are sparse and large. For a result set of a few hundred thousand
+compounds the mask has a few thousand words, while a QID like `Q12345678` needs
+word 192708. If that reading of the code is right, a compound filter for a
+high-numbered QID would match **nothing** rather than one row, and the
+"ignoring out-of-range ids" in `insert`'s doc comment is doing load-bearing work
+nobody intended.
+
+**Why this was not fixed here:** it needs a decision about whether ids or slots
+are the right index, which touches the whole filter path, and the honest test is
+a recorded fixture with high QIDs — which this repo does not have. Recommended:
+a human writes the failing case first with a realistic QID (`Q16521`-scale and
+`Q7000000`-scale), confirms which of the two index spaces is intended, then fixes
+it. The `is_empty`/`len` mutants in this same file (below) are very likely the
+same confusion showing up in a different place.
