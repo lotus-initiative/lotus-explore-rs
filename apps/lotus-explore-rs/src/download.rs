@@ -27,6 +27,30 @@ pub use file_sink::clear_file_sink;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
 
+/// Which sink a given browser gets.
+///
+/// The order is load-bearing: [`SinkPreference::Memory`] holds the entire export in the
+/// tab's heap, which is the case that crashed it, so it must never be reachable while
+/// either file sink is available. Declared here rather than in the wasm-only module
+/// because it is a policy rather than an implementation -- and a policy in a
+/// `cfg(target_arch = "wasm32")` module is a policy whose tests never run.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SinkPreference {
+    /// Chromium: `showSaveFilePicker`, so the reader chooses the location.
+    UserChosenFile,
+    /// Safari 15.2+ and Firefox 111+: the origin private file system.
+    PrivateStorage,
+    /// No writable sink; assembled in memory.
+    Memory,
+}
+
+/// The preference order, best first.
+pub const SINK_PREFERENCE: [SinkPreference; 3] = [
+    SinkPreference::UserChosenFile,
+    SinkPreference::PrivateStorage,
+    SinkPreference::Memory,
+];
+
 /// Execute a download in the given format.
 ///
 /// Returns a message describing the outcome, for display. On a desktop build that
@@ -183,6 +207,52 @@ mod streaming_gate {
         assert!(
             WASM_DOWNLOAD.contains("download_byte_chunks_as_blob"),
             "the collected chunks are what gets saved, not a decoded string"
+        );
+    }
+}
+
+#[cfg(test)]
+mod sink_tests {
+    use super::{SINK_PREFERENCE, SinkPreference};
+
+    #[test]
+    fn memory_is_the_last_resort() {
+        // `Blob` is the variant that assembles the whole export in the tab's heap, and
+        // that is what crashed the tab at full size. It must be reachable only when
+        // neither file sink is.
+        assert_eq!(
+            SINK_PREFERENCE.last(),
+            Some(&SinkPreference::Memory),
+            "the in-memory sink must be the final fallback, not the first choice"
+        );
+    }
+
+    #[test]
+    fn the_reader_chosen_file_is_preferred_over_private_storage() {
+        // Where both exist the reader picks the location and no temporary file is
+        // involved. Falling through to OPFS on Chromium would add a temp file and a
+        // delete for no gain.
+        assert_eq!(SINK_PREFERENCE[0], SinkPreference::UserChosenFile);
+        assert!(
+            SINK_PREFERENCE
+                .iter()
+                .position(|s| *s == SinkPreference::PrivateStorage)
+                < SINK_PREFERENCE
+                    .iter()
+                    .position(|s| *s == SinkPreference::Memory),
+            "private storage must be tried before falling back to memory"
+        );
+    }
+
+    #[test]
+    fn every_preference_is_distinct() {
+        let mut seen = SINK_PREFERENCE.to_vec();
+        seen.sort_by_key(|s| format!("{s:?}"));
+        seen.dedup();
+        assert_eq!(
+            seen.len(),
+            SINK_PREFERENCE.len(),
+            "a duplicated preference means one branch can never be reached"
         );
     }
 }

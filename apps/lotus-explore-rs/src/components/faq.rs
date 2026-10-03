@@ -19,7 +19,7 @@
 use crate::app::routes::RouteQuery;
 use crate::components::layout::escape_faq_script_element;
 use crate::hooks::use_locale;
-use crate::i18n::faq::FaqEntry;
+use crate::i18n::faq::{FaqEntry, faq_chrome};
 use crate::i18n::{ENTRIES, FaqCategory, faq_json_ld};
 use dioxus::prelude::*;
 
@@ -27,6 +27,7 @@ use dioxus::prelude::*;
 #[component]
 pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
     let locale = use_locale();
+    let chrome = faq_chrome(locale);
     // Deep-linked already: the router puts `/faq#download-formats` in `hash`, and the
     // browser scrolls to it once the element with that id exists. Doing it here as
     // well would race the render.
@@ -63,12 +64,12 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
                 h2 {
                     id: "faq-heading",
                     class: "text-title font-semibold text-text",
-                    "Frequently asked questions"
+                    "{chrome.heading}"
                 }
 
                 p {
                     class: "mt-3 text-body leading-relaxed text-muted",
-                    "What this searches, what the identifiers mean, and what comes out of an export."
+                    "{chrome.intro}"
                 }
 
                 // A table of contents, because the point of grouping is that a reader
@@ -76,8 +77,8 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
                 // whether downloads are covered.
                 nav {
                     class: "mt-6",
-                    aria_label: "Sections",
-                    h3 { class: "text-subtitle font-semibold text-text", "On this page" }
+                    aria_label: "{chrome.contents_label}",
+                    h3 { class: "text-subtitle font-semibold text-text", "{chrome.contents_heading}" }
                     ul { class: "mt-2 flex flex-wrap gap-x-4 gap-y-1 list-disc pl-5",
                         for (category, _) in questions_by_category.iter() {
                             li {
@@ -146,6 +147,51 @@ mod tests {
     use super::category_anchor;
     use crate::i18n::{ENTRIES, FaqCategory};
     use std::collections::BTreeSet;
+
+    /// The page's furniture must not be written inline.
+    ///
+    /// An explicit list rather than a scanner for string literals. A scanner was tried
+    /// and produced false positives on class lists, on `//` comments, and on the
+    /// assertion messages of the tests themselves -- three false positives in one run,
+    /// which is how a guard like that ends up ignored. Naming the strings that actually
+    /// regressed is narrower, has no false positives, and says what it is for.
+    #[test]
+    fn no_user_visible_text_is_hardcoded_in_the_page() {
+        let source = include_str!("faq.rs");
+        // Only the rendered component; the test module below is allowed to hold strings.
+        let rendered = source.split("#[cfg(test)]").next().unwrap_or_default();
+
+        for literal in [
+            "Frequently asked questions",
+            "On this page",
+            "What this searches",
+        ] {
+            assert!(
+                !rendered.contains(literal),
+                "`{literal}` is written inline; the page's own words belong in \
+                 `faq_chrome`, which is translated. Every answer on this page was \
+                 translated while the heading above them was not."
+            );
+        }
+
+        // And positively: the lookup has to be used, or the assertions above would pass
+        // against a page that simply deleted its heading.
+        assert!(
+            rendered.contains("faq_chrome(locale)"),
+            "the page must resolve its furniture through `faq_chrome`"
+        );
+        for field in [
+            "chrome.heading",
+            "chrome.intro",
+            "chrome.contents_label",
+            "chrome.contents_heading",
+        ] {
+            assert!(
+                rendered.contains(field),
+                "`{field}` is not rendered, so the lookup is not actually used"
+            );
+        }
+    }
 
     #[test]
     fn category_anchors_are_unique() {

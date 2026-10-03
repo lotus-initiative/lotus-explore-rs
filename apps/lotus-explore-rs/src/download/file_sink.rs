@@ -205,6 +205,198 @@ fn describe_js_error(what: &str, error: &JsValue) -> String {
     }
 }
 
+// ── OPFS: the path for browsers without the File System Access API ──────────
+//
+// `showSaveFilePicker` is Chromium-only. Safari and Firefox have neither it nor any
+// equivalent that can be called from a gesture, so on those the export still has to
+// assemble itself in memory -- and that is the case that kills the tab.
+//
+// The Origin Private File System is the way out, and it needs nothing installed: Safari
+// 15.2 and Firefox 111 both have `navigator.storage.getDirectory()`, and a file written
+// through it lives on disk. `getFile()` then hands back a `File` -- which is a `Blob`
+// that the browser streams from storage rather than one it holds in memory -- so the
+// download the reader receives is read off disk.
+//
+// The trade is real and worth stating: OPFS is sandboxed storage, so the export has to
+// be handed to an anchor afterwards and the temporary file deleted. The bytes still
+// never sit in the tab's heap, which is the only thing that was failing.
+//
+// Used only when the File System Access API is absent. Where both exist the picker wins,
+// because it lets the reader choose where the file goes and does not need a temp file.
+
+/// Whether this browser can write to the Origin Private File System.
+#[must_use]
+pub fn opfs_available() -> bool {
+    web_sys::window().is_some_and(|window| {
+        js_sys::Reflect::get(&window, &"storage".into())
+            .is_ok_and(|storage| js_sys::Reflect::get(&storage, &"getDirectory".into()).is_ok())
+    })
+}
+
+/// A file in the Origin Private File System, written chunk by chunk.
+pub struct OpfsSink {
+    writable: JsValue,
+    /// The file name inside [`EXPORTS_DIR`], needed to delete it afterwards.
+    name: String,
+}
+
+impl OpfsSink {
+    /// Open a temporary file in the exports directory and keep it writable.
+    pub async fn open(filename: &str) -> Result<Self, String> {
+        let root = opfs_root().await?;
+        let exports = directory_handle(&root, EXPORTS_DIR, true).await?;
+
+        // Named exactly as the download is, so the `File` handed back by `getFile()`
+        // already carries the name the reader was shown. A `.part` suffix here would
+        // have to be stripped later for no benefit.
+        let handle = directory_handle(&exports, filename, true).await?;
+        let create: js_sys::Function = Reflect::get(&handle, &"createWritable".into())
+            .map_err(|_| "the export file is not writable".to_string())?
+            .unchecked_into();
+        let writable = create
+            .call0(&handle)
+            .map_err(|error| describe_js_error("opening the temporary export", &error))?;
+
+        Ok(Self {
+            writable,
+            name: filename.to_string(),
+        })
+    }
+
+    pub async fn write(&self, chunk: &[u8]) -> Result<(), String> {
+        let write: js_sys::Function = Reflect::get(&self.writable, &"write".into())
+            .map_err(|_| "the temporary export is not writable".to_string())?
+            .unchecked_into();
+        let array = js_sys::Uint8Array::from(chunk);
+        let written: js_sys::Promise = write
+            .call1(&self.writable, &array)
+            .map_err(|error| describe_js_error("writing the temporary export", &error))?
+            .unchecked_into();
+        JsFuture::from(written)
+            .await
+            .map_err(|error| describe_js_error("writing the temporary export", &error))?;
+        Ok(())
+    }
+
+    /// Flush and seal the entry.
+    ///
+    /// Takes `&self` rather than `self` because [`OpfsSink::hand_to_browser`] needs the
+    /// name afterwards to read the file back and delete it.
+    pub async fn close(&self) -> Result<(), String> {
+        let close: js_sys::Function = Reflect::get(&self.writable, &"close".into())
+            .map_err(|_| "the temporary export cannot be closed".to_string())?
+            .unchecked_into();
+        let closed: js_sys::Promise = close
+            .call0(&self.writable)
+            .map_err(|error| describe_js_error("closing the temporary export", &error))?
+            .unchecked_into();
+        JsFuture::from(closed)
+            .await
+            .map_err(|error| describe_js_error("closing the temporary export", &error))?;
+        Ok(())
+    }
+
+    /// Hand the finished file to the browser as a download, then remove it.
+    ///
+    /// `getFile()` is the step that matters. It returns a `File` -- which is a `Blob`
+    /// backed by the file on disk -- so the browser streams the download out of storage
+    /// rather than out of the tab's heap. Handing it the accumulated chunks instead
+    /// would put the whole export back in memory, which is the case this exists to
+    /// survive.
+    pub async fn hand_to_browser(&self, filename: &str, mime: &str) -> Result<(), String> {
+        let root = opfs_root().await?;
+        let exports = directory_handle(&root, EXPORTS_DIR, false).await?;
+        let entry = directory_handle(&exports, &self.name, false).await?;
+
+        let get_file: js_sys::Function = Reflect::get(&entry, &"getFile".into())
+            .map_err(|_| "the finished export cannot be read back".to_string())?
+            .unchecked_into();
+        let file: JsValue = get_file
+            .call0(&entry)
+            .map_err(|error| describe_js_error("reading the finished export", &error))?;
+
+        // A `File` is a `Blob`, so the existing object-URL path takes it unchanged. The
+        // MIME type is already on the `File` OPFS recorded, so `mime` is only a fallback
+        // for the case where the entry has none.
+        let _ = mime;
+        let url = web_sys::Url::create_object_url_with_blob(
+            &file.clone().unchecked_into::<web_sys::Blob>(),
+        )
+        .map_err(|error| describe_js_error("preparing the download", &error))?;
+
+        let clicked = crate::upload::download_url(&url, filename);
+
+        // The temporary goes either way: a successful download and a failed one must
+        // not both leave the file behind, and exports are large enough that a few of
+        // them would fill the origin's quota.
+        let _ = remove_entry(&exports, &self.name).await;
+        // The object URL keeps the file alive for the browser's download to read, so it
+        // is not revoked here; the document drops it on unload.
+        if clicked {
+            Ok(())
+        } else {
+            Err("the browser refused to start the download".to_string())
+        }
+    }
+}
+
+/// Subdirectory of the origin private file system that exports are written to.
+const EXPORTS_DIR: &str = "lotus-exports";
+
+/// `navigator.storage.getDirectory()`.
+async fn opfs_root() -> Result<JsValue, String> {
+    let storage = web_sys::window()
+        .and_then(|window| Reflect::get(&window, &"storage".into()).ok())
+        .ok_or_else(|| "this browser exposes no storage".to_string())?;
+    let get_directory: js_sys::Function = Reflect::get(&storage, &"getDirectory".into())
+        .map_err(|_| "this browser cannot write to the origin private file system".to_string())?
+        .unchecked_into();
+    let root: JsValue = get_directory
+        .call0(&storage)
+        .map_err(|error| describe_js_error("opening private storage", &error))?;
+    JsFuture::from(root.unchecked_into::<js_sys::Promise>())
+        .await
+        .map_err(|error| describe_js_error("opening private storage", &error))
+}
+
+/// `getDirectoryHandle(name, { create })` on `parent`.
+async fn directory_handle(parent: &JsValue, name: &str, create: bool) -> Result<JsValue, String> {
+    let get: js_sys::Function = Reflect::get(parent, &"getDirectoryHandle".into())
+        .map_err(|_| "private storage does not support directories".to_string())?
+        .unchecked_into();
+    let options = js_sys::Object::new();
+    Reflect::set(
+        &options,
+        &"create".into(),
+        &wasm_bindgen::JsValue::from_bool(create),
+    )
+    .map_err(|_| "could not describe the private-storage request".to_string())?;
+    let name_value = wasm_bindgen::JsValue::from_str(name);
+    let handle: JsValue = get
+        .call2(parent, &name_value, &options)
+        .map_err(|error| describe_js_error("opening the exports directory", &error))?;
+    JsFuture::from(handle.unchecked_into::<js_sys::Promise>())
+        .await
+        .map_err(|error| describe_js_error("opening the exports directory", &error))
+}
+
+/// `removeEntry(name, { recursive })`, ignoring a missing entry.
+async fn remove_entry(parent: &JsValue, name: &str) -> Result<(), String> {
+    let remove: js_sys::Function = match Reflect::get(parent, &"removeEntry".into()) {
+        Ok(remove) => remove.unchecked_into(),
+        Err(_) => return Ok(()),
+    };
+    let options = js_sys::Object::new();
+    let name_value = wasm_bindgen::JsValue::from_str(name);
+    let removed: JsValue = remove
+        .call2(parent, &name_value, &options)
+        .map_err(|error| describe_js_error("removing the temporary export", &error))?;
+    // `removeEntry` resolves immediately; the promise is not awaited so a failure here
+    // cannot turn a successful download into an error.
+    let _ = JsFuture::from(removed.unchecked_into::<js_sys::Promise>()).await;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used, clippy::panic)]

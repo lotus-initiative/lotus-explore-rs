@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use super::file_sink::{FileSink, take_file_sink};
+use super::SinkPreference;
+use super::file_sink::{FileSink, OpfsSink, opfs_available, take_file_sink};
 use crate::api;
 use crate::download::{export_timer_label, export_trigger_timer_label};
 use crate::perf;
@@ -49,24 +50,7 @@ pub(super) async fn execute_download_from_rows(
     let mut exporter = RowExporter::new(format, set);
     let mut bytes = 0usize;
 
-    // Where the bytes go. A file when the browser offered one, otherwise a Blob.
-    //
-    // The file path is what makes a full-size export possible: each chunk is written
-    // and dropped, so peak memory is one chunk instead of the whole file. The Blob path
-    // has to collect, and a file big enough to exhaust the tab collecting it is exactly
-    // the case this exists to survive -- so it is a fallback, not a peer.
-    let mut sink = match take_file_sink() {
-        Some(picker) => match FileSink::open(picker).await {
-            Ok(sink) => Sink::File(sink),
-            Err(reason) => {
-                // Cancelling the dialog, or a browser that has the API and would not
-                // grant it. Either way the reader gets the Blob rather than nothing.
-                log::warn!("event=download sink=file state=fallback reason={reason}");
-                Sink::Blob(Vec::new())
-            }
-        },
-        None => Sink::Blob(Vec::new()),
-    };
+    let mut sink = open_sink(&safe).await;
 
     // One chunk produced, handed over, and released before the next is asked for.
     // Holding the exporter's buffer and the JavaScript copy at once is two copies of
@@ -116,13 +100,68 @@ pub(super) async fn execute_download_from_rows(
     Ok(())
 }
 
+/// Choose where the bytes will go, best available first.
+///
+/// Three tiers, and the order is the whole design:
+///
+/// 1. **A file the reader picks** (`showSaveFilePicker`). Chromium only. Best outcome:
+///    the reader chooses the location, no temporary is involved.
+/// 2. **The origin private file system.** Safari 15.2+ and Firefox 111+, which have no
+///    `showSaveFilePicker` at all. The export is written to private storage and then
+///    downloaded from there, so the bytes still never enter the tab's heap -- which is
+///    the case that used to kill the tab.
+/// 3. **A `Blob`.** Assembled in memory. This is the path that OOMs on a full-size
+///    export, so it is a last resort for a browser with neither of the others.
+///
+/// Every step down is logged with its reason, because "the download was slow" and "the
+/// browser made us buffer 600 MB" look identical from the outside.
+async fn open_sink(filename: &str) -> Sink {
+    debug_assert_eq!(
+        super::SINK_PREFERENCE[0],
+        SinkPreference::UserChosenFile,
+        "the reader-chosen file must be tried first"
+    );
+
+    if let Some(picker) = take_file_sink() {
+        match FileSink::open(picker).await {
+            Ok(sink) => return Sink::File(sink),
+            Err(reason) => {
+                // Cancelling the dialog, or a browser that has the API and would not
+                // grant it.
+                log::warn!("event=download sink=file state=fallback reason={reason}");
+            }
+        }
+    }
+
+    if opfs_available() {
+        match OpfsSink::open(filename).await {
+            Ok(sink) => {
+                log::info!("event=download sink=opfs state=selected");
+                return Sink::Opfs(sink);
+            }
+            Err(reason) => {
+                log::warn!("event=download sink=opfs state=fallback reason={reason}");
+            }
+        }
+    }
+
+    log::warn!(
+        "event=download sink=blob state=selected detail=\"no writable file sink; a large \
+         export will be assembled in memory and may exhaust the tab\""
+    );
+    Sink::Blob(Vec::new())
+}
+
 /// Where an export's bytes are being sent.
 ///
-/// Two shapes because the browser offers two. A [`Sink::File`] writes each chunk as it
-/// arrives, so the file never exists in memory; a [`Sink::Blob`] collects them, which
-/// is the only option where the File System Access API is unavailable.
+/// [`Sink::Blob`] is the only variant that holds the whole file, and it is last for
+/// that reason rather than because it is the simplest.
 enum Sink {
+    /// Chromium: a file the reader chose.
     File(FileSink),
+    /// Safari and Firefox: private storage, downloaded from there afterwards.
+    Opfs(OpfsSink),
+    /// Last resort: assembled in memory.
     Blob(Vec<js_sys::Uint8Array>),
 }
 
@@ -130,6 +169,7 @@ impl Sink {
     fn name(&self) -> &'static str {
         match self {
             Self::File(_) => "file",
+            Self::Opfs(_) => "opfs",
             Self::Blob(_) => "blob",
         }
     }
@@ -137,6 +177,7 @@ impl Sink {
     async fn write(&mut self, chunk: &[u8]) -> Result<(), String> {
         match self {
             Self::File(file) => file.write(chunk).await,
+            Self::Opfs(file) => file.write(chunk).await,
             Self::Blob(chunks) => {
                 chunks.push(js_sys::Uint8Array::from(chunk));
                 Ok(())
@@ -148,6 +189,13 @@ impl Sink {
     async fn finish(self, filename: &str, mime: &str) -> Result<(), String> {
         match self {
             Self::File(file) => file.close().await,
+            Self::Opfs(file) => {
+                // `close` flushes and seals the entry; `hand_to_browser` then reads it
+                // back. Taking `&self` on both is deliberate: the sink is finished with
+                // writing at this point and the handle is still needed.
+                file.close().await?;
+                file.hand_to_browser(filename, mime).await
+            }
             Self::Blob(chunks) => {
                 crate::upload::download_byte_chunks_as_blob(&chunks, filename, "", mime)
             }

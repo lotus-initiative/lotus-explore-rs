@@ -421,6 +421,56 @@ pub const ENTRIES: &[FaqEntry] = &[
     },
 ];
 
+/// The page's own words: the heading, the standfirst, and the two labels the contents
+/// list needs.
+///
+/// [`ENTRIES`] carries a question and an answer per locale; this is the furniture around
+/// them, which is a different shape -- one string each rather than a row per entry --
+/// and it was hardcoded in the component, so the whole page read as English in the other
+/// three locales while every answer underneath it was translated. That mismatch is worse
+/// than being untranslated throughout.
+pub struct FaqChrome {
+    /// The page heading.
+    pub heading: &'static str,
+    /// One sentence under the heading.
+    pub intro: &'static str,
+    /// `aria-label` on the contents nav.
+    pub contents_label: &'static str,
+    /// The contents list's own heading.
+    pub contents_heading: &'static str,
+}
+
+/// The furniture around the questions, per locale.
+#[must_use]
+pub fn faq_chrome(locale: Locale) -> FaqChrome {
+    match locale {
+        Locale::En => FaqChrome {
+            heading: "Frequently asked questions",
+            intro: "What this searches, what the identifiers mean, and what comes out of an export.",
+            contents_label: "Sections",
+            contents_heading: "On this page",
+        },
+        Locale::Fr => FaqChrome {
+            heading: "Questions fréquentes",
+            intro: "Ce que recherche cet outil, ce que signifient les identifiants, et ce que contient un export.",
+            contents_label: "Sections",
+            contents_heading: "Sur cette page",
+        },
+        Locale::De => FaqChrome {
+            heading: "Häufige Fragen",
+            intro: "Wonach hier gesucht wird, was die Kennungen bedeuten und was ein Export enthält.",
+            contents_label: "Abschnitte",
+            contents_heading: "Auf dieser Seite",
+        },
+        Locale::It => FaqChrome {
+            heading: "Domande frequenti",
+            intro: "Che cosa cerca questo strumento, cosa significano gli identificatori e cosa contiene un'esportazione.",
+            contents_label: "Sezioni",
+            contents_heading: "In questa pagina",
+        },
+    }
+}
+
 /// The FAQ's label in the view switcher.
 ///
 /// Here rather than beside `view_label_explorer` and friends, which are curation
@@ -622,6 +672,46 @@ mod tests {
                 "{} is {} characters: that belongs in docs/, not an answer",
                 entry.id,
                 entry.answer(Locale::En).chars().count()
+            );
+        }
+    }
+
+    #[test]
+    fn the_page_furniture_is_translated_rather_than_left_in_english() {
+        // The page's own words went in hardcoded while every answer under them was
+        // translated, so a French or German reader got an English heading above twelve
+        // translated answers. That is worse than an untranslated page: it looks like the
+        // translation is broken rather than absent.
+        for locale in LOCALES {
+            let chrome = super::faq_chrome(locale);
+            for (field, value) in [
+                ("heading", chrome.heading),
+                ("intro", chrome.intro),
+                ("contents_label", chrome.contents_label),
+                ("contents_heading", chrome.contents_heading),
+            ] {
+                assert!(
+                    !value.trim().is_empty(),
+                    "the FAQ {field} is empty in {locale:?}"
+                );
+            }
+        }
+        // Every locale differs from English somewhere. "FAQ" is deliberately identical
+        // everywhere -- it is an initialism -- so it is not part of this.
+        let english = super::faq_chrome(Locale::En);
+        for locale in [Locale::Fr, Locale::De, Locale::It] {
+            let chrome = super::faq_chrome(locale);
+            assert_ne!(
+                chrome.heading, english.heading,
+                "untranslated heading in {locale:?}"
+            );
+            assert_ne!(
+                chrome.intro, english.intro,
+                "untranslated intro in {locale:?}"
+            );
+            assert_ne!(
+                chrome.contents_heading, english.contents_heading,
+                "untranslated contents heading in {locale:?}"
             );
         }
     }
