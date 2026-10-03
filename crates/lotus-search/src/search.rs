@@ -20,8 +20,9 @@ use lotus_query::{
     CsvColumnarReader, parse_compounds_csv_capped, parse_counts_csv, parse_taxon_csv,
 };
 use lotus_query::{
-    Nomenclature, all_compounds_query, compounds_by_taxon_query_with, counts_query, limit_query,
-    structure_search_query_with, taxon_lookup_query, with_filters,
+    Nomenclature, all_compounds_including_untaxonomised_query, all_compounds_query,
+    compounds_by_taxon_query_with, counts_query, limit_query, structure_search_query_with,
+    taxon_lookup_query, with_filters,
 };
 
 /// How a structure search should be run, once the structure is known.
@@ -94,9 +95,17 @@ pub fn build_base_query(criteria: &SearchCriteria, qid: Option<&str>) -> String 
                 &nomenclature,
             )
         }
+        // Three cases, and the first two used to be one.
+        //
+        // Nothing given is not the same request as `*`. Nothing given means "no
+        // constraint I can apply", which includes the compounds with no organism
+        // recorded. `*` is the explicit request for everything with an occurrence, and
+        // it keeps requiring one. Sending both to the same query meant an empty box
+        // answered the narrower question without saying so.
         None => match qid {
             Some(qid) if qid != "*" => compounds_by_taxon_query_with(qid, &nomenclature),
-            _ => all_compounds_query(),
+            Some(_) => all_compounds_query(),
+            None => all_compounds_including_untaxonomised_query(),
         },
     }
 }

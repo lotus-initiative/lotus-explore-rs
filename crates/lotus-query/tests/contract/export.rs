@@ -559,3 +559,75 @@ fn a_molfile_is_triple_quoted_even_on_one_line() {
         format!("'''{ONE_LINE_MOLFILE}'''")
     );
 }
+
+/// The nothing-provided query and the `*` query are different requests.
+///
+/// They were the same query, which meant submitting the form with an empty taxon box
+/// answered "what has been reported and where" -- a narrower question than the one that
+/// was asked -- without saying so.
+#[test]
+fn nothing_provided_includes_compounds_with_no_occurrence_and_star_does_not() {
+    let with_occurrence = lotus_query::all_compounds_query();
+    let everything = lotus_query::all_compounds_including_untaxonomised_query();
+
+    // `*` is the explicit request for what has been reported, so it requires the
+    // statement that says so.
+    assert!(
+        with_occurrence.contains("?c p:P703 ?statement"),
+        "* means every compound with an occurrence, so P703 is required"
+    );
+    // Structural, not a count: this base query legitimately contains other
+    // `OPTIONAL`s for the reference metadata, so "does it mention OPTIONAL" says
+    // nothing. What distinguishes the two is whether the *occurrence* sits inside one.
+    assert!(
+        !occurrence_is_optional(&with_occurrence),
+        "* must not make the occurrence optional, or it is the other query"
+    );
+
+    // Nothing provided is not "report only what has an occurrence".
+    assert!(
+        occurrence_is_optional(&everything),
+        "an empty taxon box must not silently exclude compounds with no organism"
+    );
+    assert!(
+        everything.contains("?c p:P703 ?statement"),
+        "the occurrence is optional, not removed: the columns still have to hold one"
+    );
+    assert_ne!(
+        everything, with_occurrence,
+        "the two queries converged, so one of the two cases cannot be answered"
+    );
+}
+
+/// The occurrence is optional as one block, not triple by triple.
+#[test]
+fn the_optional_occurrence_keeps_its_hops_together() {
+    let everything = lotus_query::all_compounds_including_untaxonomised_query();
+    // Optional per triple would emit a row with a taxon but no reference, which the
+    // result store cannot represent as an occurrence. Both hops have to be inside the
+    // same block as the statement that starts it.
+    assert!(everything.contains("?statement ps:P703 ?t"));
+    assert!(everything.contains("?ref pr:P248 ?r"));
+
+    let block = occurrence_block(&everything);
+    assert!(
+        block.contains("ps:P703") && block.contains("pr:P248"),
+        "the taxon and the reference must be inside the same OPTIONAL as the statement"
+    );
+}
+
+/// The `OPTIONAL` block the occurrence statement sits in, or `""` if it is not in one.
+fn occurrence_block(query: &str) -> &str {
+    let occurrence = query.find("?c p:P703 ?statement").unwrap_or(0);
+    let open = query[..occurrence].rfind("OPTIONAL {").unwrap_or(0);
+    // An OPTIONAL that opens after the occurrence cannot contain it.
+    if open == 0 && !query[..occurrence].contains("OPTIONAL {") {
+        return "";
+    }
+    query[open..].split('}').next().unwrap_or("")
+}
+
+/// Whether the occurrence statement is inside an `OPTIONAL`.
+fn occurrence_is_optional(query: &str) -> bool {
+    !occurrence_block(query).is_empty()
+}

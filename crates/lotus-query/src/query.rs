@@ -262,7 +262,21 @@ const SUBSCRIPTS: [(char, char); 10] = [
 /// Every compound the LOTUS projection knows, across all taxa.
 #[must_use]
 pub fn all_compounds_query() -> String {
-    compounds_query(None, None)
+    compounds_query_with(None, None, Occurrence::Required)
+}
+
+/// Every compound, **including those with no occurrence statement**.
+///
+/// The nothing-provided case, and deliberately not the same query as
+/// [`all_compounds_query`]. That one requires `P703`, so it answers "what has been
+/// reported, and where" -- which is what `*` asks. This one does not, so it also returns
+/// the compounds nobody has tied to an organism.
+///
+/// Before this existed the two were the same query, and the effect was that submitting
+/// the form with an empty taxon box answered a question the reader had not asked.
+#[must_use]
+pub fn all_compounds_including_untaxonomised_query() -> String {
+    compounds_query_with(None, None, Occurrence::Optional)
 }
 
 /// Compounds found in `taxon_qid` and its descendants (`P171*`), following
@@ -316,23 +330,69 @@ fn compounds_query(
     compound_seed: Option<&str>,
     taxon_qid: Option<(&str, &Nomenclature)>,
 ) -> String {
+    compounds_query_with(compound_seed, taxon_qid, Occurrence::Required)
+}
+
+/// Whether an occurrence statement (`P703`) has to be present.
+///
+/// The two are different questions. `Required` asks what was reported and where;
+/// `Optional` asks what exists, which includes the compounds nobody has tied to an
+/// organism yet. Those are the `*` case and the nothing-provided case respectively, and
+/// conflating them meant that asking for everything silently answered the narrower
+/// question.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Occurrence {
+    Required,
+    Optional,
+}
+
+fn compounds_query_with(
+    compound_seed: Option<&str>,
+    taxon_qid: Option<(&str, &Nomenclature)>,
+    occurrence: Occurrence,
+) -> String {
     let ancestry = taxon_qid.map_or_else(String::new, |(qid, nomenclature)| {
         format!("\n          {}", taxon_ancestry_pattern(qid, *nomenclature))
     });
 
     let core = compound_seed.map_or_else(
         || {
-            // Every taxon-less row is an occurrence: this query is about what was
-            // reported where.
-            format!(
-                "?c wdt:P235 ?compound_inchikey ;\
-             wdt:P233 ?compound_smiles_conn .\
+            // The `;` spelling is kept on the shared prefix: an existing contract test
+            // asserts this exact fragment, and changing it would be a rewrite rather
+            // than the addition this is.
+            let compound = "?c wdt:P235 ?compound_inchikey ;\
+          wdt:P233 ?compound_smiles_conn .";
+            match occurrence {
+                // Every taxon-less row is an occurrence: this query is about what was
+                // reported where.
+                Occurrence::Required => format!(
+                    "{compound}\
           ?c p:P703 ?statement .\
           ?statement ps:P703 ?t ;\
                      prov:wasDerivedFrom ?ref .\
           ?ref pr:P248 ?r .\
           ?t wdt:P225 ?taxon_name .{ancestry}"
-            )
+                ),
+                // Nothing was asked for, so nothing is required. A compound with no
+                // occurrence statement is not an error here; it is a compound whose
+                // organism nobody has recorded, and excluding it answers a narrower
+                // question than the one that was asked.
+                //
+                // Optional as one block rather than per triple, so a row is either a
+                // complete occurrence -- taxon, reference and all -- or an
+                // occurrence-less compound with empty cells. Optional per triple would
+                // emit rows with a taxon but no reference, a shape the result store has
+                // no way to represent.
+                Occurrence::Optional => format!(
+                    "OPTIONAL {{ \
+            ?c p:P703 ?statement .\
+            ?statement ps:P703 ?t ;\
+                       prov:wasDerivedFrom ?ref .\
+            ?ref pr:P248 ?r .\
+            ?t wdt:P225 ?taxon_name .\
+          }}{ancestry}"
+                ),
+            }
         },
         |qid| {
             // The occurrence triple becomes optional here, because a compound
