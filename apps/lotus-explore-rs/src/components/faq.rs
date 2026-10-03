@@ -20,6 +20,7 @@ use crate::app::routes::RouteQuery;
 use crate::components::layout::escape_faq_script_element;
 use crate::hooks::use_locale;
 use crate::i18n::faq::{FaqEntry, faq_chrome};
+use crate::i18n::faq_guide::{FaqBlock, SECTIONS, untranslated_notice};
 use crate::i18n::{ENTRIES, FaqCategory, faq_json_ld};
 use dioxus::prelude::*;
 
@@ -28,6 +29,8 @@ use dioxus::prelude::*;
 pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
     let locale = use_locale();
     let chrome = faq_chrome(locale);
+    let reference_heading = chrome.reference_heading;
+    let reference_intro = chrome.reference_intro;
     // Deep-linked already: the router puts `/faq#download-formats` in `hash`, and the
     // browser scrolls to it once the element with that id exists. Doing it here as
     // well would race the render.
@@ -120,6 +123,66 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
                         }
                     }
                 }
+
+                // ── The long-form reference ────────────────────────────────────
+                //
+                // Separate from the questions above because it answers a different
+                // question. The Q&A says what the tool does; this says why, which is what a
+                // reader needs when a result surprises them — and a reader who cannot
+                // resolve a surprise stops trusting the number.
+                h3 {
+                    id: "faq-how-it-works",
+                    class: "mt-10 scroll-mt-24 text-subtitle font-semibold text-text",
+                    "{reference_heading}"
+                }
+                p {
+                    class: "mt-2 text-body leading-relaxed text-muted",
+                    "{reference_intro}"
+                }
+
+                // Said where the reader will see it, rather than left to be inferred from
+                // a page that is otherwise translated.
+                if let Some((label, detail)) = untranslated_notice(locale) {
+                    div {
+                        class: "mt-4 rounded-lg border border-border bg-surface p-4",
+                        role: "note",
+                        p { class: "text-body font-semibold text-text", "{label}" }
+                        p {
+                            class: "mt-1 text-body leading-relaxed text-muted",
+                            "{detail}"
+                        }
+                    }
+                }
+
+                div { class: "mt-4 flex flex-col gap-3",
+                    for section in SECTIONS {
+                        // Collapsed by default: there are five sections and the questions
+                        // above are what most readers arrived for. A disclosure control is
+                        // keyboard-operable and its content stays in the accessibility tree
+                        // and in the document, so nothing is hidden from a screen reader or
+                        // a crawler by being collapsed.
+                        details {
+                            class: "rounded-xl border border-shell-border bg-shell-raised",
+                            id: "{section.id}",
+                            open: false,
+                            summary {
+                                class: "cursor-pointer list-none px-4 py-3 text-body font-semibold text-text marker:content-none",
+                                div { "{section.title(locale)}" }
+                                // The summary stands alone when collapsed, so it has to
+                                // read as a summary rather than as a teaser.
+                                p {
+                                    class: "mt-1 text-sm font-normal leading-relaxed text-muted",
+                                    "{section.summary(locale)}"
+                                }
+                            }
+                            div { class: "border-t border-shell-border px-4 py-4",
+                                for (index, block) in section.blocks.iter().enumerate() {
+                                    {render_block(*block, index == 0)}
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -137,6 +200,92 @@ fn category_anchor(category: FaqCategory) -> &'static str {
         FaqCategory::Searching => "faq-searching",
         FaqCategory::Results => "faq-results",
         FaqCategory::Export => "faq-export",
+    }
+}
+
+/// Render one block of a reference section.
+///
+/// `first` is true for the block immediately after the disclosure is opened, so the
+/// first paragraph does not carry a top margin against the border above it.
+fn render_block(block: FaqBlock, first: bool) -> Element {
+    let top = if first { "mt-0" } else { "mt-4" };
+    match block {
+        FaqBlock::Heading(text) => rsx! {
+            // `h4` under the `h3` section heading, and the questions above use `h4`
+            // too, so the outline is flat rather than skipping a level.
+            h4 { class: "mt-5 text-body font-semibold text-text", "{text}" }
+        },
+        FaqBlock::Text(text) => rsx! {
+            p { class: "{top} text-body leading-relaxed text-muted", "{text}" }
+        },
+        FaqBlock::List(items) => rsx! {
+            ul { class: "{top} flex list-disc flex-col gap-1 pl-5 text-body leading-relaxed text-muted",
+                for item in items.iter() {
+                    li { "{*item}" }
+                }
+            }
+        },
+        FaqBlock::Table(rows) => {
+            // A real table with a real header row rather than a grid of divs: it is the
+            // only structure a screen reader announces row and column headers for, and
+            // these tables are mostly measured numbers that people compare across
+            // columns.
+            //
+            // The caption repeats the header row for anyone arriving by cell rather than
+            // by reading headers, and is what a screen reader announces on arrival.
+            let caption = rows
+                .first()
+                .and_then(|row| row.first())
+                .copied()
+                .unwrap_or_default();
+            rsx! {
+                div { class: "mt-4 overflow-x-auto",
+                    table { class: "w-full min-w-[36rem] border-collapse text-left text-sm",
+                        caption { class: "sr-only", "{caption}" }
+                        thead {
+                            tr {
+                                for cell in rows.first().copied().unwrap_or_default().iter() {
+                                    th {
+                                        class: "border-b border-shell-border px-2 py-1.5 font-semibold text-text",
+                                        scope: "col",
+                                        "{*cell}"
+                                    }
+                                }
+                            }
+                        }
+                        tbody {
+                            for row in rows.iter().skip(1) {
+                                tr {
+                                    for (index, cell) in row.iter().enumerate() {
+                                        if index == 0 {
+                                            th {
+                                                class: "border-b border-shell-border px-2 py-1.5 text-left font-medium text-text",
+                                                scope: "row",
+                                                "{*cell}"
+                                            }
+                                        } else {
+                                            td {
+                                                class: "border-b border-shell-border px-2 py-1.5 align-top text-muted",
+                                                "{*cell}"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        FaqBlock::Note(text) => rsx! {
+            // `role="note"` rather than a warning role: these are caveats and known
+            // limits, not errors, and a screen reader announcing "alert" for a
+            // documentation caveat would be worse than saying nothing.
+            div { class: "{top} rounded-lg border border-border bg-surface px-3 py-2",
+                role: "note",
+                p { class: "text-sm leading-relaxed text-muted", "{text}" }
+            }
+        },
     }
 }
 

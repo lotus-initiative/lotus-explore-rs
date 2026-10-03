@@ -436,6 +436,10 @@ pub struct FaqChrome {
     pub intro: &'static str,
     /// `aria-label` on the contents nav.
     pub contents_label: &'static str,
+    /// Heading above the long-form reference.
+    pub reference_heading: &'static str,
+    /// One line introducing it.
+    pub reference_intro: &'static str,
     /// The contents list's own heading.
     pub contents_heading: &'static str,
 }
@@ -449,24 +453,32 @@ pub fn faq_chrome(locale: Locale) -> FaqChrome {
             intro: "What this searches, what the identifiers mean, and what comes out of an export.",
             contents_label: "Sections",
             contents_heading: "On this page",
+            reference_heading: "How it works",
+            reference_intro: "Why the tool answers the way it does. Open a section for the detail.",
         },
         Locale::Fr => FaqChrome {
             heading: "Questions fréquentes",
             intro: "Ce que recherche cet outil, ce que signifient les identifiants, et ce que contient un export.",
             contents_label: "Sections",
             contents_heading: "Sur cette page",
+            reference_heading: "Comment ça marche",
+            reference_intro: "Pourquoi l’outil répond comme il le fait. Ouvrez une section pour le détail.",
         },
         Locale::De => FaqChrome {
             heading: "Häufige Fragen",
             intro: "Wonach hier gesucht wird, was die Kennungen bedeuten und was ein Export enthält.",
             contents_label: "Abschnitte",
             contents_heading: "Auf dieser Seite",
+            reference_heading: "So funktioniert es",
+            reference_intro: "Warum das Werkzeug so antwortet, wie es antwortet. Abschnitt für Details öffnen.",
         },
         Locale::It => FaqChrome {
             heading: "Domande frequenti",
             intro: "Che cosa cerca questo strumento, cosa significano gli identificatori e cosa contiene un'esportazione.",
             contents_label: "Sezioni",
             contents_heading: "In questa pagina",
+            reference_heading: "Come funziona",
+            reference_intro: "Perché lo strumento risponde come fa. Apri una sezione per il dettaglio.",
         },
     }
 }

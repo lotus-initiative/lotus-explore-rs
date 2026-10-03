@@ -311,6 +311,9 @@
   .mx-auto {
     margin-inline: auto;
   }
+  .mt-0 {
+    margin-top: calc(var(--spacing) * 0);
+  }
   .mt-0\.5 {
     margin-top: calc(var(--spacing) * 0.5);
   }
@@ -323,6 +326,9 @@
   .mt-3 {
     margin-top: var(--spacing-3);
   }
+  .mt-4 {
+    margin-top: var(--spacing-4);
+  }
   .mt-5 {
     margin-top: var(--spacing-5);
   }
@@ -331,6 +337,9 @@
   }
   .mt-8 {
     margin-top: var(--spacing-8);
+  }
+  .mt-10 {
+    margin-top: calc(var(--spacing) * 10);
   }
   .mb-2 {
     margin-bottom: var(--spacing-2);
@@ -590,6 +599,9 @@
   }
   .min-w-\[14ch\] {
     min-width: 14ch;
+  }
+  .min-w-\[36rem\] {
+    min-width: 36rem;
   }
   .min-w-\[50px\] {
     min-width: 50px;
@@ -1048,6 +1060,9 @@
   .py-3 {
     padding-block: var(--spacing-3);
   }
+  .py-4 {
+    padding-block: var(--spacing-4);
+  }
   .py-6 {
     padding-block: var(--spacing-6);
   }
@@ -1351,6 +1366,24 @@
   .group-open\:rotate-90 {
     &:is(:where(.group):is([open], :popover-open, :open) *) {
       rotate: 90deg;
+    }
+  }
+  .marker\:content-none {
+    & *::marker {
+      --tw-content: none;
+      content: none;
+    }
+    &::marker {
+      --tw-content: none;
+      content: none;
+    }
+    & *::-webkit-details-marker {
+      --tw-content: none;
+      content: none;
+    }
+    &::-webkit-details-marker {
+      --tw-content: none;
+      content: none;
     }
   }
   .file\:mr-3 {
