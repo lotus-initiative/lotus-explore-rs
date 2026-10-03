@@ -533,9 +533,11 @@ pub const SECTIONS: &[GuideSection] = &[
                 ],
             ]),
             FaqBlock::Note(
-                "On the older-browser path a full-size export can still exhaust the tab. If you \
-                 are on an older browser and a large export fails, that is why — the file is \
-                 being built in memory because there is nowhere else to put it.",
+                "On the older-browser path an export over 400,000 rows is refused outright, \
+                 with a message saying which browsers do not have the limit. It is refused \
+                 rather than attempted because there is no way to assemble a file that large \
+                 in memory without taking the tab with it, and an error is a better outcome \
+                 than a reload.",
             ),
         ],
     },
