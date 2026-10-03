@@ -45,7 +45,6 @@ optional = true
 bytes = "1.12"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-futures = { workspace = true }
 js-sys = { workspace = true }
 # `stream` is what turns the browser's `ReadableStream` into a `Stream` of
 # `Bytes`. Without it there is no way to read a response body a chunk at a time
@@ -57,9 +56,20 @@ wasm-bindgen-futures = { workspace = true }
 # `reqwest` is the only place this workspace knows about HTTP. With the feature
 # off the crate still builds, and the search is testable against a two-method
 # trait instead -- which is how `tests/search_pipeline.rs` runs with no network.
+[target.'cfg(target_arch = "wasm32")'.dependencies.futures]
+# Declared in its own table so it can be optional per-target: `dep:futures` in the
+# feature above turns it on, and the browser build never names it directly.
+workspace = true
+optional = true
+
 [features]
 default = ["reqwest"]
-reqwest = ["dep:reqwest"]
+# `futures` is optional because the only wasm code that uses it is the streaming
+# response reader, and that lives in `reqwest_client` behind this feature. Declared
+# unconditionally it was an unused dependency in a `--no-default-features` build,
+# which `./mk check-wasm-search` runs -- the "pure half" that has to compile with no
+# HTTP stack at all is the whole point of that task.
+reqwest = ["dep:futures", "dep:reqwest"]
 # A scripted transport, for the crates above that need to test a query without
 # a network. Off by default: a test double is not part of a consumer's API.
 testing = []

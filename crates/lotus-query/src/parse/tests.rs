@@ -329,7 +329,7 @@ fn an_empty_reference_lookup_is_an_answer_rather_than_a_parse_error() {
 
 #[test]
 fn a_reference_row_with_no_usable_uri_is_dropped() {
-    // An empty or unparseable cell is not a reference, and offering it as one
+    // An empty or unparsable cell is not a reference, and offering it as one
     // would put an empty QID into the `VALUES` that constrains the search.
     let csv = b"ref\n\nnot-a-uri\nhttp://www.wikidata.org/entity/Q23118\n";
     let matches = parse_reference_lookup_csv(csv).expect("reads");

@@ -73,7 +73,6 @@ skip = [
   { name = "block-buffer" },
   { name = "const-serialize" },
   { name = "const-serialize-macro" },
-  { name = "core-foundation" },
   { name = "cpufeatures" },
   { name = "crypto-common" },
   { name = "digest" },
@@ -88,6 +87,11 @@ skip = [
   { name = "syn" },
   { name = "thiserror" },
   { name = "thiserror-impl" },
+  # `dioxus-web` 0.7.10 pins 0.4 while the rest of the graph resolves 0.5. Neither
+  # version is chosen here; the duplicate arrives with Dioxus. `wasm-streams` is only
+  # ever reached on wasm32, which no native build compiles, so the duplication costs
+  # nothing outside the browser bundle.
+  { name = "wasm-streams" },
   { name = "windows-sys" },
   { name = "winnow" },
   # Added with the `desktop` feature, which pulls the WebKit and image stacks
@@ -117,8 +121,6 @@ skip = [
   { name = "toml_edit" },
   { name = "wasi" },
   { name = "windows-link" },
-  { name = "windows-result" },
-  { name = "windows-strings" },
   { name = "windows-targets" },
   { name = "windows_aarch64_gnullvm" },
   { name = "windows_aarch64_msvc" },
