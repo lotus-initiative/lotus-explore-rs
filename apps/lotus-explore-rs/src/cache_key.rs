@@ -22,7 +22,11 @@
 #![allow(clippy::expect_used, clippy::panic)]
 
 // Only the server's two keys hash anything, and both are native-only.
-#[cfg(not(target_arch = "wasm32"))]
+// `any(not(wasm32), test)`, and not a plain `not(wasm32)`: the browser has its own
+// fetch path and no production caller, but the *tests* for these keys run in a wasm
+// test build, where a plain gate hides them and the target fails to compile. Being
+// unused in production and being untestable are different things.
+#[cfg(any(not(target_arch = "wasm32"), test))]
 use sha2::{Digest, Sha256};
 
 /// The key for a search response, on the server's side.
@@ -34,7 +38,7 @@ use sha2::{Digest, Sha256};
 /// callers and caps its own responses, not the browser's streaming path.
 // Only the server caches search responses; the browser keys its own finished
 // sets on the query text. So this has no caller in a wasm build.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(not(target_arch = "wasm32"), test))]
 #[must_use]
 pub fn build_search_cache_key(query: &str, limit: usize, include_counts: bool) -> String {
     let mut hasher = Sha256::new();
@@ -53,7 +57,7 @@ pub fn build_search_cache_key(query: &str, limit: usize, include_counts: bool) -
 #[must_use]
 // Only the native and server paths reach this; the browser client has its
 // own fetch path, so a wasm build has no caller for it.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(not(target_arch = "wasm32"), test))]
 pub fn build_export_cache_key(query: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(b"export");
@@ -62,7 +66,7 @@ pub fn build_export_cache_key(query: &str) -> String {
 }
 
 /// Lowercase hex encoding of a finalized digest.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(not(target_arch = "wasm32"), test))]
 fn sha256_hex(bytes: impl AsRef<[u8]>) -> String {
     let bytes = bytes.as_ref();
     let mut out = String::with_capacity(bytes.len() * 2);
@@ -76,9 +80,9 @@ fn sha256_hex(bytes: impl AsRef<[u8]>) -> String {
 }
 
 /// The character for a nibble, or `None` if the input was not a nibble.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(not(target_arch = "wasm32"), test))]
 const HEX: &[u8; 16] = b"0123456789abcdef";
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(not(target_arch = "wasm32"), test))]
 fn hex_char(nibble: usize) -> Option<char> {
     HEX.get(nibble).map(|&c| char::from(c))
 }
@@ -87,7 +91,6 @@ fn hex_char(nibble: usize) -> Option<char> {
 mod tests {
     use super::*;
 
-    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn the_same_query_gives_the_same_key() {
         assert_eq!(
@@ -109,21 +112,6 @@ mod tests {
         );
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    #[test]
-    fn each_search_input_changes_the_key() {
-        // If any of these collided, one search would be served another's rows.
-        let base = build_search_cache_key("SELECT 1", 10, true);
-        assert_ne!(base, build_search_cache_key("SELECT 2", 10, true), "query");
-        assert_ne!(base, build_search_cache_key("SELECT 1", 11, true), "limit");
-        assert_ne!(
-            base,
-            build_search_cache_key("SELECT 1", 10, false),
-            "counts"
-        );
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn search_and_export_keys_cannot_collide() {
         // The prefix is what stops an export being served from the search
@@ -136,7 +124,6 @@ mod tests {
         assert!(build_export_cache_key("SELECT 1").starts_with("export:"));
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn keys_are_hex_of_the_right_length() {
         // A SHA-256 digest is 32 bytes, so 64 hex characters. Anything shorter

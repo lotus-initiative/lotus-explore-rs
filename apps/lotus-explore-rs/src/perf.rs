@@ -404,7 +404,11 @@ mod tests {
     ///
     /// `Some` on wasm, where this is the real `OPEN_TIMERS` entry. `None` on native,
     /// which has no global label namespace to ask about.
+    // `Option` is load-bearing across targets and redundant within either one: wasm
+    // answers from the real registry and native has no registry to ask. The lint reads
+    // only the wasm arm, where the `Option` really is always `Some`.
     #[cfg(target_arch = "wasm32")]
+    #[allow(clippy::unnecessary_wraps)]
     fn label_is_open(label: &str) -> Option<bool> {
         Some(!release_timer(label))
     }

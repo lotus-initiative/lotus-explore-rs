@@ -26,7 +26,7 @@ impl SearchMetrics {
     // Only the native path reports a parse time: it spools the body to a file
     // and then reads it back, while the browser folds chunks as they arrive and
     // has no separate parse phase to time.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(any(not(target_arch = "wasm32"), test))]
     pub fn add_parse(&mut self, elapsed: std::time::Duration) {
         self.parse_ms = elapsed.as_secs_f64().mul_add(1000.0, self.parse_ms);
     }
