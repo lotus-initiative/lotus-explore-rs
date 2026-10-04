@@ -1,6 +1,6 @@
-# The three front ends
+# The four front ends
 
-LOTUS ships one core and three ways to reach it. They are not three
+LOTUS ships one core and four ways to reach it. They are not four
 implementations of the search: `lotus-model`, `lotus-query`, `lotus-search`,
 `lotus-curation` and `lotus-jsonld` hold all of the logic, and each front end is
 a thin shell over them. This document is about what differs between them, and
@@ -11,9 +11,12 @@ why.
   | Web       | `apps/lotus-explore-rs` (`dioxus/web`)     | `dx build --platform web`               | QLever / WDQS over HTTPS |
   | Desktop   | `apps/lotus-explore-rs` (`dioxus/desktop`) | `dx serve --desktop --features desktop` | QLever / WDQS over HTTPS |
   | CLI       | `crates/lotus-cli`                         | `cargo build`                           | QLever / WDQS over HTTPS |
+  | HTTP API  | `apps/lotus-explore-rs` (`server` feature) | `cargo run --features server`           | QLever / WDQS over HTTPS |
 
-All three hit the same public endpoints, so a query that works in one works in
-all three. The endpoints are overridable with `LOTUS_QLEVER_ENDPOINT`,
+All four hit the same public endpoints, so a query that works in one works in
+all four. The API is the fourth, not a variation on the web client: it exists so
+that bulk callers can cap a response and get an export URL, which is why it is
+the one front end that sets a row limit of its own. The endpoints are overridable with `LOTUS_QLEVER_ENDPOINT`,
 `LOTUS_WDQS_ENDPOINT` and `LOTUS_WDQS_SCHOLARLY_ENDPOINT`.
 
 ## Shared rules
@@ -130,6 +133,22 @@ in a pipeline.
 
 Search and curation behaviour belongs in the shared crates, not in the front
 ends. If a change makes the web app show a different result, the fix belongs in
-`lotus-query` or `lotus-search` and all three front ends get it. The front ends
+`lotus-query` or `lotus-search` and all four front ends get it. The front ends
 differ in transport, in how they reach a file, and in what they do with the
 answer --- not in what the answer is.
+
+**This has already been got wrong once, so the reason is worth stating.** The API
+server carried its own copy of the query dispatch in `server/query_logic.rs`,
+along with three more helpers copied from `lotus-search`: the structure
+normaliser, the taxon-name standardiser and the `is_qid` test. It then drifted.
+The library resolves the `*` wildcard to no QID, because a wildcard names no
+Wikidata entity; the server resolved it to `Some("*")` and so had to treat "no
+QID" as a wildcard --- which is also what an *empty* taxon box produces. The
+result was that the API answered "what has been reported, and where" for a blank
+box while the browser answered "what exists".
+
+Each side's own tests passed throughout, because a duplicated dispatch has two
+sets of tests and neither can see the other. All four copies now call the shared
+crate, and `server/tests.rs` asserts that the API and the library build the same
+query for the same request. **If you find yourself writing a query builder, a
+taxon parser or a QID test inside a front end, that is the bug.**
