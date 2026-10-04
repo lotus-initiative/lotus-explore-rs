@@ -108,7 +108,7 @@ larger than any plausible win. Recorded so nobody spends a night proving it.
 - **No library crate's tests run standalone** (§16). `./mk test` builds the whole
   workspace, so feature unification quietly supplies what each crate needs.
 - **The 71 diagnostics mutants** are out of scope *by the repo's own design*, which
-  I initially mis-escalated to a decision. The repo had already answered it.
+  I escalated it to a decision at first, wrongly. The repo had already answered it.
 
 ## Not measured — claimed nowhere
 

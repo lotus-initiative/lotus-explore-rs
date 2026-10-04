@@ -66,6 +66,30 @@ cwd = "${REPO_ROOT}"
 description = "Run the doctests, including the library crates' README examples."
 script = "cargo test --workspace --doc --locked --quiet"
 
+# Duplicate doctests.
+#
+# Each library crate's README is its crate documentation via `#![doc =
+# include_str!]`, so every example in one is a doctest rustdoc runs. Two crates
+# showing the same example is not a style problem: rustdoc runs it twice, the
+# second copy rots independently, and a reader who edits the first one has no way
+# to know a second exists.
+#
+# `cargo dejadoc` hashes the canonical form of every doctest body and reports the
+# sites that share one. It exits 1 on any group, so this is a gate rather than a
+# report. It compiles nothing -- it reads the source -- which is why it can sit in
+# the gate for 0.1s.
+[tasks."dejadoc"]
+cwd = "${REPO_ROOT}"
+description = "Fail if two doctests are the same example."
+script = """
+set -e
+if ! command -v cargo-dejadoc >/dev/null 2>&1; then
+  echo "cargo-dejadoc is not installed; run './mk setup'" >&2
+  exit 1
+fi
+cargo dejadoc
+"""
+
 # The `#[ignore]`d network tests.
 #
 # There are none today. The search use case is tested through the `Http` trait

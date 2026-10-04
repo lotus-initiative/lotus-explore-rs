@@ -821,7 +821,7 @@ mod tests {
     /// Every character that would break the document is escaped.
     ///
     /// The control-character arm is the one that matters: those have no shorthand, so
-    /// an unescaped one makes the whole export unparseable rather than merely ugly.
+    /// an unescaped one makes the whole export unparsable rather than merely ugly.
     /// A taxon name can carry one, which is exactly why the arm exists.
     #[test]
     fn a_json_string_escapes_everything_that_would_break_the_document() {

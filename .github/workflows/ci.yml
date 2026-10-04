@@ -108,6 +108,7 @@ jobs:
             cargo-deny
             cargo-audit
             cargo-machete
+            cargo-dejadoc
 
       # tombi is not installable through `install-action`. `tombi-cli` is a
       # 0.0.1 placeholder on crates.io with no binary in it, so install-action

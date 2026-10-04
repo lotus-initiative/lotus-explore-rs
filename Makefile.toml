@@ -64,6 +64,7 @@ dependencies = [
   "lint",
   "lint-native-builds",
   "test",
+  "dejadoc",
   "doc",
   "check-wasm",
   "lint-wasm",

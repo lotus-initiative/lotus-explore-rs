@@ -73,6 +73,12 @@ hooks = [
   # and server-only paths rotted unnoticed.
   { id = "lint-native-builds", name = "lint-native-builds", language = "system", entry = "./mk lint-native-builds", pass_filenames = false, always_run = true, stages = ["pre-push"] },
   { id = "cargo-test", name = "cargo-test", language = "system", entry = "./mk test", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  # Duplicate doctests. Fast enough (0.1s) and it compiles nothing, so it could
+  # sit at pre-commit where a duplicated example would be caught before the commit
+  # is written rather than before it is pushed. It is here to match the section's
+  # stated rule -- "nothing at pre-commit compiles Rust" -- and the cost argument
+  # that rule is making is the only thing arguing against moving it.
+  { id = "cargo-dejadoc", name = "cargo-dejadoc", language = "system", entry = "./mk dejadoc", pass_filenames = false, always_run = true, stages = ["pre-push"] },
   # Per-app WASM checks (NOT `--workspace --target wasm32`, which flags
   # wasm-incompatible code paths in non-WASM crates).
   { id = "check-wasm", name = "check-wasm", language = "system", entry = "./mk check-wasm", pass_filenames = false, always_run = true, stages = ["pre-push"] },
