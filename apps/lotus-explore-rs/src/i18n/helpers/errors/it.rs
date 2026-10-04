@@ -108,10 +108,6 @@ pub fn warn_ambiguous_compound(best_name: &str, best_qid: &str, names: &str) -> 
 /// La ricerca non nomina né struttura né taxon né riferimento, quindi scandisce
 /// tutto LOTUS. Detto come fatto sulla scansione e non sulla risposta, perché i
 /// filtri impostati restringono la risposta senza restringere la scansione.
-pub fn warn_unconstrained() -> String {
-    "Nessuna struttura, taxon o riferimento — questa ricerca scansiona tutto LOTUS: misurata in 265.000 righe e 110 MB, che rasenta i 25 s concessi dal servizio, perciò viene spesso annullata invece che risposta. Restringila con un taxon, un intervallo di massa, un anno o una formula.".to_string()
-}
-
 pub fn warn_wdqs_fallback() -> String {
     "Query eseguita tramite Wikidata Query Service (fallback da QLever).".to_string()
 }

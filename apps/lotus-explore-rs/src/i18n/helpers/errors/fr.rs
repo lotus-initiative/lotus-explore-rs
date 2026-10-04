@@ -108,10 +108,6 @@ pub fn warn_ambiguous_compound(best_name: &str, best_qid: &str, names: &str) -> 
 /// La recherche ne nomme ni structure, ni taxon, ni référence : tout LOTUS est
 /// parcouru. Dit comme un fait sur le parcours et non sur la réponse, car les
 /// filtres posés en plus restreignent la réponse sans restreindre le parcours.
-pub fn warn_unconstrained() -> String {
-    "Aucune structure, taxon ni référence — cette recherche parcourt tout LOTUS : mesuré à 265 000 lignes et 110 Mo, ce qui frôle les 25 s accordées par le point d'accès, si bien qu'elle est souvent annulée plutôt que servie. Réduisez-la avec un taxon, une plage de masse, une année ou une formule.".to_string()
-}
-
 pub fn warn_wdqs_fallback() -> String {
     "Requête exécutée via Wikidata Query Service (repli depuis QLever).".to_string()
 }

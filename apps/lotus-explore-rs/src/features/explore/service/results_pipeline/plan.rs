@@ -128,19 +128,6 @@ pub(super) async fn build_execution_plan<R: LotusRepository>(
         .reference
         .clone_from(&reference_resolution.qid.unwrap_or_default());
 
-    // Said here because it is the first point where both fields are known, and
-    // neither resolver could see the other's emptiness on its own.
-    let notices = if crate::features::explore::form_validation::is_unconstrained(&criteria) {
-        vec![crate::features::explore::types::LookupNotice::Unconstrained]
-    } else {
-        Vec::new()
-    };
-    let structure_resolution =
-        crate::features::explore::service::resolve_structure::StructureResolution {
-            notices: [notices, structure_resolution.notices].concat(),
-            ..structure_resolution
-        };
-
     let sparql_query = build_sparql_query(
         &structure_resolution.resolved,
         &criteria,

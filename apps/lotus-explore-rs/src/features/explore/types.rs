@@ -145,15 +145,6 @@ pub enum LookupNotice {
     ApiMessage(String),
     /// Query executed against Wikidata Query Service after a `QLever` fallback.
     WdqsFallback,
-    /// The search names neither a structure nor a taxon, so it covers every
-    /// compound LOTUS holds rather than a subset of one.
-    ///
-    /// Carried as a notice rather than refused, because it is a legitimate
-    /// question -- "everything published in 2019" is a real one, and a mass or year
-    /// filter on its own is a perfectly good way to ask it. It is worth saying out
-    /// loud, though, because the answer is the whole database and the table can
-    /// only show the first page of it.
-    Unconstrained,
 }
 
 // ── Domain error hierarchy (i18n-free) ───────────────────────────────────────

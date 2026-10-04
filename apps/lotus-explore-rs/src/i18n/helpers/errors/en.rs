@@ -106,10 +106,6 @@ pub fn warn_ambiguous_compound(best_name: &str, best_qid: &str, names: &str) -> 
 /// The search names no structure, no taxon and no reference, so it walks all of
 /// LOTUS. Said as a fact about the scan rather than about the answer, because
 /// filters set alongside it narrow the answer without narrowing the walk.
-pub fn warn_unconstrained() -> String {
-    "No structure, taxon or reference — this search scans the whole of LOTUS: measured at 265,000 rows and 110 MB, which runs right up against the 25 s the endpoint allows, so it is often cancelled rather than answered. Narrow it with a taxon, mass range, year or formula.".to_string()
-}
-
 pub fn warn_wdqs_fallback() -> String {
     "Query executed via Wikidata Query Service (QLever fallback).".to_string()
 }
