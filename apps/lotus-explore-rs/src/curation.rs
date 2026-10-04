@@ -61,6 +61,26 @@ pub async fn curate_rows(
         Arc::new(repository.resolve_reference_qids_batch(&doi_values).await?);
     let occurrence_ask_cache = Arc::new(Mutex::new(OccurrenceAskCache::default()));
 
+    // The remaining per-row questions, asked once for the whole batch.
+    //
+    // Everything the row loop needs from Wikidata is one of four questions, and
+    // all four have a batched form. Asking them per row is what made curation
+    // the heaviest thing this project does to a public endpoint: four requests
+    // per row, so a 200-row import was up to 800 POSTs, and a second pass over
+    // dependency rows repeated every one of them.
+    //
+    // The compounds need the local `InChIKey` first, so this runs after the
+    // structures are converted -- `convert_structure` is RDKit in the browser
+    // and costs no network at all.
+    crate::features::curation::services::prefetch_knowledge(
+        &rows,
+        repository.as_ref(),
+        prefetched_taxa.as_ref(),
+        prefetched_references.as_ref(),
+        &occurrence_ask_cache,
+    )
+    .await?;
+
     pipeline::curate_rows(
         locale,
         rows,

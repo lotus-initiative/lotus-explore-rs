@@ -47,6 +47,7 @@ use wikidata::normalize_taxon_lookup;
 
 pub mod inputs;
 pub mod pipeline;
+pub mod prefetch;
 pub mod quickstatements;
 
 #[cfg(test)]
@@ -57,6 +58,7 @@ pub(crate) use chemical::extract_exact_mass_from_json;
 pub use enrichment::curate_single_row;
 #[cfg(test)]
 pub use helpers::{extract_formula_from_inchi, normalize_formula_for_wikidata, qs_mass_statement};
+pub use prefetch::prefetch_knowledge;
 
 #[cfg(not(target_arch = "wasm32"))]
 type SparqlExecution<'a> = BoxFuture<'a, Result<String, FetchError>>;

@@ -26,6 +26,14 @@ enum AskCacheKey {
     },
 }
 
+/// What a whole run already knows, so the per-row path asks nothing.
+///
+/// Three caches, and the reason they are here rather than scattered through the
+/// row loop is arithmetic: a curation run is over *N* rows, and the questions are
+/// per row, so anything not batched costs `N` requests to a shared public
+/// endpoint. A 200-row import used to be up to 800. It is now five, whatever
+/// `N` is: one for every compound's `InChIKey`, one for taxon names, one for
+/// DOIs, one for "does this occurrence exist" and one for "...by this paper".
 #[derive(Default)]
 pub struct OccurrenceAskCache {
     values: HashMap<AskCacheKey, bool>,
@@ -42,6 +50,55 @@ fn write_cached_ask(cache: &Mutex<OccurrenceAskCache>, key: AskCacheKey, value: 
     if let Ok(mut guard) = cache.lock() {
         guard.values.insert(key, value);
     }
+}
+
+/// Record a batch of `(compound, taxon)` answers, all the same verdict.
+///
+/// The shape the prefetch has: it asks "which of these pairs are recorded" and
+/// gets back the ones that are, so the misses have to be written as `false` as
+/// well. A cache that only stored hits would send the row loop to the network for
+/// every pair that is *not* already there, which is most of them.
+pub fn record_pairs_cached(
+    cache: &Mutex<OccurrenceAskCache>,
+    pairs: impl IntoIterator<Item = (String, String)>,
+    recorded: bool,
+) {
+    if let Ok(mut guard) = cache.lock() {
+        for (compound_qid, taxon_qid) in pairs {
+            guard.values.insert(
+                AskCacheKey::Taxon {
+                    compound_qid,
+                    taxon_qid,
+                },
+                recorded,
+            );
+        }
+    }
+}
+
+/// The same for the three-part question.
+pub fn record_triples_cached(
+    cache: &Mutex<OccurrenceAskCache>,
+    triples: impl IntoIterator<Item = (String, String, String)>,
+    recorded: bool,
+) {
+    if let Ok(mut guard) = cache.lock() {
+        for (compound_qid, taxon_qid, ref_qid) in triples {
+            guard.values.insert(
+                AskCacheKey::TaxonWithRef {
+                    compound_qid,
+                    taxon_qid,
+                    ref_qid,
+                },
+                recorded,
+            );
+        }
+    }
+}
+
+/// How many answers are already known, for the tests and the log line.
+pub fn cached_answer_count(cache: &Mutex<OccurrenceAskCache>) -> usize {
+    cache.lock().map_or(0, |guard| guard.values.len())
 }
 
 pub async fn compound_has_taxon_cached(
@@ -98,6 +155,7 @@ mod tests {
     use crate::features::curation::repositories::{BoxedFuture, ResolveTaxonResult};
     use futures::executor::block_on;
     use lotus_curation::WikidataCompound;
+    use std::collections::HashSet;
 
     #[derive(Default)]
     struct MockRepo {
@@ -173,6 +231,27 @@ mod tests {
             _dois: &[String],
         ) -> BoxedFuture<'_, Result<HashMap<String, String>, CurationError>> {
             Box::pin(async { Ok(HashMap::new()) })
+        }
+
+        fn fetch_compounds_by_inchikeys(
+            &self,
+            _keys: &[String],
+        ) -> BoxedFuture<'_, Result<HashMap<String, WikidataCompound>, CurationError>> {
+            Box::pin(async { Ok(HashMap::new()) })
+        }
+
+        fn existing_occurrences(
+            &self,
+            _pairs: &[(String, String)],
+        ) -> BoxedFuture<'_, Result<HashSet<(String, String)>, CurationError>> {
+            Box::pin(async { Ok(HashSet::new()) })
+        }
+
+        fn existing_occurrences_with_ref(
+            &self,
+            _triples: &[(String, String, String)],
+        ) -> BoxedFuture<'_, Result<HashSet<(String, String, String)>, CurationError>> {
+            Box::pin(async { Ok(HashSet::new()) })
         }
     }
 

@@ -77,10 +77,10 @@ pub async fn curate_single_row(
 }
 
 /// Everything both outcomes need from the row, resolved once.
-struct Converted {
+pub(super) struct Converted {
     canonical_smiles: String,
     isomeric_smiles: String,
-    inchikey: String,
+    pub(super) inchikey: String,
     inchi: String,
     /// The formula implied by the `InChI`, which is how a structure that names no
     /// formula still contributes one.
@@ -190,7 +190,7 @@ impl Row<'_> {
     }
 }
 
-async fn convert_structure(smiles: &str) -> Result<Converted, CurationError> {
+pub(super) async fn convert_structure(smiles: &str) -> Result<Converted, CurationError> {
     let converted = convert_smiles(smiles).await?;
     Ok(Converted {
         formula: extract_formula_from_inchi(&converted.inchi)

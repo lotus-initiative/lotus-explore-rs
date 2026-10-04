@@ -4,7 +4,7 @@
 mod wikidata;
 
 use lotus_curation::{CurationError, WikidataCompound};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::pin::Pin;
 
@@ -18,6 +18,12 @@ pub type ResolveTaxonResult = Result<(Option<String>, Vec<String>), CurationErro
 
 /// Stable data-access boundary for curation orchestration and enrichment.
 /// Object-safe repository trait for querying and mutating Wikidata knowledge.
+/// A `(compound, taxon)` pair, as the occurrence questions are keyed.
+pub type OccurrencePair = (String, String);
+
+/// A `(compound, taxon, reference)` triple: the same question, narrowed to a paper.
+pub type OccurrenceTriple = (String, String, String);
+
 pub trait CurationKnowledgeRepository: Send + Sync {
     /// Fetch a chemical compound by `InChIKey` from Wikidata.
     /// Returns `None` if no compound with that key exists; errors indicate network/parse issues.
@@ -66,4 +72,32 @@ pub trait CurationKnowledgeRepository: Send + Sync {
         &self,
         dois: &[String],
     ) -> BoxedFuture<'_, Result<HashMap<String, String>, CurationError>>;
+
+    /// Fetch every compound in a run with one query, keyed by `InChIKey`.
+    ///
+    /// A batch item rather than a convenience because the per-key method above it
+    /// is what a curation run used to call once per row, and four requests per row
+    /// against a shared public endpoint is what that cost. Keys absent from the
+    /// map are absent from Wikidata.
+    fn fetch_compounds_by_inchikeys(
+        &self,
+        keys: &[String],
+    ) -> BoxedFuture<'_, Result<HashMap<String, WikidataCompound>, CurationError>>;
+
+    /// Which `(compound, taxon)` pairs Wikidata already records, in one query.
+    ///
+    /// The batch form of [`CurationKnowledgeRepository::compound_has_taxon`]. The
+    /// set is the answer, not a map: what the caller wants is "which of these do
+    /// I still have to write", and a pair that is not in the set is `false`, which
+    /// is what the `ASK` said.
+    fn existing_occurrences(
+        &self,
+        pairs: &[OccurrencePair],
+    ) -> BoxedFuture<'_, Result<HashSet<OccurrencePair>, CurationError>>;
+
+    /// The same for `(compound, taxon, reference)`.
+    fn existing_occurrences_with_ref(
+        &self,
+        triples: &[OccurrenceTriple],
+    ) -> BoxedFuture<'_, Result<HashSet<OccurrenceTriple>, CurationError>>;
 }

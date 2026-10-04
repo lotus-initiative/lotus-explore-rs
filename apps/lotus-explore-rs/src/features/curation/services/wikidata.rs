@@ -94,6 +94,234 @@ pub async fn fetch_wikidata_compound_by_inchikey(
     }))
 }
 
+/// Fetch every compound in a run with **one** query.
+///
+/// The per-key function above is right for one row and ruinous for two hundred:
+/// curation drives a shared public endpoint, and one POST per row is what makes
+/// an import look like an attack. This asks for all of them at once, keyed by the
+/// `InChIKey` the caller already computed locally, and returns a map.
+///
+/// A `SELECT` with `VALUES`, not `N` `ASK`s and not a join over every compound:
+/// the keys are known, so the endpoint's work is one index probe per key and the
+/// answer shape is the same rows the per-key query returns. Rows absent from the
+/// map are absent from Wikidata, which is the answer the caller wanted.
+///
+/// No `LIMIT`: the per-key query's `LIMIT 1` was there because Wikidata has a
+/// handful of items for some structures. That ambiguity is per key, so
+/// `MIN(?compound)` picks the same item deterministically instead of letting the
+/// order decide, and a run that resolves a compound to the *second* of two
+/// candidates can no longer depend on which query the endpoint happened to plan
+/// first.
+pub async fn fetch_compounds_by_inchikeys<'a>(
+    inchikeys: impl IntoIterator<Item = &'a str>,
+) -> Result<HashMap<String, WikidataCompound>, CurationError> {
+    let mut keys: Vec<String> = Vec::new();
+    let mut seen = HashSet::new();
+    for key in inchikeys {
+        let trimmed = key.trim();
+        if !trimmed.is_empty() && seen.insert(trimmed.to_string()) {
+            keys.push(trimmed.to_string());
+        }
+    }
+    if keys.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let values = inchi_values(&keys);
+    let query = format!(
+        "{CURATION_SPARQL_PREFIXES}\n\
+         SELECT ?key (MIN(?compound) AS ?compound) ?canonical ?iso ?inchi ?formula ?mass WHERE {{\n  \
+           VALUES ?key {{ {values} }}\n  \
+           ?compound wdt:P235 ?key .\n  \
+           OPTIONAL {{ ?compound wdt:P233 ?canonical . }}\n  \
+           OPTIONAL {{ ?compound wdt:P2017 ?iso . }}\n  \
+           OPTIONAL {{ ?compound wdt:P234 ?inchi . }}\n  \
+           OPTIONAL {{ ?compound wdt:P274 ?formula . }}\n  \
+           OPTIONAL {{ ?compound wdt:P2067 ?mass . }}\n  \
+         }} GROUP BY ?key ?canonical ?iso ?inchi ?formula ?mass"
+    );
+    let json = execute_sparql_json(&query).await?;
+
+    let mut resolved: HashMap<String, WikidataCompound> = HashMap::new();
+    for binding in json_bindings(&json) {
+        let (Some(key), Some(qid)) = (
+            binding_value(binding, "key"),
+            binding
+                .get("compound")
+                .and_then(|v| v.get("value"))
+                .and_then(Value::as_str)
+                .and_then(extract_qid_from_uri),
+        ) else {
+            continue;
+        };
+        resolved
+            .entry(key)
+            .and_modify(|existing| {
+                // Several candidate items for one key: keep the lowest QID, so the
+                // answer does not depend on the endpoint's row order.
+                if qid < existing.qid.as_str() {
+                    existing.qid = qid.into();
+                }
+            })
+            .or_insert_with(|| WikidataCompound {
+                qid: qid.into(),
+                canonical_smiles: binding_value(binding, "canonical"),
+                isomeric_smiles: binding_value(binding, "iso"),
+                inchi: binding_value(binding, "inchi"),
+                formula: binding_value(binding, "formula"),
+                mass: binding
+                    .get("mass")
+                    .and_then(|v| v.get("value"))
+                    .and_then(Value::as_str)
+                    .and_then(|v| v.parse::<f64>().ok()),
+            });
+    }
+    Ok(resolved)
+}
+
+fn inchi_values(keys: &[String]) -> String {
+    let mut values = String::with_capacity(keys.len() * 40);
+    for (i, key) in keys.iter().enumerate() {
+        if i > 0 {
+            values.push(' ');
+        }
+        values.push('"');
+        values.push_str(&escape_sparql_string(key));
+        values.push('"');
+    }
+    values
+}
+
+/// Resolve every `(compound, taxon)` occurrence question in a run with **one**
+/// query, and say which pairs Wikidata already records.
+///
+/// The per-pair `ASK` is the right question and the wrong shape for a batch. An
+/// `ASK` returns one boolean for the whole query, so `N` of them is `N` requests
+/// to learn `N` bits. Asking instead for the pairs that *exist* returns all the
+/// same bits as the complement of one row set.
+///
+/// Chunked, because one `VALUES` block with a thousand entries is a query the
+/// endpoint has to plan, and one that fails fails the run. The caller chooses the
+/// chunk size; the default here is above what a spreadsheet of compounds produces
+/// and well below what is expensive to plan.
+pub async fn existing_occurrences(
+    pairs: &[(String, String)],
+    chunk_size: usize,
+) -> Result<HashSet<(String, String)>, CurationError> {
+    let mut existing = HashSet::new();
+    for chunk in pairs.chunks(chunk_size.max(1)) {
+        existing.extend(query_existing(chunk).await?);
+    }
+    Ok(existing)
+}
+
+/// The same for `(compound, taxon, reference)`, which is a different question
+/// with a different answer: "reported by *this* paper", not "reported at all".
+pub async fn existing_occurrences_with_ref(
+    triples: &[(String, String, String)],
+    chunk_size: usize,
+) -> Result<HashSet<(String, String, String)>, CurationError> {
+    let mut existing = HashSet::new();
+    for chunk in triples.chunks(chunk_size.max(1)) {
+        let rows = query_existing_with_ref(chunk).await?;
+        existing.extend(rows);
+    }
+    Ok(existing)
+}
+
+/// The batch size used when a caller has no opinion.
+pub const OCCURRENCE_CHUNK: usize = 100;
+
+async fn query_existing(
+    pairs: &[(String, String)],
+) -> Result<HashSet<(String, String)>, CurationError> {
+    if pairs.is_empty() {
+        return Ok(HashSet::new());
+    }
+    let values = entity_pair_values(pairs.iter().map(|(compound, taxon)| (compound, taxon)));
+    let query = format!(
+        "{CURATION_SPARQL_PREFIXES}\n\
+         SELECT DISTINCT ?compound ?taxon WHERE {{\n  \
+           VALUES (?compound ?taxon) {{ {values} }}\n  \
+           ?compound wdt:{WD_OCCURS_IN_TAXON_PROP} ?taxon .\n\
+         }}",
+    );
+    let json = execute_sparql_json(&query).await?;
+    Ok(json_bindings(&json)
+        .filter_map(|binding| {
+            let compound = binding_value(binding, "compound")?;
+            let taxon = binding_value(binding, "taxon")?;
+            Some((
+                extract_qid_from_uri(&compound)?.to_string(),
+                extract_qid_from_uri(&taxon)?.to_string(),
+            ))
+        })
+        .collect())
+}
+
+async fn query_existing_with_ref(
+    triples: &[(String, String, String)],
+) -> Result<HashSet<(String, String, String)>, CurationError> {
+    if triples.is_empty() {
+        return Ok(HashSet::new());
+    }
+    let mut values = String::with_capacity(triples.len() * 64);
+    for (i, (compound, taxon, reference)) in triples.iter().enumerate() {
+        if i > 0 {
+            values.push(' ');
+        }
+        values.push_str("(wd:");
+        values.push_str(compound);
+        values.push_str(" wd:");
+        values.push_str(taxon);
+        values.push_str(" wd:");
+        values.push_str(reference);
+        values.push(')');
+    }
+    let query = format!(
+        "{CURATION_SPARQL_PREFIXES}\n\
+         SELECT DISTINCT ?compound ?taxon ?ref WHERE {{\n  \
+           VALUES (?compound ?taxon ?ref) {{ {values} }}\n  \
+           ?compound wdt:{WD_OCCURS_IN_TAXON_PROP} ?taxon ;\n        \
+                   wdt:P248 ?ref .\n\
+         }}",
+    );
+    let json = execute_sparql_json(&query).await?;
+    Ok(json_bindings(&json)
+        .filter_map(|binding| {
+            Some((
+                qid_of(&binding_value(binding, "compound")?)?,
+                qid_of(&binding_value(binding, "taxon")?)?,
+                qid_of(&binding_value(binding, "ref")?)?,
+            ))
+        })
+        .collect())
+}
+
+/// The QID out of a bound URI, owned.
+///
+/// `binding_value` hands back a `String`, so the `?` has to be applied to a
+/// borrow of a value that outlives the expression -- which is the whole reason
+/// this is a function and not an inline `and_then`.
+fn qid_of(value: &str) -> Option<String> {
+    extract_qid_from_uri(value).map(str::to_string)
+}
+
+fn entity_pair_values<'a>(pairs: impl Iterator<Item = (&'a String, &'a String)>) -> String {
+    let mut values = String::new();
+    for (i, (first, second)) in pairs.enumerate() {
+        if i > 0 {
+            values.push(' ');
+        }
+        values.push_str("(wd:");
+        values.push_str(first);
+        values.push_str(" wd:");
+        values.push_str(second);
+        values.push(')');
+    }
+    values
+}
+
 /// Returns `(Option<QID>, Vec<creation_QS_lines>)`.
 /// If the taxon exists, returns `(Some(qid), [])`. Otherwise, returns `(None, minimal_CREATE_QS)`.
 pub async fn resolve_or_create_taxon(
@@ -291,7 +519,14 @@ pub async fn resolve_taxon_qids_batch<'a>(
             continue;
         };
         if seen.insert(lookup.clone()) {
-            lookups.push((lookup, trimmed.into()));
+            // Both spellings, under one lookup key. The single-row lookup has
+            // always tried the canonicalised label as well, and a batch that only
+            // tried the raw one sent every such row down the per-row path to be
+            // asked exactly the same question again -- one request per row, for an
+            // answer the batch had already been in a position to get.
+            for candidate in taxon_name_candidates(trimmed) {
+                lookups.push((lookup.clone(), candidate));
+            }
         }
     }
 
@@ -387,6 +622,39 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::*;
+
+    /// A name the batch cannot resolve is a name the row loop will ask about
+    /// again, one request at a time.
+    ///
+    /// The batch used to try only the raw spelling while the single-row lookup
+    /// tried the canonicalised one too, so every row whose name needed
+    /// canonicalising paid for a second request to be asked the same question.
+    /// Both spellings now go into the one batched query, under one lookup key.
+    #[test]
+    fn the_batch_query_asks_for_both_spellings_of_a_name() {
+        let lookups = vec![
+            ("gentiana lutea".to_string(), "Gentiana  lutea".to_string()),
+            ("gentiana lutea".to_string(), "Gentiana lutea".to_string()),
+        ];
+
+        let query = build_taxon_lookup_query(&lookups);
+
+        assert_eq!(
+            query.matches("Gentiana lutea").count(),
+            1,
+            "the raw spelling is asked for: {query}"
+        );
+        assert!(
+            query.contains("Gentiana  lutea"),
+            "the canonicalised spelling is asked for too: {query}"
+        );
+        assert_eq!(
+            query.matches("\"gentiana lutea\"").count(),
+            2,
+            "both rows carry the same lookup key, so a match is cached under it: \
+             {query}"
+        );
+    }
 
     #[test]
     fn normalize_taxon_lookup_trims_and_lowercases() {

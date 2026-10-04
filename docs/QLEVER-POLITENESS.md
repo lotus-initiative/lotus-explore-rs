@@ -106,6 +106,54 @@ is the right trade for a taxon-scoped search and the wrong one for an
 unconstrained one, which is what makes the confirmation question worth asking of
 a human before the query is fired.
 
+## Curation: the heaviest thing here, now bounded
+
+Curation used to be the worst of it by an order of magnitude. Every row asked
+four questions of its own — does this `InChIKey` exist, what is this taxon, what
+is this DOI, is this occurrence recorded — so a 200-row import was up to **800
+POSTs**, and the second pass over dependency rows repeated every one of them.
+
+All four questions are per row and all four have a batched form, so
+`services/prefetch.rs` asks each of them once, before the rows are walked:
+
+| Question                    | Was            | Now                                                     |
+| --------------------------- | -------------- | ------------------------------------------------------- |
+| compounds by `InChIKey`     | 1 per row      | 1 per run, `VALUES ?key` with `MIN(?compound)` for ties  |
+| taxon names                 | 1 per row miss | 1 per run, both spellings of each name                   |
+| DOIs                        | 1 per row miss | 1 per run                                                |
+| "is this occurrence recorded" | 1 `ASK` per row | 1 query for the pairs that *exist*; a miss is the answer |
+| "...by this paper"          | 1 `ASK` per row | 1 query, same trick                                       |
+
+**Five queries per run, whatever the row count.** The test that says so is
+`a_prefetch_costs_the_same_however_many_rows_there_are`: it runs the same
+prefetch at 3 rows and at 200 and asserts the request count did not move.
+
+Two details that are load-bearing:
+
+- **Misses are cached, not just hits.** A batch answers "which of these pairs
+  exist", so the pairs that did not come back are the `false`s. A cache that
+  stored only hits would send the row loop to the network for every pair
+  Wikidata does *not* have — which is most of a curation run, since a run is
+  mostly work still to do.
+- **The taxon batch asks for both spellings.** The single-row lookup has always
+  tried the canonicalised label as well as the raw one; a batch that only tried
+  the raw one sent every row needing canonicalisation down the per-row path to
+  be asked the same question again.
+
+### What is left
+
+- **A second pass rebuilds its prefetch.** `run_second_pass` calls the pipeline
+  afresh, so it re-asks the batch questions rather than reusing them. That is
+  three queries, not the four-per-row it was, which is why it was left: the
+  remaining win is small and the change threads a run context through the page
+  controller.
+- **A row whose taxon the batch cannot resolve still costs one query**, in
+  `resolve_or_create_taxon`. That is the honest case: the batch asked, and the
+  answer was "no such item", and the row loop needs to know that individually
+  because it may have to *create* the taxon.
+- **Rows are still curated one at a time**, deliberately. The endpoint is the
+  shared resource, not this browser's main thread.
+
 ## What is deliberately *not* here
 
 - **No rate limiter.** There is nothing to rate-limit against: the 429 we were

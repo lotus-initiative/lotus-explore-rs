@@ -15,6 +15,7 @@ use super::*;
 use crate::features::curation::repositories::{BoxedFuture, ResolveTaxonResult};
 use futures::executor::block_on;
 use std::collections::HashMap as Map;
+use std::collections::HashSet;
 
 /// The backing values a `Row` borrows, so a test can keep them alive.
 struct Fixture {
@@ -222,6 +223,27 @@ macro_rules! repository_answering {
                 _dois: &[String],
             ) -> BoxedFuture<'_, Result<Map<String, String>, CurationError>> {
                 Box::pin(async { Ok(Map::new()) })
+            }
+
+            // The three batch items. A test that curates one row never asks them,
+            // so they answer empty rather than pretending to have queried.
+            fn fetch_compounds_by_inchikeys(
+                &self,
+                _keys: &[String],
+            ) -> BoxedFuture<'_, Result<HashMap<String, WikidataCompound>, CurationError>> {
+                Box::pin(async { Ok(HashMap::new()) })
+            }
+            fn existing_occurrences(
+                &self,
+                _pairs: &[(String, String)],
+            ) -> BoxedFuture<'_, Result<HashSet<(String, String)>, CurationError>> {
+                Box::pin(async { Ok(HashSet::new()) })
+            }
+            fn existing_occurrences_with_ref(
+                &self,
+                _triples: &[(String, String, String)],
+            ) -> BoxedFuture<'_, Result<HashSet<(String, String, String)>, CurationError>> {
+                Box::pin(async { Ok(HashSet::new()) })
             }
         }
     };
