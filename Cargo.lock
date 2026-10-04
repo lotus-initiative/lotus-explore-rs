@@ -3571,6 +3571,7 @@ dependencies = [
  "js-sys",
  "lotus-model",
  "lotus-query",
+ "lotus-search",
  "reqwest 0.13.5",
  "thiserror 2.0.21",
  "tokio",

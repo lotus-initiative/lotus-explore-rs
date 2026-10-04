@@ -178,11 +178,11 @@ async fn resolve_taxon_qid(
     if taxon == "*" {
         return Ok((Some("*".into()), None));
     }
-    if is_qid(taxon) {
+    if lotus_search::is_qid(taxon) {
         return Ok((Some(taxon.to_ascii_uppercase()), None));
     }
 
-    let sanitized = sanitize_taxon_input(taxon);
+    let sanitized = lotus_search::standardize_taxon_name(taxon);
     let query = lotus_query::taxon_lookup_query(&sanitized);
     let csv = sparql::execute_sparql_bytes(&query)
         .await
@@ -220,29 +220,6 @@ async fn resolve_taxon_qid(
     };
 
     Ok((Some(best.qid.clone()), warning))
-}
-
-fn sanitize_taxon_input(taxon: &str) -> String {
-    let replaced = taxon.replace('_', " ");
-    let mut parts = replaced.split_whitespace();
-    let Some(first_word) = parts.next() else {
-        return replaced;
-    };
-    let mut chars = first_word.chars();
-    let mut out = chars.next().map_or_else(String::new, |c| {
-        c.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase()
-    });
-    for part in parts {
-        out.push(' ');
-        out.push_str(part);
-    }
-    out
-}
-
-fn is_qid(value: &str) -> bool {
-    let v = value.trim();
-    let mut chars = v.chars();
-    matches!(chars.next(), Some('Q' | 'q')) && !v.is_empty() && chars.all(|c| c.is_ascii_digit())
 }
 
 pub fn gzip_bytes(input: &[u8]) -> std::io::Result<Vec<u8>> {
