@@ -262,14 +262,22 @@ mod installed_tools {
     use super::super::scrapers::{Result, read};
     use std::collections::{BTreeMap, BTreeSet};
 
-    /// The entries of every `tool: |` block in the workflow.
+    /// The crate names of every `tool: |` entry, `@version` stripped.
+    fn workflow_tools(yaml: &str) -> BTreeSet<String> {
+        workflow_entries(yaml)
+            .iter()
+            .map(|entry| crate_name(entry).to_string())
+            .collect()
+    }
+
+    /// The `tool: |` entries as written, `@version` and all.
     ///
     /// Read from the block rather than by filtering lines shaped like list
     /// items: the workflow is full of `- uses:` and `- name:` lines, and a shape
     /// guess picks those up. Indentation is the discriminator -- an entry in a
     /// literal block is indented past its own `tool: |` -- and the entries
     /// themselves are bare, because a YAML literal block is not a list.
-    fn workflow_tools(yaml: &str) -> BTreeSet<String> {
+    fn workflow_entries(yaml: &str) -> BTreeSet<String> {
         let mut tools = BTreeSet::new();
         let mut indent = 0usize;
         let mut in_block = false;
@@ -287,7 +295,7 @@ mod installed_tools {
             if trimmed.is_empty() || width <= indent {
                 in_block = false;
             } else if !trimmed.starts_with('#') {
-                tools.insert(crate_name(trimmed).to_string());
+                tools.insert(trimmed.to_string());
             }
         }
         tools
@@ -391,6 +399,39 @@ mod installed_tools {
             "the task runs the *binary*, which really is `cargo-dejadoc` -- so the \
              crate name and the command name are not the same string, and both \
              spellings above have to be right for the gate to run"
+        );
+        Ok(())
+    }
+
+    /// This one tool is pinned in both places, because its version changes what
+    /// the gate reports.
+    ///
+    /// Every other tool is installed unpinned by CI on purpose, and the test
+    /// above says so. `dejadoc` is the exception and the reason is not a
+    /// preference: 0.3.1 compares doctests only, and 0.4.0 added functions. With
+    /// `setup.sh` on 0.3.1 and CI resolving 0.4.0, four duplicated functions were
+    /// reported in CI and `./mk dejadoc` was green at home. That is the failure
+    /// this whole module exists to prevent -- a gate that says something different
+    /// depending on where it runs -- so the version is part of what is pinned.
+    #[test]
+    fn the_duplicate_doctest_tool_is_the_same_version_in_ci_and_locally() -> Result<()> {
+        let yaml = read(".github/workflows/ci.yml")?;
+        let pinned = workflow_entries(&yaml)
+            .iter()
+            .find_map(|entry| entry.strip_prefix("dejadoc@").map(str::to_string))
+            .expect("ci.yml installs dejadoc; the test above asserts it");
+
+        let versions = setup_tools(&read("make/scripts/setup.sh")?);
+        let local = versions
+            .get("dejadoc")
+            .expect("setup.sh installs it; the test above asserts it");
+
+        assert_eq!(
+            *local, pinned,
+            "CI and `./mk setup` pin different dejadoc versions. A version can \
+             change which checks run rather than only how they are reported -- \
+             0.3.1 checks doctests, 0.4.0 checks functions too -- so a drift \
+             here means the gate is green in one place and red in the other."
         );
         Ok(())
     }

@@ -102,6 +102,12 @@ jobs:
       # `install-action` takes crate names, so naming the binary 404s here.
       # Deliberately outside the `tool:` block below: install-action reads a `#`
       # line inside one as a tool name, which is the third bug this file records.
+      #
+      # Pinned, unlike every tool above, because the version decides *whether the
+      # gate checks anything*. 0.3.1 checks doctests only; 0.4.0 added functions.
+      # `setup.sh` had 0.3.1 and CI resolved 0.4.0, so four duplicated functions
+      # were reported here and nowhere else -- a check that reads differently
+      # depending on where it runs is not the same check.
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: |
@@ -112,7 +118,7 @@ jobs:
             cargo-deny
             cargo-audit
             cargo-machete
-            dejadoc
+            dejadoc@0.4.0
 
       # tombi is not installable through `install-action`. `tombi-cli` is a
       # 0.0.1 placeholder on crates.io with no binary in it, so install-action

@@ -149,6 +149,16 @@ mod tests {
             })
         }
 
+        // Two trait items, so two bodies are the trait's shape rather than a copy
+        // someone made. `resolve_taxon_qids_batch` cannot call
+        // `resolve_reference_qids_batch`: they are separate items of the same
+        // trait, and neither is a specialisation of the other. A helper both call
+        // would be three functions to express two empty stubs.
+        //
+        // The marker goes last because it has to be the line immediately above the
+        // function; with prose in between it is not seen and the pair is reported
+        // anyway, which is a gate that looks broken rather than one that is.
+        // dejadoc: allow
         fn resolve_taxon_qids_batch(
             &self,
             _names: &[String],
@@ -156,6 +166,8 @@ mod tests {
             Box::pin(async { Ok(HashMap::new()) })
         }
 
+        // The other half of the pair above, allowed for the same reason.
+        // dejadoc: allow
         fn resolve_reference_qids_batch(
             &self,
             _dois: &[String],

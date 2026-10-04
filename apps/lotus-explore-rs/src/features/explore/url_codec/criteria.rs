@@ -235,18 +235,8 @@ impl CriteriaQueryDto {
                     .or_else(|| params.get("smiles_threshold"))
                     .map(String::as_str),
             ),
-            mass_filter: RangeF64Dto::parse_when_enabled(
-                params,
-                "mass_filter",
-                "mass_min",
-                "mass_max",
-            ),
-            year_filter: RangeU16Dto::parse_when_enabled(
-                params,
-                "year_filter",
-                "year_start",
-                "year_end",
-            ),
+            mass_filter: parse_range_when_enabled(params, "mass_filter", "mass_min", "mass_max"),
+            year_filter: parse_range_when_enabled(params, "year_filter", "year_start", "year_end"),
             formula_filter: FormulaQueryDto::parse(params),
         }
     }
@@ -354,21 +344,6 @@ impl FormulaQueryDto {
 }
 
 impl RangeF64Dto {
-    fn parse_when_enabled(
-        params: &QueryParams,
-        enabled_key: &str,
-        min_key: &str,
-        max_key: &str,
-    ) -> Option<Self> {
-        params
-            .get(enabled_key)
-            .is_some_and(|v| is_true_flag(v))
-            .then(|| Self {
-                min: parse_param(params, min_key),
-                max: parse_param(params, max_key),
-            })
-    }
-
     fn apply(
         self,
         criteria: &mut SearchCriteria,
@@ -385,21 +360,6 @@ impl RangeF64Dto {
 }
 
 impl RangeU16Dto {
-    fn parse_when_enabled(
-        params: &QueryParams,
-        enabled_key: &str,
-        min_key: &str,
-        max_key: &str,
-    ) -> Option<Self> {
-        params
-            .get(enabled_key)
-            .is_some_and(|v| is_true_flag(v))
-            .then(|| Self {
-                min: parse_param(params, min_key),
-                max: parse_param(params, max_key),
-            })
-    }
-
     fn apply(
         self,
         criteria: &mut SearchCriteria,
@@ -426,6 +386,55 @@ fn parse_flag(params: &QueryParams, name: &str) -> Option<bool> {
 
 fn parse_param<T: FromStr>(params: &QueryParams, name: &str) -> Option<T> {
     params.get(name).and_then(|value| value.parse::<T>().ok())
+}
+
+/// The `(min, max)` of a range parameter pair, if the range is switched on.
+///
+/// Shared by the two `Range*Dto` types because the rule is the same for both and
+/// was written out once per type: a range is absent unless its `enabled` flag is
+/// present and true, and the bounds are read whether or not the range is on, so a
+/// stale bound cannot leak in from the URL. The element type was the only thing
+/// that varied, so it is the only thing that varies here. A third range type is
+/// the case where this stops being tidiness and starts paying.
+fn parse_range_when_enabled<T, D>(
+    params: &QueryParams,
+    enabled_key: &str,
+    min_key: &str,
+    max_key: &str,
+) -> Option<D>
+where
+    T: FromStr,
+    D: RangeDto<T>,
+{
+    params
+        .get(enabled_key)
+        .is_some_and(|v| is_true_flag(v))
+        .then(|| D::from_bounds(parse_param(params, min_key), parse_param(params, max_key)))
+}
+
+/// A range parameter pair, built from its bounds.
+///
+/// The one thing a `Range*Dto` is, so that [`parse_range_when_enabled`] can build
+/// whichever one it is asked for. Without this the two call sites each wanted a
+/// function returning `(min, max)` and a three-line `map` onto their own type --
+/// and those two three-line wrappers were themselves identical, which is what the
+/// second round of `cargo dejadoc` reported. Removing them is the fix; a second
+/// helper to deduplicate them would have been the third function for the job.
+trait RangeDto<T> {
+    /// This DTO over `T`.
+    fn from_bounds(min: Option<T>, max: Option<T>) -> Self;
+}
+
+impl RangeDto<f64> for RangeF64Dto {
+    fn from_bounds(min: Option<f64>, max: Option<f64>) -> Self {
+        Self { min, max }
+    }
+}
+
+impl RangeDto<u16> for RangeU16Dto {
+    fn from_bounds(min: Option<u16>, max: Option<u16>) -> Self {
+        Self { min, max }
+    }
 }
 
 fn parse_element_state(params: &QueryParams, name: &str) -> Option<ElementState> {

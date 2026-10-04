@@ -4,6 +4,33 @@
 use super::CompoundEntry;
 use std::collections::HashSet;
 
+/// `Display` for an enum whose printed form is its [`as_str`](Self::as_str).
+///
+/// Every enum in this module that has an `as_str` wants exactly this, and the two
+/// that had one were written out by hand -- which `cargo dejadoc` reports, and
+/// rightly: the second copy is where the next edit lands without the first being
+/// looked at.
+///
+/// A macro rather than a generic because `Display` is implemented for a concrete
+/// type, and a helper rather than a macro because the body is a single call whose
+/// only content is *which* method to delegate to. It has to be a macro: there is no
+/// way to write one function that implements `Display` for somebody else's type.
+///
+/// Invoked once, below [`ElementState`], because an `impl` block cannot precede
+/// the type it names. That is the cost of collecting them, and it is paid once
+/// rather than once per enum.
+macro_rules! display_via_as_str {
+    ($($type:ty),+ $(,)?) => {
+        $(
+            impl std::fmt::Display for $type {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    f.write_str(self.as_str())
+                }
+            }
+        )+
+    };
+}
+
 /// Counts describing a result set, computed either by the endpoint's `COUNT`
 /// query or locally from the rows.
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize)]
@@ -89,12 +116,6 @@ impl SmilesSearchType {
     }
 }
 
-impl std::fmt::Display for SmilesSearchType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
 /// Whether an optional element may, must, or must not appear.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize)]
 pub enum ElementState {
@@ -129,12 +150,7 @@ impl ElementState {
     }
 }
 
-impl std::fmt::Display for ElementState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
+display_via_as_str!(SmilesSearchType, ElementState);
 impl DatasetStats {
     /// The counts implied by a set of rows, without asking the endpoint.
     ///

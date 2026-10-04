@@ -62,7 +62,7 @@ install_tool cargo-hack 0.6.45       # feature combinations
 install_tool cargo-edit 0.13.13     # `cargo upgrade`, `cargo add`, `cargo rm`
 install_tool cargo-msrv 0.19.3       # the real MSRV, rather than the asserted one
 install_tool typos-cli 1.50.3       # spelling
-install_tool dejadoc 0.3.1           # duplicate doctests
+install_tool dejadoc 0.4.0           # duplicate doctests and functions
 
 # Supply chain.
 install_tool cargo-deny 0.20.2

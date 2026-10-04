@@ -89,13 +89,17 @@ impl ExportFormat {
     }
 
     /// Short name for a log line, a metric label or a filename.
+    ///
+    /// Deliberately [`Self::extension`] rather than a second copy of the same
+    /// match. The two were written out separately and had drifted into being
+    /// character-for-character identical, which is what `cargo dejadoc` reports:
+    /// three formats whose log name happens to be their extension. If a format is
+    /// ever added whose log name is *not* its extension -- `ndjson` and `json`
+    /// being the obvious candidate -- this becomes a real function again, and the
+    /// gate that flagged the copy is what should prompt that change.
     #[must_use]
     pub const fn log_name(self) -> &'static str {
-        match self {
-            Self::Csv => "csv",
-            Self::Json => "json",
-            Self::Rdf => "rdf",
-        }
+        self.extension()
     }
 }
 
