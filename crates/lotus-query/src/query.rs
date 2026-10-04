@@ -266,38 +266,45 @@ const ENRICHED_VARS: &str = "\
 
 /// Reference metadata: the title, DOI and date of the citing reference.
 ///
-/// **The `FILTER(BOUND(?ref))` on every line is load-bearing, and it is not
-/// optional tidiness.** `?r` is bound by the occurrence block, which is itself
-/// optional, so a compound with no occurrence leaves `?r` unbound. A variable that
-/// is unbound entering an `OPTIONAL` is not "unbound" there -- SPARQL gives it a
-/// fresh binding, so `OPTIONAL { ?r wdt:P1476 ?ref_title }` silently becomes
-/// *every reference in Wikidata*, and the query then dies on the sort.
+/// **`BIND(COALESCE(?r, wd:Q0) AS ?_ref_source)` is load-bearing.** `?r` is bound
+/// by the occurrence block, which is itself optional, so a compound with no
+/// occurrence leaves `?r` unbound. A variable that is unbound entering an
+/// `OPTIONAL` is not "unbound" there -- SPARQL gives it a fresh binding, so
+/// `OPTIONAL { ?r wdt:P1476 ?ref_title }` silently becomes *every reference in
+/// Wikidata*, and the query then dies on the sort.
 ///
 /// Measured for one compound with no occurrences, `Q161495`: **54,116,026 rows**
-/// unguarded, and **1** with the guard. `QLever`'s answer was
-/// `Operation timed out. Last operation: Sort (internal order)`, with
-/// `resultsize: 0` -- an empty result that looks like "no occurrences" and is
-/// really "the query could not be answered".
+/// unguarded. `QLever`'s answer was `Operation timed out. Last operation: Sort
+/// (internal order)`, with `resultsize: 0` -- an empty result that looks like
+/// "no occurrences" and is really "the query could not be answered".
 ///
-/// The guard tests `?ref` rather than `?r`, and that matters twice over:
+/// The guard is a sentinel rather than `FILTER(BOUND(?ref))` on each line, and
+/// that is not a style choice. A `FILTER` inside an `OPTIONAL` is evaluated
+/// against *that `OPTIONAL`'s own solutions*, before the join with the left side,
+/// so a variable bound only outside is unbound there and the filter rejects
+/// everything. `FILTER(BOUND(?ref))` therefore matched nothing, ever: measured on
+/// `Q153`, 87 rows carried a title before the guard and **0** after it. Every
+/// title, DOI and date came back empty, which read as "the references have no
+/// metadata" rather than as a bug. The same applies to any variable -- guarding
+/// on one that is bound nowhere gives the same 0.
 ///
-/// - `?ref` is bound by the occurrence block, so it is the honest test for "this
-///   row has a reference at all".
-/// - Inside the `OPTIONAL`, `?r` is *already* fresh, so `FILTER(BOUND(?r))` there
-///   is true of whatever `?r` goes on to bind, and guards nothing. That was tried
-///   and measured: still 54,116,026 rows.
+/// `COALESCE` binds `?r` to `wd:Q0` when there is no occurrence, and `Q0` is not
+/// a Wikidata item, so `wd:Q0 wdt:P1476 ?x` matches nothing after one lookup
+/// instead of enumerating every reference. When there *is* an occurrence `?r` is
+/// bound, `COALESCE` passes it straight through, and the three `OPTIONAL`s behave
+/// exactly as they did before: a row whose reference has no title, DOI or date
+/// still comes back with those cells empty.
 ///
-/// It costs nothing semantically. The reference being optional is unchanged -- a
-/// row whose occurrence exists but whose reference has no title, DOI or date still
-/// comes back with those cells empty, because the guard is satisfied by `?ref`
-/// being bound and the `P1476`/`P356`/`P577` patterns stay optional inside.
+/// Verified on the endpoint: `Q153` 88 rows with a title (62 ms), `Q161495` 1 row
+/// (24 ms).
 ///
 /// The guard lives inside this constant so that `counts_query`, which removes this
 /// whole block by string match, still removes all of it.
 const REFERENCE_METADATA: &str = "
-  OPTIONAL { ?r wdt:P1476 ?ref_title. FILTER(BOUND(?ref)) }
-  OPTIONAL { ?r wdt:P356 ?ref_doi. FILTER(BOUND(?ref)) }
-  OPTIONAL { ?r wdt:P577 ?ref_date. FILTER(BOUND(?ref)) }
+  BIND(COALESCE(?r, wd:Q0) AS ?_ref_source)
+  OPTIONAL { ?_ref_source wdt:P1476 ?ref_title. }
+  OPTIONAL { ?_ref_source wdt:P356 ?ref_doi. }
+  OPTIONAL { ?_ref_source wdt:P577 ?ref_date. }
 ";
 
 const COMPOUND_PROPERTIES: &str = r#"

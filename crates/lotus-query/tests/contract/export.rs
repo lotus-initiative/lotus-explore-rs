@@ -789,26 +789,33 @@ fn the_turtle_export_still_binds_every_variable_its_template_names() {
 fn no_optional_over_a_reference_is_left_unguarded() {
     let select = compounds_by_taxon_query("Q16521");
 
-    // The three reference columns, each of which must arrive with its guard.
+    // The sentinel is what keeps an unbound `?r` from becoming a fresh variable.
+    assert!(
+        select.contains("BIND(COALESCE(?r, wd:Q0) AS ?_ref_source)"),
+        "the reference sentinel is gone; an unbound ?r becomes a fresh variable \
+         matching all of Wikidata"
+    );
+
+    // The three reference columns, each reading through the sentinel rather than
+    // through `?r` directly. Reading `?r` is the bug: inside an OPTIONAL it is
+    // fresh, and a FILTER there cannot see an outer binding, so the guard silently
+    // rejected every row and all three columns came back empty.
     for predicate in ["P1476", "P356", "P577"] {
         assert!(
-            select.contains(&format!("?r wdt:{predicate} ?ref_")),
-            "the {predicate} OPTIONAL is gone; if it moved, this gate is stale"
+            select.contains(&format!("?_ref_source wdt:{predicate} ?ref_")),
+            "the {predicate} OPTIONAL must read ?_ref_source, not ?r"
+        );
+        assert!(
+            !select.contains(&format!("OPTIONAL {{ ?r wdt:{predicate}")),
+            "an OPTIONAL still reads ?r directly for {predicate}"
         );
     }
 
-    // Every `OPTIONAL { ?r … }` in the query must carry `FILTER(BOUND(?ref))`.
     // Counted rather than pattern-matched per line so a reformat cannot hide one.
-    let optionals = select.matches("OPTIONAL { ?r wdt:").count();
-    let guards = select.matches("FILTER(BOUND(?ref))").count();
+    let optionals = select.matches("OPTIONAL { ?_ref_source wdt:").count();
     assert_eq!(
-        optionals, guards,
-        "every OPTIONAL over ?r needs its BOUND(?ref) guard, or an unbound ?r \\
-         becomes a fresh variable matching all of Wikidata"
-    );
-    assert!(
-        optionals >= 3,
-        "expected the three reference columns, found {optionals}"
+        optionals, 3,
+        "expected exactly the three reference columns to go via the sentinel"
     );
 }
 
@@ -820,7 +827,9 @@ fn no_optional_over_a_reference_is_left_unguarded() {
 #[test]
 fn the_count_query_still_drops_the_guarded_reference_block() {
     let counts = lotus_query::counts_query(&compounds_by_taxon_query("Q16521"));
-    for needle in ["P1476", "P356", "P577", "BOUND(?ref)"] {
+    // `COALESCE` itself is not a useful needle: the label BIND uses one too, and
+    // that one is not part of this block.
+    for needle in ["P1476", "P356", "P577", "_ref_source"] {
         assert!(
             !counts.contains(needle),
             "counts_query kept `{needle}`: the strip is a string match on the \\
