@@ -277,3 +277,76 @@ fn no_taxon_means_no_ancestry_filter() {
         subquery_depth(&compounds_by_taxon_query("Q16521"))
     );
 }
+
+/// A resolved closure is inlined, and an absent one falls back to the subquery.
+///
+/// The two halves are one behaviour: the fast form is only correct when it is
+/// given something. An empty `VALUES` list is a valid SPARQL query that matches
+/// nothing, so a closure resolution that returned nothing must degrade to the
+/// slower correct form rather than to an empty answer.
+///
+/// Measured on `Q21754` (`docs/SPARQL-VARIANTS.md`): the inlined form returns
+/// identical rows in 4,860 ms against 9,716 ms. What cannot be checked offline is
+/// that the rows are identical, which is why the numbers there come from the
+/// endpoint rather than from here.
+#[test]
+fn a_resolved_closure_is_inlined_and_an_empty_one_falls_back() {
+    let nomenclature = lotus_query::Nomenclature::ALL_ON;
+    let roots = ["Q2102991".to_string(), "Q21754".to_string()];
+
+    let inlined = lotus_query::compounds_by_taxon_query_with_resolved_closure(
+        "Q21754",
+        &nomenclature,
+        &roots,
+    );
+
+    assert!(
+        inlined.contains("VALUES ?root { wd:Q2102991 wd:Q21754 }"),
+        "the resolved closure is spliced in as a VALUES list:\n{inlined}"
+    );
+    assert!(
+        !inlined.contains("SELECT DISTINCT ?root"),
+        "and the subquery that would have computed it is gone:\n{inlined}"
+    );
+    assert!(
+        inlined.contains("?t (wdt:P171*) ?root ."),
+        "descent from the closure is still a P171* path:\n{inlined}"
+    );
+
+    // The guard: empty means "not resolved", not "matches nothing".
+    let fell_back =
+        lotus_query::compounds_by_taxon_query_with_resolved_closure("Q21754", &nomenclature, &[]);
+    assert!(
+        !fell_back.contains("VALUES ?root"),
+        "an empty closure must not become an empty VALUES list:\n{fell_back}"
+    );
+    assert!(
+        fell_back.contains("SELECT DISTINCT ?root"),
+        "it must fall back to the subquery form, which is slower and correct:\n{fell_back}"
+    );
+
+    // And the default builder is untouched by any of this.
+    let by_default = lotus_query::compounds_by_taxon_query_with("Q21754", &nomenclature);
+    assert_eq!(
+        by_default, fell_back,
+        "the existing entry point must still produce the subquery form byte for byte"
+    );
+}
+
+/// With every relationship off there is no closure to resolve, so the fast form
+/// and the slow form are the same query.
+#[test]
+fn with_nomenclature_off_there_is_no_closure_to_inline() {
+    let off = lotus_query::Nomenclature::ALL_OFF;
+    let roots = ["Q2102991".to_string()];
+
+    let with_roots =
+        lotus_query::compounds_by_taxon_query_with_resolved_closure("Q21754", &off, &roots);
+    let without_roots = lotus_query::compounds_by_taxon_query_with("Q21754", &off);
+
+    assert_eq!(
+        with_roots, without_roots,
+        "nomenclature off means a bare P171* from the seed, and a resolved closure \
+         must not smuggle one in"
+    );
+}

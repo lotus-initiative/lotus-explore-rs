@@ -300,6 +300,39 @@ pub fn compounds_by_taxon_query_with(taxon_qid: &str, nomenclature: &Nomenclatur
     compounds_query(None, Some((taxon_qid, nomenclature)))
 }
 
+/// Compounds in `taxon_qid` and its descendants, with the nomenclatural closure
+/// already resolved by the caller.
+///
+/// The closure is the set of taxa the seed can be called -- what
+/// [`compounds_by_taxon_query_with`] computes in a subquery. Supplying it costs
+/// the caller a round trip and saves the endpoint roughly half the query's compute
+/// on a wide search; the measurement is in `docs/SPARQL-VARIANTS.md`, and the
+/// correctness requirement (both forms must return the same rows) is what
+/// disqualified the faster interleaved alternative.
+///
+/// **Pass an empty slice to get the subquery form.** That is not a silent
+/// fallback for a failed lookup: an empty `VALUES` list is a valid query that
+/// matches nothing, so a resolution that returned nothing must not be turned into
+/// an empty answer. Callers should treat "closure is empty" as "resolve it the
+/// other way", which is exactly what passing an empty slice does.
+///
+/// Nothing in the workspace calls this yet. It exists so the decision in
+/// `docs/sweep/REVIEW.md` section 16 is a one-line change at the call site rather
+/// than a change to the query builder.
+#[must_use]
+pub fn compounds_by_taxon_query_with_resolved_closure(
+    taxon_qid: &str,
+    nomenclature: &Nomenclature,
+    roots: &[String],
+) -> String {
+    compounds_query_with_closure(
+        None,
+        Some((taxon_qid, nomenclature)),
+        Occurrence::Required,
+        roots,
+    )
+}
+
 /// One compound, by identity, with its occurrences.
 ///
 /// This is what [`SmilesSearchType::Exact`] is built on, and the reason it is a
@@ -351,8 +384,20 @@ fn compounds_query_with(
     taxon_qid: Option<(&str, &Nomenclature)>,
     occurrence: Occurrence,
 ) -> String {
+    compounds_query_with_closure(compound_seed, taxon_qid, occurrence, &[])
+}
+
+fn compounds_query_with_closure(
+    compound_seed: Option<&str>,
+    taxon_qid: Option<(&str, &Nomenclature)>,
+    occurrence: Occurrence,
+    roots: &[String],
+) -> String {
     let ancestry = taxon_qid.map_or_else(String::new, |(qid, nomenclature)| {
-        format!("\n          {}", taxon_ancestry_pattern(qid, *nomenclature))
+        format!(
+            "\n          {}",
+            taxon_ancestry_pattern_with_roots(qid, *nomenclature, roots)
+        )
     });
 
     let core = compound_seed.map_or_else(
