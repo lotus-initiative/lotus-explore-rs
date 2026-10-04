@@ -220,14 +220,54 @@ Peak *process* RSS and total allocations are therefore **not measured**. Any
 memory claim later in this sweep must say "retained", not "peak", unless
 `dhat` gets installed.
 
-### What the runtime baseline does not cover
+### SPARQL generation (added after this baseline, `7beb904`)
 
-- **SPARQL generation.** No benchmark exists for `lotus_query`'s query
-  builder — not over the argument matrix, not at all. This is the gap that
-  task A needs, and it is the first thing added after this baseline.
-- **Cache-key hashing.** No benchmark exists.
-- **30 samples with median and spread.** The harness takes one sample per
-  size. Criterion would fix this; see above for why it was not added.
+```bash
+cargo test -p lotus-search --release --test matrix -- --ignored --nocapture bench_matrix
+```
+
+30 samples per cell, median and spread.
+
+| | |
+|---|---|
+| median of the twelve cell medians | **9,833 ns** (9.8 µs) |
+| spread of the cell medians | **7,541 ns .. 15,917 ns** |
+| slowest cell's median ÷ fastest | 2.1x |
+| worst within-cell max ÷ that cell's median | up to 140x |
+
+The finding is the spread. The difference *between* cells is inside the noise, and
+~10 µs against a network round trip of hundreds of milliseconds is ~0.001% of the
+work. Recorded so nobody spends a night proving it.
+
+### Cache-key construction (added after this baseline, `177221b`)
+
+```bash
+cargo test -p lotus-explore-rs --release --bin lotus-explore-rs -- --ignored --nocapture bench_cache_key
+```
+
+50 samples per case. Two runs, because absolute values move with load on this host
+(load average 15.5 for the first, lower for the second):
+
+| case | bytes | run 1 | run 2 |
+|---|---|---|---|
+| tiny (a lookup) | 208 | 1,417 ns | 708 ns |
+| everything, occurrence optional | 2,221 | 2,792 ns | ~1,500 ns |
+| one taxon (matrix cell 5) | 2,642 | 3,125 ns | 1,833 ns |
+| structure search | 2,210 | 2,833 ns | ~1,500 ns |
+| synthetic 16x | 42,272 | 31,208 ns | 20,333 ns |
+
+Absolute numbers move by ~1.7x between runs; the shape does not. sha256 is
+67–73% of the cost and scales with query length; the hex encoding is ~375–750 ns
+**flat**, because its input is always a 32-byte digest; the prefix `format!` is
+the remaining 7–11%.
+
+### What the runtime baseline still does not cover
+
+- **Peak RSS and allocation count.** `dhat` is not installed; see Memory above.
+- **Crate-level wasm attribution.** `cargo bloat` is not installed; see WASM size
+  above.
+- **Criterion.** The single-sample harnesses are as described above; the two
+  benches added afterwards do take 30 and 50 samples with medians.
 
 ## Measurement validity — read this before trusting a delta
 
