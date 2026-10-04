@@ -72,7 +72,7 @@ pub fn blob_path_message(rows: usize, limit: usize) -> String {
 /// tab does -- a full-size search is three million rows and about 600 MB, so the ceiling
 /// sits an order of magnitude below it and three orders above an ordinary search. A
 /// reader over the limit is told what to do rather than left to reload.
-pub const BLOB_PATH_ROW_LIMIT: usize = 400_000;
+pub const BLOB_PATH_ROW_LIMIT: usize = 500_000;
 
 /// Whether the in-memory path can carry `rows`.
 ///

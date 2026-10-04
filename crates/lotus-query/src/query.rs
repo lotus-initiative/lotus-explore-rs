@@ -785,8 +785,8 @@ WHERE {{
 ///
 /// Ordered roughly by how much chemistry is published in each, so truncating the
 /// list costs the least.
-const COMPOUND_NAME_LANGUAGES: [&str; 15] = [
-    "en", "de", "fr", "es", "nl", "it", "pt", "sv", "pl", "ru", "tr", "ja", "zh", "la", "cs",
+const COMPOUND_NAME_LANGUAGES: [&str; 16] = [
+    "mul", "en", "de", "fr", "es", "nl", "it", "pt", "sv", "pl", "ru", "tr", "ja", "zh", "la", "cs",
 ];
 
 /// The `VALUES` rows for `name` under every `COMPOUND_NAME_LANGUAGES` tag.

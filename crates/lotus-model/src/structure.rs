@@ -95,8 +95,9 @@ pub fn looks_like_inchikey(text: &str) -> bool {
 /// The stereocentre in the last one is deliberate over a simpler chain: it is the
 /// structure a person cannot type from memory, and would otherwise go looking for
 /// a drawing tool to make.
-pub const STRUCTURE_INPUT_EXAMPLES: [&str; 4] = [
+pub const STRUCTURE_INPUT_EXAMPLES: [&str; 5] = [
     "amarogentina",
+    "红雀椿素",
     "DBOVHQOUSDWAPQ-WTONXPSSSA-N",
     "Q23118",
     "C[C@H](O)CO",
