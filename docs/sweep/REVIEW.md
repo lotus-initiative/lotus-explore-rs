@@ -207,3 +207,69 @@ crate — ~2,700 mutants — testable by `cargo mutants`, which is worth far mor
 than any single module's results. Not done here: it touches gate tests, and a
 gate test that stops checking what it was written to check is worse than a
 documented limitation.
+
+## 14. Four accessors this sweep wrote tests for have no production caller
+
+Mutation testing led me to add tests for `SearchResult::as_rows`,
+`TaxonResolution::is_all_taxa`, `TaxonResolution::looked_up_name` and
+`SmilesSearchType::needs_structure_service`. All four kill real mutants, and all
+four are **called from tests only** — no front end in this workspace uses them.
+
+The tests are not wrong. Each accessor is documented, its behaviour is
+non-obvious (`is_all_taxa` is "the absence of a QID"; `looked_up_name` refuses to
+report an empty string), and a test that pins it is what stops the next person's
+refactor from quietly changing it. But they do not protect anything a reader
+currently sees, and saying otherwise would overstate the sweep's result.
+
+**Left in place deliberately.** They are small, they document real invariants, and
+deleting a `pub` accessor because today's callers are zero is a judgement about
+tomorrow's callers that belongs to someone who owns the API.
+
+## 15. `publish = false` everywhere, so unused `pub` items are dead code
+
+Every crate in the workspace is `publish = false`. That makes `pub` meaningful only
+inside this workspace — and Rust's `dead_code` lint does not fire on `pub` items,
+because it assumes a library consumer that does not exist here. So there is a
+class of dead code the compiler will never tell you about.
+
+A sweep of all 248 `pub fn`s in the seven library crates found **12 with no
+reference outside their own file**:
+
+| Item | Crate |
+|---|---|
+| `SearchResult::as_rows`, `TaxonResolution::is_all_taxa` | lotus-search |
+| `QidDictionary::is_empty`, `QidDictionary::numeric_ids`, `QidDictionary::intern`, `QidDictionary::intern_text`, `ColumnarResultSet::distinct_len`, `ColumnarResultSet::reference_year` | lotus-model |
+| `Nomenclature::enabled_relations` | lotus-query |
+| `RowExporter::for_each_chunk` | lotus-query |
+| `TaxonProfile::entity_for` (lotus-jsonld) | lotus-jsonld |
+| `StructurePlan::for_request` | lotus-search |
+| `identity_key` | lotus-cli |
+
+Several of these are used *within* their own file and are perfectly alive —
+`intern`/`intern_text` are the columnar dictionary's internals, and
+`for_request` is called by `build_base_query`. The genuinely unreferenced ones are
+the two `QidDictionary` accessors already flagged in item 6, plus the accessors in
+item 14.
+
+**Recommend a human run this as a deliberate pass**, because the tooling to do it
+properly is missing: `cargo udeps` finds unused *dependencies*, not unused `pub`
+items, and `cargo +nightly udeps` is already wired into `./mk supply-chain` for
+the former. A crate-wide `pub` audit is a judgement call about which surface to
+keep, and it should be made by someone who knows which of these are conveniences
+for the next feature.
+
+## 16. Two crates could not be mutation tested until one line each
+
+`cargo test -p lotus-search` did not compile on its own — see the `lotus-search`
+commit for the full account; the fix was a dev-dependency on self.
+
+The same class of problem is worth checking for rather than discovering later:
+**no library crate in this workspace has a test suite that runs standalone.**
+`./mk test` runs `cargo nextest run --workspace`, which builds everything at once,
+so feature unification silently supplies whatever each crate's own tests need.
+The symptom is invisible until someone runs one crate on its own — which is what
+`cargo mutants` does, every time.
+
+**Recommend:** a gate that runs `cargo test -p <crate> --no-run` for each library
+crate in turn. It costs a few seconds of caching and would catch the next
+occurrence at CI rather than at 2am.
