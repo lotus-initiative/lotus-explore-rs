@@ -32,9 +32,9 @@ pub enum FetchError {
     /// does do is occupy the endpoint for the full budget, several times over,
     /// which is how a client becomes the kind of client an operator blocks.
     ///
-    /// It is therefore **not** [`is_retryable`], and it is deliberately not
-    /// [`is_endpoint_unavailable`] either: falling back to `WDQS` would not make
-    /// an expensive query cheap, it would run it twice on two endpoints.
+    /// It is therefore **not** [`Self::is_retryable`], and it is deliberately not
+    /// [`Self::is_endpoint_unavailable`] either: falling back to `WDQS` would not
+    /// make an expensive query cheap, it would run it twice on two endpoints.
     #[error("the query exceeded the endpoint's time limit ({}): {message}", budget.as_deref().unwrap_or("unset"))]
     TimedOut {
         /// The budget that was asked for, in the endpoint's own duration syntax.
