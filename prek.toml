@@ -40,12 +40,12 @@ hooks = [{ id = "end-of-file-fixer", exclude = "(apps/lotus-explore-rs/public/as
 # reads it from this line rather than repeating it.
 [[repos]]
 repo = "https://github.com/tombi-toml/tombi-pre-commit"
-rev = "v1.7.0"
+rev = "v1.7.2"
 hooks = [{ id = "tombi-format" }, { id = "tombi-lint" }]
 
 [[repos]]
 repo = "https://github.com/crate-ci/typos"
-rev = "v1.50.3"
+rev = "typos-dict-v0.14.2"
 hooks = [{ id = "typos" }]
 
 [[repos]]
