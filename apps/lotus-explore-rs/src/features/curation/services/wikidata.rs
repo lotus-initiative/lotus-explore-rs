@@ -111,7 +111,30 @@ pub async fn fetch_wikidata_compound_by_inchikey(
 /// `MIN(?compound)` picks the same item deterministically instead of letting the
 /// order decide, and a run that resolves a compound to the *second* of two
 /// candidates can no longer depend on which query the endpoint happened to plan
-/// first.
+/// first. The aggregate is projected as **`?compound_item`**: an `AS` clause may
+/// not target a variable the body already binds, and the endpoint's own refusal
+/// ("The target ?compound of an AS clause was already used in the query body") is
+/// a `400` that names neither this function nor the run it broke.
+/// The batched compound query, as a function so a test can check it.
+///
+/// Split out of the request path because a query is only testable if the test can
+/// see the string that was sent.
+fn build_compound_lookup_query(keys: &[String]) -> String {
+    let values = inchi_values(keys);
+    format!(
+        "{CURATION_SPARQL_PREFIXES}\n\
+         SELECT ?key (MIN(?compound) AS ?compound_item) ?canonical ?iso ?inchi ?formula ?mass WHERE {{\n  \
+           VALUES ?key {{ {values} }}\n  \
+           ?compound wdt:P235 ?key .\n  \
+           OPTIONAL {{ ?compound wdt:P233 ?canonical . }}\n  \
+           OPTIONAL {{ ?compound wdt:P2017 ?iso . }}\n  \
+           OPTIONAL {{ ?compound wdt:P234 ?inchi . }}\n  \
+           OPTIONAL {{ ?compound wdt:P274 ?formula . }}\n  \
+           OPTIONAL {{ ?compound wdt:P2067 ?mass . }}\n  \
+         }} GROUP BY ?key ?canonical ?iso ?inchi ?formula ?mass"
+    )
+}
+
 pub async fn fetch_compounds_by_inchikeys<'a>(
     inchikeys: impl IntoIterator<Item = &'a str>,
 ) -> Result<HashMap<String, WikidataCompound>, CurationError> {
@@ -127,27 +150,22 @@ pub async fn fetch_compounds_by_inchikeys<'a>(
         return Ok(HashMap::new());
     }
 
-    let values = inchi_values(&keys);
-    let query = format!(
-        "{CURATION_SPARQL_PREFIXES}\n\
-         SELECT ?key (MIN(?compound) AS ?compound) ?canonical ?iso ?inchi ?formula ?mass WHERE {{\n  \
-           VALUES ?key {{ {values} }}\n  \
-           ?compound wdt:P235 ?key .\n  \
-           OPTIONAL {{ ?compound wdt:P233 ?canonical . }}\n  \
-           OPTIONAL {{ ?compound wdt:P2017 ?iso . }}\n  \
-           OPTIONAL {{ ?compound wdt:P234 ?inchi . }}\n  \
-           OPTIONAL {{ ?compound wdt:P274 ?formula . }}\n  \
-           OPTIONAL {{ ?compound wdt:P2067 ?mass . }}\n  \
-         }} GROUP BY ?key ?canonical ?iso ?inchi ?formula ?mass"
-    );
-    let json = execute_sparql_json(&query).await?;
+    let json = execute_sparql_json(&build_compound_lookup_query(&keys)).await?;
 
     let mut resolved: HashMap<String, WikidataCompound> = HashMap::new();
     for binding in json_bindings(&json) {
+        // `compound_item`, not `compound`. The aggregate needs a target the body
+        // did not already bind, and SPARQL says so in as many words:
+        //
+        //   400 Invalid SPARQL query: The target ?compound of an AS clause was
+        //       already used in the query body.
+        //
+        // Which is what the first version of this query returned, for every
+        // curation run, with a message that names neither the app nor the run.
         let (Some(key), Some(qid)) = (
             binding_value(binding, "key"),
             binding
-                .get("compound")
+                .get("compound_item")
                 .and_then(|v| v.get("value"))
                 .and_then(Value::as_str)
                 .and_then(extract_qid_from_uri),
@@ -232,21 +250,56 @@ pub async fn existing_occurrences_with_ref(
 /// The batch size used when a caller has no opinion.
 pub const OCCURRENCE_CHUNK: usize = 100;
 
+/// The batched "(compound, taxon) is recorded?" query, as a function so a test
+/// can check it.
+fn build_occurrence_query(pairs: &[(String, String)]) -> String {
+    let values = entity_pair_values(pairs.iter().map(|(compound, taxon)| (compound, taxon)));
+    format!(
+        "{CURATION_SPARQL_PREFIXES}\n\
+         SELECT DISTINCT ?compound ?taxon WHERE {{\n  \
+           VALUES (?compound ?taxon) {{ {values} }}\n  \
+           ?compound wdt:{WD_OCCURS_IN_TAXON_PROP} ?taxon .\n\
+         }}",
+    )
+}
+
+/// The batched "(compound, taxon, reference) is recorded?" query.
+fn build_occurrence_with_ref_query(triples: &[(String, String, String)]) -> String {
+    let values = entity_triple_values(triples);
+    format!(
+        "{CURATION_SPARQL_PREFIXES}\n\
+         SELECT DISTINCT ?compound ?taxon ?ref WHERE {{\n  \
+           VALUES (?compound ?taxon ?ref) {{ {values} }}\n  \
+           ?compound wdt:{WD_OCCURS_IN_TAXON_PROP} ?taxon ;\n        \
+                   wdt:P248 ?ref .\n\
+         }}",
+    )
+}
+
+fn entity_triple_values(triples: &[(String, String, String)]) -> String {
+    let mut values = String::with_capacity(triples.len() * 64);
+    for (i, (compound, taxon, reference)) in triples.iter().enumerate() {
+        if i > 0 {
+            values.push(' ');
+        }
+        values.push_str("(wd:");
+        values.push_str(compound);
+        values.push_str(" wd:");
+        values.push_str(taxon);
+        values.push_str(" wd:");
+        values.push_str(reference);
+        values.push(')');
+    }
+    values
+}
+
 async fn query_existing(
     pairs: &[(String, String)],
 ) -> Result<HashSet<(String, String)>, CurationError> {
     if pairs.is_empty() {
         return Ok(HashSet::new());
     }
-    let values = entity_pair_values(pairs.iter().map(|(compound, taxon)| (compound, taxon)));
-    let query = format!(
-        "{CURATION_SPARQL_PREFIXES}\n\
-         SELECT DISTINCT ?compound ?taxon WHERE {{\n  \
-           VALUES (?compound ?taxon) {{ {values} }}\n  \
-           ?compound wdt:{WD_OCCURS_IN_TAXON_PROP} ?taxon .\n\
-         }}",
-    );
-    let json = execute_sparql_json(&query).await?;
+    let json = execute_sparql_json(&build_occurrence_query(pairs)).await?;
     Ok(json_bindings(&json)
         .filter_map(|binding| {
             let compound = binding_value(binding, "compound")?;
@@ -265,28 +318,7 @@ async fn query_existing_with_ref(
     if triples.is_empty() {
         return Ok(HashSet::new());
     }
-    let mut values = String::with_capacity(triples.len() * 64);
-    for (i, (compound, taxon, reference)) in triples.iter().enumerate() {
-        if i > 0 {
-            values.push(' ');
-        }
-        values.push_str("(wd:");
-        values.push_str(compound);
-        values.push_str(" wd:");
-        values.push_str(taxon);
-        values.push_str(" wd:");
-        values.push_str(reference);
-        values.push(')');
-    }
-    let query = format!(
-        "{CURATION_SPARQL_PREFIXES}\n\
-         SELECT DISTINCT ?compound ?taxon ?ref WHERE {{\n  \
-           VALUES (?compound ?taxon ?ref) {{ {values} }}\n  \
-           ?compound wdt:{WD_OCCURS_IN_TAXON_PROP} ?taxon ;\n        \
-                   wdt:P248 ?ref .\n\
-         }}",
-    );
-    let json = execute_sparql_json(&query).await?;
+    let json = execute_sparql_json(&build_occurrence_with_ref_query(triples)).await?;
     Ok(json_bindings(&json)
         .filter_map(|binding| {
             Some((
@@ -622,6 +654,96 @@ mod tests {
     #![allow(clippy::expect_used)]
 
     use super::*;
+
+    /// The rule that broke curation, as an assertion rather than as a story.
+    ///
+    /// `MIN(?compound) AS ?compound` is a `400` from QLever with the message "The
+    /// target ?compound of an AS clause was already used in the query body", and
+    /// it broke *every* curation run. There is no SPARQL parser in this workspace
+    /// to hand the query to, so this checks the one property that query got wrong,
+    /// on the generated text: a variable that an `AS` clause introduces must not
+    /// appear anywhere else in the query.
+    ///
+    /// Not a substitute for asking the endpoint -- it is the check that could have
+    /// caught this before a user did.
+    fn assert_as_targets_are_not_used_elsewhere(query: &str) {
+        let mut rest = query;
+        while let Some(start) = rest.find(" AS ?") {
+            let after = &rest[start + " AS ?".len()..];
+            let end = after
+                .find(|c: char| !(c.is_alphanumeric() || c == '_'))
+                .unwrap_or(after.len());
+            let target = format!("?{}", &after[..end]);
+            let occurrences = query.matches(&target).count();
+            assert_eq!(
+                occurrences, 1,
+                "the AS clause introduces {target}, so it must appear exactly once \
+                 in the query; it appears {occurrences} times:\n{query}"
+            );
+            rest = &after[end..];
+        }
+    }
+
+    #[test]
+    fn the_batched_compound_query_projects_the_aggregate_under_a_new_name() {
+        // The query as the code builds it, with one key, so the assertion below is
+        // about the real string and not about a copy of it.
+        let query = build_compound_lookup_query(&["LFQSCWFLJHTTHZ-UHFFFAOYSA-N".to_string()]);
+        assert!(
+            query.contains("(MIN(?compound) AS ?compound_item)"),
+            "the aggregate is projected as ?compound_item:\n{query}"
+        );
+        assert_as_targets_are_not_used_elsewhere(&query);
+    }
+
+    #[test]
+    fn the_batched_occurrence_queries_have_no_as_clause_to_conflict() {
+        let pairs = vec![("Q153".to_string(), "Q15978631".to_string())];
+        let triples = vec![(
+            "Q22918685".to_string(),
+            "Q202864".to_string(),
+            "Q22330782".to_string(),
+        )];
+
+        assert_as_targets_are_not_used_elsewhere(&build_occurrence_query(&pairs));
+        assert_as_targets_are_not_used_elsewhere(&build_occurrence_with_ref_query(&triples));
+    }
+
+    #[test]
+    fn a_batched_query_asks_for_exactly_the_keys_it_was_given() {
+        let keys: Vec<String> = ["AAAA-BBB", "CCCC-DDD", "EEEE-FFF"]
+            .iter()
+            .map(|key| (*key).to_string())
+            .collect();
+
+        let query = build_compound_lookup_query(&keys);
+
+        for key in &keys {
+            assert!(query.contains(key.as_str()), "{key} is missing:\n{query}");
+        }
+        // Three keys, six quote characters, and therefore three literals. A `VALUES`
+        // that quietly lost an entry asks about a compound this run was never
+        // given, which reads as "not in Wikidata" for something nobody asked about.
+        assert_eq!(
+            query.matches('"').count(),
+            keys.len() * 2,
+            "one literal per key, and no more:\n{query}"
+        );
+    }
+
+    #[test]
+    fn a_batched_occurrence_query_names_its_pairs_as_items_not_literals() {
+        // `VALUES` with a quoted string there matches a literal, and every row of
+        // this pattern is an IRI. A query that quietly matches nothing is the
+        // failure mode: the answer would be "not recorded" for every row, and a
+        // curator would submit statements that are already there.
+        let query = build_occurrence_query(&[("Q153".to_string(), "Q15978631".to_string())]);
+        assert!(query.contains("(wd:Q153 wd:Q15978631)"), "{query}");
+        assert!(
+            !query.contains("\"Q153\""),
+            "a QID is not a literal:\n{query}"
+        );
+    }
 
     /// A name the batch cannot resolve is a name the row loop will ask about
     /// again, one request at a time.
