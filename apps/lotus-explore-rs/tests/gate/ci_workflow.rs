@@ -242,3 +242,156 @@ fn every_toolchain_pin_agrees_with_rust_toolchain_toml() -> Result<()> {
     }
     Ok(())
 }
+
+/// `ci.yml` and `./mk setup` install the same tools.
+///
+/// The versions are deliberately allowed to differ -- CI installs unpinned
+/// while `setup.sh` pins -- but the tool *sets* are not. A tool in one list and
+/// not the other means the local gate and the CI gate are different gates, and
+/// this file exists to hold that one claim.
+///
+/// What this cannot catch, having tried: whether a name is a real crate.
+/// `cargo-dejadoc` was in both lists for a commit, and both were wrong in the
+/// same way, because the crate is `dejadoc` and that is the binary it installs.
+/// There is no structural difference between that and `cargo-deny`, which is a
+/// real crate with a `cargo-` prefixed name -- a rule rejecting `cargo-` names
+/// fires on seven correct entries here. Only crates.io can tell them apart, and
+/// a test that needs the network is not a gate.
+#[cfg(test)]
+mod installed_tools {
+    use super::super::scrapers::{Result, read};
+    use std::collections::{BTreeMap, BTreeSet};
+
+    /// The entries of every `tool: |` block in the workflow.
+    ///
+    /// Read from the block rather than by filtering lines shaped like list
+    /// items: the workflow is full of `- uses:` and `- name:` lines, and a shape
+    /// guess picks those up. Indentation is the discriminator -- an entry in a
+    /// literal block is indented past its own `tool: |` -- and the entries
+    /// themselves are bare, because a YAML literal block is not a list.
+    fn workflow_tools(yaml: &str) -> BTreeSet<String> {
+        let mut tools = BTreeSet::new();
+        let mut indent = 0usize;
+        let mut in_block = false;
+        for line in yaml.lines() {
+            let width = line.len() - line.trim_start().len();
+            let trimmed = line.trim();
+            if trimmed == "tool: |" {
+                in_block = true;
+                indent = width;
+                continue;
+            }
+            if !in_block {
+                continue;
+            }
+            if trimmed.is_empty() || width <= indent {
+                in_block = false;
+            } else if !trimmed.starts_with('#') {
+                tools.insert(crate_name(trimmed).to_string());
+            }
+        }
+        tools
+    }
+
+    /// `install_tool <crate> <version>` from `setup.sh`, with the versions.
+    fn setup_tools(script: &str) -> BTreeMap<String, String> {
+        script
+            .lines()
+            .filter_map(|line| line.trim().strip_prefix("install_tool "))
+            .filter_map(|rest| {
+                let mut fields = rest.split_whitespace();
+                let name = fields.next()?;
+                let version = fields.next().unwrap_or("unpinned");
+                Some((crate_name(name).to_string(), version.to_string()))
+            })
+            .collect()
+    }
+
+    /// A crate name, with any `@version` and trailing `:tag` ref removed.
+    fn crate_name(entry: &str) -> &str {
+        let entry = entry.split('#').next().unwrap_or(entry).trim();
+        let entry = entry.rsplit_once(' ').map_or(entry, |(_, tail)| tail);
+        entry.split('@').next().unwrap_or(entry).trim()
+    }
+
+    /// Tools CI installs that `setup.sh` deliberately does not, and why.
+    ///
+    /// Listed rather than derived, because each is a bootstrap: `setup.sh`
+    /// cannot install them with the helper they bootstrap, or installs them
+    /// from a pinned source instead.
+    const SETUP_EXCEPTIONS: &[&str] = &[
+        // The installer itself. `setup.sh` probes for it and falls back to
+        // `cargo install` when it is absent, so it is never a target of
+        // `install_tool`.
+        "cargo-binstall",
+        // Installed from the pinned version in Cargo.toml rather than through
+        // `install_tool`, because the release binary and the crate are named
+        // differently and the version is read from the manifest.
+        "dioxus-cli",
+    ];
+
+    #[test]
+    fn ci_installs_nothing_the_local_setup_cannot_provide() -> Result<()> {
+        // One direction only. `setup.sh` is a superset: it installs the local
+        // tools for tasks the CI gate does not run -- mutants, bloat, udeps --
+        // and requiring the sets to match would be requiring CI to grow every
+        // one of them.
+        //
+        // The other direction is the one that matters and that was previously
+        // unchecked: a tool added to the CI gate without being installable
+        // locally means `./mk ci` fails on a contributor's machine for a reason
+        // that has nothing to do with their change.
+        let in_ci = workflow_tools(&read(".github/workflows/ci.yml")?);
+        let in_setup: BTreeSet<String> = setup_tools(&read("make/scripts/setup.sh")?)
+            .into_keys()
+            .collect();
+
+        let unavailable: Vec<String> = in_ci
+            .difference(&in_setup)
+            .filter(|name| !SETUP_EXCEPTIONS.contains(&name.as_str()))
+            .cloned()
+            .collect();
+
+        assert!(
+            unavailable.is_empty(),
+            "CI installs tools `./mk setup` does not provide, so the local gate \
+             cannot run what CI runs:\n  {}\n\
+             Add an `install_tool` line for each, or list it in \
+             SETUP_EXCEPTIONS with the reason it is a bootstrap.",
+            unavailable.join("\n  ")
+        );
+        Ok(())
+    }
+
+    /// The duplicate-doctest tool, named the way each consumer needs it.
+    ///
+    /// Written down because the two spellings differ and both had to be right:
+    /// the installers take `dejadoc`, and the task runs `cargo-dejadoc`. Getting
+    /// this backwards fails in CI with "cargo-dejadoc is not found", which names
+    /// neither the crate nor the typo.
+    #[test]
+    fn the_duplicate_doctest_tool_is_named_correctly_in_both_places() -> Result<()> {
+        let yaml = read(".github/workflows/ci.yml")?;
+        assert!(
+            workflow_tools(&yaml).contains("dejadoc"),
+            "ci.yml installs the crate as `dejadoc`, not as `cargo-dejadoc`: \
+             install-action takes crate names and `cargo-dejadoc` does not exist"
+        );
+
+        let script = read("make/scripts/setup.sh")?;
+        let versions = setup_tools(&script);
+        assert!(
+            versions.contains_key("dejadoc"),
+            "setup.sh installs it as `dejadoc` too, for the same reason"
+        );
+
+        let task = read("make/test.toml")?;
+        assert!(
+            task.contains("command -v cargo-dejadoc") && task.contains("cargo dejadoc"),
+            "the task runs the *binary*, which really is `cargo-dejadoc` -- so the \
+             crate name and the command name are not the same string, and both \
+             spellings above have to be right for the gate to run"
+        );
+        Ok(())
+    }
+}

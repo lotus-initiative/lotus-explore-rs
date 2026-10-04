@@ -515,10 +515,42 @@ fn nomenclature_path(nomenclature: Nomenclature) -> Option<String> {
 /// used, unchanged, so a search that does not want them costs exactly what it
 /// used to.
 fn taxon_ancestry_pattern(qid: &str, nomenclature: Nomenclature) -> String {
+    taxon_ancestry_pattern_with_roots(qid, nomenclature, &[])
+}
+
+/// The taxon filter, optionally from a closure resolved before the query was built.
+///
+/// `roots` is the seed's nomenclatural closure -- the taxa the seed can be called,
+/// which [`nomenclature_path`] would otherwise compute in a subquery. Passing them
+/// in trades that subquery for a `VALUES` list, which is the cheaper of the two by
+/// about half on the widest search this app can produce; see `docs/SPARQL-VARIANTS.md`
+/// for the measurement and for why the faster *interleaved* alternative is not
+/// used (it answers a different question, losing ~79 of 11,087 distinct compounds).
+///
+/// **Empty means "not resolved", and that is load-bearing.** An empty `VALUES` is a
+/// valid query that matches nothing, so a caller who resolved the closure and got
+/// nothing back would silently get an empty result rather than the full subtree.
+/// Falling back to the subquery makes the failure mode "slower" instead of
+/// "wrong", which is the only acceptable trade for a missing value.
+fn taxon_ancestry_pattern_with_roots(
+    qid: &str,
+    nomenclature: Nomenclature,
+    roots: &[String],
+) -> String {
     let escaped = escape_sparql_string(qid);
     let Some(path) = nomenclature_path(nomenclature) else {
         return format!("?t (wdt:P171*) wd:{escaped} .");
     };
+
+    // Resolved, and resolved to something.
+    if !roots.is_empty() {
+        let values = roots
+            .iter()
+            .map(|root| format!("wd:{}", escape_sparql_string(root)))
+            .collect::<Vec<_>>()
+            .join(" ");
+        return format!("VALUES ?root {{ {values} }}\n          ?t (wdt:P171*) ?root .");
+    }
     format!(
         "{{\n            SELECT DISTINCT ?root\n            WHERE {{\n              VALUES ?seed {{ wd:{escaped} }}\n              ?seed {path} ?root .\n            }}\n          }}\n          ?t (wdt:P171*) ?root ."
     )

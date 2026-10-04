@@ -98,6 +98,10 @@ jobs:
       # than skipping it, which is deliberate: a supply-chain check that is
       # silently absent on a machine where it is not installed is a check that
       # reports nothing about the code.
+      # `dejadoc` is the crate; `cargo-dejadoc` is the binary it installs.
+      # `install-action` takes crate names, so naming the binary 404s here.
+      # Deliberately outside the `tool:` block below: install-action reads a `#`
+      # line inside one as a tool name, which is the third bug this file records.
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: |
@@ -108,7 +112,7 @@ jobs:
             cargo-deny
             cargo-audit
             cargo-machete
-            cargo-dejadoc
+            dejadoc
 
       # tombi is not installable through `install-action`. `tombi-cli` is a
       # 0.0.1 placeholder on crates.io with no binary in it, so install-action
