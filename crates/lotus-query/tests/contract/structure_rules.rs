@@ -91,10 +91,10 @@ fn optionals(query: &str) -> Vec<&str> {
     let mut rest = query;
     while let Some(at) = rest.find("OPTIONAL") {
         let after = &rest[at..];
-        if let Some(brace) = after.find('{') {
-            if let Some(group) = group_at(after, brace) {
-                found.push(group);
-            }
+        if let Some(brace) = after.find('{')
+            && let Some(group) = group_at(after, brace)
+        {
+            found.push(group);
         }
         rest = &rest[at + "OPTIONAL".len()..];
     }
