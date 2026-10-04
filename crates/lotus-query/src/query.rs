@@ -264,10 +264,40 @@ const ENRICHED_VARS: &str = "\
       ?ref_title ?ref_doi ?ref_date
       ?statement";
 
+/// Reference metadata: the title, DOI and date of the citing reference.
+///
+/// **The `FILTER(BOUND(?ref))` on every line is load-bearing, and it is not
+/// optional tidiness.** `?r` is bound by the occurrence block, which is itself
+/// optional, so a compound with no occurrence leaves `?r` unbound. A variable that
+/// is unbound entering an `OPTIONAL` is not "unbound" there -- SPARQL gives it a
+/// fresh binding, so `OPTIONAL { ?r wdt:P1476 ?ref_title }` silently becomes
+/// *every reference in Wikidata*, and the query then dies on the sort.
+///
+/// Measured for one compound with no occurrences, `Q161495`: **54,116,026 rows**
+/// unguarded, and **1** with the guard. `QLever`'s answer was
+/// `Operation timed out. Last operation: Sort (internal order)`, with
+/// `resultsize: 0` -- an empty result that looks like "no occurrences" and is
+/// really "the query could not be answered".
+///
+/// The guard tests `?ref` rather than `?r`, and that matters twice over:
+///
+/// - `?ref` is bound by the occurrence block, so it is the honest test for "this
+///   row has a reference at all".
+/// - Inside the `OPTIONAL`, `?r` is *already* fresh, so `FILTER(BOUND(?r))` there
+///   is true of whatever `?r` goes on to bind, and guards nothing. That was tried
+///   and measured: still 54,116,026 rows.
+///
+/// It costs nothing semantically. The reference being optional is unchanged -- a
+/// row whose occurrence exists but whose reference has no title, DOI or date still
+/// comes back with those cells empty, because the guard is satisfied by `?ref`
+/// being bound and the `P1476`/`P356`/`P577` patterns stay optional inside.
+///
+/// The guard lives inside this constant so that `counts_query`, which removes this
+/// whole block by string match, still removes all of it.
 const REFERENCE_METADATA: &str = "
-  OPTIONAL { ?r wdt:P1476 ?ref_title. }
-  OPTIONAL { ?r wdt:P356 ?ref_doi. }
-  OPTIONAL { ?r wdt:P577 ?ref_date. }
+  OPTIONAL { ?r wdt:P1476 ?ref_title. FILTER(BOUND(?ref)) }
+  OPTIONAL { ?r wdt:P356 ?ref_doi. FILTER(BOUND(?ref)) }
+  OPTIONAL { ?r wdt:P577 ?ref_date. FILTER(BOUND(?ref)) }
 ";
 
 const COMPOUND_PROPERTIES: &str = r#"

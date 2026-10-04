@@ -765,3 +765,66 @@ fn the_turtle_export_still_binds_every_variable_its_template_names() {
          provenance triples would be dropped silently"
     );
 }
+
+/// Every `OPTIONAL` over a reference must be guarded by `BOUND(?ref)`.
+///
+/// The reference metadata sits *outside* the optional occurrence block, so `?r`
+/// can arrive unbound — and a variable that is unbound entering an `OPTIONAL` is
+/// given a fresh binding rather than staying empty. `OPTIONAL { ?r wdt:P1476 … }`
+/// then quietly asks for every reference in Wikidata. Measured on one compound
+/// with no occurrences: **54,116,026 rows** instead of 1, and `QLever` answering
+/// `Operation timed out. Last operation: Sort (internal order)` with
+/// `resultsize: 0` — an empty result that reads as "no occurrences" and is really
+/// "this query cannot be answered".
+///
+/// That is also why the app and the CLI disagreed about `C[C@H](O)CO`: the app
+/// resolves a SMILES to a QID and takes the exact-compound path, which has the
+/// optional occurrence block; the CLI hands the SMILES to the structure service,
+/// which does not.
+///
+/// A source-level gate, like `no_limit_gate`: the property is a relationship
+/// between two constants in the same file, and a query that runs is the only
+/// other way to observe it.
+#[test]
+fn no_optional_over_a_reference_is_left_unguarded() {
+    let select = compounds_by_taxon_query("Q16521");
+
+    // The three reference columns, each of which must arrive with its guard.
+    for predicate in ["P1476", "P356", "P577"] {
+        assert!(
+            select.contains(&format!("?r wdt:{predicate} ?ref_")),
+            "the {predicate} OPTIONAL is gone; if it moved, this gate is stale"
+        );
+    }
+
+    // Every `OPTIONAL { ?r … }` in the query must carry `FILTER(BOUND(?ref))`.
+    // Counted rather than pattern-matched per line so a reformat cannot hide one.
+    let optionals = select.matches("OPTIONAL { ?r wdt:").count();
+    let guards = select.matches("FILTER(BOUND(?ref))").count();
+    assert_eq!(
+        optionals, guards,
+        "every OPTIONAL over ?r needs its BOUND(?ref) guard, or an unbound ?r \\
+         becomes a fresh variable matching all of Wikidata"
+    );
+    assert!(
+        optionals >= 3,
+        "expected the three reference columns, found {optionals}"
+    );
+}
+
+/// `counts_query` must still strip the reference metadata whole.
+///
+/// It removes the block by string match against the constant, so anything added
+/// to that constant is removed with it -- and anything that breaks the match is
+/// left behind, where it costs a `COUNT` query the scan it cannot afford.
+#[test]
+fn the_count_query_still_drops_the_guarded_reference_block() {
+    let counts = lotus_query::counts_query(&compounds_by_taxon_query("Q16521"));
+    for needle in ["P1476", "P356", "P577", "BOUND(?ref)"] {
+        assert!(
+            !counts.contains(needle),
+            "counts_query kept `{needle}`: the strip is a string match on the \\
+             constant, so the guard has to live inside it"
+        );
+    }
+}
