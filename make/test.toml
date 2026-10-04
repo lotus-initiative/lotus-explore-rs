@@ -137,11 +137,24 @@ description = "Coverage report for the library crates, via nextest."
 # `--output-dir`, because `--html` defaults to `target/llvm-cov/html` while the
 # workflow uploads `target/llvm-cov-report/`. Named here so the path written is
 # the path uploaded, rather than two strings that have to agree.
+#
+# The two reports are separate `report` invocations, not two flags on one. That is
+# not a style choice: `--html` and `--lcov` are mutually exclusive on a single call
+# ("--html may not be used together with --lcov"), and passing both fails the task
+# outright. Running `report` twice reads the same instrumented profile, so this is
+# still one instrumented build -- which is the expensive part -- and the two
+# numbers describe the same run rather than two runs nobody can reconcile.
+#
+# The `lcov` half is load-bearing for Codecov, which cannot read an HTML report.
+# Without it the upload step finds no file and the badge silently reports nothing
+# while the job stays green, which is the failure mode this arrangement is
+# arranged to prevent elsewhere in this file.
 script = """
 cargo llvm-cov nextest --locked \\
   -p lotus-model -p lotus-query -p lotus-curation -p lotus-jsonld -p lotus-search \\
-  --profile ci --no-fail-fast \\
-  --html --output-dir "${REPO_ROOT}/target/llvm-cov-report"
+  --profile ci --no-fail-fast
+cargo llvm-cov report --html --output-dir "${REPO_ROOT}/target/llvm-cov-report"
+cargo llvm-cov report --lcov --output-path "${REPO_ROOT}/target/llvm-cov-report/lcov.info"
 """
 
 # The report as text rather than HTML, which is what a diff of two runs needs.

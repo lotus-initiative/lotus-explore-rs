@@ -164,6 +164,23 @@ jobs:
             cargo-nextest
             cargo-llvm-cov
       - run: ./mk cov
+
+      # Codecov, from the `lcov.info` that `./mk cov` now writes beside the HTML.
+      # Pinned by SHA like every other action here, so a tag that moves cannot
+      # change what runs on a pull request.
+      #
+      # `fail_ci_if_error: false` is the default and is set deliberately. This step
+      # needs `secrets.CODECOV_TOKEN`, and until that secret exists the upload finds
+      # no token. A coverage upload is not a correctness gate -- a red X on the
+      # commit because a secret is missing teaches people to ignore red Xs, and the
+      # next thing they ignore is a real failure. So a missing token costs the
+      # badge, not the build.
+      - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: target/llvm-cov-report/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4
         with:
           name: coverage-report
