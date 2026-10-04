@@ -124,6 +124,14 @@ is set, or add a FAQ entry saying plainly that an empty taxon box means the whol
 projection and roughly how long that takes. Needs a human because it is a product
 call about whether to constrain the request or only to explain it.
 
+**Now measured, and worse than "no cap in principle".** A `taxon="*"` query
+returns **572 MB of JSON** from QLever — that is the whole projection, and it is
+what a blank taxon box asks for on the web path. See `docs/SPARQL-VARIANTS.md`.
+Two further points that measurement settled: the library path (the CLI) *is*
+capped at 500 rows by `DEFAULT_ROW_LIMIT`, so the two front ends differ on this
+and only the CLI is bounded; and the cost is not hypothetical, since the repo's
+own benchmark parses a 2,990,730-row export in 5.5 s.
+
 ## 11. The CLI and the web app have different row limits
 
 `lotus-search::search` — the CLI's path — caps at `DEFAULT_ROW_LIMIT` (500) and
