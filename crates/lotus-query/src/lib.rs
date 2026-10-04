@@ -19,7 +19,7 @@ pub use parse::{
     parse_reference_lookup_csv, parse_taxon_csv,
 };
 pub use query::{
-    FallbackService, Nomenclature, all_compounds_including_untaxonomised_query,
+    FallbackService, Nomenclature, SELECT_COLUMNS, all_compounds_including_untaxonomised_query,
     all_compounds_query, compound_alias_query, compound_by_qid_query, compound_inchikey_query,
     compound_label_query, compounds_by_taxon_query, compounds_by_taxon_query_with,
     compounds_by_taxon_query_with_resolved_closure, construct_from_select, counts_query,

@@ -16,7 +16,7 @@
 use lotus_model::ElementState;
 use lotus_model::SearchCriteria;
 use lotus_query::{
-    Nomenclature, all_compounds_query, compound_alias_query, compound_by_qid_query,
+    Nomenclature, SELECT_COLUMNS, all_compounds_query, compound_alias_query, compound_by_qid_query,
     compound_inchikey_query, compound_label_query, compounds_by_taxon_query,
     compounds_by_taxon_query_with, construct_from_select, escape_structure_literal, export_query,
     is_reference_lookup, reference_by_doi_query, reference_by_qid_query,
@@ -630,4 +630,60 @@ fn occurrence_block(query: &str) -> &str {
 /// Whether the occurrence statement is inside an `OPTIONAL`.
 fn occurrence_is_optional(query: &str) -> bool {
     !occurrence_block(query).is_empty()
+}
+
+/// The variable names `select_clause` actually projects, in order.
+///
+/// Read out of the query text rather than compared against a stored copy of it,
+/// because a stored copy is a second thing to forget. Each projected item is one
+/// line of the `SELECT DISTINCT` block, and the variable is the last `?name` on
+/// it -- which covers both a bare `?compoundLabel` and an aliased
+/// `(xsd:integer(STRAFTER(STR(?c), "Q")) AS ?compound)`.
+fn projected_names(query: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    let mut in_projection = false;
+    for line in query.lines() {
+        let trimmed = line.trim();
+        if trimmed == "SELECT DISTINCT" {
+            in_projection = true;
+            continue;
+        }
+        if !in_projection {
+            continue;
+        }
+        if trimmed.starts_with("WHERE") || trimmed.is_empty() {
+            break;
+        }
+        let last = trimmed
+            .rsplit('?')
+            .next()
+            .expect("a projected item names a variable")
+            .split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+            .next()
+            .expect("a variable has a name after the ?")
+            .to_string();
+        names.push(last);
+    }
+    names
+}
+
+#[test]
+fn the_projection_is_exactly_the_columns_the_parser_is_told_about() {
+    // The parser finds every column by name, so a name projected but not known to
+    // it is not a build error and not a parse error: it is a column that arrives
+    // empty, for every row, forever. `SELECT_COLUMNS` is the list both sides are
+    // held to, and this is what keeps the projection text and that list the same
+    // list.
+    for (name, query) in [
+        ("taxon", compounds_by_taxon_query("Q16521")),
+        ("all compounds", all_compounds_query()),
+    ] {
+        assert_eq!(
+            projected_names(&query),
+            SELECT_COLUMNS,
+            "the {name} query projects a different set of columns than \
+             SELECT_COLUMNS records. Change both together: the list is what the \
+             parser and the export fidelity test are checked against."
+        );
+    }
 }

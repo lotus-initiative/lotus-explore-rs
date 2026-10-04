@@ -36,7 +36,23 @@ struct Columns {
 
 impl Columns {
     fn detect(headers: &csv::ByteRecord) -> Self {
-        let find = |name: &str| headers.iter().position(|h| h == name.as_bytes());
+        Self::resolve(|name| headers.iter().position(|h| h == name.as_bytes()))
+    }
+
+    /// Resolve every column by name, through one list of names.
+    ///
+    /// This was two functions -- one over borrowed byte headers for the
+    /// non-streaming reader, one over `String`s for the streaming one -- and the
+    /// fourteen names were written out in both. Two copies of a mapping that has
+    /// to agree exactly is the shape of bug where the two paths diverge: the
+    /// non-streaming path reads a column the streaming one does not, which passes
+    /// every test that exercises only one of them, and fails on whichever path
+    /// production happens to use.
+    ///
+    /// The name list now exists once. `resolve` takes the caller's own equality,
+    /// because the two header types cannot be iterated as one, and nothing else
+    /// about the lookup is shared.
+    fn resolve(mut find: impl FnMut(&str) -> Option<usize>) -> Self {
         Self {
             compound: find("compound"),
             label: find("compoundLabel"),
@@ -76,23 +92,7 @@ impl Columns {
     /// [`Columns::detect`] does over a borrowed header.
     #[must_use]
     fn from_names(names: &[String]) -> Self {
-        let find = |name: &str| names.iter().position(|h| h == name);
-        Self {
-            compound: find("compound"),
-            label: find("compoundLabel"),
-            inchikey: find("compound_inchikey"),
-            smiles_iso: find("compound_smiles_iso"),
-            smiles_conn: find("compound_smiles_conn"),
-            mass: find("compound_mass"),
-            formula: find("compound_formula"),
-            taxon: find("taxon"),
-            taxon_name: find("taxon_name"),
-            reference: find("ref_qid"),
-            ref_title: find("ref_title"),
-            ref_doi: find("ref_doi"),
-            ref_date: find("ref_date"),
-            statement: find("statement"),
-        }
+        Self::resolve(|name| names.iter().position(|h| h == name))
     }
 }
 

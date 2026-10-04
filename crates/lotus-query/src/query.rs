@@ -189,6 +189,36 @@ PREFIX wdt:    <http://www.wikidata.org/prop/direct/>
 PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
 ";
 
+/// The names [`select_clause`] projects, in order.
+///
+/// The parser finds its columns by name, so this list and the projection have to
+/// be the same list. They were kept in step by hand and by nothing else, and the
+/// two copies are in different files: a projected name the parser does not know
+/// is not an error, it is a column that silently arrives empty. So the names are
+/// written down once here, and `the_projection_is_exactly_these_names` fails when
+/// the text and the list disagree.
+///
+/// `compound_smiles_conn` and `compound_smiles_iso` are both here because both
+/// are projected and the parser picks between them; a single coalesced column
+/// would replace the pair rather than sit beside it.
+pub const SELECT_COLUMNS: [&str; 15] = [
+    "compound",
+    "compoundLabel",
+    "compound_inchikey",
+    "compound_smiles_conn",
+    "compound_smiles_iso",
+    "compound_mass",
+    "compound_formula",
+    "taxon",
+    "taxon_name",
+    "ref_qid",
+    "ref",
+    "ref_title",
+    "ref_doi",
+    "ref_date",
+    "statement",
+];
+
 /// The result columns. QIDs are projected as integers so that the CSV they come
 /// back in is already the bare `Q…` form the parsers expect.
 #[must_use]
