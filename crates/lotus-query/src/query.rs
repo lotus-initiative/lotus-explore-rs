@@ -416,7 +416,32 @@ pub fn exact_compound_query(
     compound_qid: &str,
     taxon_qid: Option<(&str, &Nomenclature)>,
 ) -> String {
-    compounds_query(Some(compound_qid), taxon_qid)
+    exact_compounds_query(std::slice::from_ref(&compound_qid.to_owned()), taxon_qid)
+}
+
+/// The same question for **every** compound a structure resolved to.
+///
+/// A structure input names a molecule, and the structure service answers with
+/// everything within the cutoff: for `C[C@H](O)CO` that is the (R) compound, the
+/// (S) one and the achiral (RS) one. Asking about only the first of those is
+/// asking an arbitrary question -- measured, the first happens to be the achiral
+/// form, which Wikidata has no occurrence of, so the search returned nothing
+/// while the compound actually typed had six rows.
+///
+/// So all of them are asked about at once, in one request: a `VALUES` list over
+/// `?c` rather than a seed of one. The rows that come back are still whatever
+/// the graph holds for those compounds, which is the point -- an occurrence of the
+/// (R) form and an occurrence of the (S) form are different facts about different
+/// items and both belong in the answer.
+///
+/// Empty is not a special case: it means the structure named nothing, and the
+/// caller sends it down the service path instead of here.
+#[must_use]
+pub fn exact_compounds_query(
+    compound_qids: &[String],
+    taxon_qid: Option<(&str, &Nomenclature)>,
+) -> String {
+    compounds_query(Some(compound_qids), taxon_qid)
 }
 
 /// Both seeds are optional and neither implies the other: a query with a
@@ -424,7 +449,7 @@ pub fn exact_compound_query(
 /// everything in that taxon. A structure search has the second; an exact search
 /// has the first.
 fn compounds_query(
-    compound_seed: Option<&str>,
+    compound_seed: Option<&[String]>,
     taxon_qid: Option<(&str, &Nomenclature)>,
 ) -> String {
     compounds_query_with(compound_seed, taxon_qid, Occurrence::Required)
@@ -444,7 +469,7 @@ enum Occurrence {
 }
 
 fn compounds_query_with(
-    compound_seed: Option<&str>,
+    compound_seed: Option<&[String]>,
     taxon_qid: Option<(&str, &Nomenclature)>,
     occurrence: Occurrence,
 ) -> String {
@@ -452,7 +477,7 @@ fn compounds_query_with(
 }
 
 fn compounds_query_with_closure(
-    compound_seed: Option<&str>,
+    compound_seed: Option<&[String]>,
     taxon_qid: Option<(&str, &Nomenclature)>,
     occurrence: Occurrence,
     roots: &[String],
@@ -518,12 +543,17 @@ fn compounds_query_with_closure(
             // there to hand the planner a left side of its own size instead of
             // one it has to assume. Without the repeated `VALUES` inside, the
             // subquery inherits the binding and the slow plan comes back.
-            let seeded = escape_sparql_string(qid);
+            let seeded: String = qid
+                .iter()
+                .map(|q| escape_sparql_string(q))
+                .map(|q| format!("wd:{q}"))
+                .collect::<Vec<_>>()
+                .join(" ");
             format!(
-                "VALUES ?c {{ wd:{seeded} }}
+                "VALUES ?c {{ {seeded} }}
           OPTIONAL {{
             {{ SELECT * WHERE {{
-              VALUES ?c {{ wd:{seeded} }}
+              VALUES ?c {{ {seeded} }}
               ?c p:P703 ?statement .\
               ?statement ps:P703 ?t ;\
                          prov:wasDerivedFrom ?ref .\

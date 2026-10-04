@@ -148,6 +148,12 @@ pub async fn resolve<R: LotusRepository>(
 fn to_resolved(input: &str, cached: &CachedCompound) -> ResolvedStructure {
     ResolvedStructure {
         compound: Some(cached.qid.clone()),
+        // Every match, not just the one named above. See `ResolvedStructure`.
+        compounds: if cached.all_qids.is_empty() {
+            vec![cached.qid.clone()]
+        } else {
+            cached.all_qids.clone()
+        },
         // The compound's own structure when it has one. Otherwise the reader's
         // input stands, which for a name means the text that named the compound
         // -- the structure service will say so itself, and that is the right

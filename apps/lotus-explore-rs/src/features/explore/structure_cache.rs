@@ -28,6 +28,19 @@ pub struct CachedCompound {
     pub canonical_smiles: String,
     /// `"Name (QID)"` strings, empty when the match was unambiguous.
     pub candidates: Vec<String>,
+    /// Every distinct QID the structure service matched, first-seen order.
+    ///
+    /// The search asks about **all** of them rather than the one named by
+    /// `qid`. A structure input names a molecule and the service answers with
+    /// everything inside the cutoff -- the (R) form, the (S) form and the
+    /// achiral one -- so keeping only the first asks an arbitrary question.
+    /// Measured on `C[C@H](O)CO`: the first match was the achiral `Q161495`,
+    /// which has no occurrence in Wikidata at all, while `Q27093218`, the (R)
+    /// form, has six.
+    ///
+    /// Bounded by the `LIMIT` on the lookup query, so this is a handful of QIDs
+    /// rather than a set of any size.
+    pub all_qids: Vec<String>,
 }
 
 impl CachedCompound {
@@ -150,6 +163,7 @@ pub fn pick(matches: &[CompoundMatch]) -> Option<CachedCompound> {
         } else {
             Vec::new()
         },
+        all_qids: distinct.iter().map(|m| m.qid.clone()).collect(),
     })
 }
 
@@ -212,6 +226,7 @@ mod tests {
                 label: "x".into(),
                 canonical_smiles: "C".into(),
                 candidates: Vec::new(),
+                all_qids: Vec::new(),
             }),
         );
         assert_eq!(lookup(""), Cached::Unknown);
@@ -225,6 +240,7 @@ mod tests {
             label: "aspirin".into(),
             canonical_smiles: "CC(=O)OC1=CC=CC=C1C(=O)O".into(),
             candidates: Vec::new(),
+            all_qids: Vec::new(),
         };
         store("Aspirin", Some(cached.clone()));
         assert_eq!(lookup("aspirin"), Cached::Resolved(Box::new(cached)));

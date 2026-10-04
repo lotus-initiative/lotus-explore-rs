@@ -39,6 +39,14 @@ pub struct ResolvedStructure {
     /// which is a perfectly good structure. That is the only way to get `None`; a
     /// name, an `InChIKey` or a QID that matched nothing is an error instead.
     pub compound: Option<String>,
+    /// Every compound the input resolved to, searched together.
+    ///
+    /// Empty exactly when [`Self::compound`] is `None`. A structure names a
+    /// molecule and the structure service answers with everything inside the
+    /// cutoff, so this is normally several QIDs -- the stereoisomers of what was
+    /// typed. `compound` is the one named in the notice; this is the set the
+    /// query asks about.
+    pub compounds: Vec<String>,
     /// The literal the structure service is handed.
     ///
     /// The resolved compound's canonical SMILES (`P233`) when there is one, and
@@ -54,6 +62,7 @@ impl ResolvedStructure {
     pub fn unresolved(structure: &str) -> Self {
         Self {
             compound: None,
+            compounds: Vec::new(),
             structure: structure.to_owned(),
         }
     }
@@ -76,11 +85,10 @@ pub fn build_sparql_query(
     // It needs a compound, which is why the resolution runs first for every input
     // kind. Input that named nothing falls through to the service below, where
     // `Exact` becomes the same-molecule search.
-    if crit.structure_search == SmilesSearchType::Exact
-        && let Some(qid) = resolved.compound.as_deref()
-    {
+    // All the compounds, not the one the notice names. See `ResolvedStructure`.
+    if crit.structure_search == SmilesSearchType::Exact && !resolved.compounds.is_empty() {
         let taxon = taxon_qid.and_then(|t| (t != "*").then_some((t, &nomenclature)));
-        return lotus_query::exact_compound_query(qid, taxon);
+        return lotus_query::exact_compounds_query(&resolved.compounds, taxon);
     }
 
     let structure = resolved.structure.as_str();
@@ -183,12 +191,47 @@ mod tests {
             ..SearchCriteria::up_to_year(crate::clock::current_year())
         };
         let resolved = ResolvedStructure {
+            compounds: vec!["Q3613679".into()],
             compound: Some("Q3613679".into()),
             structure: "CC1=C2C(=CC=C1)C(=COC2=O)O".into(),
         };
         let q = build_sparql_query(&resolved, &crit, None);
         assert!(q.contains("VALUES ?c { wd:Q3613679 }"), "{q}");
         assert!(!q.contains("SERVICE"), "exact must not call it: {q}");
+    }
+
+    /// Every match the structure service returned is searched, not just the one
+    /// the notice names.
+    ///
+    /// The bug this is about: `pick` took the first match, and for
+    /// `C[C@H](O)CO` that is the achiral `Q161495`, which has no occurrence in
+    /// Wikidata, while `Q27093218` -- the (R) form that was actually typed --
+    /// has six. Asking only the first asked an arbitrary question.
+    #[test]
+    fn an_exact_search_asks_about_every_compound_the_structure_resolved_to() {
+        let crit = SearchCriteria {
+            structure: "C[C@H](O)CO".into(),
+            ..SearchCriteria::up_to_year(crate::clock::current_year())
+        };
+        let resolved = ResolvedStructure {
+            compounds: vec!["Q161495".into(), "Q27093218".into(), "Q27095160".into()],
+            compound: Some("Q161495".into()),
+            structure: "C[C@H](O)CO".into(),
+        };
+        let q = build_sparql_query(&resolved, &crit, None);
+        for qid in ["Q161495", "Q27093218", "Q27095160"] {
+            assert!(
+                q.contains(&format!("wd:{qid}")),
+                "{qid} is missing from: {q}"
+            );
+        }
+        // One request, not one per candidate.
+        assert_eq!(
+            q.matches("VALUES ?c {").count(),
+            2,
+            "the seed list is emitted once per position in the query, not once \
+             per compound"
+        );
     }
 
     #[test]
@@ -202,6 +245,7 @@ mod tests {
             ..SearchCriteria::up_to_year(crate::clock::current_year())
         };
         let resolved = ResolvedStructure {
+            compounds: Vec::new(),
             compound: Some("Q3613679".into()),
             structure: "CC1=C2C(=CC=C1)C(=COC2=O)O".into(),
         };
@@ -222,6 +266,7 @@ mod tests {
             ..SearchCriteria::up_to_year(crate::clock::current_year())
         };
         let resolved = ResolvedStructure {
+            compounds: Vec::new(),
             compound: Some("Q23118".into()),
             structure: "CCN(CC)C(=O)C1=CN(C2=CC=CC=C12)C".into(),
         };
