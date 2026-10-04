@@ -68,6 +68,9 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::ErrorHintRateLimit => {
             "Limite de débit atteinte sur le service amont. Attendez environ une minute puis réessayez."
         }
+        TextKey::ErrorHintQueryTooExpensive => {
+            "Cette recherche est trop large : le point d'accés l'a annulée après 25 secondes. Réduisez-la avec un taxon, une plage de masse, une année ou une formule, puis relancez-la."
+        }
         TextKey::ErrorHintBadRequest => {
             "Le serveur a rejeté la requête. Vérifiez les paramètres de recherche."
         }

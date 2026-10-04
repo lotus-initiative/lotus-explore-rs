@@ -71,7 +71,13 @@ fn validation_errors(criteria: &SearchCriteria) -> Result<(), Vec<ValidationErro
 /// Not a validation rule, which is why it lives beside them rather than inside
 /// them: a search that says nothing is answered rather than refused, and the only
 /// thing owed to the reader is a notice saying what they are about to be looking
-/// at. [`LookupNotice::Unconstrained`](crate::features::explore::types::LookupNotice::Unconstrained)
+/// at.
+///
+/// The notice says what it costs, in numbers, because that is the part a reader
+/// cannot see: an unconstrained search is measured at 265,000 rows and 110 MB and
+/// sits right against the endpoint's time budget, so it is regularly cancelled
+/// rather than answered. "This scans the whole of LOTUS" reads as a footnote;
+/// "this is often cancelled, narrow it" is the truth of what will happen. [`LookupNotice::Unconstrained`](crate::features::explore::types::LookupNotice::Unconstrained)
 /// carries it.
 #[must_use]
 pub fn is_unconstrained(criteria: &SearchCriteria) -> bool {

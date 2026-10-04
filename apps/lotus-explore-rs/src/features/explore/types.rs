@@ -32,6 +32,14 @@ pub enum ErrorKind {
     Network,
     /// Upstream service rate-limited this request.
     RateLimit,
+    /// The endpoint cancelled the query because it outran its time budget.
+    ///
+    /// Its own kind because the advice is the opposite of every other failure's:
+    /// nothing about waiting, retrying or reconnecting helps, because the query
+    /// is not going to become cheaper. The only thing that helps is a narrower
+    /// one, so the message says that instead of offering a button whose second
+    /// click spends the endpoint's whole budget again.
+    QueryTooExpensive,
     Parse,
     /// The result set stopped short of the whole answer.
     ///
@@ -251,6 +259,7 @@ impl DomainError {
                 TransportFailureKind::Parse => ErrorKind::Parse,
                 TransportFailureKind::Truncated => ErrorKind::Truncated,
                 TransportFailureKind::RateLimit => ErrorKind::RateLimit,
+                TransportFailureKind::QueryTooExpensive => ErrorKind::QueryTooExpensive,
                 TransportFailureKind::Network
                 | TransportFailureKind::Server
                 | TransportFailureKind::CacheConflict => ErrorKind::Network,

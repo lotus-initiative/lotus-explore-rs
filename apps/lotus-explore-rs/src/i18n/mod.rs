@@ -135,6 +135,12 @@ pub enum TextKey {
     ErrorHintConfiguration,
     ErrorHintNetwork,
     ErrorHintRateLimit,
+    /// The endpoint cancelled the query for running over its time budget.
+    ///
+    /// Its own key because the advice inverts: every other hint ends in "retry",
+    /// and this one must not, or the reader clicks a button that spends the
+    /// endpoint's whole budget again to be cancelled identically.
+    ErrorHintQueryTooExpensive,
     ErrorHintBadRequest,
     ErrorHintParse,
     ErrorHintTruncated,

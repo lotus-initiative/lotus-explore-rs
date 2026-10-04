@@ -33,6 +33,13 @@ pub enum ErrorClass {
     CacheConflict,
     /// Rate limit or query queue full (transient, retry with backoff).
     RateLimit,
+    /// The endpoint cancelled the query for running over its time budget.
+    ///
+    /// Not transient. The distinction from `RateLimit` is the whole point of
+    /// the class: `RateLimit` means the endpoint wants fewer requests per second,
+    /// and this means it wants a smaller query. Waiting does not make the query
+    /// cheaper.
+    QueryTooExpensive,
     /// HTTP 4xx request rejected for non-syntax reasons.
     BadRequest,
     /// Query syntax error (permanent, don't retry).
@@ -57,6 +64,7 @@ impl ErrorClass {
             Self::Server => "server",
             Self::CacheConflict => "cache_conflict",
             Self::RateLimit => "rate_limit",
+            Self::QueryTooExpensive => "query_too_expensive",
             Self::BadRequest => "bad_request",
             Self::QuerySyntax => "query_syntax",
             Self::Parse => "parse",
@@ -128,6 +136,18 @@ fn classify_transport_error_recovery(repo_error: &RepositoryError, attempt: u32)
             // retries, and cap the number of retries in `plan_retry`.
             backoff_ms: Some(rate_limit_backoff_ms(attempt)),
             error_class: ErrorClass::RateLimit,
+        },
+
+        // No retry, and the reason is that this is not a busy endpoint. QLever
+        // cancels a query that outran its time budget and answers 429; the
+        // pipeline below this would re-run taxon resolution, the lookups and the
+        // results query to arrive at the same cancellation with the same cost.
+        // The one thing that changes the answer is a narrower query, which is
+        // the reader's decision and not a retry.
+        TransportFailureKind::QueryTooExpensive => RetryDecision {
+            should_retry: false,
+            backoff_ms: None,
+            error_class: ErrorClass::QueryTooExpensive,
         },
 
         TransportFailureKind::BadRequest => RetryDecision {

@@ -14,6 +14,14 @@ pub enum TransportFailureKind {
     BadRequest,
     CacheConflict,
     RateLimit,
+    /// The endpoint cancelled the query because it outran its time budget.
+    ///
+    /// Its own kind, and not a flavour of `RateLimit`, because the two call for
+    /// opposite behaviour. A rate limit is a request to come back; this is a
+    /// measurement that the query is too expensive, and it is answered by asking
+    /// for less. Retrying it, which `RateLimit` still allows once, spends the
+    /// endpoint's whole budget again to be told the same thing.
+    QueryTooExpensive,
     QuerySyntax,
     Parse,
     Truncated,
@@ -45,7 +53,16 @@ pub fn classify_transport_error(error: &RepositoryError) -> TransportFailureKind
 
 fn classify_http_error(status: u16, body: &str) -> TransportFailureKind {
     if status == 429 {
-        return TransportFailureKind::RateLimit;
+        // QLever uses 429 for two unrelated things, and the body is the only
+        // thing that tells them apart: "Operation timed out" is the query
+        // outstaying its budget, while "too many" is a request-rate refusal.
+        // Both are 429, and treating the first as the second is what produced
+        // four full-length queries for one search.
+        return if body.contains("timed out") {
+            TransportFailureKind::QueryTooExpensive
+        } else {
+            TransportFailureKind::RateLimit
+        };
     }
 
     match classify_sparql_error_text(body) {
@@ -100,6 +117,34 @@ mod tests {
             "Trying to insert a cache key which was already present",
         ));
         assert_eq!(kind, TransportFailureKind::CacheConflict);
+    }
+
+    #[test]
+    fn a_429_that_says_the_query_timed_out_is_not_a_rate_limit() {
+        // Both arrive as 429 and they mean opposite things. QLever's own answer,
+        // measured:
+        //
+        //   429 {"exception":"Operation timed out. Last operation: Sort ... on ?r"}
+        //
+        // is one query outstaying the endpoint's budget. Treating it as a busy
+        // endpoint is what made one broad search cost four full-length queries.
+        let cancelled = classify_transport_error(&RepositoryError::Http {
+            status: 429,
+            body: "Operation timed out. Last operation: Sort (internal order) on ?r".to_string(),
+        });
+        assert_eq!(cancelled, TransportFailureKind::QueryTooExpensive);
+        assert!(
+            !cancelled.is_retryable(),
+            "the same query sent again will be cancelled the same way"
+        );
+
+        // A proxy in front of the endpoint can still answer 429 for a request
+        // rate, and that one is worth coming back to.
+        let refused = classify_transport_error(&RepositoryError::Http {
+            status: 429,
+            body: "Too many requests from this client".to_string(),
+        });
+        assert_eq!(refused, TransportFailureKind::RateLimit);
     }
 
     #[test]

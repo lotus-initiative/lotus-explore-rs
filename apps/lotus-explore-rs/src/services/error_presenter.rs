@@ -79,6 +79,7 @@ pub fn error_hint_text(locale: Locale, kind: ErrorKind) -> &'static str {
         ErrorKind::BadRequest => t(locale, TextKey::ErrorHintBadRequest),
         ErrorKind::Network => t(locale, TextKey::ErrorHintNetwork),
         ErrorKind::RateLimit => t(locale, TextKey::ErrorHintRateLimit),
+        ErrorKind::QueryTooExpensive => t(locale, TextKey::ErrorHintQueryTooExpensive),
         ErrorKind::Parse => t(locale, TextKey::ErrorHintParse),
         ErrorKind::Truncated => t(locale, TextKey::ErrorHintTruncated),
         #[cfg(target_arch = "wasm32")]
@@ -407,6 +408,30 @@ mod tests {
         assert_eq!(
             error_hint_text(Locale::En, err.kind()),
             t(Locale::En, TextKey::ErrorHintRateLimit)
+        );
+    }
+
+    #[test]
+    fn a_cancelled_query_is_advised_to_narrow_not_to_retry() {
+        // The hint is the user-facing half of the change: every other failure in
+        // this file ends by suggesting a retry, and for this one a retry is
+        // precisely the wrong advice. The endpoint's budget was spent once
+        // already; a second click spends it again.
+        let err = DomainError::Transport {
+            stage: QueryStage::ResultsQuery,
+            source: RepositoryError::Http {
+                status: 429,
+                body: "Operation timed out. Last operation: Sort (internal order) on ?r"
+                    .to_string(),
+            },
+        };
+
+        assert_eq!(err.kind(), ErrorKind::QueryTooExpensive);
+        let hint = error_hint_text(Locale::En, err.kind());
+        assert_eq!(hint, t(Locale::En, TextKey::ErrorHintQueryTooExpensive));
+        assert!(
+            !hint.to_lowercase().contains("retry"),
+            "the hint must not suggest a retry: {hint}"
         );
     }
 }

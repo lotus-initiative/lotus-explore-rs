@@ -111,7 +111,7 @@ pub fn warn_ambiguous_compound(best_name: &str, best_qid: &str, names: &str) -> 
 /// ganz LOTUS. Als Aussage über den Durchlauf formuliert und nicht über die Antwort,
 /// weil zusätzliche Filter die Antwort einengen, ohne den Durchlauf einzuengen.
 pub fn warn_unconstrained() -> String {
-    "Keine Struktur, kein Taxon und keine Referenz — diese Suche durchsucht ganz LOTUS. Gesetzte Filter werden darauf angewendet.".to_string()
+    "Keine Struktur, kein Taxon und keine Referenz — diese Suche durchsucht ganz LOTUS: gemessen 265.000 Zeilen und 110 MB, genau an den erlaubten 25 s, sodass sie oft abgebrochen statt beantwortet wird. Grenzen Sie sie mit Taxon, Massenbereich, Jahr oder Formel ein.".to_string()
 }
 
 pub fn warn_wdqs_fallback() -> String {

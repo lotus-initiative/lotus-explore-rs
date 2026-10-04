@@ -65,6 +65,9 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::ErrorHintRateLimit => {
             "Rate limit reached on the upstream service. Please wait about a minute and retry."
         }
+        TextKey::ErrorHintQueryTooExpensive => {
+            "This search is too broad: the endpoint cancelled it after 25 seconds. Narrow it with a taxon, a mass range, a year or a formula, then run it again."
+        }
         TextKey::ErrorHintBadRequest => {
             "The server rejected the request. Check your search parameters."
         }
