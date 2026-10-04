@@ -9,7 +9,6 @@ use crate::server::state::{AppState, taxon_cache_get, taxon_cache_put};
 use crate::server::types::SearchRequest;
 use crate::sparql;
 use flate2::{Compression, write::GzEncoder};
-use lotus_model::classify_structure;
 use lotus_model::{SearchCriteria, TaxonMatch};
 
 pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
@@ -124,47 +123,31 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
     Ok(c)
 }
 
+/// The query the API sends, which is the query the browser sends.
+///
+/// This used to be a second implementation of the same dispatch that
+/// `lotus_search::build_base_query` performs, and the two disagreed. The
+/// divergence was not hypothetical: the server resolved a wildcard to
+/// `Some("*")` where the library resolves it to `None`, so it had to match both
+/// together -- and `None` is also what an *empty* taxon box produces. The result
+/// was that an empty taxon box ran `all_compounds_query`, which requires `P703`,
+/// while the same request in the browser ran
+/// `all_compounds_including_untaxonomised_query`, which does not.
+///
+/// So the API answered the narrower question for a blank box -- the exact bug
+/// commit 4ead47a set out to fix, fixed in the library and still live here. Two
+/// implementations of one dispatch is what let that happen.
+///
+/// One implementation now. The wildcard still arrives as `Some("*")`, which the
+/// library's own match handles: `Some(_) => all_compounds_query()`, so the API
+/// keeps requiring an occurrence for `*` and gains the broader answer for a blank
+/// box, agreeing with the browser on both.
 pub fn build_execution_query(
     criteria: &SearchCriteria,
     resolved_taxon_qid: Option<&str>,
 ) -> String {
-    let smiles = normalized_structure_input(&criteria.structure);
-    let nomenclature = lotus_query::Nomenclature::from(criteria);
-    let base_query = if smiles.is_empty() {
-        match resolved_taxon_qid {
-            Some("*") | None => lotus_query::all_compounds_query(),
-            Some(qid) => lotus_query::compounds_by_taxon_query_with(qid, &nomenclature),
-        }
-    } else {
-        let taxon_for_sachem = match resolved_taxon_qid {
-            Some("*") => Some("Q2382443"),
-            Some(qid) => Some(qid),
-            None => None,
-        };
-        lotus_query::structure_search_query_with(
-            &smiles,
-            criteria.structure_search,
-            criteria.structure_threshold,
-            taxon_for_sachem,
-            &nomenclature,
-        )
-    };
-
-    lotus_query::with_filters(&base_query, criteria, crate::clock::current_year())
-}
-
-pub fn normalized_structure_input(value: &str) -> String {
-    let normalized = if value.contains('\r') {
-        value.replace("\r\n", "\n").replace('\r', "\n")
-    } else {
-        value.to_string()
-    };
-    match classify_structure(&normalized) {
-        lotus_model::StructureKind::MolfileV2000 | lotus_model::StructureKind::MolfileV3000 => {
-            normalized
-        }
-        _ => normalized.trim().to_string(),
-    }
+    let request = lotus_search::SearchRequest::new(criteria.clone(), crate::clock::current_year());
+    lotus_search::build_execution_query(&request, resolved_taxon_qid)
 }
 
 pub async fn resolve_taxon_qid_cached(

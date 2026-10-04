@@ -21,7 +21,7 @@ use crate::export;
 use crate::server::{
     ApiDoc, build_router,
     config::AppConfig,
-    query_logic::{apply_request, normalized_structure_input},
+    query_logic::{apply_request, build_execution_query},
     state::{
         AppState, CachedExportResponse, export_inflight_cell, prune_cache, search_inflight_cell,
     },
@@ -149,10 +149,17 @@ fn parses_comma_separated_cors_origins() {
     assert_eq!(cfg.cors_allowed_origins.as_ref().map(Vec::len), Some(2));
 }
 
+/// A molfile's newlines survive normalisation.
+///
+/// This used to assert on a server-local copy of the normaliser, which was a
+/// verbatim duplicate of `lotus_search::normalize_structure`. The duplicate is
+/// gone, so this now pins the one implementation both front ends use -- which is
+/// the point: a molfile trimmed to one line is a molfile the structure service
+/// cannot read.
 #[test]
 fn normalized_structure_preserves_multiline_molfile() {
     let molfile = "\n  Mrv\n\n  0  0  0  0  0  0            999 V3000\nM  END\n";
-    let normalized = normalized_structure_input(molfile);
+    let normalized = lotus_search::normalize_structure(molfile);
     assert!(normalized.starts_with('\n'));
     assert!(normalized.contains("V3000"));
 }
@@ -802,4 +809,101 @@ async fn export_handler_returns_500_on_poisoned_inflight_mutex() {
     let json = body_json(response).await;
     let msg = json["error"].as_str().expect("error message");
     assert!(msg.contains("inflight"));
+}
+
+/// The API and the browser must build the same query for the same request.
+///
+/// The server used to carry its own copy of the dispatch in
+/// `query_logic::build_execution_query`, and the two disagreed about the empty
+/// taxon box: the API ran `all_compounds_query`, which requires `P703`, while the
+/// browser ran `all_compounds_including_untaxonomised_query`, which does not. The
+/// cause was that the server resolves a wildcard to `Some("*")` where the library
+/// resolves it to `None` -- so the server had to treat `None` as a wildcard, and
+/// `None` is also what a blank box produces.
+///
+/// One implementation now, so this cannot drift again by duplication. It is
+/// asserted rather than assumed because "the two front ends agree" is a property
+/// nothing else in the suite can see: each front end's own tests pass either way.
+#[test]
+fn the_api_and_the_browser_build_the_same_query() {
+    let cases: [(&str, Option<&str>); 4] = [
+        // (criteria taxon, the QID the server's resolver hands the builder)
+        ("", None),
+        ("*", Some("*")),
+        ("Gentiana lutea", Some("Q16521")),
+        ("Q16521", Some("Q16521")),
+    ];
+
+    for (input, resolved) in cases {
+        let criteria = lotus_model::SearchCriteria {
+            taxon: input.to_string(),
+            ..lotus_model::SearchCriteria::up_to_year(crate::clock::current_year())
+        };
+
+        let via_server = build_execution_query(&criteria, resolved);
+        let request = lotus_search::SearchRequest::new(criteria, crate::clock::current_year());
+        let via_library = lotus_search::build_execution_query(&request, resolved);
+
+        assert_eq!(
+            via_server, via_library,
+            "taxon {input:?} must build the same query on both front ends"
+        );
+    }
+}
+
+/// A blank taxon box includes the compounds nobody has tied to an organism.
+///
+/// This is the behaviour the divergence hid. The occurrence is `OPTIONAL`, so a
+/// compound with no organism comes back with empty cells; requiring `P703` would
+/// answer the narrower question -- "what has been reported, and where" -- without
+/// saying so, which is the bug commit 4ead47a describes.
+#[test]
+fn a_blank_taxon_box_does_not_require_an_occurrence() {
+    let criteria = lotus_model::SearchCriteria {
+        taxon: String::new(),
+        ..lotus_model::SearchCriteria::up_to_year(crate::clock::current_year())
+    };
+
+    let query = build_execution_query(&criteria, None);
+
+    // The occurrence sits inside one OPTIONAL block rather than being a plain
+    // triple, which is what makes the untaxonomised compounds reachable.
+    let p703 = query.find("?c p:P703").expect("P703 is bound");
+    let head = &query[..p703];
+    let optional = head.rfind("OPTIONAL").is_some_and(|at| {
+        query[at + "OPTIONAL".len()..p703]
+            .chars()
+            .all(|c| c.is_whitespace() || c == '{')
+    });
+
+    assert!(
+        optional,
+        "an empty taxon box must reach the compounds with no organism:\n{query}"
+    );
+}
+
+/// A wildcard still requires an occurrence, on the API as in the browser.
+///
+/// The other half of the pair, and the reason the empty-box case was easy to get
+/// wrong: `*` is the explicit request for what has been reported.
+#[test]
+fn a_wildcard_taxon_still_requires_an_occurrence() {
+    let criteria = lotus_model::SearchCriteria {
+        taxon: "*".to_string(),
+        ..lotus_model::SearchCriteria::up_to_year(crate::clock::current_year())
+    };
+
+    let query = build_execution_query(&criteria, Some("*"));
+    let p703 = query.find("?c p:P703").expect("P703 is bound");
+    let head = &query[..p703];
+    let optional = head.rfind("OPTIONAL").is_some_and(|at| {
+        query[at + "OPTIONAL".len()..p703]
+            .chars()
+            .all(|c| c.is_whitespace() || c == '{')
+    });
+
+    assert!(
+        !optional,
+        "`*` asks for what has been reported, so it keeps requiring P703:\n{query}"
+    );
 }
