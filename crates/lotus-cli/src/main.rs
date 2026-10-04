@@ -368,7 +368,35 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
     if args.explain {
         // The point of `--explain` is to see the query without waiting for an
         // endpoint, so it must not touch the network even to resolve a taxon.
-        let query = lotus_search::build_execution_query(&request, None);
+        //
+        // Which is why the resolved QID cannot simply be `None`. It used to be,
+        // and that made `--explain` print the query for a *different request* than
+        // the one being asked about: `--taxon Q21754 --explain` printed the
+        // no-taxon query, with no `P171*` anywhere in it, and said nothing. The
+        // whole purpose of the flag is to be looked at when a result surprises
+        // someone, so a wrong query is worse than no flag.
+        //
+        // A bare QID needs no lookup, so it is passed straight through and the
+        // printed query is the real one. `*` and an empty box are `None`, which is
+        // correct: `build_base_query` reads that distinction out of
+        // `criteria.taxon` precisely because neither resolves to a QID.
+        let trimmed = args.taxon.trim();
+        let resolved = if trimmed.is_empty() || trimmed == "*" {
+            None
+        } else if lotus_search::is_qid(trimmed) {
+            Some(trimmed.to_ascii_uppercase())
+        } else {
+            // A name has to be looked up to become a QID, and looking it up is
+            // the network call this flag exists to avoid. So it refuses rather
+            // than printing the query for the un-resolved request, which is the
+            // bug being fixed here.
+            anyhow::bail!(
+                "--explain does not resolve taxon names, because that needs the \
+                 network. Pass a Wikidata QID (--taxon Q21754), or '*', or drop \
+                 --explain to run the search that resolves it."
+            );
+        };
+        let query = lotus_search::build_execution_query(&request, resolved.as_deref());
         println!("{query}");
         return Ok(ExitCode::SUCCESS);
     }

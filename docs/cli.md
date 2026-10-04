@@ -29,11 +29,18 @@ cargo build --release -p lotus-cli
 ## search
 
 ```bash
-lotus search --taxon "Gentiana lutea"
+lotus search --taxon Q16521
 lotus search --structure c1ccccc1 --structure-search similarity --threshold 0.9
-lotus search --taxon "Voacanga africana" --carbon 10..20 --bromine excluded
-lotus search --taxon "Isaria cicadae" --year-min 2015 --year-max 2024
+lotus search --taxon Q21754 --carbon 10..20 --bromine excluded
+lotus search --taxon Q16521 --year-min 2015 --year-max 2024
 ```
+
+`--taxon` also takes a scientific name --- `--taxon "Gentiana lutea"` is looked
+up through Wikidata's `P225` and the best match used, reporting when the name was
+ambiguous or had to be respelled. The examples above use QIDs because a QID needs
+no lookup: each example is then exactly reproducible, and every one of them can be
+checked offline without sending anything. That matters for `--explain` below, and
+for the test that runs every example in this file.
 
 ### Filters
 
@@ -102,8 +109,8 @@ Data goes to stdout and diagnostics to stderr, so redirection captures the data
 and nothing else:
 
 ```bash
-lotus search --taxon "Gentiana lutea" --format csv > gentiana.csv
-lotus search --taxon "Gentiana lutea" --format jsonl | jq -r .name
+lotus search --taxon Q16521 --format csv > gentiana.csv
+lotus search --taxon Q16521 --format jsonl | jq -r .name
 ```
 
 - `table` is aligned for a terminal and is not meant for parsing. It omits the
@@ -124,13 +131,31 @@ lotus search --taxon "Gentiana lutea" --format jsonl | jq -r .name
 offline:
 
 ```bash
-lotus search --taxon "Gentiana lutea" --carbon 10..20 --explain
+lotus search --taxon Q21754 --carbon 10..20 --explain
 lotus search --structure c1ccccc1 --structure-search similarity --explain
+lotus search --taxon "*" --explain
 ```
 
-Because no request is made, no taxon is resolved either, so the printed query
-has no `P171` ancestry filter. That is the point: you see the shape, and you can
-paste it into any SPARQL endpoint.
+The printed query is the query for the request you made, taxonomy filter and all.
+A bare QID needs no lookup, so `--taxon Q21754` prints a query carrying the
+`P171` ancestry filter for that taxon.
+
+A taxon *name* is the one thing `--explain` cannot do, because turning a name
+into a QID is the request it exists to avoid making. Rather than print the query
+for the un-resolved request, it refuses:
+
+```console
+$ lotus search --taxon "Gentiana lutea" --explain
+lotus: --explain does not resolve taxon names, because that needs the network.
+Pass a Wikidata QID (--taxon Q21754), or '*', or drop --explain to run the
+search that resolves it.
+```
+
+That is a change from earlier versions, which printed the un-filtered query for a
+name and said nothing. A wrong query is worse than no output from a flag whose
+whole purpose is to be read when a result surprises you. Drop `--explain` to run
+the search, then read the query it reports, or pass the QID the name resolves
+to.
 
 The query `--explain` prints is not capped by `--limit`, so pasting it returns
 the whole result set rather than the first page.

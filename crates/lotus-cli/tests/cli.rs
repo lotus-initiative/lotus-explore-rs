@@ -74,8 +74,12 @@ fn every_output_format_is_offered() {
 
 #[test]
 fn explain_prints_a_query_and_asks_for_nothing() {
+    // `*` rather than a name: a name has to be looked up, which `--explain`
+    // refuses, and this test is about the shape of the printed query rather than
+    // about taxon resolution -- which `explain_prints_the_query_for_the_taxon_it_
+    // was_given` covers.
     let output = lotus()
-        .args(["search", "--taxon", "Gentiana lutea", "--explain"])
+        .args(["search", "--taxon", "*", "--explain"])
         .assert()
         .success();
     let query = String::from_utf8(output.get_output().stdout.clone()).expect("UTF-8");
@@ -89,17 +93,83 @@ fn explain_prints_a_query_and_asks_for_nothing() {
     assert!(query.contains("prov:wasDerivedFrom"));
 }
 
+/// `--explain` prints the query for the request actually being made.
+///
+/// This test used to assert the opposite. `--explain` passed `None` as the
+/// resolved taxon so that it would never touch the network, and the consequence
+/// was that `--taxon Q21754 --explain` printed the *no-taxon* query -- with no
+/// `P171*` in it anywhere -- and said nothing. A flag whose entire purpose is to
+/// be read when a result surprises someone cannot hand back a different request's
+/// query.
+///
+/// The offline property is kept, because it is the reason the fix is shaped this
+/// way rather than by simply resolving the taxon: a bare QID needs no lookup, so
+/// the real query is available without an endpoint, and only the name case has to
+/// refuse.
 #[test]
-fn explain_resolves_no_taxon_so_the_query_is_the_unfiltered_shape() {
-    // `--explain` is for reading a query, so it must not need an endpoint even
-    // to turn a name into a QID. The ancestry filter is therefore absent and
-    // the caller can see the shape rather than a resolution.
+fn explain_prints_the_query_for_the_taxon_it_was_given() {
+    // A bare QID needs no resolution, so the printed query is the real one.
     let output = lotus()
-        .args(["search", "--taxon", "Gentiana lutea", "--explain"])
+        .args(["search", "--taxon", "Q21754", "--explain"])
         .assert()
         .success();
     let query = String::from_utf8(output.get_output().stdout.clone()).expect("UTF-8");
-    assert!(!query.contains("P171"), "no taxon was resolved offline");
+    assert!(
+        query.contains("wd:Q21754"),
+        "a QID needs no lookup, so the ancestry filter must be present:\n{query}"
+    );
+    assert!(
+        query.contains("P171"),
+        "and it is a descendant filter, not a bare equality:\n{query}"
+    );
+
+    // An empty box constrains nothing, so the occurrence is optional and the
+    // compounds nobody has tied to an organism are reachable.
+    let output = lotus().args(["search", "--explain"]).assert().success();
+    let query = String::from_utf8(output.get_output().stdout.clone()).expect("UTF-8");
+    let p703 = query.find("?c p:P703").expect("P703 is bound");
+    let optional = query[..p703].rfind("OPTIONAL").is_some_and(|at| {
+        query[at + "OPTIONAL".len()..p703]
+            .chars()
+            .all(|c| c.is_whitespace() || c == '{')
+    });
+    assert!(
+        optional,
+        "an empty taxon box must reach the untaxonomised compounds:\n{query}"
+    );
+
+    // `*` asks for what has been reported, so it keeps requiring the occurrence.
+    let output = lotus()
+        .args(["search", "--taxon", "*", "--explain"])
+        .assert()
+        .success();
+    let query = String::from_utf8(output.get_output().stdout.clone()).expect("UTF-8");
+    let p703 = query.find("?c p:P703").expect("P703 is bound");
+    let optional = query[..p703].rfind("OPTIONAL").is_some_and(|at| {
+        query[at + "OPTIONAL".len()..p703]
+            .chars()
+            .all(|c| c.is_whitespace() || c == '{')
+    });
+    assert!(
+        !optional,
+        "`*` is not an empty box; it requires P703:\n{query}"
+    );
+}
+
+/// A taxon *name* refuses under `--explain` rather than printing the wrong query.
+///
+/// Turning a name into a QID is the network call the flag exists to avoid, so
+/// there is no correct query to print. Failing with the QID form named is the
+/// honest answer; printing the unfiltered query is the bug this replaced.
+#[test]
+fn explain_refuses_a_taxon_name_instead_of_printing_the_unfiltered_query() {
+    lotus()
+        .args(["search", "--taxon", "Gentiana lutea", "--explain"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("does not resolve taxon names"))
+        .stderr(predicate::str::contains("Q21754"))
+        .stdout(predicate::str::contains("PREFIX").not());
 }
 
 #[test]
