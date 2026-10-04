@@ -240,3 +240,45 @@ discriminator alongside the coalesced column, which gives the bytes back.
 The Turtle would have been fine, incidentally: the `CONSTRUCT` template names both
 variables and both are bound by the `WHERE`, and the two rewritten queries came out
 byte-identical. It was the CSV that could not afford it.
+
+## The sort cliff is smaller than recorded, and ranking does not help
+
+`6b33253` measured `sort by name` at ~9.9 ns/row to a million rows and then 52x
+worse at two million, and attributed it to the working set leaving cache. The fix
+that follows from that story is to stop resolving values during the sort: rank
+each row's dictionary value once, then compare `u32`s.
+
+Implemented and measured on this machine, release build, seven samples, medians,
+using this file's own payload generator so the data is the recorded data:
+
+| rows | by value | by rank | |
+|---|---|---|---|
+| 500,000 | 5.0 ms | 222.3 ms | 44x slower |
+| 1,000,000 | 10.2 ms | 463.1 ms | 45x slower |
+| 2,000,000 | 50.1 ms | 962.3 ms | 19x slower |
+
+The orders were identical, so the ranking was correct. It is also worthless, for a
+reason worth writing down: **ranking has to compare the values too.** Grouping
+them into a `BTreeSet` to assign ranks is `O(distinct log distinct)` *string*
+comparisons, and filling the rank lookup is the same again. The sort it was meant
+to accelerate then does `O(n log n)` integer comparisons instead of `O(n log n)`
+string comparisons -- so the string work is paid twice rather than once. The
+premise that ranking removes the comparisons is simply false; it only changes
+which loop pays for them.
+
+The one shape where it would pay is grouping by *dictionary slot* rather than by
+value, which makes the grouping integer-keyed. That was written first, and it is
+wrong: absence is a property of the resolved value, not of the slot. A row can
+name a taxon slot that holds no name, and it compares equal to a row with no taxon
+at all; keyed by slot the two get different ranks, the tie-break that orders equal
+values never runs, and the table silently reorders.
+
+**The more useful finding is the first row of the table.** By-value sorting is
+10.0 ns/row at 500,000, 10.2 at a million, and 25.1 at two million -- a 2.5x step,
+not 52x. The cliff as recorded does not reproduce on quiet hardware; the original
+numbers were taken at load average 25-42 and re-measured at 3.7, which is still
+busy. Whatever is at two million rows, it is worth a few tens of milliseconds
+rather than a second, and a fix aimed at a 52x cliff is not aimed at this.
+
+Both attempts were reverted. The measurement harness is not kept, because a
+benchmark of a removed optimisation is a benchmark nobody runs.
