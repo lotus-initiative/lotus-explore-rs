@@ -1,5 +1,9 @@
 # Needs a human decision
 
+**Start with [`DECISIONS.md`](DECISIONS.md)** — this file is the evidence behind
+each item, seventeen sections deep and ordered by when it was found. `DECISIONS.md`
+is the checklist: what to do, what to decide, and what only you can action.
+
 Things the unattended sweep found but did not act on. Each one is a decision
 that belongs to a person, not a guess that belongs in a commit at 3am.
 
