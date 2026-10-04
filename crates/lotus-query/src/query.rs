@@ -189,7 +189,7 @@ PREFIX wdt:    <http://www.wikidata.org/prop/direct/>
 PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
 ";
 
-/// The names [`select_clause`] projects, in order.
+/// The names `select_clause` projects, in order.
 ///
 /// The parser finds its columns by name, so this list and the projection have to
 /// be the same list. They were kept in step by hand and by nothing else, and the

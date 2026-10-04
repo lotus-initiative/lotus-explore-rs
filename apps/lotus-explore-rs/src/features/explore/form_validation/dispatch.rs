@@ -71,7 +71,8 @@ fn validation_errors(criteria: &SearchCriteria) -> Result<(), Vec<ValidationErro
 /// Not a validation rule, which is why it lives beside them rather than inside
 /// them: a search that says nothing is answered rather than refused, and the only
 /// thing owed to the reader is a notice saying what they are about to be looking
-/// at. [`LookupNotice::Unconstrained`] carries it.
+/// at. [`LookupNotice::Unconstrained`](crate::features::explore::types::LookupNotice::Unconstrained)
+/// carries it.
 #[must_use]
 pub fn is_unconstrained(criteria: &SearchCriteria) -> bool {
     criteria.taxon.trim().is_empty()
