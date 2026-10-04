@@ -53,7 +53,7 @@ public endpoints, for no gain.
 
 ## Ask for less than the endpoint's ceiling
 
-Every `QLever` request now carries `timeout=25s`. Measured, not assumed: the
+Every `QLever` request now carries `timeout=30s`. Measured, not assumed: the
 public instance allows 30 s, and asking for more than that is a `403` rather than
 a longer query.
 
@@ -64,7 +64,7 @@ which operation was still running (`Last operation: Sort … on ?r`) instead of 
 bare status.
 
 `LOTUS_QLEVER_TIMEOUT` overrides the budget in QLever's own duration syntax
-(`25s`, `1500ms`, `1min`) for a deployment that has an access token and a raised
+(`30s`, `1500ms`, `1min`) for a deployment that has an access token and a raised
 ceiling. It is clamped to 30 s locally, because a request that is certain to be
 refused should not be sent.
 

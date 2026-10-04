@@ -254,7 +254,7 @@ mod tests {
         // make the query succeed -- it makes the endpoint spend its whole budget
         // again, once per attempt, on a query already known to be too big.
         let cancelled = FetchError::TimedOut {
-            budget: Some("25s".into()),
+            budget: Some("30s".into()),
             message: "Operation timed out. Last operation: Sort (internal order) on ?r".into(),
         };
         assert!(!cancelled.is_retryable());

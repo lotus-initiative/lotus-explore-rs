@@ -336,7 +336,7 @@ fn form_body(endpoint: &str, query: &str) -> String {
 /// 25 s it costs five seconds less and returns the same refusal, sooner, with
 /// the endpoint's own account of which operation was still running.
 ///
-/// `LOTUS_QLEVER_TIMEOUT` overrides it, in `QLever`'s own duration syntax (`25s`,
+/// `LOTUS_QLEVER_TIMEOUT` overrides it, in `QLever`'s own duration syntax (`30s`,
 /// `1500ms`, `1min`), for a deployment that has an access token and a raised
 /// ceiling. It is clamped to [`QLever::MAX_QUERY_BUDGET`] because the public
 /// instance rejects anything larger with a `403`, and a request that is certain
@@ -378,7 +378,7 @@ impl QLever {
 
     /// What to ask for when nothing says otherwise: the public instance allows
     /// 30 s, and this leaves five seconds of headroom.
-    const DEFAULT_QUERY_BUDGET: &'static str = "25s";
+    const DEFAULT_QUERY_BUDGET: &'static str = "30s";
 
     /// The largest budget the public instance accepts. Measured, not assumed:
     /// a larger one is answered with `403`.
@@ -870,7 +870,7 @@ mod tests {
         // time limit; WDQS would run the same expensive query a second time, on
         // a second endpoint, and time out there too.
         let cancelled = FetchError::TimedOut {
-            budget: Some("25s".into()),
+            budget: Some("30s".into()),
             message: "Operation timed out".into(),
         };
         assert!(

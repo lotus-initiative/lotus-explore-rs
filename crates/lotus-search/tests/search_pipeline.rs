@@ -138,7 +138,7 @@ async fn a_qlever_request_declares_a_time_budget_and_names_the_client() {
 
     for body in http.raw_bodies() {
         assert!(
-            body.contains("timeout=25s"),
+            body.contains("timeout=30s"),
             "no time budget was declared: {body}"
         );
     }
