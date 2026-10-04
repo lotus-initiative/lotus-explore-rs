@@ -167,26 +167,33 @@ statement that the query returns every row it should.** The structural tests pin
 which `OPTIONAL` a pattern sits in and which subquery it lands in; they cannot
 tell you a compound was dropped.
 
-That gap is real and it is open. One case found on 2026-10-04 and **not yet
-explained**: for `taxon=Q16521` the generated query returns **zero rows** through
-`csv_export` -- the format the application itself requests -- while a
-hand-written reconstruction of the same semantics returns **1 distinct compound**.
-Ruled out so far:
+That gap is real and it is still open. Settling it needs each shape compared
+against an independently written query by **set** of distinct compound QIDs --
+not by count, and not by inspection -- and the endpoint makes that awkward: it
+rate-limits, and a hand-written control is only worth anything once it is
+verified to be equivalent, which is circular if you verify it with the same
+endpoint. **A local QLever** removes both problems and is the way to do this
+audit properly.
 
-- **Not the projection.** `SELECT (COUNT(DISTINCT ?c) AS ?n)` over the query's own
-  `WHERE` clause returns 1, so the pattern block is not empty; `SELECT *` and the
-  full `csv_export` both return 0.
-- **Not the InChIKey/SMILES requirement.** The core opens with `?c wdt:P235` and
-  `?c wdt:P233` as required triples, which would drop a compound lacking either --
-  removing both still returns 0.
+### A false alarm worth keeping, and the mistake behind it
 
-Not yet isolated: whether the loss is the `?t wdt:P225` taxon-name triple, the
-closure subquery's form, or an error in the reconstruction. The reconstruction was
-written by hand and is not proven equivalent, so **this is a discrepancy, not a
-diagnosed bug**, and it is on one taxon with a single compound.
+An earlier version of this section reported a bug: for `taxon=Q16521` the
+generated query returned zero rows while a hand-written reconstruction returned
+one distinct compound. **There was no bug.** `Q16521` is Wikidata's *taxon rank*
+item, not a taxon, so zero rows is the correct answer and the reconstruction was
+wrong.
 
-The way to settle this class of question is a **local QLever**, where every shape
-can be compared against an independently written query with no rate limit and no
-shared machine in the way. That turns "does the query return everything it should"
-from a hunch into a set comparison per shape, which is the check this file still
-owes its reader.
+The mistake is the one worth recording. `Q16521` was taken from this repository's
+own test fixtures -- `crates/lotus-curation/src/constants.rs` calls it
+`WD_TAXON_QID`, and `crates/lotus-jsonld` pairs it with a species name in a
+synthetic fixture. **Those are scripted test data, not reference data.** A QID
+that appears in a fixture is not thereby a real taxon, and using one as though it
+were is how a measurement ends up measuring the wrong thing.
+
+It briefly made it into the user-facing documentation too: `docs/cli.md` and the
+CLI crate's README used `--taxon Q16521` as the runnable example, which would have
+given anyone who copied it an empty result. Both now use `Q21754`, which is
+verified to have compounds (27,952 rows, 11,087 distinct compounds, measured).
+
+**The general rule: verify a QID against the graph before using it as an example,
+and never promote a fixture identifier into reference data without doing so.**

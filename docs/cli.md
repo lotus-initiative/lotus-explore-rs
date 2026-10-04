@@ -29,10 +29,10 @@ cargo build --release -p lotus-cli
 ## search
 
 ```bash
-lotus search --taxon Q16521
+lotus search --taxon Q21754
 lotus search --structure c1ccccc1 --structure-search similarity --threshold 0.9
 lotus search --taxon Q21754 --carbon 10..20 --bromine excluded
-lotus search --taxon Q16521 --year-min 2015 --year-max 2024
+lotus search --taxon Q21754 --year-min 2015 --year-max 2024
 ```
 
 `--taxon` also takes a scientific name --- `--taxon "Gentiana lutea"` is looked
@@ -109,8 +109,8 @@ Data goes to stdout and diagnostics to stderr, so redirection captures the data
 and nothing else:
 
 ```bash
-lotus search --taxon Q16521 --format csv > gentiana.csv
-lotus search --taxon Q16521 --format jsonl | jq -r .name
+lotus search --taxon Q21754 --format csv > gentianales.csv
+lotus search --taxon Q21754 --format jsonl | jq -r .name
 ```
 
 - `table` is aligned for a terminal and is not meant for parsing. It omits the

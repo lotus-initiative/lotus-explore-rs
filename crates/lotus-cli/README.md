@@ -25,14 +25,14 @@ structure; to find everything reported for an organism, search by taxon.
 
 ```bash
 # Everything Wikidata reports for one organism, as CSV.
-lotus search --taxon Q16521 --format csv
+lotus search --taxon Q21754 --format csv
 
 # Compounds similar to benzene, and see the SPARQL instead of running it.
 lotus search --structure c1ccccc1 --structure-search similarity --threshold 0.9
 lotus search --structure c1ccccc1 --explain
 
 # Narrow by formula, publication year, and element counts.
-lotus search --taxon Q16521 --year-min 2015 --year-max 2024
+lotus search --taxon Q21754 --year-min 2015 --year-max 2024
 lotus search --taxon Q21754 --carbon 10..20 --bromine excluded
 ```
 
