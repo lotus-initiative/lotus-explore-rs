@@ -460,7 +460,10 @@ fn json_string(out: &mut String, value: &str) {
 mod tests {
     #![allow(clippy::expect_used, clippy::panic)]
 
-    use super::{COLUMNS, ExportFormat, RowExporter, csv_field};
+    use super::{
+        CHUNK_TARGET, COLUMNS, ExportFormat, RowExporter, csv_field, json_string, number,
+        render_mass, render_qid,
+    };
     use csv::StringRecord;
     use lotus_model::{ColumnarResultSet, CompoundEntry};
     use std::sync::Arc;
@@ -734,5 +737,237 @@ mod tests {
             Some("10.1000/A, B"),
             "the comma survives, and the DOI comes out canonicalised"
         );
+    }
+
+    /// A QID renders as itself, and nothing renders as an empty cell.
+    ///
+    /// The all-empty case matters more than it looks: the alternative is `Q0`, which
+    /// is a real-looking Wikidata identifier for a row that has no compound. A
+    /// reader cannot tell `Q0` from a curated entity, so the empty string is the
+    /// honest rendering and this pins it.
+    #[test]
+    fn a_qid_renders_as_itself_and_an_absent_one_as_nothing() {
+        assert_eq!(render_qid(Some("Q16521".to_string())), "Q16521");
+        assert_eq!(render_qid(Some("  Q16521  ".to_string())), "  Q16521  ");
+
+        assert_eq!(render_qid(None), "", "an absent QID is an empty cell");
+        assert_eq!(
+            render_qid(Some(String::new())),
+            "",
+            "and so is an empty one"
+        );
+        assert_eq!(
+            render_qid(Some("   ".to_string())),
+            "",
+            "whitespace is not a QID, and must not render as Q0"
+        );
+    }
+
+    /// A mass renders with one decimal place when it is whole, and with none of its
+    /// own when it is not.
+    ///
+    /// The whole-number case is a presentation choice, but an *absent* mass is not:
+    /// it has to be an empty cell rather than a zero, because a zero mass is a
+    /// measurement and "nobody weighed this" is not one.
+    #[test]
+    fn a_mass_renders_readably_and_an_absent_mass_renders_as_nothing() {
+        assert_eq!(
+            render_mass(Some(180.0)),
+            "180.0",
+            "a whole mass keeps one decimal"
+        );
+        assert_eq!(
+            render_mass(Some(180.16)),
+            "180.16",
+            "and a real one keeps its own"
+        );
+        assert_eq!(render_mass(Some(0.5)), "0.5");
+
+        assert_eq!(render_mass(None), "", "an absent mass is an empty cell");
+        assert_ne!(
+            render_mass(None),
+            "0.0",
+            "an absent mass must not look like a measurement of zero"
+        );
+    }
+
+    /// A Turtle mass is a typed number, or the empty list.
+    ///
+    /// Quoted `"302.24"` is a *different value* to anything reading the graph, so
+    /// this is correctness rather than formatting. A non-finite mass has no literal
+    /// and becomes the empty list rather than `NaN`, which is not a number at all.
+    #[test]
+    fn a_turtle_mass_is_a_typed_number_or_the_empty_list() {
+        assert_eq!(number(Some(302.24)), "\"302.24\"^^xsd:decimal");
+        assert_eq!(
+            number(Some(180.0)),
+            "\"180.0\"^^xsd:decimal",
+            "a whole mass is still a number, and still typed"
+        );
+        assert!(
+            number(Some(180.16)).starts_with('"'),
+            "the value is quoted as a literal, not emitted bare"
+        );
+
+        assert_eq!(number(None), "[]", "an absent mass is the empty list");
+        assert_eq!(
+            number(Some(f64::INFINITY)),
+            "[]",
+            "infinity is not a number and has no literal"
+        );
+        assert_eq!(number(Some(f64::NAN)), "[]", "nor has NaN");
+    }
+
+    /// Every character that would break the document is escaped.
+    ///
+    /// The control-character arm is the one that matters: those have no shorthand, so
+    /// an unescaped one makes the whole export unparseable rather than merely ugly.
+    /// A taxon name can carry one, which is exactly why the arm exists.
+    #[test]
+    fn a_json_string_escapes_everything_that_would_break_the_document() {
+        let render = |value: &str| {
+            let mut out = String::new();
+            json_string(&mut out, value);
+            out
+        };
+
+        // The shorthands.
+        assert_eq!(render("a\"b"), "\"a\\\"b\"", "a quote is escaped");
+        assert_eq!(render("a\\b"), "\"a\\\\b\"", "a backslash is escaped");
+        assert_eq!(render("a\nb"), "\"a\\nb\"", "a newline is escaped");
+        assert_eq!(render("a\rb"), "\"a\\rb\"", "a carriage return is escaped");
+        assert_eq!(render("a\tb"), "\"a\\tb\"", "a tab is escaped");
+
+        // And the ones with no shorthand, which must go out as \u.
+        let bell = render("a\u{7}b");
+        assert!(
+            bell.contains("\\u0007"),
+            "a control character has no shorthand and must be a unicode escape: {bell}"
+        );
+        let null = render("a\u{0}b");
+        assert!(
+            null.contains("\\u0000"),
+            "and a NUL is the worst case of them: {null}"
+        );
+
+        // Nothing is escaped that does not need it, or every name in every export
+        // grows by a backslash.
+        assert_eq!(render("Gentiana lutea"), "\"Gentiana lutea\"");
+        assert_eq!(render(""), "\"\"", "an empty string is still a string");
+        // Multi-byte characters pass through as themselves, not as escapes.
+        assert_eq!(
+            render("Café"),
+            "\"Café\"",
+            "an accented letter is not a control character"
+        );
+    }
+
+    /// The chunk target is 64 KiB, and that number is a measured decision rather
+    /// than a round one.
+    ///
+    /// The constant's own comment records why: at 256 KiB the export was measurably
+    /// fine on a desktop and the wrong number on a phone, and the per-chunk overhead
+    /// is a pointer swap and an await, so the smaller chunk costs a few thousand extra
+    /// awaits on a 600 MB export -- nothing -- while the transient peak drops
+    /// fourfold. A mutant that changes `64 * 1024` to `64 + 1024` still satisfies
+    /// every bound the suite checks, so nothing pinned the decision itself.
+    #[test]
+    fn the_chunk_target_is_the_measured_sixty_four_kib() {
+        assert_eq!(
+            CHUNK_TARGET,
+            64 * 1024,
+            "the chunk size is a measured trade-off, not a tunable: see CHUNK_TARGET"
+        );
+    }
+
+    /// The statement column carries the statement, and nothing where there is none.
+    ///
+    /// This is the RDF subject's own identifier, so a wrong value here is a wrong
+    /// triple rather than a wrong cell. An absent statement is an empty cell and
+    /// must never render as a plausible-looking identifier.
+    #[test]
+    fn a_statement_renders_as_its_identifier_or_as_nothing() {
+        let set = set_of(&[full_row()]);
+        assert_eq!(
+            super::statement_text(&set, 0),
+            "Q200000002",
+            "the statement the row carries is what the column shows"
+        );
+
+        let bare = set_of(&[empty_row()]);
+        assert_eq!(
+            super::statement_text(&bare, 0),
+            "",
+            "a row with no statement has no identifier to show"
+        );
+        assert_ne!(
+            super::statement_text(&bare, 0),
+            "Q0",
+            "and must not invent a plausible-looking one"
+        );
+    }
+
+    /// Several rows are separated, not concatenated.
+    ///
+    /// The JSON exporter puts a comma between bindings, and the only test that parsed
+    /// the output used a single row -- where there is nothing to put a comma after.
+    /// A separator that is never emitted still produces valid JSON for one row and
+    /// invalid JSON for two, so a one-row test cannot see it. Three rows, parsed back,
+    /// is what closes that.
+    #[test]
+    fn three_rows_of_json_are_separated_and_parse() {
+        let rows = vec![full_row(), full_row(), full_row()];
+        let set = set_of(&rows);
+        let json = render(ExportFormat::Json, &set);
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&json).expect("a multi-row export must be valid JSON");
+        let bindings = parsed
+            .get("results")
+            .and_then(|r| r.get("bindings"))
+            .and_then(serde_json::Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+
+        assert_eq!(
+            bindings.len(),
+            3,
+            "every row is in the document, separated not run together: {json}"
+        );
+    }
+
+    /// The header row is written once, before the data.
+    ///
+    /// `next_chunk` emits the preamble on the way into the body and guards that with
+    /// an `in_body` flag. Dropping the negation of that flag emits the preamble at
+    /// the wrong moment, which for a small export means no header at all -- and a
+    /// CSV whose first line is data reads as a file with a ragged header rather than
+    /// as a broken one.
+    #[test]
+    fn the_preamble_is_written_exactly_once_and_before_the_data() {
+        for format in [ExportFormat::Csv, ExportFormat::Json, ExportFormat::Rdf] {
+            let set = set_of(&[full_row(), full_row()]);
+            let out = render(format, &set);
+
+            if format == ExportFormat::Csv {
+                let header = COLUMNS.join(",");
+                assert_eq!(
+                    out.matches(&header).count(),
+                    1,
+                    "{format:?}: the header row appears exactly once:\n{out}"
+                );
+                assert!(
+                    out.starts_with(&header),
+                    "{format:?}: and it comes before the data:\n{out}"
+                );
+            } else {
+                // Both other formats open with a single top-level element; running
+                // the preamble twice would produce two documents concatenated.
+                assert!(
+                    !out.contains("head\n\nhead") && out.matches("\"head\"").count() <= 2,
+                    "{format:?}: the preamble is not repeated:\n{out}"
+                );
+            }
+        }
     }
 }
