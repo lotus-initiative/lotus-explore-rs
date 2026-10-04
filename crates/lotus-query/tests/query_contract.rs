@@ -9,6 +9,8 @@
 //! - [`contract::structure`] structure search, similarity and substructure.
 //! - [`contract::filters`] filter injection and the count query.
 //! - [`contract::export`] the shape of the base queries and their variants.
+//! - [`contract::structure_rules`] rules every generated query must satisfy,
+//!   checked across all shapes -- the ones a defect can hide from a row count.
 //!
 //! They assert structure rather than bytes: which subquery a fragment lands in,
 //! which `OPTIONAL`s the count query drops, which triple the filter injection makes
@@ -27,4 +29,5 @@ pub mod contract {
     pub mod filters;
     pub mod nomenclature;
     pub mod structure;
+    pub mod structure_rules;
 }
