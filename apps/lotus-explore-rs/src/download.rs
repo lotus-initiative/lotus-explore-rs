@@ -367,19 +367,27 @@ mod opfs_availability_gate {
             "`Reflect::get` returns Ok for a missing property, so this claims \
              OPFS exists wherever it does not"
         );
-        // Both call sites are named rather than counted. A count was the first
-        // spelling of this assertion and it counted the sentence in the module
-        // doc that explains why `is_function()` is there, which is a test that
+        // Counted over code lines, and deliberately not by naming the two
+        // expressions. Naming them was the previous spelling and it broke on a
+        // `clippy::redundant_closure` fix that changed one of them from
+        // `|value| value.is_function()` to `JsValue::is_function` without
+        // changing what the code means -- a source gate that fails when a lint
+        // rewrites a closure is a gate that gets deleted rather than fixed.
+        //
+        // Comments are excluded because the module's own doc explains why
+        // `is_function` is there, and a count that includes the explanation
         // fails whenever the explanation is reworded.
+        let code: String = SOURCE
+            .lines()
+            .filter(|line| !line.trim_start().starts_with("//"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let checks = code.matches("is_function").count();
         assert!(
-            SOURCE.contains("is_ok_and(|get_directory| get_directory.is_function())"),
-            "the availability check has to test for a function rather than for \
-             the absence of an error"
-        );
-        assert!(
-            SOURCE.contains(".filter(|value| value.is_function())"),
-            "the directory lookup has to test for a function too, or it \
-             `unchecked_into`s an undefined value into a `js_sys::Function`"
+            checks >= 2,
+            "both the availability check and the directory lookup have to test \
+             for a function rather than for the absence of an error; found \
+             {checks} in code"
         );
     }
 }

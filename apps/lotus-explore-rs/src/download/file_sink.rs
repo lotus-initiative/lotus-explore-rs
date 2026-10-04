@@ -357,6 +357,14 @@ impl OpfsSink {
 const EXPORTS_DIR: &str = "lotus-exports";
 
 /// `navigator.storage.getDirectory()`.
+// The closure is what `clippy::redundant_closure_for_method_calls` asks to
+// replace with `js_sys::JsValue::is_function`, and that does not compile: `JsValue`
+// is a private re-export of `wasm_bindgen::JsValue`, so naming it through `js_sys`
+// is `error[E0603]: struct JsValue is private`. The suggested fix is not a fix.
+#[expect(
+    clippy::redundant_closure_for_method_calls,
+    reason = "the method path clippy suggests does not compile; JsValue is private in js_sys"
+)]
 async fn opfs_root() -> Result<JsValue, String> {
     let storage = web_sys::window()
         .map(|window| window.navigator().storage())

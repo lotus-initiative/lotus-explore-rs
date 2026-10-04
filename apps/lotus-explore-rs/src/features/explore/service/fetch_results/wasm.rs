@@ -73,15 +73,20 @@ pub(super) fn is_probable_memory_limit(err: &DomainError) -> bool {
 
     match err {
         DomainError::Transport { source, .. } => match source {
-            RepositoryError::NotConfigured => false,
+            // Neither of these is a body too big to hold, so neither should earn
+            // the reader a "narrow your query" hint.
+            //
+            // `Truncated` is the one worth spelling out: a stalled or cut-short
+            // body is a *transfer* failure, and offering to narrow the query for
+            // it would fix it only by accident -- by accident returning fewer rows
+            // quickly. It is grouped with `NotConfigured` because that is what the
+            // question being asked here answers for both: is there evidence the
+            // result set did not fit?
+            RepositoryError::NotConfigured | RepositoryError::Truncated(_) => false,
             RepositoryError::Network(detail) | RepositoryError::Parse(detail) => {
                 has_memory_signature(detail.as_ref())
             }
             RepositoryError::Http { body, .. } => has_memory_signature(body),
-            // A stalled body is not a body too big to hold. Folding it in here
-            // would offer the user a "narrow your query" hint for a failure
-            // that a narrower query would fix only by accident.
-            RepositoryError::Truncated(_) => false,
         },
         DomainError::Parse(ParseFault::ResultsCsv { details }) => has_memory_signature(details),
         _ => false,
