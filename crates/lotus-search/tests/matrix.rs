@@ -562,6 +562,11 @@ fn every_cell_is_substantial_and_the_table_does_not_drift() {
         "/../../docs/QUERY_MATRIX.md"
     ))
     .expect("docs/QUERY_MATRIX.md is the reference for which query runs when");
+    // Printed unconditionally, and captured unless `--nocapture` is passed,
+    // because the assertion below tells the reader to regenerate the table from
+    // a `--nocapture` run: a command that only prints the mismatch is not a way
+    // to regenerate twelve rows.
+    println!("{summary}");
     for line in summary.lines() {
         let expected = line.replace('|', " | ");
         assert!(

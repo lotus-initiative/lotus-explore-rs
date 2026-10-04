@@ -6,7 +6,7 @@ the query each one builds. Generated from the tests, not maintained by hand --
 to the builder fails the suite instead of quietly making this file a lie.
 
 ```bash
-cargo test -p lotus-search --test matrix every_cell_is_well_formed -- --nocapture
+cargo test -p lotus-search --test matrix every_cell_is_substantial_and_the_table_does_not_drift -- --nocapture
 ```
 
 `bytes` is the length of the generated query and `triples` the number of
@@ -17,18 +17,18 @@ is dominated by the patterns it has to resolve, not by the text.
 
 | cell | bytes | triples | occurrence |
 |---|---|---|---|
-| taxon=absent structure=absent reference=absent | 2221 | 12 | optional |
-| taxon=absent structure=absent reference=present | 2245 | 12 | optional |
-| taxon=absent structure=present reference=absent | 2190 | 14 | optional |
-| taxon=absent structure=present reference=present | 2214 | 14 | optional |
-| taxon=specific structure=absent reference=absent | 2642 | 15 | required |
-| taxon=specific structure=absent reference=present | 2666 | 15 | required |
-| taxon=specific structure=present reference=absent | 2574 | 16 | required |
-| taxon=specific structure=present reference=present | 2598 | 16 | required |
-| taxon="*" structure=absent reference=absent | 2273 | 13 | required |
-| taxon="*" structure=absent reference=present | 2297 | 13 | required |
-| taxon="*" structure=present reference=absent | 2190 | 14 | optional |
-| taxon="*" structure=present reference=present | 2214 | 14 | optional |
+| taxon=absent structure=absent reference=absent | 2214 | 12 | optional |
+| taxon=absent structure=absent reference=present | 2238 | 12 | optional |
+| taxon=absent structure=present reference=absent | 2183 | 14 | optional |
+| taxon=absent structure=present reference=present | 2207 | 14 | optional |
+| taxon=specific structure=absent reference=absent | 2635 | 15 | required |
+| taxon=specific structure=absent reference=present | 2659 | 15 | required |
+| taxon=specific structure=present reference=absent | 2567 | 16 | required |
+| taxon=specific structure=present reference=present | 2591 | 16 | required |
+| taxon="*" structure=absent reference=absent | 2266 | 13 | required |
+| taxon="*" structure=absent reference=present | 2290 | 13 | required |
+| taxon="*" structure=present reference=absent | 2183 | 14 | optional |
+| taxon="*" structure=present reference=present | 2207 | 14 | optional |
 
 ## How to read it
 
