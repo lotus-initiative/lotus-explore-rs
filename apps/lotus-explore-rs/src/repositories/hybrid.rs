@@ -132,7 +132,11 @@ impl LotusRepository for HybridRepository {
         }
     }
 
-    async fn sparql_columnar(&self, query: &str) -> Result<ColumnarResultSet, RepositoryError> {
+    async fn sparql_columnar(
+        &self,
+        query: &str,
+        on_progress: &mut dyn FnMut(lotus_search::StreamProgress),
+    ) -> Result<ColumnarResultSet, RepositoryError> {
         let chunks = match sparql::execute_sparql_chunks(query).await {
             Ok(chunks) => chunks,
             Err(err) if is_qlever_unavailable(&err) => {
@@ -144,7 +148,7 @@ impl LotusRepository for HybridRepository {
             }
             Err(err) => return Err(map_fetch_error(err)),
         };
-        lotus_search::columnar_from_chunks(chunks)
+        lotus_search::columnar_from_chunks_reporting(chunks, on_progress)
             .await
             .map_err(map_fetch_error)
     }

@@ -106,8 +106,45 @@ fn config_uses_safe_defaults() {
     assert_eq!(cfg.default_limit, 500);
     assert_eq!(cfg.request_timeout, Duration::from_secs(45));
     assert_eq!(cfg.max_concurrency, 256);
+    assert_eq!(cfg.upstream_concurrency, 4);
     assert_eq!(cfg.max_body_bytes, 1_048_576);
     assert!(cfg.cors_allowed_origins.is_none());
+}
+
+#[test]
+fn the_upstream_concurrency_default_is_small_on_purpose() {
+    // The load-bearing assertion about politeness. `max_concurrency` is 256 and
+    // it is fine: that bounds what this server accepts. The number that matters
+    // is how many queries of ours are running against a shared public endpoint
+    // at once, and it is two orders of magnitude smaller. If someone raises this
+    // to match `max_concurrency`, this test is what they delete first -- so it
+    // should be the first thing that fails.
+    let env = HashMap::<String, String>::new();
+    let cfg = AppConfig::from_provider(|name| env.get(name).cloned()).expect("valid config");
+    assert_eq!(cfg.upstream_concurrency, 4);
+    assert!(
+        cfg.upstream_concurrency * 10 < cfg.max_concurrency,
+        "the upstream budget must be far below the local one: {} vs {}",
+        cfg.upstream_concurrency,
+        cfg.max_concurrency
+    );
+    // A quarter of the request timeout, capped: long enough to queue a burst,
+    // short enough that a caller is not left holding a connection.
+    assert_eq!(cfg.upstream_queue_wait, Duration::from_millis(5_000));
+}
+
+#[test]
+fn the_upstream_concurrency_is_clamped_to_something_sane() {
+    let env = map_provider(&[("UPSTREAM_CONCURRENCY", "100000")]);
+    let cfg = AppConfig::from_provider(|name| env.get(name).cloned()).expect("valid config");
+    assert_eq!(cfg.upstream_concurrency, 64);
+
+    let env = map_provider(&[("UPSTREAM_CONCURRENCY", "0")]);
+    let cfg = AppConfig::from_provider(|name| env.get(name).cloned()).expect("valid config");
+    assert_eq!(
+        cfg.upstream_concurrency, 1,
+        "zero would refuse every search rather than queue one"
+    );
 }
 
 #[test]
@@ -115,11 +152,13 @@ fn config_reads_performance_tunables() {
     let env = map_provider(&[
         ("REQUEST_TIMEOUT_MS", "120000"),
         ("MAX_CONCURRENCY", "512"),
+        ("UPSTREAM_CONCURRENCY", "8"),
         ("MAX_BODY_BYTES", "2097152"),
     ]);
     let cfg = AppConfig::from_provider(|name| env.get(name).cloned()).expect("valid config");
     assert_eq!(cfg.request_timeout, Duration::from_mins(2));
     assert_eq!(cfg.max_concurrency, 512);
+    assert_eq!(cfg.upstream_concurrency, 8);
     assert_eq!(cfg.max_body_bytes, 2_097_152);
 }
 
@@ -225,6 +264,65 @@ fn prune_cache_removes_oldest_when_over_capacity() {
     });
     assert!(cache.contains_key("b"));
     assert!(!cache.contains_key("a"));
+}
+
+#[tokio::test]
+async fn a_search_is_shed_with_a_retry_after_when_every_upstream_slot_is_busy() {
+    // The politeness gate, tested at the only level that matters: what a caller
+    // is told. With no QLever permit available the answer has to be 503 with a
+    // `Retry-After`, and the query must never be sent. Anything else -- a hang, a
+    // 500, an unbounded queue -- either occupies the shared endpoint or teaches
+    // the caller to come straight back.
+    let config = AppConfig::from_provider(|name| match name {
+        "UPSTREAM_CONCURRENCY" => Some("1".to_string()),
+        // A long request timeout and a short queue wait, so the test does not
+        // have to wait out the default five seconds to see the shed.
+        "REQUEST_TIMEOUT_MS" => Some("4000".to_string()),
+        _ => None,
+    })
+    .expect("valid config");
+    assert_eq!(config.upstream_queue_wait, Duration::from_millis(1_000));
+
+    let state = AppState::new(&config);
+    // Take the only permit and never give it back.
+    let semaphore = state.upstream_permits.clone();
+    let held = semaphore
+        .clone()
+        .acquire_owned()
+        .await
+        .expect("the single permit");
+
+    let app = build_router(config.max_body_bytes, &config, state);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/search")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    r#"{"taxon":"Gentiana lutea","smiles":null,"reference":null}"#,
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("search response");
+
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(
+        response
+            .headers()
+            .get("retry-after")
+            .and_then(|v| v.to_str().ok()),
+        Some("5"),
+        "a shed search must say when to come back, or the caller retries at once"
+    );
+    assert_eq!(
+        semaphore.available_permits(),
+        0,
+        "the search must not have taken a permit: the gate sheds rather than \
+         queueing past its wait"
+    );
+    drop(held);
 }
 
 #[tokio::test]

@@ -15,20 +15,50 @@ pub struct ErrorResponse {
 pub struct ApiError {
     pub(crate) status: StatusCode,
     pub(crate) message: String,
+    /// Seconds to wait before trying again, sent as `Retry-After`.
+    ///
+    /// Present on the overload path and absent everywhere else. It is the whole
+    /// difference between "this server is busy" and "here is when to come back":
+    /// a client told to retry immediately becomes the reason the server is busy.
+    pub(crate) retry_after: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
 pub struct SharedApiError {
     pub(crate) status: StatusCode,
     pub(crate) message: String,
+    /// Carried through, not dropped.
+    ///
+    /// This is the type a *leader* hands to the followers coalesced behind it,
+    /// so a shed search's `Retry-After` reaches the caller through here. An
+    /// earlier version of this conversion zeroed the field with the reasoning
+    /// that a follower has no queue to join -- true, and beside the point: the
+    /// header is what stops the follower coming straight back.
+    pub(crate) retry_after: Option<u64>,
 }
 
 impl ApiError {
+    /// The server is at its upstream budget, and the answer comes back with a
+    /// `Retry-After`.
+    ///
+    /// Shedding load at the door is the polite half of a concurrency limit: the
+    /// alternative is to accept the request, start a query the shared public
+    /// endpoint will cancel, and then tell the caller to wait.
+    #[must_use]
+    pub(crate) fn upstream_overloaded(message: impl Into<String>, retry_after: u64) -> Self {
+        Self {
+            status: StatusCode::SERVICE_UNAVAILABLE,
+            message: message.into(),
+            retry_after: Some(retry_after),
+        }
+    }
+
     #[must_use]
     pub(crate) fn bad_request(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::BAD_REQUEST,
             message: message.into(),
+            retry_after: None,
         }
     }
 
@@ -37,6 +67,7 @@ impl ApiError {
         Self {
             status: StatusCode::BAD_GATEWAY,
             message: message.into(),
+            retry_after: None,
         }
     }
 
@@ -45,6 +76,7 @@ impl ApiError {
         Self {
             status: StatusCode::SERVICE_UNAVAILABLE,
             message: message.into(),
+            retry_after: None,
         }
     }
 
@@ -53,6 +85,19 @@ impl ApiError {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             message: message.into(),
+            retry_after: None,
+        }
+    }
+}
+
+impl SharedApiError {
+    /// A local timeout, as opposed to an endpoint one.
+    #[must_use]
+    pub(crate) fn timed_out(message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::GATEWAY_TIMEOUT,
+            message: message.into(),
+            retry_after: None,
         }
     }
 }
@@ -62,6 +107,7 @@ impl From<ApiError> for SharedApiError {
         Self {
             status: value.status,
             message: value.message,
+            retry_after: value.retry_after,
         }
     }
 }
@@ -71,6 +117,7 @@ impl From<SharedApiError> for ApiError {
         Self {
             status: value.status,
             message: value.message,
+            retry_after: value.retry_after,
         }
     }
 }
@@ -84,6 +131,7 @@ impl From<axum::http::Error> for ApiError {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             message: format!("response builder: {err}"),
+            retry_after: None,
         }
     }
 }
@@ -93,6 +141,13 @@ impl IntoResponse for ApiError {
         let body = Json(ErrorResponse {
             error: self.message,
         });
-        (self.status, body).into_response()
+        let mut response = (self.status, body).into_response();
+        if let Some(seconds) = self.retry_after {
+            // `response.extensions_mut()` rather than rebuilding through a
+            // `Builder`: the status and body are already a `Response`, and
+            // rebuilding them here would be a second place that has to be right.
+            response.headers_mut().insert("retry-after", seconds.into());
+        }
+        response
     }
 }

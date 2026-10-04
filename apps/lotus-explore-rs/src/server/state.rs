@@ -34,7 +34,13 @@ pub type InFlightExport =
 pub struct AppState {
     pub(crate) default_limit: usize,
     pub(crate) request_timeout: Duration,
+    /// How long an upstream query waits for a permit before the search is shed.
+    pub(crate) upstream_queue_wait: Duration,
     pub(crate) request_permits: Arc<Semaphore>,
+    /// Permits for queries in flight to `QLever`. See
+    /// [`AppConfig::upstream_concurrency`](crate::server::config::AppConfig) --
+    /// this is the polite limit, where `request_permits` is the local one.
+    pub(crate) upstream_permits: Arc<Semaphore>,
     pub(crate) taxon_cache: Arc<Mutex<HashMap<String, CachedTaxonResolution>>>,
     pub(crate) search_cache: Arc<Mutex<HashMap<String, CachedSearchResponse>>>,
     pub(crate) export_cache: Arc<Mutex<HashMap<String, CachedExportResponse>>>,
@@ -51,7 +57,9 @@ impl AppState {
         Self {
             default_limit: config.default_limit,
             request_timeout: config.request_timeout,
+            upstream_queue_wait: config.upstream_queue_wait,
             request_permits: Arc::new(Semaphore::new(config.max_concurrency)),
+            upstream_permits: Arc::new(Semaphore::new(config.upstream_concurrency)),
             taxon_cache: Arc::new(Mutex::new(HashMap::new())),
             search_cache: Arc::new(Mutex::new(HashMap::new())),
             export_cache: Arc::new(Mutex::new(HashMap::new())),
@@ -94,6 +102,12 @@ pub struct RuntimeMetrics {
     pub(crate) export_inflight_waits: AtomicU64,
     pub(crate) export_upstream_hits: AtomicU64,
     pub(crate) overload_rejections: AtomicU64,
+    /// Searches refused because every `QLever` slot was busy.
+    ///
+    /// Its own counter because it is the number that would mean "we are asking
+    /// too much of a public endpoint", which is a different problem from being
+    /// overloaded locally.
+    pub(crate) upstream_shed: AtomicU64,
     pub(crate) request_timeouts: AtomicU64,
 }
 
@@ -110,6 +124,7 @@ impl RuntimeMetrics {
             export_inflight_waits: AtomicU64::new(0),
             export_upstream_hits: AtomicU64::new(0),
             overload_rejections: AtomicU64::new(0),
+            upstream_shed: AtomicU64::new(0),
             request_timeouts: AtomicU64::new(0),
         }
     }
@@ -127,6 +142,7 @@ impl RuntimeMetrics {
             export_inflight_waits: self.export_inflight_waits.load(Ordering::Relaxed),
             export_upstream_hits: self.export_upstream_hits.load(Ordering::Relaxed),
             overload_rejections: self.overload_rejections.load(Ordering::Relaxed),
+            upstream_shed: self.upstream_shed.load(Ordering::Relaxed),
             request_timeouts: self.request_timeouts.load(Ordering::Relaxed),
         }
     }
@@ -168,6 +184,9 @@ impl RuntimeMetrics {
                 "# HELP lotus_api_overload_rejections Requests rejected because the server was busy.\n",
                 "# TYPE lotus_api_overload_rejections counter\n",
                 "lotus_api_overload_rejections {}\n",
+                "# HELP lotus_api_upstream_shed Searches refused because every upstream query slot was busy.\n",
+                "# TYPE lotus_api_upstream_shed counter\n",
+                "lotus_api_upstream_shed {}\n",
                 "# HELP lotus_api_request_timeouts Requests that exceeded the configured timeout.\n",
                 "# TYPE lotus_api_request_timeouts counter\n",
                 "lotus_api_request_timeouts {}\n"
@@ -183,6 +202,7 @@ impl RuntimeMetrics {
             snapshot.export_inflight_waits,
             snapshot.export_upstream_hits,
             snapshot.overload_rejections,
+            snapshot.upstream_shed,
             snapshot.request_timeouts,
         )
     }

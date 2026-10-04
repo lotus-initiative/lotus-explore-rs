@@ -98,11 +98,19 @@ pub trait LotusRepository: Clone + 'static {
     /// [`Self::sparql_body`]: a transport that cannot stream has to say so,
     /// because the alternative looks like it worked and exhausts memory later.
     ///
+    /// `on_progress` is called once per chunk read, so a caller that re-renders
+    /// on every call has to throttle -- see
+    /// [`lotus_search::columnar_from_chunks_reporting`].
+    ///
     /// # Errors
     /// Returns [`RepositoryError::Network`] if this transport cannot read a body
     /// incrementally.
-    async fn sparql_columnar(&self, query: &str) -> Result<ColumnarResultSet, RepositoryError> {
-        let _ = query;
+    async fn sparql_columnar(
+        &self,
+        query: &str,
+        on_progress: &mut dyn FnMut(lotus_search::StreamProgress),
+    ) -> Result<ColumnarResultSet, RepositoryError> {
+        let _ = (query, on_progress);
         Err(RepositoryError::network(
             "this transport cannot read a response body in chunks",
         ))

@@ -18,6 +18,12 @@ pub struct HealthResponse {
     pub(crate) export_inflight_waits: u64,
     pub(crate) export_upstream_hits: u64,
     pub(crate) overload_rejections: u64,
+    /// Searches refused because every `QLever` slot was busy.
+    ///
+    /// The counter to watch for politeness. It should be zero on a healthy
+    /// deployment: if it climbs, this server is asking more of a shared public
+    /// endpoint than it should, and `UPSTREAM_CONCURRENCY` is the knob.
+    pub(crate) upstream_shed: u64,
     pub(crate) request_timeouts: u64,
 }
 

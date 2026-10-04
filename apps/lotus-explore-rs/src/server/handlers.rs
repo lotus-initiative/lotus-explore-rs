@@ -7,8 +7,14 @@ use axum::{
     http::{StatusCode, header},
     response::Response,
 };
-use std::{sync::atomic::Ordering, time::Instant};
-use tokio::time::timeout;
+use std::{
+    sync::{Arc, atomic::Ordering},
+    time::{Duration, Instant},
+};
+use tokio::{
+    sync::{OwnedSemaphorePermit, Semaphore},
+    time::timeout,
+};
 
 use crate::export;
 use crate::server::{
@@ -16,7 +22,7 @@ use crate::server::{
     query_logic::{apply_request, build_execution_query, gzip_bytes, resolve_taxon_qid_cached},
     services::build_search_response,
     state::{
-        AppState, build_export_cache_key, build_search_cache_key, export_cache_get,
+        AppState, RuntimeMetrics, build_export_cache_key, build_search_cache_key, export_cache_get,
         export_cache_put, export_inflight_cell, export_inflight_remove, search_cache_get,
         search_cache_put, search_inflight_cell, search_inflight_remove,
     },
@@ -100,6 +106,46 @@ async fn prepare_search_request(
     })
 }
 
+/// Take one of the server's `QLever` query slots, or shed the search.
+///
+/// The polite limit, and deliberately not the same limit as `max_concurrency`:
+/// that one bounds what this server will *accept*, and this one bounds what it
+/// will ask of somebody else's public endpoint. `QLever` serves Wikidata for
+/// everyone from a single machine and cancels any query over 30 s, so a handful
+/// of our searches in flight at once is already a large ask, and an unconstrained
+/// one holds its slot for the whole budget.
+///
+/// Shedding with a `Retry-After` rather than queueing indefinitely is the other
+/// half of it. A caller told to come back in a few seconds stops being the
+/// reason the queue is long, and the endpoint never sees the query at all --
+/// which is the only outcome that is unambiguously good for it.
+async fn acquire_upstream_permit(
+    permits: &Arc<Semaphore>,
+    wait: Duration,
+    metrics: &RuntimeMetrics,
+) -> Result<OwnedSemaphorePermit, SharedApiError> {
+    match timeout(wait, Arc::clone(permits).acquire_owned()).await {
+        Ok(Ok(permit)) => Ok(permit),
+        Ok(Err(_closed)) => Err(SharedApiError::from(ApiError::internal(
+            "the server is shutting down",
+        ))),
+        Err(_) => {
+            metrics.upstream_shed.fetch_add(1, Ordering::Relaxed);
+            log::warn!(
+                "event=search state=shed reason=upstream_budget wait_ms={}",
+                wait.as_millis()
+            );
+            Err(SharedApiError::from(ApiError::upstream_overloaded(
+                "Every query slot to the public endpoint is busy. Retry in a few seconds.",
+                UPSTREAM_RETRY_AFTER_SECS,
+            )))
+        }
+    }
+}
+
+/// What a shed search tells the caller to wait for.
+const UPSTREAM_RETRY_AFTER_SECS: u64 = 5;
+
 async fn cached_search_response(
     state: &AppState,
     prepared: &PreparedSearchRequest,
@@ -140,6 +186,8 @@ async fn cached_search_response(
 
     let metrics = state.metrics.clone();
     let request_timeout = state.request_timeout;
+    let upstream_queue_wait = state.upstream_queue_wait;
+    let upstream_permits = state.upstream_permits.clone();
     let execution_query = prepared.execution_query.clone();
     let resolved_taxon_qid = prepared.resolved_taxon_qid.clone();
     let warning = prepared.warning.clone();
@@ -148,6 +196,13 @@ async fn cached_search_response(
 
     let response = cell
         .get_or_init(|| async move {
+            let _upstream_permit =
+                match acquire_upstream_permit(&upstream_permits, upstream_queue_wait, &metrics)
+                    .await
+                {
+                    Ok(permit) => permit,
+                    Err(err) => return Err(err),
+                };
             timeout(
                 request_timeout,
                 build_search_response(
@@ -162,10 +217,7 @@ async fn cached_search_response(
             .map_err(|_| {
                 metrics.request_timeouts.fetch_add(1, Ordering::Relaxed);
                 log::warn!("event=search state=timeout phase=execution");
-                SharedApiError {
-                    status: StatusCode::GATEWAY_TIMEOUT,
-                    message: "search execution timed out".into(),
-                }
+                SharedApiError::timed_out("search execution timed out")
             })?
             .map_err(SharedApiError::from)
         })

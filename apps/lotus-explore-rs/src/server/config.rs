@@ -14,6 +14,17 @@ pub struct AppConfig {
     pub(crate) default_limit: usize,
     pub(crate) request_timeout: Duration,
     pub(crate) max_concurrency: usize,
+    /// How many queries may be in flight to `QLever` at once.
+    ///
+    /// A second, much smaller limit than `max_concurrency`, and it is the one
+    /// that matters for politeness. `max_concurrency` bounds what this server
+    /// will accept; this bounds what it will ask of somebody else's public
+    /// endpoint. `QLever` serves Wikidata from one machine for everyone, and a
+    /// single unconstrained search holds its budget for ~30 s, so four in flight
+    /// is already a large ask.
+    pub(crate) upstream_concurrency: usize,
+    /// How long a search waits for an upstream permit before being shed.
+    pub(crate) upstream_queue_wait: Duration,
     pub(crate) max_body_bytes: usize,
     pub(crate) cors_allowed_origins: Option<Vec<HeaderValue>>,
     pub(crate) public_dir: Option<std::path::PathBuf>,
@@ -38,6 +49,10 @@ struct Cli {
     request_timeout_ms: String,
     #[arg(long, env = "MAX_CONCURRENCY", default_value = "256")]
     max_concurrency: String,
+    /// Queries in flight to `QLever` at once. Small on purpose: see
+    /// `AppConfig::upstream_concurrency`.
+    #[arg(long, env = "UPSTREAM_CONCURRENCY", default_value = "4")]
+    upstream_concurrency: String,
     #[arg(long, env = "MAX_BODY_BYTES", default_value = "1048576")]
     max_body_bytes: String,
     #[arg(long, env = "APP_ENV", default_value = "development")]
@@ -59,6 +74,7 @@ impl Cli {
             "DEFAULT_LIMIT" => Some(self.default_limit.clone()),
             "REQUEST_TIMEOUT_MS" => Some(self.request_timeout_ms.clone()),
             "MAX_CONCURRENCY" => Some(self.max_concurrency.clone()),
+            "UPSTREAM_CONCURRENCY" => Some(self.upstream_concurrency.clone()),
             "MAX_BODY_BYTES" => Some(self.max_body_bytes.clone()),
             "APP_ENV" => Some(self.app_env.clone()),
             "CORS_ALLOWED_ORIGINS" => self.cors_allowed_origins.clone(),
@@ -96,6 +112,8 @@ impl AppConfig {
                 .clamp(1_000, 300_000);
         let max_concurrency =
             parse_usize_env(get("MAX_CONCURRENCY"), "MAX_CONCURRENCY", 256)?.clamp(8, 4_096);
+        let upstream_concurrency =
+            parse_usize_env(get("UPSTREAM_CONCURRENCY"), "UPSTREAM_CONCURRENCY", 4)?.clamp(1, 64);
         let max_body_bytes = parse_usize_env(get("MAX_BODY_BYTES"), "MAX_BODY_BYTES", 1_048_576)?
             .clamp(4 * 1024, 16 * 1024 * 1024);
 
@@ -117,6 +135,14 @@ impl AppConfig {
             default_limit,
             request_timeout: Duration::from_millis(request_timeout_ms as u64),
             max_concurrency,
+            upstream_concurrency,
+            // A quarter of the request timeout, and never more than five seconds:
+            // long enough that a burst is queued rather than refused, short
+            // enough that a caller is not left holding a connection while the
+            // queue drains in front of it.
+            upstream_queue_wait: Duration::from_millis(
+                (request_timeout_ms / 4).clamp(250, 5_000) as u64
+            ),
             max_body_bytes,
             cors_allowed_origins,
             public_dir,
