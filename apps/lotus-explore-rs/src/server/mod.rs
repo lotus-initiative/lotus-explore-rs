@@ -106,6 +106,7 @@ pub fn build_router(max_body_bytes: usize, config: &AppConfig, state: AppState) 
             .route("/search", route_index("search"))
             .route("/curation", route_index("curation"))
             .route("/draw", route_index("draw"))
+            .route("/faq", route_index("faq"))
             .fallback_service(
                 ServeDir::new(public_dir.clone())
                     .precompressed_br()

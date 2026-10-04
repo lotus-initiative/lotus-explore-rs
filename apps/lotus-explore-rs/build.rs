@@ -229,6 +229,11 @@ fn build_sitemap_xml(meta: &Metadata) -> String {
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
+  <url>
+    <loc>{base}/faq/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
 </urlset>
 "#
     )
@@ -335,7 +340,8 @@ fn build_llms_txt(meta: &Metadata) -> String {
         - Filter by mass range, publication year, and formula presence\n\
         - Browse taxonomy and references for each result\n\
         - Export results as CSV, JSON, RDF, or SPARQL\n\
-        - Import TSV rows and generate QuickStatements for Wikidata curation\n\n\
+        - Import TSV rows and generate QuickStatements for Wikidata curation\n\
+        - A guided FAQ at {base}faq\n\n\
         ## Docs\n\n\
         In the repository. These are design and operations notes rather than user\n\
         documentation, and are not served from the site itself.\n\n\
@@ -353,7 +359,7 @@ fn build_llms_txt(meta: &Metadata) -> String {
         - [Security policy]({security_txt})\n\
         - [robots.txt]({base}robots.txt)\n\
         - [sitemap.xml]({base}sitemap.xml)\n\
-        - Structured data: JSON-LD in the page head\n\
+        - Structured data: JSON-LD in the page head\n\n\
         - Link headers on the document advertise llms.txt, robots.txt, security.txt and sitemap.xml\n\n\
         ## Data sources\n\n\
         - [Wikidata Query Service](https://query.wikidata.org/)\n\

@@ -27,7 +27,7 @@ fn deployment_base_path(pathname: &str) -> String {
     if path.is_empty() {
         return String::new();
     }
-    for suffix in ["/search", "/curation", "/draw"] {
+    for suffix in ["/search", "/curation", "/draw", "/faq"] {
         if let Some(base) = path.strip_suffix(suffix) {
             return base.to_string();
         }
@@ -158,6 +158,14 @@ fn parse_query_string(query: &str) -> BTreeMap<String, String> {
 mod tests {
     use super::deployment_base_path;
 
+    /// Every client-side route, which is the same list the server router, the
+    /// Dockerfile export stage, `nginx.conf`, and `index.html` each keep.
+    ///
+    /// Looped rather than written out one assertion at a time: the per-route
+    /// version read like coverage while actually being a list that had already
+    /// fallen out of date, because adding a route never touched it.
+    const ROUTES: [&str; 4] = ["/search", "/curation", "/draw", "/faq"];
+
     #[test]
     fn deployment_base_path_preserves_repository_prefix() {
         assert_eq!(deployment_base_path("/"), "");
@@ -165,18 +173,16 @@ mod tests {
             deployment_base_path("/lotus-explore-rs/"),
             "/lotus-explore-rs"
         );
-        assert_eq!(
-            deployment_base_path("/lotus-explore-rs/search"),
-            "/lotus-explore-rs"
-        );
-        assert_eq!(
-            deployment_base_path("/lotus-explore-rs/curation"),
-            "/lotus-explore-rs"
-        );
+    }
 
-        assert_eq!(
-            deployment_base_path("/lotus-explore-rs/draw"),
-            "/lotus-explore-rs"
-        );
+    #[test]
+    fn every_client_route_resolves_back_to_the_same_base() {
+        for route in ROUTES {
+            assert_eq!(
+                deployment_base_path(&format!("/lotus-explore-rs{route}")),
+                "/lotus-explore-rs",
+                "{route} should be recognised as a route, not as part of the base"
+            );
+        }
     }
 }

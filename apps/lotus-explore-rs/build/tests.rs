@@ -324,3 +324,108 @@ fn generated_metadata_list_covers_everything_the_script_writes() {
         );
     }
 }
+
+/// Every client-side route.
+///
+/// One list, asserted against every file that has to name it. The route is
+/// real to the browser -- Dioxus renders it -- but a request for it is answered
+/// by the *host*, and the host is configured in three places that have no
+/// compiler between them. `/faq` was rendered and linked from the nav and still
+/// 404'd on a cold load, because it was missing from all three and from the
+/// prefix-derivation list besides.
+const CLIENT_ROUTES: [&str; 4] = ["/search", "/curation", "/draw", "/faq"];
+
+fn repo_file(relative: &str) -> Result<String, Box<dyn Error>> {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join(relative);
+    Ok(fs::read_to_string(root)?)
+}
+
+#[test]
+fn every_client_route_is_served_by_the_router() -> Result<(), Box<dyn Error>> {
+    let router =
+        fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/server/mod.rs"))?;
+    for route in CLIENT_ROUTES {
+        assert!(
+            router.contains(&format!(".route(\"{route}\", route_index(")),
+            "{route} is a Dioxus route but the server router never serves it, so \
+             a cold load of that URL 404s"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn every_client_route_is_published_by_the_export_stage() -> Result<(), Box<dyn Error>> {
+    // The `export` stage copies index.html into a directory per route, and that
+    // is what the Pages deploy publishes.
+    let dockerfile = repo_file("Dockerfile")?;
+    for route in CLIENT_ROUTES {
+        assert!(
+            dockerfile.contains(&format!("public/index.html {route}/index.html")),
+            "{route} has no index.html in the export stage, so the static deploy \
+             404s on it"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn every_client_route_is_served_by_the_static_image() -> Result<(), Box<dyn Error>> {
+    // The nginx routes are one regex alternation, so the assertion is on the
+    // bare segment rather than on a `/route` literal that no file contains.
+    let nginx = repo_file("docker/nginx.conf")?;
+    for route in CLIENT_ROUTES {
+        assert!(
+            nginx.contains(route.trim_start_matches('/')),
+            "{route} is missing from the nginx SPA-route location, so the static \
+             image falls through to the 404 page"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn every_client_route_is_recognised_when_deriving_the_base_path() -> Result<(), Box<dyn Error>> {
+    // Two lists, and a route missing from either one breaks the in-page asset
+    // URLs for anyone who lands on it directly: the base is derived as
+    // `/lotus-explore-rs/faq` instead of `/lotus-explore-rs`, and every asset
+    // then 404s.
+    let html = fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("index.html"))?;
+    for route in CLIENT_ROUTES {
+        assert!(
+            html.contains(&format!("\"{route}\"")),
+            "{route} is missing from index.html's routeSuffixes, so landing on it \
+             derives the wrong base path"
+        );
+    }
+
+    let url_state = fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/features/explore/url_state.rs"),
+    )?;
+    for route in CLIENT_ROUTES {
+        assert!(
+            url_state.contains(&format!("\"{route}\"")),
+            "{route} is missing from deployment_base_path's suffix list, so \
+             deployment_href builds a link under the route instead of the base"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn every_client_route_is_in_the_sitemap() -> Result<(), Box<dyn Error>> {
+    // The sitemap, the nav, and the router disagreed: `/faq` was in two of them.
+    let meta = real_metadata()?;
+    let base = meta.site.base_url.trim_end_matches('/');
+    let sitemap = build_sitemap_xml(&meta);
+    for route in CLIENT_ROUTES {
+        assert!(
+            sitemap.contains(&format!("<loc>{base}{route}/</loc>")),
+            "{route} is a navigable page but is absent from sitemap.xml"
+        );
+    }
+    Ok(())
+}

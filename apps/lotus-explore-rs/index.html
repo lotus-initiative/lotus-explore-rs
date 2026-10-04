@@ -44,7 +44,7 @@
        var path = window.location.pathname;
         var cleanPath = path.length > 1 ? path.replace(/\/+$/, "") : path;
         var basePath = cleanPath;
-        var routeSuffixes = ["/search", "/curation", "/draw"];
+        var routeSuffixes = ["/search", "/curation", "/draw", "/faq"];
         var knownRoute = path === "/" || /\/lotus-explore-rs$/.test(cleanPath);
         routeSuffixes.forEach(function (suffix) {
           if (cleanPath.endsWith(suffix)) {

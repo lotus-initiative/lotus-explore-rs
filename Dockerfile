@@ -243,6 +243,7 @@ COPY --from=wasm-builder /build/target/dx/lotus-explore-rs/release/web/public/in
 COPY --from=wasm-builder /build/target/dx/lotus-explore-rs/release/web/public/index.html /search/index.html
 COPY --from=wasm-builder /build/target/dx/lotus-explore-rs/release/web/public/index.html /curation/index.html
 COPY --from=wasm-builder /build/target/dx/lotus-explore-rs/release/web/public/index.html /draw/index.html
+COPY --from=wasm-builder /build/target/dx/lotus-explore-rs/release/web/public/index.html /faq/index.html
 
 # ── Stage: runtime (the server) ──────────────────────────────────────────────
 # distroless/cc rather than debian-slim: this process serves a static directory
