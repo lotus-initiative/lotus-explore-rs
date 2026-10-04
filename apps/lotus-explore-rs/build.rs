@@ -360,7 +360,13 @@ fn build_llms_txt(meta: &Metadata) -> String {
         - [robots.txt]({base}robots.txt)\n\
         - [sitemap.xml]({base}sitemap.xml)\n\
         - Structured data: JSON-LD in the page head\n\n\
-        - Link headers on the document advertise llms.txt, robots.txt, security.txt and sitemap.xml\n\n\
+        Every entry above is also linked from the document head, because the one\n\
+        live host ignores `_headers` and a `Link:` header alone is discoverable by\n\
+        nobody. The `WebMCP` surface is not a separate endpoint: there is no MCP\n\
+        server. It is the `tool*` attributes on the search form and on the two\n\
+        curation forms, so a tool exists only on the page that renders its form.\n\n\
+        - Search form: {base}search\n\
+        - Curation forms: {base}curation\n\n\
         ## Data sources\n\n\
         - [Wikidata Query Service](https://query.wikidata.org/)\n\
         - [QLever Wikidata endpoint](https://qlever.cs.uni-freiburg.de/wikidata)\n\

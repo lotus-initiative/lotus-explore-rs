@@ -25,6 +25,10 @@
        root-relative. The manifest and the stylesheet are created by the script
        instead, for the reason given there. -->
   <link id="ai-catalog" rel="ai-catalog" href=".well-known/ai-catalog.json" type="application/json">
+  <link id="llms-txt" rel="alternate" type="text/plain" href="llms.txt" title="Agent guide">
+  <link id="api-catalog" rel="api-catalog" href=".well-known/api-catalog.json" type="application/json">
+  <link id="agent-skills" rel="agent-skills" href=".well-known/agent-skills.json" type="application/json">
+  <meta name="webmcp-tools" content="search; curation">
   <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -77,6 +81,15 @@
           document.head.appendChild(manifest);
          var aiCatalog = document.getElementById("ai-catalog");
          if (aiCatalog) aiCatalog.href = basePath + ".well-known/ai-catalog.json";
+         var machineReadable = [
+           ["llms-txt", "llms.txt"],
+           ["api-catalog", ".well-known/api-catalog.json"],
+           ["agent-skills", ".well-known/agent-skills.json"]
+         ];
+         machineReadable.forEach(function (entry) {
+           var link = document.getElementById(entry[0]);
+           if (link) link.href = basePath + entry[1];
+         });
          // Two rel="icon" links exist (.ico fallback, then .svg), so this has to
          // target the svg one specifically: a bare querySelector would return the
          // .ico first and overwrite it with the svg href.

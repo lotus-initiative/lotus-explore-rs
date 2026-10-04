@@ -23,6 +23,7 @@ root-relative link resolves to the domain root and 404s.
 - Browse taxonomy and references for each result
 - Export results as CSV, JSON, RDF, or SPARQL
 - Import TSV rows and generate QuickStatements for Wikidata curation
+- A guided FAQ at https://lotus.nprod.net/lotus-explore-rs/faq
 
 ## Docs
 
@@ -47,7 +48,15 @@ Machine-readable descriptions of this app, for agents.
 - [robots.txt](https://lotus.nprod.net/lotus-explore-rs/robots.txt)
 - [sitemap.xml](https://lotus.nprod.net/lotus-explore-rs/sitemap.xml)
 - Structured data: JSON-LD in the page head
-- Link headers on the document advertise llms.txt, robots.txt, security.txt and sitemap.xml
+
+Every entry above is also linked from the document head, because the one
+live host ignores `_headers` and a `Link:` header alone is discoverable by
+nobody. The `WebMCP` surface is not a separate endpoint: there is no MCP
+server. It is the `tool*` attributes on the search form and on the two
+curation forms, so a tool exists only on the page that renders its form.
+
+- Search form: https://lotus.nprod.net/lotus-explore-rs/search
+- Curation forms: https://lotus.nprod.net/lotus-explore-rs/curation
 
 ## Data sources
 
