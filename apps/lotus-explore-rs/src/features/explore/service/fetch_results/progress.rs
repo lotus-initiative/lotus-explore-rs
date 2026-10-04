@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
+
 //! How often a row count is worth telling the UI about.
 //!
 //! Its own module, compiled on every target, because the alternative is a policy

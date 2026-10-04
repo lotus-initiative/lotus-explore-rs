@@ -129,9 +129,14 @@ jobs:
       # checksum, which a hand-rolled `curl | tar` here would not. Pinned to the
       # tag rather than a SHA because that is what the project's own tags are
       # for; `binary-checksum` pins the artifact itself.
+      # The pin above is the *installer* and does not move with the tool: the
+      # `version:` below is the tombi release it fetches, and that is the number
+      # `prek.toml` holds. `ci_installs_the_tombi_version_the_hook_uses` compares
+      # the two, so bumping one without the other is a red build rather than a
+      # contributor formatting with one tombi and having CI lint with another.
       - uses: tombi-toml/setup-tombi@6a484780a454f9973b13c65729c14e7afb696ae8 # v1.7.0
         with:
-          version: "1.7.0"
+          version: "1.7.2"
 
       - name: ./mk ci
         run: ./mk ci
