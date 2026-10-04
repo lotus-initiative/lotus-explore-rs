@@ -52,8 +52,29 @@ Machine-readable descriptions of this app, for agents.
 Every entry above is also linked from the document head, because the one
 live host ignores `_headers` and a `Link:` header alone is discoverable by
 nobody. The `WebMCP` surface is not a separate endpoint: there is no MCP
-server. It is the `tool*` attributes on the search form and on the two
-curation forms, so a tool exists only on the page that renders its form.
+server. It is registered by the page itself, twice over. The forms carry
+declarative annotations -- `toolname`, `tooldescription`, and a
+`toolparamdescription` per control -- and `assets/js/webmcp.js` registers
+the same capabilities imperatively with
+`document.modelContext.registerTool` before the app has booted. The
+second registration is not redundancy: the forms are rendered by the
+WASM client, so the annotations do not exist until seconds after the
+document loaded, and an agent (or an audit) looking for tools at document
+start would otherwise find none.
+
+- `search_lotus` -- fills and submits the search form, then reports the
+top rows of the result table. Arguments: `taxon`, `reference`, `smiles`,
+`mass_min`, `mass_max`, `year_min`, `year_max`, `formula_exact`,
+`formula_enabled`, `stype`.
+- `get_lotus_search_state` -- reads the criteria currently in the form,
+for confirming what a previous `search_lotus` call applied.
+- `add_curation_row`, `import_curation_tsv` -- registered on the curation
+route only, because a tool whose form the agent cannot reach is context
+it has to spend tokens on and then fail to use.
+
+The tools drive the real controls, so a human watching sees the same
+fields fill and the same results appear. What they return comes from
+Wikidata and third-party services and is flagged `untrustedContentHint`.
 
 - Search form: https://lotus.nprod.net/lotus-explore-rs/search
 - Curation forms: https://lotus.nprod.net/lotus-explore-rs/curation

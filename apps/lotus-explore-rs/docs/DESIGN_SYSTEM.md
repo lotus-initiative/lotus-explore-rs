@@ -136,6 +136,45 @@ Controls whose names are generated at runtime (the per-element formula
 min/maximums) get no `toolparamdescription`; the browser still synthesises the
 property, it just carries no description.
 
+### And a third registration, imperative, because of when the first one happens
+
+`assets/js/webmcp.js` registers the same capabilities with
+`document.modelContext.registerTool`, from a deferred script in the document
+head. That is not a third description of the same thing, it is the only one
+that exists at document start.
+
+The declarative attributes are rendered by the WASM client, so they appear
+seconds after the document has loaded. Anything that inspects the tool surface
+then — the Lighthouse `webmcp-registered-tools` and `webmcp-form-coverage`
+audits, an agent that opened the page and looked immediately — sees an empty
+tool surface and reports the app as having no WebMCP at all. Measured against the
+live host with Lighthouse 13.5.0: `webmcp-registered-tools` returned an empty
+list and the other two `webmcp-*` audits were not applicable.
+
+Rules for that script:
+
+- **Drive the real controls.** It sets values through the native prototype
+  setter and then dispatches `input`/`change`, because Dioxus keeps the criteria
+  in component state and the re-render is driven by the event, not by the DOM
+  mutation. A tool that called the query API directly would be a second
+  implementation of the search, and the user would watch nothing happen.
+- **Open the `<details>` first.** The advanced filters are in closed
+  disclosures, so a field the agent was told to set does not exist until they
+  are open.
+- **Register per route.** The curation tools are registered only on
+  `/curation`. A tool whose form the agent cannot reach is context it pays
+  tokens for and then fails to use.
+- **Flag the output.** What the tools return comes from Wikidata and
+  third-party services, so it is `untrustedContentHint`.
+- **No-op where WebMCP is absent**, and treat a registration refused by
+  permissions policy as ordinary rather than as an error.
+
+`the_webmcp_tool_surface_is_loaded_and_names_real_elements` in `build/tests.rs`
+is what keeps it honest: it fails if the document stops loading the script, and
+if any `#id` the script targets stops being rendered by a component — which is
+how a renamed form id would otherwise leave a tool that fills nothing and still
+reports success.
+
 Declare `vocab="https://schema.org/"` at the domain-content scope. Use canonical
 Wikidata resources for QIDs and established schema.org terms only:
 

@@ -314,6 +314,41 @@ fn build_ai_catalog(meta: &Metadata) -> Result<String, Box<dyn Error>> {
     Ok(format!("{}\n", serde_json::to_string_pretty(&catalog)?))
 }
 
+/// The `WebMCP` half of the `Discovery` section of `llms.txt`, in prose.
+///
+/// Its own function because it is the part that changes when the tool surface
+/// changes, and inlined it is most of `build_llms_txt`.
+fn webmcp_discovery_notes(base: &str) -> String {
+    format!(
+        "Every entry above is also linked from the document head, because the one\n\
+live host ignores `_headers` and a `Link:` header alone is discoverable by\n\
+nobody. The `WebMCP` surface is not a separate endpoint: there is no MCP\n\
+server. It is registered by the page itself, twice over. The forms carry\n\
+declarative annotations -- `toolname`, `tooldescription`, and a\n\
+`toolparamdescription` per control -- and `assets/js/webmcp.js` registers\n\
+the same capabilities imperatively with\n\
+`document.modelContext.registerTool` before the app has booted. The\n\
+second registration is not redundancy: the forms are rendered by the\n\
+WASM client, so the annotations do not exist until seconds after the\n\
+document loaded, and an agent (or an audit) looking for tools at document\n\
+start would otherwise find none.\n\n\
+- `search_lotus` -- fills and submits the search form, then reports the\n\
+top rows of the result table. Arguments: `taxon`, `reference`, `smiles`,\n\
+`mass_min`, `mass_max`, `year_min`, `year_max`, `formula_exact`,\n\
+`formula_enabled`, `stype`.\n\
+- `get_lotus_search_state` -- reads the criteria currently in the form,\n\
+for confirming what a previous `search_lotus` call applied.\n\
+- `add_curation_row`, `import_curation_tsv` -- registered on the curation\n\
+route only, because a tool whose form the agent cannot reach is context\n\
+it has to spend tokens on and then fail to use.\n\n\
+The tools drive the real controls, so a human watching sees the same\n\
+fields fill and the same results appear. What they return comes from\n\
+Wikidata and third-party services and is flagged `untrustedContentHint`.\n\n\
+- Search form: {base}search\n\
+- Curation forms: {base}curation\n\n"
+    )
+}
+
 fn build_llms_txt(meta: &Metadata) -> String {
     let s = &meta.site;
     // The app is served from a subpath, so a root-relative link such as
@@ -321,6 +356,8 @@ fn build_llms_txt(meta: &Metadata) -> String {
     // URL below is absolute for that reason. `base_url` already ends in "/",
     // which is what makes `{base}docs/references.bib` correct.
     let well_known = |file: &str| format!("{}.well-known/{}", s.base_url, file);
+    // `base_url` ends in "/", which is what makes `{base}search` correct here.
+    let webmcp_notes = webmcp_discovery_notes(&s.base_url);
     format!(
         "# {name}\n\n\
         > {description}\n\n\
@@ -360,14 +397,7 @@ fn build_llms_txt(meta: &Metadata) -> String {
         - [robots.txt]({base}robots.txt)\n\
         - [sitemap.xml]({base}sitemap.xml)\n\
         - Structured data: JSON-LD in the page head\n\n\
-        Every entry above is also linked from the document head, because the one\n\
-        live host ignores `_headers` and a `Link:` header alone is discoverable by\n\
-        nobody. The `WebMCP` surface is not a separate endpoint: there is no MCP\n\
-        server. It is the `tool*` attributes on the search form and on the two\n\
-        curation forms, so a tool exists only on the page that renders its form.\n\n\
-        - Search form: {base}search\n\
-        - Curation forms: {base}curation\n\n\
-        ## Data sources\n\n\
+        {webmcp_notes}## Data sources\n\n\
         - [Wikidata Query Service](https://query.wikidata.org/)\n\
         - [QLever Wikidata endpoint](https://qlever.cs.uni-freiburg.de/wikidata)\n\
         - [DOI metadata](https://doi.org/)\n\

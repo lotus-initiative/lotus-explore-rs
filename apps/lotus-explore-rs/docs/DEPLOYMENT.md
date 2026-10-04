@@ -128,6 +128,17 @@ behaviour for a 404, and `agentic-browsing` scores 100 with it in that state.
 Nothing is being penalised; the "should contain an H1" wording is the audit's
 boilerplate description, not a finding about this file.
 
+The audit has two outcomes for this file, and the message text is the same for
+both, so it is worth knowing which one you are looking at. Read
+`core/audits/agentic/llms-txt.js`: a **404 is `notApplicable`**, and only a
+**2xx with unusable content** scores 0 and prints "does not follow
+recommendations". The boilerplate blames a missing `# H1` header, which this
+file has on line 1. If a report shows that failure title, the fetch succeeded
+and returned something that is not Markdown --- on this host, that would be the
+LOTUS home page's HTML, which is what a root that answers 200 instead of 404
+for unknown paths would serve. The fix is the same either way: publish
+`llms.txt` at the root of the CNAME.
+
 There are two ways an audit can find the file, and the second is now correct:
 
 1. **`/llms.txt` at the origin** --- needs a file at the root of the CNAME,
@@ -138,6 +149,39 @@ There are two ways an audit can find the file, and the second is now correct:
    domain root and 404'd on the subpath deploy; they are now absolute from
    `base_url`, so they are correct on any host that honours `_headers`, and all
    seven are verified 200 against the live host.
+
+## The `webmcp-*` audits report no tools, and that was not a markup gap
+
+The three WebMCP audits come back empty or not applicable:
+
+  | Audit                        | Result against the live host                       |
+  | ---------------------------- | -------------------------------------------------- |
+  | `webmcp-registered-tools`    | informative, empty list                             |
+  | `webmcp-form-coverage`       | not applicable                                      |
+  | `webmcp-schema-validity`     | not applicable                                      |
+
+Measured with Lighthouse 13.5.0 against `https://lotus.nprod.net/lotus-explore-rs/`.
+Every form in the client did carry `toolname` and `tooldescription`
+(`search_panel.rs`, `data_curation_page/sections/mod.rs`), so the markup was
+never the problem. The cause is **when** those attributes exist:
+
+- `webmcp.js` (the gatherer) subscribes to CDP `WebMCP.toolsAdded` and reads
+  `artifacts.Inputs.forms`, which is the accessibility tree at load;
+- the forms are rendered by the WASM client, so their annotations appear seconds
+  after the document loaded.
+
+At document start there is no form and no tool, so there is nothing to report.
+`assets/js/webmcp.js` now registers the same capabilities imperatively with
+`document.modelContext.registerTool` from a deferred script in the head, which
+is before the app has rendered. `DESIGN_SYSTEM.md` has the rules that script
+follows; `the_webmcp_tool_surface_is_loaded_and_names_real_elements` in
+`build/tests.rs` is the gate.
+
+Note what this cannot fix, and it is worth being explicit because it looks like
+the same failure: a tool registered in a browser is visible to an agent that
+opens the page. There is no endpoint an agent can fetch. For that, the
+`.well-known/` documents and `llms.txt` are the surface, and they are all served
+from the subpath.
 
 ## Plain HTTP is served, not redirected
 

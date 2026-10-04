@@ -115,10 +115,21 @@
           css.href = basePath + "assets/lotus-explore.css";
           document.head.appendChild(css);
 
-         var bootstrap = document.createElement("script");
-         bootstrap.src = basePath + "assets/js/bootstrap.js";
-         bootstrap.defer = true;
-         document.head.appendChild(bootstrap);
+var bootstrap = document.createElement("script");
+          bootstrap.src = basePath + "assets/js/bootstrap.js";
+          bootstrap.defer = true;
+          document.head.appendChild(bootstrap);
+
+          // Loaded here, and deferred, for the same reason as bootstrap.js: a
+          // deferred script runs before the WASM module has finished booting, so
+          // the WebMCP tools are registered while the forms they drive do not
+          // exist yet. Anything that inspects the tool surface at document start
+          // -- the Lighthouse `webmcp-*` audits, an agent opening the page --
+          // would otherwise see none. The file no-ops where WebMCP is absent.
+          var webmcp = document.createElement("script");
+          webmcp.src = basePath + "assets/js/webmcp.js";
+          webmcp.defer = true;
+          document.head.appendChild(webmcp);
        };
         if (knownRoute) {
           setAssetBase(basePath.endsWith("/") ? basePath : basePath + "/");

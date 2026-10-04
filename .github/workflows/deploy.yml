@@ -83,6 +83,9 @@ jobs:
           test "$(wc -l < _final_site/assets/lotus-explore.css | tr -d ' ')" -le 2
           test -f _final_site/assets/lotus-explore.css
           test -f _final_site/assets/lotus-explore.css.br
+          # The WebMCP tool surface. The document loads it by name, so a bundle
+          # without it publishes a page whose agent-facing tools do not exist.
+          test -f _final_site/assets/js/webmcp.js
           test -f _final_site/404.html
           test -f _final_site/search/index.html
           test -f _final_site/curation/index.html

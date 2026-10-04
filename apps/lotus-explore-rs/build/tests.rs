@@ -429,3 +429,69 @@ fn every_client_route_is_in_the_sitemap() -> Result<(), Box<dyn Error>> {
     }
     Ok(())
 }
+
+/// The imperative `WebMCP` script has to be loaded, and its selectors have to name
+/// ids the client actually renders.
+///
+/// `assets/js/webmcp.js` registers the tools an agent calls, and it does so from
+/// a deferred script because the forms it drives are rendered by WASM seconds
+/// later. Two ways that decays silently: the script stops being loaded (the
+/// Lighthouse `webmcp-*` audits then report an empty tool surface, which is
+/// exactly the symptom it was written to fix), or a form id is renamed in Rust
+/// and the tool fills nothing while still reporting success.
+#[test]
+fn the_webmcp_tool_surface_is_loaded_and_names_real_elements() -> Result<(), Box<dyn Error>> {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let script_path = manifest_dir.join("public/assets/js/webmcp.js");
+    let script = fs::read_to_string(&script_path)?;
+    let html = fs::read_to_string(manifest_dir.join("index.html"))?;
+
+    assert!(
+        html.contains("assets/js/webmcp.js"),
+        "index.html does not load assets/js/webmcp.js, so no WebMCP tool is \
+         registered and the agentic-browsing audits see an empty tool surface"
+    );
+    assert!(
+        html.contains("webmcp.defer = true"),
+        "assets/js/webmcp.js is not deferred, so it may run after the forms it \
+         drives are meant to be findable -- or after an agent has looked"
+    );
+
+    // Every `#id` the script waits for or writes to has to exist in the client.
+    // Matched on the quote that opens the selector as well as the `#`, because
+    // the file uses both spellings.
+    let ids: Vec<String> = ["\"#", "'#"]
+        .iter()
+        .flat_map(|quote| {
+            script
+                .match_indices(quote)
+                .map(|(start, _)| {
+                    let rest = &script[start + 2..];
+                    // An unterminated selector is a syntax error in the script,
+                    // which `node --check` catches; treating it as "no ids found"
+                    // keeps this test's own failure message about the real problem.
+                    let end = rest.find(['"', '\'']).unwrap_or(0);
+                    rest[..end].to_owned()
+                })
+                .collect::<Vec<String>>()
+        })
+        .collect();
+    assert!(!ids.is_empty(), "no id selectors found in webmcp.js at all");
+
+    let mut client = String::new();
+    for entry in walk(&manifest_dir.join("src"))? {
+        let path = entry?;
+        if path.extension().is_some_and(|extension| extension == "rs") {
+            client.push_str(&fs::read_to_string(path)?);
+        }
+    }
+
+    for id in ids {
+        assert!(
+            client.contains(&format!("\"{id}\"")),
+            "webmcp.js targets #{id}, which no component renders any more, so the \
+             tool that uses it silently does nothing"
+        );
+    }
+    Ok(())
+}
