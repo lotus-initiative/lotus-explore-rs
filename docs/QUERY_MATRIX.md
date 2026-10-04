@@ -133,3 +133,60 @@ Two things follow that are worth a human's attention rather than a change here:
   honestly needs a parser dependency (`oxigraph` or `spareval`), which is a
   dependency decision and so is flagged in `docs/sweep/REVIEW.md` rather than
   taken here.
+
+## The distinct shapes, measured
+
+The twelve cells are not twelve queries. They collapse into **six base shapes**
+plus **orthogonal filter layers**, and the layers compose with any shape. Measured
+from `lotus search --explain`, not asserted:
+
+| Base shape | bytes | taxon closure | occurrence | structure service |
+|---|---|---|---|---|
+| nothing given | 2,195 | none | **optional** | no |
+| `*` | 2,247 | none | required | no |
+| named taxon, nomenclature on | 2,616 | nomenclatural subquery, then `P171*` | required | no |
+| named taxon, nomenclature off | 2,284 | bare `P171*` | required | no |
+| structure only | 2,169 | none | **optional** | yes |
+| structure + named taxon | 2,553 | nomenclatural subquery, then `P171*` | required | yes |
+
+| Filter layer | What it adds | Composes with |
+|---|---|---|
+| reference | `VALUES ?r { wd:… }` in the outer `WHERE` | every shape |
+| mass | `?c wdt:P2067` + a `FILTER` on the projected mass | every shape |
+| year | `?r wdt:P577` + `YEAR(?ref_date)` | every shape |
+| formula | element-count binds + a `FILTER` | every shape |
+
+So the answer to "is it one query with filters bolted on" is **no, and it is not
+close to no**: the taxon argument alone selects between three different closure
+forms, and the occurrence requirement alone flips between required and optional.
+
+## Completeness is checked structurally, not by result
+
+**Every claim in this file is about the shape of the query. None of it is a
+statement that the query returns every row it should.** The structural tests pin
+which `OPTIONAL` a pattern sits in and which subquery it lands in; they cannot
+tell you a compound was dropped.
+
+That gap is real and it is open. One case found on 2026-10-04 and **not yet
+explained**: for `taxon=Q16521` the generated query returns **zero rows** through
+`csv_export` -- the format the application itself requests -- while a
+hand-written reconstruction of the same semantics returns **1 distinct compound**.
+Ruled out so far:
+
+- **Not the projection.** `SELECT (COUNT(DISTINCT ?c) AS ?n)` over the query's own
+  `WHERE` clause returns 1, so the pattern block is not empty; `SELECT *` and the
+  full `csv_export` both return 0.
+- **Not the InChIKey/SMILES requirement.** The core opens with `?c wdt:P235` and
+  `?c wdt:P233` as required triples, which would drop a compound lacking either --
+  removing both still returns 0.
+
+Not yet isolated: whether the loss is the `?t wdt:P225` taxon-name triple, the
+closure subquery's form, or an error in the reconstruction. The reconstruction was
+written by hand and is not proven equivalent, so **this is a discrepancy, not a
+diagnosed bug**, and it is on one taxon with a single compound.
+
+The way to settle this class of question is a **local QLever**, where every shape
+can be compared against an independently written query with no rate limit and no
+shared machine in the way. That turns "does the query return everything it should"
+from a hunch into a set comparison per shape, which is the check this file still
+owes its reader.
