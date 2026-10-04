@@ -419,15 +419,16 @@ mod installed_tools {
         let pinned = workflow_entries(&yaml)
             .iter()
             .find_map(|entry| entry.strip_prefix("dejadoc@").map(str::to_string))
-            .expect("ci.yml installs dejadoc; the test above asserts it");
+            .ok_or("ci.yml installs dejadoc; the test above asserts it")?;
 
         let versions = setup_tools(&read("make/scripts/setup.sh")?);
         let local = versions
             .get("dejadoc")
-            .expect("setup.sh installs it; the test above asserts it");
+            .cloned()
+            .ok_or("setup.sh installs it; the test above asserts it")?;
 
         assert_eq!(
-            *local, pinned,
+            local, pinned,
             "CI and `./mk setup` pin different dejadoc versions. A version can \
              change which checks run rather than only how they are reported -- \
              0.3.1 checks doctests, 0.4.0 checks functions too -- so a drift \
