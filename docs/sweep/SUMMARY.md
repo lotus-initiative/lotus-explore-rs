@@ -128,12 +128,25 @@ larger than any plausible win. Recorded so nobody spends a night proving it.
 
 | Gate | Result |
 |---|---|
+| **`./mk ci`** — every check, in CI's order | **pass, exit 0** |
 | `./mk fmt-check` | pass |
 | `./mk lint` (native, `--all-features`) | pass |
 | `./mk lint-wasm` (wasm32) | pass — **was red at `8a68da1`** |
 | `./mk test` | **1265 web / 634 server / 590 desktop / 6 doctests, 0 failed** |
+| `./mk dejadoc` | pass — 6 doctests, 6 unique, 0 duplicated |
 | `doc_links` | pass |
 | `docs_in_sync` (5 tests) | pass |
+
+**A correction worth reading.** Until the dejadoc work, the "all gates green"
+line in this file meant a *subset*: fmt, clippy native, clippy wasm, the test
+suite, `doc_links` and `docs_in_sync`. It did not mean `./mk ci`, which also runs
+`tombi-check`, `typos`, `deny`, `audit`, `metadata`, `opt-levels` and `machete`.
+Two of those were red for several commits — `typos` on a word in this file, and
+`tombi-check` on a `Cargo.toml` edit — and neither was in the subset I had been
+running. `./mk ci` now passes end to end, and this table names it.
+
+The lesson is the one the repo already encodes in `gate_consistency`: there is
+one list of what "green" means, and it is not the list you happen to remember.
 
 Tests went **up** across the whole sweep: 1224 → 1265 web, 631 → 634 server. No
 test was deleted, weakened or edited to make anything pass.
