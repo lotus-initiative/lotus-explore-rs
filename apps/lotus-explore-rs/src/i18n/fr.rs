@@ -148,6 +148,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::YearFrom => "De",
         TextKey::YearTo => "À",
         TextKey::RunSearch => "Lancer la recherche",
+        TextKey::ResetSearchFilters => "Réinitialiser les filtres",
         TextKey::KetcherSummary => "Éditeur de structure (Ketcher)",
         TextKey::KetcherHintA => {
             "Besoin de dessiner une structure ou d'en trouver une ? Ouvrez l'onglet "

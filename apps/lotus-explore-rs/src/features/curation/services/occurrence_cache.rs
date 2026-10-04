@@ -96,7 +96,12 @@ pub fn record_triples_cached(
     }
 }
 
-/// How many answers are already known, for the tests and the log line.
+/// How many answers are already known.
+///
+/// Test-only: it exists so a test can assert the cache was filled, and nothing in
+/// the pipeline reads it. Without the gate it is dead code in every non-test
+/// build, which `-D dead-code` correctly refuses.
+#[cfg(test)]
 pub fn cached_answer_count(cache: &Mutex<OccurrenceAskCache>) -> usize {
     cache.lock().map_or(0, |guard| guard.values.len())
 }

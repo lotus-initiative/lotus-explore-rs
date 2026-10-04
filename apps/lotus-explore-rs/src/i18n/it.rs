@@ -146,6 +146,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::YearFrom => "Da",
         TextKey::YearTo => "A",
         TextKey::RunSearch => "Avvia ricerca",
+        TextKey::ResetSearchFilters => "Reimposta i filtri",
         TextKey::KetcherSummary => "Editor di strutture (Ketcher)",
         TextKey::KetcherHintA => "Devi disegnare o cercare una struttura? Apri la scheda ",
         TextKey::KetcherHintB => " e poi copia con ",

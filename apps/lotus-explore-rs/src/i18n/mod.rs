@@ -242,6 +242,14 @@ pub enum TextKey {
     OpenInEndpointTitle,
     NoResults,
     DisplayCappedHint,
+    /// Clear every search-form filter, as distinct from the results-table column
+    /// filters, which are [`TextKey::ClearFilters`].
+    ///
+    /// Two keys for two things a user experiences as one: the column filters
+    /// narrow the rows already fetched, and this one changes what will be asked
+    /// for. Clearing the latter without saying so would be a filter that appears
+    /// not to work.
+    ResetSearchFilters,
     // Column filters
     FilterColumn,
     FilterTextPlaceholder,

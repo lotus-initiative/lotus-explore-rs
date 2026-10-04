@@ -142,6 +142,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::YearFrom => "Von",
         TextKey::YearTo => "Bis",
         TextKey::RunSearch => "Suche starten",
+        TextKey::ResetSearchFilters => "Alle Filter zurücksetzen",
         TextKey::KetcherSummary => "Struktureditor (Ketcher)",
         TextKey::KetcherHintA => {
             "Möchten Sie eine Struktur zeichnen oder nachschlagen? Öffnen Sie den Tab "

@@ -139,6 +139,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::YearFrom => "From",
         TextKey::YearTo => "To",
         TextKey::RunSearch => "Run search",
+        TextKey::ResetSearchFilters => "Reset filters",
         TextKey::KetcherSummary => "Structure editor (Ketcher)",
         TextKey::KetcherHintA => "Need to draw or look up a structure? Open the ",
         TextKey::KetcherHintB => " tab, then copy with ",
