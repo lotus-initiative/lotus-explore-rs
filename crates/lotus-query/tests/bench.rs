@@ -263,3 +263,69 @@ fn bench_two_million_rows() {
 fn bench_the_whole_graph() {
     bench(2_990_730);
 }
+
+/// Is the sort linear, or is there a cliff at a round number of rows?
+///
+/// The main `bench` above times `sorted_order` once per size, and once told a
+/// story: 8.6 ms at 1,000,000 rows against 840.9 ms at 2,000,000. A 98x jump for
+/// twice the data is not a property of a sort, and 8.6 ms for a million-row
+/// string sort is not achievable either -- it implies ~2 ns per comparison. So one
+/// of the two numbers was wrong, and a single sample cannot say which.
+///
+/// This sweeps sizes and repeats, because the shape of the curve is the question:
+/// a linear sort shows a flat `ns per row`, and a cliff shows one size where it
+/// jumps. Median and spread, on a quiet machine, with the set built once per size
+/// so the measurement is the sort and not the parse.
+///
+/// ```bash
+/// cargo test -p lotus-query --release --locked -- --ignored --nocapture bench_sort_scaling
+/// ```
+#[test]
+#[ignore = "a benchmark: prints its numbers, asserts nothing"]
+fn bench_sort_scaling() {
+    use std::time::Instant;
+
+    const SAMPLES: usize = 15;
+    const SIZES: [usize; 7] = [
+        50_000, 100_000, 250_000, 500_000, 1_000_000, 2_000_000, 2_990_730,
+    ];
+
+    println!("\n== sort by compound label: {SAMPLES} samples per size ==");
+    println!(
+        "{:>10} {:>11} {:>11} {:>11} {:>13}",
+        "rows", "median_ms", "min_ms", "max_ms", "ns_per_row"
+    );
+
+    for rows in SIZES {
+        let csv = payload(rows);
+        let set =
+            lotus_query::parse_compounds_columnar(csv.as_bytes()).expect("the payload parses");
+        drop(csv);
+
+        // One untimed pass, so the first timed sample is not paying for a cold
+        // cache and a cold allocator.
+        let _ = sorted_order(&set);
+
+        let mut samples = Vec::with_capacity(SAMPLES);
+        for _ in 0..SAMPLES {
+            let start = Instant::now();
+            let order = sorted_order(&set);
+            samples.push(start.elapsed().as_secs_f64() * 1000.0);
+            std::hint::black_box(order.len());
+        }
+        samples.sort_by(f64::total_cmp);
+
+        // Iterator access rather than indexing: the workspace denies
+        // `clippy::indexing_slicing`, and `SAMPLES` is a non-zero const so these
+        // are never absent.
+        let mid = samples.len() / 2;
+        let median = samples.get(mid).copied().unwrap_or_default();
+        let min = samples.first().copied().unwrap_or_default();
+        let max = samples.last().copied().unwrap_or_default();
+        // `median` is milliseconds, so ms * 1e6 is nanoseconds; divide by rows for
+        // ns per row. This is the number that makes the shape readable: flat means
+        // linear, a jump means a cliff.
+        let per_row = (median * 1_000_000.0) / (rows as f64);
+        println!("{rows:>10} {median:>11.1} {min:>11.1} {max:>11.1} {per_row:>13.1}");
+    }
+}

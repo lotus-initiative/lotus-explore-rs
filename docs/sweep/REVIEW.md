@@ -59,12 +59,64 @@ medians. Adding criterion means a new dependency and a second convention.
 and cache-key benchmarks added for task A should move to it rather than
 accumulate more single-sample prints.
 
-## 6. `sort by name` at 2M rows is 98x slower than at 1M rows
+## 6. Sorting by compound label has a real cliff above ~1M rows — confirmed, not noise
 
-8.6 ms at 1,000,000 rows, 840.9 ms at 2,000,000 rows. That is not a plausible
-property of a sort and is much more likely this host's load or a threshold
-inside the sort. Flagged rather than optimised: it needs a re-measurement on a
-quiet machine before anyone treats it as a real cliff.
+**This reverses the note that used to be here.** The original claim was that the
+98x jump at 2M rows was "much more likely this host's load or a threshold inside
+the sort". The load explanation was wrong. Re-measured on a quiet machine
+(load average 3.7, against 25–42 when the first numbers were taken), 15 samples
+per size, median and spread:
+
+| Rows | median | min | max | **ns/row** |
+|---|---|---|---|---|
+| 50,000 | 0.5 ms | 0.5 | 0.5 | 9.6 |
+| 100,000 | 1.0 ms | 1.0 | 1.0 | 9.6 |
+| 250,000 | 2.5 ms | 2.4 | 2.5 | 9.8 |
+| 500,000 | 4.9 ms | 4.8 | 5.0 | 9.8 |
+| 1,000,000 | 9.9 ms | 9.8 | 10.2 | 9.9 |
+| **2,000,000** | **1,032.1 ms** | 1,031.0 | 1,035.3 | **516.1** |
+| 2,990,730 | 1,569.9 ms | 1,567.5 | 1,582.0 | 524.9 |
+
+```bash
+cargo test -p lotus-query --release --locked --test bench -- --ignored --nocapture bench_sort_scaling
+```
+
+`ns per row` is the column that answers the question. It is **flat at ~9.8**
+through a million rows and then **52x worse** at two million, and it stays bad.
+The spread at 2M is 0.4% across 15 samples, so this is not a tail: the sort
+genuinely does 50x more work per row past some size.
+
+The original single samples were both correct and the ratio was real. What was
+wrong was the explanation, and the reason the first reading looked like noise is
+that a single sample at 2M (840.9 ms) and a single sample at 1M (8.6 ms) cannot
+distinguish "a cliff" from "one slow measurement".
+
+**Probable cause: the working set leaving cache.** Per comparison the comparator
+does two dictionary lookups, and `n log n` comparisons means each row is touched
+~21 times. Below a million rows the dictionary and the permutation array still
+resolve mostly from cache, which is why 0.5 ns per comparison is achievable. Above
+it they do not, and each comparison becomes memory latency. That accounts for the
+ratio without needing anything quadratic, and it predicts the cliff moves with
+the machine's cache size rather than sitting at a round row count — **which is
+testable and has not been tested.**
+
+**Practical impact is bounded.** On the widest search this app can produce —
+2,990,730 rows — the sort is 1.57 s against 5.5 s to parse the same rows from
+CSV. It is the third-largest cost after parsing and interning, not the dominant
+one, so this is a "know it is there" item rather than a fire.
+
+**Not optimised, and here is the honest reason.** The obvious fix is to stop
+sorting row indices into a cold dictionary: sort the small set of distinct
+compound slots once, then map rows through it. That is a real change to a
+user-visible ordering, it needs its own test for stability against the current
+`then_with(|| a.cmp(&b))` tie-break, and it would be done against a cliff whose
+cause is inferred rather than proven. Given a parallel agent is working in this
+repository, the measurement is the deliverable and the optimisation is a decision.
+
+**Recommend a human:** confirm the cache hypothesis by re-running the same sweep
+on a machine with a different cache size, and if the cliff moves, the fix is
+worth scoping. The benchmark added here (`bench_sort_scaling`) is the thing to
+run.
 
 ## 7. `*` with a structure search still does not filter on the root taxon
 
