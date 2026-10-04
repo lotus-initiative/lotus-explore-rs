@@ -196,3 +196,47 @@ the joins and the `DISTINCT` are untouched, so none of the completeness argument
 above applies and none of it needs re-running. It is the cheapest kind of win
 available -- a projected variable is not free, and this one was projected for
 nobody.
+
+### Coalescing the two SMILES columns: measured, and rejected
+
+The obvious next move is the pair `compound_smiles_conn` / `compound_smiles_iso`.
+The parser picks the isomeric one when it is there (`stream.rs`, `raw_row`), so
+`compound_smiles_conn` crosses the network and is then discarded on every row that
+also has the other. On the unnarrowed query that is **40 MB of 400 MB, and 27 MB
+of it recoverable**, and it looks like the same kind of free win as `?ref`.
+
+It is not, and the reason is `SELECT DISTINCT`.
+
+Measured on the unnarrowed query: 0 rows carry only the isomeric SMILES, 484,788
+carry both, and 239,202 carry only the connection-table one. So 67% of rows send
+a `compound_smiles_conn` that is thrown away -- and the projection is what
+`DISTINCT` distinguishes on. Sending one coalesced column merges rows that were
+distinct *only* in `compound_smiles_conn`:
+
+| Form | rows |
+|---|---|
+| both columns projected | 32,160 |
+| one coalesced column | **31,024** |
+
+1,136 rows fewer, and they are not duplicates in any sense the table can show. An
+example, differing in nothing else:
+
+```
+compound 418599   taxon 156354 (Coffea)   ref 44023965   statement Q418599-5015D525-...
+compound_smiles_iso  (empty)
+compound_smiles_conn c1cc(c(cc1C(=O)O)O)O   vs   C1=CC(=C(C=C1C(=O)O)O)O
+```
+
+Two spellings of the same structure, aromatic and kekulised, on one Wikidata
+item. Because the isomeric column is empty here, the parser was *displaying* the
+connection-table value -- so the table showed two rows for one occurrence with two
+different SMILES strings, and coalescing deletes one of them.
+
+**So this is a content change and a product decision, not an optimisation.** It is
+recorded here so the next person does not spend the afternoon finding it again.
+Recovering those 27 MB requires either accepting the merge, or carrying a
+discriminator alongside the coalesced column, which gives the bytes back.
+
+The Turtle would have been fine, incidentally: the `CONSTRUCT` template names both
+variables and both are bound by the `WHERE`, and the two rewritten queries came out
+byte-identical. It was the CSV that could not afford it.
