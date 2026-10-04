@@ -1105,7 +1105,18 @@ impl ColumnarResultSet {
                         .compound_inchikeys
                         .get(slot)
                         .is_some_and(|k| contains_folded(k, &needle))
-                    || qid_matches(id, &needle, &mut buffer);
+                    // Through `get`, so `qid_matches` is handed the compound's QID
+                    // rather than the position it occupies. Ids here are slots --
+                    // positions in first-seen order -- so passing `id` directly
+                    // tested *which slot a compound landed on*: a filter for
+                    // Q3613679 matched nothing unless the compound's name happened
+                    // to contain that text, and a filter for "Q1" matched whichever
+                    // compound sat at slot 1. The taxon filter below has always
+                    // done this translation; this arm did not.
+                    || self
+                        .compounds
+                        .get(id)
+                        .is_some_and(|numeric| qid_matches(numeric, &needle, &mut buffer));
                 if hit {
                     mask.insert(id);
                 }

@@ -1054,3 +1054,102 @@ fn surviving_rows_lists_every_surviving_row() {
         "both rows in Q2 survive, and the list is not truncated to one"
     );
 }
+
+/// Filtering by QID must match the compound's QID, not its position.
+///
+/// Ids in this store are **slots** -- positions in a first-seen order -- and
+/// `QidDictionary::get` is the translation from a slot to the numeric QID it
+/// stands for. The taxon filter does that translation; the compound filter
+/// passed the slot straight into `qid_matches`, which renders a QID from a
+/// number. So the compound filter's QID arm tested *which position a compound
+/// happens to occupy*.
+///
+/// Two ways that is visible to a reader, both below: a real QID matches nothing,
+/// and a compound you did not ask for comes back.
+///
+/// The names here deliberately do not contain their QIDs. `entry()` builds
+/// `"{qid}-name"`, which would make the name arm answer the same question as the
+/// QID arm and hide the bug completely -- which is very likely why it survived.
+#[test]
+fn filtering_by_qid_matches_the_qid_and_not_the_slot() {
+    let mut quercetin = entry("Q3613679", "Q2", "Q3");
+    quercetin.name = arc("Quercetin");
+    let mut something = entry("Q702", "Q5", "Q6");
+    something.name = arc("Unrelated compound");
+    let set = ColumnarResultSet::from_entries(&[quercetin, something]);
+
+    // The QID is a real one and neither name contains it.
+    let by_qid = set.plan_filter(&lotus_model::FilterSpec {
+        compound: "Q3613679".to_string(),
+        ..Default::default()
+    });
+    assert_eq!(
+        by_qid.surviving_rows(&set),
+        vec![0],
+        "Q3613679 is row 0, whatever position it occupies"
+    );
+    assert_eq!(
+        by_qid.surviving_count(&set),
+        1,
+        "and only row 0: a filter must not widen its own answer"
+    );
+
+    // The other way round: the compound that does NOT have this QID must not come
+    // back. Q702 sits at slot 1, and slot 1 renders as "Q1", which is why this
+    // returned row 1 before the translation was added.
+    let wrong = set.plan_filter(&lotus_model::FilterSpec {
+        compound: "Q1".to_string(),
+        ..Default::default()
+    });
+    assert_eq!(
+        wrong.surviving_rows(&set),
+        Vec::<u32>::new(),
+        "Q1 matches neither compound, and the slot index is not a QID"
+    );
+}
+
+/// The same translation, whichever way round the two compounds are interned.
+///
+/// Order is first-seen, so which slot a compound lands on is a property of the
+/// data rather than of the compound. A filter that is correct for one result set
+/// and wrong for another is worse than one that is always wrong, because the
+/// answer looks plausible.
+#[test]
+fn filtering_by_qid_is_correct_in_either_interning_order() {
+    // Built per iteration rather than cloned, so the two orders are genuinely
+    // independent inputs rather than one list rearranged.
+    let unrelated = || {
+        let mut e = entry("Q702", "Q2", "Q3");
+        e.name = arc("Unrelated compound");
+        e
+    };
+    let quercetin = || {
+        let mut e = entry("Q3613679", "Q5", "Q6");
+        e.name = arc("Quercetin");
+        e
+    };
+
+    for (label, rows) in [
+        ("Q3613679 at slot 0", vec![quercetin(), unrelated()]),
+        ("Q3613679 at slot 1", vec![unrelated(), quercetin()]),
+    ] {
+        let set = ColumnarResultSet::from_entries(&rows);
+        let plan = set.plan_filter(&lotus_model::FilterSpec {
+            compound: "Q3613679".to_string(),
+            ..Default::default()
+        });
+        let expected: Vec<u32> = (0..set.row_count())
+            .filter(|row| {
+                rows.get(*row)
+                    .is_some_and(|e| e.compound_qid.as_ref() == "Q3613679")
+            })
+            .map(|row| u32::try_from(row).unwrap_or(u32::MAX))
+            .collect();
+        assert_eq!(
+            plan.surviving_rows(&set),
+            expected,
+            "{label}: the QID identifies the compound, not its position"
+        );
+        assert_eq!(plan.surviving_count(&set), 1, "{label}: exactly one match");
+    }
+}
