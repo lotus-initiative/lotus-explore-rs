@@ -119,6 +119,24 @@ pub trait Http: Clone + Send + Sync + 'static {
         accept: &str,
     ) -> impl Future<Output = Result<Self::Response, FetchError>>;
 
+    /// POST a form-encoded query **with request headers**, asking for `accept`.
+    ///
+    /// Separate from [`Http::post`] because only some transports can set headers,
+    /// and because the ones that cannot should not have to pretend: the default
+    /// ignores them, which is correct for a scripted test double and is the whole
+    /// reason this is an added method rather than a changed signature. Every
+    /// implementation in this workspace that talks to a real service overrides
+    /// it.
+    fn post_form(
+        &self,
+        endpoint: &str,
+        accept: &str,
+        body: String,
+        _headers: &[(&str, String)],
+    ) -> impl Future<Output = Result<Self::Response, FetchError>> {
+        self.post(endpoint, accept, body)
+    }
+
     /// POST a JSON body, for the APIs that take one.
     ///
     /// Not every service curation touches speaks SPARQL: converting a structure

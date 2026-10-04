@@ -59,6 +59,33 @@ impl Http for ReqwestClient {
             .map_err(|e| FetchError::Network(e.to_string()))
     }
 
+    async fn post_form(
+        &self,
+        endpoint: &str,
+        accept: &str,
+        body: String,
+        headers: &[(&str, String)],
+    ) -> Result<reqwest::Response, FetchError> {
+        let mut request = self
+            .0
+            .post(endpoint)
+            .header("Accept", accept)
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(body);
+        // `api-user-agent` is how `QLever` is told who is calling, and
+        // `api-token` is how it is told the caller has been given more than the
+        // anonymous budget. Both are ordinary headers here; the reason they are
+        // in the transport rather than in the query builder is that a header is
+        // a property of the request, not of the query.
+        for (name, value) in headers {
+            request = request.header(*name, value);
+        }
+        request
+            .send()
+            .await
+            .map_err(|e| FetchError::Network(e.to_string()))
+    }
+
     async fn post_json(&self, url: &str, body: String) -> Result<reqwest::Response, FetchError> {
         self.0
             .post(url)

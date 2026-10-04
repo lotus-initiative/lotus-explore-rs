@@ -53,6 +53,11 @@ struct Fake {
 pub struct Scripted {
     replies: Arc<Mutex<VecDeque<Fake>>>,
     seen: Arc<Mutex<Vec<String>>>,
+    /// Header names seen per call, so a test can assert that identification
+    /// actually reaches the wire rather than being built and dropped.
+    headers: Arc<Mutex<Vec<Vec<String>>>>,
+    /// The body exactly as it was sent, before [`Scripted::queries`] decodes it.
+    raw: Arc<Mutex<Vec<String>>>,
     /// The largest piece each body is handed over in. Zero means one piece.
     chunk_size: usize,
 }
@@ -86,6 +91,8 @@ impl Scripted {
                     .collect(),
             )),
             seen: Arc::new(Mutex::new(Vec::new())),
+            headers: Arc::new(Mutex::new(Vec::new())),
+            raw: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
@@ -132,10 +139,26 @@ impl Scripted {
     /// If a test panicked while holding the script, which means that test has
     /// already failed and this one only reports the same problem again.
     pub fn record(&self, endpoint: &str, body: &str) {
+        self.raw
+            .lock()
+            .expect("not poisoned")
+            .push(body.to_string());
         self.seen
             .lock()
             .expect("not poisoned")
             .push(format!("{endpoint}|{}", decode(body)));
+    }
+
+    /// Every request body exactly as it was sent, in order.
+    ///
+    /// [`Scripted::queries`] decodes the form and shows the `query` field, which
+    /// is the useful view for asserting *what was asked*. This is the view for
+    /// asserting what else travelled with it: a `timeout`, an `action`, anything
+    /// that is not the question.
+    /// # Panics
+    #[must_use]
+    pub fn raw_bodies(&self) -> Vec<String> {
+        self.raw.lock().expect("not poisoned").clone()
     }
 
     /// Every call as `endpoint|query`, in order.
@@ -153,6 +176,16 @@ impl Scripted {
     #[must_use]
     pub fn call_count(&self) -> usize {
         self.seen.lock().expect("not poisoned").len()
+    }
+
+    /// The header names each call carried, in order, one `Vec` per call.
+    ///
+    /// Names only, not values: a test asserts *that* the client identifies
+    /// itself, and asserting on a token's value would put a secret in a test.
+    /// # Panics
+    #[must_use]
+    pub fn header_names(&self) -> Vec<Vec<String>> {
+        self.headers.lock().expect("not poisoned").clone()
     }
 
     /// Which service each call went to, in order.
@@ -185,6 +218,22 @@ impl Http for Scripted {
             fake: reply,
             chunk_size: self.chunk_size,
         })
+    }
+
+    async fn post_form(
+        &self,
+        endpoint: &str,
+        accept: &str,
+        body: String,
+        headers: &[(&str, String)],
+    ) -> Result<Self::Response, FetchError> {
+        self.headers.lock().expect("not poisoned").push(
+            headers
+                .iter()
+                .map(|(name, _)| (*name).to_string())
+                .collect(),
+        );
+        self.post(endpoint, accept, body).await
     }
 
     async fn post_json(&self, url: &str, body: String) -> Result<Self::Response, FetchError> {

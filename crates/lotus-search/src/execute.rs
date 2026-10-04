@@ -270,8 +270,11 @@ async fn send_response<H: Http>(
     query: &str,
     format: ResponseFormat,
 ) -> Result<H::Response, FetchError> {
-    let body = format!("query={}", urlencode(query));
-    let response = http.post(endpoint, format.accept(), body).await?;
+    let body = form_body(endpoint, query);
+    let headers = request_headers();
+    let response = http
+        .post_form(endpoint, format.accept(), body, &headers)
+        .await?;
 
     let status = response.status();
     let response = if is_success(status) {
@@ -280,23 +283,166 @@ async fn send_response<H: Http>(
         // Read the body before reporting, because it carries the endpoint's
         // explanation and a gateway's is an HTML page.
         let response = response.bytes().await.map_err(|_| FetchError::Empty);
-        match response {
-            Ok(bytes) => {
-                return Err(FetchError::Http {
-                    status,
-                    message: compact(&bytes),
-                });
-            }
-            Err(_) => {
-                return Err(FetchError::Http {
-                    status,
-                    message: String::new(),
-                });
-            }
+        let message = response.map_or_else(|_| String::new(), |bytes| compact(&bytes));
+        // 429 is the endpoint cancelling a query that outran its time limit, so
+        // it becomes its own error rather than a status the retry loop weighs.
+        // See `FetchError::TimedOut` for the measurement behind that.
+        if status == 429 {
+            return Err(FetchError::TimedOut {
+                budget: query_budget(endpoint),
+                message,
+            });
         }
+        return Err(FetchError::Http { status, message });
     };
 
     Ok(response)
+}
+
+/// The form body for a POST, including the time budget when the endpoint has one.
+///
+/// `QLever` takes `timeout` as a form field next to `query` (a URL-encoded POST
+/// may not carry query parameters in the URL; it answers `400` if it does), and
+/// `WDQS` takes a `timeout` in milliseconds as a URL parameter instead, which
+/// this does not add: `WDQS` is the fallback for an unreachable `QLever`, and
+/// the one thing a fallback must not do is fail differently from the thing it
+/// is falling back from.
+fn form_body(endpoint: &str, query: &str) -> String {
+    query_budget(endpoint).map_or_else(
+        || format!("query={}", urlencode(query)),
+        |budget| {
+            format!(
+                "query={}&timeout={}",
+                urlencode(query),
+                urlencode(budget.as_str())
+            )
+        },
+    )
+}
+
+/// The time budget to ask `endpoint` for, and to hold ourselves to.
+///
+/// **Five seconds under `QLever`'s own ceiling, measured.** Asking for the
+/// server's 30 s is a `403`, not a longer query:
+///
+/// ```text
+/// POST /api/wikidata  timeout=60s
+///   403  "User submitted timeout was higher than what is currently allowed
+///         by this instance (30s). Please use a valid-access token ..."
+/// ```
+///
+/// Asking for less than the server would use is the point. A query that gets
+/// cancelled at 30 s has already spent 30 s of a shared endpoint; cancelled at
+/// 25 s it costs five seconds less and returns the same refusal, sooner, with
+/// the endpoint's own account of which operation was still running.
+///
+/// `LOTUS_QLEVER_TIMEOUT` overrides it, in `QLever`'s own duration syntax (`25s`,
+/// `1500ms`, `1min`), for a deployment that has an access token and a raised
+/// ceiling. It is clamped to [`QLever::MAX_QUERY_BUDGET`] because the public
+/// instance rejects anything larger with a `403`, and a request that is certain
+/// to be refused should not be sent.
+#[must_use]
+fn query_budget(endpoint: &str) -> Option<String> {
+    // Substring rather than `starts_with`, because this is a full URL and the
+    // host is in the middle of it. A prefix test would silently match nothing,
+    // which is how the budget ends up declared nowhere while the code reads as
+    // though it declares one everywhere.
+    if !endpoint.contains(QLever::HOST) {
+        return None;
+    }
+    Some(
+        std::env::var("LOTUS_QLEVER_TIMEOUT")
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .and_then(|value| clamp_budget(&value))
+            .unwrap_or_else(|| QLever::DEFAULT_QUERY_BUDGET.to_string()),
+    )
+}
+
+/// The `QLever` instance's own limits, as constants rather than as numbers in
+/// the middle of a function.
+///
+/// Named for the service so a reader can tell which endpoint a ceiling belongs
+/// to: `WDQS` has entirely different ones and none of them are here.
+///
+/// `const` items rather than `static`, so there is no global state behind them:
+/// these are numbers, and a number with a lifetime is a number with a bug.
+struct QLever;
+
+impl QLever {
+    /// The host whose ceiling these are. Matched anywhere in the URL, so an
+    /// override that keeps the same host (`LOTUS_QLEVER_ENDPOINT`) is covered by
+    /// the same budget.
+    const HOST: &'static str = "qlever.dev";
+
+    /// What to ask for when nothing says otherwise: the public instance allows
+    /// 30 s, and this leaves five seconds of headroom.
+    const DEFAULT_QUERY_BUDGET: &'static str = "25s";
+
+    /// The largest budget the public instance accepts. Measured, not assumed:
+    /// a larger one is answered with `403`.
+    const MAX_QUERY_BUDGET: &'static str = "30s";
+
+    /// How a client is named to `QLever`, which is what makes a heavy user
+    /// contactable instead of anonymous. Sent as `api-user-agent`, the header
+    /// `QLever` names in its own CORS allow-list.
+    const CLIENT_ID: &'static str = concat!(
+        "lotus-explore-rs/",
+        env!("CARGO_PKG_VERSION"),
+        " (+https://github.com/lotusnprod/lotus-explore-rs)"
+    );
+}
+
+/// Headers sent with every `QLever` request.
+///
+/// Two, and both are about being a good citizen rather than about function:
+///
+/// - **`api-user-agent`** identifies the client. `QLever` allows this header
+///   explicitly, and a deployment running this app heavily is then something an
+///   operator can reach and raise a limit for, instead of an anonymous address
+///   that eventually gets blocked.
+/// - **`api-token`**, only when `LOTUS_QLEVER_TOKEN` is set. That is the
+///   documented way to ask for more than the anonymous budget, and it is the
+///   answer to "this workload is legitimately heavy": a token, not a faster
+///   retry loop. The variable is read per request rather than cached so a
+///   token can be rotated without restarting the process.
+fn request_headers() -> Vec<(&'static str, String)> {
+    let mut headers = vec![("api-user-agent", QLever::CLIENT_ID.to_string())];
+    if let Ok(token) = std::env::var("LOTUS_QLEVER_TOKEN") {
+        let token = token.trim().to_string();
+        if !token.is_empty() {
+            headers.push(("api-token", token));
+        }
+    }
+    headers
+}
+
+/// Keep an operator's `LOTUS_QLEVER_TIMEOUT` under the ceiling the public
+/// instance enforces, so an over-large value fails as a clear local clamp rather
+/// than as a `403` from the endpoint.
+///
+/// Only the two spellings this crate's own constant uses are understood. A
+/// duration the parser does not recognise is refused rather than guessed at,
+/// because guessing would send a budget nobody asked for.
+fn clamp_budget(value: &str) -> Option<String> {
+    let (digits, unit) = value.split_at(
+        value
+            .find(|c: char| !c.is_ascii_digit())
+            .unwrap_or(value.len()),
+    );
+    let amount: u64 = digits.parse().ok()?;
+    let millis = match unit.trim() {
+        "ms" => amount,
+        "s" | "sec" | "" => amount.checked_mul(1_000)?,
+        "min" => amount.checked_mul(60_000)?,
+        _ => return None,
+    };
+    let ceiling: u64 = QLever::MAX_QUERY_BUDGET
+        .strip_suffix('s')
+        .and_then(|seconds: &str| seconds.parse::<u64>().ok())
+        .map_or(30_000, |seconds| seconds * 1_000);
+    Some(format!("{}ms", millis.min(ceiling)))
 }
 
 /// A response whose body has not been read.
@@ -720,15 +866,16 @@ mod tests {
             "a rejected query must not be retried against a second service"
         );
 
-        // Neither must a rate limit, which is a request to wait rather than a
-        // service that is down.
-        let busy = FetchError::Http {
-            status: 429,
-            message: "slow down".into(),
+        // Neither must a cancellation. QLever's 429 means this query outran its
+        // time limit; WDQS would run the same expensive query a second time, on
+        // a second endpoint, and time out there too.
+        let cancelled = FetchError::TimedOut {
+            budget: Some("25s".into()),
+            message: "Operation timed out".into(),
         };
         assert!(
-            !busy.is_endpoint_unavailable(),
-            "a rate limit is not an outage"
+            !cancelled.is_endpoint_unavailable(),
+            "a query that ran out of time is not an outage"
         );
 
         // And a malformed body is our problem, not the endpoint's.

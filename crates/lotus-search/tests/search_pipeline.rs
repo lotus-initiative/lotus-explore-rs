@@ -14,7 +14,7 @@
 
 use lotus_model::SearchCriteria;
 use lotus_search::testing::{Scripted, ScriptedResponse};
-use lotus_search::{Http, SearchRequest, search};
+use lotus_search::{FetchError, Http, SearchError, SearchRequest, search};
 
 const NOW: u16 = 2026;
 const MOLFILE: &str = "\n\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n    0.0000    0.0000    0.0000 C   0  0  0  0  0  0\nM  END\n";
@@ -74,10 +74,14 @@ async fn a_search_resolves_the_taxon_then_fetches_rows_then_counts() {
 #[tokio::test]
 async fn the_rows_are_still_returned_when_the_count_query_fails() {
     // The count query is the expensive one, so it is the one that gets
-    // rate-limited. Reporting no totals would be worse than reporting the ones
-    // the rows themselves support.
+    // cancelled for running over. Reporting no totals would be worse than
+    // reporting the ones the rows themselves support.
     let http = Scripted::new(vec![(200, TAXON_CSV), (200, ROWS_CSV)]);
-    http.then_always_from(2, 429, "slow down");
+    http.then_always_from(
+        2,
+        429,
+        r#"{"exception":"Operation timed out. Last operation: Sort on ?r"}"#,
+    );
     let request = SearchRequest::new(criteria("Gentiana lutea"), NOW);
 
     let result = search(&http, &request).await.expect("the rows are usable");
@@ -86,6 +90,64 @@ async fn the_rows_are_still_returned_when_the_count_query_fails() {
     let stats = result.stats.expect("a local count is substituted");
     assert_eq!(stats.n_entries, 1);
     assert_eq!(stats.n_compounds, 1);
+}
+
+#[tokio::test]
+async fn a_query_that_ran_out_of_time_is_sent_once_and_never_retried() {
+    // The load-bearing assertion for QLever's 429. It used to mean "slow down"
+    // and was retried, so one search that timed out cost up to four requests of
+    // the endpoint's entire budget. It means "this query is too expensive", and
+    // the answer to that is a narrower query, not another identical one.
+    let http = Scripted::new(vec![(200, TAXON_CSV)]);
+    http.then_always_from(1, 429, r#"{"exception":"Operation timed out"}"#);
+    let request = SearchRequest::new(criteria("Gentiana lutea"), NOW);
+
+    let error = search(&http, &request)
+        .await
+        .expect_err("a cancelled query is not an answer");
+
+    assert!(
+        matches!(
+            error,
+            SearchError::Transport {
+                source: FetchError::TimedOut { .. },
+                ..
+            }
+        ),
+        "a 429 is a cancellation, not a status: {error:?}"
+    );
+    assert_eq!(
+        http.call_count(),
+        2,
+        "one taxon lookup and one attempt at the rows. A retry would be a second \
+         full-length query to an endpoint that has already cancelled this one."
+    );
+}
+
+#[tokio::test]
+async fn a_qlever_request_declares_a_time_budget_and_names_the_client() {
+    // Both of these are about how the endpoint sees us. The budget is five
+    // seconds under the public instance's own 30s ceiling, so a query that is
+    // going to be cancelled is cancelled before it has spent the whole ceiling;
+    // the identification is what makes a heavy user something an operator can
+    // contact rather than an anonymous address.
+    let http = Scripted::new(vec![(200, TAXON_CSV), (200, ROWS_CSV), (200, COUNTS_CSV)]);
+    let request = SearchRequest::new(criteria("Gentiana lutea"), NOW);
+
+    search(&http, &request).await.expect("the search succeeds");
+
+    for body in http.raw_bodies() {
+        assert!(
+            body.contains("timeout=25s"),
+            "no time budget was declared: {body}"
+        );
+    }
+    for names in http.header_names() {
+        assert!(
+            names.iter().any(|name| name == "api-user-agent"),
+            "the request did not say who it was: {names:?}"
+        );
+    }
 }
 
 #[tokio::test]

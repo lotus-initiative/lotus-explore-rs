@@ -189,6 +189,15 @@ fn map_fetch_error(err: FetchError) -> RepositoryError {
         // `Network` as "the endpoint is down, try WDQS", and a body that stopped
         // half way says nothing about whether the endpoint is reachable.
         FetchError::Truncated { .. } => RepositoryError::truncated(err.to_string()),
+        // Not a network error either, and the same reason: a query QLever
+        // cancelled for running over its time limit is a query `WDQS` would also
+        // have to run, so falling back would answer the same expensive question
+        // twice on two endpoints. It is a 429 on the wire, which is what the
+        // caller sees.
+        FetchError::TimedOut { .. } => RepositoryError::Http {
+            status: 429,
+            body: err.to_string(),
+        },
         FetchError::Empty => RepositoryError::parse("query returned no results"),
     }
 }

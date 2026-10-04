@@ -10,6 +10,39 @@ pub enum FetchError {
     #[error("network error: {0}")]
     Network(String),
 
+    /// The endpoint cancelled the query because it ran out of time.
+    ///
+    /// Its own variant, and the most important thing this file says.
+    ///
+    /// `QLever` answers **`429` when a query exceeds its time limit**, not when
+    /// a client sends too many requests. Verified against `qlever.dev` on
+    /// 2026-10-04, and the distinction is not cosmetic:
+    ///
+    /// ```text
+    /// POST /api/wikidata  timeout=3s   ->  429
+    ///   {"exception": "Operation timed out. Last operation: Sort (internal order) on ?r"}
+    /// POST /api/wikidata  timeout=60s  ->  403
+    ///   {"exception": "User submitted timeout was higher than what is currently
+    ///                  allowed by this instance (30s)."}
+    /// ```
+    ///
+    /// So a 429 is a statement about **one query being too expensive**, and
+    /// retrying it is the one thing that cannot help: the same query will run
+    /// for the same 30 seconds and be cancelled for the same reason. What it
+    /// does do is occupy the endpoint for the full budget, several times over,
+    /// which is how a client becomes the kind of client an operator blocks.
+    ///
+    /// It is therefore **not** [`is_retryable`], and it is deliberately not
+    /// [`is_endpoint_unavailable`] either: falling back to `WDQS` would not make
+    /// an expensive query cheap, it would run it twice on two endpoints.
+    #[error("the query exceeded the endpoint's time limit ({}): {message}", budget.as_deref().unwrap_or("unset"))]
+    TimedOut {
+        /// The budget that was asked for, in the endpoint's own duration syntax.
+        budget: Option<String>,
+        /// The endpoint's own account of where it stopped.
+        message: String,
+    },
+
     /// A non-2xx response, with the endpoint's own summary of why.
     #[error("HTTP {status}: {message}")]
     Http {
@@ -72,13 +105,18 @@ impl FetchError {
     /// Whether a request that failed this way could succeed if sent again.
     ///
     /// A 4xx will not: the query itself is the problem, and repeating it
-    /// repeats the rejection. A 429 might, later. A 5xx is the endpoint's.
+    /// repeats the rejection. A 5xx is the endpoint's.
+    ///
+    /// `TimedOut` is the one that used to say "a 429 might, later". It does
+    /// not, and the variant documents why in full: `QLever`'s 429 is a query
+    /// time limit, so a second attempt spends another full budget to arrive at
+    /// the same cancellation.
     #[must_use]
     pub const fn is_retryable(&self) -> bool {
         match self {
             Self::Network(_) => true,
             Self::Http { status, .. } => is_retryable_status(*status),
-            Self::Parse(_) | Self::Empty | Self::Truncated { .. } => false,
+            Self::TimedOut { .. } | Self::Parse(_) | Self::Empty | Self::Truncated { .. } => false,
         }
     }
 
@@ -99,11 +137,25 @@ impl FetchError {
         matches!(self, Self::Network(_)) || matches!(self, Self::Http { status: 502, .. })
     }
 
+    /// Whether this query outstayed the endpoint's time budget.
+    ///
+    /// Distinct from "not retryable": this is the one failure where the caller
+    /// can still do something useful, by asking for less. It is what the UI
+    /// turns into "this search is too broad", rather than "try again".
+    #[must_use]
+    pub const fn is_timed_out(&self) -> bool {
+        matches!(self, Self::TimedOut { .. })
+    }
+
     /// The HTTP status, when the failure was an HTTP one.
     #[must_use]
     pub const fn status(&self) -> Option<u16> {
         match self {
             Self::Http { status, .. } => Some(*status),
+            // A cancellation is a 429 on the wire, and the classification above
+            // this crate reads statuses. Reporting it as one keeps every caller
+            // that has never heard of `TimedOut` behaving as it did.
+            Self::TimedOut { .. } => Some(429),
             _ => None,
         }
     }
@@ -159,9 +211,18 @@ impl ResponseFormat {
 /// this function survived, because the tests all went through the *copy*. The two
 /// could drift, and changing one would have left the retry loop disagreeing with
 /// the function that documents it.
+///
+/// **`429` is not in this set, and that is the whole point of the change.** It
+/// used to be, on the assumption that it meant "too many requests, try again in
+/// a moment". It does not: `QLever` answers 429 when the query itself ran out
+/// of time (`src/engine/Server.cpp`, `CancellationException` -> 429, with the
+/// message "Operation timed out"). Retrying one spends the endpoint's entire
+/// budget again to be cancelled the same way, so a single broad search could
+/// previously cost four full-length queries. [`FetchError::TimedOut`] carries the
+/// measurement.
 #[must_use]
 pub const fn is_retryable_status(status: u16) -> bool {
-    status == 429 || status >= 500
+    status >= 500
 }
 
 #[cfg(test)]
@@ -169,19 +230,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_rejected_query_is_not_retried_but_a_busy_one_is() {
+    fn a_rejected_query_is_not_retried_but_a_failing_endpoint_is() {
         let rejected = FetchError::Http {
             status: 400,
             message: "bad".into(),
         };
         assert!(!rejected.is_retryable());
-        assert!(
-            FetchError::Http {
-                status: 429,
-                message: "slow down".into()
-            }
-            .is_retryable()
-        );
         assert!(
             FetchError::Http {
                 status: 503,
@@ -190,6 +244,28 @@ mod tests {
             .is_retryable()
         );
         assert!(FetchError::Network("timeout".into()).is_retryable());
+    }
+
+    #[test]
+    fn a_query_that_ran_out_of_time_is_not_retried() {
+        // The load-bearing assertion of this change, and the one a future edit is
+        // most likely to undo by "helpfully" putting 429 back into the retryable
+        // set. QLever's 429 is a per-query time limit, so the retry does not
+        // make the query succeed -- it makes the endpoint spend its whole budget
+        // again, once per attempt, on a query already known to be too big.
+        let cancelled = FetchError::TimedOut {
+            budget: Some("25s".into()),
+            message: "Operation timed out. Last operation: Sort (internal order) on ?r".into(),
+        };
+        assert!(!cancelled.is_retryable());
+        assert!(!is_retryable_status(429));
+        assert!(cancelled.is_timed_out());
+        // It is a 429 on the wire, so everything above this crate that reads
+        // statuses keeps working.
+        assert_eq!(cancelled.status(), Some(429));
+        // And it is not the endpoint being unreachable: WDQS would run the same
+        // expensive query a second time, on a second endpoint.
+        assert!(!cancelled.is_endpoint_unavailable());
     }
 
     #[test]
@@ -299,9 +375,11 @@ mod tests {
     /// survived, since nothing reached the function they were mutating. It is now
     /// the only copy, and these tests are what hold it to that.
     #[test]
-    fn the_retry_rule_is_429_or_a_server_error() {
-        // The client-error side: only 429 is worth another attempt. A 400 is the
-        // endpoint saying no, and 404 will not become a 200 on a second try.
+    fn the_retry_rule_is_a_server_error_and_nothing_else() {
+        // The client-error side: none of them is worth another attempt. A 400 is
+        // the endpoint saying no, 404 will not become a 200 on a second try, and
+        // 429 is QLever cancelling a query that ran out of time -- which a
+        // second attempt reproduces exactly, at full cost.
         for status in [
             200, 201, 204, 301, 400, 401, 403, 404, 409, 418, 428, 430, 451,
         ] {
@@ -311,8 +389,14 @@ mod tests {
             );
         }
 
-        // 429 is the one client error that is explicitly "come back later".
-        assert!(is_retryable_status(429), "too many requests is retryable");
+        // 429 was the one client error this used to retry, on the reading that
+        // it meant "too many requests, come back later". QLever uses it for a
+        // per-query time limit instead, so this is the assertion that keeps the
+        // change from being undone.
+        assert!(
+            !is_retryable_status(429),
+            "a cancelled query must not be re-sent"
+        );
 
         // The boundary. 500 is the first server error and 599 the last; a server
         // error anywhere in between is retryable, and 499 is a client error.
