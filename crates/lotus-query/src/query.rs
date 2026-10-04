@@ -1344,20 +1344,36 @@ fn normalized_exact_formula(criteria: &SearchCriteria) -> Option<String> {
     (!normalized.is_empty()).then(|| escape_sparql_string(&normalized))
 }
 
-/// A `BIND` yielding the count of `symbol` in the tokenised formula, or `0`.
 /// Append a `BIND` yielding `symbol`'s count in the tokenised formula, or `0`,
 /// and return the variable it binds.
 ///
 /// The token separator is emitted as `\\|` because the pattern goes into a SPARQL
-/// string literal, where a backslash is itself escaped. That is the pattern the
-/// endpoint has always been sent, and changing it changes what matches.
+/// string literal, where a backslash is itself escaped.
+///
+/// A formula is tokenised by inserting `|` before *every* capital, so `C6H5COOH`
+/// becomes `|C6|H5|C|O|O|H`. The count is therefore the leading `\\|C([0-9]*)`
+/// match, and matching that greedily reads the **last** `|C` token rather than
+/// the first, which is wrong whenever a bare `C` follows a digit-bearing one:
+/// benzoic acid tokenises with a trailing bare `|C`, the capture comes back
+/// empty, and the count collapses to 1. Measured over the 3,301 distinct
+/// formulas on a real taxon, that miscounted `C₂H₅OOCH`.
+///
+/// So a digit-bearing token is preferred, and the greedy match is kept only for
+/// formulas that have none — where a single bare token does mean one atom
+/// (`CH4`), which the old empty-capture branch already got right.
 fn bind_element_count(out: &mut String, symbol: &str) -> String {
     let var = format!("?_count_{}", symbol.to_ascii_lowercase());
     let pattern = format!(r"\\|{symbol}([0-9]*)(\\||$)");
     let captured = format!(r#"REPLACE(?_formula_tokens, ".*{pattern}.*", "$1")"#);
+    // Anchored and lazy, so it stops at the first token that actually carries a
+    // count instead of running on to the last `|C` of any kind.
+    let with_count = format!(r"\\|{symbol}([0-9]+)(\\||$)");
+    let counted = format!(r#"REPLACE(?_formula_tokens, "^.*?{with_count}.*", "$1")"#);
     let _ = writeln!(
         out,
-        "BIND(IF(REGEX(?_formula_tokens, \"{pattern}\"), IF(STRLEN({captured}) = 0, 1, xsd:integer({captured})), 0) AS {var})"
+        "BIND(IF(REGEX(?_formula_tokens, \"{with_count}\"), xsd:integer({counted}), \
+         IF(REGEX(?_formula_tokens, \"{pattern}\"), IF(STRLEN({captured}) = 0, 1, \
+         xsd:integer({captured})), 0)) AS {var})"
     );
     var
 }

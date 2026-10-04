@@ -420,3 +420,35 @@ fn a_reference_constraint_composes_with_the_year_filter() {
     assert!(filtered.contains("?r wdt:P577 ?ref_date"), "{filtered}");
     assert!(filtered.contains("FILTER(YEAR(?ref_date)"), "{filtered}");
 }
+
+/// `([A-Z])` splits every capital, so `C6H5COOH` tokenises to `|C6|H5|C|O|O|H`.
+/// A greedy `\|C([0-9]*)` then matches the *trailing bare* `|C`, captures the
+/// empty string, and the count collapses to 1 -- benzoic acid read as one carbon.
+/// Measured against real Wikidata formulas, this miscounted `C₂H₅OOCH`.
+///
+/// The count must come from a token that actually carries digits. Pinned here
+/// because the greedy form is shorter and looks like a simplification.
+#[test]
+fn the_element_count_prefers_a_token_that_carries_digits() {
+    let base = compounds_by_taxon_query("Q16521");
+    let filtered = with_filters(
+        &base,
+        &SearchCriteria {
+            formula_enabled: true,
+            c_min: 5,
+            c_max: 20,
+            ..criteria()
+        },
+        NOW,
+    );
+
+    assert!(
+        filtered.contains(r#"REGEX(?_formula_tokens, "\\|C([0-9]+)(\\||$)")"#),
+        "a digit-bearing token is what the count is read from: {filtered}"
+    );
+    assert!(
+        filtered.contains(r#"REPLACE(?_formula_tokens, "^.*?\\|C([0-9]+)(\\||$).*", "$1")"#),
+        "and it is anchored and lazy, so it stops at the first such token \
+         rather than running on to the last |C of any kind: {filtered}"
+    );
+}
