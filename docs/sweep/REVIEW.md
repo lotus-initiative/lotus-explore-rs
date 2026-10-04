@@ -196,48 +196,43 @@ reports a `truncated` flag. The interactive path fetches every row and reports
 other an interactive session), but it means "not limited" is true of one front end
 and false of the other. Worth deciding whether the CLI should say so explicitly.
 
-## 12. The table's compound filter may match rows it should not — needs investigation
+## 12. FIXED — the compound filter tested a compound's slot, not its QID
 
-Found while writing tests for the mutation survivors, and **not fixed**, because
-the cause is not established and a wrong fix to a filter is worse than a written-up
-bug.
+**Fixed in `88703e9`.** Kept here because **my original diagnosis in this section
+was wrong**, and the correction is the useful part.
 
-Reproduction, on a two-row set with distinct InChIKeys so nothing is shared
-between the rows (`crates/lotus-model/tests/columnar.rs` builds it):
+The hypothesis recorded here was that the filter's bit mask was sized by
+dictionary length and indexed by sparse numeric QIDs. Ids in `ColumnarResultSet`
+are **slots** — positions in a first-seen order — so the mask sizing was always
+correct and there was no out-of-range problem to fix.
 
-```text
-row 0: compound Q1, taxon Q2      row 1: compound Q4, taxon Q5
+The actual cause was a missing translation. `QidDictionary::get(id)` converts a
+slot to the numeric QID it stands for, and `qid_matches` renders a QID from a
+number. The compound filter passed the slot directly:
 
-compound filter "Q1"  ->  surviving_rows [0, 1]     <-- row 1 does not match
-compound filter "Q4"  ->  surviving_rows [1]
-compound filter "Q2"  ->  surviving_rows []          (correct: a taxon is not a compound)
-taxon     filter "Q2"  ->  surviving_rows [0]        (correct)
+```rust
+|| qid_matches(id, &needle, &mut buffer);   // `id` is a slot
 ```
 
-So `"Q4"` behaves and `"Q1"` does not. The asymmetry points at the bit index
-rather than the string match: in `ColumnarResultSet::plan_filter` the compound
-branch builds `Bitmask::with_len(self.compounds.len())` and then calls
-`mask.insert(id)` where `id` comes from `slot_to_id(slot)`, while `FilterPlan::accepts`
-tests `mask.contains(id)` against `set.compound_ids[row]`. `Bitmask` is
-`Vec<u64>` sized `len.div_ceil(64)` words, and `insert` silently ignores an id
-whose word is out of range while `contains` answers `false` for the same id — so
-the two only agree while every id fits inside `len.div_ceil(64) * 64`.
+so its QID arm was asking *which position a compound occupies*. Filtering by
+`Q3613679` returned **zero rows**; filtering by `Q1` returned whichever compound
+sat at slot 1. The taxon and reference filters have always done the translation,
+so all four `qid_matches` call sites go through `get` now and this arm was the
+only one that did not — which is what made it an isolated defect rather than a
+design choice.
 
-`len` is the number of distinct compounds and the ids are **numeric Wikidata
-QIDs**, which are sparse and large. For a result set of a few hundred thousand
-compounds the mask has a few thousand words, while a QID like `Q12345678` needs
-word 192708. If that reading of the code is right, a compound filter for a
-high-numbered QID would match **nothing** rather than one row, and the
-"ignoring out-of-range ids" in `insert`'s doc comment is doing load-bearing work
-nobody intended.
+The earlier reproduction in this section was also misleading: it showed `"Q1"`
+matching a row whose compound was `Q4`, but that used the shared `entry()`
+fixture, which names rows `"{qid}-name"` — so the **name** arm did the matching
+and the QID arm was never consulted. The same masking is why
+`a_qid_filter_still_matches_the_text_a_reader_types` was passing for the wrong
+reason.
 
-**Why this was not fixed here:** it needs a decision about whether ids or slots
-are the right index, which touches the whole filter path, and the honest test is
-a recorded fixture with high QIDs — which this repo does not have. Recommended:
-a human writes the failing case first with a realistic QID (`Q16521`-scale and
-`Q7000000`-scale), confirms which of the two index spaces is intended, then fixes
-it. The `is_empty`/`len` mutants in this same file (below) are very likely the
-same confusion showing up in a different place.
+Two tests added, both naming their compounds so the QID arm is the only thing
+that can answer, and both asserting correctness in **both** interning orders —
+which slot a compound lands on is a property of the data, so a filter that is
+right for one result set and wrong for another is worse than one that is always
+wrong, because the answer looks plausible.
 
 ## 13. The app crate's test suite is not hermetic, which blocks `cargo mutants` on it
 

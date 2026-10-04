@@ -12,23 +12,22 @@ take. **DONE** = resolved since it was written.
 
 ---
 
-## The three that matter most
+## The two that matter most
 
-### 1. FIX — The table's compound filter may match rows it should not · REVIEW §12
+### 1. ~~FIX — compound filter matched the wrong rows~~ **DONE** · REVIEW §12
 
-> On a two-row set, compound filter `"Q1"` returns **both** rows while `"Q4"`
-> correctly returns one.
+> **Fixed in `88703e9`.** The compound filter's QID arm was comparing a compound's
+> *slot* against the needle instead of its QID, so filtering by `Q3613679` returned
+> nothing and filtering by `Q1` returned whichever compound sat at slot 1.
 
-A filter that returns rows which do not match is a wrong table, not a slow one.
-Reproducible, minimal case in the write-up. The suspected cause is the filter's
-bit index: the mask is sized by dictionary length and indexed by sparse numeric
-QIDs, so a high-numbered QID may fall outside the mask.
+One line. The taxon and reference filters always did the translation; this arm
+did not. My original hypothesis in REVIEW §12 — a badly sized bit mask indexed by
+sparse QIDs — was wrong and is corrected there, because the ids are dense slots.
 
-I did not fix it because it needs a decision about which index space is intended,
-and the honest test needs a recorded fixture with realistic QIDs that this repo
-does not have. **A wrong fix to a filter is worse than a written-up bug.**
-
-*Ask:* should I write the failing test first with a realistic QID and fix it?
+Worth keeping from this: the bug survived because the shared test fixture names
+rows `"{qid}-name"`, so the *name* arm answered the same question and masked it.
+The two new tests name compounds deliberately so the QID arm is the only thing
+that can answer, and they assert correctness in **both** interning orders.
 
 ### 2. DECIDE — A complete query form is 50% faster · REVIEW §16, SPARQL-VARIANTS.md
 
