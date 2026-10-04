@@ -31,9 +31,9 @@ pub use execute::{
 };
 pub use result::{ColumnarSearchResult, SearchRequest, SearchResult, TaxonNote, TaxonResolution};
 pub use search::{
-    DEFAULT_ROW_LIMIT, SearchError, StructurePlan, build_base_query, build_execution_query,
-    columnar_from_chunks, counts, is_qid, normalize_structure, resolve_taxon, search,
-    search_columnar, standardize_taxon_name,
+    DEFAULT_ROW_LIMIT, SearchError, StreamProgress, StructurePlan, build_base_query,
+    build_execution_query, columnar_from_chunks, columnar_from_chunks_reporting, counts, is_qid,
+    normalize_structure, resolve_taxon, search, search_columnar, standardize_taxon_name,
 };
 
 #[cfg(feature = "reqwest")]

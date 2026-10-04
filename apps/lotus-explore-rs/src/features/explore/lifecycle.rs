@@ -32,6 +32,15 @@ impl SearchLifecycleCoordinator {
         dispatch_explore_action(self.explore, ExploreAction::SearchPhaseChanged(phase));
     }
 
+    /// Rows received so far, for the loading overlay.
+    ///
+    /// Dispatched rather than written into the signal directly, so it goes
+    /// through the same reducer as every other update -- including the guards
+    /// that make it monotonic and stop it outliving the search.
+    pub fn on_progress(&self, rows: usize) {
+        dispatch_explore_action(self.explore, ExploreAction::SearchProgress { rows });
+    }
+
     pub fn on_success(&self, request: &SearchRequest, success_action: ExploreAction) {
         if is_stale_token(request.request_token(), self.current_token()) {
             telemetry::ignored_stale_result(request.request_token());

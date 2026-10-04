@@ -32,23 +32,31 @@ use crate::perf;
 use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
 
-pub struct SearchExecutor<R, P>
+pub struct SearchExecutor<R, P, G>
 where
     R: LotusRepository,
     P: Fn(QueryPhase),
+    G: Fn(usize),
 {
     repo: R,
     on_phase: P,
+    /// Rows received so far, for the loading overlay.
+    on_progress: G,
 }
 
-impl<R, P> SearchExecutor<R, P>
+impl<R, P, G> SearchExecutor<R, P, G>
 where
     R: LotusRepository,
     P: Fn(QueryPhase),
+    G: Fn(usize),
 {
     #[must_use]
-    pub const fn new(repo: R, on_phase: P) -> Self {
-        Self { repo, on_phase }
+    pub const fn new(repo: R, on_phase: P, on_progress: G) -> Self {
+        Self {
+            repo,
+            on_phase,
+            on_progress,
+        }
     }
 
     pub async fn execute(&self, request: &SearchRequest) -> Result<SearchOutcome, DomainError> {
@@ -88,6 +96,7 @@ where
             &self.repo,
             &mut metrics,
             &self.on_phase,
+            &self.on_progress,
             strategy.is_download_only(),
         )
         .await
@@ -125,6 +134,9 @@ pub async fn do_search<R: LotusRepository>(
     request: &SearchRequest,
     repo: R,
     on_phase: impl Fn(QueryPhase),
+    on_progress: impl Fn(usize),
 ) -> Result<SearchOutcome, DomainError> {
-    SearchExecutor::new(repo, on_phase).execute(request).await
+    SearchExecutor::new(repo, on_phase, on_progress)
+        .execute(request)
+        .await
 }

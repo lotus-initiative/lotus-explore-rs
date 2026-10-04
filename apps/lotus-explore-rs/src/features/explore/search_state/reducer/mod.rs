@@ -28,6 +28,9 @@ pub fn reduce_mut(state: &mut ExploreState, action: ExploreAction) {
         ExploreAction::SearchPhaseChanged(phase) => {
             lifecycle::phase_changed(&mut state.lifecycle, phase);
         }
+        ExploreAction::SearchProgress { rows } => {
+            lifecycle::progress_reported(&mut state.lifecycle, rows);
+        }
         ExploreAction::SearchSucceeded {
             set,
             qid,

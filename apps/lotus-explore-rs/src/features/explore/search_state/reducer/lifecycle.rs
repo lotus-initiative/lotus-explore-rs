@@ -15,14 +15,28 @@ pub(super) fn search_requested(state: &mut SearchLifecycleState, command: Search
     state.download_only_mode = command.direct_download();
     state.download_dispatching = false;
     state.search_request_token = state.search_request_token.saturating_add(1);
+    state.rows_so_far = None;
 }
 
 pub(super) const fn phase_changed(state: &mut SearchLifecycleState, phase: QueryPhase) {
     state.query_phase = phase;
 }
 
+/// Record progress, and never let it go backwards or outlive the search.
+///
+/// Both guards are about the same thing: the number on screen must not be one the
+/// reader can catch decreasing. A stale chunk arriving after the set is committed
+/// would do that, and so would a retry restarting the fetch.
+pub(super) fn progress_reported(state: &mut SearchLifecycleState, rows: usize) {
+    if !state.loading {
+        return;
+    }
+    state.rows_so_far = Some(state.rows_so_far.map_or(rows, |was| was.max(rows)));
+}
+
 pub(super) fn search_finished(state: &mut SearchLifecycleState) {
     state.loading = false;
+    state.rows_so_far = None;
     state.error = None;
     state.query_phase = QueryPhase::Idle;
     state.download_dispatching = false;
@@ -30,6 +44,7 @@ pub(super) fn search_finished(state: &mut SearchLifecycleState) {
 
 pub(super) fn search_failed(state: &mut SearchLifecycleState, error: &DomainError) -> bool {
     state.loading = false;
+    state.rows_so_far = None;
     state.query_phase = QueryPhase::Idle;
     state.download_dispatching = false;
     should_clear_state_on_error(error.query_stage())

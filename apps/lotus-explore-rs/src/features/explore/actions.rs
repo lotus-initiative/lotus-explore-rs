@@ -21,6 +21,15 @@ pub enum ExploreAction {
     /// Update the spinner / lifecycle phase.
     SearchPhaseChanged(QueryPhase),
 
+    /// Rows received so far, for the loading overlay.
+    ///
+    /// Monotonic within one search, and ignored once the search has finished, so
+    /// a chunk that lands after the result is committed cannot put a number back
+    /// on screen.
+    SearchProgress {
+        rows: usize,
+    },
+
     /// Commit a successful search result set.
     SearchSucceeded {
         set: std::sync::Arc<lotus_model::ColumnarResultSet>,

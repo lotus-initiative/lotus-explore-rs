@@ -18,6 +18,7 @@
 //!   it costs nothing to share, so there is one copy rather than eight.
 
 use super::{FetchResult, PlannedResultsFetch};
+use super::{PROGRESS_ROW_STEP, ProgressThrottle};
 use crate::features::explore::search_metrics::SearchMetrics;
 use crate::features::explore::types::{DomainError, ParseFault, QueryStage};
 use crate::perf;
@@ -31,6 +32,7 @@ pub(super) async fn fetch_results<R: LotusRepository>(
     plan: &PlannedResultsFetch<'_>,
     metrics: &mut SearchMetrics,
     on_processing: &impl Fn(),
+    on_progress: &mut impl FnMut(usize),
 ) -> Result<FetchResult, DomainError> {
     // Reuse a previously built set on back/repeat navigation instead of
     // re-hitting QLever. The key is the query text, which is now the whole
@@ -41,10 +43,20 @@ pub(super) async fn fetch_results<R: LotusRepository>(
     let (set, fetched_remote) = if let Some(cached) = crate::cache::take_cached_set(&key) {
         (cached, false)
     } else {
+        let mut throttle = ProgressThrottle::new(PROGRESS_ROW_STEP);
+        let mut progress = |p: lotus_search::StreamProgress| {
+            if let Some(rows) = throttle.offer(p.rows) {
+                on_progress(rows);
+            }
+        };
         let fetched = repo
-            .sparql_columnar(plan.execution_query)
+            .sparql_columnar(plan.execution_query, &mut progress)
             .await
             .map_err(DomainError::transport_at(QueryStage::ResultsQuery))?;
+        // The last chunk is the one that matters, and it can fall short of the step.
+        if let Some(rows) = throttle.finish() {
+            on_progress(rows);
+        }
         let set = Arc::new(fetched);
         crate::cache::store_cached_set(key, Arc::clone(&set));
         (set, true)

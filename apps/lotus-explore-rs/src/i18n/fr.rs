@@ -57,6 +57,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::LoadingResolvingReference => "Résolution de la référence...",
         TextKey::LoadingResolvingTaxon => "Résolution du taxon...",
         TextKey::LoadingFetchingResults => "Récupération des résultats...",
+        TextKey::LoadingRowsSoFar => "reçus à ce jour",
         TextKey::LoadingProcessingResults => "Traitement des comptages de résultats...",
         TextKey::LoadingRendering => "Rendu du tableau...",
         TextKey::Retry => "Réessayer",

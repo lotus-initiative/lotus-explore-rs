@@ -54,6 +54,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::LoadingResolvingReference => "Referenz wird aufgelöst...",
         TextKey::LoadingResolvingTaxon => "Taxon wird aufgelöst...",
         TextKey::LoadingFetchingResults => "Ergebnisse werden geladen...",
+        TextKey::LoadingRowsSoFar => "bisher erhalten",
         TextKey::LoadingProcessingResults => "Ergebnisanzahlen werden verarbeitet...",
         TextKey::LoadingRendering => "Tabelle wird gerendert...",
         TextKey::Retry => "Erneut versuchen",

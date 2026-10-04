@@ -105,11 +105,14 @@ pub trait LotusRepository: Clone + 'static {
     /// # Errors
     /// Returns [`RepositoryError::Network`] if this transport cannot read a body
     /// incrementally.
-    async fn sparql_columnar(
+    async fn sparql_columnar<F>(
         &self,
         query: &str,
-        on_progress: &mut dyn FnMut(lotus_search::StreamProgress),
-    ) -> Result<ColumnarResultSet, RepositoryError> {
+        on_progress: &mut F,
+    ) -> Result<ColumnarResultSet, RepositoryError>
+    where
+        F: FnMut(lotus_search::StreamProgress) + ?Sized,
+    {
         let _ = (query, on_progress);
         Err(RepositoryError::network(
             "this transport cannot read a response body in chunks",

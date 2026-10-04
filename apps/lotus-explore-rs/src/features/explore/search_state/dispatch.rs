@@ -9,6 +9,7 @@ use super::{ExploreState, reduce_mut};
 fn is_noop(current: &ExploreState, action: &ExploreAction) -> bool {
     match action {
         ExploreAction::SearchPhaseChanged(phase) => current.lifecycle.query_phase == *phase,
+        ExploreAction::SearchProgress { rows } => current.lifecycle.rows_so_far == Some(*rows),
         ExploreAction::ErrorDismissed => current.lifecycle.error.is_none(),
         ExploreAction::DownloadDispatchStarted => current.lifecycle.download_dispatching,
         ExploreAction::DownloadDispatchFinished => !current.lifecycle.download_dispatching,

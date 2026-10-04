@@ -35,6 +35,7 @@ pub async fn execute<R: LotusRepository>(
     repo: &R,
     metrics: &mut SearchMetrics,
     on_phase: impl Fn(QueryPhase),
+    on_progress: impl Fn(usize),
     direct_download_mode: bool,
 ) -> Result<ResultsPipelineOutcome, DomainError> {
     let plan =
@@ -51,6 +52,7 @@ pub async fn execute<R: LotusRepository>(
         fetch_results::FetchHooks::new(
             || on_phase(QueryPhase::FetchingResults),
             || on_phase(QueryPhase::ProcessingResults),
+            on_progress,
         ),
     )
     .await?;
@@ -82,7 +84,7 @@ mod tests {
             let repo = MockRepository::sparql_error("should not fetch rows");
             let mut metrics = SearchMetrics::default();
 
-            let outcome = execute(&request, "", &repo, &mut metrics, |_| {}, true)
+            let outcome = execute(&request, "", &repo, &mut metrics, |_| {}, |_| {}, true)
                 .await
                 .expect("download-only should not hit results fetch");
 
@@ -108,7 +110,7 @@ mod tests {
             );
             let mut metrics = SearchMetrics::default();
 
-            let outcome = execute(&request, "", &repo, &mut metrics, |_| {}, false)
+            let outcome = execute(&request, "", &repo, &mut metrics, |_| {}, |_| {}, false)
                 .await
                 .expect("interactive pipeline should fetch results");
 

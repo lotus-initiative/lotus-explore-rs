@@ -64,16 +64,30 @@ impl FetchResult {
     }
 }
 
-pub struct FetchHooks<OnFetching, OnProcessing> {
-    on_fetching: OnFetching,
-    on_processing: OnProcessing,
+/// Callbacks the fetch makes into the UI, as a type rather than as parameters.
+///
+/// Three positional closures would be three `impl Fn` bounds in a row, and the
+/// order would be the only thing telling them apart.
+mod progress;
+
+#[cfg(target_arch = "wasm32")]
+pub use progress::{PROGRESS_ROW_STEP, ProgressThrottle};
+
+pub struct FetchHooks<OnFetching, OnProcessing, OnProgress> {
+    fetching: OnFetching,
+    processing: OnProcessing,
+    /// Rows received so far, called while the body is still arriving.
+    ///
+    /// Already throttled by the fetcher: this is not called per chunk.
+    progress: OnProgress,
 }
 
-impl<OnFetching, OnProcessing> FetchHooks<OnFetching, OnProcessing> {
-    pub const fn new(on_fetching: OnFetching, on_processing: OnProcessing) -> Self {
+impl<OnFetching, OnProcessing, OnProgress> FetchHooks<OnFetching, OnProcessing, OnProgress> {
+    pub const fn new(fetching: OnFetching, processing: OnProcessing, progress: OnProgress) -> Self {
         Self {
-            on_fetching,
-            on_processing,
+            fetching,
+            processing,
+            progress,
         }
     }
 }
@@ -86,28 +100,51 @@ struct PlannedResultsFetch<'a> {
 ///
 /// `on_fetching` is called before the network fetch begins and `on_processing`
 /// before the body is folded into the set; in tests pass `|| ()`.
-pub(super) async fn fetch<R: LotusRepository, OnFetching: Fn(), OnProcessing: Fn()>(
+// `progress` is only called on the wasm path, so only there does it need to be
+// mutable. Without this the native build warns about a `mut` it cannot use, and
+// adding one for wasm would warn there instead.
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(
+        unused_mut,
+        reason = "the progress callback is only called on the wasm path"
+    )
+)]
+pub(super) async fn fetch<
+    R: LotusRepository,
+    OnFetching: Fn(),
+    OnProcessing: Fn(),
+    OnProgress: FnMut(usize),
+>(
     execution_query: &str,
     repo: &R,
     metrics: &mut SearchMetrics,
-    hooks: FetchHooks<OnFetching, OnProcessing>,
+    hooks: FetchHooks<OnFetching, OnProcessing, OnProgress>,
 ) -> Result<FetchResult, DomainError> {
     // Clear any previous WDQS fallback state from taxon resolution or other operations
     crate::repositories::reset_wdqs_fallback_flag();
 
     let plan = plan_full_results_fetch(execution_query);
     let FetchHooks {
-        on_fetching,
-        on_processing,
+        fetching,
+        processing,
+        mut progress,
     } = hooks;
-    on_fetching();
+    fetching();
     telemetry::results_fetch_started();
 
     #[cfg(target_arch = "wasm32")]
-    let result = wasm::fetch_results(repo, &plan, metrics, &on_processing).await;
+    let result = wasm::fetch_results(repo, &plan, metrics, &processing, &mut progress).await;
 
+    // The native path assembles the export on disk and has no chunked reader to
+    // count rows in, so there is no progress to report. Dropped explicitly rather
+    // than left as an unused binding, because "no progress on this path" is a
+    // decision and an accidental silence would look identical.
     #[cfg(not(target_arch = "wasm32"))]
-    let result = native::fetch_results(repo, &plan, metrics, &on_processing).await;
+    let result = {
+        drop(progress);
+        native::fetch_results(repo, &plan, metrics, &processing).await
+    };
 
     match result {
         Ok(v) => Ok(v),

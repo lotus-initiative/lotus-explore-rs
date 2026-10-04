@@ -386,8 +386,49 @@ pub async fn search_columnar<H: Http>(
 /// Returns [`FetchError::Parse`] if the body cannot be read as the CSV the
 /// result queries produce, and propagates any transport failure.
 pub async fn columnar_from_chunks(
-    mut body: crate::ChunkedBody,
+    body: crate::ChunkedBody,
 ) -> Result<lotus_model::ColumnarResultSet, FetchError> {
+    columnar_from_chunks_reporting(body, &mut |_| {}).await
+}
+
+/// How much of a result set has arrived so far.
+///
+/// Counts, not a fraction: the endpoint does not say how many rows the query will
+/// produce before it has produced them, so there is no denominator to divide by.
+/// A percentage here would be invented, and the number that matters -- how much is
+/// still to come -- is exactly what is unknown.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct StreamProgress {
+    /// Data rows folded into the set so far.
+    pub rows: usize,
+    /// Decompressed body bytes read so far.
+    pub bytes: usize,
+}
+
+/// Fold a body into a columnar set, reporting progress after each chunk.
+///
+/// The callback runs **once per chunk**, which for a wide search is tens of
+/// thousands of times. A caller that re-renders on every call will spend more
+/// time rendering than parsing, so it has to throttle; that is the caller's half
+/// of the contract and [`StreamProgress`] exists so it can.
+///
+/// Generic over the callback rather than taking a `&mut dyn FnMut`, which is not
+/// an aesthetic choice: a `dyn FnMut` is not `Send`, so a function taking one has
+/// a non-`Send` future, and [`columnar_from_chunks`] delegates here. The native
+/// and server paths need a `Send` future, and the browser needs a callback that
+/// captures a `Signal` and is emphatically not `Send`. Monomorphising is what
+/// lets both hold at once.
+///
+/// # Errors
+/// Propagates any transport failure, and returns [`FetchError::Parse`] if the
+/// body is not the CSV the result queries produce.
+pub async fn columnar_from_chunks_reporting<F>(
+    mut body: crate::ChunkedBody,
+    on_progress: &mut F,
+) -> Result<lotus_model::ColumnarResultSet, FetchError>
+where
+    F: FnMut(StreamProgress) + ?Sized,
+{
     let mut reader = CsvColumnarReader::new();
     loop {
         let Some(chunk) = body.next_chunk().await? else {
@@ -396,6 +437,10 @@ pub async fn columnar_from_chunks(
         reader
             .feed(&chunk)
             .map_err(|e| FetchError::Parse(e.to_string()))?;
+        on_progress(StreamProgress {
+            rows: reader.row_count(),
+            bytes: reader.byte_count(),
+        });
     }
     reader
         .finish()

@@ -83,7 +83,14 @@ async fn execute_search_with_retries<R: LotusRepository>(
 ) {
     let mut attempt_count = 0u32;
     loop {
-        match do_search(&request, repo.clone(), |phase| coordinator.on_phase(phase)).await {
+        match do_search(
+            &request,
+            repo.clone(),
+            |phase| coordinator.on_phase(phase),
+            |rows| coordinator.on_progress(rows),
+        )
+        .await
+        {
             Ok(outcome) => {
                 handle_search_success(&request, outcome, attempt_count, &coordinator);
                 break;

@@ -6,7 +6,8 @@ use crate::components::ui::Button;
 use crate::features::explore::interactions::use_explore_interactions;
 use crate::features::explore::selectors::use_lifecycle_selector;
 use crate::features::explore::types::QueryPhase;
-use crate::i18n::{Locale, TextKey, t};
+use crate::i18n::{CountNoun, Locale, TextKey, t};
+use crate::i18n::{count_label, format_count};
 use crate::state::use_results_context;
 use crate::ui::prelude::{NoticeBar, NoticeTone};
 use dioxus::prelude::*;
@@ -19,6 +20,9 @@ pub fn LoadingState() -> Element {
     let locale = crate::hooks::use_locale();
     let explore = use_results_context().explore;
     let query_phase = *use_lifecycle_selector(explore, |lifecycle| lifecycle.query_phase).read();
+    // Subscribed to separately from the phase so that a row count ticking up does
+    // not re-render everything that reads `query_phase`.
+    let rows_so_far = *use_lifecycle_selector(explore, |lifecycle| lifecycle.rows_so_far).read();
     rsx! {
         div {
             role: "status",
@@ -27,7 +31,18 @@ pub fn LoadingState() -> Element {
             class: "flex flex-col items-center justify-center gap-3 p-12 text-center text-muted",
             div { class: "spinner-lg", "aria-hidden": "true" }
             p { class: "max-w-[28ch] text-body text-text", "{query_phase_text(locale, query_phase)}" }
-            p { class: "max-w-[36ch] text-ui text-subtle", "{t(locale, TextKey::LoadingHint)}" }
+            // Only while the body is arriving, and only once there is a count to
+            // show: a phase label with no number under it is the status quo, and
+            // the number is the part that tells a reader the wait is doing
+            // something.
+            if query_phase == QueryPhase::FetchingResults && rows_so_far.is_some() {
+                p {
+                    class: "max-w-[36ch] text-ui text-subtle tabular-nums",
+                    "{rows_so_far_text(locale, rows_so_far.unwrap_or(0))}",
+                }
+            } else {
+                p { class: "max-w-[36ch] text-ui text-subtle", "{t(locale, TextKey::LoadingHint)}" }
+            }
         }
     }
 }
@@ -72,6 +87,26 @@ pub fn DownloadOnlyState() -> Element {
     }
 }
 
+/// The rows received so far, as a line the reader can watch move.
+///
+/// Reuses [`format_count`] and [`count_label`], which already carry the
+/// thousands separator and the plural for each locale -- "12,345 Entries so far",
+/// "12.345 Einträge bisher erhalten". The count leads in all four locales, so
+/// composing the two around it is safe, and it is why this is a function here
+/// rather than a template in the table.
+///
+/// **No percentage.** The endpoint does not say how many rows a query will produce
+/// before it produces them, so a denominator would be invented, and the number a
+/// reader actually wants -- how much is left -- is exactly what is unknown.
+pub fn rows_so_far_text(locale: Locale, rows: usize) -> String {
+    format!(
+        "{} {} {}",
+        format_count(locale, rows),
+        count_label(locale, CountNoun::Entry, rows),
+        t(locale, TextKey::LoadingRowsSoFar)
+    )
+}
+
 /// Maps a `QueryPhase` to the user-facing loading-state label.
 pub fn query_phase_text(locale: Locale, phase: QueryPhase) -> &'static str {
     match phase {
@@ -88,6 +123,39 @@ pub fn query_phase_text(locale: Locale, phase: QueryPhase) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_progress_line_counts_in_the_locales_own_way() {
+        // The separator and the plural are the reason this reuses `format_count`
+        // and `count_label` rather than formatting a number itself: 12,345 in
+        // English and 12.345 in German are the same count written differently,
+        // and a hand-rolled `format!` would get one of them wrong.
+        assert_eq!(
+            rows_so_far_text(Locale::En, 12_345),
+            "12,345 Entries so far"
+        );
+        assert_eq!(
+            rows_so_far_text(Locale::De, 12_345),
+            "12.345 Einträge bisher erhalten"
+        );
+    }
+
+    #[test]
+    fn a_count_below_a_thousand_is_not_grouped() {
+        assert_eq!(rows_so_far_text(Locale::En, 7), "7 Entries so far");
+        assert_eq!(rows_so_far_text(Locale::En, 1), "1 Entry so far");
+    }
+
+    /// There is deliberately no percentage, and this is why.
+    #[test]
+    fn the_progress_line_never_claims_to_know_the_total() {
+        let text = rows_so_far_text(Locale::En, 12_345);
+        assert!(
+            !text.contains('%') && !text.contains("of"),
+            "the endpoint does not say how many rows a query will produce, so any \
+             denominator is invented: {text}"
+        );
+    }
 
     #[test]
     fn preparing_phase_uses_generic_loading_title() {

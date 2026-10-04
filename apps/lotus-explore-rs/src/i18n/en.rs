@@ -54,6 +54,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::LoadingResolvingReference => "Resolving reference...",
         TextKey::LoadingResolvingTaxon => "Resolving taxon...",
         TextKey::LoadingFetchingResults => "Fetching results...",
+        TextKey::LoadingRowsSoFar => "so far",
         TextKey::LoadingProcessingResults => "Processing result counts...",
         TextKey::LoadingRendering => "Rendering table...",
         TextKey::Retry => "Retry",

@@ -217,3 +217,91 @@ fn dispatch_no_op_does_not_change_state() {
     );
     assert_eq!(next.lifecycle.query_phase, state.lifecycle.query_phase);
 }
+
+/// Progress counts up, and never down.
+#[test]
+fn search_progress_is_monotonic_within_a_search() {
+    let mut state = default_state();
+    state = reduce(
+        state,
+        ExploreAction::SearchRequested {
+            criteria_snapshot: SearchCriteria::up_to_year(crate::clock::current_year()),
+            command: SearchCommand::Interactive,
+        },
+    );
+
+    for rows in [10, 5_000, 5_001, 900_000] {
+        state = reduce(state, ExploreAction::SearchProgress { rows });
+        assert_eq!(
+            state.lifecycle.rows_so_far,
+            Some(rows),
+            "{rows} rows should be shown"
+        );
+    }
+    // A chunk that lands out of order -- a retry restarting the fetch, or a
+    // callback from a stale attempt -- must not put a smaller number on screen.
+    state = reduce(state, ExploreAction::SearchProgress { rows: 4_000 });
+    assert_eq!(
+        state.lifecycle.rows_so_far,
+        Some(900_000),
+        "a later report of fewer rows is a stale one, not a smaller result"
+    );
+}
+
+/// A number must not outlive the search that produced it.
+#[test]
+fn search_progress_is_cleared_when_the_search_ends() {
+    let mut state = default_state();
+    state = reduce(
+        state,
+        ExploreAction::SearchRequested {
+            criteria_snapshot: SearchCriteria::up_to_year(crate::clock::current_year()),
+            command: SearchCommand::Interactive,
+        },
+    );
+    state = reduce(state, ExploreAction::SearchProgress { rows: 12_345 });
+    assert_eq!(state.lifecycle.rows_so_far, Some(12_345));
+
+    state = reduce(
+        state,
+        ExploreAction::SearchFailed {
+            error: DomainError::Validation(ValidationFault::EmptyInput),
+            query: None,
+        },
+    );
+    assert_eq!(
+        state.lifecycle.rows_so_far, None,
+        "a finished search must not leave a row count on the overlay"
+    );
+
+    // And a report arriving after the fact is dropped rather than shown.
+    state = reduce(state, ExploreAction::SearchProgress { rows: 900_000 });
+    assert_eq!(state.lifecycle.rows_so_far, None);
+}
+
+/// A new search starts from nothing, not from the last one's total.
+#[test]
+fn a_new_search_clears_the_previous_progress() {
+    let mut state = default_state();
+    state = reduce(
+        state,
+        ExploreAction::SearchRequested {
+            criteria_snapshot: SearchCriteria::up_to_year(crate::clock::current_year()),
+            command: SearchCommand::Interactive,
+        },
+    );
+    state = reduce(state, ExploreAction::SearchProgress { rows: 900_000 });
+    state = reduce(state, ExploreAction::SearchPhaseChanged(QueryPhase::Idle));
+
+    state = reduce(
+        state,
+        ExploreAction::SearchRequested {
+            criteria_snapshot: SearchCriteria::up_to_year(crate::clock::current_year()),
+            command: SearchCommand::Interactive,
+        },
+    );
+    assert_eq!(
+        state.lifecycle.rows_so_far, None,
+        "the previous search's count would otherwise read as this one's"
+    );
+}

@@ -25,6 +25,12 @@ pub struct SearchLifecycleState {
     pub download_only_mode: bool,
     pub download_dispatching: bool,
     pub search_request_token: u64,
+    /// Rows folded into the set so far, while a search is still running.
+    ///
+    /// `None` outside a fetch. There is deliberately no percentage and no
+    /// expected total: the endpoint does not say how many rows a query will
+    /// produce before it produces them, so any denominator would be invented.
+    pub rows_so_far: Option<usize>,
 }
 
 impl Default for SearchLifecycleState {
@@ -37,6 +43,7 @@ impl Default for SearchLifecycleState {
             download_only_mode: false,
             download_dispatching: false,
             search_request_token: 0,
+            rows_so_far: None,
         }
     }
 }

@@ -55,6 +55,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::LoadingResolvingReference => "Risoluzione del riferimento...",
         TextKey::LoadingResolvingTaxon => "Risoluzione del taxon...",
         TextKey::LoadingFetchingResults => "Recupero risultati...",
+        TextKey::LoadingRowsSoFar => "finora",
         TextKey::LoadingProcessingResults => "Elaborazione dei conteggi risultati...",
         TextKey::LoadingRendering => "Rendering della tabella...",
         TextKey::Retry => "Riprova",

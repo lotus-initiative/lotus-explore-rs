@@ -128,6 +128,12 @@ pub enum TextKey {
     LoadingResolvingStructure,
     LoadingResolvingReference,
     LoadingFetchingResults,
+    /// Trailing half of the progress line: "12,345 entries so far".
+    ///
+    /// Its own key because the number leads in all four locales but the word
+    /// order around it does not, and `t` returns a `&'static str` so there is no
+    /// format string to interpolate into.
+    LoadingRowsSoFar,
     LoadingProcessingResults,
     LoadingRendering,
     Retry,
