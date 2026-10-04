@@ -225,11 +225,24 @@ fn describe_js_error(what: &str, error: &JsValue) -> String {
 // because it lets the reader choose where the file goes and does not need a temp file.
 
 /// Whether this browser can write to the Origin Private File System.
+///
+/// On `navigator.storage`, not on `window`. There is no `window.storage`, so
+/// reading it found a missing property, and `Reflect::get` reports a missing
+/// property as `Ok(undefined)` rather than as an error -- which made the old
+/// chain `Ok(Reflect::get(undefined, "getDirectory")).is_ok()`, and that is
+/// always true. So this claimed OPFS was available everywhere, and
+/// [`OpfsSink::open`] then failed on the same wrong path for every export, on
+/// every browser: the OPFS sink could never be selected and every download fell
+/// through to the in-memory blob path.
+///
+/// Hence `is_function()` rather than `is_ok()`. Asking whether a property is
+/// present by asking whether fetching it errored is the bug, and it is worth
+/// spelling out at the one place it appeared.
 #[must_use]
 pub fn opfs_available() -> bool {
     web_sys::window().is_some_and(|window| {
-        js_sys::Reflect::get(&window, &"storage".into())
-            .is_ok_and(|storage| js_sys::Reflect::get(&storage, &"getDirectory".into()).is_ok())
+        js_sys::Reflect::get(&window.navigator().storage(), &"getDirectory".into())
+            .is_ok_and(|get_directory| get_directory.is_function())
     })
 }
 
@@ -346,10 +359,12 @@ const EXPORTS_DIR: &str = "lotus-exports";
 /// `navigator.storage.getDirectory()`.
 async fn opfs_root() -> Result<JsValue, String> {
     let storage = web_sys::window()
-        .and_then(|window| Reflect::get(&window, &"storage".into()).ok())
-        .ok_or_else(|| "this browser exposes no storage".to_string())?;
+        .map(|window| window.navigator().storage())
+        .ok_or_else(|| "this browser exposes no origin private file system".to_string())?;
     let get_directory: js_sys::Function = Reflect::get(&storage, &"getDirectory".into())
-        .map_err(|_| "this browser cannot write to the origin private file system".to_string())?
+        .ok()
+        .filter(|value| value.is_function())
+        .ok_or_else(|| "this browser cannot write to the origin private file system".to_string())?
         .unchecked_into();
     let root: JsValue = get_directory
         .call0(&storage)

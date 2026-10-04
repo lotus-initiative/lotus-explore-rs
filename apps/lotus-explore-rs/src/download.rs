@@ -323,3 +323,63 @@ mod blob_limit_tests {
         );
     }
 }
+
+/// A gate on the OPFS availability check, which no behavioural test can reach.
+///
+/// The check lives in a `wasm32`-only module, so a test beside it would never
+/// run -- and the bug it guards was invisible to a type checker and to review,
+/// because `Reflect::get(...).is_ok()` compiles and reads like a presence test.
+/// It is not one: reading an absent property returns `Ok`, so the old expression
+/// was a tautology. That claimed OPFS existed everywhere, and every export then
+/// failed to open it and fell back to the in-memory path below, which is how an
+/// iPhone ended up refusing a million rows at a ceiling meant for browsers that
+/// cannot write to disk at all.
+///
+/// So this reads the source, for the same reason `SinkPreference` lives here.
+///
+/// A check that cannot fail is worse than no check, which is why the shape of it
+/// is written down rather than left to the next reader.
+#[cfg(test)]
+mod opfs_availability_gate {
+    /// The wasm-only module, as text. Compiled here only to be read.
+    const SOURCE: &str = include_str!("download/file_sink.rs");
+
+    #[test]
+    fn availability_is_read_from_navigator_not_window() {
+        assert!(
+            !SOURCE.contains(r#"Reflect::get(&window, &"storage""#),
+            "there is no `window.storage`; the origin private file system is \
+             `navigator.storage`, so this reads a property that does not exist"
+        );
+        assert!(
+            SOURCE.contains("navigator().storage()"),
+            "OPFS availability should be read from `navigator().storage()`"
+        );
+    }
+
+    #[test]
+    fn presence_is_not_tested_by_asking_whether_fetching_threw() {
+        // `Reflect::get` reports a missing property as `Ok(undefined)`, so
+        // `.is_ok()` on its result is true for a browser that has never heard of
+        // OPFS. Both the check and the lookup have to test for a function.
+        assert!(
+            !SOURCE.contains(r#""getDirectory".into()).is_ok()"#),
+            "`Reflect::get` returns Ok for a missing property, so this claims \
+             OPFS exists wherever it does not"
+        );
+        // Both call sites are named rather than counted. A count was the first
+        // spelling of this assertion and it counted the sentence in the module
+        // doc that explains why `is_function()` is there, which is a test that
+        // fails whenever the explanation is reworded.
+        assert!(
+            SOURCE.contains("is_ok_and(|get_directory| get_directory.is_function())"),
+            "the availability check has to test for a function rather than for \
+             the absence of an error"
+        );
+        assert!(
+            SOURCE.contains(".filter(|value| value.is_function())"),
+            "the directory lookup has to test for a function too, or it \
+             `unchecked_into`s an undefined value into a `js_sys::Function`"
+        );
+    }
+}
