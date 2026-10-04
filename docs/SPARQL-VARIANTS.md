@@ -160,3 +160,39 @@ replaced by:
 **Measure the row count as well as the time.** A form that is faster because it
 joins less is not an optimisation, and a timing on its own cannot tell the
 difference.
+## Projection: a column nothing read
+
+The query above projects fifteen variables. One of them, `?ref`, was read by
+nothing: no parser column resolves it, and no export format emits it. It was the
+largest single column in an unnarrowed result -- 54.3 MB of a 400 MB payload,
+13.6% -- and it was being computed by QLever, serialised, and sent on every one of
+723,990 rows.
+
+Dropping it from the outer `SELECT` is free for the Turtle export, which is not
+obvious and is worth being exact about. `construct_from_select` replaces the text
+from the first `SELECT` to the first `WHERE` with a hardcoded `CONSTRUCT`
+template, so the projection is discarded -- but the template still *names* `?ref`,
+in `?statement prov:wasDerivedFrom ?ref` and `?ref pr:P248 ?r`. Those triples are
+emitted only if `?ref` is still bound, and it is: the innermost pattern contains
+`?ref pr:P248 ?r`, which binds it regardless of what the projection says. A
+`CONSTRUCT` naming an unbound variable emits nothing for it and says nothing, so
+this is the half that could have gone quietly wrong.
+
+Measured on `Q21754`, the taxon used above, so it is comparable with the numbers
+in this file. Both queries against the live endpoint, `Accept-Encoding: gzip`:
+
+| Form | rows | raw | wire | wall |
+|---|---|---|---|---|
+| projecting `?ref` | 32,160 | 18,385,046 | 4,215,824 | 4.95 s |
+| **not projecting it** | **32,160** | **15,973,042** | **3,522,695** | **3.31 s** |
+
+13.1% off the decompressed payload, 16.4% off the wire, 33% off wall clock. The
+row count is unchanged and every row is byte-identical once the dropped column is
+removed from the old response, which was checked rather than assumed. The two
+`CONSTRUCT` queries are byte-identical files.
+
+Note what this is *not*: it is not a change to the query's shape. The subqueries,
+the joins and the `DISTINCT` are untouched, so none of the completeness argument
+above applies and none of it needs re-running. It is the cheapest kind of win
+available -- a projected variable is not free, and this one was projected for
+nobody.

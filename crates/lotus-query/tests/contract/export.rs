@@ -687,3 +687,81 @@ fn the_projection_is_exactly_the_columns_the_parser_is_told_about() {
         );
     }
 }
+
+/// The Turtle export is decided by the `CONSTRUCT` template and the `WHERE`,
+/// and by nothing the outer projection says.
+///
+/// This is the property that makes it safe to stop projecting a column the CSV
+/// path never reads. `construct_from_select` is string surgery: it replaces the
+/// text from the first `SELECT` to the first `WHERE` with a hardcoded template,
+/// and keeps everything from that `WHERE` onwards. So a variable dropped from the
+/// projection is invisible to the Turtle -- *provided it is still bound*, which is
+/// the half that is easy to get wrong and which no assertion about the template
+/// would catch.
+#[test]
+fn the_turtle_export_does_not_depend_on_what_the_projection_projects() {
+    let base = compounds_by_taxon_query("Q16521");
+    let expected = construct_from_select(&base);
+
+    // Rewrite the projection three ways -- add a variable, drop one, reorder --
+    // and require the same Turtle every time.
+    let with_extra = base.replacen(
+        "SELECT DISTINCT",
+        "SELECT DISTINCT\n  ?compound_formula_raw",
+        1,
+    );
+    let without_one = base.replacen("  ?taxon_name\n", "", 1);
+    let reordered = base.replacen(
+        "  ?compoundLabel\n  ?compound_inchikey\n",
+        "  ?compound_inchikey\n  ?compoundLabel\n",
+        1,
+    );
+
+    for (what, mutated) in [
+        ("an extra projected variable", &with_extra),
+        ("a dropped projected variable", &without_one),
+        ("two projected variables swapped", &reordered),
+    ] {
+        assert_ne!(
+            mutated.as_str(),
+            base.as_str(),
+            "{what}: the mutation did not apply"
+        );
+        assert_eq!(
+            construct_from_select(mutated),
+            expected,
+            "{what} changed the Turtle export, so the projection is not free to \
+             change: something downstream reads it."
+        );
+    }
+}
+
+/// `?ref` is in the `CONSTRUCT` template and is bound by the `WHERE`, which is
+/// why dropping it from the projection is free.
+///
+/// The template emits `?statement prov:wasDerivedFrom ?ref` and `?ref pr:P248 ?r`.
+/// A `CONSTRUCT` whose template names a variable the `WHERE` never binds emits
+/// neither triple and says nothing -- `QLever` drops the solutions and the export is
+/// quietly missing the provenance it exists to carry. So both halves are pinned:
+/// the template still names `?ref`, and the spliced body still binds it.
+#[test]
+fn the_turtle_export_still_binds_every_variable_its_template_names() {
+    let construct = construct_from_select(&compounds_by_taxon_query("Q16521"));
+
+    assert!(
+        construct.contains("prov:wasDerivedFrom ?ref ."),
+        "the template's provenance triple is gone"
+    );
+
+    // The body is everything from the CONSTRUCT's closing brace onwards, which is
+    // where the source query's WHERE was spliced in.
+    let body = construct
+        .split_once("}\n")
+        .expect("a CONSTRUCT template and a body")
+        .1;
+    assert!(
+        body.contains("?ref pr:P248 ?r"),
+        "?ref is named by the template but no longer bound by the body, so both \\
+         provenance triples would be dropped silently"
+    );
+}

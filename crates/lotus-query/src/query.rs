@@ -201,7 +201,13 @@ PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
 /// `compound_smiles_conn` and `compound_smiles_iso` are both here because both
 /// are projected and the parser picks between them; a single coalesced column
 /// would replace the pair rather than sit beside it.
-pub const SELECT_COLUMNS: [&str; 15] = [
+///
+/// `?ref` is projected by neither, and is bound in the WHERE by `CORE_VARS`
+/// because the Turtle `CONSTRUCT` template needs it. It used to be projected as
+/// well, which cost 54 MB on a 400 MB unnarrowed result -- the single largest
+/// column, and one no parser read and no format showed. Projecting a variable is
+/// not free: `QLever` computes it, serialises it and sends it on every row.
+pub const SELECT_COLUMNS: [&str; 14] = [
     "compound",
     "compoundLabel",
     "compound_inchikey",
@@ -212,7 +218,6 @@ pub const SELECT_COLUMNS: [&str; 15] = [
     "taxon",
     "taxon_name",
     "ref_qid",
-    "ref",
     "ref_title",
     "ref_doi",
     "ref_date",
@@ -236,7 +241,6 @@ SELECT DISTINCT
   (xsd:integer(STRAFTER(STR(?t), "Q")) AS ?taxon)
   ?taxon_name
   (xsd:integer(STRAFTER(STR(?r), "Q")) AS ?ref_qid)
-  ?ref
   ?ref_title
   ?ref_doi
   ?ref_date

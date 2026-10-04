@@ -147,9 +147,6 @@ fn query_dialect_csv(set: &ColumnarResultSet) -> String {
             entry.taxon_qid.to_string(),
             entry.taxon_name.to_string(),
             entry.reference_qid.to_string(),
-            // `?ref` is projected beside `?ref_qid` and the parser reads only the
-            // latter, so the URI form is what a real response carries here.
-            String::new(),
             entry.ref_title.as_deref().unwrap_or_default().to_string(),
             entry.ref_doi.as_deref().unwrap_or_default().to_string(),
             entry.pub_year.map_or_else(String::new, |y| y.to_string()),
