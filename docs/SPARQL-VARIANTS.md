@@ -9,41 +9,87 @@ The queries themselves come from `lotus search --explain`, which builds the quer
 without sending it. That is the only reason this file is possible without adding
 code: the harness reads what the application would actually send.
 
-## The measurement that mattered
+## The measurements
 
-**Nomenclature closure: two subqueries, or one interleaved property path?**
+Taxon `Q21754` (*Gentianales*), nomenclature all on. Completeness is measured
+first and separately from speed, because a variant that is faster because it
+joins less is not an optimisation. 2026-10-04.
 
-This is the question `docs/QUERY_MATRIX.md` leaves open, and the one
-`nomenclature_path` in `crates/lotus-query/src/query.rs` answers with a comment
-rather than a measurement. Taxon `Q21754` (*Gentianales*), nomenclature all on,
-2 repeats, 2026-10-04.
+### Step 1 — completeness, via `COUNT` (cheap, not subject to result truncation)
 
-| Form | Server `query-time-ms` | Wall | Result rows |
-|---|---|---|---|
-| **two subqueries (current)** — expand the seed's nomenclatural closure, then `P171*` down from each result | **12,281** | 19.00 s | **32,160** |
-| **interleaved** — one path, `?t (wdt:P171*|(SYN…)*) wd:Q21754 .` | **9,911** | 15.42 s | **32,032** |
+| Form | distinct compounds | total rows |
+|---|---|---|
+| two subqueries (current) | **11,087** | 27,952 |
+| interleaved single path | 11,008 | 27,831 |
 
-**The interleaved form is 19% faster and returns 128 fewer rows.** The two forms
-do not agree, so this is not a free win and the current form stays. The saving is
-real and the disagreement is the reason not to take it: a query form that returns
-a slightly different answer for 19% less time is a correctness question wearing a
-performance costume, and the difference is invisible to a reader who has no way to
-know which set they were shown.
+**The interleaved form loses 79 distinct compounds.** It is disqualified, and
+this is the number that decides it. A 19% speed advantage on a form that answers
+a different question is not an optimisation.
 
-### This corroborates the code comment, with a caveat about units
+This corroborates the argument already in `nomenclature_path`, which cites "11009
+compounds against 11088 for the subquery form" on this same taxon. Today's figures
+are 11,008 and 11,087 — each within one of the recorded pair, so the comment was
+accurate and has drifted only with the graph. **Recommend fixing the comment's
+figures**, or dropping them and keeping the argument, which stands without them.
 
-`nomenclature_path` already argues for the subquery form, and cites
-"On `Gentianales` (Q21754) that is 11009 compounds against 11088 for the
-subquery form". That is the same taxon and the same direction — interleaved
-returns fewer — and this measurement reproduces the direction on current data.
+### Step 2 — a third form that is both complete and faster
 
-The caveat: **the comment counts compounds and this table counts result rows.**
-A row is a compound * taxon * reference, so 32,160 rows is not 32,160 compounds
-and the two figures are not comparable to each other. Anyone reading the comment
-next to this file will see two numbers for one taxon and reasonably assume they
-measure the same thing. **Recommend updating the comment** to say which unit it
-is, or to drop the figures and keep the argument, which stands on its own without
-them.
+`VALUES ?root { … }` inlined, where the list is the seed's nomenclatural closure
+computed once beforehand instead of by a subquery at query time.
+
+The closure for this taxon is **two taxa** — `Q21754` and one synonym,
+`Q2102991` — which is what `nomenclature_path` predicts ("a handful of items, not
+a subtree; measured at 1 to 2 hops on every taxon tested").
+
+| Form | distinct compounds | total rows | **server ms** | wall |
+|---|---|---|---|---|
+| two subqueries (current) | 11,087 | 32,160 | 9,716 | 61.85 s |
+| interleaved | 11,008 — lossy | — | — | — |
+| **inlined `VALUES`** | **11,087** | **32,160** | **4,860** | **41.90 s** |
+
+**This is the answer to the question: the inlined form returns byte-identical row
+counts and runs in half the time.** 50% off the endpoint's compute, 32% off wall
+clock including result transfer.
+
+The saving is far larger on the full query (4,856 ms) than on the bare `COUNT`
+(528 ms), which is the interesting part. Removing a join *early* in a query that
+then computes `DISTINCT` over fourteen projected columns saves a great deal of
+duplicate intermediate work — the `COUNT` never pays that cost, so a count-based
+comparison would have understated this by an order of magnitude. **Compare on the
+query the application actually sends.**
+
+### The cost, stated plainly
+
+Computing the closure costs **1,316 ms** — one extra round trip — so a naive
+implementation is 1,316 ms to save 4,856 ms: a net win of ~3.5 s on this query,
+but only if the closure is not recomputed per search.
+
+It does not have to be. The closure is a function of `(taxon, nomenclature)` alone
+and does not depend on any user filter, so it is cacheable per taxon. Amortised,
+the cost is ~0 and the saving is the full 4.9 s per search.
+
+**Why this is not simply committed:** it changes what the query *is*. The query
+text stops being a pure function of the form input and becomes a function of
+`(taxon, nomenclature, closure-at-time-T)`. Consequences, all of which a caller
+has to agree to:
+
+1. **A new network round trip in the query-build path**, and therefore a new
+   failure mode. If the closure lookup fails there must be a fallback to the
+   subquery form, or the search fails for a reason that has nothing to do with the
+   search.
+2. **An empty closure must be guarded.** A `VALUES` list with nothing in it is a
+   valid query that returns nothing — a silent wrong answer rather than an error.
+   The seed is always in its own closure, so this should not happen, and "should
+   not happen" is not a guard.
+3. **Nomenclature off costs nothing** — `nomenclature_path` already returns `None`
+   and there is no closure to resolve — so the extra round trip applies only to the
+   cases where relationships are enabled.
+4. The query remains **self-contained and pasteable** (the `VALUES` are literal in
+   the text), so `docs/cli.md`'s promise still holds. This is the one risk that
+   turns out not to be real.
+
+Both front ends and the cache keys change, because the query text changes. First
+search after a deploy misses cache, which is expected.
 
 ## What was not measured, and why
 

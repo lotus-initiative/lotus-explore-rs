@@ -266,7 +266,39 @@ the former. A crate-wide `pub` audit is a judgement call about which surface to
 keep, and it should be made by someone who knows which of these are conveniences
 for the next feature.
 
-## 16. Two crates could not be mutation tested until one line each
+## 16. A complete query form exists that is 50% faster, and adopting it is a decision
+
+Measured on `Q21754`, full query, 2026-10-04. Inlining the seed's nomenclatural
+closure as a literal `VALUES ?root { … }` list instead of computing it in a
+subquery returns **identical** results — 32,160 rows, 11,087 distinct compounds —
+in **4,860 ms instead of 9,716 ms**.
+
+The interleaved alternative is faster still on paper but **loses 79 distinct
+compounds** (11,008), so it is not a candidate. Full numbers in
+`docs/SPARQL-VARIANTS.md`.
+
+**This is a decision rather than a change because it moves work, not code.** The
+closure has to be resolved before the query is built, which means:
+
+- a new round trip in the query-build path (1,316 ms for this taxon), which must be
+  cached per `(taxon, nomenclature)` to be worth it — otherwise it is 1.3 s to
+  save 4.9 s, which is still a win but a much smaller one
+- a fallback when the closure lookup fails, or searches fail for an unrelated
+  reason
+- a guard for an empty closure, because an empty `VALUES` is a valid query that
+  returns nothing
+- new cache keys, so a first search after deploy misses
+
+Nomenclature-off costs nothing: there is no closure to resolve. The query stays
+self-contained and pasteable, so `docs/cli.md` is unaffected.
+
+**Recommend:** implement it, behind the existing taxon cache, with the empty-
+closure guard treated as a bug rather than an impossibility. Worth roughly half
+the endpoint's compute on every taxon search, which is the most expensive thing in
+the request. I stopped short of writing it because it touches the search pipeline
+in three crates while another agent is working in this repository.
+
+## 17. Two crates could not be mutation tested until one line each
 
 `cargo test -p lotus-search` did not compile on its own — see the `lotus-search`
 commit for the full account; the fix was a dev-dependency on self.
