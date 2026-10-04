@@ -144,3 +144,159 @@ mod tests {
         assert_ne!(build_export_cache_key("abc"), build_export_cache_key("cba"));
     }
 }
+
+/// How long a cache key takes to build, and where that time goes.
+///
+/// Release profile, and `#[ignore]`d like `lotus-query`'s `bench.rs`: a benchmark
+/// that fails on a loaded machine is a test that gets deleted, so this prints and
+/// asserts nothing.
+///
+/// ```bash
+/// cargo test -p lotus-explore-rs --release -- --ignored --nocapture bench_cache_key
+/// ```
+///
+/// The queries are built with the real `lotus-query` builders rather than pasted in
+/// as literals, for two reasons: the sizes are then the sizes the app actually
+/// hashes rather than sizes someone guessed, and a 2 KB string per case does not
+/// sit in the source file.
+///
+/// **Size is the variable that matters here.** The key is hashed per request from
+/// the query text, so the cost is a function of how long the query is -- and the
+/// twelve argument combinations in `docs/QUERY_MATRIX.md` span roughly 2.2 KB to
+/// 2.7 KB, while a filter-heavy query is longer again. A single "average" number
+/// would say nothing about whether this is worth touching.
+///
+/// Split three ways, because they have different fixes: the SHA-256 itself, the
+/// hex encoding, and the `format!` that wraps the result in its prefix. The hex
+/// loop pushes two chars per byte through an `Option`, which is the part a reader
+/// would suspect first.
+///
+/// Median and spread rather than a mean: the distribution is dominated by the
+/// allocator, and one slow sample moves a mean much further than a median.
+#[cfg(test)]
+mod bench {
+    use super::{build_export_cache_key, build_search_cache_key};
+    use sha2::{Digest, Sha256};
+    use std::time::Instant;
+
+    const SAMPLES: usize = 50;
+
+    /// A query per interesting size, from the real builders where one fits.
+    fn queries() -> Vec<(&'static str, String)> {
+        let mut out: Vec<(&'static str, String)> = vec![
+            (
+                "tiny (a lookup, not a search)",
+                lotus_query::taxon_lookup_query("Gentiana lutea"),
+            ),
+            (
+                "everything, occurrence optional",
+                lotus_query::all_compounds_including_untaxonomised_query(),
+            ),
+            (
+                "one taxon (matrix cell 5)",
+                lotus_query::compounds_by_taxon_query("Q16521"),
+            ),
+            (
+                "taxon + nomenclature closure",
+                lotus_query::compounds_by_taxon_query_with(
+                    "Q16521",
+                    &lotus_query::Nomenclature::ALL_ON,
+                ),
+            ),
+        ];
+
+        // A structure search carries the whole SERVICE block, so it is the longest
+        // of the twelve and the one worth seeing at the top of the range.
+        out.push((
+            "structure search (longest of the twelve)",
+            lotus_query::structure_search_query(
+                "CC(=O)Oc1ccccc1C(=O)O",
+                lotus_model::SmilesSearchType::Similarity,
+                0.7,
+                None,
+            ),
+        ));
+
+        // And one far past anything the app builds, to show the curve is linear
+        // rather than hiding a cliff at the sizes actually used.
+        let base = lotus_query::compounds_by_taxon_query("Q16521");
+        out.push(("synthetic 16x (past any real query)", base.repeat(16)));
+
+        out
+    }
+
+    /// `(median, min, max)`. Iterator access rather than indexing, because the
+    /// workspace denies `clippy::indexing_slicing`.
+    fn median_ns(mut samples: Vec<u128>) -> (u128, u128, u128) {
+        samples.sort_unstable();
+        let mid = samples.len() / 2;
+        (
+            samples
+                .get(mid)
+                .copied()
+                .expect("SAMPLES is a non-zero const"),
+            *samples.first().expect("SAMPLES is a non-zero const"),
+            *samples.last().expect("SAMPLES is a non-zero const"),
+        )
+    }
+
+    #[test]
+    #[ignore = "a benchmark: prints its numbers, asserts nothing"]
+    fn bench_cache_key() {
+        let cases = queries();
+
+        println!("\ncache-key construction, {SAMPLES} samples, nanoseconds");
+        println!(
+            "{:<40} {:>7} {:>9} {:>9} {:>9} {:>9}",
+            "query", "bytes", "export", "search", "sha256", "hex"
+        );
+
+        for (name, query) in &cases {
+            // One untimed round each, so the first timed round is not paying for a
+            // cold allocator.
+            let _ = build_export_cache_key(query);
+            let _ = build_search_cache_key(query, 500, true);
+
+            let mut export = Vec::with_capacity(SAMPLES);
+            let mut search = Vec::with_capacity(SAMPLES);
+            let mut hash = Vec::with_capacity(SAMPLES);
+            let mut hex = Vec::with_capacity(SAMPLES);
+            let bytes = query.as_bytes();
+
+            for _ in 0..SAMPLES {
+                let start = Instant::now();
+                let key = build_export_cache_key(query);
+                export.push(start.elapsed().as_nanos());
+                std::hint::black_box(key);
+
+                let start = Instant::now();
+                let key = build_search_cache_key(query, 500, true);
+                search.push(start.elapsed().as_nanos());
+                std::hint::black_box(key);
+
+                // The two halves the key is built from, measured on their own so
+                // the split is visible rather than inferred.
+                let start = Instant::now();
+                let digest = Sha256::digest(bytes);
+                hash.push(start.elapsed().as_nanos());
+
+                let start = Instant::now();
+                let encoded = super::sha256_hex(digest);
+                hex.push(start.elapsed().as_nanos());
+                std::hint::black_box(encoded);
+            }
+
+            let (e, _, _) = median_ns(export);
+            let (s, _, _) = median_ns(search);
+            let (h, _, _) = median_ns(hash);
+            let (x, _, _) = median_ns(hex);
+            println!("{name:<40} {:>7} {e:>9} {s:>9} {h:>9} {x:>9}", query.len());
+        }
+
+        println!(
+            "\n`export` and `search` include the hex encoding and the prefix `format!`.\n\
+             A key is built once per request and once per export, so compare against\n\
+             the network round trip it sits in front of rather than in isolation."
+        );
+    }
+}
