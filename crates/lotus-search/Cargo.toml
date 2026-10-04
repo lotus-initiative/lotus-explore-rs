@@ -18,6 +18,24 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
+# This crate, on itself, to turn on `testing` for its own tests.
+#
+# `tests/search_pipeline.rs` and `tests/search_columnar.rs` both import
+# `lotus_search::testing`, which is behind `#[cfg(feature = "testing")]` -- on
+# purpose, because a test double is not part of a consumer's API. But nothing in
+# this manifest enabled it, so the crate's own test suite did not compile:
+#
+#   error[E0432]: unresolved import `lotus_search::testing`
+#
+# It passed in CI only because `lotus-curation` depends on `lotus-search` with
+# `features = ["testing"]`, and a workspace build unifies that into every member.
+# The suite therefore worked by accident of what else happened to be in the
+# workspace, and `cargo test -p lotus-search` on its own -- or `cargo mutants -p
+# lotus-search`, which builds the package alone -- failed outright.
+#
+# A dev-dependency on self is the supported way to say "my tests need this
+# feature" without turning it on for consumers.
+lotus-search = { workspace = true, features = ["testing"] }
 
 # The retry backoff needs a timer. wasm has no reactor, so it blocks instead
 # and does not need tokio at all -- which is what keeps this crate wasm-clean.

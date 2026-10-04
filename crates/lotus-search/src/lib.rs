@@ -8,6 +8,14 @@
 // here is `!Send` when built for wasm. Native keeps the guarantee; see the
 // workspace's `nursery` note on why the deny is worth keeping.
 #![cfg_attr(target_arch = "wasm32", allow(clippy::future_not_send))]
+// This crate dev-depends on itself to turn on `testing` for its own tests; see the
+// comment on that line in `Cargo.toml`. Cargo cannot express a dev-dependency that
+// only applies to this crate's integration tests, so the lib target links the
+// self-dependency without naming it and `unused_crate_dependencies` reports it.
+// The lint stays denied workspace-wide, where it still catches real dead
+// dependencies in the other crates -- the same trade `apps/lotus-explore-rs`
+// makes for its feature-gated `tower` test dependency.
+#![allow(unused_crate_dependencies)]
 
 mod client;
 mod error;
