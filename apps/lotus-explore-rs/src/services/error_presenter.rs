@@ -80,6 +80,7 @@ pub fn error_hint_text(locale: Locale, kind: ErrorKind) -> &'static str {
         ErrorKind::Network => t(locale, TextKey::ErrorHintNetwork),
         ErrorKind::RateLimit => t(locale, TextKey::ErrorHintRateLimit),
         ErrorKind::Parse => t(locale, TextKey::ErrorHintParse),
+        ErrorKind::Truncated => t(locale, TextKey::ErrorHintTruncated),
         #[cfg(target_arch = "wasm32")]
         ErrorKind::Memory => "",
         ErrorKind::Unknown => t(locale, TextKey::ErrorHintUnknown),
@@ -103,6 +104,10 @@ fn transport_error_summary(locale: Locale, source: &RepositoryError) -> String {
     let raw = match source {
         RepositoryError::NotConfigured => return err_api_not_configured(locale),
         RepositoryError::Network(detail) | RepositoryError::Parse(detail) => detail.as_ref(),
+        // Summarised as its own sentence rather than passed through: the raw
+        // message leads with a byte count, which reads as a stray number to
+        // anyone who has not just watched the transfer stall.
+        RepositoryError::Truncated(_) => return t(locale, TextKey::ErrorHintTruncated).to_string(),
         RepositoryError::Http { status, body } => {
             let detail = if looks_like_html(body) {
                 if *status == 429 {

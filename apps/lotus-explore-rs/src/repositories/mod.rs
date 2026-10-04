@@ -32,6 +32,15 @@ pub enum RepositoryError {
 
     #[error("parse error: {0}")]
     Parse(Arc<str>),
+
+    /// A result set that stopped short of what the query asked for.
+    ///
+    /// Its own variant rather than a [`RepositoryError::Network`] because a
+    /// caller must be able to tell "nothing came" from "some of it came, and
+    /// that is not the same as all of it". Collapsing the two is how a search
+    /// ends up reporting the row count of whatever bytes survived.
+    #[error("incomplete result set: {0}")]
+    Truncated(Arc<str>),
 }
 
 impl RepositoryError {
@@ -41,6 +50,10 @@ impl RepositoryError {
 
     pub fn parse(message: impl Into<Arc<str>>) -> Self {
         Self::Parse(message.into())
+    }
+
+    pub fn truncated(message: impl Into<Arc<str>>) -> Self {
+        Self::Truncated(message.into())
     }
 }
 

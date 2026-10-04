@@ -71,6 +71,9 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::ErrorHintParse => {
             "Antwort konnte nicht verarbeitet werden. Erneut versuchen oder Abfrage verfeinern."
         }
+        TextKey::ErrorHintTruncated => {
+            "Diese Ergebnismenge wurde abgebrochen; die angezeigten Zeilen sind nicht die vollständige Antwort. Suche einschränken, um sie abzuschließen."
+        }
         TextKey::ErrorHintUnknown => "Unerwarteter Fehler. Ein erneuter Versuch kann helfen.",
         TextKey::WelcomeLeadA => {
             "Diese Anwendung veranschaulicht die Leistungsfähigkeit verknüpfter offener Daten, indem sie chemische Entitäten mit biologischen Organismen und wissenschaftlicher Literatur verknüpft. "

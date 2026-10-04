@@ -185,6 +185,10 @@ fn map_fetch_error(err: FetchError) -> RepositoryError {
         },
         FetchError::Network(msg) => RepositoryError::network(msg),
         FetchError::Parse(msg) => RepositoryError::parse(msg),
+        // Deliberately not a network error. `is_qlever_unavailable` reads
+        // `Network` as "the endpoint is down, try WDQS", and a body that stopped
+        // half way says nothing about whether the endpoint is reachable.
+        FetchError::Truncated { .. } => RepositoryError::truncated(err.to_string()),
         FetchError::Empty => RepositoryError::parse("query returned no results"),
     }
 }

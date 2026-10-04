@@ -39,6 +39,9 @@ pub enum ErrorClass {
     QuerySyntax,
     /// Parse error (permanent, don't retry).
     Parse,
+    /// The result set was cut short (permanent for this query, don't retry:
+    /// a retry re-downloads the same prefix and arrives at the same place).
+    Truncated,
     /// Memory pressure in the browser runtime.
     #[cfg(target_arch = "wasm32")]
     Memory,
@@ -57,6 +60,7 @@ impl ErrorClass {
             Self::BadRequest => "bad_request",
             Self::QuerySyntax => "query_syntax",
             Self::Parse => "parse",
+            Self::Truncated => "truncated",
             #[cfg(target_arch = "wasm32")]
             Self::Memory => "memory",
         }
@@ -142,6 +146,17 @@ fn classify_transport_error_recovery(repo_error: &RepositoryError, attempt: u32)
             should_retry: false,
             backoff_ms: None,
             error_class: ErrorClass::Parse,
+        },
+
+        // No retry, and the reason is the whole point of the variant: the
+        // pipeline that produced this had already transferred most of a very
+        // large body by the time it stopped, and retrying restarts from byte
+        // zero. Three attempts is not resilience here, it is three times the
+        // wait the user already sat through.
+        TransportFailureKind::Truncated => RetryDecision {
+            should_retry: false,
+            backoff_ms: None,
+            error_class: ErrorClass::Truncated,
         },
     }
 }
@@ -230,6 +245,43 @@ mod tests {
         assert_eq!(rate_limit_backoff_ms(1), 2_000);
         assert_eq!(rate_limit_backoff_ms(2), 4_000);
         assert_eq!(rate_limit_backoff_ms(6), 10_000); // capped at 10s
+    }
+
+    #[test]
+    fn a_cut_short_result_set_is_not_retried() {
+        // The distinction the whole `Truncated` variant exists to draw. A network
+        // error is retried; this is a network error that arrived after most of a
+        // very large body had been transferred, and retrying it means
+        // re-transferring all of that to be cut off in the same place. Three
+        // attempts is not resilience, it is three times the wait.
+        let err = DomainError::Transport {
+            stage: QueryStage::ResultsQuery,
+            source: RepositoryError::truncated(
+                "the result set was cut short after 512000000 bytes: \
+                 no data arrived within the timeout",
+            ),
+        };
+        let decision = classify_error_recovery(&err, 0);
+        assert!(!decision.should_retry);
+        assert_eq!(decision.backoff_ms, None);
+        assert_eq!(decision.error_class, ErrorClass::Truncated);
+    }
+
+    #[test]
+    fn a_cut_short_result_set_is_not_retried_however_many_attempts_have_gone() {
+        // `attempt` is the retry counter, and a truncation that survives to a
+        // later attempt must still not be retried: it is not a failure that is
+        // getting better.
+        let err = DomainError::Transport {
+            stage: QueryStage::ResultsQuery,
+            source: RepositoryError::truncated("cut short"),
+        };
+        for attempt in 0..4 {
+            assert!(
+                !classify_error_recovery(&err, attempt).should_retry,
+                "attempt {attempt} retried a truncated result set"
+            );
+        }
     }
 
     #[test]

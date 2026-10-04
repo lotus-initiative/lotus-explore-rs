@@ -137,6 +137,7 @@ pub enum TextKey {
     ErrorHintRateLimit,
     ErrorHintBadRequest,
     ErrorHintParse,
+    ErrorHintTruncated,
     ErrorHintUnknown,
     WelcomeLeadA,
     WelcomeLeadB,

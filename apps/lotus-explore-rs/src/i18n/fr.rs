@@ -74,6 +74,9 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::ErrorHintParse => {
             "Échec de lecture de la réponse. Réessayez ou affinez la requête."
         }
+        TextKey::ErrorHintTruncated => {
+            "Ce jeu de résultats a été interrompu : les lignes affichées ne sont pas la réponse complète. Réduisez la recherche pour la terminer."
+        }
         TextKey::ErrorHintUnknown => "Erreur inattendue. Réessayer peut aider.",
         TextKey::WelcomeLeadA => {
             "Cette application démontre la puissance des données ouvertes liées en reliant des entités chimiques à des organismes biologiques et à la littérature scientifique. "

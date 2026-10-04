@@ -24,7 +24,7 @@ mod result;
 mod search;
 
 pub use client::{BodyChunks, ChunkFuture, ChunkedBody, Http, HttpResponse, ResponseBody};
-pub use error::{FetchError, ResponseFormat, is_retryable_status};
+pub use error::{FetchError, ResponseFormat, TruncationReason, is_retryable_status};
 pub use execute::{
     Answer, Endpoint, Service, StreamAnswer, execute, execute_streaming,
     execute_streaming_with_fallback, execute_with_fallback, fetch_url,

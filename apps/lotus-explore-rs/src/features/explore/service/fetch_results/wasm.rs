@@ -78,6 +78,10 @@ pub(super) fn is_probable_memory_limit(err: &DomainError) -> bool {
                 has_memory_signature(detail.as_ref())
             }
             RepositoryError::Http { body, .. } => has_memory_signature(body),
+            // A stalled body is not a body too big to hold. Folding it in here
+            // would offer the user a "narrow your query" hint for a failure
+            // that a narrower query would fix only by accident.
+            RepositoryError::Truncated(_) => false,
         },
         DomainError::Parse(ParseFault::ResultsCsv { details }) => has_memory_signature(details),
         _ => false,

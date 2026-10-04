@@ -63,6 +63,9 @@ optional = true
 bytes = "1.12"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+# The browser has no reactor, so `tokio::time::timeout` does not exist there and
+# the streaming stall watchdog needs a timer of its own.
+gloo-timers = { workspace = true, features = ["futures"] }
 js-sys = { workspace = true }
 # `stream` is what turns the browser's `ReadableStream` into a `Stream` of
 # `Bytes`. Without it there is no way to read a response body a chunk at a time

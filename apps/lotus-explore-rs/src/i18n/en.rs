@@ -69,6 +69,9 @@ pub const fn en_t(key: TextKey) -> &'static str {
             "The server rejected the request. Check your search parameters."
         }
         TextKey::ErrorHintParse => "Response parsing failed. Retry or refine query.",
+        TextKey::ErrorHintTruncated => {
+            "This result set was cut short, so the rows shown are not the whole answer. Narrow the search to finish."
+        }
         TextKey::ErrorHintUnknown => "Unexpected error. Retry may help.",
         TextKey::WelcomeLeadA => {
             "This app demonstrates the power of linked open data by connecting chemical entities to biological organisms and scientific literature. "

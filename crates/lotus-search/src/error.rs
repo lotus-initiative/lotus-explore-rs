@@ -26,6 +26,38 @@ pub enum FetchError {
     /// The endpoint returned nothing.
     #[error("the query returned no results")]
     Empty,
+
+    /// The body stopped before the result set did.
+    ///
+    /// Its own variant rather than [`FetchError::Network`] because the two want
+    /// opposite behaviour. A network failure is worth repeating; this is a body
+    /// that began arriving and then ran out, and repeating it re-downloads
+    /// however many hundreds of megabytes already arrived in order to arrive at
+    /// the same place. It is also not a parse failure: the CSV read fine, there
+    /// is simply less of it than the query asked for, and the only honest
+    /// outcome is to refuse the answer rather than report the part that came.
+    #[error("the result set was cut short after {bytes_read} bytes: {reason}")]
+    Truncated {
+        /// How much of the body did arrive, so the message can say the answer
+        /// was not empty but was also not complete.
+        bytes_read: u64,
+        /// Why the reader gave up on it.
+        reason: TruncationReason,
+    },
+}
+
+/// Why a streamed body stopped short.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub enum TruncationReason {
+    /// No bytes arrived for longer than the stall watchdog allows, so the body
+    /// is alive but going nowhere.
+    #[error("no data arrived within the timeout")]
+    Stalled,
+
+    /// The connection ended cleanly mid-body, which is what a proxy imposing its
+    /// own ceiling looks like from here.
+    #[error("the connection closed before the query finished")]
+    ClosedEarly,
 }
 
 impl From<lotus_query::ParseError> for FetchError {
@@ -46,8 +78,18 @@ impl FetchError {
         match self {
             Self::Network(_) => true,
             Self::Http { status, .. } => is_retryable_status(*status),
-            Self::Parse(_) | Self::Empty => false,
+            Self::Parse(_) | Self::Empty | Self::Truncated { .. } => false,
         }
+    }
+
+    /// Whether this failure is a result set too short to report.
+    ///
+    /// A caller holding a partial set needs this to refuse it. Without it the
+    /// counts derived from the rows that did arrive are internally consistent
+    /// and wrong, which is the one outcome worse than an error.
+    #[must_use]
+    pub const fn is_truncated(&self) -> bool {
+        matches!(self, Self::Truncated { .. })
     }
 
     /// Whether the endpoint looked unreachable, as opposed to rejecting the
@@ -148,6 +190,64 @@ mod tests {
             .is_retryable()
         );
         assert!(FetchError::Network("timeout".into()).is_retryable());
+    }
+
+    #[test]
+    fn a_result_set_cut_short_is_not_retried() {
+        // The load-bearing assertion. Retrying a body that stopped half way
+        // re-transfers the hundreds of megabytes that already arrived in order
+        // to arrive at the same place, so `is_retryable` returning true here is
+        // what makes a slow query slow rather than fast.
+        let stalled = FetchError::Truncated {
+            bytes_read: 512_000_000,
+            reason: TruncationReason::Stalled,
+        };
+        assert!(!stalled.is_retryable());
+        assert!(stalled.is_truncated());
+        assert!(
+            !FetchError::Truncated {
+                bytes_read: 0,
+                reason: TruncationReason::ClosedEarly,
+            }
+            .is_retryable()
+        );
+    }
+
+    #[test]
+    fn a_cut_short_result_set_is_not_the_endpoint_being_gone() {
+        // This one decides whether the query is re-sent to WDQS. Truncation says
+        // nothing about reachability, so routing on it would double a transfer
+        // that was already too large for one.
+        let cut = FetchError::Truncated {
+            bytes_read: 1,
+            reason: TruncationReason::ClosedEarly,
+        };
+        assert!(!cut.is_endpoint_unavailable());
+    }
+
+    #[test]
+    fn a_cut_short_result_set_carries_no_http_status() {
+        // The CSV parsed and no status line ever came back mid-body, so anything
+        // that branches on the status must see `None` rather than a guess.
+        assert_eq!(
+            FetchError::Truncated {
+                bytes_read: 42,
+                reason: TruncationReason::Stalled,
+            }
+            .status(),
+            None
+        );
+    }
+
+    #[test]
+    fn the_message_says_the_answer_was_incomplete() {
+        let message = FetchError::Truncated {
+            bytes_read: 1_024,
+            reason: TruncationReason::ClosedEarly,
+        }
+        .to_string();
+        assert!(message.contains("1024"), "{message}");
+        assert!(message.contains("cut short"), "{message}");
     }
 
     #[test]

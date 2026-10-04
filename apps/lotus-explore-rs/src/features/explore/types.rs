@@ -33,6 +33,14 @@ pub enum ErrorKind {
     /// Upstream service rate-limited this request.
     RateLimit,
     Parse,
+    /// The result set stopped short of the whole answer.
+    ///
+    /// Its own kind because the generic hint is wrong here. Every other failure
+    /// suggests something the user can change — retry, fix the query, check the
+    /// network — and this one must not: the rows on screen would be a fraction
+    /// of the real set, so the message has to say the answer is incomplete
+    /// rather than suggest trying again and implying that will fix it.
+    Truncated,
     #[cfg(target_arch = "wasm32")]
     Memory,
     #[default]
@@ -241,6 +249,7 @@ impl DomainError {
                     ErrorKind::BadRequest
                 }
                 TransportFailureKind::Parse => ErrorKind::Parse,
+                TransportFailureKind::Truncated => ErrorKind::Truncated,
                 TransportFailureKind::RateLimit => ErrorKind::RateLimit,
                 TransportFailureKind::Network
                 | TransportFailureKind::Server

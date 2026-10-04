@@ -72,6 +72,9 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::ErrorHintParse => {
             "Impossibile interpretare la risposta. Riprova o affina la query."
         }
+        TextKey::ErrorHintTruncated => {
+            "Questo insieme di risultati è stato interrotto: le righe mostrate non sono la risposta completa. Restringi la ricerca per completarla."
+        }
         TextKey::ErrorHintUnknown => "Errore inatteso. Riprova.",
         TextKey::WelcomeLeadA => {
             "Questa applicazione dimostra la potenza dei dati aperti collegati, mettendo in relazione entità chimiche, organismi biologici e letteratura scientifica. "
