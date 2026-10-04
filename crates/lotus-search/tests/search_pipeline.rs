@@ -364,3 +364,87 @@ async fn the_returned_query_is_the_one_that_was_sent() {
         "so the download is not capped"
     );
 }
+
+/// A fetched body comes back whole, and a refused one comes back as an error.
+///
+/// `fetch_url` is the export path's own HTTP call, and both of its failure modes are
+/// silent if untested: returning an empty body on success writes an empty export that
+/// reports itself as a success, and returning the body on a 404 hands the download an
+/// error page. Mutation testing could make the function do either and the suite
+/// noticed neither, because no test called it.
+///
+/// Here rather than in the module because the crate denies `expect_used`,
+/// `unwrap_used` and `panic` workspace-wide, and this crate's in-module tests hold to
+/// that. The script-driven tests live in this file for the same reason.
+#[tokio::test]
+async fn a_fetched_body_comes_back_whole() {
+    let http = Scripted::new(vec![(200, "id,name\n1,aspirin\n")]);
+    let body = lotus_search::fetch_url(
+        &http,
+        "https://example.invalid/x",
+        lotus_search::ResponseFormat::Csv,
+    )
+    .await
+    .expect("a 200 is not an error");
+
+    assert_eq!(
+        String::from_utf8_lossy(&body),
+        "id,name\n1,aspirin\n",
+        "the body must arrive exactly as the endpoint sent it"
+    );
+    assert_eq!(
+        http.call_count(),
+        1,
+        "a prepared export URL is fetched once"
+    );
+}
+
+/// A non-success status is an error carrying the endpoint's own message.
+///
+/// The message is what a reader sees when an export fails, so it has to be the
+/// endpoint's explanation rather than a bare status code or a blank.
+#[tokio::test]
+async fn a_refused_url_is_an_error_naming_the_reason() {
+    let http = Scripted::new(vec![(404, r#"{"exception": "no such export key"}"#)]);
+    let error = lotus_search::fetch_url(
+        &http,
+        "https://example.invalid/gone",
+        lotus_search::ResponseFormat::Csv,
+    )
+    .await
+    .expect_err("a 404 must not come back as a body");
+
+    assert!(
+        error.to_string().contains("no such export key"),
+        "the error must carry the endpoint's own reason: {error}"
+    );
+}
+
+/// A wildcard and an empty box both mean "no taxon", and neither is looked up.
+///
+/// The wildcard resolves to no QID because it names no Wikidata entity, which is
+/// exactly why `build_base_query` reads the distinction back out of `criteria.taxon`
+/// rather than off the QID. Both inputs must therefore arrive at the builder as
+/// `None`, and neither may cost a round trip — a `*` sent to the endpoint as a name
+/// would find nothing and report that no taxon matched.
+///
+/// The transport is given no replies, so any request at all fails the test.
+#[tokio::test]
+async fn a_wildcard_and_an_empty_box_both_resolve_to_no_taxon() {
+    let http = Scripted::new(Vec::new());
+
+    for input in ["*", "  *  ", "", "   "] {
+        let resolved = lotus_search::resolve_taxon(&http, input)
+            .await
+            .unwrap_or_else(|e| panic!("{input:?} must resolve without a lookup: {e}"));
+        assert!(
+            resolved.qid.is_none(),
+            "{input:?} names no entity, so it resolves to no QID"
+        );
+        assert_eq!(
+            http.call_count(),
+            0,
+            "{input:?} must not reach the endpoint at all"
+        );
+    }
+}

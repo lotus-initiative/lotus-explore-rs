@@ -569,4 +569,173 @@ mod tests {
         assert_eq!(endpoint.url(), Service::Qlever.url());
         assert_eq!(endpoint.service(), Service::Qlever);
     }
+
+    /// Each service names itself, its URL and its override, and the three are
+    /// distinct.
+    ///
+    /// The URL decides where a query goes, the variable decides what a deployment
+    /// can point it at, and the name is what ends up in a result's provenance. A
+    /// constant in any one of them is silent -- the request still succeeds and the
+    /// answer is attributed to the wrong service -- so all three are pinned per
+    /// variant, and the set of each is checked for collisions.
+    #[test]
+    fn every_service_names_itself_and_its_endpoint() {
+        let cases = [
+            (
+                Service::Qlever,
+                QLEVER_WIKIDATA,
+                "LOTUS_QLEVER_ENDPOINT",
+                "QLever",
+            ),
+            (
+                Service::Wdqs,
+                WDQS_WIKIDATA,
+                "LOTUS_WDQS_ENDPOINT",
+                "Wikidata Query Service",
+            ),
+            (
+                Service::Scholarly,
+                WDQS_SCHOLARLY,
+                "LOTUS_WDQS_SCHOLARLY_ENDPOINT",
+                "Wikidata Query Service (scholarly subgraph)",
+            ),
+        ];
+
+        for (service, url, variable, name) in cases {
+            assert_eq!(service.url(), url, "{service:?} url");
+            assert_eq!(
+                service.variable(),
+                variable,
+                "{service:?} override variable"
+            );
+            assert_eq!(service.name(), name, "{service:?} provenance name");
+            assert_eq!(
+                service.to_string(),
+                name,
+                "{service:?} Display must be its provenance name, since that is what it is for"
+            );
+        }
+
+        // Two services sharing a URL would send one service's query to the other,
+        // and two sharing a variable would make an override apply to both.
+        for (label, values) in [
+            ("url", cases.map(|(_, url, _, _)| url)),
+            ("variable", cases.map(|(_, _, variable, _)| variable)),
+            ("name", cases.map(|(_, _, _, name)| name)),
+        ] {
+            let mut distinct = values.to_vec();
+            distinct.sort_unstable();
+            distinct.dedup();
+            assert_eq!(distinct.len(), cases.len(), "two services share a {label}");
+        }
+    }
+
+    /// Two hundred-something is success, and the edges are where that lives.
+    ///
+    /// `is_success` is a closed range on the low end and an open one on the high
+    /// end. Mutation testing turned `< 300` into `<= 300`, which nothing caught:
+    /// every fixture was a 200 or a 500, and a 300 -- which is neither success nor
+    /// an error the retry loop should act on -- never arrived.
+    #[test]
+    fn only_two_hundreds_are_success() {
+        assert!(!is_success(199), "199 is not yet success");
+        assert!(is_success(200), "200 is success");
+        assert!(is_success(204), "204 is success with no body");
+        assert!(is_success(299), "299 is the last success");
+        assert!(!is_success(300), "300 is a redirect, not a success");
+        assert!(!is_success(301), "301 is a redirect");
+        assert!(!is_success(404), "404 is not success");
+        assert!(!is_success(500), "500 is not success either");
+    }
+
+    /// The endpoint's own `exception` wins over the gateway's HTML.
+    ///
+    /// A `QLever` error arrives as JSON with a useful message inside an HTML page.
+    /// Taking the HTML instead produces an error a reader cannot act on, which is
+    /// the whole reason this parses the body at all. The escaped-quote arm matters
+    /// because a message containing one would otherwise terminate the string early
+    /// and truncate the explanation mid-word.
+    #[test]
+    fn a_json_exception_is_read_out_of_an_html_page() {
+        let body = br#"<html><body><h1>Error</h1><pre>{"exception": "Parser exception: unexpected ) at line 1", "code": "..."}</pre></body></html>"#;
+        let line = compact(body);
+        assert!(
+            line.contains("unexpected )"),
+            "the endpoint's own message must survive: {line}"
+        );
+        assert!(
+            !line.contains("<html>"),
+            "the HTML wrapper must not be what the reader is shown: {line}"
+        );
+
+        // An escaped quote inside the message must not end the string early.
+        let escaped = br#"{"exception": "bad \"thing\" here", "code": "x"}"#;
+        let line = compact(escaped);
+        assert!(
+            line.contains("thing"),
+            "an escaped quote does not end the message: {line}"
+        );
+
+        // And a body with no exception at all still yields one usable line.
+        let plain = compact(b"<html><body>502 Bad Gateway</body></html>");
+        assert!(!plain.trim().is_empty(), "a body always yields a line");
+    }
+
+    /// Only an *unreachable* endpoint falls back to the other service.
+    ///
+    /// This is the condition for trying `WDQS` after `QLever` fails, and getting it
+    /// backwards in either direction is expensive: fall back on a rejected query
+    /// sends a query the endpoint already refused to a second service and doubles
+    /// the wait, while never falling back turns a transient network failure into a
+    /// dead search. Mutation testing flipped this guard to both constants and the
+    /// suite caught neither.
+    #[test]
+    fn only_an_unreachable_endpoint_falls_back() {
+        // A dropped connection is the case the fallback exists for.
+        let dropped = FetchError::Network("connection reset".into());
+        assert!(
+            dropped.is_endpoint_unavailable(),
+            "an unreachable endpoint is exactly when to try the other service"
+        );
+
+        // A gateway error is treated as unreachable, because the endpoint behind
+        // it is what is being replaced.
+        let gateway = FetchError::Http {
+            status: 502,
+            message: "bad gateway".into(),
+        };
+        assert!(
+            gateway.is_endpoint_unavailable(),
+            "502 means the endpoint behind the gateway is the problem"
+        );
+
+        // A rejected query is not an outage. The endpoint understood the query and
+        // said no; the other service will say the same thing.
+        let rejected = FetchError::Http {
+            status: 400,
+            message: "syntax error".into(),
+        };
+        assert!(
+            !rejected.is_endpoint_unavailable(),
+            "a rejected query must not be retried against a second service"
+        );
+
+        // Neither must a rate limit, which is a request to wait rather than a
+        // service that is down.
+        let busy = FetchError::Http {
+            status: 429,
+            message: "slow down".into(),
+        };
+        assert!(
+            !busy.is_endpoint_unavailable(),
+            "a rate limit is not an outage"
+        );
+
+        // And a malformed body is our problem, not the endpoint's.
+        let malformed = FetchError::Parse("not csv".into());
+        assert!(
+            !malformed.is_endpoint_unavailable(),
+            "a parse failure says the endpoint answered"
+        );
+    }
 }
