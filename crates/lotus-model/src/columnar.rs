@@ -329,15 +329,44 @@ impl SparseStrings {
 
     /// Record `value` for dictionary slot `slot`, and return the id it resolved to.
     ///
-    /// **First write wins.** A slot is created by the first row that mentions the
-    /// compound, and every later row for that compound carries the same value --
-    /// the query asks for the property the same way each time. So a slot that
-    /// already holds a value is left alone, which turns this into one array read
-    /// per row instead of a hash of the string.
+    /// **One value per slot, and the first non-empty write keeps it.** A later call
+    /// for a slot that already holds a value is ignored -- *including when the
+    /// value differs*.
     ///
-    /// That is the whole reason it is cheap: interning on every row made the build
-    /// slower than not interning at all, because three million rows would hash
-    /// three million copies of a string that was already there.
+    /// This used to be documented as "every later row for that compound carries
+    /// the same value, because the query asks for the property the same way each
+    /// time". **That was wrong**, and it was load-bearing: the optimisation below
+    /// is only sound if later rows are known to agree, and they do not. Wikidata
+    /// entities are multi-valued often enough to matter. Measured on `Q21754`
+    /// (32,160 rows), counting rows whose value differs from the first row for the
+    /// same entity:
+    ///
+    /// | column | disagreeing rows |
+    /// |---|---|
+    /// | `ref_title` | 1,850 |
+    /// | `compound_inchikey` | 1,315 |
+    /// | `compound_smiles_conn` | 1,142 |
+    /// | `ref_date` | 754 |
+    /// | `compound_smiles_iso` | 154 |
+    /// | `compound_mass` | 133 |
+    /// | `ref_doi` | 4 |
+    ///
+    /// The causes are ordinary: a reference has one `P1476` title per language, a
+    /// compound one `InChIKey` per protonation or tautomer form, one mass per charge
+    /// state. So the second title is transferred on every such row and then dropped
+    /// here.
+    ///
+    /// **Dropping it is the right behaviour for this store** -- a table cell holds
+    /// one string, and picking the first is as good a rule as any -- but it is a
+    /// decision, not an invariant, and it was documented as the opposite. A store
+    /// that wanted every value would need a list per slot and a per-row index into
+    /// it, which is a different type.
+    ///
+    /// The early return is kept anyway, and for a reason that survives the above:
+    /// interning on every row made the build *slower than not interning at all*,
+    /// because three million rows would hash three million copies of a string that
+    /// was already there. Reading `ids` instead of hashing is the win, and it holds
+    /// whether or not the values agree.
     ///
     /// The id is returned rather than left for the caller to work out, because
     /// working it out means predicting where the interned value will land -- and a

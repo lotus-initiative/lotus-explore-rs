@@ -68,10 +68,16 @@ fn rows_sharing_a_compound_agree_on_its_properties() {
         1,
         "two rows naming one compound is one compound"
     );
-    // One mass column, not two, so the two rows cannot both keep a mass. The
-    // first row wins, which is what makes the write once per compound rather than
-    // once per row: the query asks for the same property the same way every time,
-    // so the two values are the same value in every case that is not a bug.
+    // One mass column, not two, so the two rows cannot both keep a mass, and the
+    // first row wins.
+    //
+    // This used to be justified by "the query asks for the same property the same
+    // way every time", which is false -- a compound carries one mass per charge
+    // state, and 133 rows of a 32,160-row sample disagree with the first row for
+    // their compound. See `SparseStrings::set` and
+    // `a_second_value_for_the_same_entity_is_dropped` for the whole shape of it.
+    // What makes the single write correct is that one column per entity is what a
+    // table cell can hold, not that the values agree.
     assert_eq!(
         set.compound_mass(0),
         Some(100.0),
@@ -1152,4 +1158,89 @@ fn filtering_by_qid_is_correct_in_either_interning_order() {
         );
         assert_eq!(plan.surviving_count(&set), 1, "{label}: exactly one match");
     }
+}
+
+/// A second value for the same entity is dropped, on purpose.
+///
+/// The store keeps **one value per entity**, filled by the first row that mentions
+/// it, and ignores later values even when they differ. This test exists because
+/// that used to be documented as an invariant of the data -- "the query asks for
+/// the property the same way each time" -- and it is not an invariant of the data.
+/// It is a decision about what a cell can hold, and the graph disagrees often
+/// enough to be worth writing down: on `Q21754`, 1,850 of 32,160 rows carry a
+/// reference title that differs from the first row for that reference, 1,315 an
+/// `InChIKey` that differs, 1,142 a connection-table SMILES that differs.
+///
+/// So this pins three things at once, because they are separable and each is a
+/// different mistake:
+///
+/// - the **rows** survive, so a disagreeing value never merges or drops a row;
+/// - the **first** value wins, which is the rule;
+/// - the second value is **unreachable**, which is the cost, and is why this is
+///   not merely a tie-break.
+#[test]
+fn a_second_value_for_the_same_entity_is_dropped_and_that_is_deliberate() {
+    let mut first = entry("Q1", "Q2", "Q3");
+    first.ref_title = Some(arc("Determination of phenolic acids"));
+    first.inchikey = Some(arc("FIRSTKEY-AAAAAA-BBBBBBBB"));
+    first.mass = Some(154.027);
+
+    let mut second = entry("Q1", "Q9", "Q3");
+    second.ref_title = Some(arc("Bestimmung von Phenolsäuren"));
+    second.inchikey = Some(arc("SECONDKEY-CCCCCC-DDDDDDDD"));
+    second.mass = Some(155.042);
+
+    let set = ColumnarResultSet::from_entries(&[first, second]);
+
+    assert_eq!(
+        set.row_count(),
+        2,
+        "a disagreeing value must not merge the rows"
+    );
+    assert_eq!(
+        set.stats().n_references,
+        1,
+        "both rows cite the same reference"
+    );
+
+    for row in 0..2 {
+        assert_eq!(
+            set.reference_title(row),
+            Some("Determination of phenolic acids"),
+            "row {row} should read the first title for the shared reference"
+        );
+        assert_eq!(
+            set.inchikey(row),
+            Some("FIRSTKEY-AAAAAA-BBBBBBBB"),
+            "row {row} should read the first InChIKey for the shared compound"
+        );
+        assert_eq!(
+            set.mass(row),
+            Some(154.027),
+            "row {row} should read the first mass for the shared compound"
+        );
+    }
+
+    // The lossiness, stated as an assertion. If a future change makes these
+    // reachable -- by storing a list per slot and indexing into it -- this fails,
+    // which is the point: the table's columns, the exports and the row model would
+    // all have to grow a value they do not have today.
+    // Collected as owned strings because `entry` hands back borrows of itself, so
+    // the array cannot outlive the closure's value.
+    let everything: String = (0..set.row_count())
+        .filter_map(|row| set.entry(row))
+        .flat_map(|entry| {
+            [
+                entry.ref_title.as_deref().map(ToOwned::to_owned),
+                entry.inchikey.as_deref().map(ToOwned::to_owned),
+            ]
+        })
+        .flatten()
+        .collect::<Vec<String>>()
+        .join("|");
+    assert!(
+        !everything.contains("SECONDKEY") && !everything.contains("Phenolsäuren"),
+        "the second values are reachable, so this no longer describes the store: \
+         {everything}"
+    );
 }
