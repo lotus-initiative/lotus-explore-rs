@@ -46,7 +46,15 @@
 /// in this module. It used to be the same constant as the table ceiling, which
 /// meant a client-side tuning decision — "a phone cannot draw 1,000 rows" —
 /// silently capped how much a bulk caller could export over the API.
-pub const API_MAX_ROWS: usize = 200_000;
+///
+/// It was 200,000 for no stated reason, which is the same defect as the 500-row
+/// ceiling it replaced: a number standing in for a constraint nobody had worked
+/// out. The constraint here is bytes in flight, not rows, and it is the caller's
+/// to accept — a bulk caller asking for a million rows is asking for them on
+/// purpose, and refusing is the server's opinion of a decision that is not the
+/// server's. Raised to the same million the in-memory export path allows, so the
+/// two ceilings no longer disagree about what a large export is.
+pub const API_MAX_ROWS: usize = 1_000_000;
 
 #[cfg(test)]
 mod tests {
@@ -73,7 +81,7 @@ mod tests {
         // A `const` block, as above: both operands are constants, so this asserts
         // a relationship at compile time rather than re-checking a literal.
         const _: () = assert!(
-            API_MAX_ROWS >= 100_000,
+            API_MAX_ROWS >= 1_000_000,
             "the export ceiling has collapsed below what a bulk caller needs"
         );
     }
