@@ -19,28 +19,34 @@ Living document. Updated as work proceeds so it survives a crash or a lost conte
 
 ## BLOCKER-1 — mutation testing crashes the machine
 
-- **Status:** blocked — **cause not identified**
-- **What is known:** two runs wedged a 16 GB / 8-core machine. The first at `--jobs 8`,
-  the second at `--jobs 2`. The second is the data point that matters: if two
-  concurrent builds can do it, "too many parallel jobs" is not the cause.
-- **What is NOT known: why.** Both crashes happened with 27-29 GB still free, so disk
-  alone does not account for them, and `target/` is large mostly from ordinary
-  development rather than from mutants (a 1,545-mutant sweep added ~4 GB, about
-  2.6 MB a mutant).
+- **Status:** blocked — **disk and job count are both ruled out; the cause is still
+  not identified.** The guard now refuses on the one resource the measurements point at.
+- **Ruled out: disk.** Both crashes happened with 27-29 GB free. `target/` is large
+  from ordinary development, not from mutants (a 1,545-mutant sweep added ~4 GB,
+  about 2.6 MB a mutant).
+- **Ruled out: `--jobs`.** The second crash was at `--jobs 2`. Measured 2026-10-05,
+  a per-crate build peaks at **114 MB** (`lotus-model`), **182 MB** (`lotus-query`)
+  and **216 MB** (`lotus-search`) RSS, so even eight concurrent builds are about
+  1.7 GB. Parallelism cannot account for it, and `--jobs 4` stays a guess rather
+  than a fix.
+- **What is anomalous: the machine's own state.** Measured 2026-10-05 with nothing
+  of ours running: **16 GB RAM, 5.7 of 7 GB swap already in use, 1.45 GB free.**
+  The old note here said "1 GB swap ceiling"; that was wrong, and the swap is
+  nearly exhausted before any mutation run begins. Whatever holds that memory is
+  the thing to find.
 - **Not an application memory leak.** The one real growth defect found during the
-  audit was fixed and committed in `ec060c3`.
-- **Done:** `make/scripts/mutants-preflight.sh` prints disk, `target/`, RAM, swap and
-  jobs before a run, and refuses to start below 20 GB free. `make/test.toml` defaults
-  to `--jobs 4`. **Neither is a fix** — the preflight script says so in its own header,
-  and `--jobs 4` is a guess, not a known-good value.
-- **What is left to actually unblock it:**
-  1. Establish whether it is memory at all, before spending another run on the
-     question. `vm_stat` and Activity Monitor's memory pressure during a *single*
-     package at `MUTANTS_JOBS=1` would show it, and a single job cannot fan out.
-  2. Until then, scope by package. `cargo mutants --package lotus-model --jobs 1` is
-     571 mutants and is where the survivors were.
-- **Verification:** a full `./mk mutants` completes with the machine responsive. Not
-  attempted; there is no reason to think any known configuration would.
+  audit was fixed in `ec060c3`.
+- **Done:** `make/scripts/mutants-preflight.sh` now parses free swap (macOS
+  `vm.swapusage`, Linux `/proc/meminfo`, skipped where unreadable rather than
+  guessed) and **refuses below 2 GB free**, alongside the existing 20 GB disk
+  floor. `make/test.toml` still defaults to `--jobs 4`. The guard is a floor
+  against running out, not proof a run will finish.
+- **Next step, and it needs a human:** find what is holding 5.7 GB of swap
+  (`memory_pressure`), clear it, then run one package at `MUTANTS_JOBS=1` —
+  `cargo mutants --package lotus-model --jobs 1` is 571 mutants and is where the
+  survivors were. That run was **not** attempted here: two recorded crashes make it
+  a decision for the machine's owner, not something to run unattended.
+- **Verification:** a full `./mk mutants` completes with the machine responsive.
 
 ## TASK-1 — `Timer "LOTUS:taxon_resolution" already exists.`
 
