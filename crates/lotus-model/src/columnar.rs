@@ -3,74 +3,80 @@
 
 //! A result set stored by column, with the strings interned.
 //!
-//! # Why this exists
+//! # Why
 //!
-//! A [`CompoundEntry`] is the right shape for one row and the wrong shape for
-//! three million of them. It carries thirteen fields, eight of which are not row
-//! data at all: the compound's name, `InChIKey`, SMILES, mass and formula belong
-//! to the *compound*, the title, DOI and year belong to the *reference*, and the
-//! scientific name belongs to the *taxon*. A row repeats them, and the table
-//! re-sorts and re-filters the same set many times over.
-//!
-//! What is stored per row here is three dictionary ids and one statement id --
+//! A [`CompoundEntry`] is right for one row, wrong for three million. Eight of its
+//! thirteen fields are not row data: name, `InChIKey`, SMILES, mass and formula
+//! belong to the *compound*, title, DOI and year to the *reference*, scientific
+//! name to the *taxon*. Here a row is three dictionary ids and one statement id --
 //! 32 bytes, measured by `a_row_costs_the_documented_number_of_bytes` -- against
-//! roughly 200 bytes for the same row as a [`CompoundEntry`].
+//! roughly 200 bytes as a [`CompoundEntry`]. The table re-sorts and re-filters the
+//! same set many times over.
 //!
-//! # The measurements those numbers come from
+//! # Measurements
 //!
-//! Taken from `QLever` in October 2026. The whole graph is 2,990,730 edges over
-//! 2,502,164 compounds, 2,818,725 statements, 37,771 taxa and 91,706 references.
-//! One export of 50,000 rows in the columns the app selects is 15.7 MB of CSV
-//! (314 B/row) and 3.0 MB gzipped (60 B/row).
+//! From `QLever`, October 2026. Whole graph: 2,990,730 edges over 2,502,164
+//! compounds, 2,818,725 statements, 37,771 taxa, 91,706 references. One export of
+//! 50,000 rows in the columns the app selects: 15.7 MB CSV (314 B/row), 3.0 MB
+//! gzipped (60 B/row).
 //!
-//! Two of those measurements changed this design, and both contradicted what it
-//! was first written expecting:
+//! Two of those contradicted what this was first written expecting:
 //!
-//! - **`statement` does not compress.** It is `{compoundQID}-{UUID}` -- a hyphen,
-//!   not a `$` -- and the UUID is random: 49,246 distinct statements in the sample
-//!   had 49,246 distinct suffixes, so interning the string buys nothing. What *is*
-//!   redundant is the prefix, which equals the row's own compound QID in 49,983 of
-//!   50,000 rows. Hence [`StatementId::Uuid`], 16 bytes, text rebuilt on demand.
+//! - **`statement` does not compress.** It is `{compoundQID}-{UUID}` -- hyphen,
+//!   not `$` -- and the UUID is random: 49,246 distinct statements in the sample
+//!   had 49,246 distinct suffixes, so interning the string buys nothing. The
+//!   redundant part is the prefix, which equals the row's own compound QID in
+//!   49,983 of 50,000 rows. Hence [`StatementId::Uuid`], 16 bytes, text rebuilt on
+//!   demand.
 //! - **The compound dictionary barely deduplicates.** 2,990,730 edges over
 //!   2,502,164 compounds is 1.2 rows per compound, so the dictionary is nearly one
-//!   entry per row and there is no repetition to exploit. The saving comes from
-//!   the id columns and from **sparsity** -- an `InChIKey` is present on 20.7% of
-//!   rows, a SMILES on 15.0%, a mass on 10.3%, a formula on 8.3% -- rather than
-//!   from deduplication.
+//!   entry per row. The saving comes from the id columns and from **sparsity** --
+//!   an `InChIKey` is present on 20.7% of rows, a SMILES on 15.0%, a mass on
+//!   10.3%, a formula on 8.3% -- not from deduplication.
 //!
-//! # What it actually costs
+//! # Cost
 //!
-//! Measured, not estimated, by `lotus-query/tests/bench.rs` at
+//! Printed by `lotus-query/tests/bench.rs` via
 //! `cargo test -p lotus-query --release -- --ignored --nocapture bench`. This
 //! section quoted estimates for its first two commits and was wrong by more than a
-//! factor of two, so the numbers here are the ones the benchmark prints.
+//! factor of two, so only measured numbers appear here.
 //!
 //! | rows | resident | per row | as a share of the CSV |
 //! | --- | --- | --- | --- |
-//! | 1,000,000 | 87.9 MB | 92 B | 32% |
-//! | 2,000,000 | 171.4 MB | 90 B | 31% |
-//! | 2,990,730 | 254.2 MB | 89 B | 31% |
+//! | 1,000,000 | 84.1 MB | 88 B | 30% |
 //!
-//! So two million rows fit a 200 MB budget and the whole graph does not: 254 MB is
-//! the one case where it binds, and it is the unfiltered whole-graph search. That
-//! figure is a floor rather than an estimate, because the benchmark's fixture has
-//! two rows per compound where the real graph has 1.2, so its compound dictionary
-//! is smaller than reality's.
+//! These were re-measured after the reference node and the year-only projection
+//! arrived, against a fixture carrying the current columns. The earlier table
+//! quoted a wider row -- `ref_date` as a full `xsd:dateTime`, no `ref_node`, no
+//! `compound_smiles_conn` -- so it described a shape the parser no longer sees.
+//! It came out *smaller* despite the added column, because the projection change
+//! that shrank the CSV also shrank what the dictionaries hold.
 //!
-//! Two properties make the set *exact*, which is the point of the type:
+//! Scaling the measured rate: 2 million rows fit a 200 MB budget, and the whole
+//! graph -- 2,990,730 rows -- comes to about 254 MB. That last figure is a floor,
+//! because the benchmark fixture has two rows per compound where the real graph
+//! has 1.2, so its compound dictionary is smaller than reality's.
 //!
-//! - **Absence is a first-class value.** [`NO_VALUE`] is an id no real
-//!   dictionary entry can hold, so "this row has no taxon" stays
-//!   distinguishable from "this row has taxon number zero". Collapsing the two
-//!   would silently change `n_taxa`.
+//! # Why this is not the phone limit
+//!
+//! 88 B/row is the cost of the *finished set*, and the parse never holds the CSV:
+//! it reads 64 KB at a time into a fixed buffer. So on the streaming path peak is
+//! the set plus one buffer, and the row count is bounded by device memory rather
+//! than by payload size.
+//!
+//! The ceiling that *is* memory is `BLOB_PATH_ROW_LIMIT`, and it guards the paths
+//! that collect the body with `.text()` -- roughly 500 B/row of payload on top of
+//! the set. Compression does not lower it: a phone decompresses the whole body
+//! into a string either way.
+//!
+//! # Exactness
+//!
+//! - **Absence is a first-class value.** [`NO_VALUE`] is an id no real dictionary
+//!   entry can hold, so "no taxon" stays distinguishable from "taxon number
+//!   zero". Collapsing them would silently change `n_taxa`.
 //! - **Rows are stored raw.** The deduplication a [`CompoundEntry`] arrives
-//!   *after* has not happened, so `n_entries` is the endpoint's `COUNT(*)` and
-//!   not a lower bound on it.
-//!
-//! The set is exact but not free to build: the compound dictionary is close to one
-//! entry per row for a wide search, because the graph holds about 1.2 occurrences
-//! per compound, so the saving comes from the id columns rather than from
-//! deduplicating the dictionaries.
+//!   *after* has not happened, so `n_entries` is the endpoint's `COUNT(*)` and not
+//!   a lower bound on it.
 
 use super::{CompoundEntry, DatasetStats, WIKIDATA_ENTITY_BASE, WIKIDATA_STATEMENT_BASE};
 use rustc_hash::FxHashMap;
@@ -91,9 +97,7 @@ fn next_generation() -> u64 {
 
 /// The id that means "this row has no value here".
 ///
-/// A real dictionary can never mint it: ids come from [`QidDictionary::intern`] in
-/// row order, and this one is handed out instead. A million-row result set does
-/// not need a million compounds of dictionary to be safe to index.
+/// Handed out rather than interned, so no dictionary entry can hold it.
 pub const NO_VALUE: u32 = u32::MAX;
 
 /// The `https` form of [`WIKIDATA_ENTITY_BASE`], which a mirror can serve.
@@ -101,22 +105,20 @@ const WIKIDATA_ENTITY_BASE_HTTPS: &str = "https://www.wikidata.org/entity/";
 
 /// The largest bare QID text this module renders into a stack buffer.
 ///
-/// A `Q` and up to ten digits is eleven bytes. Wikidata item numbers are around
-/// 250 million today and grow slowly, so this is generous; a QID that does not fit
-/// renders as nothing rather than as a truncated identifier.
+/// A `Q` and up to ten digits is eleven bytes; Wikidata item numbers are around
+/// 250 million today and grow slowly. A QID that does not fit renders as nothing
+/// rather than as a truncated identifier.
 const QID_BUFFER: usize = 16;
 
 /// Interned Wikidata QIDs, keyed by their numeric part.
 ///
 /// A QID is a `Q` and a number, so storing the text spends a hash, an allocation
-/// and sixteen bytes of fat pointer on something that is already an integer once
-/// the prefix is stripped -- and the parser strips it anyway. At one million rows
-/// that is 39 MB and 640,000 allocations for values that fit in four bytes.
+/// and sixteen bytes of fat pointer on an integer the parser already has. At one
+/// million rows: 39 MB and 640,000 allocations for four-byte values.
 ///
-/// Reproducibility is what shapes the API. [`qid_text`] and [`write_qid`] render
-/// the same `Q…` the cell held, so a link, a filter and a hash all still see the
-/// identifier Wikidata knows the item by. The text is produced on demand, for the
-/// thirty rows on screen, rather than stored for every row.
+/// [`qid_text`] and [`write_qid`] render the same `Q…` the cell held, so links,
+/// filters and hashes still see the identifier Wikidata knows the item by, and the
+/// text is produced only for the thirty rows on screen.
 #[derive(Debug, Default, Clone)]
 pub struct QidDictionary {
     /// Numeric QID -> the id naming it.
@@ -311,11 +313,9 @@ pub struct SparseStrings {
     /// Maps a value to its id in `values`, so a value repeated across a million
     /// rows is one allocation.
     ///
-    /// Without this the column is not sparse at all: it stored a fresh copy per
-    /// *row* that mentioned the value and pointed the slot at the last one, which
-    /// for a taxon name shared by half a million rows cost 37 MB to hold 135
-    /// distinct strings. Interning is what makes the column's cost a function of
-    /// how many distinct values there are.
+    /// Without this the column is not sparse: it stored a fresh copy per *row* and
+    /// pointed the slot at the last, so a taxon name shared by half a million rows
+    /// cost 37 MB to hold 135 distinct strings.
     index: FxHashMap<Arc<str>, u32>,
     ids: Vec<u32>,
 }
@@ -329,17 +329,11 @@ impl SparseStrings {
 
     /// Record `value` for dictionary slot `slot`, and return the id it resolved to.
     ///
-    /// **One value per slot, and the first non-empty write keeps it.** A later call
-    /// for a slot that already holds a value is ignored -- *including when the
-    /// value differs*.
+    /// **One value per slot: the first non-empty write keeps it.** Later calls for a
+    /// filled slot are ignored, *including when the value differs*.
     ///
-    /// This used to be documented as "every later row for that compound carries
-    /// the same value, because the query asks for the property the same way each
-    /// time". **That was wrong**, and it was load-bearing: the optimisation below
-    /// is only sound if later rows are known to agree, and they do not. Wikidata
-    /// entities are multi-valued often enough to matter. Measured on `Q21754`
-    /// (32,160 rows), counting rows whose value differs from the first row for the
-    /// same entity:
+    /// Later rows do often disagree. Measured on `Q21754` (32,160 rows), rows whose
+    /// value differs from the first row for the same entity:
     ///
     /// | column | disagreeing rows |
     /// |---|---|
@@ -351,29 +345,22 @@ impl SparseStrings {
     /// | `compound_mass` | 133 |
     /// | `ref_doi` | 4 |
     ///
-    /// The causes are ordinary: a reference has one `P1476` title per language, a
-    /// compound one `InChIKey` per protonation or tautomer form, one mass per charge
-    /// state. So the second title is transferred on every such row and then dropped
-    /// here.
+    /// Causes are ordinary: a `P1476` title per language, an `InChIKey` per
+    /// protonation or tautomer form, a mass per charge state. So dropping the second
+    /// is right for this store -- a table cell holds one string -- but it is a
+    /// decision, not an invariant. A store wanting every value needs a list per slot
+    /// and a per-row index into it: a different type.
     ///
-    /// **Dropping it is the right behaviour for this store** -- a table cell holds
-    /// one string, and picking the first is as good a rule as any -- but it is a
-    /// decision, not an invariant, and it was documented as the opposite. A store
-    /// that wanted every value would need a list per slot and a per-row index into
-    /// it, which is a different type.
+    /// The early return is kept anyway: interning per row made the build *slower
+    /// than not interning at all*, because three million rows would hash three
+    /// million copies of an already-present string. Reading `ids` instead of hashing
+    /// is the win, and it holds whether or not the values agree.
     ///
-    /// The early return is kept anyway, and for a reason that survives the above:
-    /// interning on every row made the build *slower than not interning at all*,
-    /// because three million rows would hash three million copies of a string that
-    /// was already there. Reading `ids` instead of hashing is the win, and it holds
-    /// whether or not the values agree.
-    ///
-    /// The id is returned rather than left for the caller to work out, because
-    /// working it out means predicting where the interned value will land -- and a
-    /// prediction that is wrong for a value already interned grows `ids` without
-    /// growing `values`, once per *call* rather than once per distinct value. On a
-    /// column holding three million repetitions of one value that is twelve
-    /// megabytes of slots describing nothing.
+    /// The id is returned rather than left to the caller because predicting where
+    /// the interned value lands is error-prone: a wrong prediction for an already
+    /// interned value grows `ids` without growing `values`, once per *call*. Three
+    /// million repetitions of one value would cost twelve megabytes of slots
+    /// describing nothing.
     pub fn set(&mut self, slot: usize, value: Option<&str>) -> u32 {
         if let Some(existing) = self.ids.get(slot)
             && *existing != NO_VALUE
@@ -421,11 +408,10 @@ impl SparseStrings {
     /// Intern `text` and return its value id, without touching any slot.
     ///
     /// For an append-only column where the id *is* the index into the distinct
-    /// values. `set` is the wrong tool here because its caller has to choose a slot,
-    /// and choosing one means predicting where the value will land -- a prediction
-    /// that is wrong for a value already interned, and wrong in the direction of
-    /// appending a slot per call. This cannot be wrong: the id comes from the
-    /// interning table itself.
+    /// values. `set` is the wrong tool: its caller must choose a slot, which means
+    /// predicting where the value will land, and that prediction is wrong for an
+    /// already interned value -- wrong in the direction of a slot per call. Here
+    /// the id comes from the interning table itself, so it cannot be wrong.
     pub fn intern_text(&mut self, text: &str) -> u32 {
         self.intern(text)
     }
@@ -495,11 +481,10 @@ impl StatementId {
     /// `raw` must be the cell with the URI prefix already stripped, because that
     /// prefix is the row's compound QID and is not carried here.
     ///
-    /// `compound_qid` is checked rather than assumed. The UUID is only kept if the
-    /// statement really does belong to this row's compound -- measured at 99.97%,
-    /// so the check almost never fires -- because the 16-byte form rebuilds its
-    /// text from the compound, and a statement whose prefix disagrees would come
-    /// back pointing at the wrong entity. Those few keep their own text.
+    /// `compound_qid` is checked rather than assumed, because the 16-byte form
+    /// rebuilds its text from the compound and a disagreeing prefix would come
+    /// back pointing at the wrong entity. Measured at 99.97%, so the check almost
+    /// never fires; those few keep their own text.
     fn parse(raw: &str, compound_qid: &str) -> ParsedStatement {
         let bare = raw.trim();
         if bare.is_empty() {
@@ -540,14 +525,13 @@ fn strip_statement_prefix(cell: &str) -> &str {
 /// Sixteen bytes from a hyphenated UUID, or `None` if it is not one.
 ///
 /// Two hex characters make a byte, so the loop alternates between the high and low
-/// half of the byte it is filling. Advancing the byte index on every *nibble*
-/// instead -- which is what this did first -- writes past the end of a sixteen-byte
-/// array after the first sixteen characters and returns `None` for every UUID ever
-/// seen. It went unnoticed because the caller keeps the whole string when this
-/// returns `None`, and the rebuilt text is the same either way: a round-trip test
-/// cannot tell the two paths apart, which is why
+/// half of the byte it fills. Advancing the byte index on every *nibble* instead
+/// writes past the end of a sixteen-byte array after the first sixteen characters
+/// and returns `None` for every UUID ever seen. That went unnoticed because the
+/// caller keeps the whole string on `None` and the rebuilt text is the same either
+/// way, so a round-trip test cannot tell the two paths apart -- hence
 /// `a_uuid_statement_takes_the_sixteen_byte_path_and_not_the_text_one` asserts on
-/// the storage instead.
+/// the storage.
 fn parse_uuid(text: &str) -> Option<[u8; 16]> {
     /// Byte widths of the five groups of a hyphenated UUID.
     const WIDTHS: [usize; 5] = [8, 4, 4, 4, 12];
@@ -667,12 +651,11 @@ pub struct ColumnarResultSet {
 
 /// Two sets are equal when they are the same set.
 ///
-/// A derived comparison would walk every row and every dictionary, which for a
-/// three-million-row set is the most expensive thing in the program -- and the
-/// answer would be "yes" or "no" about something the caller can already see,
-/// because it holds both. So this compares the identity [`build`](ColumnarBuilder::build)
-/// stamped on each set instead: cheap, and exact in the sense that matters, which
-/// is that a new result set is never equal to the one it replaced.
+/// A derived comparison would walk every row and dictionary -- the most expensive
+/// thing in the program for a three-million-row set -- to answer a question the
+/// caller can already answer, since it holds both. So this compares the identity
+/// [`build`](ColumnarBuilder::build) stamped on each set: cheap, and exact in the
+/// sense that matters, a new result set never equalling the one it replaced.
 ///
 /// A clone keeps the identity, which is right: a clone is the same result.
 impl PartialEq for ColumnarResultSet {
@@ -684,21 +667,18 @@ impl PartialEq for ColumnarResultSet {
 /// The mass column's absence marker.
 ///
 /// A mass is a measured quantity in daltons, so `NaN` cannot be one. That makes
-/// it a free absence marker in a column that is over 90% absent, where
-/// `Option<f64>` would cost eight bytes of padding per compound.
+/// it a free absence marker in a column over 90% absent, where `Option<f64>`
+/// would cost eight bytes of padding per compound.
 const NO_MASS: f64 = f64::NAN;
 
 impl Default for ColumnarResultSet {
     /// The empty set.
     ///
-    /// Generation **zero**, deliberately, and not one from the counter. Every
-    /// empty set means the same thing -- "no search has run" -- so two of them
-    /// must compare equal: the reducer builds one to reset the state, and a
-    /// counter would make a freshly reset state look like a changed one and
-    /// re-render the table for nothing.
-    ///
-    /// Zero is not an id [`ColumnarBuilder::build`] hands out, so an empty set is
-    /// never equal to a real result set.
+    /// Generation **zero**, not one from the counter: every empty set means the same
+    /// thing, and the reducer builds one to reset state, so a counter would make a
+    /// freshly reset state look changed and re-render the table for nothing. Zero
+    /// is not an id [`ColumnarBuilder::build`] hands out, so an empty set never
+    /// equals a real one.
     fn default() -> Self {
         Self::empty_fields()
     }
@@ -794,15 +774,14 @@ impl ColumnarResultSet {
     /// What each dictionary costs, so an optimisation can be aimed at the largest
     /// one rather than at the most obvious.
     ///
-    /// Diagnostic, and behind the `diagnostics` feature: it exists to be read by
-    /// `lotus-query/tests/bench.rs` and has no behaviour to assert. The feature is
-    /// the exclusion -- see the note on the feature in `Cargo.toml` -- so it also
+    /// Read by `lotus-query/tests/bench.rs`, with no behaviour to assert, so behind
+    /// the `diagnostics` feature -- see the note on it in `Cargo.toml`, which also
     /// keeps these ~78 unkillable mutants out of `./mk mutants` rather than
     /// burying a real survivor among them.
     ///
     /// Returns `(label, entries, bytes)`. `bytes` counts the string data, one fat
-    /// pointer per string and one slot per map entry -- what the structure holds,
-    /// not what the allocator has reserved.
+    /// pointer per string and one slot per map entry: what the structure holds,
+    /// not what the allocator reserved.
     #[cfg(feature = "diagnostics")]
     #[must_use]
     pub fn dictionary_costs(&self) -> Vec<(&'static str, usize, usize)> {
@@ -879,13 +858,11 @@ impl ColumnarResultSet {
     /// The bytes the dictionaries hold, for a measurement rather than for
     /// anything the app needs.
     ///
-    /// Diagnostic, and behind the `diagnostics` feature for the same
-    /// reason as [`Self::dictionary_costs`].
+    /// Behind the `diagnostics` feature, as [`Self::dictionary_costs`] is.
     ///
-    /// Counts the string bytes plus a slot each, which is what a `HashSet` of
-    /// those strings costs. Deliberately not a measurement of the allocator: on
-    /// wasm it would report the module's high-water mark rather than what this
-    /// type holds, and the question being asked is the second one.
+    /// String bytes plus a slot each, which is what a `HashSet` of those strings
+    /// costs. Not a measurement of the allocator: on wasm that reports the
+    /// module's high-water mark rather than what this type holds.
     #[cfg(feature = "diagnostics")]
     #[must_use]
     pub fn total_dictionary_bytes(&self) -> usize {
@@ -913,10 +890,10 @@ impl ColumnarResultSet {
 
     /// Every distinct compound QID the set holds, in first-seen order.
     ///
-    /// Already deduplicated, which is what makes this the cheap way to hash a
-    /// result: the old row-at-a-time path collected a `Vec<&str>` of every row's
-    /// compound QID and sorted it to get here, so for a three-million-row result
-    /// it allocated three million entries to find two and a half million.
+    /// Already deduplicated, which makes this the cheap way to hash a result: the
+    /// row-at-a-time path collected a `Vec<&str>` of every row's compound QID and
+    /// sorted it to get here, allocating three million entries to find two and a
+    /// half million.
     pub fn compound_qids(&self) -> impl Iterator<Item = u32> + '_ {
         self.compounds.numeric_ids()
     }
@@ -1348,14 +1325,9 @@ impl ColumnarBuilder {
         }
         let compound_slot = compound_id as usize;
         self.grow_compounds(compound_slot);
-        // The bare QID, copied out of the dictionary, because the cell carries the
-        // full URI and the statement check needs the bare form -- and because a
-        // borrow of the dictionary would be held across the rest of the row.
-        //
         // The bare QID, rendered for the statement check below: a statement prefix
-        // is `Q<digits>`, and the cell holds the full URI. A stack buffer keeps it
-        // off the heap, and it is rendered once per row rather than once per
-        // statement.
+        // is `Q<digits>` and the cell carries the full URI. A stack buffer keeps it
+        // off the heap, and it is rendered once per row, not once per statement.
         let numeric = self.set.compounds.get(compound_id).unwrap_or_default();
         let mut qid_buffer = [0u8; QID_BUFFER];
         let qid_len = write_qid(numeric, &mut qid_buffer);

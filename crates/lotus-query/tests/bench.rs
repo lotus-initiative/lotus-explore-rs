@@ -34,7 +34,12 @@ use lotus_model::{ColumnarResultSet, FilterSpec, Range};
 use std::fmt::Write as _;
 use std::time::Instant;
 
-const HEADER: &str = "compound,compoundLabel,compound_inchikey,compound_smiles_iso,compound_mass,compound_formula,taxon,taxon_name,ref_qid,ref_doi,ref_date,statement\n";
+/// The current projection, in order. Written out rather than taken from
+/// `SELECT_COLUMNS` because the row template below is positional, and a header
+/// that has drifted from the template measures a row shape the code no longer
+/// parses -- which is how the numbers in the module docs came to describe a
+/// shape without `ref_node`, `ref_year` or `compound_smiles_conn`.
+const HEADER: &str = "compound,compoundLabel,compound_inchikey,compound_smiles_conn,compound_smiles_iso,compound_mass,compound_formula,taxon,taxon_name,ref_qid,ref_node,ref_title,ref_doi,ref_year,statement_id\n";
 
 /// A CSV payload shaped like the recorded one, at `rows` rows.
 fn payload(rows: usize) -> String {
@@ -71,19 +76,27 @@ fn payload(rows: usize) -> String {
             let _ = write!(csv, "Taxon-name-{taxon}-binomial");
         }
         let _ = write!(csv, ",http://www.wikidata.org/entity/Q{reference},");
+        // The reference node, now carried per row: a 40-hex identity.
+        if row % 20 != 7 {
+            let _ = write!(csv, "{:040x}", row.wrapping_mul(2_654_435_761) as u64);
+        }
+        csv.push(',');
+        // A title, which is the largest single value in a real payload.
+        if row % 4 == 0 {
+            let _ = write!(csv, "A paper about compound {reference} and some padding");
+        }
+        csv.push(',');
         if row % 4 == 0 {
             let _ = write!(csv, "10.1000/paper-{reference}");
         }
         csv.push(',');
+        // The publication year alone, as the query now projects it.
         if row % 3 == 0 {
-            let _ = write!(csv, "{}-03-01T00:00:00Z", 1900 + (row % 120));
+            let _ = write!(csv, "{}", 1900 + (row % 120));
         }
         // A statement on 98.5% of rows, with a random-looking UUID suffix.
         if row % 67 != 33 {
-            let _ = write!(
-                csv,
-                ",http://www.wikidata.org/entity/statement/Q{compound}-{row:08X}-1111-2222-3333-444455556666"
-            );
+            let _ = write!(csv, ",Q{compound}-{row:08X}-1111-2222-3333-444455556666");
         }
         csv.push('\n');
     }
