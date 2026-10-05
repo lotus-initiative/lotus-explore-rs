@@ -19,7 +19,7 @@ use tokio::{
 use crate::export;
 use crate::server::{
     errors::{ApiError, ErrorResponse, SharedApiError},
-    query_logic::{apply_request, build_execution_query, gzip_bytes, resolve_taxon_qid_cached},
+    query_logic::{apply_request, build_execution_query, resolve_taxon_qid_cached},
     services::build_search_response,
     state::{
         AppState, RuntimeMetrics, build_export_cache_key, build_search_cache_key, export_cache_get,
@@ -28,7 +28,11 @@ use crate::server::{
     },
     types::{ExportFileQuery, ExportUrlResponse, HealthResponse, SearchRequest, SearchResponse},
 };
-use lotus_query::{ExportFormat, parse_compounds_columnar};
+use axum::body::Bytes;
+use flate2::Compression;
+use flate2::write::GzEncoder;
+use lotus_query::{CsvColumnarReader, ExportFormat, RowExporter};
+use lotus_search::Http as _;
 
 #[utoipa::path(
     get,
@@ -463,7 +467,6 @@ pub async fn export_file(
     Path((cache_key, format_raw)): Path<(String, String)>,
     Query(params): Query<ExportFileQuery>,
 ) -> Result<Response, ApiError> {
-    let req_started = Instant::now();
     let _permit = state.request_permits.try_acquire().map_err(|_| {
         state
             .metrics
@@ -482,66 +485,55 @@ pub async fn export_file(
     // Always ask QLever for the `SELECT`, never for a `CONSTRUCT`.
     //
     // A `CONSTRUCT` is materialised by the endpoint before a byte is sent, under the
-    // same 30-second budget that already rejects this query as a plain `SELECT`. So
+    // same 30-second budget that already rejects this query as a plain `SELECT`, so
     // asking for Turtle capped the export at whatever the endpoint would assemble in
-    // time, which is not a limit we control and is far below the row count the CSV
-    // path reaches. The `SELECT` streams, and the Turtle is built here from the same
-    // rows the CSV path already fetches -- `RowExporter` is the renderer the CLI and
-    // the in-browser download both use, so all three produce the same graph.
+    // time. The `SELECT` streams, and the other two formats are rendered here from
+    // the same rows the CSV path already fetches.
     let select_url = export::qlever_export_url(&cached.query, ExportFormat::Csv);
     let http = lotus_search::reqwest_client::ReqwestClient::new()
         .map_err(|e| ApiError::upstream(format!("could not open the export client: {e}")))?;
-    let select_bytes = timeout(
-        state.request_timeout,
-        lotus_search::fetch_url(&http, &select_url, lotus_search::ResponseFormat::Csv),
-    )
-    .await
-    .map_err(|_| {
-        state
-            .metrics
-            .request_timeouts
-            .fetch_add(1, Ordering::Relaxed);
-        log::warn!("event=export_file state=timeout phase=fetch format={format_raw}");
-        ApiError::upstream("export fetch timed out")
-    })?
-    .map_err(|e| ApiError::upstream(format!("export fetch failed: {e}")))?;
-    let raw_bytes = if format == ExportFormat::Csv {
-        select_bytes
-    } else {
-        let set = parse_compounds_columnar(std::io::Cursor::new(select_bytes.as_slice()))
-            .map_err(|e| ApiError::upstream(format!("export could not be read: {e}")))?;
-        let mut out: Vec<u8> = Vec::new();
-        lotus_query::RowExporter::new(format, &set).for_each_chunk(|chunk| {
-            out.extend_from_slice(chunk.as_bytes());
-        });
-        out
-    };
-    let raw_len = raw_bytes.len();
+    let mut response = http
+        .get(&select_url, lotus_search::ResponseFormat::Csv.accept())
+        .await
+        .map_err(|e| ApiError::upstream(format!("export fetch failed: {e}")))?;
+    // The inherent `reqwest` method shadows the trait's, so it is converted here.
+    let status = response.status().as_u16();
+    if !(200..300).contains(&status) {
+        return Err(ApiError::upstream(format!(
+            "export upstream returned HTTP {status}"
+        )));
+    }
 
     let requested_filename = params
         .filename
         .as_deref()
         .map(crate::export::sanitize_download_filename)
         .filter(|name| !name.is_empty());
-
-    let (body_bytes, content_type, attachment_name) = if let Some(filename) = requested_filename {
-        (raw_bytes, format.content_type(), filename)
+    // No name means the browser has to infer one, so the bytes are gzipped and named
+    // for it. With a name it can save what it is given.
+    let compress = requested_filename.is_none();
+    let content_type = if compress {
+        "application/gzip".to_string()
     } else {
-        let gz_bytes = gzip_bytes(&raw_bytes)
-            .map_err(|e| ApiError::upstream(format!("gzip encoding failed: {e}")))?;
-        (
-            gz_bytes,
-            "application/gzip",
-            format!("{cache_key}.{}.gz", format.extension()),
-        )
+        format.content_type().to_string()
     };
+    let attachment_name =
+        requested_filename.unwrap_or_else(|| format!("{cache_key}.{}.gz", format.extension()));
+
+    // A bounded channel, so a client that stops reading stops the work. Unbounded
+    // would trade the buffering we removed for buffering somewhere less visible.
+    let (tx, rx) = tokio::sync::mpsc::channel::<Bytes>(8);
+    tokio::spawn(pump_export(response, tx, format, compress));
+
+    let stream = futures::stream::unfold(rx, |mut rx| async move {
+        rx.recv()
+            .await
+            .map(|chunk| (Ok::<Bytes, std::io::Error>(chunk), rx))
+    });
     log::info!(
-        "event=export_file state=success elapsed_ms={:.1} format={} raw_bytes={} out_bytes={} named={}",
-        req_started.elapsed().as_secs_f64() * 1000.0,
+        "event=export_file state=started format={} compressed={compress} parsed={}",
         format.extension(),
-        raw_len,
-        body_bytes.len(),
-        params.filename.is_some(),
+        format != ExportFormat::Csv,
     );
 
     Response::builder()
@@ -552,8 +544,108 @@ pub async fn export_file(
             format!("attachment; filename=\"{attachment_name}\""),
         )
         .header(header::CACHE_CONTROL, "private, max-age=600")
-        .body(axum::body::Body::from(body_bytes))
+        .body(axum::body::Body::from_stream(stream))
         .map_err(|e| ApiError::upstream(format!("response build failed: {e}")))
+}
+
+/// Pump one export from the upstream response to the client.
+///
+/// Separated from the handler so the handler reads as a decision about headers and
+/// this reads as the pipeline it sets running. `response` is taken by value and moved
+/// into the task, which is what lets the handler return without holding the body.
+async fn pump_export<H>(
+    mut response: H,
+    tx: tokio::sync::mpsc::Sender<Bytes>,
+    format: ExportFormat,
+    compress: bool,
+) where
+    H: lotus_search::HttpResponse + Send + 'static,
+{
+    let log = |state: &str, detail: String| {
+        log::warn!(
+            "event=export_file state={state} format={} detail={detail}",
+            format.log_name()
+        );
+    };
+    let mut encoder = compress.then(|| GzEncoder::new(Vec::new(), Compression::default()));
+    // CSV is already what the endpoint sends, so it is relayed as bytes and never
+    // parsed. Only the formats that have to be built here need the rows.
+    let mut reader = (format != ExportFormat::Csv).then(CsvColumnarReader::new);
+    let mut failed = false;
+
+    loop {
+        match response.chunk().await {
+            Ok(Some(chunk)) => match reader.as_mut() {
+                Some(reader) => {
+                    if let Err(e) = reader.feed(&chunk) {
+                        log("parse_failed", e.to_string());
+                        failed = true;
+                        break;
+                    }
+                }
+                None => {
+                    if !push_chunk(&tx, &mut encoder, &chunk).await {
+                        break;
+                    }
+                }
+            },
+            Ok(None) => break,
+            Err(e) => {
+                log("upstream_truncated", e.to_string());
+                failed = true;
+                break;
+            }
+        }
+    }
+
+    // The rows only become a set at end of input, so a converted export begins after
+    // the endpoint has finished. That is inherent to rendering from rows -- the
+    // alternative is the CONSTRUCT this replaced -- and it costs a constant rather
+    // than a second copy of the export.
+    if let (false, Some(reader)) = (failed, reader) {
+        {
+            match reader.finish() {
+                Ok(set) => {
+                    let mut exporter = RowExporter::new(format, &set);
+                    while let Some(chunk) = exporter.next_chunk() {
+                        if !push_chunk(&tx, &mut encoder, chunk.as_bytes()).await {
+                            break;
+                        }
+                    }
+                }
+                Err(e) => log("parse_failed", e.to_string()),
+            }
+        }
+    }
+
+    if let Some(encoder) = encoder {
+        // `finish` writes the gzip trailer and then consumes the encoder, so the
+        // bytes it produced are taken from the inner buffer afterwards.
+        let finished = encoder.finish().unwrap_or_default();
+        if !finished.is_empty() {
+            let _ = tx.send(Bytes::from(finished)).await;
+        }
+    }
+}
+
+async fn push_chunk(
+    tx: &tokio::sync::mpsc::Sender<Bytes>,
+    encoder: &mut Option<GzEncoder<Vec<u8>>>,
+    data: &[u8],
+) -> bool {
+    match encoder {
+        Some(encoder) => {
+            use std::io::Write as _;
+            if encoder.write_all(data).is_err() || encoder.flush().is_err() {
+                return false;
+            }
+            // Drain what the encoder has produced so far rather than the whole buffer,
+            // so memory stays proportional to one chunk instead of the whole export.
+            let ready = std::mem::take(encoder.get_mut());
+            ready.is_empty() || tx.send(Bytes::from(ready)).await.is_ok()
+        }
+        None => tx.send(Bytes::from(data.to_vec())).await.is_ok(),
+    }
 }
 
 /// Gates on the export handler's use of the endpoint.
@@ -599,21 +691,58 @@ mod export_query_shape {
 
     /// Every non-CSV format has to be produced here, from rows already fetched.
     ///
-    /// A `match` that handled CSV and then returned the `SELECT` bytes unchanged for
-    /// the rest would type-check, pass a content-type test, and hand a reader a file
-    /// called `.ttl` containing CSV.
+    /// A `match` that handled CSV and then passed the upstream bytes through
+    /// unchanged for the rest would type-check, pass a content-type test, and hand a
+    /// reader a file called `.ttl` containing CSV.
     #[test]
     fn a_non_csv_format_is_built_here_rather_than_passed_through() {
         // Split for the same reason: both needles appear in this module's own text.
+        let reader = concat!("CsvColumnar", "Reader");
         let exporter = concat!("RowExporter::", "new(format, &set)");
-        let parser = concat!("parse_compounds_", "columnar");
+        assert!(
+            HANDLERS.contains(reader),
+            "the rows have to be parsed before they can be re-rendered"
+        );
         assert!(
             HANDLERS.contains(exporter),
             "every format but CSV is rendered locally from the fetched rows"
         );
+    }
+
+    /// The export must not buffer the upstream body, and must not build the whole
+    /// output before sending any of it.
+    ///
+    /// This is the difference between peak memory being one chunk and peak memory
+    /// being the export twice over: the bulk fetch helper returns a `Vec<u8>` of the
+    /// entire body, and a gzip encoder over a `Vec` holds the compressed copy alongside.
+    /// Both are invisible in a response that succeeds, so the shape is pinned here
+    /// rather than measured. `next_chunk` is what makes the output incremental --
+    /// `for_each_chunk` would have needed the whole render to finish first, because
+    /// it is synchronous and cannot await a send.
+    #[test]
+    fn the_export_streams_rather_than_buffering() {
+        let buffered = concat!("fetch_", "url");
+        let encoder = concat!("GzEncoder::new(Vec::new()", ", Compression::default())");
         assert!(
-            HANDLERS.contains(parser),
-            "the rows have to be parsed before they can be re-rendered"
+            !HANDLERS.contains(buffered),
+            "the export must read the upstream chunk by chunk; fetching it whole puts \
+             the entire export in memory before the first byte is sent"
+        );
+        assert!(
+            HANDLERS.contains(encoder),
+            "gzip must be incremental, or the compressed copy doubles peak memory"
+        );
+        let per_chunk = concat!("RowExporter::", "new(format, &set)");
+        let drain = concat!("exporter.next_", "chunk()");
+        assert!(
+            HANDLERS.contains(per_chunk) && HANDLERS.contains(drain),
+            "the rendered output must be drained a chunk at a time"
+        );
+        // The channel is what stops a client that stops reading from being turned
+        // into unbounded buffering somewhere less visible than the export.
+        assert!(
+            HANDLERS.contains("tokio::sync::mpsc::channel::<Bytes>(8)"),
+            "the outbound channel must be bounded, or backpressure becomes buffering"
         );
     }
 }
