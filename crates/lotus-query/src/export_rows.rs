@@ -73,12 +73,9 @@ const CHUNK_TARGET: usize = 64 * 1024;
 ///
 /// Deliberately *not* the same list as `SELECT_COLUMNS`: the reference node is
 /// projected for the provenance graph and kept in the parsed row, but no column a
-/// person reads shows it.
-#[must_use]
-pub fn visible_columns() -> Vec<&'static str> {
-    COLUMNS.to_vec()
-}
-
+/// person reads shows it. Asserted by rendering a set and looking for the node's
+/// hash in the output, rather than by comparing lists -- a test that compares the
+/// constants would only notice a rename.
 const COLUMNS: [&str; 13] = [
     "compound",
     "compoundLabel",
@@ -561,6 +558,48 @@ mod tests {
     /// references produced two identical triples and the occurrences became
     /// indistinguishable. The reference node was dropped entirely, which is what
     /// made `?ref` look unreadable.
+    /// The reference node must not leak into anything a person reads.
+    ///
+    /// Behavioural rather than a comparison of column lists: a distinctive hash
+    /// goes into a row and the exports are searched for it. Comparing constants
+    /// would only notice a rename, and the failure was never a rename -- it was
+    /// the value being routed to the wrong place entirely.
+    ///
+    /// Scope, established by trying to fool it: this catches the *value* reaching a
+    /// readable export. Adding a column name alone does not trip it, because the
+    /// name and the value come from separate lists and a name on its own carries
+    /// nothing. Verified to fail by pushing the hash into `cells`.
+    #[test]
+    fn the_reference_node_is_absent_from_the_readable_exports() {
+        const HASH: &str = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+        let row = CompoundEntry {
+            reference_node: arc(HASH),
+            ..full_row()
+        };
+        let set = set_of(&[row]);
+
+        for format in [ExportFormat::Csv, ExportFormat::Json] {
+            let out = render(format, &set);
+            assert!(
+                !out.contains(HASH),
+                "the reference node leaked into a readable export: {out}"
+            );
+            // Sanity: the row really is there, so this cannot pass on an empty set.
+            assert!(
+                out.contains("Q3613679"),
+                "{format:?} produced nothing to check"
+            );
+        }
+
+        // And it *is* in the Turtle, or the test above would pass for the wrong
+        // reason -- by the column having gone missing rather than by being withheld.
+        let turtle = render(ExportFormat::Rdf, &set);
+        assert!(
+            turtle.contains(&format!("reference/{HASH}")),
+            "the reference node must be in the Turtle provenance graph: {turtle}"
+        );
+    }
+
     #[test]
     fn turtle_carries_the_reified_statement_and_the_reference_node() {
         let ttl = render(ExportFormat::Rdf, &set_of(&[full_row()]));

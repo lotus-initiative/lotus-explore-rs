@@ -160,42 +160,64 @@ replaced by:
 **Measure the row count as well as the time.** A form that is faster because it
 joins less is not an optimisation, and a timing on its own cannot tell the
 difference.
-## Projection: a column nothing read
+## Projection: `?ref`, dropped and put back
 
-The query above projects fifteen variables. One of them, `?ref`, was read by
-nothing: no parser column resolves it, and no export format emits it. It was the
-largest single column in an unnarrowed result -- 54.3 MB of a 400 MB payload,
-13.6% -- and it was being computed by QLever, serialised, and sent on every one of
-723,990 rows.
+**This section is a reversal. It is kept because the reasoning was sound and the
+conclusion was still wrong, which is the more useful thing to record.**
 
-Dropping it from the outer `SELECT` is free for the Turtle export, which is not
-obvious and is worth being exact about. `construct_from_select` replaces the text
-from the first `SELECT` to the first `WHERE` with a hardcoded `CONSTRUCT`
-template, so the projection is discarded -- but the template still *names* `?ref`,
-in `?statement prov:wasDerivedFrom ?ref` and `?ref pr:P248 ?r`. Those triples are
-emitted only if `?ref` is still bound, and it is: the innermost pattern contains
-`?ref pr:P248 ?r`, which binds it regardless of what the projection says. A
-`CONSTRUCT` naming an unbound variable emits nothing for it and says nothing, so
-this is the half that could have gone quietly wrong.
+`?ref` was dropped from the outer `SELECT` on the grounds that nothing read it: no
+parser column resolved it and no export format emitted it. It was the largest
+single column in an unnarrowed result -- 54.3 MB of a 400 MB payload, 13.6% --
+computed by QLever, serialised, and sent on all 723,990 rows.
 
-Measured on `Q21754`, the taxon used above, so it is comparable with the numbers
-in this file. Both queries against the live endpoint, `Accept-Encoding: gzip`:
+Measured on `Q21754`, both against the live endpoint with `Accept-Encoding: gzip`:
 
 | Form | rows | raw | wire | wall |
 |---|---|---|---|---|
 | projecting `?ref` | 32,160 | 18,385,046 | 4,215,824 | 4.95 s |
-| **not projecting it** | **32,160** | **15,973,042** | **3,522,695** | **3.31 s** |
+| not projecting it | 32,160 | 15,973,042 | 3,522,695 | 3.31 s |
 
-13.1% off the decompressed payload, 16.4% off the wire, 33% off wall clock. The
-row count is unchanged and every row is byte-identical once the dropped column is
-removed from the old response, which was checked rather than assumed. The two
-`CONSTRUCT` queries are byte-identical files.
+13.1% off the decompressed payload, 16.4% off the wire, 33% off wall clock, and
+the row count unchanged. Every number held up.
 
-Note what this is *not*: it is not a change to the query's shape. The subqueries,
-the joins and the `DISTINCT` are untouched, so none of the completeness argument
-above applies and none of it needs re-running. It is the cheapest kind of win
-available -- a projected variable is not free, and this one was projected for
-nobody.
+And it was still wrong, for two reasons neither of which a timing can show.
+
+**The set-based exporter needs it.** The argument above was that dropping the
+projection is free for the Turtle export, because `construct_from_select` replaces
+everything from the first `SELECT` to the first `WHERE` with a hardcoded
+`CONSTRUCT` template -- so the projection is discarded and `?ref` stays bound by
+the innermost `?ref pr:P248 ?r` regardless. That is true, and it is true only of
+the *endpoint* path. There is a second Turtle exporter, `RowExporter`, which
+builds triples from the parsed `ColumnarResultSet` rather than from a CONSTRUCT.
+That one had no `?ref` at all, so it emitted
+
+    wd:Q103815959 prov:wasDerivedFrom wd:Q35589126 .
+
+with the **compound** as the subject -- the statement is what was derived from the
+reference -- and no reference node in the graph at all. So a compound reported
+through two references produced two identical triples and the occurrences were
+indistinguishable. Two exporters, two code paths, one of which the measurement
+never exercised.
+
+**It cannot be cast to an integer.** `?ref` is a reference *node*:
+
+    http://www.wikidata.org/reference/9642f33c41767b8a0f7cb06de523c17dda0b921d
+
+not a `Q<digits>`. Projecting it through the `STRAFTER`/`xsd:integer` treatment
+every QID column gets is a type error on every row, and QLever reports that as an
+unbound cell rather than a failed query -- so the column would look present and be
+empty throughout. `?ref_qid` is a different identifier and is unaffected: it is the
+publication the node points at via `pr:P248`.
+
+`?ref` is projected again, stored per row, and shown to nobody -- the user-facing
+column list is a separate constant. The payload cost above is real and is being
+paid for correctness. Two gates now hold this in place: `?ref` is in
+`SELECT_COLUMNS`, and no `STRAFTER(STR(?ref)` appears anywhere in the query.
+
+The transferable lesson is narrow and worth stating: **a payload measurement can
+tell you a column is unread by the code you measured, and cannot tell you whether
+every consumer was measured.** Two of the three real defects in this file were
+invisible to row counts and to timings.
 
 ### Coalescing the two SMILES columns: measured, and rejected
 

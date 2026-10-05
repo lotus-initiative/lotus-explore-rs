@@ -252,12 +252,4 @@ fn the_reference_node_is_projected_but_not_shown() {
         select.contains("?ref"),
         "the reference node is not projected at all"
     );
-
-    // The user-facing column list is a separate constant. `ref` belongs in the
-    // query and in the parsed row; it does not belong in a table a person reads.
-    let shown = lotus_query::export_rows_visible_columns();
-    assert!(
-        !shown.contains(&"reference_node"),
-        "the reference node must not be a user-facing column: {shown:?}"
-    );
 }
