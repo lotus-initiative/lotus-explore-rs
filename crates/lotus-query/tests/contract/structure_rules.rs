@@ -262,3 +262,30 @@ fn the_reference_node_is_projected_but_not_shown() {
         "the reference node is not projected at all"
     );
 }
+
+/// Every shape must say what makes `?c` a chemical entity.
+///
+/// `P703` is not specific to metabolites: Wikidata uses it for genes and proteins
+/// too. A taxon search with no compound test returned `Q21629845` — a
+/// protein-coding gene for an oxidoreductase subunit — beside the metabolites,
+/// with nothing in the row to say which it was. The `P235` InChIKey is the
+/// discriminator: that gene has neither `P235` nor `P233`, a metabolite has both.
+#[test]
+fn every_shape_requires_the_compound_to_be_a_chemical_entity() {
+    for (label, query) in every_shape() {
+        assert!(
+            query.contains("wdt:P235 ?compound_inchikey"),
+            "{label}: no InChIKey requirement, so genes with a `found in taxon` \\
+             statement are returned as compounds"
+        );
+        // It has to be required, not merely present somewhere: inside an OPTIONAL
+        // it excludes nothing, which is the mistake the first attempt made.
+        assert!(
+            !optionals(&query)
+                .iter()
+                .any(|group| group.contains("wdt:P235 ?compound_inchikey")),
+            "{label}: the InChIKey requirement is inside an OPTIONAL, so it does \\
+             not filter anything"
+        );
+    }
+}

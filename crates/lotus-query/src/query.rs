@@ -508,6 +508,24 @@ fn compounds_query_with_closure(
         )
     });
 
+    // What makes `?c` a chemical entity rather than anything else with a
+    // `found in taxon` statement.
+    //
+    // `P703` is not specific to metabolites. Wikidata uses it for genes and
+    // proteins too, so a taxon search with no compound test returns
+    // `Q21629845` -- a protein-coding gene for an oxidoreductase subunit -- beside
+    // the metabolites, and nothing in the row says which it is.
+    //
+    // `P235`, the InChIKey, is the discriminator: that gene has neither `P235` nor
+    // `P233` (checked), while a metabolite has both. The required-occurrence branch
+    // already carried this triple, which is why only the optional-occurrence and
+    // compound-seeded shapes leaked genes.
+    //
+    // `P233` stays optional. Requiring both would drop real compounds that carry a
+    // canonical SMILES and no InChIKey, and dropping a metabolite to keep the shape
+    // tidy is the wrong trade in the other direction.
+    let chemical = "?c wdt:P235 ?compound_inchikey .";
+
     let core = compound_seed.map_or_else(
         || {
             // The `;` spelling is kept on the shared prefix: an existing contract test
@@ -537,7 +555,8 @@ fn compounds_query_with_closure(
                 // emit rows with a taxon but no reference, a shape the result store has
                 // no way to represent.
                 Occurrence::Optional => format!(
-                    "OPTIONAL {{ \
+                    "{chemical} \
+          OPTIONAL {{ \
             ?c p:P703 ?statement .\
             ?statement ps:P703 ?t ;\
                        prov:wasDerivedFrom ?ref .\
@@ -596,6 +615,7 @@ fn compounds_query_with_closure(
             if taxon_qid.is_some() {
                 format!(
                     "VALUES ?c {{ {seeded} }}
+          {chemical} \
           ?c p:P703 ?statement .\
           ?statement ps:P703 ?t ;\
                      prov:wasDerivedFrom ?ref .\
@@ -605,6 +625,7 @@ fn compounds_query_with_closure(
             } else {
                 format!(
                     "VALUES ?c {{ {seeded} }}
+          {chemical} \
           OPTIONAL {{
             {{ SELECT * WHERE {{
               VALUES ?c {{ {seeded} }}

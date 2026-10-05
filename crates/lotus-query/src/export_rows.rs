@@ -345,7 +345,18 @@ impl<'a> RowExporter<'a> {
             .reference_node_text(row)
             .map(|n| n.trim().to_string())
             .filter(|n| !n.is_empty())
-            .map(|hash| format!("<{WIKIDATA_REFERENCE_BASE}{hash}>"));
+            // The stored value is the node's hash with the namespace already
+            // stripped, so the namespace goes back on here. An absolute URI is
+            // left alone: not every `prov:wasDerivedFrom` object is a
+            // `/reference/<hex>` node, and prepending the namespace to one of those
+            // produced `.../reference/http://www.wikidata.org/r`.
+            .map(|hash| {
+                if hash.starts_with("http://") || hash.starts_with("https://") {
+                    format!("<{hash}>")
+                } else {
+                    format!("<{WIKIDATA_REFERENCE_BASE}{hash}>")
+                }
+            });
         let publication = set
             .reference_qid_text(row)
             .map(|r| r.trim().to_string())
@@ -433,18 +444,23 @@ fn statement_text(set: &ColumnarResultSet, row: usize) -> String {
 /// Unquoted and typed `xsd:decimal`, because Wikidata holds these as numbers. A quoted
 /// `"302.24"` is a *different value* to anything reading the graph, not a formatting
 /// preference: the mass is comparable with `>` only if it is a number.
+/// A Turtle typed number, or nothing at all when there is none.
+///
+/// Empty rather than `[]`, for the same reason `quote` is: an empty blank node is
+/// a node, and `wdt:P2067 []` says a compound has a molecular mass of nothing.
+/// `emit` drops the triple, which is what the endpoint's CONSTRUCT does with an
+/// unbound object.
 fn number(value: Option<f64>) -> String {
-    value.filter(|mass| mass.is_finite()).map_or_else(
-        || "[]".to_string(),
-        |mass| {
+    value
+        .filter(|mass| mass.is_finite())
+        .map_or_else(String::new, |mass| {
             let text = if mass.fract() == 0.0 {
                 format!("{mass:.1}")
             } else {
                 format!("{mass}")
             };
             format!("\"{text}\"^^xsd:decimal")
-        },
-    )
+        })
 }
 
 /// A Turtle object: a quoted literal, or nothing for a missing value.
@@ -972,13 +988,15 @@ mod tests {
             "the value is quoted as a literal, not emitted bare"
         );
 
-        assert_eq!(number(None), "[]", "an absent mass is the empty list");
+        // Empty, not `[]`: an empty blank node is a node, and `wdt:P2067 []` says
+        // the compound has a molecular mass of nothing. `emit` then drops the triple.
+        assert_eq!(number(None), "", "an absent mass emits no triple");
         assert_eq!(
             number(Some(f64::INFINITY)),
-            "[]",
+            "",
             "infinity is not a number and has no literal"
         );
-        assert_eq!(number(Some(f64::NAN)), "[]", "nor has NaN");
+        assert_eq!(number(Some(f64::NAN)), "", "nor has NaN");
     }
 
     /// Every character that would break the document is escaped.
