@@ -95,6 +95,26 @@ pub fn looks_like_inchikey(text: &str) -> bool {
 /// The stereocentre in the last one is deliberate over a simpler chain: it is the
 /// structure a person cannot type from memory, and would otherwise go looking for
 /// a drawing tool to make.
+/// Clickable examples for the reference field, one of each kind it accepts.
+///
+/// Sits next to the structure examples and next to the code that classifies an
+/// input, for the same reason: a list of examples that lives away from the thing
+/// that has to agree with it drifts.
+///
+/// * `10.1002/andp.18280880206` -- a DOI, resolved by looking the reference up.
+/// * `10.1021/acs.jnatprod.1C00812` -- the same kind, from a different publisher, so
+///   the pair shows the prefix is not what is being matched.
+/// * `Q28601559` -- a QID, passed through without a round trip.
+///
+/// All three report ethanol, which is the point: the same compound reached by a
+/// DOI and by an identifier, so a reader can see that both routes agree, and a
+/// test checks that a DOI is not classified as a QID.
+pub const REFERENCE_INPUT_EXAMPLES: [&str; 3] = [
+    "10.1002/andp.18280880206",
+    "10.1021/acs.jnatprod.1C00812",
+    "Q28601559",
+];
+
 pub const STRUCTURE_INPUT_EXAMPLES: [&str; 5] = [
     "amarogentina",
     "红雀椿素",

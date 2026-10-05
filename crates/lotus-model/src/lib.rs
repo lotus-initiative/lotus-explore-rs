@@ -22,9 +22,9 @@ pub use identify::{non_empty, normalize_doi, normalize_qid};
 pub use reference::{looks_like_doi, looks_like_reference_qid, strip_doi_prefix};
 pub use stats::{DEFAULT_STRUCTURE_THRESHOLD, DatasetStats, ElementState, SmilesSearchType};
 pub use structure::{
-    InputKind, STRUCTURE_INPUT_EXAMPLES, StructureKind, classify_structure,
-    classify_structure_input, could_be_a_compound_name, looks_like_a_compound_qid,
-    looks_like_inchikey, names_a_compound,
+    InputKind, REFERENCE_INPUT_EXAMPLES, STRUCTURE_INPUT_EXAMPLES, StructureKind,
+    classify_structure, classify_structure_input, could_be_a_compound_name,
+    looks_like_a_compound_qid, looks_like_inchikey, names_a_compound,
 };
 pub use validate::{ValidationError, validate_criteria};
 

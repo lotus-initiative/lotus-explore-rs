@@ -167,6 +167,55 @@ mod tests {
         }
     }
 
+    /// The reference field's own wiring, asserted rather than assumed.
+    ///
+    /// The examples were added to the taxon and structure fields first and the
+    /// reference field carried only a `placeholder`, which is the affordance the
+    /// module doc argues against. This pins the wiring so a fourth field cannot
+    /// quietly arrive with buttons that no label points at.
+    #[component]
+    fn ReferenceSubject() -> Element {
+        use_context_provider(|| Signal::new(Locale::En));
+        rsx! {
+            div {
+                label { r#for: "reference-input", "Reference" }
+                input { id: "reference-input", "aria-describedby": "reference-input-examples-heading" }
+                FieldExamples {
+                    target: "reference-input",
+                    values: &["10.1002/andp.18280880206",
+                    "10.1021/acs.jnatprod.1C00812",
+                    "Q28601559",],
+                    heading: TextKey::Examples,
+                    onfill: move |_value: String| {},
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn the_reference_field_points_at_its_own_examples_heading() {
+        let mut dom = VirtualDom::new(ReferenceSubject);
+        dom.rebuild_in_place();
+        let html = dioxus_ssr::render(&dom);
+
+        assert!(
+            html.contains(r#"aria-describedby="reference-input-examples-heading""#),
+            "the input must name the heading: {html}"
+        );
+        assert!(
+            html.contains(r#"id="reference-input-examples-heading""#),
+            "and the heading must carry that id: {html}"
+        );
+        assert!(
+            html.contains(r#"aria-labelledby="reference-input-examples-heading""#),
+            "and the group must be labelled by it: {html}"
+        );
+        assert!(
+            html.contains("10.1021/acs.jnatprod.1C00812"),
+            "the DOI example is the one that has to be there: {html}"
+        );
+    }
+
     fn render() -> String {
         // The tree has to be built before it can be walked, and the renderer walks
         // it rather than doing so itself.

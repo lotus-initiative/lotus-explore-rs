@@ -27,6 +27,7 @@ use dioxus::prelude::*;
 /// The list and the explanation of it live in `lotus-model`, next to the code
 /// that classifies an input, so the buttons and the resolver cannot disagree
 /// about which one is a name and which is a structure.
+use lotus_model::REFERENCE_INPUT_EXAMPLES as REFERENCE_SUGGESTIONS;
 use lotus_model::STRUCTURE_INPUT_EXAMPLES as STRUCTURE_SUGGESTIONS;
 use lotus_model::SmilesSearchType;
 
@@ -191,12 +192,24 @@ fn ReferenceInput() -> Element {
                 name: "reference",
                 r#type: "text",
                 "toolparamdescription": "A Wikidata QID or a DOI.",
+                "aria-describedby": "reference-input-examples-heading",
                 autocomplete: "off",
                 spellcheck: "false",
                 placeholder: "10.1002/andp.18280880206",
                 value: "{reference.read()}",
                 oninput: move |e| ctx.update(FormAction::Reference(e.value())),
                 class: "font-mono w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+            }
+            datalist { id: "reference-suggestions",
+                for item in REFERENCE_SUGGESTIONS {
+                    option { value: "{item}" }
+                }
+            }
+            FieldExamples {
+                target: "reference-input",
+                values: &REFERENCE_SUGGESTIONS,
+                heading: TextKey::Examples,
+                onfill: move |value: String| ctx.update(FormAction::Reference(value)),
             }
         }
     }
