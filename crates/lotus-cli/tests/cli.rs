@@ -181,7 +181,7 @@ fn every_filter_reaches_the_query() {
         ),
         (
             &["--year-min", "1990", "--year-max", "2010"],
-            &["YEAR(?ref_date) >= 1990"],
+            &["YEAR(?_year_date) >= 1990"],
         ),
         (
             &["--formula", "C17H12O7"],

@@ -1262,13 +1262,25 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
         let _ = writeln!(required, "?c wdt:P2067 ?compound_mass .");
     }
 
+    // The year filter reaches `?r`, and `?r` is bound by the occurrence block,
+    // which is optional in the taxon-free shapes. An unbound `?r` entering a
+    // *required* triple goes fresh -- SPARQL binds it rather than leaving it
+    // unbound -- so this becomes "every dated reference in Wikidata", the same
+    // explosion the metadata sentinel exists to prevent. Measured on a
+    // taxon-free year-filtered search: 30 s and zero rows, because the query
+    // timed out and an empty result reads as "nothing matched".
+    //
+    // `?_ref_source` cannot be reused here: it is bound inside the middle
+    // subquery and not projected, so it is not in scope at the point these
+    // fragments are spliced in. Hence a second sentinel, on its own variable.
     if criteria.has_year_filter(year_max) {
+        let _ = writeln!(required, "BIND(COALESCE(?r, wd:Q0) AS ?_year_ref)");
+        let _ = writeln!(required, "?_year_ref wdt:P577 ?_year_date .");
         let _ = write!(
             filters,
-            "FILTER(YEAR(?ref_date) >= {} && YEAR(?ref_date) <= {})",
+            "FILTER(YEAR(?_year_date) >= {} && YEAR(?_year_date) <= {})",
             criteria.year_min, criteria.year_max
         );
-        let _ = writeln!(required, "?r wdt:P577 ?ref_date .");
     }
 
     // A reference constrains which *reported* compounds are wanted, so it binds

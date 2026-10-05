@@ -113,14 +113,22 @@ fn the_filter_fragments_land_in_the_outermost_where_block() {
         injected.contains("?c wdt:P2067 ?compound_mass ."),
         "mass becomes required"
     );
+    // Through a sentinel, not `?r` directly: `?r` is bound by the occurrence
+    // block, which is optional in the taxon-free shapes, and an unbound `?r`
+    // entering a required triple goes fresh -- "every dated reference in
+    // Wikidata". Measured: 30 s and zero rows, the timeout reading as no match.
     assert!(
-        injected.contains("?r wdt:P577 ?ref_date ."),
+        injected.contains("BIND(COALESCE(?r, wd:Q0) AS ?_year_ref)"),
+        "the year filter must reach the reference through a sentinel: {injected}"
+    );
+    assert!(
+        injected.contains("?_year_ref wdt:P577 ?_year_date ."),
         "the reference date becomes required"
     );
     assert!(
         injected.contains("FILTER(?compound_mass >= 100.000000 && ?compound_mass <= 400.000000)")
     );
-    assert!(injected.contains("FILTER(YEAR(?ref_date) >= 1990 && YEAR(?ref_date) <= 2010)"));
+    assert!(injected.contains("FILTER(YEAR(?_year_date) >= 1990 && YEAR(?_year_date) <= 2010)"));
     assert!(
         injected.trim_end().ends_with('}'),
         "and the block is closed again"
@@ -417,8 +425,11 @@ fn a_reference_constraint_composes_with_the_year_filter() {
         filtered.contains("VALUES ?r { wd:Q34460861 }"),
         "{filtered}"
     );
-    assert!(filtered.contains("?r wdt:P577 ?ref_date"), "{filtered}");
-    assert!(filtered.contains("FILTER(YEAR(?ref_date)"), "{filtered}");
+    assert!(
+        filtered.contains("?_year_ref wdt:P577 ?_year_date"),
+        "{filtered}"
+    );
+    assert!(filtered.contains("FILTER(YEAR(?_year_date)"), "{filtered}");
 }
 
 /// `([A-Z])` splits every capital, so `C6H5COOH` tokenises to `|C6|H5|C|O|O|H`.
