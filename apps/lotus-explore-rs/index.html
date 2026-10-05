@@ -45,6 +45,28 @@
   <link rel="dns-prefetch" href="https://scripts.simpleanalyticscdn.com">
   <script>
     (function () {
+      // First, before anything below touches a sink.
+      //
+      // The policy is not consulted while the CSP omits
+      // `require-trusted-types-for 'script'`, which is the shipped setting (see
+      // docs/DEPLOYMENT.md: this client evaluates strings, and a policy written
+      // in JavaScript cannot return a TrustedScript). It stays, and it stays
+      // first, because the moment that directive comes back a `script.src`
+      // assignment is a sink: with no policy it throws, and an exception here
+      // ends this function before the rest of it runs. That is what this block
+      // used to get wrong by sitting at the bottom -- `setAssetBase` always
+      // threw first, so the policy never existed, the WASM client's `innerHTML`
+      // sinks threw as well, and the page stayed on the boot shell.
+      if (window.trustedTypes) {
+        try {
+          trustedTypes.createPolicy("default", {
+            createHTML: function (value) { return String(value); },
+            createScript: function (value) { return String(value); },
+            createScriptURL: function (value) { return String(value); },
+            createURL: function (value) { return String(value); }
+          });
+        } catch (error) {}
+      }
        var path = window.location.pathname;
         var cleanPath = path.length > 1 ? path.replace(/\/+$/, "") : path;
         var basePath = cleanPath;
@@ -147,16 +169,6 @@ var bootstrap = document.createElement("script");
         document.documentElement.setAttribute("data-lotus-query", window.location.search);
 
        document.documentElement.lang = params.get("lang") || params.get("locale") || "en";
-
-      if (!window.trustedTypes) return;
-      try {
-        trustedTypes.createPolicy("default", {
-          createHTML: function (value) { return String(value); },
-          createScript: function (value) { return String(value); },
-          createScriptURL: function (value) { return String(value); },
-          createURL: function (value) { return String(value); }
-        });
-      } catch (error) {}
     })();
   </script>
   <style>

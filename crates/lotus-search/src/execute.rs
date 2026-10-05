@@ -62,6 +62,18 @@ impl Service {
     }
 
     /// The URL to POST to: the override if one is set, else the public one.
+    ///
+    /// The `!url.is_empty()` filter is a surviving mutant, and so are the same
+    /// filter in `query_budget` and the same test in `request_headers`. All three
+    /// read one environment variable and all three decide what an *empty* one
+    /// means -- which no test can reach, because the workspace forbids
+    /// `unsafe_code` and `std::env::set_var` is `unsafe` on this toolchain. They
+    /// are one gap wearing three hats, and the fix is the one
+    /// `apps/lotus-explore-rs/src/server/config.rs` already uses: take the
+    /// variable as a parameter, so production passes an env reader and a test
+    /// passes a closure returning `Some(String::new())`. Recorded in
+    /// `mutants.toml` rather than done here, because `Service::target` is public
+    /// and making that change is an API decision rather than a test.
     #[must_use]
     pub fn target(self) -> String {
         std::env::var(self.variable())
@@ -177,6 +189,15 @@ pub async fn execute<H: Http>(
         match send(http, &target, query, format).await {
             Ok(body) => return Ok(Answer { endpoint, body }),
             Err(err) => {
+                // `<` rather than `<=` is one surviving mutant here that is
+                // equivalent, and it is worth saying why rather than leaving it to
+                // be rediscovered. `attempt <= MAX_ATTEMPTS` is true on the last
+                // iteration too, so the body would take one more branch: store
+                // the error, sleep out the backoff, and let the `for` run out. It
+                // then returns `last` -- the error from that same last attempt,
+                // which is the identical value the line below returns directly.
+                // Same error, same number of requests, one wasted 400 ms. `<` is
+                // what is meant: the last attempt's failure is the answer.
                 let worth_retrying = err.is_retryable() && attempt < MAX_ATTEMPTS;
                 if !worth_retrying {
                     return Err(err);
@@ -488,6 +509,15 @@ pub async fn execute_streaming<H: Http>(
                 return Ok(StreamAnswer { endpoint, chunks });
             }
             Err(err) => {
+                // `<` rather than `<=` is one surviving mutant here that is
+                // equivalent, and it is worth saying why rather than leaving it to
+                // be rediscovered. `attempt <= MAX_ATTEMPTS` is true on the last
+                // iteration too, so the body would take one more branch: store
+                // the error, sleep out the backoff, and let the `for` run out. It
+                // then returns `last` -- the error from that same last attempt,
+                // which is the identical value the line below returns directly.
+                // Same error, same number of requests, one wasted 400 ms. `<` is
+                // what is meant: the last attempt's failure is the answer.
                 let worth_retrying = err.is_retryable() && attempt < MAX_ATTEMPTS;
                 if !worth_retrying {
                     return Err(err);
@@ -637,11 +667,18 @@ async fn backoff(_duration: Duration) {
     // A client that cannot reach the endpoint will not reach it in a
     // millisecond either, and blocking the browser's only thread to find that
     // out is worse than retrying immediately.
-    // A resolved promise is the platform's own "run this on the next turn of the
-    // event loop", and awaiting one is how a future yields on a single-threaded
-    // browser runtime.
+    // A resolved promise is the platform's own "run this on the next turn of
+    // the event loop", and awaiting one is how a future yields on a single-
+    // threaded browser runtime.
     // The `Result` cannot be awaited to anything useful: an already-resolved
     // promise does not reject, and there is nothing here for a failure to abort.
+    //
+    // Mutating the body of *this* function is a survivor on a native run, and it
+    // is not a gap in the tests: `cfg(target_arch = "wasm32")` means none of it is
+    // compiled into the test binary, so no mutation of it can be observed from
+    // one. The same edit to the `#[cfg(not(target_arch = "wasm32"))]` twin above
+    // *is* caught, by `a_retry_waits_before_it_happens`. Killing this one would
+    // take a browser test, which is what `wasm-bindgen-test` would be for.
     let _ = JsFuture::from(Promise::resolve(&JsValue::UNDEFINED)).await;
 }
 
@@ -883,6 +920,156 @@ mod tests {
         assert!(
             !malformed.is_endpoint_unavailable(),
             "a parse failure says the endpoint answered"
+        );
+    }
+
+    // ── `clamp_budget` ──────────────────────────────────────────────────────
+    //
+    // Pure, and until now reached only through `query_budget`, which reads an
+    // environment variable. That is not observable from a unit test: the
+    // workspace forbids `unsafe_code` and `std::env::set_var` is `unsafe` on
+    // this toolchain, so the budget arithmetic had no test at all.
+    //
+    // The cases below are the ones the parsing decides between, because each is a
+    // different spelling an operator can legitimately write in
+    // `LOTUS_QLEVER_TIMEOUT`. A budget that is silently misread is a query that
+    // runs for the wrong length of time, which is the outcome nobody notices.
+
+    #[test]
+    fn a_budget_in_milliseconds_is_taken_as_written() {
+        assert_eq!(clamp_budget("250ms").as_deref(), Some("250ms"));
+    }
+
+    #[test]
+    fn a_budget_in_seconds_becomes_milliseconds() {
+        assert_eq!(clamp_budget("5s").as_deref(), Some("5000ms"));
+    }
+
+    #[test]
+    fn the_long_spelling_of_seconds_is_understood() {
+        assert_eq!(clamp_budget("5sec").as_deref(), Some("5000ms"));
+    }
+
+    #[test]
+    fn a_budget_with_no_unit_is_seconds() {
+        assert_eq!(clamp_budget("5").as_deref(), Some("5000ms"));
+    }
+
+    #[test]
+    fn a_budget_in_minutes_becomes_milliseconds() {
+        assert_eq!(clamp_budget("1min").as_deref(), Some("30000ms"));
+    }
+
+    #[test]
+    fn whitespace_between_the_number_and_the_unit_is_tolerated() {
+        assert_eq!(clamp_budget("5 s").as_deref(), Some("5000ms"));
+    }
+
+    #[test]
+    fn a_budget_over_the_ceiling_is_clamped_rather_than_refused() {
+        assert_eq!(
+            clamp_budget("10min").as_deref(),
+            Some("30000ms"),
+            "the public instance refuses more than 30s, so an over-large local \
+             value must fail as a local clamp and not as a 403 from the endpoint"
+        );
+    }
+
+    #[test]
+    fn the_ceiling_is_the_one_the_endpoint_enforces() {
+        assert_eq!(clamp_budget("30s").as_deref(), Some("30000ms"));
+    }
+
+    #[test]
+    fn a_unit_that_is_not_a_unit_is_refused() {
+        assert_eq!(
+            clamp_budget("5h"),
+            None,
+            "hours are not a spelling this crate emits, and guessing would send \
+             a budget nobody asked for"
+        );
+    }
+
+    #[test]
+    fn text_that_is_not_a_duration_is_refused() {
+        assert_eq!(clamp_budget("soon"), None);
+    }
+
+    #[test]
+    fn an_empty_value_is_refused() {
+        assert_eq!(
+            clamp_budget(""),
+            None,
+            "no digits means no amount, so the caller's default stands"
+        );
+    }
+
+    #[test]
+    fn a_duration_that_would_overflow_is_refused_rather_than_wrapping() {
+        // `checked_mul` is what makes this `None` instead of a small budget
+        // nobody asked for, and a wrapped small budget would be accepted by the
+        // ceiling check and sent to the endpoint.
+        assert_eq!(clamp_budget("18446744073709551615min"), None);
+        assert_eq!(clamp_budget("99999999999999999999999"), None);
+    }
+
+    #[test]
+    fn the_ceiling_is_read_from_the_endpoint_constant() {
+        // If `MAX_QUERY_BUDGET` ever stops ending in `s`, the fallback below
+        // takes over and the ceiling silently becomes 30s by coincidence. That
+        // is the kind of coincidence worth a test.
+        let parsed = QLever::MAX_QUERY_BUDGET
+            .strip_suffix('s')
+            .and_then(|seconds: &str| seconds.parse::<u64>().ok());
+        assert_eq!(parsed, Some(30));
+    }
+
+    // ── `request_headers` ───────────────────────────────────────────────────
+    //
+    // The token half reads `LOTUS_QLEVER_TOKEN`, so only the half that does not
+    // is reachable here. Asserted so that the unconditional part is pinned: a
+    // client that stopped identifying itself is not a failure any status code
+    // reports.
+
+    #[test]
+    fn every_request_identifies_the_client_first() {
+        let headers = request_headers();
+        assert_eq!(
+            headers
+                .first()
+                .map(|&(name, ref value)| (name, value.as_str())),
+            Some(("api-user-agent", QLever::CLIENT_ID)),
+            "the user agent is unconditional and comes first, so a reader of the \
+             headers can rely on it being there"
+        );
+        assert!(
+            headers.len() <= 2,
+            "the only other header is the optional token, so there are at most two: {headers:?}"
+        );
+    }
+    /// A non-ASCII message survives being read out of a JSON exception body.
+    ///
+    /// `json_exception` finds the closing quote by walking the string and advancing a
+    /// byte offset, and the offset has to advance by the character's *width*: `é` is
+    /// two bytes, so an offset advanced by one byte per character lands in the middle
+    /// of it. The result of getting that wrong is not a crash but a message sliced at
+    /// the wrong place, which reads as an endpoint that garbled its own error -- and
+    /// every existing message test used ASCII, where the two are the same number.
+    #[test]
+    fn a_non_ascii_message_survives_being_read_out_of_a_json_exception() {
+        // The last character before the closing quote is the one that matters, and it
+        // is a multi-byte character here. `end.max(i)` absorbs any difference in the
+        // offset for every character *except* the last, so a message ending in ASCII
+        // cannot tell a correct byte offset from a wrong one -- which is why every
+        // message test that used ASCII passed against a broken offset too.
+        let message = "Compoundulo \u{2014} 12 mg, \u{2265} 99 % pur\u{e9}";
+        let body = format!(r#"{{"exception":"{message}","bindings":[]}}"#);
+
+        let compacted = compact(body.as_bytes());
+
+        assert_eq!(
+            compacted, message,
+            "the endpoint's own words are what the user should read, unaltered"
         );
     }
 }

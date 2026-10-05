@@ -5,6 +5,48 @@
 # decision rather than an oversight; `apps/lotus-explore-rs/tests/
 # gate_consistency.rs` checks that the exclusion is still the one this file states.
 #
+# Re-run on 2026-10-05 over `crates/lotus-search/src/execute.rs`, 95 mutants: 71
+# caught, 24 unviable, 8 surviving. Seven of the eight were gaps and are now
+# covered; the survivors left are the three below, and the reasons are at the
+# lines.
+#
+# The seven were one theme. `execute_streaming` and `execute_streaming_with_fallback`
+# each carry their own copy of the retry decision, and no test reached either: the
+# three existing retry/fallback tests all go through `search`, which reads the
+# whole body. `execute_streaming_with_fallback` is how every large result set is
+# actually fetched, so its being unverified was not a theoretical gap. Six tests
+# killed seven mutants, including the guard that stops a rejected query being run
+# a second time against `WDQS` and the `&&` that keeps a non-retryable failure
+# from being retried at all. The seventh was `json_exception`'s byte offset, which
+# needed a message ending in a multi-byte character: `end.max(i)` absorbs the
+# difference for every character *except* the last, so every ASCII test passed
+# against a broken offset too.
+#
+# The eight survivors, none of which a test can fix as the code stands:
+#
+#   Service::target / query_budget / request_headers: delete ! in each
+#
+# Three survivors that are one gap. Each reads one environment variable and each
+# decides what an *empty* value means, and no test can supply one: the workspace
+# forbids `unsafe_code` and `std::env::set_var` is `unsafe` on Rust 1.97+. The
+# fix is the one `apps/lotus-explore-rs/src/server/config.rs` already uses -- take
+# the variable as a parameter and pass an env reader -- but `Service::target` is
+# public, so that is an API decision and not a test to be written here.
+#
+#   execute.rs: replace < with <= in `execute` and in `execute_streaming`
+#
+# Equivalent. On the last iteration `<=` is also true, so the body stores the
+# error, sleeps out the backoff, and lets the loop end -- and returns `last`,
+# which is the error from that same last attempt. Identical error, identical
+# request count, one wasted 400 ms.
+#
+#   execute.rs: replace backoff with () in the `#[cfg(target_arch = "wasm32")]`
+#   backoff
+#
+# Not observable from a native run: the `cfg` means none of that function is
+# compiled into the test binary. The same edit to the native twin *is* caught,
+# by `a_retry_waits_before_it_happens`. Killing this one needs a browser test.
+#
 # Recorded on 2026-09-30. That run: 947 mutants, 645 caught, 297 unviable, 5
 # surviving -- all five introduced by splitting fetch-assets, and all five since
 # killed.

@@ -3,7 +3,7 @@
 /*
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   X-Frame-Options: DENY
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-o1bjP+VSHvcOzdkXHTYrHnMcZabetghZcgiacGCFMM0=' https://scripts.simpleanalyticscdn.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://qlever.dev https://query.wikidata.org https://query-scholarly.wikidata.org https://www.wikidata.org https://www.simolecule.com https://idsm.elixir-czech.cz https://doi.org https://pubchem.ncbi.nlm.nih.gov https://api.semanticscholar.org https://api.openalex.org; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types default
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' 'sha256-9NuyHwllHMYbnxBoZt5gTTOCNOq/bKVM7nRF1wRbt1g=' 'sha256-X7gHjJxFw8nbgGcYL2COcedL9GKZH7Buy6g6+1DBhrM=' https://scripts.simpleanalyticscdn.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://qlever.dev https://query.wikidata.org https://query-scholarly.wikidata.org https://www.wikidata.org https://www.simolecule.com https://idsm.elixir-czech.cz https://doi.org https://pubchem.ncbi.nlm.nih.gov https://api.semanticscholar.org https://api.openalex.org; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
@@ -60,13 +60,23 @@
   Cache-Control: public, max-age=31536000, immutable
 
 # Content-hashed bundles (JS glue, wasm) are safe to pin for a year.
-    /**/assets/*
+# `/assets/*`, not `/**/assets/*`: `dx` writes the hashed bundle to
+# `/assets/<name>-<hash>.<ext>`, and a glob that expects a directory in front
+# of `assets` does not match it. Lighthouse's `cache-insight` reported the
+# 12 KiB glue with a zero cache lifetime for exactly that reason, on the hosts
+# that honour this file.
+#
+# A path starts its line. Indented, it reads as another header of the block
+# above and the rule is silently dropped, which is how
+# `/assets/lotus-explore.css` spent its life with no rule at all.
+/assets/*
   Cache-Control: public, max-age=31536000, immutable
 
 # Unhashed assets keep their filenames across deploys, so they must
 # revalidate: an immutable year-long entry would pin users to a stale
-# stylesheet or bridge script until they hard-reload.
-    /assets/lotus-explore.css
+# stylesheet or bridge script until they hard-reload. These follow
+# `/assets/*` above, so they override it.
+/assets/lotus-explore.css
   Cache-Control: public, max-age=3600, must-revalidate
 
 /assets/js/*

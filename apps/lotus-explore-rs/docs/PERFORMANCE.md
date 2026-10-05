@@ -6,6 +6,15 @@ negotiates the precompressed `.br` siblings, because the Dioxus dev server
 serves neither the `.br` files nor `_headers` and therefore overstates every
 transfer.
 
+Four things that harness has to do, and what each one costs when it does not:
+
+| what the server does                                      | what goes wrong without it                                             |
+| -------------------------------------------------------- | ---------------------------------------------------------------------- |
+| serves the `.br` sibling for `Accept-Encoding: br`         | 585 KiB of on-the-fly gzip instead of 456 KiB, \~\ 0.63 s at mobile     |
+| sends an `ETag` or `Last-Modified`                         | Chrome re-fetches every repeated URL and invents a 7 % regression       |
+| applies `_headers`                                         | it carries the CSP, and the app does not boot without it               |
+| rewrites unknown paths to `index.html`, as `_redirects` does | `/search` 404s and the audit measures an error page                     |
+
 ## Where the time goes
 
 On `/` at mobile throttling, the LCP element is the welcome paragraph.
@@ -19,6 +28,29 @@ LCP 3752 ms = FCP 751 ms + 456 KiB over a simulated 1.6 Mbit/s link + compile
 That is the whole story. LCP here is a payload-and-compile problem, and no
 amount of DOM or CSS work touches it. The main thread is not the constraint:
 total scripting is \~430 ms and total blocking time is 20--45 ms.
+
+Measured again on 2026-10-05 with Lighthouse 13.5.0 against a release bundle
+behind a server doing all four of the above, on a page that renders:
+
+  | Metric                  | mobile  | desktop |
+  | ----------------------- | ------- | ------- |
+  | LCP                     | 3930 ms | 804 ms  |
+  | FCP                     | 754 ms  | 215 ms  |
+  | LCP render delay        | 87 ms   | 80 ms   |
+  | total blocking time     | 2 ms    | 0 ms    |
+  | cumulative layout shift | 0       | 0       |
+  | performance score       | 88      | 100     |
+
+Total transfer is 594 KB, of which the module is 542 KB, and the module request
+starts 19 ms after the document as a link preload, so the mobile number is still
+transfer and compile and nothing else.
+
+One caution about the rest of this file. Those figures were taken on a host that
+sends no CSP. A run against a host that honours `_headers`, before the CSP faults
+in [`DEPLOYMENT.md`](DEPLOYMENT.md) were fixed, scored 89 by measuring the boot
+shell: nothing had rendered, so the largest contentful paint was the "Loading
+the explorer…" paragraph. A performance score from a page that never started is
+not a fast page.
 
 ## What shipped
 

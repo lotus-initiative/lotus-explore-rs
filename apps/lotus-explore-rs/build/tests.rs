@@ -175,6 +175,156 @@ fn index_html_declares_no_route_relative_manifest_or_stylesheet() -> Result<(), 
     Ok(())
 }
 
+/// The `script-src` sources for the real `index.html`, the way `main` derives
+/// them.
+fn real_index_script_hashes() -> Result<String, Box<dyn Error>> {
+    let index = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("index.html");
+    Ok(inline_script_hashes(&fs::read_to_string(index)?))
+}
+
+#[test]
+fn base64_matches_the_published_test_vectors() {
+    // The two vectors below are what every base64 implementation agrees on, so
+    // a mistake in the encoder cannot be mistaken for a working one: the CSP
+    // digest is compared against the browser, and a wrong encoding there blocks
+    // the only inline script the document has.
+    assert_eq!(
+        base64_standard(&sha256(b"")),
+        "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="
+    );
+    assert_eq!(
+        base64_standard(&sha256(b"ok")),
+        "Jok2eyBcFs4y7UIAlCuLix4mLfxw2byfvHfElpmk8d8=",
+        "the encoding of a digest with a `+` and a `/` in it, which a \
+         hand-rolled alphabet gets wrong first"
+    );
+    assert_eq!(
+        base64_standard(b"lotus"),
+        "bG90dXM=",
+        "two full chunks and a one-byte tail, so the padding is both '=' and \
+         not-'='"
+    );
+}
+
+#[test]
+fn inline_script_texts_finds_the_body_and_skips_the_rest() {
+    let html = r#"<script type="application/ld+json">{"kept": true}</script>
+<script>const kept = "</b>";</script>
+<script type="module" src="app.js"></script>
+<script data-src="not-src.js">also kept</script>
+<scripting>not a script</scripting>"#;
+    assert_eq!(
+        inline_script_texts(html),
+        vec![r#"{"kept": true}"#, r#"const kept = "</b>";"#, "also kept",],
+        "a src'd script has no body to hash, `data-src` is not `src`, and \
+         <scripting> is a different element"
+    );
+}
+
+#[test]
+fn the_csp_carries_the_digest_of_every_inline_script() -> Result<(), Box<dyn Error>> {
+    // This is the check that keeps `_headers` and `index.html` from describing
+    // different files. The committed digest had drifted, and a digest that does
+    // not match does not warn: it makes CSP block the document's only inline
+    // script, so the stylesheet, the manifest link, the base path and the
+    // Trusted Types policy all never happen, and the page is an unstyled boot
+    // screen with no app on it.
+    let index_html =
+        fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("index.html"))?;
+    let hashes = inline_script_hashes(&index_html);
+    let headers = build_headers_txt(&real_metadata()?, &hashes);
+    let script_src = headers
+        .lines()
+        .find(|line| line.contains("Content-Security-Policy"))
+        .ok_or_else(|| "_headers has no CSP line".to_owned())?;
+    let scripts = inline_script_texts(&index_html);
+    assert!(
+        !scripts.is_empty(),
+        "index.html has no inline script, so the CSP hash this test exists to \
+         protect is about a script that is not there; check the document"
+    );
+    for script in &scripts {
+        let source = format!("'sha256-{}'", base64_standard(&sha256(script.as_bytes())));
+        assert!(
+            script_src.contains(&source),
+            "the CSP in _headers does not carry {source} for this inline \
+             script in index.html:\n{}\nA CSP runs an inline script only when \
+             its exact text is in the policy, so this one never runs.",
+            script.trim()
+        );
+    }
+    assert_eq!(
+        hashes.split(' ').count(),
+        scripts.len(),
+        "one source per inline script, no duplicates"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_trusted_types_policy_is_created_before_any_sink() -> Result<(), Box<dyn Error>> {
+    // The CSP ships `require-trusted-types-for 'script'`, so `script.src` and
+    // `innerHTML` are sinks: with no default policy they throw, and a throw
+    // inside this IIFE ends it. The policy used to be created at the bottom,
+    // after `setAssetBase`, which always threw first -- so the policy never
+    // existed, the WASM client's `innerHTML` sinks threw too, and Lighthouse
+    // measured a permanent boot screen.
+    let index_html =
+        fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("index.html"))?;
+    let script = inline_script_texts(&index_html)
+        .into_iter()
+        .find(|body| body.contains("createPolicy"))
+        .ok_or_else(|| "index.html creates no Trusted Types policy".to_owned())?;
+    let create = script
+        .find("createPolicy")
+        .ok_or_else(|| "the script has no createPolicy call".to_owned())?;
+    // Assignments, not mentions: the comment above this test names the sinks
+    // it is talking about.
+    for sink in [".src =", "innerHTML =", "document.write("] {
+        if let Some(at) = script.find(sink) {
+            assert!(
+                create < at,
+                "index.html uses `{sink}` at offset {at}, before it creates the \
+                 Trusted Types default policy at offset {create}: under \
+                 `require-trusted-types-for 'script'` the earlier sink throws \
+                 and the rest of the script never runs"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn every_headers_path_starts_its_line() -> Result<(), Box<dyn Error>> {
+    // `_headers` is the Netlify/Cloudflare syntax: a path on its own line, then
+    // indented `Name: value` lines. A path that is indented reads as one more
+    // header of the block above it, so the host drops the rule without saying
+    // anything -- an indented `/assets/lotus-explore.css` had been in this file
+    // with no rule behind it, and `cache-insight` reported the hashed glue the
+    // same way.
+    let headers = build_headers_txt(&real_metadata()?, &real_index_script_hashes()?);
+    for (number, line) in headers.lines().enumerate() {
+        let line_number = number + 1;
+        if line.trim().is_empty() || line.trim_start().starts_with('#') {
+            continue;
+        }
+        if line.starts_with([' ', '\t']) {
+            assert!(
+                line.contains(": "),
+                "_headers line {line_number} is indented and has no header in \
+                 it: {line:?}. A path has to start its own line to be a rule."
+            );
+            continue;
+        }
+        assert!(
+            line.starts_with('/') || line.starts_with("http"),
+            "_headers line {line_number} is neither an indented header nor a \
+             path: {line:?}"
+        );
+    }
+    Ok(())
+}
+
 #[test]
 fn headers_advertise_absolute_link_relations() -> Result<(), Box<dyn Error>> {
     // The Link relations are how an agent finds llms.txt, the catalogs and
@@ -182,7 +332,7 @@ fn headers_advertise_absolute_link_relations() -> Result<(), Box<dyn Error>> {
     // root and 404s on the subpath deploy -- the same trap as the manifest
     // href. Every one is now absolute from `base_url`.
     let meta = real_metadata()?;
-    let headers = build_headers_txt(&meta);
+    let headers = build_headers_txt(&meta, &real_index_script_hashes()?);
     let base = &meta.site.base_url;
     for (name, rel) in [
         ("llms.txt", "http://llmstxt.org/llms.txt"),

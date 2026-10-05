@@ -25,6 +25,11 @@ const ROWS_CSV: &str = "compound,compoundLabel,compound_inchikey,compound_smiles
 
 const COUNTS_CSV: &str = "n_entries,n_entries_unique,n_compounds,n_taxa,n_references\n1,1,1,1,1\n";
 
+/// What the identifier lookup answers: one compound, with the columns
+/// `parse_compound_lookup_csv` reads.
+const LOOKUP_CSV: &str =
+    "compound_qid,compound_label,canonical_smiles,matched_by\n7,Berberine,COc1ccccc1O,inchikey\n";
+
 /// The happy path: taxon lookup, rows, counts.
 fn search_script() -> Scripted {
     Scripted::new(vec![(200, TAXON_CSV), (200, ROWS_CSV), (200, COUNTS_CSV)])
@@ -509,4 +514,341 @@ async fn a_wildcard_and_an_empty_box_both_resolve_to_no_taxon() {
             "{input:?} must not reach the endpoint at all"
         );
     }
+}
+
+/// An `InChIKey` in the structure box is looked up by `InChIKey`.
+///
+/// An `InChIKey` is three hyphen-separated blocks -- 14, 10 and 1 -- so this is
+/// the test that the version block counts. `lotus-search` used to carry its own
+/// `looks_like_inchikey` that read the blocks as `(Some, Some, None)`, exactly
+/// two of them, and so answered `false` for every real `InChIKey`. That made
+/// this arm of `resolve_structure` unreachable, and an `InChIKey` fell through
+/// to the structure service and was searched for as if it were a SMILES.
+///
+/// The assertion is on the *query*, not on the outcome. A wrong classifier and a
+/// right answer are indistinguishable from the result alone: the structure
+/// service would also have found the compound, eventually, by another route. What
+/// distinguishes them is which question went out, and only the query records
+/// that.
+#[tokio::test]
+async fn an_inchikey_in_the_structure_box_is_looked_up_by_inchikey() {
+    const INCHIKEY: &str = "DBOVHQOUSDWAPQ-WTONXPSSSA-N";
+
+    let http = Scripted::new(vec![(200, LOOKUP_CSV), (200, LOOKUP_CSV)]);
+
+    let resolved = lotus_search::resolve_structure(&http, INCHIKEY)
+        .await
+        .expect("an InChIKey resolves");
+
+    assert_eq!(
+        resolved.compounds,
+        vec!["Q7".to_string()],
+        "the compound the key identifies is the result"
+    );
+
+    let queries = http.queries();
+    assert!(
+        !queries.is_empty(),
+        "resolving an InChIKey asks the endpoint about it"
+    );
+    for query in &queries {
+        assert!(
+            query.contains("wdt:P235"),
+            "the identifier route queries the InChIKey property, but sent: {query}"
+        );
+        assert!(
+            query.contains(&format!("VALUES ?name {{ \"{INCHIKEY}\" }}")),
+            "the key itself is the value being matched, but sent: {query}"
+        );
+    }
+}
+
+/// The two-block string that is *not* an `InChIKey` is not treated as one.
+///
+/// This is the other half of the same mistake and it is the reason the old
+/// predicate could not simply have been loosened: it accepted
+/// `DBOVHQOUSDWAPQ-WTONXPSSSA`, which is an `InChIKey` missing its version block,
+/// and would have sent it down the identifier route.
+#[tokio::test]
+async fn a_two_block_string_is_not_an_inchikey() {
+    let http = Scripted::new(vec![(200, LOOKUP_CSV), (200, LOOKUP_CSV)]);
+
+    assert!(
+        !lotus_search::looks_like_inchikey("DBOVHQOUSDWAPQ-WTONXPSSSA"),
+        "14 and 10 without the version block is not an InChIKey"
+    );
+
+    // And with nothing to reply, a structure search is attempted instead, which
+    // is the behaviour the dead arm was hiding: the string reaches the structure
+    // service rather than the identifier lookup.
+    let outcome = lotus_search::resolve_structure(&http, "DBOVHQOUSDWAPQ-WTONXPSSSA").await;
+    assert!(
+        outcome.is_err() || !http.queries().iter().all(|q| q.contains("wdt:P235")),
+        "a string with no version block must not take the InChIKey route"
+    );
+}
+
+// ── the streaming retry loop ─────────────────────────────────────────────────
+//
+// `execute_streaming` has its own copy of the retry decision that `execute` has,
+// and the three tests above all reach `execute` -- through `search`, which reads
+// the whole body. Nothing reached the streaming copy, so its decision was
+// unverified: a transport could have been sent a rejected query twice, or a
+// failing one not at all, or a query that should have fallen back to WDQS not
+// falling back, and the suite would have stayed green.
+//
+// `search_columnar` is the caller that matters -- `execute_streaming_with_fallback`
+// is how every large result set is fetched -- so this is the path where a mistake
+// is expensive rather than theoretical.
+//
+// The distinctions are between three statuses, because the code draws three:
+// `500` is retryable, `502` is retryable *and* endpoint-unavailable, and `400` is
+// neither.
+
+/// Read a `StreamAnswer` to the end, so a test can assert the body survived.
+async fn drain(mut answer: lotus_search::StreamAnswer) -> String {
+    let mut body = String::new();
+    while let Some(chunk) = answer.chunks.next_chunk().await.expect("a scripted chunk") {
+        body.push_str(&String::from_utf8_lossy(&chunk));
+    }
+    body
+}
+
+/// A failing endpoint is tried again on the streaming path, exactly as on the
+/// buffered one.
+///
+/// `500` is retryable, so the second attempt happens; `MAX_ATTEMPTS` is two, so
+/// there is no third. The count is what makes this a test of the loop rather than
+/// of the transport.
+#[tokio::test]
+async fn a_failing_endpoint_is_retried_once_on_the_streaming_path() {
+    let http = Scripted::new(vec![(500, "boom"), (500, "boom again")]);
+
+    let outcome = lotus_search::execute_streaming(
+        &http,
+        lotus_search::Endpoint::new(lotus_search::Service::Qlever),
+        "SELECT * WHERE { ?s ?p ?o }",
+        lotus_search::ResponseFormat::Csv,
+    )
+    .await;
+
+    assert!(
+        outcome.is_err(),
+        "two failures and no third attempt is an error"
+    );
+    assert_eq!(
+        http.call_count(),
+        2,
+        "a retryable failure is worth exactly one more attempt"
+    );
+}
+
+/// A rejected query is not retried, even on the streaming path.
+///
+/// A `400` is the endpoint saying it will not answer this query. Asking again
+/// costs a round trip and returns the same answer, and the error the caller sees
+/// is the one it would have seen immediately.
+#[tokio::test]
+async fn a_rejected_query_is_sent_once_and_not_retried_when_streaming() {
+    let http = Scripted::new(vec![(400, "malformed query")]);
+
+    let outcome = lotus_search::execute_streaming(
+        &http,
+        lotus_search::Endpoint::new(lotus_search::Service::Qlever),
+        "SELECT * WHERE {",
+        lotus_search::ResponseFormat::Csv,
+    )
+    .await;
+
+    match outcome {
+        Ok(_) => panic!("a rejected query must not produce a result"),
+        Err(error) => assert_eq!(
+            error.status(),
+            Some(400),
+            "the caller's error is the rejection itself"
+        ),
+    }
+    assert_eq!(
+        http.call_count(),
+        1,
+        "a query the endpoint refused must not be sent again"
+    );
+}
+
+/// A retry waits before it happens.
+///
+/// The backoff is what keeps a failing endpoint from being asked twice in the
+/// same millisecond, which is the difference between a client that backs off and
+/// one that adds load exactly when the service is already in trouble. It is also
+/// the reason the retry above is not instantaneous.
+///
+/// The assertion is a lower bound on elapsed time rather than an equality: the
+/// scheduler is free to take longer, and a test that failed on a slow machine
+/// would be reporting the machine.
+#[tokio::test]
+async fn a_retry_waits_before_it_happens() {
+    let http = Scripted::new(vec![(500, "boom"), (200, LOOKUP_CSV)]);
+
+    let started = std::time::Instant::now();
+    let answer = lotus_search::execute_streaming(
+        &http,
+        lotus_search::Endpoint::new(lotus_search::Service::Qlever),
+        "SELECT * WHERE { ?s ?p ?o }",
+        lotus_search::ResponseFormat::Csv,
+    )
+    .await;
+    let elapsed = started.elapsed();
+
+    assert!(answer.is_ok(), "the second attempt succeeds");
+    assert!(
+        elapsed >= std::time::Duration::from_millis(400),
+        "a retry must wait out the backoff, but it took only {elapsed:?}"
+    );
+}
+
+/// An unreachable `QLever` falls back to `WDQS` on the streaming path.
+///
+/// `502` is both retryable and endpoint-unavailable, so it exercises the retry
+/// and the fallback together: two attempts at `QLever`, then the rewritten query
+/// at the second service. The assertion that the third query went to a different
+/// host is what makes this a test of the fallback rather than of the retry.
+#[tokio::test]
+async fn an_unreachable_qlever_falls_back_to_wikidata_when_streaming() {
+    let http = Scripted::new(vec![
+        (502, "bad gateway"),
+        (502, "bad gateway"),
+        (200, LOOKUP_CSV),
+    ]);
+
+    let answer = lotus_search::execute_streaming_with_fallback(
+        &http,
+        "SELECT * WHERE { ?s wdt:P31 wd:Q16521 }",
+        lotus_search::ResponseFormat::Csv,
+    )
+    .await;
+
+    assert!(answer.is_ok(), "the fallback endpoint answers");
+    assert_eq!(
+        drain(answer.expect("checked")).await.trim(),
+        LOOKUP_CSV.trim(),
+        "the body that arrives is the one the fallback service sent"
+    );
+
+    let endpoints = http.endpoints();
+    assert!(
+        endpoints.len() >= 3,
+        "two attempts at QLever and then the fallback, got {endpoints:?}"
+    );
+    assert!(
+        endpoints[..2].iter().all(|url| url.contains("qlever")),
+        "the first two attempts are QLever's, got {endpoints:?}"
+    );
+    assert!(
+        endpoints[2].contains("wikidata"),
+        "the third is the fallback service, got {endpoints:?}"
+    );
+}
+
+/// A rejected query is not run a second time against `WDQS`.
+///
+/// This is the fallback guard, and it is a different decision from the retry one:
+/// the query was refused as malformed, so `WDQS` would refuse it too, having
+/// spent a round trip and the caller's time to arrive at the same answer.
+#[tokio::test]
+async fn a_rejected_query_is_not_re_run_against_the_fallback_when_streaming() {
+    let http = Scripted::new(vec![(400, "malformed query")]);
+
+    let outcome = lotus_search::execute_streaming_with_fallback(
+        &http,
+        "SELECT * WHERE {",
+        lotus_search::ResponseFormat::Csv,
+    )
+    .await;
+
+    assert!(outcome.is_err(), "the rejection stands");
+    assert_eq!(
+        http.call_count(),
+        1,
+        "a refused query must not be sent to a second service, which would refuse it too"
+    );
+}
+
+/// A successful streaming answer arrives in the pieces it was sent in.
+///
+/// The whole reason `StreamAnswer` exists is that the payload is never assembled,
+/// so a test that only checked the joined text would pass for a reader that
+/// buffered everything -- which is the thing that runs out of memory.
+#[tokio::test]
+async fn a_streamed_body_is_read_in_pieces_and_joins_to_the_same_text() {
+    let body = "compound,compoundLabel\nQ1,Quercetin\n";
+    let http = Scripted::with_chunk_size(vec![(200, body)], 8);
+
+    let answer = lotus_search::execute_streaming(
+        &http,
+        lotus_search::Endpoint::new(lotus_search::Service::Qlever),
+        "SELECT * WHERE { ?s ?p ?o }",
+        lotus_search::ResponseFormat::Csv,
+    )
+    .await;
+
+    let mut answer = match answer {
+        Ok(answer) => answer,
+        Err(error) => panic!("the scripted response streams: {error:?}"),
+    };
+
+    // Count the chunks on the way past, so "it was read in pieces" is asserted
+    // rather than inferred from the joined text matching.
+    let mut pieces = 0;
+    let mut joined = String::new();
+    while let Some(chunk) = answer.chunks.next_chunk().await.expect("a scripted chunk") {
+        pieces += 1;
+        joined.push_str(&String::from_utf8_lossy(&chunk));
+    }
+
+    assert!(
+        pieces > 1,
+        "an 8-byte chunk size over {body:?} must take several reads, took {pieces}"
+    );
+    assert_eq!(
+        joined, body,
+        "the pieces reassemble to the body that was sent"
+    );
+}
+
+/// A `StreamAnswer` describes where it came from and not what it is carrying.
+///
+/// The doc comment on that `Debug` impl says the body is not read, because
+/// reading it to describe it would defeat the point of having streamed it. That
+/// is a property of the *implementation*, and the only way to hold it is to look
+/// at the output: the endpoint appears, and nothing from the body does.
+///
+/// A `Debug` that returned `Ok(())` prints nothing at all, which is not a
+/// formatting preference -- it is the difference between a log line naming the
+/// service and a log line with a hole in it.
+#[tokio::test]
+async fn a_stream_answer_names_its_endpoint_and_not_its_body() {
+    let http = Scripted::with_chunk_size(vec![(200, LOOKUP_CSV)], 8);
+
+    let answer = lotus_search::execute_streaming(
+        &http,
+        lotus_search::Endpoint::new(lotus_search::Service::Qlever),
+        "SELECT * WHERE { ?s ?p ?o }",
+        lotus_search::ResponseFormat::Csv,
+    )
+    .await;
+
+    let answer = match answer {
+        Ok(answer) => answer,
+        Err(error) => panic!("the scripted response streams: {error:?}"),
+    };
+    let rendered = format!("{answer:?}");
+
+    assert!(
+        rendered.contains("qlever"),
+        "the service that answered is the useful half of the line, got {rendered:?}"
+    );
+    assert!(
+        !rendered.contains("Berberine"),
+        "the body must not be read to describe the answer, got {rendered:?}"
+    );
 }

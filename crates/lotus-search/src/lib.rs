@@ -30,12 +30,17 @@ pub use execute::{
     execute_streaming_with_fallback, execute_with_fallback, fetch_url,
 };
 pub use result::{ColumnarSearchResult, SearchRequest, SearchResult, TaxonNote, TaxonResolution};
+// Re-exported from `lotus-model` rather than from `search`, where it used to be a
+// second and wrong implementation. The reasoning is on the import in
+// `search.rs`; the short version is that the copy read an `InChIKey` as two
+// hyphen-separated blocks instead of three and so rejected every real one.
+pub use lotus_model::looks_like_inchikey;
 pub use search::{
     DEFAULT_ROW_LIMIT, ResolvedInputs, SearchError, StreamProgress, StructurePlan,
     StructureResolution, build_base_query, build_execution_query, build_execution_query_with,
-    columnar_from_chunks, columnar_from_chunks_reporting, counts, is_qid, looks_like_inchikey,
-    normalize_structure, resolve_inputs, resolve_reference, resolve_structure, resolve_taxon,
-    search, search_columnar, standardize_taxon_name,
+    columnar_from_chunks, columnar_from_chunks_reporting, counts, is_qid, normalize_structure,
+    resolve_inputs, resolve_reference, resolve_structure, resolve_taxon, search, search_columnar,
+    standardize_taxon_name,
 };
 
 #[cfg(feature = "reqwest")]

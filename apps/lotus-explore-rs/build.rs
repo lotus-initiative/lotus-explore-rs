@@ -112,6 +112,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=public");
     println!("cargo:rerun-if-changed=src");
+    println!("cargo:rerun-if-changed=index.html");
     println!("cargo:rerun-if-changed=../../crates/lotus/src");
     println!("cargo:rerun-if-changed={}", metadata_path.display());
 
@@ -126,6 +127,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let public_dir = manifest_dir.join("public");
     let well_known_dir = public_dir.join(".well-known");
 
+    // Read for the CSP digest below, so the hash and the script it describes
+    // cannot come from different revisions of this file.
+    let index_html = fs::read_to_string(manifest_dir.join("index.html"))?;
+
     write_if_changed(public_dir.join("llms.txt"), build_llms_txt(&metadata))?;
     write_if_changed(
         well_known_dir.join("ai-catalog.json"),
@@ -138,7 +143,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         well_known_dir.join("security.txt"),
         build_security_txt(&metadata),
     )?;
-    write_if_changed(public_dir.join("_headers"), build_headers_txt(&metadata))?;
+    write_if_changed(
+        public_dir.join("_headers"),
+        build_headers_txt(&metadata, &inline_script_hashes(&index_html)),
+    )?;
     write_if_changed(
         public_dir.join("_redirects"),
         build_redirects_txt(&metadata),
@@ -521,7 +529,145 @@ fn build_security_txt(meta: &Metadata) -> String {
     )
 }
 
-fn build_headers_txt(meta: &Metadata) -> String {
+/// The `script-src` sources for the inline scripts in `index.html`, ready to be
+/// interpolated into the CSP as `'sha256-…' 'sha256-…'`.
+///
+/// A CSP digest is only ever right for one exact text, so this is computed from
+/// the file the build copies rather than written down. The digest that used to
+/// be written down had drifted from the script it described, and a stale digest
+/// does not degrade the page, it deletes the document's only inline script --
+/// the one that sets `rel=canonical`, the manifest link, the stylesheet, the
+/// base path and the Trusted Types policy. Measured against a host that honours
+/// `_headers` (Cloudflare Pages or Netlify), that is an unstyled boot screen
+/// forever: no stylesheet request is ever made, `bootstrap.js` and `webmcp.js`
+/// are never loaded, and with no default policy every `innerHTML` sink in the
+/// WASM client throws. So the hash is derived, and
+/// `the_csp_carries_the_digest_of_every_inline_script` in `build/tests.rs`
+/// ties the two files together.
+///
+/// `type="application/ld+json"` blocks are hashed along with the rest. CSP
+/// never executes them, so the extra source is inert; skipping it would mean
+/// carrying a list of "types that are not really scripts", which is a list that
+/// has to be updated when someone adds another.
+fn inline_script_hashes(index_html: &str) -> String {
+    let mut sources: Vec<String> = inline_script_texts(index_html)
+        .into_iter()
+        .map(|script| format!("'sha256-{}'", base64_standard(&sha256(script.as_bytes()))))
+        .collect();
+    sources.sort();
+    sources.dedup();
+    sources.join(" ")
+}
+
+/// The text of every inline `<script>` in a document, exactly as a browser sees
+/// it.
+///
+/// A small scanner rather than an HTML parser, because what a digest needs is
+/// only the span between an open tag and the `</script` that closes it -- and
+/// the HTML parser's rule for that end (`</script` ends it; a string literal
+/// does not) is simpler than the rest of the grammar. A `<script src=…>` is
+/// skipped: its text is empty and `'self'` already allows it.
+fn inline_script_texts(html: &str) -> Vec<&str> {
+    let mut scripts = Vec::new();
+    let mut cursor = 0;
+    while let Some(offset) = html[cursor..].find("<script") {
+        let tag_start = cursor + offset;
+        let after_name = tag_start + "<script".len();
+        // `<scripting>` is another element, and its body is not script text.
+        if html[after_name..]
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            cursor = after_name;
+            continue;
+        }
+        let Some(tag) = html[after_name..].split_once('>').map(|(tag, _)| tag) else {
+            break;
+        };
+        let body_start = after_name + tag.len() + 1;
+        let Some(end) = html[body_start..].find("</script") else {
+            break;
+        };
+        if !tag_has_attribute(tag, "src") {
+            scripts.push(&html[body_start..body_start + end]);
+        }
+        cursor = body_start + end;
+    }
+    scripts
+}
+
+/// Whether an open tag carries `name`, matched on attribute boundaries so
+/// `src` does not match `data-src`.
+fn tag_has_attribute(tag: &str, name: &str) -> bool {
+    tag.split(|c: char| c.is_ascii_whitespace() || c == '=' || c == '/')
+        .any(|field| field.eq_ignore_ascii_case(name))
+}
+
+fn sha256(bytes: &[u8]) -> Vec<u8> {
+    use sha2::Digest as _;
+    sha2::Sha256::digest(bytes).to_vec()
+}
+
+/// Standard base64 with padding, which is the encoding a CSP `sha256-` source
+/// is written in.
+///
+/// Hand-rolled because the only thing this workspace needs it for is a 32-byte
+/// digest and no base64 crate is in the graph. `sha256("")` and `sha256("ok")`
+/// pin it in `build/tests.rs`.
+fn base64_standard(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let byte = |index: usize| u32::from(chunk.get(index).copied().unwrap_or(0));
+        let triple = (byte(0) << 16) | (byte(1) << 8) | byte(2);
+        for index in 0..4 {
+            // Every chunk contributes four characters: a short final chunk
+            // contributes padding instead of the bytes it does not have.
+            let symbol = if index <= chunk.len() {
+                // The mask is what keeps this in range: a 6-bit group indexes
+                // 64 characters. `?` is unreachable, and says so if it is not.
+                char::from(
+                    ALPHABET
+                        .get(((triple >> (18 - 6 * index)) & 0x3f) as usize)
+                        .copied()
+                        .unwrap_or(b'?'),
+                )
+            } else {
+                '='
+            };
+            out.push(symbol);
+        }
+    }
+    out
+}
+
+/// `_headers`, with the CSP that this app can actually run under.
+///
+/// Two directives are shaped by what the client does at runtime, not by
+/// preference, and both were measured on a host that honours this file:
+///
+/// - `'unsafe-eval'` is in `script-src` because the WASM client evaluates
+///   strings: `document::eval` sets the theme and the `RDKit` bridge calls
+///   (`features/curation/services/http_client.rs`,
+///   `components/form_sections/field_examples.rs`,
+///   `document_head.rs`, `app/shell.rs`). `'wasm-unsafe-eval'` covers
+///   WebAssembly compilation and nothing else. Measured without it, the theme
+///   effect threw an `EvalError`, an effect in the same flush panicked
+///   (`RuntimeError: unreachable`), and the boot shell was never removed, so
+///   the page rendered behind "Loading the explorer…" forever.
+/// - `require-trusted-types-for 'script'` is gone, and could not be kept even
+///   with `'unsafe-eval'`: `eval` is a Trusted Types sink and a policy written
+///   in JavaScript cannot return a `TrustedScript`, so enforcement blocks the
+///   app's own code. `index.html` still creates the default policy, first thing
+///   in its inline script and ahead of every sink, so putting enforcement back
+///   is adding `require-trusted-types-for 'script'` here --- and
+///   `trusted-types default` with it, if policy names are to stay restricted
+///   --- once nothing in the client evaluates strings.
+///
+/// The rest is posture: no framing, no plugins, forms self-only, and a
+/// `connect-src` that names every third-party endpoint the client talks to.
+fn build_headers_txt(meta: &Metadata, script_hashes: &str) -> String {
     let base = &meta.site.base_url;
     // The Link relations are absolute, from `base_url`. They were root-relative
     // (`</llms.txt>`), which resolves to the domain root and 404s on the subpath
@@ -531,7 +677,7 @@ fn build_headers_txt(meta: &Metadata) -> String {
     /*\n\
     \x20 Strict-Transport-Security: max-age=63072000; includeSubDomains; preload\n\
     \x20 X-Frame-Options: DENY\n\
-    \x20 Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-o1bjP+VSHvcOzdkXHTYrHnMcZabetghZcgiacGCFMM0=' https://scripts.simpleanalyticscdn.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://qlever.dev https://query.wikidata.org https://query-scholarly.wikidata.org https://www.wikidata.org https://www.simolecule.com https://idsm.elixir-czech.cz https://doi.org https://pubchem.ncbi.nlm.nih.gov https://api.semanticscholar.org https://api.openalex.org; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types default\n\
+    \x20 Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' {script_hashes} https://scripts.simpleanalyticscdn.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://qlever.dev https://query.wikidata.org https://query-scholarly.wikidata.org https://www.wikidata.org https://www.simolecule.com https://idsm.elixir-czech.cz https://doi.org https://pubchem.ncbi.nlm.nih.gov https://api.semanticscholar.org https://api.openalex.org; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'\n\
     \x20 X-Content-Type-Options: nosniff\n\
     \x20 Referrer-Policy: strict-origin-when-cross-origin\n\
     \x20 Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()\n\
@@ -576,12 +722,22 @@ fn build_headers_txt(meta: &Metadata) -> String {
     /wasm/*\n\
     \x20 Cache-Control: public, max-age=31536000, immutable\n\n\
     # Content-hashed bundles (JS glue, wasm) are safe to pin for a year.
-    /**/assets/*\n\
+# `/assets/*`, not `/**/assets/*`: `dx` writes the hashed bundle to
+# `/assets/<name>-<hash>.<ext>`, and a glob that expects a directory in front
+# of `assets` does not match it. Lighthouse's `cache-insight` reported the
+# 12 KiB glue with a zero cache lifetime for exactly that reason, on the hosts
+# that honour this file.
+#
+# A path starts its line. Indented, it reads as another header of the block
+# above and the rule is silently dropped, which is how
+# `/assets/lotus-explore.css` spent its life with no rule at all.
+/assets/*\n\
     \x20 Cache-Control: public, max-age=31536000, immutable\n\n\
 # Unhashed assets keep their filenames across deploys, so they must
 # revalidate: an immutable year-long entry would pin users to a stale
-# stylesheet or bridge script until they hard-reload.
-    /assets/lotus-explore.css\n\
+# stylesheet or bridge script until they hard-reload. These follow
+# `/assets/*` above, so they override it.
+/assets/lotus-explore.css\n\
     \x20 Cache-Control: public, max-age=3600, must-revalidate\n\n\
     /assets/js/*\n\
     \x20 Cache-Control: public, max-age=3600, must-revalidate\n\n\

@@ -56,6 +56,11 @@ tower = { workspace = true }
 [build-dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
+# For the `sha256-` source in the generated CSP: it is computed from
+# `index.html`, because a digest copied by hand goes stale, and a stale digest
+# blocks the only inline script the document has. The same crate the app already
+# depends on, so this adds nothing to the graph.
+sha2 = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 axum = { workspace = true, optional = true }

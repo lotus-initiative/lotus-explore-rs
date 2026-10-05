@@ -268,20 +268,81 @@ kept because it is correct and costs nothing, and because the Ketcher iframe
 rule in it is the only place the `frame-ancestors` conflict is resolved in
 writing --- but do not read it as a claim about production.
 
-The cache rule is the one that costs performance rather than just posture.
-Lighthouse reports it as `cache-insight` ("Use efficient cache lifetimes"), and
-it is the largest remaining host-level win: the content-hashed glue and the 1.4
-MB module are immutable by construction, yet every returning visitor revalidates
-both after 600 s.
+### What honouring it does to the app, measured
+
+Turning `_headers` on is not a no-op for the page. Lighthouse 13.5.0 against the
+release bundle behind a static server that applies this file, mobile, before and
+after the three fixes below:
+
+  | Category                     | Before | After |
+| ----------------------------- | ------ | ----- |
+| accessibility                 | 95     | 100   |
+| best-practices                | 92     | 100   |
+| seo                           | 91     | 100   |
+| agentic-browsing              | 100    | 100   |
+| what the browser showed       | an unstyled "Loading the explorer…" forever |
+
+Three separate faults, all of them invisible on GitHub Pages precisely because
+it sends no CSP:
+
+1. **The `script-src` hash did not match `index.html`.** CSP runs an inline
+   script only when its exact text is in the policy, and the digest in `_headers`
+   was a hand-copied `sha256-o1bjP…` left over from an earlier revision of the
+   head script. Chrome's own error named the digest it wanted:
+   `sha256-xDkQ79YpS0oeYWZEU34MuSh30V9OGoPPH4ce6t+fFUA=`. So the document's
+   only inline script --- the one that sets `rel=canonical`, the hreflang set,
+   the manifest link, the base path and the stylesheet link --- never ran. That
+   is where the hreflang and `landmark-one-main` failures came from too.
+   `build.rs` now computes the sources from `index.html` itself
+   (`inline_script_hashes`), and `the_csp_carries_the_digest_of_every_inline_script`
+   in `build/tests.rs` fails if the two files ever disagree again.
+2. **The Trusted Types policy was created after the first sink.** Under
+   `require-trusted-types-for 'script'`, `bootstrap.src = …` is a sink, it
+   throws with no default policy, and an exception inside that IIFE ends it
+   before the `createPolicy` call at the bottom --- so the policy was never
+   created and the WASM client's `innerHTML` sinks threw as well. It is now the
+   first statement in the script.
+3. **`script-src` had no `'unsafe-eval'`.** `'wasm-unsafe-eval'` permits
+   WebAssembly compilation and nothing else, and this client evaluates strings:
+   the theme effect, the RDKit bridge, the example buttons. Measured without it,
+   the theme effect threw an `EvalError`, an effect in the same flush panicked
+   (`RuntimeError: unreachable`), and the boot shell was never removed --- the
+   page rendered *behind* "Loading the explorer…" forever.
+
+   `'unsafe-eval'` is now in the policy, and `require-trusted-types-for
+   'script'` is out of it, which is not a preference: `eval` is a Trusted Types
+   sink, and a policy written in JavaScript cannot return a `TrustedScript`, so
+   the two directives cannot both stand with a Dioxus client. The default policy
+   `index.html` creates is still there --- first in its inline script, ahead of
+   every sink --- so putting enforcement back is adding the directive to the
+   generated string once nothing evaluates strings.
+
+The cache rules were broken in the same file, and this measurement is what found
+it. Two of the rules never applied to anything:
+
+- the hashed-bundle rule was `/**/assets/*`, which needs a directory in front of
+  `assets` and therefore does not match `/assets/<name>-<hash>.<ext>`, which is
+  where `dx` writes it. Lighthouse `cache-insight` reported the 12 KiB glue with
+  a zero cache lifetime;
+- `/assets/lotus-explore.css` was written indented, which in this syntax reads as
+  another header of the block above rather than as a path, so that rule had no
+  effect either.
+
+Both are fixed, `every_headers_path_starts_its_line` in `build/tests.rs` is the
+gate, and the unhashed assets (`/assets/lotus-explore.css`, `/assets/js/*`,
+`/assets/vendor/*`) still revalidate because they are written after `/assets/*`.
+
+The cache rule is still the largest host-level performance win, because the
+content-hashed glue and the 1.4 MB module are immutable by construction while
+every returning visitor revalidates both after 600 s:
 
   | Asset                                       | `_headers` asks for           | Actually sent |
   | ------------------------------------------- | ----------------------------- | ------------- |
   | `assets/lotus-explore-rs-dxh<hash>.js`      | `max-age=31536000, immutable` | `max-age=600` |
   | `assets/lotus-explore-rs_bg-dxh<hash>.wasm` | `max-age=31536000, immutable` | `max-age=600` |
 
-The rules are already written and correct; they activate on a CDN host. Until
-then this is a deployment decision (move off GitHub Pages or front it), not
-something a change to this repository can fix.
+Until this moves to a CDN host, that part is a deployment decision (move off
+GitHub Pages or front it), not something a change to this repository can fix.
 
 ## `.br` files are uploaded and never served
 

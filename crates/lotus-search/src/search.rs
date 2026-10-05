@@ -810,23 +810,19 @@ async fn lookup_compounds<H: Http>(
         .map_err(|e| FetchError::Parse(e.to_string()))
 }
 
-/// An `InChIKey`: 14 characters, then a hyphen, then 10.
-///
-/// Shape rather than a lookup, because the alternative is asking the endpoint
-/// about every structure spelling in order to find out it was an `InChIKey`.
-#[must_use]
-pub fn looks_like_inchikey(value: &str) -> bool {
-    let mut parts = value.trim().split('-');
-    let (Some(first), Some(second), None) = (parts.next(), parts.next(), parts.next()) else {
-        return false;
-    };
-    first.len() == 14
-        && second.len() == 10
-        && first
-            .chars()
-            .chain(second.chars())
-            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
-}
+// An `InChIKey` is three hyphen-separated blocks of 14, 10 and 1 characters.
+//
+// This used to be a second implementation here rather than the one predicate in
+// `lotus-model`. The copy read the blocks as `(Some, Some, None)` -- exactly two
+// of them -- because its own doc comment described an `InChIKey` as "14
+// characters, then a hyphen, then 10" and left the version block out. So it
+// answered `false` for every real `InChIKey` and `true` for the two-block string
+// that is not one, which made the `looks_like_inchikey` arm of
+// `resolve_structure` unreachable for genuine input: a pasted `InChIKey` was
+// handed to the structure service as if it were a SMILES. `lotus-model` already
+// had the correct predicate and its tests said so, which is the argument for one
+// copy rather than two.
+use lotus_model::looks_like_inchikey;
 
 /// Resolve a reference field, which is a DOI or a QID, to the QID to filter on.
 ///
