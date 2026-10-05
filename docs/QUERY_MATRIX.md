@@ -17,18 +17,18 @@ is dominated by the patterns it has to resolve, not by the text.
 
 | cell | bytes | triples | occurrence |
 |---|---|---|---|
-| taxon=absent structure=absent reference=absent | 2295 | 12 | optional |
-| taxon=absent structure=absent reference=present | 2319 | 12 | optional |
-| taxon=absent structure=present reference=absent | 2264 | 14 | optional |
-| taxon=absent structure=present reference=present | 2288 | 14 | optional |
-| taxon=specific structure=absent reference=absent | 2716 | 15 | required |
-| taxon=specific structure=absent reference=present | 2740 | 15 | required |
-| taxon=specific structure=present reference=absent | 2648 | 16 | required |
-| taxon=specific structure=present reference=present | 2672 | 16 | required |
-| taxon="*" structure=absent reference=absent | 2347 | 13 | required |
-| taxon="*" structure=absent reference=present | 2371 | 13 | required |
-| taxon="*" structure=present reference=absent | 2264 | 14 | optional |
-| taxon="*" structure=present reference=present | 2288 | 14 | optional |
+| taxon=absent structure=absent reference=absent | 2420 | 13 | optional |
+| taxon=absent structure=absent reference=present | 2444 | 13 | optional |
+| taxon=absent structure=present reference=absent | 2356 | 14 | optional |
+| taxon=absent structure=present reference=present | 2380 | 14 | optional |
+| taxon=specific structure=absent reference=absent | 2808 | 15 | required |
+| taxon=specific structure=absent reference=present | 2832 | 15 | required |
+| taxon=specific structure=present reference=absent | 2740 | 16 | required |
+| taxon=specific structure=present reference=present | 2764 | 16 | required |
+| taxon="*" structure=absent reference=absent | 2439 | 13 | required |
+| taxon="*" structure=absent reference=present | 2463 | 13 | required |
+| taxon="*" structure=present reference=absent | 2356 | 14 | optional |
+| taxon="*" structure=present reference=present | 2380 | 14 | optional |
 ## How to read it
 
 **`occurrence` is the column that matters.** `required` means `P703` is a plain

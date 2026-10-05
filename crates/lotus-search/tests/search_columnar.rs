@@ -15,12 +15,12 @@ use lotus_model::SearchCriteria;
 use lotus_search::testing::Scripted;
 use lotus_search::{SearchRequest, search_columnar};
 
-const HEADER: &str = "compound,compoundLabel,compound_inchikey,compound_mass,compound_formula,taxon,taxon_name,ref_qid,statement\n";
+const HEADER: &str = "compound,compoundLabel,compound_inchikey,compound_mass,compound_formula,taxon,taxon_name,ref_qid,ref_node,statement_id\n";
 
 fn payload() -> String {
     format!(
         "{HEADER}\
-         Q1,first,,120.5,C2H6O,Q10,Homo,Q100,http://www.wikidata.org/entity/statement/Q1-0D8245CF-C1C0-45AA-8994-6BEBFF6B15EE\n\
+         Q1,first,,120.5,C2H6O,Q10,Homo,Q100,,http://www.wikidata.org/entity/statement/Q1-0D8245CF-C1C0-45AA-8994-6BEBFF6B15EE\n\
          Q2,\"second, compound\",,300,C6H12O6,Q10,Homo,Q100,\n\
          Q1,first,,120.5,C2H6O,Q10,Homo,Q100,\n\
          Q3,third,,,,\n\

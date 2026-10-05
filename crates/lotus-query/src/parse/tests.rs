@@ -16,10 +16,16 @@
 use super::*;
 use lotus_model::WIKIDATA_STATEMENT_BASE;
 
-const HEADER: &str = "compound,compoundLabel,compound_inchikey,compound_smiles_conn,compound_smiles_iso,compound_mass,compound_formula,taxon,taxon_name,ref_qid,ref_title,ref_doi,ref_date,statement";
+/// Built from [`SELECT_COLUMNS`] rather than written out, because the fixtures
+/// below it are positional. A hand-written header drifted from the projection
+/// twice in one session and both times the failure was a column silently reading
+/// as empty rather than an error.
+fn header() -> String {
+    crate::query::SELECT_COLUMNS.join(",")
+}
 
 fn csv(rows: &str) -> Vec<u8> {
-    format!("{HEADER}\n{rows}").into_bytes()
+    format!("{}\n{rows}", header()).into_bytes()
 }
 
 #[test]
@@ -45,7 +51,7 @@ fn the_connection_table_smiles_is_used_when_there_is_no_iso_form() {
 #[test]
 fn a_doi_prefix_is_stripped_but_a_reference_title_is_not() {
     let rows = parse_compounds_csv(
-        &csv("Q1,L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,https://doi.org/10.1/B,10.1/B,2021,\n"),
+        &csv("Q1,L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,,https://doi.org/10.1/B,10.1/B,2021,\n"),
         10,
     )
     .expect("valid CSV");
@@ -58,7 +64,7 @@ fn a_publication_date_contributes_only_its_year() {
     for (input, expected) in [("2021-04-23T00:00:00Z", Some(2021)), ("2019", Some(2019))] {
         let rows = parse_compounds_csv(
             &csv(&format!(
-                "Q1,L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,T,10.1/a,{input},\n"
+                "Q1,L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,,T,10.1/a,{input},\n"
             )),
             10,
         )
@@ -88,9 +94,12 @@ fn a_row_missing_several_columns_still_parses() {
 #[test]
 fn a_statement_uri_loses_its_prefix() {
     let uri = format!("{WIKIDATA_STATEMENT_BASE}S1");
+    // Positional, so it has to track SELECT_COLUMNS: compound, label, inchikey,
+    // smiles_conn, smiles_iso, mass, formula, taxon, taxon_name, ref_qid,
+    // ref_node, ref_title, ref_doi, ref_date, statement_id.
     let rows = parse_compounds_csv(
         &csv(&format!(
-            "Q1,L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,T,10.1/a,2021,{uri}\n"
+            "Q1,L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,,T,10.1/a,2021,{uri}\n"
         )),
         10,
     )

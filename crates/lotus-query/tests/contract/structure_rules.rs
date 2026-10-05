@@ -240,9 +240,9 @@ fn the_count_query_carries_no_reference_or_compound_metadata() {
 fn the_reference_node_is_projected_but_not_shown() {
     for (label, _query) in every_shape() {
         assert!(
-            lotus_query::SELECT_COLUMNS.contains(&"ref"),
-            "{label}: SELECT_COLUMNS dropped `ref`; it is the reference node, not the \\
-             publication, and the CONSTRUCT template needs it"
+            lotus_query::SELECT_COLUMNS.contains(&"ref_node"),
+            "{label}: SELECT_COLUMNS dropped `ref_node`; it is the reference node, \
+             not the publication, and the CONSTRUCT template needs it"
         );
     }
 
@@ -253,13 +253,26 @@ fn the_reference_node_is_projected_but_not_shown() {
     // reports as an unbound cell rather than a failed query, so the column would
     // look present and be empty everywhere. Silent, and total.
     assert!(
-        !select.contains("STRAFTER(STR(?ref)"),
+        !select.contains("xsd:integer(STRAFTER(STR(?ref)"),
         "`?ref` is a reference-node URI, not a QID; casting it empties the column \
          on every row without failing the query"
     );
+    // Projected as its identity rather than its URI, the way every QID column here
+    // is. The namespace crossed the wire on every row and was stripped off again on
+    // arrival: 35 wasted characters a row.
     assert!(
-        select.contains("?ref"),
-        "the reference node is not projected at all"
+        select.contains(r#"STRAFTER(STR(?ref), "reference/")"#),
+        "the reference namespace should not cross the wire: {select}"
+    );
+    assert!(
+        select.contains(r#"STRAFTER(STR(?statement), "statement/")"#),
+        "nor should the statement namespace: {select}"
+    );
+    // It cannot keep the name `?ref`: QLever rejects an AS clause whose target is
+    // already used in the body, which is why these are new names.
+    assert!(
+        lotus_query::SELECT_COLUMNS.contains(&"ref_node"),
+        "the identity column must be named so it is not the body variable"
     );
 }
 
@@ -268,7 +281,7 @@ fn the_reference_node_is_projected_but_not_shown() {
 /// `P703` is not specific to metabolites: Wikidata uses it for genes and proteins
 /// too. A taxon search with no compound test returned `Q21629845` — a
 /// protein-coding gene for an oxidoreductase subunit — beside the metabolites,
-/// with nothing in the row to say which it was. The `P235` InChIKey is the
+/// with nothing in the row to say which it was. The `P235` `InChIKey` is the
 /// discriminator: that gene has neither `P235` nor `P233`, a metabolite has both.
 #[test]
 fn every_shape_requires_the_compound_to_be_a_chemical_entity() {

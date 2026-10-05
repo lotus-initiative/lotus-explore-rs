@@ -794,8 +794,11 @@ impl ColumnarResultSet {
     /// What each dictionary costs, so an optimisation can be aimed at the largest
     /// one rather than at the most obvious.
     ///
-    /// Diagnostic, and excluded from mutation testing in `mutants.toml`: it exists
-    /// to be read by `lotus-query/tests/bench.rs` and has no behaviour to assert.
+    /// Diagnostic, and behind the `diagnostics` feature: it exists to be read by
+    /// `lotus-query/tests/bench.rs` and has no behaviour to assert. The feature is
+    /// the exclusion -- see the note on the feature in `Cargo.toml` -- so it also
+    /// keeps these ~78 unkillable mutants out of `./mk mutants` rather than
+    /// burying a real survivor among them.
     ///
     /// Returns `(label, entries, bytes)`. `bytes` counts the string data, one fat
     /// pointer per string and one slot per map entry -- what the structure holds,
@@ -876,8 +879,8 @@ impl ColumnarResultSet {
     /// The bytes the dictionaries hold, for a measurement rather than for
     /// anything the app needs.
     ///
-    /// Diagnostic, and excluded from mutation testing in `mutants.toml` for the
-    /// same reason as [`Self::dictionary_costs`].
+    /// Diagnostic, and behind the `diagnostics` feature for the same
+    /// reason as [`Self::dictionary_costs`].
     ///
     /// Counts the string bytes plus a slot each, which is what a `HashSet` of
     /// those strings costs. Deliberately not a measurement of the allocator: on

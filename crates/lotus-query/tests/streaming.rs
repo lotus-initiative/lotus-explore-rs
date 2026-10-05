@@ -375,7 +375,7 @@ fn the_isomeric_smiles_wins_over_the_connection_table() {
 /// survives a header naming only `compound`.
 #[test]
 fn a_header_naming_one_known_column_is_enough_to_parse() {
-    for header in ["taxon", "ref_qid", "statement", "compound"] {
+    for header in ["taxon", "ref_qid", "statement_id", "ref_node", "compound"] {
         let payload = format!("{header}\nQ1\n");
         // The property is that the header is *recognised*, not that the row
         // survives: a row with no compound is dropped by a separate rule, so only

@@ -228,11 +228,11 @@ pub const SELECT_COLUMNS: [&str; 15] = [
     "taxon",
     "taxon_name",
     "ref_qid",
-    "ref",
+    "ref_node",
     "ref_title",
     "ref_doi",
     "ref_date",
-    "statement",
+    "statement_id",
 ];
 
 /// The result columns. QIDs are projected as integers so that the CSV they come
@@ -252,11 +252,11 @@ SELECT DISTINCT
   (xsd:integer(STRAFTER(STR(?t), "Q")) AS ?taxon)
   ?taxon_name
   (xsd:integer(STRAFTER(STR(?r), "Q")) AS ?ref_qid)
-  ?ref
+  (STRAFTER(STR(?ref), "reference/") AS ?ref_node)
   ?ref_title
   ?ref_doi
   ?ref_date
-  ?statement
+  (STRAFTER(STR(?statement), "statement/") AS ?statement_id)
 "#,
         normalize_digits_expr("?compound_formula_raw")
     )

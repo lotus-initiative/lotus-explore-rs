@@ -69,8 +69,8 @@ impl Columns {
             ref_title: find("ref_title"),
             ref_doi: find("ref_doi"),
             ref_date: find("ref_date"),
-            reference_node: find("ref"),
-            statement: find("statement"),
+            reference_node: find("ref_node"),
+            statement: find("statement_id"),
         }
     }
 }
@@ -81,11 +81,17 @@ impl Columns {
     /// A header naming no known column means the query and the parser disagree,
     /// and every row would read as empty. That is a failure the table cannot show
     /// as a failure, so it is reported instead.
+    /// Whether the header named anything this reader can use.
+    ///
+    /// Every column that can be resolved belongs here, not just the identifying
+    /// ones: a header naming only `ref_node` is a payload we understand, and
+    /// refusing it would report a shape mismatch where there is none.
     const fn resolves_any(&self) -> bool {
         self.compound.is_some()
             || self.taxon.is_some()
             || self.reference.is_some()
             || self.statement.is_some()
+            || self.reference_node.is_some()
     }
 
     /// Resolve the columns from header names already read as strings.
