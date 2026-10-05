@@ -12,6 +12,67 @@ take. **DONE** = resolved since it was written.
 
 ---
 
+## Round two: four defects found by auditing shapes against each other
+
+Written after `aaa7333`. These were not in the original seventeen; they came out
+of comparing generated queries to each other and to the endpoint, and every one of
+them is invisible to a row count.
+
+### 3. ~~FIX — every reference title, DOI and year was blank~~ **DONE** · `6cf36ed`
+
+> `FILTER(BOUND(?ref))` sat **inside** three `OPTIONAL`s. A `FILTER` in an
+> `OPTIONAL` is evaluated against *that* OPTIONAL's own solutions, before the join
+> with the left side, so `?ref` — bound only outside — was unbound inside, the
+> guard was always false, and all three columns were always empty.
+
+Measured on `Q153`, counting rows that actually receive a title: **87** without
+the guard, **0** with it, **0** when guarding a variable bound nowhere (the proof
+that it is scoping and not the predicate). Replaced with a sentinel,
+`BIND(COALESCE(?r, wd:Q0) AS ?_ref_source)`, which keeps the 54,116,026-row scan
+fix that motivated the guard.
+
+It survived because an empty metadata cell is indistinguishable from a reference
+that genuinely has none, and the commit that introduced it verified by row count —
+which did not move.
+
+### 4. ~~FIX — `?ref` deleted from the projection~~ **DONE** · `426801e`, `24f25bf`
+
+> Dropped as "read by nothing". It is the reference **node**
+> (`prov:wasDerivedFrom`), not the publication `?ref_qid` names via `pr:P248`, and
+> the set-based Turtle exporter needs it. It cannot be integer-cast: it is
+> `http://www.wikidata.org/reference/<64 hex>`, and QLever reports that cast error
+> as an unbound cell rather than a failed query.
+
+Two exporters exist and only one was ever measured. See `docs/SPARQL-VARIANTS.md`.
+
+### 5. ~~FIX — the Turtle put `prov:wasDerivedFrom` on the compound~~ **DONE** · `24f25bf`
+
+> It emitted `wd:Q103815959 prov:wasDerivedFrom wd:Q35589126 .` — the compound as
+> subject, no statement, no reference node. Two occurrences of one compound through
+> two references became indistinguishable triples. Now emits the full chain.
+
+### 6. ~~FIX — the carbon counter read the last `|C`~~ **DONE** · `dd101c5`
+
+> Greedy match took the **last** `|C` token, so `C6H5COOH` counted 1 carbon.
+> 1 misparse in 3,301 formulas on a real taxon, 0 membership flips. Prefers a
+> digit-bearing token now.
+
+### What the six have in common
+
+Three of them passed every gate that existed. The gates were blind because they
+asked questions a timing or a row count cannot answer — *is the query faster*, *is
+the row count right* — while the failures were about **which value ends up where**.
+Three rules now hold this in place (`tests/contract/structure_rules.rs`), over all
+seven shapes rather than the one that broke.
+
+Two of my own checks were non-discriminating and read as "no bug found", twice:
+`COUNT(*)` cannot see an optional column change, and a count over an optional
+occurrence block is the same with or without the OPTIONAL. A third, a gate whose
+helper returned a single `}` instead of a group, asserted nothing at all. All
+three were found by trying to make them fail.
+
+---
+
 ## The two that matter most
 
 ### 1. ~~FIX — compound filter matched the wrong rows~~ **DONE** · REVIEW §12

@@ -90,6 +90,12 @@ through a million rows and then **52x worse** at two million, and it stays bad.
 The spread at 2M is 0.4% across 15 samples, so this is not a tail: the sort
 genuinely does 50x more work per row past some size.
 
+> **SUPERSEDED by `50fe24b` — the 52x does not reproduce.** Re-measured on quiet
+> hardware: 10.0 ns/row at 500,000, 10.2 at a million, and **25.1 at two million**,
+> a **2.5x** step rather than 52x. The cliff is real; the ratio was not, and the
+> original measurement was taken while other work was running. A fix aimed at a
+> 52x cliff is not aimed at this one. See `docs/SPARQL-VARIANTS.md`.
+
 The original single samples were both correct and the ratio was real. What was
 wrong was the explanation, and the reason the first reading looked like noise is
 that a single sample at 2M (840.9 ms) and a single sample at 1M (8.6 ms) cannot
