@@ -212,7 +212,7 @@ mod tests {
         );
         assert!(
             html.contains("10.1021/acs.jnatprod.1C00812"),
-            "the DOI example is the one that has to be there: {html}"
+            "the first DOI example is the one that has to be there: {html}"
         );
     }
 
