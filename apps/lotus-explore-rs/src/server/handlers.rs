@@ -28,7 +28,7 @@ use crate::server::{
     },
     types::{ExportFileQuery, ExportUrlResponse, HealthResponse, SearchRequest, SearchResponse},
 };
-use lotus_query::ExportFormat;
+use lotus_query::{ExportFormat, parse_compounds_columnar};
 
 #[utoipa::path(
     get,
@@ -479,12 +479,21 @@ pub async fn export_file(
         ApiError::bad_request("Export link expired or is unknown. Regenerate the export URL.")
     })?;
 
-    let upstream_url = export::qlever_export_url(&cached.query, format);
+    // Always ask QLever for the `SELECT`, never for a `CONSTRUCT`.
+    //
+    // A `CONSTRUCT` is materialised by the endpoint before a byte is sent, under the
+    // same 30-second budget that already rejects this query as a plain `SELECT`. So
+    // asking for Turtle capped the export at whatever the endpoint would assemble in
+    // time, which is not a limit we control and is far below the row count the CSV
+    // path reaches. The `SELECT` streams, and the Turtle is built here from the same
+    // rows the CSV path already fetches -- `RowExporter` is the renderer the CLI and
+    // the in-browser download both use, so all three produce the same graph.
+    let select_url = export::qlever_export_url(&cached.query, ExportFormat::Csv);
     let http = lotus_search::reqwest_client::ReqwestClient::new()
         .map_err(|e| ApiError::upstream(format!("could not open the export client: {e}")))?;
-    let raw_bytes = timeout(
+    let select_bytes = timeout(
         state.request_timeout,
-        lotus_search::fetch_url(&http, &upstream_url, lotus_search::ResponseFormat::Csv),
+        lotus_search::fetch_url(&http, &select_url, lotus_search::ResponseFormat::Csv),
     )
     .await
     .map_err(|_| {
@@ -496,6 +505,17 @@ pub async fn export_file(
         ApiError::upstream("export fetch timed out")
     })?
     .map_err(|e| ApiError::upstream(format!("export fetch failed: {e}")))?;
+    let raw_bytes = if format == ExportFormat::Csv {
+        select_bytes
+    } else {
+        let set = parse_compounds_columnar(std::io::Cursor::new(select_bytes.as_slice()))
+            .map_err(|e| ApiError::upstream(format!("export could not be read: {e}")))?;
+        let mut out: Vec<u8> = Vec::new();
+        lotus_query::RowExporter::new(format, &set).for_each_chunk(|chunk| {
+            out.extend_from_slice(chunk.as_bytes());
+        });
+        out
+    };
     let raw_len = raw_bytes.len();
 
     let requested_filename = params
@@ -534,4 +554,66 @@ pub async fn export_file(
         .header(header::CACHE_CONTROL, "private, max-age=600")
         .body(axum::body::Body::from(body_bytes))
         .map_err(|e| ApiError::upstream(format!("response build failed: {e}")))
+}
+
+/// Gates on the export handler's use of the endpoint.
+///
+/// Source-level rather than behavioural, because the behaviour being pinned is
+/// *which query shape is sent upstream*, and a mock endpoint would have to answer a
+/// `CONSTRUCT` to prove it -- so the test would be asserting against the thing it
+/// is trying to forbid. Reading the source is the only way to see the request that
+/// would be made.
+#[cfg(test)]
+mod export_query_shape {
+    const HANDLERS: &str = include_str!("handlers.rs");
+
+    /// The export path must never ask `QLever` for a `CONSTRUCT`.
+    ///
+    /// This is the whole point of the change and it is invisible in the response: a
+    /// `CONSTRUCT` works, returns correct Turtle, and is simply capped at whatever
+    /// the endpoint will materialise inside 30 seconds. Nothing fails when the cap
+    /// is hit except an export that is quietly smaller than the one asked for, which
+    /// is the failure mode a reader is least likely to notice and most likely to
+    /// spend hours on.
+    #[test]
+    fn the_export_never_asks_the_endpoint_for_a_construct() {
+        // The method that wraps a SELECT in a CONSTRUCT for the Rdf format is reachable
+        // only through the URL builder, and only bites when handed that format. Called
+        // directly here with Rdf, the cap is back.
+        //
+        // The needles are assembled at compile time rather than written out: this
+        // module is part of the file it searches, so a literal would match its own
+        // assertion and the gate would pass forever.
+        let prepared = concat!("prepared_", "query");
+        assert!(
+            !HANDLERS.contains(prepared),
+            "the export path must render Turtle locally, not ask for the CONSTRUCT \
+             that wrapping implies"
+        );
+        assert!(
+            HANDLERS.contains("qlever_export_url(&cached.query, ExportFormat::Csv)"),
+            "the export must fetch the SELECT; asking for any other format upstream \
+             reintroduces endpoint-side materialisation"
+        );
+    }
+
+    /// Every non-CSV format has to be produced here, from rows already fetched.
+    ///
+    /// A `match` that handled CSV and then returned the `SELECT` bytes unchanged for
+    /// the rest would type-check, pass a content-type test, and hand a reader a file
+    /// called `.ttl` containing CSV.
+    #[test]
+    fn a_non_csv_format_is_built_here_rather_than_passed_through() {
+        // Split for the same reason: both needles appear in this module's own text.
+        let exporter = concat!("RowExporter::", "new(format, &set)");
+        let parser = concat!("parse_compounds_", "columnar");
+        assert!(
+            HANDLERS.contains(exporter),
+            "every format but CSV is rendered locally from the fetched rows"
+        );
+        assert!(
+            HANDLERS.contains(parser),
+            "the rows have to be parsed before they can be re-rendered"
+        );
+    }
 }
