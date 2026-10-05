@@ -425,6 +425,11 @@ fn raw_row<'a>(record: &'a Record, columns: &'a Columns) -> RawRow<'a> {
         taxon_qid: field_bytes(record, columns.taxon),
         taxon_name: field_bytes(record, columns.taxon_name),
         reference_qid: field_bytes(record, columns.reference),
+        reference_node: super::normalize_reference_node(field_bytes(
+            record,
+            columns.reference_node,
+        ))
+        .unwrap_or_default(),
         ref_title: optional(field_bytes(record, columns.ref_title)),
         ref_doi: optional(field_bytes(record, columns.ref_doi)),
         pub_year: field_bytes(record, columns.ref_date)

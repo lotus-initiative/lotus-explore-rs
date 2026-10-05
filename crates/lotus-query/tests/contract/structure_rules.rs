@@ -214,3 +214,50 @@ fn the_count_query_carries_no_reference_or_compound_metadata() {
         }
     }
 }
+
+/// `?ref` must be projected, and must not be shown.
+///
+/// It was dropped once on the grounds that nothing read it, which was wrong on
+/// both counts. It is the reference *node* -- `prov:wasDerivedFrom` -- and not the
+/// publication that `?ref_qid` names via `pr:P248`; the `CONSTRUCT` template emits
+/// `?statement prov:wasDerivedFrom ?ref`, so the provenance graph needs it. And it
+/// belongs in the parsed row even though no reader-facing column shows it.
+///
+/// Dropping it is easy to do by accident and invisible when it happens: the query
+/// still runs, the row count is unchanged, and the loss only shows up in a Turtle
+/// export or in anything rebuilding the provenance graph. Hence both halves are
+/// pinned here -- projected for the machine, absent from the human-facing columns.
+#[test]
+fn the_reference_node_is_projected_but_not_shown() {
+    for (label, _query) in every_shape() {
+        assert!(
+            lotus_query::SELECT_COLUMNS.contains(&"ref"),
+            "{label}: SELECT_COLUMNS dropped `ref`; it is the reference node, not the \\
+             publication, and the CONSTRUCT template needs it"
+        );
+    }
+
+    let select = compounds_by_taxon_query("Q21754");
+    // It must NOT go through the STRAFTER/xsd:integer treatment the QID columns
+    // get. A reference node is `http://www.wikidata.org/reference/<64 hex>`, not a
+    // `Q<digits>`, so that cast is a type error on *every* row -- which QLever
+    // reports as an unbound cell rather than a failed query, so the column would
+    // look present and be empty everywhere. Silent, and total.
+    assert!(
+        !select.contains("STRAFTER(STR(?ref)"),
+        "`?ref` is a reference-node URI, not a QID; casting it empties the column \
+         on every row without failing the query"
+    );
+    assert!(
+        select.contains("?ref"),
+        "the reference node is not projected at all"
+    );
+
+    // The user-facing column list is a separate constant. `ref` belongs in the
+    // query and in the parsed row; it does not belong in a table a person reads.
+    let shown = lotus_query::export_rows_visible_columns();
+    assert!(
+        !shown.contains(&"reference_node"),
+        "the reference node must not be a user-facing column: {shown:?}"
+    );
+}

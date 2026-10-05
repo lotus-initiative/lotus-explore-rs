@@ -34,6 +34,14 @@ pub const WIKIDATA_ENTITY_BASE: &str = "http://www.wikidata.org/entity/";
 /// Base URI for Wikidata reification statements (`S1` → `<BASE>statement/S1`).
 pub const WIKIDATA_STATEMENT_BASE: &str = "http://www.wikidata.org/entity/statement/";
 
+/// Namespace of a Wikidata *reference node* -- the thing a statement is
+/// `prov:wasDerivedFrom`.
+///
+/// Not a QID and not a statement: `http://www.wikidata.org/reference/<64 hex>`.
+/// Anything that tries to read a `Q<digits>` out of one gets a cast error, so this
+/// is stripped explicitly instead, the same way [`WIKIDATA_STATEMENT_BASE`] is.
+pub const WIKIDATA_REFERENCE_BASE: &str = "http://www.wikidata.org/reference/";
+
 /// Widest atom count each of the six filterable elements is given by default.
 ///
 /// A count above these cannot correspond to a real molecule, so a filter that

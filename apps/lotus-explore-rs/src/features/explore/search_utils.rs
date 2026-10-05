@@ -144,6 +144,7 @@ mod tests {
             taxon_qid: Arc::from("Q2"),
             taxon_name: Arc::from("Taxon"),
             reference_qid: Arc::from("Q3"),
+            reference_node: Arc::from(""),
             ref_title: None,
             ref_doi: None,
             pub_year: None,

@@ -202,12 +202,22 @@ PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
 /// are projected and the parser picks between them; a single coalesced column
 /// would replace the pair rather than sit beside it.
 ///
-/// `?ref` is projected by neither, and is bound in the WHERE by `CORE_VARS`
-/// because the Turtle `CONSTRUCT` template needs it. It used to be projected as
-/// well, which cost 54 MB on a 400 MB unnarrowed result -- the single largest
-/// column, and one no parser read and no format showed. Projecting a variable is
-/// not free: `QLever` computes it, serialises it and sends it on every row.
-pub const SELECT_COLUMNS: [&str; 14] = [
+/// `?ref` is the reference *node* URI -- `http://www.wikidata.org/reference/<hex>` --
+/// and **not** a QID, so it is projected whole rather than through the
+/// `STRAFTER`/`xsd:integer` treatment every QID column gets. Casting that URI is a
+/// type error on every row, which `QLever` reports as an unbound cell rather than a
+/// failed query, so the column would look present and be empty throughout.
+/// `?ref_qid` is the publication the node points at via
+/// `pr:P248`. They are different things and both are needed: the `CONSTRUCT`
+/// template emits `?statement prov:wasDerivedFrom ?ref`, and the result rows carry
+/// the node so the provenance graph can be rebuilt without re-querying.
+///
+/// It is projected but never shown. The user-facing columns are named separately
+/// (see `export_rows::COLUMNS` and the CLI's own list), so restoring it here costs
+/// payload -- it was the largest single column on an unnarrowed result -- and buys
+/// correctness. Projecting a variable is not free: `QLever` computes it,
+/// serialises it, and sends it on every row.
+pub const SELECT_COLUMNS: [&str; 15] = [
     "compound",
     "compoundLabel",
     "compound_inchikey",
@@ -218,6 +228,7 @@ pub const SELECT_COLUMNS: [&str; 14] = [
     "taxon",
     "taxon_name",
     "ref_qid",
+    "ref",
     "ref_title",
     "ref_doi",
     "ref_date",
@@ -241,6 +252,7 @@ SELECT DISTINCT
   (xsd:integer(STRAFTER(STR(?t), "Q")) AS ?taxon)
   ?taxon_name
   (xsd:integer(STRAFTER(STR(?r), "Q")) AS ?ref_qid)
+  ?ref
   ?ref_title
   ?ref_doi
   ?ref_date

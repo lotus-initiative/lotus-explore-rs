@@ -144,6 +144,7 @@ fn full_entry() -> CompoundEntry {
         taxon_qid: Arc::from("Q9999"),
         taxon_name: Arc::from("Gentiana lutea"),
         reference_qid: Arc::from("Q8888"),
+        reference_node: Arc::from(""),
         ref_title: Some(Arc::from("A paper")),
         ref_doi: Some(Arc::from("10.1000/paper")),
         pub_year: Some(2021),

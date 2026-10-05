@@ -6,7 +6,7 @@
 mod error;
 mod export;
 mod export_rows;
-pub use export_rows::RowExporter;
+pub use export_rows::{RowExporter, visible_columns as export_rows_visible_columns};
 mod parse;
 mod query;
 

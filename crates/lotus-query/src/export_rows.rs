@@ -69,6 +69,16 @@ const CHUNK_TARGET: usize = 64 * 1024;
 /// And one is renamed: the set keeps only the publication *year*, so the column is
 /// `ref_year` rather than `ref_date`. Emitting `ref_date` with a year in it would be
 /// a value that is wrong rather than one that is missing.
+/// The user-facing archive columns.
+///
+/// Deliberately *not* the same list as `SELECT_COLUMNS`: the reference node is
+/// projected for the provenance graph and kept in the parsed row, but no column a
+/// person reads shows it.
+#[must_use]
+pub fn visible_columns() -> Vec<&'static str> {
+    COLUMNS.to_vec()
+}
+
 const COLUMNS: [&str; 13] = [
     "compound",
     "compoundLabel",
@@ -487,6 +497,7 @@ mod tests {
             taxon_qid: arc("Q128267"),
             taxon_name: arc("Rosa"),
             reference_qid: arc("Q100000001"),
+            reference_node: arc(""),
             ref_title: Some(arc("Flavonoid isolation, 1971")),
             ref_doi: Some(arc("10.1000/a, b")),
             pub_year: Some(1971),
@@ -505,6 +516,7 @@ mod tests {
             taxon_qid: arc(""),
             taxon_name: arc(""),
             reference_qid: arc(""),
+            reference_node: arc(""),
             ref_title: None,
             ref_doi: None,
             pub_year: None,

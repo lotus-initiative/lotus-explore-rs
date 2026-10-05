@@ -243,6 +243,7 @@ impl From<RowDto> for CompoundEntry {
             taxon_qid: Arc::<str>::from(value.taxon_qid),
             taxon_name: Arc::<str>::from(value.taxon_name),
             reference_qid: Arc::<str>::from(value.reference_qid),
+            reference_node: Arc::from(""),
             ref_title: value.ref_title.map(Arc::<str>::from),
             ref_doi: value.ref_doi.map(Arc::<str>::from),
             pub_year: value.pub_year,

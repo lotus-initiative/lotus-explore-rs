@@ -621,6 +621,10 @@ pub struct RawRow<'a> {
     pub taxon_name: &'a str,
     /// Wikidata QID of the reference; empty when there is none.
     pub reference_qid: &'a str,
+    /// Wikidata QID of the reference *node* (`prov:wasDerivedFrom`), which is not
+    /// the publication named by `reference_qid` via `pr:P248`. Empty when the
+    /// occurrence has no reference. Kept for the provenance graph, not for display.
+    pub reference_node: &'a str,
     /// Title of the reference, if it has one.
     pub ref_title: Option<&'a str>,
     /// DOI of the reference, if it has one.
@@ -654,6 +658,8 @@ pub struct ColumnarResultSet {
     reference_dois: SparseStrings,
     reference_years: Vec<Option<i16>>,
     statement_fallbacks: SparseStrings,
+    /// Per-row reference-node hash, interned. Keyed by row, not by reference.
+    reference_node_hashes: SparseStrings,
     stats: DatasetStats,
     /// Identifies this set, so it can be compared without being traversed.
     generation: u64,
@@ -719,6 +725,7 @@ impl ColumnarResultSet {
             reference_dois: SparseStrings::new(),
             reference_years: Vec::new(),
             statement_fallbacks: SparseStrings::new(),
+            reference_node_hashes: SparseStrings::new(),
             stats: DatasetStats::default(),
             generation: 0,
         }
@@ -743,6 +750,7 @@ impl ColumnarResultSet {
                 taxon_qid: &entry.taxon_qid,
                 taxon_name: &entry.taxon_name,
                 reference_qid: &entry.reference_qid,
+                reference_node: &entry.reference_node,
                 ref_title: entry.ref_title.as_deref(),
                 ref_doi: entry.ref_doi.as_deref(),
                 pub_year: entry.pub_year,
@@ -951,6 +959,12 @@ impl ColumnarResultSet {
         self.reference_qid(row).map(qid_text)
     }
 
+    /// The reference node's QID for `row`, if the occurrence names one.
+    #[must_use]
+    pub fn reference_node_text(&self, row: usize) -> Option<String> {
+        self.reference_node_hashes.get(row).map(str::to_string)
+    }
+
     /// The compound's label, falling back to its QID.
     ///
     /// The fallback is the one the table applies to a row with no label, kept
@@ -1102,6 +1116,7 @@ impl ColumnarResultSet {
             taxon_qid: owned(self.taxon_qid_text(row)),
             taxon_name: shared(self.taxon_label(row).unwrap_or_default()),
             reference_qid: owned(self.reference_qid_text(row)),
+            reference_node: owned(self.reference_node_text(row)),
             ref_title: optional(self.reference_titles.get(reference_slot)),
             ref_doi: optional(self.reference_dois.get(reference_slot)),
             pub_year: self.reference_year(reference_id),
@@ -1406,6 +1421,14 @@ impl ColumnarBuilder {
 
         self.set.compound_ids.push(compound_id);
         self.set.taxon_ids.push(taxon_id);
+        // The reference node is a `prov:wasDerivedFrom` URI, not a QID, so it
+        // cannot go in `references` -- that is a `QidDictionary` of u32s. A
+        // `SparseStrings` keyed by row keeps the 64-hex hash interned instead of
+        // copied per row, the same way `statement_fallbacks` does.
+        self.set.reference_node_hashes.set(
+            self.set.reference_ids.len(),
+            Some(row.reference_node).filter(|v| !v.is_empty()),
+        );
         self.set.reference_ids.push(reference_id);
         self.set.statements.push(statement);
     }

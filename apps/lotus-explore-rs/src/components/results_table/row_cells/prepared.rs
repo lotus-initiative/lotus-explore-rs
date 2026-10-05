@@ -110,6 +110,7 @@ mod tests {
             taxon_qid: Arc::<str>::from("T1"),
             taxon_name: Arc::<str>::from("Taxon"),
             reference_qid: Arc::<str>::from("R1"),
+            reference_node: Arc::from(""),
             ref_title: Some(Arc::<str>::from(
                 "  This reference title is intentionally much longer than sixty characters to verify it stays intact.  ",
             )),
@@ -141,6 +142,7 @@ mod tests {
             taxon_qid: Arc::<str>::from("T1"),
             taxon_name: Arc::<str>::from("Taxon"),
             reference_qid: Arc::<str>::from("R1"),
+            reference_node: Arc::from(""),
             ref_title: None,
             ref_doi: None,
             pub_year: None,
@@ -166,6 +168,7 @@ mod tests {
             taxon_qid: Arc::<str>::from("T1"),
             taxon_name: Arc::<str>::from("Taxon"),
             reference_qid: Arc::<str>::from("R1"),
+            reference_node: Arc::from(""),
             ref_title: Some(Arc::<str>::from("  A fairly short title  ")),
             ref_doi: Some(Arc::<str>::from(" 10.1000/test ")),
             pub_year: None,

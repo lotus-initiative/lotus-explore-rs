@@ -31,6 +31,8 @@ struct Columns {
     ref_title: Option<usize>,
     ref_doi: Option<usize>,
     ref_date: Option<usize>,
+    /// The reference *node*, distinct from `ref_qid` (the stated-in publication).
+    reference_node: Option<usize>,
     statement: Option<usize>,
 }
 
@@ -67,6 +69,7 @@ impl Columns {
             ref_title: find("ref_title"),
             ref_doi: find("ref_doi"),
             ref_date: find("ref_date"),
+            reference_node: find("ref"),
             statement: find("statement"),
         }
     }
@@ -294,6 +297,10 @@ fn build_entry(
         taxon_qid: Interners::qid(interners, &normalize_qid(taxon)),
         taxon_name: Interners::taxon_name(interners, field(record, columns.taxon_name)),
         reference_qid: Interners::qid(interners, &normalize_qid(reference)),
+        reference_node: Interners::qid(
+            interners,
+            normalize_reference_node(field(record, columns.reference_node)).unwrap_or_default(),
+        ),
         ref_title: optional(Interners::title(
             interners,
             field(record, columns.ref_title),
@@ -510,6 +517,16 @@ fn field(record: &csv::ByteRecord, at: Option<usize>) -> &str {
     at.and_then(|i| record.get(i))
         .and_then(|b| std::str::from_utf8(b).ok())
         .map_or("", str::trim)
+}
+
+/// The reference node's identity, with the namespace stripped.
+///
+/// The remainder is the 64-hex node hash, which is what identifies the reference.
+fn normalize_reference_node(value: &str) -> Option<&str> {
+    non_empty(value).map(|v| {
+        v.strip_prefix(lotus_model::WIKIDATA_REFERENCE_BASE)
+            .unwrap_or(v)
+    })
 }
 
 fn normalize_statement(value: &str) -> Option<&str> {

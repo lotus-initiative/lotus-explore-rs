@@ -28,6 +28,9 @@ pub struct CompoundEntry {
     pub taxon_name: Arc<str>,
     /// Wikidata QID of the cited reference. Empty when there is none.
     pub reference_qid: Arc<str>,
+    /// Wikidata QID of the reference node (`prov:wasDerivedFrom`), distinct from
+    /// `reference_qid`, which is the publication it points at via `pr:P248`.
+    pub reference_node: Arc<str>,
     /// Reference title (P1476).
     pub ref_title: Option<Arc<str>>,
     /// Reference DOI (P356), without the `doi.org` prefix.

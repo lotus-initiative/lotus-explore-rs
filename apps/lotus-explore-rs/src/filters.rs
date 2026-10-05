@@ -229,6 +229,7 @@ mod tests {
             taxon_qid: Arc::from("Q2598745"),
             taxon_name: Arc::from("Gentiana lutea"),
             reference_qid: Arc::from("Q999"),
+            reference_node: Arc::from(""),
             ref_title: Some(Arc::from("Anti-inflammatory activity")),
             ref_doi: Some(Arc::from("10.1000/xyz")),
             pub_year: Some(2019),

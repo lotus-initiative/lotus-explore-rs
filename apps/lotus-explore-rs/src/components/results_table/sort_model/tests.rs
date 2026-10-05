@@ -30,6 +30,7 @@ fn entry(
         // One reference per row: a title, a DOI and a year belong to the
         // *reference*, so rows sharing one cannot disagree about them.
         reference_qid: qid_for("Q", name),
+        reference_node: std::sync::Arc::from(""),
         ref_title: ref_title.map(Arc::<str>::from),
         ref_doi: None,
         pub_year,
