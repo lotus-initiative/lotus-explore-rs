@@ -176,9 +176,6 @@ pub const fn should_autorun(
 pub struct CurationUiState {
     pub processing: bool,
     pub awaiting_second_pass: bool,
-    pub has_rows: bool,
-    pub has_results: bool,
-    pub has_status_message: bool,
 }
 
 impl CurationUiState {
@@ -190,9 +187,6 @@ impl CurationUiState {
         Self {
             processing: *controller.processing.read(),
             awaiting_second_pass: *controller.awaiting_second_pass.read(),
-            has_rows: !controller.rows.read().is_empty(),
-            has_results: !controller.result_rows.read().is_empty(),
-            has_status_message: controller.status_message.read().is_some(),
         }
     }
 }

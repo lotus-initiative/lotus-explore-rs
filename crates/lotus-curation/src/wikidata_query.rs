@@ -29,16 +29,10 @@ pub mod property {
     pub const LABEL: &str = "rdfs:label";
     /// "Found in taxon".
     pub const OCCURS_IN_TAXON: &str = "P703";
-    /// "stated in", the reference a statement is sourced to.
-    pub const STATED_IN: &str = "P248";
-    /// Parent taxon, for resolving a binomial to its genus.
-    pub const PARENT_TAXON: &str = "P171";
     /// DOI, the identifier a reference is matched on.
     pub const DOI: &str = "P356";
     /// Scientific name, as a taxon item is named.
     pub const SCIENTIFIC_NAME: &str = "P225";
-    /// Instance of, which is how an item says what kind of thing it is.
-    pub const INSTANCE_OF: &str = "P31";
 }
 
 /// Escape a value for a SPARQL string literal.

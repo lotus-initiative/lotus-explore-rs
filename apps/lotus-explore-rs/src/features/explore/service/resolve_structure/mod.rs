@@ -70,9 +70,7 @@ use crate::features::explore::types::{
 };
 use crate::perf;
 use crate::repositories::LotusRepository;
-use lotus_model::{
-    CompoundEntry, looks_like_a_compound_qid, looks_like_inchikey, names_a_compound,
-};
+use lotus_model::{looks_like_a_compound_qid, looks_like_inchikey, names_a_compound};
 
 /// What the structure field resolved to, plus whatever is worth telling the
 /// reader about how it got there.
@@ -285,13 +283,6 @@ async fn run<R: LotusRepository>(
             details: e.to_string(),
         })
     })
-}
-
-/// Kept next to the resolver so the two cannot disagree about what a resolved
-/// structure means.
-#[allow(dead_code, reason = "documents the row type the lookups return")]
-fn _entry_shape(entry: &CompoundEntry) -> &str {
-    entry.name.as_ref()
 }
 
 #[cfg(test)]
