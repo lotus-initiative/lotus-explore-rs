@@ -57,7 +57,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::LoadingResolvingReference => "Résolution de la référence...",
         TextKey::LoadingResolvingTaxon => "Résolution du taxon...",
         TextKey::LoadingFetchingResults => "Récupération des résultats...",
-        TextKey::LoadingRowsSoFar => "reçus à ce jour",
+        TextKey::LoadingRowsSoFar => "à ce jour",
         TextKey::LoadingProcessingResults => "Traitement des comptages de résultats...",
         TextKey::LoadingRendering => "Rendu du tableau...",
         TextKey::Retry => "Réessayer",
@@ -90,8 +90,8 @@ pub const fn fr_t(key: TextKey) -> &'static str {
             "Le modèle de données relie les composés, les taxa et les références, qui proviennent de "
         }
 
-        TextKey::WelcomeLeadC => ", publiées en tant que données ouvertes liées sur ",
-        TextKey::WelcomeLeadD => " et interrogées via SPARQL par ",
+        TextKey::WelcomeLeadC => ", publiés en tant que données ouvertes liées sur ",
+        TextKey::WelcomeLeadD => " et interrogés via SPARQL par ",
         TextKey::WelcomeLeadE => ".",
         TextKey::ExampleQueryExecute => "Exécuter",
         TextKey::ExampleQueryTaxon | TextKey::DownloadCsvLabel => "Télécharger CSV",

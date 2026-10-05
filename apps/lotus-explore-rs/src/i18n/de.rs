@@ -172,7 +172,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::DownloadMetadataLabel => "Abfrage-Metadaten herunterladen",
         TextKey::OpenInQlever => "In QLever öffnen",
         TextKey::OpenInQleverTitle => "Diese Abfrage in der QLever-Weboberfläche öffnen",
-        TextKey::OpenInEndpoint => "In Endpoint öffnen",
+        TextKey::OpenInEndpoint => "Im Endpoint öffnen",
         TextKey::OpenInEndpointTitle => "Diese Abfrage in der SPARQL-Endpoint-Weboberfläche öffnen",
         TextKey::NoResults => "Keine Ergebnisse. Bitte erweitern Sie die Suche.",
         TextKey::StageTaxonSearch => "Taxon-Auflösung",
