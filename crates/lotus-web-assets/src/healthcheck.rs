@@ -3,27 +3,23 @@
 
 //! A health probe for the container image, and nothing else.
 //!
-//! The runtime image is `distroless/cc`, which has no shell and no HTTP client,
-//! so a `HEALTHCHECK` written the usual way -- `CMD wget --spider ...`, or
-//! `CMD curl -f ...` -- cannot run in it. Docker's `HEALTHCHECK` takes a binary
-//! and arguments, so what it needs is a binary that fetches a URL and exits
-//! non-zero if the fetch fails. That is this.
+//! The runtime image is `distroless/cc`: no shell, no HTTP client, so the usual
+//! `CMD wget --spider ...` cannot run in it. `HEALTHCHECK` takes a binary and
+//! arguments, so what it needs is a binary that fetches a URL and exits non-zero
+//! on failure.
 //!
-//! It exists because the alternative was worse: either dropping `HEALTHCHECK`
-//! and leaving a container that has stopped serving indistinguishable from one
-//! that is starting, or going back to a shell in the image purely so a health
-//! check could use it. The shell is the thing worth not having.
+//! The alternative was dropping `HEALTHCHECK`, leaving a container that has
+//! stopped serving indistinguishable from one that is starting, or putting a
+//! shell back in the image for the check to use.
 //!
-//! Deliberately no dependencies of its own. It is compiled to musl and copied
-//! into the image next to the server, so every dependency it had would be a
-//! dependency the runtime image had to carry to answer a single request.
-//! `std::net::TcpStream` plus a hand-written request is the whole of what
-//! HTTP/1.0 needs for a `GET`.
+//! No dependencies of its own: compiled to musl and copied into the image, so
+//! every dependency would be one the runtime image carries to answer a single
+//! request. `std::net::TcpStream` plus a hand-written request is all HTTP/1.0
+//! needs for a `GET`.
 //!
-//! The crate's other bins share one dependency set, and this one touches none
-//! of it, so `unused_crate_dependencies` (denied workspace-wide) has to be
-//! satisfied the supported way: name them as `_`. Same note as in
-//! `inject_wasm_preload.rs`.
+//! The crate's other bins share one dependency set and this one touches none of
+//! it, so `unused_crate_dependencies` (denied workspace-wide) is satisfied by
+//! naming them as `_`. Same note as in `inject_wasm_preload.rs`.
 use reqwest as _;
 use serde_json as _;
 use zip as _;
@@ -35,10 +31,9 @@ use std::time::Duration;
 
 /// How long to wait for the whole exchange.
 ///
-/// Short on purpose. A health check that waits 30 seconds to report a dead
-/// server is a health check that has outlived the orchestrator's patience, and
-/// the orchestrator will have killed the container by then for an unrelated
-/// reason.
+/// Short on purpose: a check that takes 30 seconds to report a dead server
+/// outlives the orchestrator's patience, and the container is killed by then for
+/// an unrelated reason.
 const TIMEOUT: Duration = Duration::from_secs(3);
 
 /// `GET <path> HTTP/1.0` against `host:port`.
@@ -177,11 +172,10 @@ mod tests {
     /// leave a thread blocked on a second accept that never comes.
     ///
     /// The accept is bounded, because the alternative is a test that hangs rather
-    /// than fails. Every test here goes through `probe`, and if `probe` is broken
-    /// enough to make no connection at all -- which is exactly what a mutation does
-    /// -- the thread would sit in `accept()` for as long as the test runner waits,
-    /// and the mutant would be reported as a timeout rather than as caught. A
-    /// bounded accept makes that an ordinary assertion failure.
+    /// than fails. Every test here goes through `probe`, and a `probe` broken
+    /// enough to make no connection at all would leave the thread in `accept()`
+    /// until the runner gives up, reporting the mutant as a timeout instead of
+    /// caught.
     fn serve_once(listener: TcpListener, response: &'static str) -> thread::JoinHandle<String> {
         thread::spawn(move || {
             listener

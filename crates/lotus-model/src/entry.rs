@@ -58,12 +58,11 @@ pub enum TaxonNameSource {
     Scientific,
     /// The common name, `P1843` — what people call the organism in prose.
     ///
-    /// Resolvable, and deliberately so: refusing it would send the reader to
-    /// Wikidata to do the lookup this tool already did. But it is not the name
-    /// the compounds are filed under, it is ambiguous across languages and
-    /// regions in a way a binomial is not, and two organisms may share it. So it
-    /// always wins over a common-name reading of the input and always produces a
-    /// notice saying what it resolved to.
+    /// Resolved deliberately: refusing it would send the reader to Wikidata for a
+    /// lookup this tool already did. But it is not the name the compounds are filed
+    /// under, and two organisms may share it. So it wins over a common-name
+    /// reading of the input and always produces a notice saying what it resolved
+    /// to.
     Common,
 }
 

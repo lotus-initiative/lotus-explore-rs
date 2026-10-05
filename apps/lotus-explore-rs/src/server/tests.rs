@@ -114,11 +114,9 @@ fn config_uses_safe_defaults() {
 #[test]
 fn the_upstream_concurrency_default_is_small_on_purpose() {
     // The load-bearing assertion about politeness. `max_concurrency` is 256 and
-    // it is fine: that bounds what this server accepts. The number that matters
-    // is how many queries of ours are running against a shared public endpoint
-    // at once, and it is two orders of magnitude smaller. If someone raises this
-    // to match `max_concurrency`, this test is what they delete first -- so it
-    // should be the first thing that fails.
+    // fine, since it bounds what this server accepts; what matters is how many
+    // queries of ours hit a shared public endpoint at once, two orders of
+    // magnitude smaller. Raising this to match is what this test must catch.
     let env = HashMap::<String, String>::new();
     let cfg = AppConfig::from_provider(|name| env.get(name).cloned()).expect("valid config");
     assert_eq!(cfg.upstream_concurrency, 4);
@@ -190,11 +188,9 @@ fn parses_comma_separated_cors_origins() {
 
 /// A molfile's newlines survive normalisation.
 ///
-/// This used to assert on a server-local copy of the normaliser, which was a
-/// verbatim duplicate of `lotus_search::normalize_structure`. The duplicate is
-/// gone, so this now pins the one implementation both front ends use -- which is
-/// the point: a molfile trimmed to one line is a molfile the structure service
-/// cannot read.
+/// Asserted against `lotus_search::normalize_structure` itself, the one
+/// implementation both front ends use; a molfile trimmed to one line is a molfile
+/// the structure service cannot read.
 #[test]
 fn normalized_structure_preserves_multiline_molfile() {
     let molfile = "\n  Mrv\n\n  0  0  0  0  0  0            999 V3000\nM  END\n";
@@ -813,10 +809,9 @@ fn apply_request_clamps_similarity_threshold() {
 
 // ── lotus-api .expect() audit (#8) ─────────────────────────────────────────────
 //
-// The four production `.expect("... inflight mutex")` calls in `state.rs` were
-// converted to `Result<(…, ApiError)>` with `.map_err(|_| ApiError::upstream(...))`.
-// These tests verify that a poisoned mutex now yields a typed 500 error instead
-// of a panic.
+// The four production `.expect("... inflight mutex")` calls in `state.rs` are now
+// `Result<(…, ApiError)>` with `.map_err(|_| ApiError::upstream(...))`; these
+// verify a poisoned mutex yields a typed 500 instead of a panic.
 
 /// Helper: poison a `Mutex` by spawning a thread that locks it and panics.
 fn poison_inflight_mutex<T: std::marker::Send + 'static>(
@@ -919,9 +914,8 @@ async fn export_handler_returns_500_on_poisoned_inflight_mutex() {
 /// resolves it to `None` -- so the server had to treat `None` as a wildcard, and
 /// `None` is also what a blank box produces.
 ///
-/// One implementation now, so this cannot drift again by duplication. It is
-/// asserted rather than assumed because "the two front ends agree" is a property
-/// nothing else in the suite can see: each front end's own tests pass either way.
+/// One implementation now, so duplication cannot drift it again. Asserted rather
+/// than assumed: each front end's own tests pass either way.
 #[test]
 fn the_api_and_the_browser_build_the_same_query() {
     let cases: [(&str, Option<&str>); 4] = [
@@ -949,12 +943,11 @@ fn the_api_and_the_browser_build_the_same_query() {
     }
 }
 
-/// A blank taxon box includes the compounds nobody has tied to an organism.
-///
-/// This is the behaviour the divergence hid. The occurrence is `OPTIONAL`, so a
-/// compound with no organism comes back with empty cells; requiring `P703` would
-/// answer the narrower question -- "what has been reported, and where" -- without
-/// saying so, which is the bug commit 4ead47a describes.
+/// A blank taxon box includes the compounds nobody has tied to an organism, the
+/// behaviour the divergence hid. The occurrence is `OPTIONAL`, so a compound with
+/// no organism comes back with empty cells; requiring `P703` answers the narrower
+/// question -- "what has been reported, and where" -- without saying so, the bug
+/// commit 4ead47a describes.
 #[test]
 fn a_blank_taxon_box_does_not_require_an_occurrence() {
     let criteria = lotus_model::SearchCriteria {

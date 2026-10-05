@@ -4,14 +4,13 @@
 //! Curation against a live Wikidata.
 //!
 //! The queries are in `wikidata_query`; this runs them. The transport is the
-//! [`Http`] trait from `lotus-search`, so the whole of curation can be tested
-//! against a scripted conversation -- which matters more here than elsewhere,
-//! because a curation run touches the network once per row per dependency, and
-//! a test that hits Wikidata is a test that is skipped when the network is
-//! down and wrong when the data changes.
+//! [`Http`] trait from `lotus-search`, so curation is tested against a scripted
+//! conversation -- which matters more here than elsewhere, because a run touches
+//! the network once per row per dependency, and a test that hits Wikidata is
+//! skipped when the network is down and wrong when the data changes.
 //!
-//! Nothing here submits. It reads what is there and reports the difference, and
-//! the statements it produces are for a person to review.
+//! Nothing here submits. It reads what is there, reports the difference, and the
+//! statements it produces are for a person to review.
 
 use std::fmt::Write as _;
 
@@ -50,13 +49,11 @@ impl StructureKey {
 
 /// Read a Wikidata item's bindings out of a SPARQL JSON result.
 ///
-/// The shape is `results.bindings[0]`: `results` is an *object* that holds a
+/// The shape is `results.bindings[0]`: `results` is an *object* holding a
 /// `bindings` array, not an array itself. Reading it as an array finds nothing,
 /// and a lookup that finds nothing reads as "not in Wikidata" -- the one answer
-/// that must never come from a parsing slip.
-///
-/// `None` means the pattern matched no item, which is the answer a curation run
-/// most needs.
+/// that must never come from a parsing slip. `None` means the pattern matched no
+/// item, the answer a curation run most needs.
 fn first_bindings(json: &serde_json::Value) -> Option<&serde_json::Map<String, serde_json::Value>> {
     json.get("results")?
         .get("bindings")?

@@ -22,14 +22,13 @@ pub const CONTEXT: &str = "https://schema.org/";
 
 /// Stamps `@context` and `dct:conformsTo` onto a node.
 ///
-/// Both together, because a JSON-LD document that carries a context but does not
-/// say which profile it claims is not checkable: a validator has no way to know
-/// which set of required properties applies. Bioschemas lists `dct:conformsTo`
-/// as mandatory for this reason, and the previous version of this crate emitted
-/// the context without it.
+/// Both together: a document carrying a context but not saying which profile it
+/// claims is not checkable, since a validator cannot know which required
+/// properties apply. Bioschemas lists `dct:conformsTo` as mandatory for that
+/// reason, and this crate once emitted the context without it.
 ///
-/// The value is the profile's own `@id`, so a consumer can resolve the exact
-/// profile version rather than guessing from the shape of the document.
+/// The value is the profile's own `@id`, so a consumer resolves the exact profile
+/// version instead of guessing from the document's shape.
 pub(crate) fn stamp(mut node: serde_json::Value, profile: Profile) -> serde_json::Value {
     // A no-op for a document that is not an object, rather than a panic:
     // indexing a `Value` panics on a non-object, and this is called on

@@ -16,11 +16,11 @@ pub enum TransportFailureKind {
     RateLimit,
     /// The endpoint cancelled the query because it outran its time budget.
     ///
-    /// Its own kind, and not a flavour of `RateLimit`, because the two call for
-    /// opposite behaviour. A rate limit is a request to come back; this is a
-    /// measurement that the query is too expensive, and it is answered by asking
-    /// for less. Retrying it, which `RateLimit` still allows once, spends the
-    /// endpoint's whole budget again to be told the same thing.
+    /// Its own kind, not a flavour of `RateLimit`, because the two call for
+    /// opposite behaviour: a rate limit asks the caller to come back, this
+    /// measures the query as too expensive and is answered by asking for less.
+    /// Retrying it spends the endpoint's whole budget again to be told the same
+    /// thing.
     QueryTooExpensive,
     QuerySyntax,
     Parse,
@@ -121,12 +121,12 @@ mod tests {
 
     #[test]
     fn a_429_that_says_the_query_timed_out_is_not_a_rate_limit() {
-        // Both arrive as 429 and they mean opposite things. QLever's own answer,
+        // Both arrive as 429 and mean opposite things. QLever's own answer,
         // measured:
         //
         //   429 {"exception":"Operation timed out. Last operation: Sort ... on ?r"}
         //
-        // is one query outstaying the endpoint's budget. Treating it as a busy
+        // is one query outstaying the endpoint's budget; treating it as a busy
         // endpoint is what made one broad search cost four full-length queries.
         let cancelled = classify_transport_error(&RepositoryError::Http {
             status: 429,

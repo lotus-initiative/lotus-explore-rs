@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Fetch the external frontend assets used by the web client.
 //!
-//! Two jobs, and they are run in that order because they are independent:
+//! Two independent jobs, run in that order:
 //!
 //! - `vendor` caches `RDKit` and the Citation.js build under
 //!   `public/assets/vendor`, keyed on the version each was fetched at;
@@ -12,12 +12,12 @@
 //! `http` holds what both share.
 //!
 //! The first failure stops the run and is reported, so a partially vendored tree
-//! is never left looking complete: the assets on disk are the ones the last run
-//! finished with, and this run says which fetch failed.
+//! never looks complete: the assets on disk are the ones the last run finished
+//! with, and this run says which fetch failed.
 //!
-//! The modules are `pub` so that `unreachable_pub` and `clippy::redundant_pub_crate`
-//! agree: in a binary crate they only leave a private module alone if the items
-//! inside it are reachable from the crate root.
+//! The modules are `pub` so `unreachable_pub` and
+//! `clippy::redundant_pub_crate` agree: in a binary crate they only leave a
+//! private module alone if the items inside are reachable from the crate root.
 
 pub mod http;
 pub mod ketcher;

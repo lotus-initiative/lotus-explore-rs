@@ -64,10 +64,8 @@ pub mod element_max {
 /// The nomenclatural relationships that tie one taxon name to another, and so
 /// decide which taxa a name-aware search must also collect.
 ///
-/// Each relationship is stored twice in Wikidata, once from each end, and the
-/// four are **independent of each other**. That independence is the point of
-/// this module: they answer different questions, and a user who wants the
-/// answer to one of them is not asking for the others.
+/// Each is stored twice in Wikidata, once from each end, and the four are
+/// **independent of each other**: they answer different questions.
 ///
 /// | Relationship | Wikidata pair | Old / new? |
 /// | --- | --- | --- |
@@ -76,54 +74,42 @@ pub mod element_max {
 /// | current name ↔ its original combination | [`P1403`](https://www.wikidata.org/wiki/Property:P1403) *original combination* / [`P12765`](https://www.wikidata.org/wiki/Property:P12765) *protonym of* | yes |
 /// | replacement name ↔ what it replaced | [`P694`](https://www.wikidata.org/wiki/Property:P694) *replaced synonym (for nom. nov.)* / [`P12764`](https://www.wikidata.org/wiki/Property:P12764) *replaced synonym of* | yes |
 ///
-/// **The last three are chronological.** The subject is always the *newer*
-/// name and the object the *older* one. A **basionym** is the name under which
-/// the specimen was first described; when the genus is reassigned, the epithet
-/// is carried into a **new combination** and the basionym is retired. An
-/// **original combination** — its zoological mirror image is a **protonym** —
-/// is the binomial as first published, before any later reclassification. A
-/// **replacement name** (*nomen novum*) exists because the old name cannot be
-/// used at all, typically because it is a homonym.
+/// **The last three are chronological**: subject is the *newer* name, object the
+/// *older* one. A **basionym** is the name the specimen was first described under;
+/// when the genus is reassigned the epithet moves into a **new combination** and
+/// the basionym retires. An **original combination** (zoological mirror image: a
+/// **protonym**) is the binomial as first published. A **replacement name**
+/// (*nomen novum*) exists because the old name is unusable, typically a homonym.
 ///
-/// **The first is not chronological.** `P1420` links an accepted name to a
-/// name that denotes the same taxon, and which of the two is older is not
-/// recorded and not implied. A synonym is frequently the *older* name — that is
-/// usually why it stopped being used — but it can equally be a name coined
-/// later and then found to be superfluous. `Leontopodium nivale` and
-/// `Leontopodium alpinum` are joined by `P1420` in Wikidata, and *nivale* is
-/// the junior name, so labelling that edge "old to new" would be backwards.
-/// This is why the first row is *accepted / synonym* and the other three are
-/// *old / new*: they are different questions, and a single "synonyms" toggle
-/// over all four cannot tell a user which one they just turned off.
+/// **The first is not chronological.** `P1420` links an accepted name to another
+/// name for the same taxon; which is older is not recorded and not implied. A
+/// synonym is often the *older* name, but it can equally be one coined later and
+/// found superfluous: `P1420` joins `Leontopodium nivale` and
+/// `Leontopodium alpinum`, and *nivale* is the junior name, so "old to new" would
+/// be backwards. Hence the first row is *accepted / synonym* and the rest *old /
+/// new* — a single "synonyms" toggle over all four could not tell the user which
+/// question they had just switched off.
 ///
-/// **Old/new is also not the same axis as accepted/not accepted.** A basionym is
-/// usually a synonym now, but under a different taxonomic opinion the very same
-/// basionym may be the accepted name again; and a new combination is sometimes
-/// itself a rejected synonym. So the two labels are kept apart deliberately:
-/// *accepted vs. synonym* is a taxonomic judgement, *old vs. new* is a
-/// nomenclatural fact, and Wikidata stores them under four separate property
-/// pairs precisely because neither determines the other.
+/// **Old/new is not the axis accepted/not accepted.** A basionym is usually a
+/// synonym now but may be the accepted name again under a different opinion, and a
+/// new combination is sometimes itself a rejected synonym. *Accepted vs. synonym*
+/// is a taxonomic judgement, *old vs. new* a nomenclatural fact; Wikidata keeps
+/// them under four separate property pairs because neither determines the other.
 ///
 /// [`P1531`](https://www.wikidata.org/wiki/Property:P1531) (*hybrid of*) is
-/// deliberately **excluded**, and it is worth being explicit about why, because
-/// it looks like it belongs here. A hybrid is a *different* organism with a
-/// parent of its own in the taxonomic tree; `P1531` records which parent it was
-/// bred from, which is provenance, not identity. Every relationship above
-/// asserts that two names denote the same taxon, which is the one thing that
-/// makes a compound filed under one of them a compound from the other.
-/// Searching for `Nepeta x catariensis` and receiving every compound reported
-/// from *Nepeta cataria* would answer a different question, and one no botanist
-/// would ask for by accident.
+/// deliberately **excluded**: it records which parent a hybrid was bred from,
+/// provenance rather than identity. Every relationship above asserts two names
+/// denote the same taxon, which is what makes a compound filed under one a
+/// compound from the other. Searching `Nepeta x catariensis` and receiving every
+/// compound reported from *Nepeta cataria* would answer a different question.
 pub mod taxon_nomenclature {
     /// One nomenclatural relationship, as the two Wikidata properties that
     /// record it from opposite ends.
     ///
-    /// `towards_newer` and `towards_older` are the two properties, named for
-    /// which end of the relationship they lead *from*. For the three
-    /// chronological relationships that is literal: `P566` leads from a new
-    /// combination to its basionym. For the accepted/synonym pair there is no
-    /// older end, so the names are a convenience rather than a claim about
-    /// chronology — which is exactly the distinction this type exists to keep.
+    /// The two properties are named for the end they lead *from*. Literal for the
+    /// three chronological relationships (`P566` leads from a new combination to
+    /// its basionym); for accepted/synonym there is no older end, so the names are
+    /// convenience rather than a claim about chronology.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct Relation {
         /// Stable identifier, used in query parameters and in the UI's

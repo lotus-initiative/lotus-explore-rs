@@ -4,15 +4,12 @@
 
 use crate::repositories::HybridRepository;
 
-/// Application-wide services container.
-/// Holds references to all singleton dependencies needed throughout the app.
-/// Designed to be provided via Dioxus context and used by hooks/components.
+/// Application-wide singleton dependencies, provided via Dioxus context.
 ///
-/// `Copy` is load-bearing: this is provided through Dioxus context and read by
-/// many components, and a `Clone` that deep-copied a repository would hand each
-/// component its own cache. The `const` assertion below is where that is
-/// checked -- it fails the build rather than a test, because a type that is not
-/// `Copy` is a compile error at every call site anyway.
+/// `Copy` is load-bearing: read by many components through context, and a `Clone`
+/// that deep-copied a repository would hand each its own cache. The `const`
+/// assertion below checks that at build time, since a non-`Copy` type is a
+/// compile error at every call site anyway.
 #[derive(Clone, Copy)]
 pub struct AppServices {
     /// Data repository (API/SPARQL hybrid adapter).

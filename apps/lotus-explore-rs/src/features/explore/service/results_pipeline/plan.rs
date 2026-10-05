@@ -44,19 +44,18 @@ impl ResultsExecutionPlan {
         self.into_outcome(fetch_result)
     }
 
-    /// The endpoint, warning and display query are a function of the fallback
-    /// state alone, so the two outcomes differ only in what was fetched. A
-    /// download-only search fetched nothing, which is `FetchResult::empty`.
+    /// The endpoint, warnings and display query are a function of the fallback state
+    /// alone, so the two outcomes differ only in what was fetched: a download-only
+    /// search fetched nothing, which is `FetchResult::empty`.
     fn into_outcome(self, fetch_result: FetchResult) -> ResultsPipelineOutcome {
         let endpoint = if is_wdqs_fallback_used() {
             SparqlEndpoint::Wdqs
         } else {
             SparqlEndpoint::Qlever
         };
-        // The endpoint is a fact about this search and the two resolutions are
-        // others; a fallback used to replace the taxon's notices rather than add
-        // to them, so a name that needed standardizing stopped being reported
-        // the moment the endpoint had to change.
+        // A fallback used to replace the taxon's notices rather than add to them, so a
+        // name that needed standardizing stopped being reported the moment the
+        // endpoint had to change.
         let mut warnings = self.taxon_resolution.warnings;
         warnings.extend(self.structure_resolution.notices.clone());
         if is_wdqs_fallback_used() {
@@ -90,11 +89,10 @@ pub(super) async fn build_execution_plan<R: LotusRepository>(
 
     let taxon_resolution = resolve_taxon::resolve(taxon, repo, metrics).await?;
 
-    // The structure field is resolved the same way the taxon field is, and for
-    // the same reason: whatever is typed here should find the compound it names.
-    // It runs for every input, a structure included, because the mode decides what
-    // happens next and two of the three need a QID. Which is also why it happens
-    // before the query is built rather than inside it.
+    // The structure field is resolved like the taxon field, for the same reason:
+    // whatever is typed here should find the compound it names. It runs for every
+    // input, a structure included, because two of the three modes need a QID —
+    // which is why it happens before the query is built rather than inside it.
     let structure_resolution = if normalized_smiles.trim().is_empty() {
         StructureResolution {
             resolved: ResolvedStructure::unresolved(""),
@@ -105,14 +103,12 @@ pub(super) async fn build_execution_plan<R: LotusRepository>(
         resolve_structure::resolve(normalized_smiles, repo, metrics).await?
     };
 
-    // The reference is resolved for the same reason the taxon is, and then
-    // written back into a copy of the criteria as the QID it resolved to. The
-    // seed in the query binds `?r`, so it has to be the item rather than the text
-    // the reader typed -- a DOI is not a QID and `VALUES ?r { wd:10.1002/… }`
-    // matches nothing.
+    // The reference resolves like the taxon, then is written back into a copy of the
+    // criteria as the QID it resolved to. The seed binds `?r`, so it must be the
+    // item: a DOI is not a QID and `VALUES ?r { wd:10.1002/… }` matches nothing.
     //
-    // A copy rather than the criteria themselves: those are what the form renders
-    // from, and the field must keep showing the DOI that was typed.
+    // A copy, because the form renders from the criteria and the field must keep
+    // showing the DOI that was typed.
     let reference = request.criteria().reference.trim();
     let reference_resolution = if resolve_reference::requires_remote_lookup(reference) {
         on_phase(QueryPhase::ResolvingReference);

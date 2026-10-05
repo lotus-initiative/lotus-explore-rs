@@ -3,12 +3,11 @@
 
 //! Reading a curation input file.
 //!
-//! Both curation front-ends -- the web upload and `lotus curate` -- take the
-//! same file, and they used to each have their own parser. The two did not
-//! agree: this one matches columns by name and tolerates a spreadsheet's extra
-//! columns, and the CLI's took whatever was in the first four fields. Someone
-//! who prepared a file for the web page and then used the CLI got a different
-//! answer, silently.
+//! Both front-ends -- the web upload and `lotus curate` -- take the same file, and
+//! each used to have its own parser. They disagreed: this one matches columns by
+//! name and tolerates a spreadsheet's extra columns, the CLI's took whatever was
+//! in the first four fields. A file prepared for the web page then run through the
+//! CLI got a different answer, silently.
 //!
 //! Columns are matched by name, case- and space-insensitively, and `organism`
 //! is accepted for `taxon` because that is what a sheet of occurrence data will

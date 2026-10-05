@@ -12,10 +12,8 @@ use thiserror::Error;
 
 /// A filter that cannot be turned into a query.
 ///
-/// `missing_docs` is not allowed on the variants because the `#[error]` attribute
-/// on each one *is* its user-facing message, and a doc comment beside it would
-/// restate that message in prose. The reason is on the attribute so that a reader
-/// who wonders why the docs stop here finds the answer.
+/// The variants carry no doc comments because each `#[error]` message *is* its
+/// documentation; a comment beside it would restate that message in prose.
 #[derive(Debug, Clone, PartialEq, Error)]
 #[allow(
     missing_docs,

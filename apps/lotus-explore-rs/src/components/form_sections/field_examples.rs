@@ -32,10 +32,9 @@ use dioxus::prelude::*;
 
 /// A group of examples, each of which fills the field it belongs to.
 ///
-/// `target` is the id of the input to fill and to move the cursor into. The group
-/// carries a visible heading, and the input points at it with `aria-describedby`, so
-/// a screen reader hears "Taxon … examples, 6 items" rather than six buttons
-/// apparently floating on the page.
+/// `target` is the id of the input to fill and move the cursor into. The group carries
+/// a visible heading and the input points at it with `aria-describedby`, so a screen
+/// reader hears "Taxon … examples, 6 items" rather than six floating buttons.
 #[component]
 pub fn FieldExamples(
     /// The id of the input these examples fill.
@@ -69,14 +68,12 @@ pub fn FieldExamples(
                         let target = target.clone();
                         rsx! {
                             button {
-                                // Not `submit`: a button in a form defaults to it,
-                                // and every suggestion would run the search.
+                                // Not `submit`, which a button in a form defaults to:
+                                // every suggestion would run the search.
                                 r#type: "button",
                                 class: "cursor-pointer rounded-full border border-border bg-panel px-2 py-1 text-micro text-subtle transition-colors hover:border-accent hover:text-text focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                                 // The visible text is the bare value, which out of
-                                // context does not say what it does. This names the
-                                // action, so the button is unambiguous when it is
-                                // read from the page's own structure.
+                                // context does not say what it does; this names the action.
                                 "aria-label": "{t(locale, TextKey::ExampleSets)} {value}",
                                 onclick: move |_| {
                                     onfill.call(value.clone());
@@ -94,16 +91,16 @@ pub fn FieldExamples(
 
 /// Put the cursor in the field, so the user can carry on typing.
 ///
-/// Through `eval` rather than a DOM crate, because this component is built for a
-/// browser and a desktop window and those do not share a DOM library. The escaping
-/// is a JSON string, so an id with a quote in it cannot end the string early.
+/// Through `eval` rather than a DOM crate, because a browser and a desktop window do
+/// not share a DOM library. The escaping is a JSON string, so an id with a quote in it
+/// cannot end the string early.
 pub fn focus(target: &str) {
     let Ok(literal) = serde_json::to_string(target) else {
         return;
     };
     let script = format!("document.getElementById({literal}).focus()");
-    // Fire and forget: nothing reads a result, and awaiting would make the click
-    // handler wait on a round trip to say nothing.
+    // Fire and forget: nothing reads a result, and awaiting makes the click handler
+    // wait on a round trip to say nothing.
     let _ = document::eval(&script);
 }
 
@@ -143,12 +140,10 @@ mod tests {
         }
     }
 
-    /// The reference field's own wiring, asserted rather than assumed.
-    ///
-    /// The examples were added to the taxon and structure fields first and the
-    /// reference field carried only a `placeholder`, which is the affordance the
-    /// module doc argues against. This pins the wiring so a fourth field cannot
-    /// quietly arrive with buttons that no label points at.
+    /// The reference field's own wiring. The examples were added to the taxon and
+    /// structure fields first and the reference field carried only a `placeholder`,
+    /// the affordance the module doc argues against; this pins the wiring so a fourth
+    /// field cannot arrive with buttons no label points at.
     #[component]
     fn ReferenceSubject() -> Element {
         use_context_provider(|| Signal::new(Locale::En));
@@ -193,8 +188,7 @@ mod tests {
     }
 
     fn render() -> String {
-        // The tree has to be built before it can be walked, and the renderer walks
-        // it rather than doing so itself.
+        // The tree must be built before the renderer can walk it.
         let mut dom = VirtualDom::new(Subject);
         dom.rebuild_in_place();
         dioxus_ssr::render(&dom)
@@ -243,8 +237,8 @@ mod tests {
             html.contains(r#"aria-labelledby="taxon-input-examples-heading""#),
             "and is named by the heading, not by nothing:\n{html}"
         );
-        // The id it points at has to exist, and it has to be the visible heading:
-        // a group labelled by an element that is not there is labelled by nothing.
+        // The id it points at has to exist and has to be the visible heading: a group
+        // labelled by an absent element is labelled by nothing.
         assert!(
             html.contains(r#"id="taxon-input-examples-heading""#),
             "the heading carries that id:\n{html}"
@@ -266,9 +260,9 @@ mod tests {
 
     #[test]
     fn the_buttons_are_reachable_by_keyboard() {
-        // A real `button` is focusable and activates on Enter and Space. There is
-        // nothing to assert beyond it being a real button, so this is the test that
-        // fails first if someone swaps it for a div with a click handler.
+        // A real `button` is focusable and activates on Enter and Space, so nothing
+        // beyond it being a real button is assertable. This fails first if it is
+        // swapped for a div with a click handler.
         let html = render();
         assert!(
             !html.contains(r#"role="button""#),

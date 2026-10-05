@@ -31,9 +31,8 @@ pub fn format_domain_error(locale: Locale, err: &DomainError) -> String {
 /// One string per notice, in the order they apply.
 ///
 /// A list because a taxon name can raise two: `bacteria` is both spelled
-/// differently from `Bacteria` and ambiguous, and both are true. Returning a
-/// single string is what made one of them disappear, depending on which code
-/// path produced it.
+/// differently from `Bacteria` and ambiguous, and both are true. Returning one
+/// string is what made one disappear, depending on the code path.
 pub fn format_taxon_warnings(locale: Locale, warnings: &[LookupNotice]) -> Vec<String> {
     warnings
         .iter()

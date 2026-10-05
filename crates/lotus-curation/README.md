@@ -3,12 +3,11 @@
 The curation vocabulary: what a curation row is, and how the statements that
 would complete it in Wikidata are assembled.
 
-Curation means a chemist has a list of compounds and taxa, some of which Wikidata
-already has and some of which it does not. This crate says which is which and
-writes the statements that would fix the ones that are not. It never writes to
-Wikidata; submitting them is a separate, deliberate act.
+A chemist has a list of compounds and taxa, some of which Wikidata already has.
+This crate says which is which and writes the statements that would fix the rest.
+It never writes to Wikidata; submitting them is a separate, deliberate act.
 
-Pure. Nothing here talks to Wikidata or to `RDKit`.
+Pure: nothing here talks to Wikidata or `RDKit`.
 
 ```rust
 use lotus_curation::{CurationStatus, parse_tsv};

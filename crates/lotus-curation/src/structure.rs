@@ -3,17 +3,16 @@
 
 //! Turning a structure into the key Wikidata matches on.
 //!
-//! Wikidata identifies a compound by its `InChIKey` (`P235`), and a curator's
-//! file has `SMILES`. Something has to convert between them, and that something
-//! is a chemistry toolkit. The browser has `RDKit` compiled to WebAssembly; a
-//! command line does not, and adding a native toolkit to this workspace to do it
-//! would be a build dependency on an LLVM toolchain for one function.
+//! Wikidata identifies a compound by its `InChIKey` (`P235`); a curator's file has
+//! `SMILES`. The browser has `RDKit` compiled to WebAssembly, a command line does
+//! not, and a native toolkit here would mean an LLVM toolchain build dependency
+//! for one function.
 //!
 //! So the conversion goes to the same public API the web client already falls
-//! back to. The cost is a network round trip per structure and a dependency on
-//! somebody else's uptime; the benefit is that the CLI and the web client derive
-//! the same key from the same input, and two keys for one molecule is exactly
-//! the problem this whole crate exists to prevent.
+//! back to: a network round trip per structure and a dependency on somebody
+//! else's uptime, in exchange for CLI and web client deriving the same key from
+//! the same input. Two keys for one molecule is the problem this crate exists to
+//! prevent.
 
 use lotus_search::{Http, HttpResponse as _};
 
@@ -90,11 +89,10 @@ impl Converted {
 
 /// Ask for one representation of every structure, in a single request.
 ///
-/// The endpoint is a batch endpoint and takes every structure at once, which is
-/// the difference between three requests for a file and three hundred for one.
-/// The per-row version was written first and was rate-limited on the third row
-/// of a five-row file, so this is not an optimisation: the other shape does not
-/// work in practice.
+/// The endpoint takes every structure at once: three requests for a file instead
+/// of three hundred. The per-row version was written first and was rate-limited on
+/// the third row of a five-row file, so this is not an optimisation — the other
+/// shape does not work.
 ///
 /// # Errors
 /// Returns [`CurationError::Http`] if the service cannot be reached or refuses

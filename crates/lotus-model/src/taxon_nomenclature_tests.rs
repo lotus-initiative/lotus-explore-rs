@@ -2,12 +2,11 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The four nomenclatural relationships, asserted as data.
 //!
-//! This is the only place the property-to-relationship mapping is checked, and
-//! it has to be here rather than in `lotus-query`: a mutation run against this
-//! crate executes this crate's tests only, so a `properties()` that returned
-//! the wrong predicate — or the same predicate twice, or an empty string —
-//! would survive every query-side assertion and quietly emit a query that
-//! traverses nothing.
+//! The only place the property-to-relationship mapping is checked, and it has to
+//! be here rather than in `lotus-query`: a mutation run against this crate
+//! executes this crate's tests only, so a `properties()` returning the wrong
+//! predicate — or the same one twice, or an empty string — would survive every
+//! query-side assertion and emit a query that traverses nothing.
 //!
 //! The panic lints keep library code from panicking on bad input; a test
 //! failing on a bad value is reporting, not panicking.

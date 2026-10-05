@@ -321,13 +321,12 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
 
 /// The criteria the flags describe.
 ///
-/// Split out of `search` so it can be tested without a network, a terminal and
-/// a running binary. It is not a cosmetic extraction: the four `--no-*`
-/// nomenclatural flags are negations, and nothing downstream can tell the
-/// difference between "not passed" and "passed, meaning the opposite" unless
-/// this function is the thing under test. With the mapping inlined in `search`,
-/// a dropped `!` turned `--no-basionyms` into a way of *enabling* the basionym
-/// search, and every test in the crate still passed.
+/// Split out of `search` so it is testable without a network, a terminal or a
+/// running binary. Not a cosmetic extraction: the four `--no-*` nomenclatural
+/// flags are negations, and nothing downstream can tell "not passed" from
+/// "passed, meaning the opposite" unless this is the thing under test. With the
+/// mapping inlined, a dropped `!` turned `--no-basionyms` into a way of
+/// *enabling* the basionym search and every test still passed.
 fn criteria_from_args(args: &SearchArgs, year_max: u16) -> lotus_model::SearchCriteria {
     let mut criteria = lotus_model::SearchCriteria::up_to_year(year_max);
 
@@ -377,19 +376,13 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
         .with_limit(args.limit.unwrap_or(usize::MAX));
 
     if args.explain {
-        // The point of `--explain` is to see the query without waiting for an
-        // endpoint, so it must not touch the network even to resolve a taxon.
+        // `--explain` exists to print the query without waiting for an endpoint, so
+        // it must not touch the network even to resolve a taxon. That is why the
+        // resolved QID cannot be `None` for a bare QID: `--taxon Q21754 --explain`
+        // once printed the no-taxon query, with no `P171*` anywhere, and said
+        // nothing. A wrong query is worse than no flag.
         //
-        // Which is why the resolved QID cannot simply be `None`. It used to be,
-        // and that made `--explain` print the query for a *different request* than
-        // the one being asked about: `--taxon Q21754 --explain` printed the
-        // no-taxon query, with no `P171*` anywhere in it, and said nothing. The
-        // whole purpose of the flag is to be looked at when a result surprises
-        // someone, so a wrong query is worse than no flag.
-        //
-        // A bare QID needs no lookup, so it is passed straight through and the
-        // printed query is the real one. `*` and an empty box are `None`, which is
-        // correct: `build_base_query` reads that distinction out of
+        // `*` and an empty box stay `None`, which `build_base_query` reads out of
         // `criteria.taxon` precisely because neither resolves to a QID.
         let trimmed = args.taxon.trim();
         let resolved = if trimmed.is_empty() || trimmed == "*" {
@@ -407,17 +400,12 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
                  --explain to run the search that resolves it."
             );
         };
-        // A structure input is resolved to a compound before an exact search runs,
-        // and resolution needs the network this flag exists to avoid. So the query
-        // printed here is the pre-resolution one, which for an exact structure
-        // search is not the query that will run.
-        //
-        // Refusing instead would be more honest and would also remove the flag for
-        // its most ordinary use, so it prints and says so on stderr, where it does
-        // not pollute a pipeline reading the query on stdout. The taxon's own
-        // resolution is handled the other way -- by refusing -- because there the
-        // unresolved query is a *different question* (`P171*` missing entirely),
-        // not merely a different spelling of the same one.
+        // An exact structure search resolves the structure to a compound first, and
+        // that resolution needs the network this flag avoids, so the printed query is
+        // the pre-resolution one. It prints anyway and warns on stderr rather than
+        // refusing, which would remove the flag for its most ordinary use. The taxon
+        // case refuses instead because there the unresolved query is a *different
+        // question* (`P171*` missing entirely), not a different spelling.
         let structure = lotus_search::normalize_structure(&criteria.structure);
         if !structure.is_empty() && criteria.structure_search == SmilesSearchType::Exact {
             eprintln!(
@@ -442,15 +430,11 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
         }
     }
 
-    // The limit used to be 100 and nothing said so: 100 rows came back looking
-    // like a complete answer, which is the same failure as a query that times out
-    // and reports no rows. Both are a partial answer that reads as a whole one.
-    //
-    // Two conditions, because `result.truncated` alone is not enough. It means the
-    // *parser* dropped rows, and the limit is pushed to the endpoint, so a capped
-    // result arrives already capped and the parser sees exactly as many rows as
-    // were asked for. Hitting the limit is therefore the only signal the CLI has,
-    // and it is a weaker one: it says there may be more, not that there are.
+    // Both conditions, because `result.truncated` alone is not enough. It means the
+    // *parser* dropped rows, while the limit is pushed to the endpoint, so a capped
+    // result arrives already capped and the parser sees exactly the rows asked for.
+    // Hitting the limit is the only signal the CLI has, and a weak one: there may be
+    // more, not that there is.
     if let Some(limit) = args.limit
         && (result.truncated || result.rows.len() >= limit)
     {

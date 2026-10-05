@@ -38,14 +38,13 @@ pub fn SearchButton(
 
 /// Clear every search-form filter.
 ///
-/// Secondary styling next to the primary search button, and disabled when there
-/// is nothing to clear: a reset that does nothing is a control that lies about
-/// what the page can do.
+/// Secondary styling beside the primary search button, and disabled when there is
+/// nothing to clear: a reset that does nothing lies about what the page can do.
 ///
-/// `type="button"` is load-bearing and not a detail. This sits inside
+/// `type="button"` is load-bearing. This sits inside
 /// `<form id="lotus-search-form">` beside a `type="submit"` button, and a button
-/// with no type in a form is a submit -- so without it, clearing the filters would
-/// also run the search that had just been cleared.
+/// with no type in a form is a submit — so without it, clearing the filters would
+/// also run the search just cleared.
 #[component]
 pub fn ResetFiltersButton(
     #[props(default = false)] disabled: bool,

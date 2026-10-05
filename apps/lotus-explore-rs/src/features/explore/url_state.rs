@@ -161,9 +161,8 @@ mod tests {
     /// Every client-side route, which is the same list the server router, the
     /// Dockerfile export stage, `nginx.conf`, and `index.html` each keep.
     ///
-    /// Looped rather than written out one assertion at a time: the per-route
-    /// version read like coverage while actually being a list that had already
-    /// fallen out of date, because adding a route never touched it.
+    /// Looped because the per-route version read like coverage while being a
+    /// list that fell out of date: adding a route never touched it.
     const ROUTES: [&str; 4] = ["/search", "/curation", "/draw", "/faq"];
 
     #[test]

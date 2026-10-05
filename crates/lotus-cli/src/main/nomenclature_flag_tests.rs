@@ -3,10 +3,10 @@
 //! The flags-to-criteria mapping, checked without a network or a binary.
 //!
 //! `criteria_from_args` is the whole of the CLI's contribution to a search, and
-//! it is only reachable otherwise by running `lotus search` and reading the
-//! SPARQL it prints. That reading cannot cover these flags at all: `--explain`
-//! deliberately skips taxon resolution, so a taxon-filtered query is never
-//! built and the nomenclatural path is never emitted.
+//! otherwise reachable only by running `lotus search` and reading the SPARQL it
+//! prints. That cannot cover these flags: `--explain` deliberately skips taxon
+//! resolution, so a taxon-filtered query is never built and the nomenclatural
+//! path never emitted.
 
 #![allow(clippy::expect_used, clippy::panic)]
 

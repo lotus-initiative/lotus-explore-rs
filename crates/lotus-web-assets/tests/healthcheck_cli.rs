@@ -2,12 +2,11 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The parts of `lotus-healthcheck` that can only be observed by running it.
 //!
-//! `probe` is unit-tested in the binary itself, against a real socket. What it
-//! cannot reach is the step in front of it: `main` parsing `argv` and turning
-//! `probe`'s `ExitCode` into the process's exit status, which is the only thing
-//! Docker reads. A health check whose `main` returns the wrong value reports
-//! healthy for a server that is not, and that failure is silent -- the container
-//! stays in the load balancer serving 500s.
+//! `probe` is unit-tested in the binary against a real socket. What it cannot
+//! reach is the step in front: `main` parsing `argv` and turning `probe`'s
+//! `ExitCode` into the process's exit status, the only thing Docker reads. A
+//! `main` returning the wrong value reports healthy for a server that is not, and
+//! that failure is silent — the container stays in the load balancer serving 500s.
 //!
 //! So this runs the built binary. `CARGO_BIN_EXE_<name>` is the path Cargo built,
 //! which means no shell, no `sh -c`, and no dependency on the container image.

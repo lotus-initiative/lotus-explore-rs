@@ -2,11 +2,10 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The generator as CI runs it.
 //!
-//! `main` is one line, so a unit test of it is a unit test of `run`, which the
-//! module's own tests already cover. What they cannot reach is the one thing CI
-//! actually depends on: the process's exit status. A `--check` that writes
-//! nothing, prints the right message, and exits 0 fails nothing, and that is the
-//! failure mode this file exists to rule out.
+//! `main` is one line, so its unit test is a test of `run`, which the module's
+//! own tests cover. What they cannot reach is what CI depends on: the exit
+//! status. A `--check` that writes nothing, prints the right message and exits 0
+//! fails nothing, and that is the failure this file exists to rule out.
 
 // An integration test links the crate's whole dependency graph without using it.
 #![allow(

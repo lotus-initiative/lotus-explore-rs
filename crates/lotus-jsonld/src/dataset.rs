@@ -64,12 +64,10 @@ pub fn result_set_jsonld(set: &ResultSet<'_>) -> Value {
         ),
         "url": url,
         "identifier": [
-            // A checksum of the result, which is what it is. It was previously
-            // emitted as a second identifier under a `query` propertyID typed with
-            // an ARK namespace: a hash is not an ARK, and `identifiers.org/ark:/`
-            // is not one either. `sha256` with `encodingFormat` is a real pairing,
-            // and saying what the value actually is beats dressing it as an
-            // identifier scheme it does not belong to.
+            // A checksum of the result, which is what it is. Rejected as a second
+            // identifier under a `query` propertyID typed with an ARK namespace: a
+            // hash is not an ARK, and `identifiers.org/ark:/` is not one either.
+            // `sha256` with `encodingFormat` is a real pairing.
             json!({
                 "@type": "PropertyValue",
                 "propertyID": "sha256",

@@ -109,11 +109,10 @@ pub fn EntityFilters(entity: FilterEntity, primary: Element, advanced: Option<El
 
 /// The collapsed disclosure holding one group's advanced sub-filters.
 ///
-/// Native `<details>`, matching the SPARQL panel in the results toolbar: no
-/// toggle state to keep in sync, works without JavaScript, and reports its own
-/// expanded state to assistive technology. It is closed on every render, so the
-/// group opens in its cheapest shape and a new search does not inherit somebody
-/// else's expanded panel.
+/// Native `<details>`, matching the SPARQL panel in the results toolbar: no toggle
+/// state to keep in sync, works without JavaScript, and reports its own expanded
+/// state to assistive technology. Closed on every render, so the group opens in its
+/// cheapest shape and a new search does not inherit somebody else's expanded panel.
 #[component]
 fn AdvancedFilters(
     entity: FilterEntity,

@@ -272,12 +272,11 @@ fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
 
 /// Curate every row, in order.
 ///
-/// The structures are converted for the whole file in one batch, because
-/// converting them a row at a time is three requests per row and the public
-/// service that does the converting rate-limits that. The Wikidata lookups stay
-/// per row: they are a different service, and a `VALUES` query over a whole file
-/// would be one enormous answer to hold in memory and lose everything if one row
-/// in it were wrong.
+/// Structures convert for the whole file in one batch; converting a row at a time
+/// is three requests per row and the public service rate-limits that. Wikidata
+/// lookups stay per row: a different service, and a `VALUES` query over a whole
+/// file is one enormous answer that loses everything if one row in it is wrong.
+///
 /// Whether to say how many rows were not looked up.
 ///
 /// Both halves matter and neither implies the other: a run that checked

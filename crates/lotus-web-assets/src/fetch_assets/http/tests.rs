@@ -98,15 +98,13 @@ fn a_rate_limit_is_retried_but_a_not_found_is_not() {
 
 #[test]
 fn an_unreachable_host_is_attried_the_configured_number_of_times() {
-    // Counting the attempts is the whole point. A guard that gave up on the
-    // first attempt, or one that never gave up at all, produces the same error
-    // message as the correct three -- so the count has to be observed rather
-    // than inferred from the failure.
+    // Counting the attempts is the point: a guard that gave up on the first
+    // attempt, or never gave up at all, produces the same error message as the
+    // correct three. The count has to be observed.
     //
-    // Each request to a port nothing is listening on is refused before the mock
-    // server sees anything, so this cannot be counted there. The doubling of
-    // the waits is the observable proxy: three attempts sleep twice, one sleeps
-    // not at all.
+    // Each request to a dead port is refused before the mock server sees it, so
+    // the doubling of the waits is the observable proxy: three attempts sleep
+    // twice, one sleeps not at all.
     let started = std::time::Instant::now();
     let outcome = read_json(&client(300), "http://127.0.0.1:1/nothing-here");
     let elapsed = started.elapsed();
@@ -272,16 +270,13 @@ fn a_transient_failure_is_retried_and_then_succeeds() {
 #[test]
 fn a_dropped_connection_is_retried_and_then_succeeds() {
     // The other retry test hangs a *status* on the first attempt. This one drops
-    // the connection instead, because that is a different arm of the `match` in
-    // `get` and it is guarded separately: `is_retryable(None)` for the decision,
-    // and `attempt == ATTEMPTS` for when to stop.
+    // the connection, a different arm of the `match` in `get` and guarded
+    // separately: `is_retryable(None)` decides, `attempt == ATTEMPTS` stops.
     //
-    // Neither guard is observable from the tests above. A server that always hangs
-    // up gives the same "could not reach" message whether the loop stopped on
-    // attempt one or attempt three, and a server that answers 503 first gives the
-    // other branch. Here the first attempt hangs up and the second succeeds, so
-    // the loop has to have continued past a transport failure for the assertion
-    // to hold.
+    // Neither guard is observable above: a server that always hangs up gives the
+    // same "could not reach" message whether the loop stopped on attempt one or
+    // three. Here the first attempt hangs up and the second succeeds, so the loop
+    // must have continued past a transport failure for the assertion to hold.
     let server = MockServer::start(vec![http_hangup(), http_ok(r#"{"version":"2"}"#)]);
     assert_eq!(
         read_json(&client(3000), &server.url("/dropped")).unwrap_or_default()["version"],

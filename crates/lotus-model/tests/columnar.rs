@@ -69,16 +69,13 @@ fn rows_sharing_a_compound_agree_on_its_properties() {
         1,
         "two rows naming one compound is one compound"
     );
-    // One mass column, not two, so the two rows cannot both keep a mass, and the
-    // first row wins.
+    // One mass column, not two, so the two rows cannot both keep a mass.
     //
-    // This used to be justified by "the query asks for the same property the same
-    // way every time", which is false -- a compound carries one mass per charge
-    // state, and 133 rows of a 32,160-row sample disagree with the first row for
-    // their compound. See `SparseStrings::set` and
-    // `a_second_value_for_the_same_entity_is_dropped` for the whole shape of it.
-    // What makes the single write correct is that one column per entity is what a
-    // table cell can hold, not that the values agree.
+    // Not justified by "the query asks for the property the same way each time",
+    // which is false: a compound carries one mass per charge state and 133 rows of
+    // a 32,160-row sample disagree with the first row for their compound. What
+    // makes the single write correct is that one column per entity is what a table
+    // cell holds, not that the values agree. See `SparseStrings::set`.
     assert_eq!(
         set.compound_mass(0),
         Some(100.0),
@@ -569,18 +566,15 @@ fn a_row_costs_the_documented_number_of_bytes() {
 
 #[test]
 fn a_repeated_statement_does_not_grow_the_fallback_column() {
-    // Regression, and the shape of bug that only shows up as unexplained growth.
-    //
-    // The fallback column used to be given the slot index it *predicted* the value
-    // would land at -- `values.len()` before the write -- and that prediction is
-    // wrong for a value already interned: `set` then appended a slot pointing at
-    // the existing string. One slot per *call* instead of per distinct value, so a
-    // result whose statements are all the same grew by four bytes a row while its
-    // strings stayed at one.
+    // The fallback column was given the slot index it *predicted* the value would
+    // land at -- `values.len()` before the write -- which is wrong for an already
+    // interned value: `set` then appended a slot pointing at the existing string. A
+    // slot per *call* instead of per distinct value, so a result whose statements
+    // are all the same grew four bytes a row while its strings stayed at one.
     //
     // Three million of those is twelve megabytes describing a single value, and it
-    // is why the benchmark once reported 63 MB of "fallbacks" for a column that
-    // held a million distinct statements.
+    // is why the benchmark once reported 63 MB of "fallbacks" for a column holding
+    // a million distinct statements.
     let mut builder = ColumnarBuilder::new();
     for _ in 0..1_000 {
         builder.push(RawRow {
@@ -629,12 +623,11 @@ fn two_equality_semantics_the_table_depends_on() {
 
 #[test]
 fn every_row_reader_reads_the_field_it_names() {
-    // The row accessors are what the table's sort reads, and they are read only
-    // from the app -- which mutation testing does not run, because it is ~2,700
-    // mutants of Dioxus rendering for a few hundred of everything else. So a
-    // reader that quietly returned the wrong column would be invisible to the
-    // mutant run *and* to the app's own tests. One row with every field filled and
-    // one with none is what closes that.
+    // Read only from the app, which mutation testing does not run: ~2,700 mutants
+    // of Dioxus rendering for a few hundred of everything else. A reader quietly
+    // returning the wrong column would be invisible to the mutant run and to the
+    // app's own tests. One row with every field filled and one with none closes
+    // that.
     let full = CompoundEntry {
         compound_qid: arc("Q3613679"),
         name: arc("Quercetin"),
@@ -785,13 +778,11 @@ fn the_compound_dictionary_is_walkable_for_a_hash_that_must_not_change() {
 
 /// One criterion is enough to make a filter active.
 ///
-/// `FilterSpec::is_active` and `FilterPlan::is_active` are both a chain of `||`,
-/// and both decide something the reader sees: an inactive filter is skipped
-/// entirely, so a criterion that fails to switch one on is a filter that silently
-/// does nothing while the table still looks filtered somewhere else.
+/// Both `is_active` methods are a chain of `||` over a column of criteria, and
+/// both decide something the reader sees: an inactive filter is skipped entirely,
+/// so a criterion that fails to switch one on is a filter that silently does
+/// nothing while the table still looks filtered somewhere else.
 ///
-/// The suite set criteria in pairs or in isolation on the compound column, so
-/// every operand to the right of the first was dead as far as any test could tell.
 /// Mutation testing found all thirteen: `||` weakened to `&&` at each position,
 /// plus `is_active -> false`.
 #[test]
@@ -1065,19 +1056,15 @@ fn surviving_rows_lists_every_surviving_row() {
 
 /// Filtering by QID must match the compound's QID, not its position.
 ///
-/// Ids in this store are **slots** -- positions in a first-seen order -- and
-/// `QidDictionary::get` is the translation from a slot to the numeric QID it
-/// stands for. The taxon filter does that translation; the compound filter
-/// passed the slot straight into `qid_matches`, which renders a QID from a
-/// number. So the compound filter's QID arm tested *which position a compound
-/// happens to occupy*.
+/// Ids are **slots** -- positions in a first-seen order -- and
+/// `QidDictionary::get` translates a slot to the numeric QID it stands for. The
+/// taxon filter translates; the compound filter passed the slot straight into
+/// `qid_matches`, so its QID arm tested *which position a compound occupies*.
+/// Both symptoms are asserted below: a real QID matching nothing, and an
+/// unasked-for compound coming back.
 ///
-/// Two ways that is visible to a reader, both below: a real QID matches nothing,
-/// and a compound you did not ask for comes back.
-///
-/// The names here deliberately do not contain their QIDs. `entry()` builds
-/// `"{qid}-name"`, which would make the name arm answer the same question as the
-/// QID arm and hide the bug completely -- which is very likely why it survived.
+/// The names deliberately omit their QIDs: `entry()` builds `"{qid}-name"`, which
+/// would make the name arm answer the same question and hide the bug.
 #[test]
 fn filtering_by_qid_matches_the_qid_and_not_the_slot() {
     let mut quercetin = entry("Q3613679", "Q2", "Q3");
@@ -1165,16 +1152,14 @@ fn filtering_by_qid_is_correct_in_either_interning_order() {
 /// A second value for the same entity is dropped, on purpose.
 ///
 /// The store keeps **one value per entity**, filled by the first row that mentions
-/// it, and ignores later values even when they differ. This test exists because
-/// that used to be documented as an invariant of the data -- "the query asks for
-/// the property the same way each time" -- and it is not an invariant of the data.
-/// It is a decision about what a cell can hold, and the graph disagrees often
-/// enough to be worth writing down: on `Q21754`, 1,850 of 32,160 rows carry a
-/// reference title that differs from the first row for that reference, 1,315 an
-/// `InChIKey` that differs, 1,142 a connection-table SMILES that differs.
+/// it, and ignores later values even when they differ. That was once documented as
+/// an invariant of the data ("the query asks for the property the same way each
+/// time"); it is a decision about what a cell can hold, and the graph disagrees
+/// often enough to record: on `Q21754`, 1,850 of 32,160 rows carry a reference
+/// title differing from the first row for that reference, 1,315 an `InChIKey`, 1,142
+/// a connection-table SMILES.
 ///
-/// So this pins three things at once, because they are separable and each is a
-/// different mistake:
+/// Three separable things are pinned, each a different mistake:
 ///
 /// - the **rows** survive, so a disagreeing value never merges or drops a row;
 /// - the **first** value wins, which is the rule;

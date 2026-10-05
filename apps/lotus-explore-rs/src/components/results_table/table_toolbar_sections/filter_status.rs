@@ -2,15 +2,13 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! How many rows the column filters are currently letting through.
 //!
-//! A filter that hides rows silently is indistinguishable from a search that
-//! found fewer of them, so the count is stated and the way back is offered in the
-//! same place. Hidden entirely when nothing is filtered: with no filters there
-//! is no narrowing to explain, and a permanent counter would be noise on every
-//! search.
+//! A filter that hides rows silently is indistinguishable from a search that found
+//! fewer of them, so the count is stated and the way back is offered in the same
+//! place. Hidden entirely when nothing is filtered: a permanent counter would be
+//! noise on every search.
 //!
-//! The number is the one the table is actually rendering — it arrives as a
-//! parameter rather than being counted here, so the figure on screen and the
-//! rows on screen cannot disagree.
+//! The number arrives as a parameter rather than being counted here, so the figure
+//! on screen and the rows on screen cannot disagree.
 
 use crate::features::explore::interactions::use_explore_interactions;
 use crate::features::explore::selectors::use_result_selector;

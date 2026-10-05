@@ -156,15 +156,15 @@ pub fn TaxonInput() -> Element {
 
 /// The taxon's other names — the advanced half of the taxon group.
 ///
-/// Four separate toggles rather than one "include synonyms", because the four
-/// are independent nomenclatural relationships. A basionym is a rename with a
-/// chronology behind it; an accepted name's synonym is not, and lumping them
-/// together means a user who unticks one has no way to say which they meant.
+/// Four separate toggles, not one "include synonyms": the four are independent
+/// nomenclatural relationships — a basionym is a rename with a chronology behind it,
+/// an accepted name's synonym is not — so lumping them leaves no way to say which
+/// was unticked.
 ///
-/// They sit under a `role="group"` with a visible heading rather than as four
-/// loose checkboxes, because the group is one decision ("how far back in this
-/// taxon's naming history to look") and a screen reader user needs to hear that
-/// before the first option.
+/// They sit under a `role="group"` with a visible heading rather than as four loose
+/// checkboxes, because the group is one decision ("how far back in this taxon's
+/// naming history to look") that a screen reader user must hear before the first
+/// option.
 #[component]
 pub fn TaxonNomenclatureFilters() -> Element {
     let locale = crate::hooks::use_locale();

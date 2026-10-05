@@ -16,15 +16,14 @@ use super::row_text::RowText;
 pub(in crate::components::results_table) use super::row_text::row_text;
 
 #[component]
-// `rows` and `prepared_rows` are the visible window and `keys` holds one key per
-// row of it, so the two index the same range and every index stays in bounds.
+// `rows` and `prepared_rows` are the visible window and `keys` holds one key per row
+// of it, so every index is in bounds.
 //
-// The window arrives already sliced and already materialised: with the whole
-// result set in memory, deriving a row means reading it out of the columnar store
-// and formatting a dozen strings, and doing that for three million rows to draw
-// thirty would cost more than the whole store. `keys` are row offsets into the
-// result set rather than positions in the window, so a row keeps its DOM identity
-// as the window scrolls.
+// The window arrives already sliced and materialised: with the whole result set in
+// memory, deriving a row means reading the columnar store and formatting a dozen
+// strings, and doing that for three million rows to draw thirty would cost more than
+// the whole store. `keys` are row offsets into the result set, not positions in the
+// window, so a row keeps its DOM identity as the window scrolls.
 #[allow(
     clippy::indexing_slicing,
     reason = "`keys` has one entry per row of `rows`/`prepared_rows`, so every index is within them"

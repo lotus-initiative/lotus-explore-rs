@@ -6,19 +6,13 @@ use std::collections::HashSet;
 
 /// `Display` for an enum whose printed form is its [`as_str`](Self::as_str).
 ///
-/// Every enum in this module that has an `as_str` wants exactly this, and the two
-/// that had one were written out by hand -- which `cargo dejadoc` reports, and
-/// rightly: the second copy is where the next edit lands without the first being
-/// looked at.
+/// Every enum here with an `as_str` wants this, and the two that had one written
+/// it out by hand -- which `cargo dejadoc` reports: the second copy is where the
+/// next edit lands without the first being looked at.
 ///
-/// A macro rather than a generic because `Display` is implemented for a concrete
-/// type, and a helper rather than a macro because the body is a single call whose
-/// only content is *which* method to delegate to. It has to be a macro: there is no
-/// way to write one function that implements `Display` for somebody else's type.
-///
-/// Invoked once, below [`ElementState`], because an `impl` block cannot precede
-/// the type it names. That is the cost of collecting them, and it is paid once
-/// rather than once per enum.
+/// Must be a macro: no single function can implement `Display` for somebody
+/// else's type. Invoked once, below [`ElementState`], because an `impl` block
+/// cannot precede the type it names.
 macro_rules! display_via_as_str {
     ($($type:ty),+ $(,)?) => {
         $(
@@ -50,15 +44,13 @@ pub struct DatasetStats {
 /// How a structure literal is matched against the endpoint's index.
 ///
 /// Whatever the structure field holds is resolved to a Wikidata compound first --
-/// a QID, an `InChIKey` or a name by a lookup query, a SMILES or a molfile by
-/// asking the structure service which compound it is. This type then decides what
-/// happens to that compound.
+/// a QID, `InChIKey` or name by a lookup query, a SMILES or molfile by asking the
+/// structure service. This type then decides what happens to that compound.
 ///
-/// [`Self::Exact`] is the default because "this compound" is what a reader who
-/// types a compound is asking for, and it is the cheap answer: one row, found by
-/// an index scan on the QID. The other two are broader questions about *other*
-/// compounds, and both of them load a structure index and score every candidate in
-/// it. They have to be asked for.
+/// [`Self::Exact`] is the default because "this compound" is what typing a
+/// compound asks, and it is cheap: one row, an index scan on the QID. The other
+/// two are questions about *other* compounds, and both load a structure index and
+/// score every candidate in it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize)]
 pub enum SmilesSearchType {
     /// Only the compound the input resolved to. No structure service.
@@ -73,8 +65,8 @@ pub enum SmilesSearchType {
 impl SmilesSearchType {
     /// Whether answering this one requires the structure service.
     ///
-    /// Exact does not, and the query is built accordingly. This is the single
-    /// place that says so, so the builder and the panel cannot pick differently.
+    /// Exact does not, and the query is built accordingly. The single place that says
+    /// so, so builder and panel cannot pick differently.
     #[must_use]
     pub const fn needs_structure_service(self) -> bool {
         !matches!(self, Self::Exact)

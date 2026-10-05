@@ -89,15 +89,13 @@ pub fn DownloadOnlyState() -> Element {
 
 /// The rows received so far, as a line the reader can watch move.
 ///
-/// Reuses [`format_count`] and [`count_label`], which already carry the
-/// thousands separator and the plural for each locale -- "12,345 Entries so far",
-/// "12.345 Einträge bisher erhalten". The count leads in all four locales, so
-/// composing the two around it is safe, and it is why this is a function here
-/// rather than a template in the table.
+/// Reuses [`format_count`] and [`count_label`], which carry the thousands separator
+/// and the plural per locale — "12,345 Entries so far", "12.345 Einträge bisher
+/// erhalten". The count leads in all four locales, so composing around it is safe.
 ///
-/// **No percentage.** The endpoint does not say how many rows a query will produce
-/// before it produces them, so a denominator would be invented, and the number a
-/// reader actually wants -- how much is left -- is exactly what is unknown.
+/// **No percentage:** the endpoint does not say how many rows a query will produce,
+/// so a denominator would be invented and how much is left is exactly what is
+/// unknown.
 pub fn rows_so_far_text(locale: Locale, rows: usize) -> String {
     format!(
         "{} {} {}",

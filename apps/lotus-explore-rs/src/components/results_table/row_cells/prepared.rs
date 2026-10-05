@@ -18,10 +18,9 @@ pub(in crate::components::results_table) struct PreparedRow {
 impl PreparedRow {
     /// Derive the row's display fields from one materialised row.
     ///
-    /// Called only for the rows on screen. The previous shape pre-derived one of
-    /// these per row for the whole result set, which included URL-encoding a SMILES
-    /// into a CDK depict link -- a hundred-odd bytes per row, for the thirty rows a
-    /// viewport holds.
+    /// Called only for the rows on screen. The previous shape pre-derived one per row
+    /// for the whole result set, including URL-encoding a SMILES into a CDK depict link
+    /// — a hundred-odd bytes per row, for the thirty a viewport holds.
     pub(in crate::components::results_table) fn from_entry(entry: &CompoundEntry) -> Self {
         let display_name = normalized_display_name(entry);
         Self {

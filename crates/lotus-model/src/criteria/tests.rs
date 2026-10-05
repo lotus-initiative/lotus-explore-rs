@@ -219,16 +219,14 @@ fn a_taxon_on_its_own_is_not_an_effective_filter() {
 
 /// The nomenclatural dispatch, checked one relation at a time.
 ///
-/// The point of the per-relation pattern is that a *single* relation set to
-/// `true` is not enough: a `for_relation` that returned the wrong field would
-/// still read `true` for whichever relation it aliased, because the other three
-/// are `true` by default. Setting exactly one and checking the other three read
-/// `false` is the only way to see which field each `slot` actually reaches.
+/// A *single* relation set to `true` is not enough: a `for_relation` returning
+/// the wrong field still reads `true` for whichever relation it aliased, because
+/// the other three default to `true`. Setting exactly one and checking the other
+/// three read `false` is the only way to see which field each `slot` reaches.
 ///
-/// This lives here rather than in `lotus-query`'s contract tests because a
-/// mutation run against this crate executes this crate's tests only — the
-/// query-side tests that also observe this dispatch do not run, and the
-/// mutants survive.
+/// Here rather than in `lotus-query`'s contract tests because a mutation run
+/// against this crate executes this crate's tests only, and the query-side tests
+/// that also observe this dispatch do not run.
 #[test]
 fn for_relation_reads_the_field_the_slot_names() {
     for relation in crate::taxon_nomenclature::ALL {

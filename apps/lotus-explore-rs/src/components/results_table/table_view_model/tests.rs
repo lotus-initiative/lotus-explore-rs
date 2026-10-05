@@ -431,14 +431,11 @@ fn the_visible_count_is_the_whole_result_set_when_nothing_is_filtered() {
 
 #[test]
 fn a_filter_sees_every_row_and_not_just_the_first_screen() {
-    // The bug this whole refactor exists to fix: the query carried a `LIMIT`, so
-    // the filters only ever saw the rows inside it. A taxon that appears in row
-    // 900 was invisible to a filter for it, while the toolbar reported the whole
-    // set's count.
-    //
-    // Built well past the old ceiling of 500, with the matching rows deliberately
-    // at the end, so a capped implementation would answer 0 and an exact one
-    // answers 3.
+    // The bug this refactor exists to fix: the query carried a `LIMIT`, so filters
+    // only ever saw the rows inside it — a taxon in row 900 was invisible to a filter
+    // for it while the toolbar reported the whole set's count. Built well past the old
+    // ceiling of 500 with the matching rows at the end: a capped implementation
+    // answers 0, an exact one answers 3.
     let mut rows: Vec<CompoundEntry> = (0..900)
         .map(|i| {
             test_entry(

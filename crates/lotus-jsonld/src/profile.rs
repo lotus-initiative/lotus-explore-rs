@@ -175,12 +175,11 @@ pub struct ValidationIssue {
 
 /// Check a JSON-LD document against a profile.
 ///
-/// `@context` and `dct:conformsTo` are checked rather than assumed. They used to
-/// be assumed on the grounds that this crate's own builders always set them,
-/// which is true and useless: the interesting case for a validator is a
-/// document from somewhere else, and a document that does not declare its
-/// profile is the one most worth complaining about. Bioschemas requires the
-/// property for exactly this reason.
+/// `@context` and `dct:conformsTo` are checked rather than assumed. Assuming them
+/// because this crate's builders always set them is true and useless: the
+/// interesting case is a document from somewhere else, and one that does not
+/// declare its profile is the one most worth complaining about. Bioschemas
+/// requires the property for that reason.
 #[must_use]
 pub fn check(document: &serde_json::Value, profile: Profile) -> Vec<ValidationIssue> {
     let Some(object) = document.as_object() else {

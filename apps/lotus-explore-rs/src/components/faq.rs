@@ -220,13 +220,11 @@ fn render_block(block: FaqBlock, first: bool) -> Element {
             }
         },
         FaqBlock::Table(rows) => {
-            // A real table with a real header row rather than a grid of divs: it is the
-            // only structure a screen reader announces row and column headers for, and
-            // these tables are mostly measured numbers that people compare across
-            // columns.
-            //
-            // The caption repeats the header row for anyone arriving by cell rather than
-            // by reading headers, and is what a screen reader announces on arrival.
+            // A real table with a real header row, not a grid of divs: the only
+            // structure a screen reader announces row and column headers for, and
+            // these tables are mostly measured numbers compared across columns. The
+            // caption repeats the header row for anyone arriving by cell rather than by
+            // reading headers.
             let caption = rows
                 .first()
                 .and_then(|row| row.first())

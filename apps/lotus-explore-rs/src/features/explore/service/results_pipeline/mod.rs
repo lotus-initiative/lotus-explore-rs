@@ -7,9 +7,8 @@
     clippy::future_not_send,
     reason = "`on_phase` captures a Dioxus `Signal`, which is a `RefCell` and not `Sync`"
 )]
-//! SPARQL-side results pipeline for Explore searches.
-//! Owns the non-API execution path after strategy selection:
-//! More detail in the type and function docs below.
+//! SPARQL-side results pipeline: the non-API execution path, after strategy
+//! selection.
 
 use super::fetch_results;
 mod plan;

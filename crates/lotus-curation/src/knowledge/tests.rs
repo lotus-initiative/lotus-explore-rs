@@ -3,10 +3,9 @@
 //! The tests for a live curation lookup, kept in their own file so the module
 //! itself stays about the module.
 //!
-//! The fixtures are SPARQL JSON results as `QLever` and the WDQS both return
-//! them: `results` is an object holding a `bindings` array. They are recorded
-//! bytes rather than constructed values, so a change in the wire shape has to be
-//! made here deliberately, where the mistake would otherwise be invisible.
+//! Fixtures are SPARQL JSON as `QLever` and the WDQS both return it: `results` is
+//! an object holding a `bindings` array. Recorded bytes rather than constructed
+//! values, so a change in the wire shape has to be made here deliberately.
 //!
 //! Nothing here touches the network. Every fixture is a recorded answer and the
 //! transport is scripted, so there is nothing to refresh:

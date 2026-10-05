@@ -106,11 +106,10 @@ mod tests {
 
     /// An attribute the caller did not ask for must not appear at all.
     ///
-    /// This is the regression the spread exists to prevent. Every optional
-    /// attribute used to render as `unwrap_or_default()`, so every button in the
-    /// app carried `aria-label=""` --- and an empty `aria-label` is not the
-    /// absence of a label: it overrides the visible text as the accessible name,
-    /// so a labelled button was announced as nothing.
+    /// The regression the spread exists to prevent: every optional attribute used
+    /// to render as `unwrap_or_default()`, so every button carried `aria-label=""`,
+    /// which is not the absence of a label — it overrides the visible text as the
+    /// accessible name, so a labelled button was announced as nothing.
     #[component]
     fn Plain() -> Element {
         rsx! { Button { label: Some("Search".to_string()) } }

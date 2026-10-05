@@ -3,8 +3,8 @@
 //! The `P703` statement recording where a compound was found.
 //!
 //! The statement's shape depends on which of the taxon and the reference
-//! resolved, and the same choice is made twice -- once for a compound that
-//! already exists, once for one being created -- so it is made once here.
+//! resolved, and the same choice is made twice — for an existing compound and for
+//! a created one — so it is made once here.
 
 use super::WD_OCCURS_IN_TAXON_PROP;
 

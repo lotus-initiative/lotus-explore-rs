@@ -14,13 +14,12 @@ use serde_json::{Value, json};
 
 /// The `Taxon` for a row's taxon, or `None` when the row names none.
 ///
-/// A compound with no occurrence data has no taxon, and a `Taxon` node with an
-/// empty name would fail the profile's `name` requirement.
+/// `None` when the row names no taxon: a `Taxon` node with an empty name fails
+/// the profile's `name` requirement.
 ///
 /// `rank` is the taxon rank as a schema.org term -- `"http://schema.org/Species"`,
-/// say -- or `None` if the caller does not have it. It is passed rather than
-/// looked up because the explorer does not query P105, and a rank invented from
-/// a scientific name is a guess presented as a fact.
+/// say -- passed rather than looked up because the explorer does not query P105,
+/// and a rank invented from a scientific name is a guess presented as a fact.
 ///
 /// # Errors
 /// Never today; returns `Result` so a future profile check can fail without

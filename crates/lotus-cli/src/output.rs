@@ -172,13 +172,11 @@ fn write_table<W: Write>(out: &mut W, rows: &[CompoundEntry]) -> anyhow::Result<
         }
     }
 
-    // The last column is not padded, so a line has no trailing whitespace.
-    // Every value is padded to its column and the line is then trimmed, which is
-    // simpler than special-casing the last one: padding it and trimming it off
-    // gives the same string. Not padding the last value is not enough on its own
-    // -- the separator before it is still joined in, so an empty last column
-    // leaves the line ending in spaces, and that shows up in every diff of the
-    // output and in every `cat -A`.
+    // The last column is not padded, so a line has no trailing whitespace. Every value
+    // is padded and the line then trimmed, which is simpler than special-casing
+    // the last one. Not padding the last value is not enough on its own: the
+    // separator before it is still joined in, so an empty last column leaves the
+    // line ending in spaces, visible in every diff and in every `cat -A`.
     let render = |values: &[String]| -> String {
         values
             .iter()

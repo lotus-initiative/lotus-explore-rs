@@ -77,25 +77,21 @@ pub fn looks_like_inchikey(text: &str) -> bool {
 
 /// What the reference field's example buttons offer.
 ///
-/// In `lotus-model` rather than in the app, for the reason the structure examples
-/// give: the test that checks these are classified correctly has to be checking the
-/// same strings the buttons fill in.
-///
 /// * `10.1002/jlac.18360190207` -- a DOI, resolved by looking the reference up.
 ///   Reports one compound, *chrysophanol*.
 /// * `10.1021/acs.jnatprod.1C00812` -- a DOI from a different publisher, so the
-///   pair shows the prefix is not what is being matched. Reports two, *Voatriafricanine
-///   A* and *B*, which are stereoisomers and so the more interesting answer of the
-///   two: a reference can report several compounds, and they are separate facts
-///   about separate items.
+///   pair shows the prefix is not what is being matched. Reports two,
+///   *Voatriafricanine A* and *B*, stereoisomers: a reference can report several
+///   compounds, as separate facts about separate items.
 /// * `Q28601559` -- a QID, used without a round trip. Reports three, including
 ///   *ethanol*.
 ///
-/// So the three are not the same compound reached three ways, which is worth saying
-/// plainly because it is the property the structure examples have and these cannot:
-/// a structure names one thing, a reference names an *occurrence*, and the same
-/// compound appears under several references while one reference reports several
-/// compounds. Between them they cover both directions.
+/// These are three different answers, not one compound three ways: a structure
+/// names one thing, a reference names an *occurrence*, and the same compound
+/// appears under several references while one reference reports several compounds.
+///
+/// The list lives here, not in the app, so the test that checks the
+/// classification reads the same strings the buttons fill in.
 pub const REFERENCE_INPUT_EXAMPLES: [&str; 3] = [
     "10.1002/jlac.18360190207",
     "10.1021/acs.jnatprod.1C00812",
@@ -104,24 +100,21 @@ pub const REFERENCE_INPUT_EXAMPLES: [&str; 3] = [
 
 /// What the structure field's example buttons offer.
 ///
-/// One of each kind the field accepts, because the field accepts four and the
-/// point of the buttons is to show a reader which is which. All four are here
-/// rather than in the app so that the test which checks they are classified
-/// correctly is checking the same strings the buttons fill in.
-///
 /// * `amarogentina` — a name, resolved through a label or alias lookup.
 /// * `DBOVHQOUSDWAPQ-WTONXPSSSA-N` — an `InChIKey`, resolved through `P235`.
 /// * `Q23118` — a QID, confirmed against Wikidata.
 /// * `C[C@H](O)CO` — a SMILES, resolved by asking the structure service.
 ///
-/// The first two are the same compound (*amarogentin*, `Q3613679`) reached two
-/// ways, which is what makes the pair worth having: a reader can see that the
-/// alias route and the identifier route agree, and the test below checks that
-/// both are classified as identifiers rather than one of them as a name.
+/// One of each kind the field accepts, so a reader can tell which is which; the
+/// list lives here, not in the app, so the test checking their classification
+/// reads the same strings the buttons fill in.
 ///
-/// The stereocentre in the last one is deliberate over a simpler chain: it is the
-/// structure a person cannot type from memory, and would otherwise go looking for
-/// a drawing tool to make.
+/// The name and the `InChIKey` are the same compound (*amarogentin*, `Q3613679`)
+/// two ways, which shows the alias route and the identifier route agree; the test
+/// below checks both are classified as identifiers, not one as a name.
+///
+/// The stereocentre in the SMILES is deliberate over a simpler chain: it is the
+/// structure a person cannot type from memory.
 pub const STRUCTURE_INPUT_EXAMPLES: [&str; 5] = [
     "amarogentina",
     "红雀椿素",
@@ -150,37 +143,32 @@ pub fn looks_like_a_compound_qid(text: &str) -> bool {
 
 /// Whether a string is worth handing to the compound-name lookup.
 ///
-/// This is the guard that stops the name lookup from eating structure input, and
-/// it is deliberately conservative in the direction of *not* resolving: a name
-/// that fails this test is treated as a structure, which is exactly what every
-/// input was before the lookup existed, so the worst outcome is the old
-/// behaviour.
+/// Stops the name lookup from eating structure input, conservatively in the
+/// direction of *not* resolving: a failing name is treated as a structure, which
+/// is what every input was before the lookup existed.
 ///
-/// Three classes of input are excluded, all for the same reason -- a chemical
-/// name and a structure are written with different alphabets:
+/// Three exclusions, same reason -- a chemical name and a structure are written
+/// with different alphabets:
 ///
-/// **Anything carrying a digit.** `c1ccccc1`, `C[C@H](O)CO`,
-/// `CC(=O)Oc1ccccc1C(=O)O`. No Wikidata label does, because a label is prose.
+/// **Any digit.** `c1ccccc1`, `C[C@H](O)CO`, `CC(=O)Oc1ccccc1C(=O)O`. No
+/// Wikidata label has one, because a label is prose.
 ///
-/// **Anything carrying SMILES punctuation**: `= @ [ ] # / \ % * $ :`. Same
-/// reason.
+/// **Any SMILES punctuation**: `= @ [ ] # / \ % * $ :`. Same reason.
 ///
-/// **A run of consecutive uppercase letters.** `CC` and `CCC` are how people
-/// write ethane and propane in a structure box, and they are two of this app's
-/// own example buttons. This is the one exclusion with a real cost -- `ATP`,
-/// `GDP` and `NAD` are compound names Wikidata knows, and they are refused --
-/// and it is the right way round, because a structure silently replaced by a
-/// same-spelled Wikidata item is a failure the reader cannot detect, while a
-/// name they have to type as SMILES is a friction they can route around.
+/// **A run of consecutive uppercase letters.** `CC` and `CCC` are how ethane and
+/// propane get typed in a structure box, and two of this app's example buttons.
+/// This exclusion costs real names -- `ATP`, `GDP` and `NAD` are known compounds
+/// and are refused -- and that is the right way round: a structure silently
+/// replaced by a same-spelled item is undetectable, while a name typed as SMILES
+/// is friction the reader can route around.
 ///
 /// Parentheses and `+` *are* allowed, for stereodescriptors: `s-(+)-carvone` and
-/// `(R)-` are real names. That admits a structure like `C(C)` as well, which is
-/// the looseness here. It is the one misclassification that can reach the name
-/// lookup, and its cost is bounded: a lookup that matches nothing is reported as
-/// "compound not found" rather than answered, so the reader is told the input was
-/// read as a name instead of being handed a plausible-looking wrong answer. That
-/// is why the guard leans this way -- refusing a structure to look like a name
-/// costs a round trip, and admitting one costs a question the reader has to notice.
+/// `(R)-` are real names. That admits a structure like `C(C)`, the one
+/// misclassification that can reach the name lookup, and its cost is bounded: a
+/// lookup matching nothing is reported as "compound not found" rather than
+/// answered, so the reader learns the input was read as a name instead of getting
+/// a plausible wrong answer. Refusing a structure that looks like a name costs a
+/// round trip; admitting one costs a question the reader must notice.
 #[must_use]
 pub fn could_be_a_compound_name(text: &str) -> bool {
     let trimmed = text.trim();
@@ -198,15 +186,14 @@ pub fn could_be_a_compound_name(text: &str) -> bool {
 
 /// Whether this input names a Wikidata compound rather than being a structure.
 ///
-/// One predicate, and both callers need the same answer: the search panel decides
-/// whether to show the structure-matching controls from it, and
-/// `resolve_structure` decides whether to run a lookup query. If they were two
-/// predicates they would eventually disagree, and the disagreement would show as
-/// a control that is on screen for a search it does not affect.
+/// One predicate for two callers: the search panel decides whether to show the
+/// structure-matching controls, `resolve_structure` decides whether to run a
+/// lookup query. Two predicates would eventually disagree, and the disagreement
+/// would show as a control on screen for a search it does not affect.
 ///
-/// It is a prediction, and it is an exact one rather than a heuristic, because the
-/// resolver commits to it: input that is predicted to name a compound is looked up
-/// and a miss is an error, never a fallback to the structure service.
+/// A prediction, and exact rather than heuristic because the resolver commits to
+/// it: input predicted to name a compound is looked up, and a miss is an error,
+/// never a fallback to the structure service.
 #[must_use]
 pub fn names_a_compound(text: &str) -> bool {
     let trimmed = text.trim();

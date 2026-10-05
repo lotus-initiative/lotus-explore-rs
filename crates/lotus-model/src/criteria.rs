@@ -105,7 +105,6 @@ pub struct SearchCriteria {
 /// compounds than the literature holds is the failure mode this exists to
 /// prevent — see [`crate::taxon_nomenclature`] for the relationships and
 /// `docs/TAXON-SEARCH.md` for worked examples.
-/// Which nomenclatural relationships a taxon search follows.
 ///
 /// Four independent toggles, and that is the shape they have to be: each names a
 /// distinct relationship, each can be on with the other three off, and the state

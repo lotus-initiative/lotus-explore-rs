@@ -3,10 +3,9 @@
 JSON-LD for LOTUS results, following the Bioschemas profiles, plus the citation
 metadata (`codemeta.json`, `CITATION.cff`) generated from the same description.
 
-The point is findability: Google Dataset Search and the Bioschemas validator both
-read the document, and neither can read a page that carries no markup. Every
-document states the profile it follows, so a validator knows which required
-properties apply rather than inferring them from the shape.
+Google Dataset Search and the Bioschemas validator both read these documents, and
+neither can read a page carrying no markup. Every document states the profile it
+follows, so a validator knows which required properties apply.
 
 ```rust
 use lotus_jsonld::{SOFTWARE, citation_cff, codemeta, software_jsonld};

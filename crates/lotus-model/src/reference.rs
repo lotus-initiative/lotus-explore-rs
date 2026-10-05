@@ -2,17 +2,15 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Recognising the two things that name a reference: a Wikidata QID and a DOI.
 //!
-//! A reference is the one entity in a result row that a reader cannot name by a
-//! short common string. A taxon has a scientific name and a common one. A
-//! compound has a name, a formula and an `InChIKey`. A reference has a title,
-//! which is prose, and matching prose against the reference indices is a question
-//! with no useful answer — every paper has a title and half of them are the same
-//! three words.
+//! A reference is the one entity in a result row a reader cannot name by a short
+//! common string: a taxon has a scientific name, a compound a name and an
+//! `InChIKey`, but a reference has a title, and matching prose against the
+//! reference indices has no useful answer — half of all papers have the same
+//! three words as their title.
 //!
-//! What a reference *does* have is two identifiers that each name exactly one
-//! item: its Wikidata QID, and its DOI. Those are what this module recognises,
-//! and they are recognised by shape rather than by asking an endpoint first, so
-//! the field knows which lookup to make without a round trip.
+//! What it does have is two identifiers that each name exactly one item: its
+//! Wikidata QID and its DOI. Both are recognised by shape rather than by asking
+//! an endpoint, so the field knows which lookup to make without a round trip.
 
 /// Whether this is a Wikidata QID.
 ///

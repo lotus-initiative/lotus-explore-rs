@@ -9,12 +9,10 @@ mod fr;
 mod it;
 
 /// The per-locale functions are reachable only through the wrapper this macro
-/// generates, which is the shape that would normally want a `dead_code`
-/// suppression. It does not need one, and there is not one here: this file
-/// carried `#[allow(dead_code)]` on all five arms and the lint fired on none of
-/// them, on either target or in any build configuration. An `allow` reports
-/// nothing when it is unnecessary, which is how a suppression outlives whatever it
-/// was for -- so it is worth noticing that this macro has none.
+/// generates, normally the shape that wants a `dead_code` suppression. It needs
+/// none: this file carried `#[allow(dead_code)]` on all five arms and the lint
+/// fired on none of them on either target. An unnecessary `allow` reports nothing,
+/// which is how a suppression outlives whatever it was for.
 macro_rules! dispatch {
     // no args → String
     ($name:ident) => {

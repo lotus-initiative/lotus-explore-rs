@@ -502,11 +502,10 @@ pub const ENTRIES: &[FaqEntry] = &[
 /// The page's own words: the heading, the standfirst, and the two labels the contents
 /// list needs.
 ///
-/// [`ENTRIES`] carries a question and an answer per locale; this is the furniture around
-/// them, which is a different shape -- one string each rather than a row per entry --
-/// and it was hardcoded in the component, so the whole page read as English in the other
-/// three locales while every answer underneath it was translated. That mismatch is worse
-/// than being untranslated throughout.
+/// [`ENTRIES`] carries a question and an answer per locale; this is the furniture
+/// around them, one string each rather than a row per entry. It was hardcoded in the
+/// component, so the whole page read as English in the other three locales while every
+/// answer underneath it was translated — worse than being untranslated throughout.
 pub struct FaqChrome {
     /// The page heading.
     pub heading: &'static str,
@@ -564,12 +563,10 @@ pub fn faq_chrome(locale: Locale) -> FaqChrome {
 /// The FAQ's label in the view switcher.
 ///
 /// Here rather than beside `view_label_explorer` and friends, which are curation
-/// strings dispatched across four locale files, because this is one word and the
-/// content it names already lives in this module.
-///
-/// One string, not four: "FAQ" is an initialism and is written the same way in every
-/// language this app ships. A `match` here would be four identical arms, which is
-/// what the lint is objecting to and what a reader would have to check anyway.
+/// strings dispatched across four locale files: this is one word and the content it
+/// names lives in this module. Not four strings, because "FAQ" is an initialism
+/// written the same way in every language this app ships — a `match` would be four
+/// identical arms, which is what the lint objects to.
 #[must_use]
 pub const fn faq_nav_label(_locale: Locale) -> &'static str {
     "FAQ"
@@ -577,11 +574,10 @@ pub const fn faq_nav_label(_locale: Locale) -> &'static str {
 
 /// The `FAQPage` structured data for these questions.
 ///
-/// Hand-built rather than derived, because the only consumer that matters reads the
-/// shape rather than the string: a `FAQPage` with one `Question` per entry, each with
-/// a non-empty `Answer`. Emitting it is what makes the answers findable by a search
-/// engine and legible to an agent, which is the same reason the result set emits
-/// dataset markup.
+/// Hand-built rather than derived: the consumer that matters reads the shape, not the
+/// string — a `FAQPage` with one `Question` per entry, each with a non-empty `Answer`.
+/// Emitting it makes the answers findable by a search engine and legible to an agent,
+/// the same reason the result set emits dataset markup.
 #[must_use]
 pub fn faq_json_ld(locale: Locale) -> String {
     use std::fmt::Write as _;
@@ -636,9 +632,7 @@ mod tests {
     /// A string field of a JSON value, or `None` if absent or not a string.
     ///
     /// A function rather than `value["key"]` because the workspace denies
-    /// `indexing_slicing`, which is the right default for a test that parses a string
-    /// this module also built: an index that returns `Null` would fail the assertion
-    /// anyway, but noisily.
+    /// `indexing_slicing`: an index returning `Null` fails the assertion noisily.
     fn text<'a>(value: &'a serde_json::Value, key: &str) -> Option<&'a str> {
         value.get(key).and_then(serde_json::Value::as_str)
     }

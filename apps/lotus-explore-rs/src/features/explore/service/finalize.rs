@@ -15,10 +15,9 @@ pub struct FinalizedMeta {
 }
 
 /// Assemble [`FinalizedMeta`] from the raw outcome parts.
-/// `direct_download_mode` suppresses stats/counts (they were never fetched).
-/// `set` carries its own exact counts, so nothing here recomputes them and there
-/// is nothing to fall back to: the numbers the reader sees are the numbers the
-/// fetch produced.
+/// `direct_download_mode` suppresses stats/counts, which were never fetched. The
+/// `set` carries its own exact counts, so nothing is recomputed: the numbers the
+/// reader sees are the numbers the fetch produced.
 pub fn finalize(
     crit: &SearchCriteria,
     qid: Option<&str>,
@@ -26,9 +25,8 @@ pub fn finalize(
     direct_download_mode: bool,
     endpoint: export::SparqlEndpoint,
 ) -> FinalizedMeta {
-    // Absent in download-only mode: no result was fetched, so there is no record
-    // count to state, and stating the empty set's zero would claim the search
-    // matched nothing rather than that it was never run.
+    // Absent in download-only mode: no result was fetched, and the empty set's zero
+    // would claim the search matched nothing rather than that it never ran.
     let number_of_records = (!direct_download_mode).then_some(set.stats().n_entries);
 
     let (query_hash, result_hash) = compute_hashes(qid.unwrap_or(""), crit, set);
@@ -58,9 +56,8 @@ mod tests {
 
     /// The value of `key` in the metadata JSON, or `None` if it is absent.
     ///
-    /// The document is pretty-printed, so a substring test for `"k": v` would
-    /// have to guess about whitespace. This reads the number out instead, which
-    /// also asserts the thing that matters: the count is there and it is `want`.
+    /// The document is pretty-printed, so a substring test for `"k": v` would have to
+    /// guess about whitespace.
     fn record_count(meta: &FinalizedMeta) -> Option<usize> {
         let json: serde_json::Value =
             serde_json::from_str(&meta.metadata_json).expect("metadata is JSON");
@@ -100,9 +97,8 @@ mod tests {
 
     #[test]
     fn the_counts_come_from_the_set_and_never_disagree_with_it() {
-        // There is no count argument any more, which is the point: a field that
-        // could say 7 while the set held 3 is exactly the bug the endpoint's
-        // `COUNT` query used to be able to produce.
+        // There is no count argument, which is the point: a field that could say 7 while
+        // the set held 3 is the bug the endpoint's `COUNT` query used to produce.
         let crit = SearchCriteria::up_to_year(crate::clock::current_year());
         let set = set_of(3);
         let m = finalize(&crit, None, &set, false, export::SparqlEndpoint::Qlever);

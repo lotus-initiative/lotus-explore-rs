@@ -3,14 +3,13 @@
 The LOTUS vocabulary: what a filter set is, what a result row is, and what makes
 a filter active.
 
-Pure. No IO, no async, no clock, and no platform, so it builds for
-`wasm32-unknown-unknown` and is testable without a runtime. A caller that needs
-the current year passes it in.
+Pure: no IO, no async, no clock, no platform, so it builds for
+`wasm32-unknown-unknown` and is testable without a runtime. A caller needing the
+current year passes it in.
 
 A filter is a value, not a query. It holds no SPARQL and no endpoint, and whether
-a filter is *active* is decided by comparing against the defaults rather than by a
-flag, so a criteria set survives a round trip through a URL or a JSON body without
-carrying its provenance.
+a filter is *active* is decided against the defaults rather than by a flag, so a
+criteria set survives a round trip through a URL or a JSON body.
 
 ```rust
 use lotus_model::{SearchCriteria, validate_criteria};

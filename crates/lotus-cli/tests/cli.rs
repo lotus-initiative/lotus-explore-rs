@@ -95,17 +95,13 @@ fn explain_prints_a_query_and_asks_for_nothing() {
 
 /// `--explain` prints the query for the request actually being made.
 ///
-/// This test used to assert the opposite. `--explain` passed `None` as the
-/// resolved taxon so that it would never touch the network, and the consequence
-/// was that `--taxon Q21754 --explain` printed the *no-taxon* query -- with no
-/// `P171*` in it anywhere -- and said nothing. A flag whose entire purpose is to
-/// be read when a result surprises someone cannot hand back a different request's
-/// query.
+/// This test once asserted the opposite. `--explain` passed `None` as the
+/// resolved taxon to stay offline, so `--taxon Q21754 --explain` printed the
+/// *no-taxon* query -- no `P171*` anywhere -- and said nothing. A flag read when a
+/// result surprises someone cannot hand back a different request's query.
 ///
-/// The offline property is kept, because it is the reason the fix is shaped this
-/// way rather than by simply resolving the taxon: a bare QID needs no lookup, so
-/// the real query is available without an endpoint, and only the name case has to
-/// refuse.
+/// Offline is kept, and is why the fix passes a bare QID through instead of
+/// resolving: a QID needs no lookup, so only the name case has to refuse.
 #[test]
 fn explain_prints_the_query_for_the_taxon_it_was_given() {
     // A bare QID needs no resolution, so the printed query is the real one.

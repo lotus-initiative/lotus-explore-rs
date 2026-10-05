@@ -6,9 +6,8 @@ use dioxus::prelude::*;
 
 /// A section heading.
 ///
-/// Exists because the curation page had six of these, and five of them carried
-/// no classes at all: only "Curation results" was styled, so on one page the same
-/// kind of heading was bold in one place and body text in five others. One
+/// The curation page had six of these and five carried no classes at all, so the
+/// same kind of heading was bold in one place and body text in five others. One
 /// component is both the fix and the reason it cannot drift again.
 #[derive(Props, Clone, PartialEq, Eq)]
 pub struct SectionHeadingProps {

@@ -14,13 +14,11 @@ pub(in crate::components::results_table::row_cells) fn taxon_cell(
     entry: &CompoundEntry,
     taxon_qid: &str,
 ) -> Element {
-    // A row can arrive with no taxon at all -- a structure search returns
-    // compounds whether or not their occurrence data exists, and a compound with
-    // no `P703` has nothing to file it under. The cell is then empty.
-    //
-    // Rendering the badge anyway produced " • Scholia": a dangling bullet
-    // wrapping a link to `scholia.toolforge.org/taxon/`, which is a search page
-    // for the empty string. An empty cell is the honest rendering.
+    // A row can arrive with no taxon: a structure search returns compounds whether
+    // or not their occurrence data exists, and a compound with no `P703` has nothing
+    // to file it under. Rendering the badge anyway produced " • Scholia" — a dangling
+    // bullet wrapping a link to `scholia.toolforge.org/taxon/`, a search page for the
+    // empty string.
     if taxon_qid.trim().is_empty() {
         return rsx! {
             td {

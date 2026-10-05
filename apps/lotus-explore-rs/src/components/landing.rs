@@ -10,17 +10,12 @@ use dioxus::prelude::*;
 pub fn LandingPage() -> Element {
     let locale = use_locale();
     let route: Route = use_route();
-    // The destination is a route, not a string, and the link is Dioxus's `Link`
-    // rather than a bare anchor.
-    //
-    // An anchor is a full page load. In a browser that is a round trip to a
-    // server that answers every path with the app; in a window there is no
-    // server, and the load lands on a URL the app's own protocol does not serve,
-    // so the button did nothing. `Link` asks the router to navigate instead,
-    // which is the same on both.
-    //
-    // The landing route already holds the query string, so the search view opens
-    // on the filters the visitor arrived with rather than resetting them.
+    // A route rather than a string, and Dioxus's `Link` rather than a bare anchor:
+    // an anchor is a full page load, which in a browser is a round trip to a server
+    // answering every path with the app and in a window lands on a URL the app's own
+    // protocol does not serve, so the button did nothing. `Link` asks the router to
+    // navigate, the same on both. The landing route already holds the query string,
+    // so the search view opens on the filters the visitor arrived with.
     let search_target = match &route {
         Route::Landing { query, hash } => Route::Search {
             query: query.clone(),
