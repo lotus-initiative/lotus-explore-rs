@@ -103,7 +103,8 @@ Any of the formula filters turns the formula section on by itself: typing
 
 ### Output
 
-`--format` takes `table`, `tsv`, `csv`, `json`, `jsonl`, `jsonld` or `query`.
+`--format` takes `table`, `tsv`, `csv`, `json`, `jsonl`, `jsonld`, `rdf` or
+`query`. `rdf` is also spelled `ttl` or `turtle`.
 
 Data goes to stdout and diagnostics to stderr, so redirection captures the data
 and nothing else:
@@ -123,6 +124,14 @@ lotus search --taxon Q21754 --format jsonl | jq -r .name
 - `jsonld` is Bioschemas JSON-LD: a `Dataset` for the result set, the LOTUS
   source, and a `MolecularEntity` per compound. See
   [`lotus-jsonld`](../crates/lotus-jsonld).
+- `rdf` is RDF Turtle, for ingestion into a triple store. It is written from the
+  rows already fetched rather than by asking the endpoint to run the `CONSTRUCT`,
+  so an export does not fetch the same result a second time just to change its
+  syntax. Each occurrence is emitted as the reified chain the endpoint produces --
+  `compound p:P703 statement`, `statement ps:P703 taxon`,
+  `statement prov:wasDerivedFrom reference-node`, `reference-node pr:P248
+  publication` -- so a consumer that parses an endpoint export parses this one.
+  A triple whose value is absent is omitted rather than emitted as `[]`.
 - `query` prints the SPARQL and no rows.
 
 ### Looking at the query without running it
