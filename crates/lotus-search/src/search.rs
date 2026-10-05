@@ -657,6 +657,50 @@ mod tests {
             "a wildcard keeps requiring an occurrence however it arrived"
         );
     }
+
+    /// An empty box and `*` are different requests, and the difference has to
+    /// survive into the query text.
+    ///
+    /// This is the assertion that keeps them apart. `resolve_taxon` maps both to
+    /// `None`, because neither names a Wikidata entity, so a query builder that
+    /// reads the taxon off the QID alone cannot tell them apart -- and did not,
+    /// which is why an empty box silently answered the narrower question. The
+    /// matching risk after the fix is the opposite one: someone tidying the
+    /// match arms until the two branches collapse back together. Nothing else
+    /// fails when that happens; the query just quietly stops including
+    /// untaxonomised compounds and the row count drops.
+    #[test]
+    fn an_empty_box_and_a_wildcard_are_not_the_same_request() {
+        let blank = build_base_query(&SearchCriteria::up_to_year(2026), None);
+        let wildcard = build_base_query(
+            &SearchCriteria {
+                taxon: "*".to_string(),
+                ..SearchCriteria::up_to_year(2026)
+            },
+            None,
+        );
+
+        assert_ne!(
+            blank, wildcard,
+            "an empty box and `*` build the same query, so one of the two is a lie"
+        );
+        // The distinction is not the presence of the occurrence join -- both arms
+        // have one, or the result would carry no rows at all -- it is whether the
+        // join is required. `*` demands an occurrence; the empty box only takes one
+        // if the compound happens to have it, which is the whole difference between
+        // "every compound with an organism" and "every compound".
+        let flat = |q: &str| q.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(
+            !flat(&wildcard).contains("OPTIONAL { ?c p:P703"),
+            "`*` is the explicit request for everything with an occurrence, so the \
+             occurrence join is required rather than optional"
+        );
+        assert!(
+            flat(&blank).contains("OPTIONAL { ?c p:P703"),
+            "an empty box constrains no taxon, which includes having no occurrence to \
+             name -- a required join would quietly exclude untaxonomised compounds"
+        );
+    }
 }
 
 /// Resolve every input that is not already an identifier.
