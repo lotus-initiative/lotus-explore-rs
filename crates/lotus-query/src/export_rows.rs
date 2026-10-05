@@ -37,7 +37,7 @@
 //! few hundred bytes -- far less than the slack that would cost.
 
 use crate::export::ExportFormat;
-use lotus_model::ColumnarResultSet;
+use lotus_model::{ColumnarResultSet, WIKIDATA_REFERENCE_BASE, WIKIDATA_STATEMENT_BASE};
 use std::borrow::Cow;
 use std::fmt::Write as _;
 
@@ -298,38 +298,80 @@ impl<'a> RowExporter<'a> {
             self.emit(&subject, "rdfs:label", &quote(Some(label)));
         }
 
-        // The occurrence itself is a blank-node-free reified statement so the taxon and
-        // the reference keep their provenance, which is the point of the endpoint's
-        // `p:P703` / `ps:P703` / `prov:wasDerivedFrom` chain. Reproducing it by hand
-        // would need a fresh blank node per row and the reader could not tell two
-        // occurrences of the same compound apart, so the taxon and reference are
-        // attached to the compound directly. Documented rather than silently
-        // different: see the module note on `push_triples`.
-        if let Some(taxon) = set.taxon_qid_text(row) {
-            let taxon = taxon.trim();
-            if !taxon.is_empty() {
-                self.emit(&subject, "wdt:P703", &format!("wd:{taxon}"));
-                self.emit(
-                    &format!("wd:{taxon}"),
-                    "wdt:P225",
-                    &quote(set.taxon_label(row)),
-                );
+        // The occurrence is emitted as the reified statement chain the endpoint's
+        // CONSTRUCT produces, so a consumer that parses one parses the other:
+        //
+        //     compound p:P703  statement
+        //     statement ps:P703              taxon
+        //     statement prov:wasDerivedFrom reference-node
+        //     reference-node pr:P248         publication
+        //
+        // This used to attach the taxon and the publication to the compound
+        // directly, with the compound itself as the subject of
+        // `prov:wasDerivedFrom`. That is not a smaller spelling of the same graph,
+        // it is a different one: the compound is not what was derived from the
+        // reference, the *statement* is, and two occurrences of one compound
+        // through different references became indistinguishable. It also dropped
+        // the reference node, which is why `?ref` has to be in the projection --
+        // without it there is nothing here to point at.
+        let taxon = set
+            .taxon_qid_text(row)
+            .map(|t| t.trim().to_string())
+            .filter(|t| !t.is_empty());
+        let statement = statement_text(set, row);
+        // Bracketed: a bare URI is not a Turtle IRI, and the endpoint's own export
+        // emits them bracketed. Unbracketed, a strict parser rejects the file.
+        let statement = (!statement.trim().is_empty())
+            .then(|| format!("<{WIKIDATA_STATEMENT_BASE}{}>", statement.trim()));
+
+        match (&statement, &taxon) {
+            (Some(statement_uri), Some(taxon)) => {
+                self.emit(&subject, "p:P703", statement_uri);
+                self.emit(statement_uri, "ps:P703", &format!("wd:{taxon}"));
             }
+            // No statement to hang it on: fall back to the direct taxon edge, which
+            // is lossy but keeps the occurrence in the graph.
+            (None, Some(taxon)) => self.emit(&subject, "wdt:P703", &format!("wd:{taxon}")),
+            _ => {}
         }
-        if let Some(reference) = set.reference_qid_text(row) {
-            let reference = reference.trim();
-            if !reference.is_empty() {
-                self.emit(&subject, "prov:wasDerivedFrom", &format!("wd:{reference}"));
-                self.emit(
-                    &format!("wd:{reference}"),
-                    "wdt:P1476",
-                    &quote(set.reference_title(row)),
-                );
-                self.emit(
-                    &format!("wd:{reference}"),
-                    "wdt:P356",
-                    &quote(set.reference_doi(row)),
-                );
+
+        if let Some(taxon) = &taxon
+            && let Some(label) = set.taxon_label(row)
+        {
+            self.emit(&format!("wd:{taxon}"), "wdt:P225", &quote(Some(label)));
+        }
+
+        // `prov:wasDerivedFrom` names the reference *node*, and `pr:P248` links
+        // that node to the publication. They are different identifiers and the
+        // graph needs both.
+        let reference_node = set
+            .reference_node_text(row)
+            .map(|n| n.trim().to_string())
+            .filter(|n| !n.is_empty())
+            .map(|hash| format!("<{WIKIDATA_REFERENCE_BASE}{hash}>"));
+        let publication = set
+            .reference_qid_text(row)
+            .map(|r| r.trim().to_string())
+            .filter(|r| !r.is_empty())
+            .map(|qid| format!("wd:{qid}"));
+
+        let reference_term = reference_node.as_deref().or(publication.as_deref());
+
+        if let Some(statement_uri) = &statement
+            && let Some(reference) = reference_term
+        {
+            self.emit(statement_uri, "prov:wasDerivedFrom", reference);
+        }
+        if let (Some(node), Some(publication)) = (&reference_node, &publication) {
+            self.emit(node, "pr:P248", publication);
+        }
+
+        // Title, DOI and year live on the publication, not on the reference node.
+        if let Some(publication) = &publication {
+            self.emit(publication, "wdt:P1476", &quote(set.reference_title(row)));
+            self.emit(publication, "wdt:P356", &quote(set.reference_doi(row)));
+            if let Some(year) = set.pub_year(row) {
+                self.emit(publication, "wdt:P577", &format!("\"{year}\"^^xsd:gYear"));
             }
         }
     }
@@ -349,6 +391,9 @@ const PREFIXES: &str = "@prefix wd: <http://www.wikidata.org/entity/> .\n\
 @prefix wdt: <http://www.wikidata.org/prop/direct/> .\n\
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
 @prefix prov: <http://www.w3.org/ns/prov#> .\n\
+@prefix p: <http://www.wikidata.org/prop/> .\n\
+@prefix ps: <http://www.wikidata.org/prop/statement/> .\n\
+@prefix pr: <http://www.wikidata.org/prop/reference/> .\n\
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\n";
 
 fn borrowed_or_empty(value: Option<&str>) -> Cow<'_, str> {
@@ -497,12 +542,66 @@ mod tests {
             taxon_qid: arc("Q128267"),
             taxon_name: arc("Rosa"),
             reference_qid: arc("Q100000001"),
-            reference_node: arc(""),
+            reference_node: arc(
+                "6eff7d028afee42232e3963a2c0f9d3b7e5a41c8d2f60b9e3a7d5c1f8b2e6049a",
+            ),
             ref_title: Some(arc("Flavonoid isolation, 1971")),
             ref_doi: Some(arc("10.1000/a, b")),
             pub_year: Some(1971),
             statement: Some(arc("Q200000002")),
         }
+    }
+
+    /// The Turtle must carry the provenance chain the endpoint's CONSTRUCT emits.
+    ///
+    /// It used to attach the taxon and the publication to the compound directly,
+    /// with the *compound* as the subject of `prov:wasDerivedFrom`. That is not a
+    /// shorter spelling of the same graph, it is a different one: the statement is
+    /// what was derived from the reference, so a compound reported by two
+    /// references produced two identical triples and the occurrences became
+    /// indistinguishable. The reference node was dropped entirely, which is what
+    /// made `?ref` look unreadable.
+    #[test]
+    fn turtle_carries_the_reified_statement_and_the_reference_node() {
+        let ttl = render(ExportFormat::Rdf, &set_of(&[full_row()]));
+
+        assert!(
+            ttl.contains(
+                "<http://www.wikidata.org/entity/statement/Q200000002> ps:P703 wd:Q128267"
+            ),
+            "the statement must point at the taxon: {ttl}"
+        );
+        assert!(
+            ttl.contains(
+                "wd:Q3613679 p:P703 <http://www.wikidata.org/entity/statement/Q200000002>"
+            ),
+            "the compound must point at its reified statement: {ttl}"
+        );
+        assert!(
+            ttl.contains("prov:wasDerivedFrom <http://www.wikidata.org/reference/"),
+            "prov:wasDerivedFrom must name the reference node: {ttl}"
+        );
+        assert!(
+            ttl.contains("> pr:P248 wd:Q100000001"),
+            "the reference node must point at the publication: {ttl}"
+        );
+
+        // The regression itself: the compound is not what was derived.
+        for line in ttl.lines() {
+            assert!(
+                !line.starts_with("wd:Q3613679 prov:wasDerivedFrom"),
+                "prov:wasDerivedFrom is on the compound, not the statement: {line}"
+            );
+        }
+        // Title, DOI and year belong to the publication, not the reference node.
+        assert!(
+            ttl.contains("wd:Q100000001 wdt:P1476"),
+            "the title belongs on the publication: {ttl}"
+        );
+        assert!(
+            ttl.contains("wdt:P577"),
+            "the publication year is lost: {ttl}"
+        );
     }
 
     fn empty_row() -> CompoundEntry {
