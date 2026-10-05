@@ -9,11 +9,8 @@
 
 use crate::error::ParseError;
 use lotus_model::{
-    CompoundEntry, DatasetStats, TaxonMatch, TaxonNameSource, non_empty, normalize_doi,
-    normalize_qid,
+    CompoundEntry, DatasetStats, TaxonMatch, TaxonNameSource, non_empty, normalize_qid,
 };
-use std::collections::HashSet;
-use std::sync::Arc;
 
 /// Where each result column sits, resolved from the header row.
 #[derive(Debug, Clone, Copy)]
@@ -37,23 +34,17 @@ struct Columns {
 }
 
 impl Columns {
-    fn detect(headers: &csv::ByteRecord) -> Self {
-        Self::resolve(|name| headers.iter().position(|h| h == name.as_bytes()))
-    }
-
     /// Resolve every column by name, through one list of names.
     ///
-    /// This was two functions -- one over borrowed byte headers for the
-    /// non-streaming reader, one over `String`s for the streaming one -- and the
-    /// fourteen names were written out in both. Two copies of a mapping that has
-    /// to agree exactly is the shape of bug where the two paths diverge: the
-    /// non-streaming path reads a column the streaming one does not, which passes
-    /// every test that exercises only one of them, and fails on whichever path
-    /// production happens to use.
+    /// The name list exists once. `resolve` takes the caller's own equality,
+    /// because the header types cannot be iterated as one, and nothing else about
+    /// the lookup is shared.
     ///
-    /// The name list now exists once. `resolve` takes the caller's own equality,
-    /// because the two header types cannot be iterated as one, and nothing else
-    /// about the lookup is shared.
+    /// This was two functions -- one over borrowed byte headers, one over owned
+    /// `String`s -- with the names written out in both. Two copies of a mapping
+    /// that has to agree exactly is the shape of bug where the two paths diverge:
+    /// one path reads a column the other does not, which passes every test that
+    /// exercises only one of them.
     fn resolve(mut find: impl FnMut(&str) -> Option<usize>) -> Self {
         Self {
             compound: find("compound"),
@@ -98,86 +89,13 @@ impl Columns {
     ///
     /// The streaming reader sees its header as owned `String`s because it has
     /// to hand the names to a caller; this is the same resolution
-    /// [`Columns::detect`] does over a borrowed header.
     #[must_use]
     fn from_names(names: &[String]) -> Self {
         Self::resolve(|name| names.iter().position(|h| h == name))
     }
 }
 
-/// Intern a value into one of the [`Interners`] sets, so that a taxon name
-/// repeated across a million rows is one allocation. `$set` is the set's field
-/// name, so a call site reads `interner!(self, taxon_names, value)`.
-macro_rules! interner {
-    ($interners:ident, $set:ident, $value:expr) => {{
-        let value: &str = $value.trim();
-        if value.is_empty() {
-            Arc::from("")
-        } else if let Some(existing) = $interners.$set.get(value) {
-            Arc::clone(existing)
-        } else {
-            let shared: Arc<str> = Arc::from(value);
-            $interners.$set.insert(Arc::clone(&shared));
-            shared
-        }
-    }};
-}
-
-/// Interns each column's values so that a taxon name repeated across a million
-/// rows is one allocation. One set per column, because a single shared set would
-/// be dominated by whichever column is most repetitive.
-#[derive(Default)]
-struct Interners {
-    qids: HashSet<Arc<str>>,
-    labels: HashSet<Arc<str>>,
-    taxon_names: HashSet<Arc<str>>,
-    titles: HashSet<Arc<str>>,
-    dois: HashSet<Arc<str>>,
-    inchikeys: HashSet<Arc<str>>,
-    smiles: HashSet<Arc<str>>,
-    formulas: HashSet<Arc<str>>,
-    statements: HashSet<Arc<str>>,
-}
-
-impl Interners {
-    fn qid(interners: &mut Self, value: &str) -> Arc<str> {
-        interner!(interners, qids, value)
-    }
-
-    fn label(interners: &mut Self, value: &str) -> Arc<str> {
-        interner!(interners, labels, value)
-    }
-
-    fn taxon_name(interners: &mut Self, value: &str) -> Arc<str> {
-        interner!(interners, taxon_names, value)
-    }
-
-    fn title(interners: &mut Self, value: &str) -> Arc<str> {
-        interner!(interners, titles, value)
-    }
-
-    fn doi(interners: &mut Self, value: &str) -> Arc<str> {
-        interner!(interners, dois, value)
-    }
-
-    fn inchikey(interners: &mut Self, value: &str) -> Arc<str> {
-        interner!(interners, inchikeys, value)
-    }
-
-    fn smiles(interners: &mut Self, value: &str) -> Arc<str> {
-        interner!(interners, smiles, value)
-    }
-
-    fn formula(interners: &mut Self, value: &str) -> Arc<str> {
-        interner!(interners, formulas, value)
-    }
-
-    fn statement(interners: &mut Self, value: &str) -> Arc<str> {
-        interner!(interners, statements, value)
-    }
-}
-
-/// Parse rows, deduplicating on the compound-taxon-reference triple.
+/// Parse rows into entries, through the one result reader.
 ///
 /// # Errors
 /// Returns [`ParseError`] if the payload cannot be read as CSV. A payload
@@ -203,127 +121,58 @@ pub fn parse_compounds_csv_capped(
     bytes: &[u8],
     max_rows: usize,
 ) -> Result<(Vec<CompoundEntry>, DatasetStats, bool), ParseError> {
-    let mut reader = csv::ReaderBuilder::new()
-        .has_headers(true)
-        .flexible(true)
-        .from_reader(bytes);
-
-    let headers = reader.byte_headers().map_err(ParseError::new)?.clone();
-    let columns = Columns::detect(&headers);
-
-    let capacity = max_rows.min(2048);
-    let mut entries = Vec::with_capacity(capacity);
-    let mut seen = HashSet::with_capacity(capacity.saturating_mul(2));
-    let mut compounds = HashSet::with_capacity(capacity);
-    let mut taxa = HashSet::with_capacity(capacity);
-    let mut references = HashSet::with_capacity(capacity);
-    let mut interners = Interners::default();
-    let mut raw_rows = 0usize;
-    let mut distinct_rows = 0usize;
-
-    let mut record = csv::ByteRecord::new();
-    while reader
-        .read_byte_record(&mut record)
-        .map_err(ParseError::new)?
-    {
-        // Owned, because `record` is reused by the next read.
-        let compound = field(&record, columns.compound).to_string();
-        if compound.is_empty() {
-            continue;
-        }
-        raw_rows += 1;
-        let taxon = field(&record, columns.taxon).to_string();
-        let reference = field(&record, columns.reference).to_string();
-
-        if !seen.insert((compound.clone(), taxon.clone(), reference.clone())) {
-            continue;
-        }
-        distinct_rows += 1;
-        compounds.insert(compound.clone());
-        if !taxon.is_empty() {
-            taxa.insert(taxon.clone());
-        }
-        if !reference.is_empty() {
-            references.insert(reference.clone());
-        }
-
-        if entries.len() < max_rows {
-            entries.push(build_entry(
-                &mut interners,
-                &columns,
-                &record,
-                &compound,
-                &taxon,
-                &reference,
-            ));
-        }
+    // Delegates to the streaming reader, which the app already uses.
+    //
+    // There were two implementations of "read a result set" in this crate and
+    // three consumers: the CLI and the server API through here, the app in the
+    // browser and natively through the streaming reader. They disagreed, and the
+    // disagreement was visible rather than theoretical -- on a payload with one
+    // repeated row this returned 3 rows where the browser returned 4, because
+    // this deduplicated on the compound-taxon-reference triple and the set did not.
+    //
+    // So the surviving path is the one that does not deduplicate, and that is a
+    // decision rather than an accident: the query is `SELECT DISTINCT`, so a real
+    // payload has no duplicate rows for a deduplicating pass to remove, and a row
+    // that pass used to drop is a row the graph actually holds. The streaming
+    // reader also builds the `ColumnarResultSet` everything else reads, and it
+    // streams rather than needing the whole payload in memory.
+    //
+    // `tests/result_parsing.rs` runs the same bytes through both and compares them
+    // row for row, so this cannot drift back.
+    // An empty body is an empty result, not a malformed one. The streaming reader
+    // refuses a payload with no header row, which is right for a truncated
+    // response and wrong for an endpoint that answered with nothing: a caller
+    // showing "0 results" for an empty answer is correct, and turning that into a
+    // parse error turns a quiet answer into a red one.
+    if bytes.iter().all(u8::is_ascii_whitespace) {
+        return Ok((Vec::new(), DatasetStats::default(), false));
     }
 
-    let stats = DatasetStats {
-        n_compounds: compounds.len(),
-        n_taxa: taxa.len(),
-        n_references: references.len(),
-        n_entries: raw_rows,
-        n_entries_unique: distinct_rows,
+    let set = stream::parse_compounds_columnar(bytes)?;
+
+    // `max_rows` still caps. The set holds every row the payload carried, so
+    // without this the caller's bound stops bounding memory -- which matters for
+    // the server API, where the payload is the endpoint's whole answer rather than
+    // a page of it.
+    let count = set.row_count();
+    let capped = if max_rows == usize::MAX {
+        count
+    } else {
+        max_rows
     };
-    let truncated = distinct_rows > entries.len();
-    Ok((entries, stats, truncated))
-}
-
-fn build_entry(
-    interners: &mut Interners,
-    columns: &Columns,
-    record: &csv::ByteRecord,
-    compound: &str,
-    taxon: &str,
-    reference: &str,
-) -> CompoundEntry {
-    let iso = field(record, columns.smiles_iso);
-    let conn = field(record, columns.smiles_conn);
-    let smiles = if iso.is_empty() { conn } else { iso };
-
-    // Every QID goes through `normalize_qid`. The query projects QIDs as
-    // `xsd:integer(STRAFTER(STR(?x), "Q"))`, so the CSV arrives holding `16521`
-    // where the item is `Q16521` -- and the row is rendered into a
-    // `wikidata.org/entity/` URL. Interning the cell verbatim put the bare
-    // number in the link, which is a 404 for every result row.
-    CompoundEntry {
-        compound_qid: Interners::qid(interners, &normalize_qid(compound)),
-        name: Interners::label(interners, field(record, columns.label)),
-        inchikey: optional(Interners::inchikey(
-            interners,
-            field(record, columns.inchikey),
-        )),
-        smiles: optional(Interners::smiles(interners, smiles)),
-        mass: field(record, columns.mass).parse().ok(),
-        formula: optional(Interners::formula(
-            interners,
-            field(record, columns.formula),
-        )),
-        taxon_qid: Interners::qid(interners, &normalize_qid(taxon)),
-        taxon_name: Interners::taxon_name(interners, field(record, columns.taxon_name)),
-        reference_qid: Interners::qid(interners, &normalize_qid(reference)),
-        reference_node: Interners::qid(
-            interners,
-            normalize_reference_node(field(record, columns.reference_node)).unwrap_or_default(),
-        ),
-        ref_title: optional(Interners::title(
-            interners,
-            field(record, columns.ref_title),
-        )),
-        ref_doi: normalize_doi(field(record, columns.ref_doi))
-            .map(|d| Interners::doi(interners, &d)),
-        pub_year: field(record, columns.ref_date)
-            .split(['-', 'T'])
-            .next()
-            .and_then(|y| y.parse().ok()),
-        statement: normalize_statement(field(record, columns.statement))
-            .map(|s| Interners::statement(interners, s)),
+    let mut rows = Vec::with_capacity(count.min(2048));
+    for row in 0..count.min(capped) {
+        if let Some(entry) = set.entry(row) {
+            rows.push(entry);
+        }
     }
-}
 
-fn optional(value: Arc<str>) -> Option<Arc<str>> {
-    if value.is_empty() { None } else { Some(value) }
+    // Capping the returned rows is what `truncated` means: the payload held more
+    // than the caller asked to keep. The endpoint may also have applied its own
+    // limit, which this cannot see and does not guess at.
+    let truncated = count > rows.len();
+
+    Ok((rows, set.stats(), truncated))
 }
 
 /// Read the single-row `COUNT` result.
@@ -519,25 +368,12 @@ fn text_field(record: &csv::StringRecord, at: Option<usize>) -> String {
         .to_owned()
 }
 
-fn field(record: &csv::ByteRecord, at: Option<usize>) -> &str {
-    at.and_then(|i| record.get(i))
-        .and_then(|b| std::str::from_utf8(b).ok())
-        .map_or("", str::trim)
-}
-
 /// The reference node's identity, with the namespace stripped.
 ///
 /// The remainder is the 64-hex node hash, which is what identifies the reference.
 fn normalize_reference_node(value: &str) -> Option<&str> {
     non_empty(value).map(|v| {
         v.strip_prefix(lotus_model::WIKIDATA_REFERENCE_BASE)
-            .unwrap_or(v)
-    })
-}
-
-fn normalize_statement(value: &str) -> Option<&str> {
-    non_empty(value).map(|v| {
-        v.strip_prefix(lotus_model::WIKIDATA_STATEMENT_BASE)
             .unwrap_or(v)
     })
 }

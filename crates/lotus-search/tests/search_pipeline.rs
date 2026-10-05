@@ -186,7 +186,11 @@ async fn a_molfile_asked_for_as_similarity_runs_as_a_similarity_search() {
     // substructure on the belief that the similarity service could not take a
     // multi-line literal; measured against the live endpoint it accepts a CTAB
     // and answers a cutoff search, so the downgrade only hid the reader's choice.
-    let http = Scripted::new(vec![(200, ROWS_CSV), (200, COUNTS_CSV)]);
+    // A structure input is resolved to a compound before the query is built, and
+    // that is a round trip like any other. It was missing from this script, and the
+    // search still passed only because the results parser used to read the
+    // counts payload as an empty result set.
+    let http = Scripted::new(vec![(200, LOOKUP_CSV), (200, ROWS_CSV), (200, COUNTS_CSV)]);
     let request = SearchRequest::new(
         SearchCriteria {
             structure: MOLFILE.into(),
@@ -209,7 +213,11 @@ async fn a_molfile_asked_for_as_similarity_runs_as_a_similarity_search() {
 
 #[tokio::test]
 async fn a_molfile_asked_for_as_substructure_still_runs_as_one() {
-    let http = Scripted::new(vec![(200, ROWS_CSV), (200, COUNTS_CSV)]);
+    // A structure input is resolved to a compound before the query is built, and
+    // that is a round trip like any other. It was missing from this script, and the
+    // search still passed only because the results parser used to read the
+    // counts payload as an empty result set.
+    let http = Scripted::new(vec![(200, LOOKUP_CSV), (200, ROWS_CSV), (200, COUNTS_CSV)]);
     let request = SearchRequest::new(
         SearchCriteria {
             structure: MOLFILE.into(),
@@ -231,7 +239,11 @@ async fn a_molfile_asked_for_as_substructure_still_runs_as_one() {
 
 #[tokio::test]
 async fn a_smiles_asked_for_as_similarity_keeps_its_cutoff() {
-    let http = Scripted::new(vec![(200, ROWS_CSV), (200, COUNTS_CSV)]);
+    // A structure input is resolved to a compound before the query is built, and
+    // that is a round trip like any other. It was missing from this script, and the
+    // search still passed only because the results parser used to read the
+    // counts payload as an empty result set.
+    let http = Scripted::new(vec![(200, LOOKUP_CSV), (200, ROWS_CSV), (200, COUNTS_CSV)]);
     let request = SearchRequest::new(
         SearchCriteria {
             structure: "c1ccccc1".into(),

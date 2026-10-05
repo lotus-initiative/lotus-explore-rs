@@ -23,10 +23,12 @@ fn fixture(name: &str) -> Vec<u8> {
 }
 
 #[test]
-fn a_duplicate_triple_appears_once() {
-    // The fixture repeats Q1/Q16521/Q1000 verbatim on its last line.
+fn a_duplicate_triple_is_kept_and_the_count_still_distinguishes_it() {
+    // The fixture repeats Q1/Q16521/Q1000 verbatim on its last line. Both rows are
+    // now returned: the reader does not deduplicate, and `n_entries_unique` is what
+    // distinguishes them. It used to return three of the four.
     let rows = parse_compounds_csv(&fixture("compounds.csv"), 100).expect("valid CSV");
-    assert_eq!(rows.len(), 3, "four rows, one of them an exact duplicate");
+    assert_eq!(rows.len(), 4, "every row the payload carried");
     assert_eq!(rows[0].compound_qid.as_ref(), "Q1");
     assert_eq!(rows[0].name.as_ref(), "Quercetin");
     assert_eq!(rows[0].taxon_qid.as_ref(), "Q16521");
@@ -168,7 +170,10 @@ fn counting_local_rows_cannot_reproduce_the_raw_entry_count() {
     let local = DatasetStats::from_entries(&rows);
     let reported = parse_counts_csv(&fixture("counts.csv")).expect("valid CSV");
 
-    assert_eq!(local.n_entries, 3, "the deduplicated count");
+    // Counting local rows now reproduces the endpoint's raw count, because the rows
+    // are no longer deduplicated on the way in -- which is what this test used to
+    // say was impossible. The distinct count still separates them.
+    assert_eq!(local.n_entries, 4, "the raw count");
     assert_eq!(reported.n_entries, 4, "the endpoint's count");
     assert_eq!(local.n_compounds, reported.n_compounds);
     assert_eq!(local.n_entries_unique, reported.n_entries_unique);
@@ -195,7 +200,7 @@ fn capping_hides_rows_but_reports_the_whole_set() {
 fn a_limit_above_the_row_count_is_not_reported_as_capped() {
     let (rows, _, capped) =
         parse_compounds_csv_capped(&fixture("compounds.csv"), 1000).expect("valid CSV");
-    assert_eq!(rows.len(), 3);
+    assert_eq!(rows.len(), 4);
     assert!(!capped);
 }
 
@@ -207,27 +212,45 @@ fn a_row_without_a_compound_id_is_not_a_result() {
 }
 
 #[test]
-fn a_payload_the_endpoint_mangled_still_parses() {
-    // `flexible(true)` plus per-field defaulting means an odd payload degrades
-    // to emptier columns. A search that has usable rows should not be discarded
-    // because one cell is unparsable.
+fn a_mangled_cell_degrades_and_an_unreadable_payload_is_refused() {
+    // There are two different things here and they were once one assertion.
+    //
+    // A mangled *cell* degrades: `flexible` parsing and per-field defaulting mean a
+    // short row loses its missing columns rather than the whole row. A search that
+    // has usable rows should not be discarded because one cell is unparsable.
+    let ragged = b"compound,compoundLabel,taxon\nQ1\n";
+    assert!(
+        parse_compounds_csv(ragged, 10).is_ok(),
+        "a ragged row should still parse"
+    );
+
+    // A payload that is *not* a result set is refused rather than read as an empty
+    // one. A header naming nothing this reader knows, or bytes that are not CSV at
+    // all, used to parse to zero rows -- which a caller cannot tell from "this
+    // search matched nothing".
     for (name, payload) in [
-        (
-            "unterminated quote",
-            &b"compound,compoundLabel\nQ1,\"unterminated\n"[..],
-        ),
         (
             "quote in a header name",
             &b"comp\"ound,compoundLabel\nQ1,a\n"[..],
         ),
-        ("ragged row", &b"compound,compoundLabel,taxon\nQ1\n"[..]),
         ("binary junk", &[0x00u8, 0x01, 0x02, 0xff][..]),
     ] {
         assert!(
-            parse_compounds_csv(payload, 10).is_ok(),
-            "{name} should parse rather than fail"
+            parse_compounds_csv(payload, 10).is_err(),
+            "{name} is not a result set and should be refused, not read as empty"
         );
     }
+
+    // A payload that stops mid-row is a truncated *result set*, and reporting it as
+    // complete is the failure this whole crate is careful about: a short answer that
+    // reads as a whole one. The streaming reader refuses it and says why, which is
+    // also why the CLI reports a timed-out search rather than a thin result.
+    let truncated = b"compound,compoundLabel\nQ1,\"unterminated\n";
+    let err = parse_compounds_csv(truncated, 10).expect_err("refused");
+    assert!(
+        err.to_string().contains("middle of a row"),
+        "the refusal says the result is incomplete: {err}"
+    );
 }
 
 #[test]
@@ -309,19 +332,19 @@ fn a_count_column_the_endpoint_omitted_reads_as_zero() {
 /// This runs the same bytes through both and compares. It is written *before* the
 /// streaming reader is made the only one, so that the collapse is checked against
 /// the behaviour that existed rather than against itself.
-/// Ignored because it fails, and it should not.
+/// The CLI, the server API and the browser must agree.
 ///
-/// The failure is the finding, not a mistake in the test: on a payload with one
-/// repeated row this parser returns 3 and the streaming reader returns 4, because
-/// `parse_compounds_csv_capped` deduplicates on the compound-taxon-reference
-/// triple and `parse_compounds_columnar` does not. That is the CLI and the server
-/// API answering differently from the browser, for identical bytes.
+/// There were two implementations of "read a result set" in this crate, reached by
+/// three consumers, and they disagreed: on a payload with one repeated row the
+/// `csv::ByteRecord` path returned 3 rows and the streaming reader returned 4,
+/// because the first deduplicated on the compound-taxon-reference triple and the
+/// second did not. Same bytes, same query, different answer depending on which
+/// surface asked.
 ///
-/// It is `#[ignore]`d rather than deleted so the property stays written down, and
-/// so it starts passing the moment the two are collapsed onto one reader. Do not
-/// "fix" it by loosening the comparison.
+/// `parse_compounds_csv_capped` now delegates to the streaming reader, so there is
+/// one. This test is what keeps it that way, and it is the property we actually
+/// want rather than a statement about how the code is arranged.
 #[test]
-#[ignore = "the two parsers disagree; collapsing them onto the streaming reader is the fix"]
 fn both_parsers_read_the_same_rows_in_the_same_order() {
     use lotus_query::parse_compounds_columnar;
 

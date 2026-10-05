@@ -107,12 +107,20 @@ fn a_statement_uri_loses_its_prefix() {
     assert_eq!(rows[0].statement.as_deref(), Some("S1"));
 }
 
+/// The row is kept and the count still distinguishes it.
+///
+/// This parser used to drop the repeat: it deduplicated on the
+/// compound-taxon-reference triple, while the streaming reader kept both. There is
+/// one reader now, and the surviving behaviour is to keep the row and let the
+/// counts say what happened — the query is `SELECT DISTINCT`, so a real payload
+/// carries no repeat for a deduplicating pass to remove, and a row it removed was
+/// a row the graph holds.
 #[test]
-fn a_duplicate_triple_is_kept_once_and_counted_once_each_way() {
-    let row = "Q1,L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,T,10.1/a,2021,\n";
+fn a_duplicate_triple_is_kept_but_counted_once_each_way() {
+    let row = "Q1,L,IK,CC=CC,,78.0,C6H6,Q10,T,Q100,,T,10.1/a,2021,\n";
     let (rows, stats, capped) =
         parse_compounds_csv_capped(&csv(&format!("{row}{row}")), 10).expect("valid CSV");
-    assert_eq!(rows.len(), 1);
+    assert_eq!(rows.len(), 2, "both rows are the graph's to give");
     assert_eq!(stats.n_entries, 2, "raw rows");
     assert_eq!(stats.n_entries_unique, 1, "distinct triples");
     assert!(!capped);
@@ -277,25 +285,28 @@ fn a_lookup_payload_with_none_of_the_columns_is_no_rows() {
 
 // ── Reading a payload that is not a result set ──────────────────────────────
 
+/// A payload that is not a result set is refused, not read as an empty one.
+///
+/// This test used to assert the opposite, and it said why: the CSV reader was
+/// built `flexible(true)` with a column detector returning `None` per unplaceable
+/// column, so bytes that are not a result set parsed to zero rows -- which is right
+/// for a truncated export and wrong for a file that is not an export, because the
+/// caller cannot tell "this database has no compounds" from "this file is not a
+/// database". Its own comment recorded that the streaming reader took the opposite
+/// position on the same input.
+///
+/// There is one reader now, and it is the loud one. A search that found nothing is
+/// a claim worth being able to make, so a payload we cannot read is reported rather
+/// than turned into a quiet zero. An *empty* payload is still an empty result --
+/// that is a different case and is handled before the reader is asked to parse it.
 #[test]
-fn a_header_with_no_recognisable_columns_yields_no_rows() {
-    // Documenting what this does, which is not what a `# Errors` section would
-    // say it does. The CSV reader is built `flexible(true)` and the column
-    // detector returns `None` for each column it cannot place, so bytes that are
-    // not a result set at all parse to zero rows rather than to an error.
-    //
-    // That is the right call for a truncated or partially-typed export, and the
-    // wrong one for a file that is not an export: the caller cannot tell "this
-    // database has no compounds" from "this file is not a database".
-    //
-    // The streaming reader takes the opposite position on the same input --
-    // `CsvColumnarReader::finish` refuses a payload it cannot recognise -- because
-    // it is the path that holds a whole result set and would otherwise build an
-    // empty one that reads as "the search matched nothing".
+fn a_header_with_no_recognisable_columns_is_refused_rather_than_read_as_empty() {
     let bytes = b"\0\0\0not a result set at all\n".to_vec();
-    let (rows, _, capped) = parse_compounds_csv_capped(&bytes, 10).expect("reads");
-    assert_eq!(rows.len(), 0, "expected no entries");
-    assert!(!capped);
+    let err = parse_compounds_csv_capped(&bytes, 10).expect_err("refused");
+    assert!(
+        err.to_string().contains("none of the expected columns"),
+        "the refusal says why: {err}"
+    );
 }
 
 // ── The reference lookup reader ──────────────────────────────────────────────
