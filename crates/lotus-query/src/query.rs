@@ -1253,6 +1253,12 @@ WHERE {{
 /// Append a `LIMIT`.
 #[must_use]
 pub fn limit_query(base: &str, limit: usize) -> String {
+    // `usize::MAX` is how a caller says "no limit". Emitting `LIMIT 18446744073709551615`
+    // instead would ask the endpoint for a bound it cannot honour, and would show up
+    // in the query the `--explain` flag prints.
+    if limit == usize::MAX {
+        return base.trim_end().to_string();
+    }
     format!("{}\nLIMIT {limit}", base.trim_end())
 }
 

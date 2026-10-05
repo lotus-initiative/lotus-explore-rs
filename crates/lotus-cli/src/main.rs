@@ -166,9 +166,12 @@ struct SearchArgs {
     #[arg(long = "iodine", value_enum, default_value_t = Presence::Allowed)]
     iodine: Presence,
 
-    /// How many rows to return.
-    #[arg(short, long, default_value_t = 100)]
-    limit: usize,
+    /// How many rows to return. Unlimited by default, which is what a filter you
+    /// piped somewhere wants; pass a number when the result is large and you only
+    /// want the top of it. Note that an unlimited search buffers every row in
+    /// memory, so an unfiltered one is hundreds of thousands.
+    #[arg(short, long)]
+    limit: Option<usize>,
 
     /// How the rows are written to stdout.
     #[arg(short, long, value_enum, default_value_t = Format::Table)]
@@ -369,8 +372,8 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
     let criteria = criteria_from_args(&args, year_max);
     lotus_model::validate_criteria(&criteria, year_max)?;
 
-    let request =
-        lotus_search::SearchRequest::new(criteria.clone(), year_max).with_limit(args.limit);
+    let request = lotus_search::SearchRequest::new(criteria.clone(), year_max)
+        .with_limit(args.limit.unwrap_or(usize::MAX));
 
     if args.explain {
         // The point of `--explain` is to see the query without waiting for an
@@ -415,6 +418,25 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
         for note in &taxon.notes {
             eprintln!("lotus: {note}");
         }
+    }
+
+    // The limit used to be 100 and nothing said so: 100 rows came back looking
+    // like a complete answer, which is the same failure as a query that times out
+    // and reports no rows. Both are a partial answer that reads as a whole one.
+    //
+    // Two conditions, because `result.truncated` alone is not enough. It means the
+    // *parser* dropped rows, and the limit is pushed to the endpoint, so a capped
+    // result arrives already capped and the parser sees exactly as many rows as
+    // were asked for. Hitting the limit is therefore the only signal the CLI has,
+    // and it is a weaker one: it says there may be more, not that there are.
+    if let Some(limit) = args.limit
+        && (result.truncated || result.rows.len() >= limit)
+    {
+        eprintln!(
+            "lotus: showing {} rows, which is the limit you set; there may be more. \
+             Raise --limit, or drop it for all of them.",
+            result.rows.len()
+        );
     }
 
     let stdout = io::stdout().lock();
