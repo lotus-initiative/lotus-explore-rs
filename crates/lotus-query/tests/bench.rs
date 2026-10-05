@@ -279,16 +279,15 @@ fn bench_the_whole_graph() {
 
 /// Is the sort linear, or is there a cliff at a round number of rows?
 ///
-/// The main `bench` above times `sorted_order` once per size, and once told a
-/// story: 8.6 ms at 1,000,000 rows against 840.9 ms at 2,000,000. A 98x jump for
-/// twice the data is not a property of a sort, and 8.6 ms for a million-row
-/// string sort is not achievable either -- it implies ~2 ns per comparison. So one
-/// of the two numbers was wrong, and a single sample cannot say which.
+/// The main `bench` above times `sorted_order` once per size, and once told a story: 8.6 ms
+/// at 1,000,000 rows against 840.9 ms at 2,000,000. A 98x jump for twice the data is not a
+/// property of a sort, and 8.6 ms for a million-row string sort implies ~2 ns per
+/// comparison, which is not achievable either. One of the two numbers was wrong, and a
+/// single sample cannot say which.
 ///
-/// This sweeps sizes and repeats, because the shape of the curve is the question:
-/// a linear sort shows a flat `ns per row`, and a cliff shows one size where it
-/// jumps. Median and spread, on a quiet machine, with the set built once per size
-/// so the measurement is the sort and not the parse.
+/// This sweeps sizes and repeats because the shape of the curve is the question: a linear
+/// sort shows flat `ns per row`, a cliff one size where it jumps. Median and spread, set
+/// built once per size so the measurement is the sort and not the parse.
 ///
 /// ```bash
 /// cargo test -p lotus-query --release --locked -- --ignored --nocapture bench_sort_scaling

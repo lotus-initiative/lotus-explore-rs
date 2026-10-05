@@ -2,14 +2,12 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Every combination of the three search arguments, tested as a matrix.
 //!
-//! Three arguments reach the query builder, and they combine into twelve
-//! requests. The dispatch between them lives in one `match` in
-//! [`lotus_search::build_base_query`], which means a cell can be wrong without
-//! any other cell noticing: the tests elsewhere pin the *builders*, and a builder
-//! that is never called for a given combination is not covered by them.
+//! Three arguments reach the query builder and combine into twelve requests. The dispatch
+//! lives in one `match` in [`lotus_search::build_base_query`], so a cell can be wrong
+//! without any other noticing: the other tests pin the *builders*, and a builder never called
+//! for a combination is not covered by them.
 //!
-//! The twelve cells are `taxon` x `structure` x `reference`, where each is either
-//! absent or a specific value:
+//! Cells are `taxon` x `structure` x `reference`, each either absent or a specific value:
 //!
 //! ```text
 //!                  taxon absent   taxon specific   taxon "*"
@@ -19,27 +17,23 @@
 //! x reference present   +1              +1              +1
 //! ```
 //!
-//! What each cell is *allowed* to assert is different, and the distinction is the
-//! point of the file:
+//! What each cell may assert differs, and that is the point of the file:
 //!
-//! - With a taxon, the occurrence is **required**: `P703` is a plain triple, so
-//!   every row is an occurrence somebody recorded.
-//! - With no taxon, the occurrence is **optional**, and optional as *one block* --
-//!   taxon and reference together. A compound with no organism is then returned
-//!   with empty cells rather than dropped. Optional per triple would emit rows
-//!   carrying a taxon but no reference, a shape the columnar result store cannot
-//!   represent.
-//! - `*` is not "nothing given". It is the explicit request for what has been
-//!   reported, so it keeps requiring `P703`. This is asserted per cell below,
-//!   and it is the assertion that caught `*` and an empty box building the same
-//!   query.
+//! - With a taxon, the occurrence is **required**: `P703` is a plain triple, so every row
+//!   is an occurrence somebody recorded.
+//! - With no taxon, it is **optional**, and optional as *one block* -- taxon and reference
+//!   together -- so a compound with no organism returns with empty cells rather than being
+//!   dropped. Optional per triple would emit rows with a taxon but no reference, a shape the
+//!   columnar result store cannot represent.
+//! - `*` is not "nothing given": it explicitly asks what has been reported, so it keeps
+//!   requiring `P703`. Asserted per cell, and the assertion that caught `*` and an empty box
+//!   building the same query.
 //!
-//! A reference constrains `?r`, the item the reference *is*, rather than
-//! filtering a projected value. It is applied outside the base query's optional
-//! block, so a reference plus no taxon returns only the compounds that reference
-//! actually reported -- the `VALUES` cannot join against an unbound `?r`. That is
-//! asserted too, because it is the one place where the two arguments interact
-//! rather than compose.
+//! A reference constrains `?r`, the item the reference *is*, rather than filtering a projected
+//! value, and sits outside the base query's optional block -- so a reference plus no taxon
+//! returns only compounds that reference reported, the `VALUES` being unable to join against
+//! an unbound `?r`. Asserted too, being the one place the two arguments interact rather than
+//! compose.
 
 // The panic lints exist to keep library code free of panics on external input.
 // A test that fails on a bad fixture is reporting, not panicking.
@@ -88,14 +82,12 @@ impl TaxonArg {
 
     /// Whether this taxon argument asks for compounds with an occurrence.
     ///
-    /// `Absent` does not: nothing given includes the compounds nobody has tied to
-    /// an organism, and answering the narrower question without saying so is the
-    /// bug the optional block exists to avoid.
+    /// `Absent` does not: nothing given includes compounds nobody tied to an organism, and
+    /// answering the narrower question silently is the bug the optional block avoids.
     ///
-    /// `Wildcard` does, but only where the taxon reaches the query as a filter.
-    /// A structure search resolves compound identities first, so `*` there is
-    /// "every taxon" expressed by *not* filtering rather than by requiring an
-    /// occurrence -- see `a_structure_search_keeps_the_occurrence_optional`.
+    /// `Wildcard` does, but only where the taxon reaches the query as a filter. A structure
+    /// search resolves compound identities first, so `*` there is "every taxon" expressed by
+    /// *not* filtering -- see `a_structure_search_keeps_the_occurrence_optional`.
     const fn requires_occurrence(self) -> bool {
         match self {
             Self::Absent => false,
@@ -302,11 +294,10 @@ fn is_balanced(query: &str) -> bool {
 
 /// Every `^` in a property path applies to exactly one alternative.
 ///
-/// `^` binds tighter than `|`, so `^a|b` reads as "inverse of a, or b" and the
-/// properties after the first are read forwards only. That is the bug class this
-/// checks: it returns rows, so the query looks fine and answers a different
-/// question. A correct path parenthesises every alternative or gives each its own
-/// `^`, which means every `^` is preceded by `(` or `|`.
+/// `^` binds tighter than `|`, so `^a|b` reads as "inverse of a, or b" and later properties
+/// are read forwards only -- a bug class that returns rows, so the query looks fine and
+/// answers a different question. A correct path parenthesises each alternative or gives
+/// it its own `^`, meaning every `^` is preceded by `(` or `|`.
 fn inverses_are_scoped(query: &str) -> bool {
     query
         .match_indices('^')
@@ -430,14 +421,13 @@ fn an_absent_taxon_makes_one_optional_block_not_one_per_triple() {
 
 /// A structure search over *every* taxon keeps the occurrence optional.
 ///
-/// The compound is already known by the time the rows are wanted -- a name or
-/// exact-structure search resolves to Wikidata identities first -- so a compound
-/// nobody has tied to an organism is exactly the compound being looked for.
+/// The compound is already known when the rows are wanted -- a name or exact-structure search
+/// resolves to Wikidata identities first -- so a compound nobody tied to an organism is
+/// exactly the compound being looked for.
 ///
-/// A structure search *within a named taxon* is the opposite, and deliberately so:
-/// there the occurrence is required, because a match that is not an occurrence in
-/// the requested taxon is not an answer to the question. So this covers the
-/// no-taxon and wildcard cells only, and `taxon=specific` is asserted as required.
+/// Within a named taxon the opposite holds, deliberately: the occurrence is required, since a
+/// match that is not an occurrence in the requested taxon is not an answer. So this covers
+/// the no-taxon and wildcard cells; `taxon=specific` is asserted as required.
 #[test]
 fn a_structure_search_without_a_named_taxon_keeps_the_occurrence_optional() {
     for cell in MATRIX
@@ -467,12 +457,11 @@ fn a_structure_search_without_a_named_taxon_keeps_the_occurrence_optional() {
 
 /// A reference binds `?r` as a `VALUES`, outside the optional block.
 ///
-/// Two things follow, and only the first is obvious. A `FILTER(?r = wd:Q…)`
-/// would be wrong for an unbound `?r` -- a compound with no occurrence, which is
-/// precisely what a structure search exists to find -- because comparing against
-/// an error drops it. And because the `VALUES` sits outside the block, asking for
-/// a reference *with* no taxon returns only the compounds that reference reported,
-/// even though the block is optional: an unbound `?r` cannot join.
+/// Two things follow, only the first obvious. A `FILTER(?r = wd:Q…)` is wrong for an
+/// unbound `?r` -- a compound with no occurrence, precisely what a structure search exists
+/// to find -- because comparing against an error drops it. And because the `VALUES` sits
+/// outside the block, a reference *with* no taxon returns only the compounds that reference
+/// reported, though the block is optional: an unbound `?r` cannot join.
 #[test]
 fn a_reference_binds_the_reference_item_as_a_values() {
     for cell in MATRIX.iter().filter(|c| c.reference) {

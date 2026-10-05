@@ -1,19 +1,18 @@
 # The CI gate.
 #
 # Every job here runs a task through `./mk`, the same command a contributor runs.
-# The task definitions live in `Makefile.toml` and `make/*.toml`, and the local
-# gate is `./mk ci`, so there is one list of what "green" means and this file is
-# the runner for it. That is the whole point of the arrangement: when the
-# workflow and the local command each spelled out the cargo flags, they drifted,
-# and a check that was supposed to run locally did not.
+# The task definitions live in `Makefile.toml` and `make/*.toml`, and the local gate
+# is `./mk ci`, so there is one list of what "green" means and this file is the
+# runner for it. When the workflow and the local command each spelled out the cargo
+# flags, they drifted, and a check that was supposed to run locally did not.
 #
-# `./mk` and not `cargo make` because cargo-make's workspace support re-runs
-# every task once per crate -- eight times here. `mk` holds `--no-workspace`;
-# see the comment in that file.
+# `./mk` and not `cargo make` because cargo-make's workspace support re-runs every
+# task once per crate -- eight times here. `mk` holds `--no-workspace`; see the
+# comment in that file.
 #
-# `apps/lotus-explore-rs/tests/gate_consistency.rs` checks that this file, the
-# `ci` task and `prek.toml` name the same set of checks, and fails the build if
-# they do not.
+# `apps/lotus-explore-rs/tests/gate_consistency.rs` checks that this file, the `ci`
+# task and `prek.toml` name the same set of checks, and fails the build if they do
+# not.
 #
 # Actions are pinned by SHA, not by tag, so a tag that moves cannot change what
 # runs on a pull request from a fork. The comment on each pin is the tag.
@@ -30,9 +29,8 @@ on:
 permissions:
   contents: read
 
-# A superseded run on the same ref is cancelled: a push that lands while a
-# previous push is still building makes the newer commit's result the one that
-# matters, and the older one has nothing left to say.
+# A superseded run on the same ref is cancelled: the older run has nothing left to
+# say once a newer push lands.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -49,11 +47,11 @@ env:
   RUSTFLAGS: "-D warnings"
 
 jobs:
-  # ── The gate ────────────────────────────────────────────────────────────────
-  # One job that runs `./mk ci`. It is deliberately not eleven jobs: the
-  # reason the eleven existed was to report *which* check failed, and a JUnit
-  # artifact plus a named step does that without eleven toolchain installs,
-  # eleven cargo caches and eleven chances for the runner to be the slow part.
+  # The gate.
+  # One job that runs `./mk ci`. Deliberately not eleven jobs: the reason the
+  # eleven existed was to report *which* check failed, and a JUnit artifact plus a
+  # named step does that without eleven toolchain installs, eleven cargo caches and
+  # eleven chances for the runner to be the slow part.
   ci:
     name: Gate
     runs-on: ubuntu-latest
@@ -78,14 +76,13 @@ jobs:
           components: clippy, rustfmt, llvm-tools-preview
           targets: wasm32-unknown-unknown
 
-      # `./mk ci` runs clippy with `--all-features`, and `desktop` is one of the
-      # app's features, so the gate compiles a WebView. `glib-sys` shells out to
-      # `pkg-config` for `glib-2.0 >= 2.70`, which a plain runner does not have,
-      # so the gate died in `lint` on a system library rather than on the code.
+      # `./mk ci` runs clippy with `--all-features`, and `desktop` is one of the app's
+      # features, so the gate compiles a WebView. `glib-sys` shells out to
+      # `pkg-config` for `glib-2.0 >= 2.70`, which a plain runner does not have, so
+      # the gate died in `lint` on a system library rather than on the code.
       #
-      # The desktop job installs these for the same reason; the gate is a second
-      # job that needs them. This is that job's list minus `ripgrep`, which only
-      # the desktop job's `verify-bundle` task uses.
+      # The desktop job installs these for the same reason; this is that job's list
+      # minus `ripgrep`, which only the desktop job's `verify-bundle` task uses.
       - name: Install the WebKitGTK build dependencies
         run: |
           sudo apt-get update
@@ -94,17 +91,16 @@ jobs:
             libayatana-appindicator3-dev librsvg2-dev libxdo-dev
 
 
-      # The tools the gate calls. `./mk ci` fails on a missing one rather
-      # than skipping it, which is deliberate: a supply-chain check that is
-      # silently absent on a machine where it is not installed is a check that
-      # reports nothing about the code.
+      # The tools the gate calls. `./mk ci` fails on a missing one rather than skipping
+      # it, which is deliberate: a supply-chain check silently absent on a machine
+      # where it is not installed is a check that reports nothing about the code.
       # `dejadoc` is the crate; `cargo-dejadoc` is the binary it installs.
       # `install-action` takes crate names, so naming the binary 404s here.
       # Deliberately outside the `tool:` block below: install-action reads a `#`
       # line inside one as a tool name, which is the third bug this file records.
       #
       # Pinned, unlike every tool above, because the version decides *whether the
-      # gate checks anything*. 0.3.1 checks doctests only; 0.4.0 added functions.
+      # gate checks anything*: 0.3.1 checks doctests only, 0.4.0 added functions.
       # `setup.sh` had 0.3.1 and CI resolved 0.4.0, so four duplicated functions
       # were reported here and nowhere else -- a check that reads differently
       # depending on where it runs is not the same check.
@@ -152,10 +148,10 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # ── Coverage ────────────────────────────────────────────────────────────────
-  # A separate job because it rebuilds the crate graph under instrumentation and
-  # is therefore minutes, and because coverage on every push is a number nobody
-  # reads until they want it.
+  # Coverage.
+  # A separate job because it rebuilds the crate graph under instrumentation and is
+  # therefore minutes, and because coverage on every push is a number nobody reads
+  # until they want it.
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
@@ -166,9 +162,9 @@ jobs:
         with: { persist-credentials: false, fetch-depth: 1 }
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8
         with: { shared-key: ci }
-      # `llvm-tools-preview` is in `rust-toolchain.toml`; named again here
-      # because cargo-llvm-cov needs it and a runner that somehow lacks it
-      # should say so here rather than in a coverage report.
+      # `llvm-tools-preview` is in `rust-toolchain.toml`; named again here because
+      # cargo-llvm-cov needs it and a runner that somehow lacks it should say so
+      # here rather than in a coverage report.
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with: { toolchain: 1.99.0, components: llvm-tools-preview }
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
@@ -202,10 +198,10 @@ jobs:
           path: target/llvm-cov-report/
           retention-days: 14
 
-  # ── MSRV ────────────────────────────────────────────────────────────────────
-  # The `rust-version` in the root manifest is a claim; this is the job that
-  # checks it. It runs the gate on the oldest toolchain the workspace claims to
-  # support, which is the toolchain a downstream consumer is holding.
+  # MSRV
+  # The `rust-version` in the root manifest is a claim; this is the job that checks
+  # it. It runs the gate on the oldest toolchain the workspace claims to support,
+  # which is the toolchain a downstream consumer is holding.
   msrv:
     name: MSRV (1.97)
     runs-on: ubuntu-latest
@@ -215,8 +211,8 @@ jobs:
         with: { persist-credentials: false, fetch-depth: 1 }
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8
         with: { shared-key: msrv }
-      # Deliberately NOT the pinned toolchain: this job exists to build with the
-      # oldest supported one, and `rust-toolchain.toml` would override it.
+      # Deliberately NOT the pinned toolchain: this job exists to build with the oldest
+      # supported one, and `rust-toolchain.toml` would override it.
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with: { toolchain: 1.97 }
         env:
@@ -232,14 +228,13 @@ jobs:
       - run: cargo check --workspace --all-targets --locked
       - run: cargo nextest run --workspace --locked --no-fail-fast
 
-  # ── The desktop build ───────────────────────────────────────────────────────
-  # The one target nothing else builds. Every desktop-only bug so far -- an
-  # unstyled window, a no-op download, a 404 for the toolkit -- compiled
+  # The desktop build: the one target nothing else builds. Every desktop-only bug so
+  # far -- an unstyled window, a no-op download, a 404 for the toolkit -- compiled
   # cleanly, because no other job enabled the feature.
   #
-  # It needs the WebKitGTK build dependencies, the fetched assets and a `dx`
-  # build, so it cannot run on a checkout that has not fetched them and it is
-  # not in `./mk ci`.
+  # It needs the WebKitGTK build dependencies, the fetched assets and a `dx` build,
+  # so it cannot run on a checkout that has not fetched them and it is not in
+  # `./mk ci`.
   desktop:
     name: Desktop build
     runs-on: ubuntu-latest
@@ -252,16 +247,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with: { toolchain: 1.99.0, components: clippy }
 
-      # `dioxus-desktop` reaches WebKitGTK through `wry`, whose `*-sys` crates
-      # shell out to `pkg-config` at build time, and `tao` links `libxdo` for
-      # window dragging. Without these the job dies in `glib-sys`/`gobject-sys`
-      # or at link time with `unable to find library -lxdo`, before compiling any
-      # of our code -- the same shape of failure as a missing asset, and equally
-      # unrelated to the change under test.
+      # `dioxus-desktop` reaches WebKitGTK through `wry`, whose `*-sys` crates shell out
+      # to `pkg-config` at build time, and `tao` links `libxdo` for window dragging.
+      # Without these the job dies in `glib-sys`/`gobject-sys` or at link time with
+      # `unable to find library -lxdo`, before compiling any of our code -- the same
+      # shape of failure as a missing asset, and equally unrelated to the change
+      # under test.
       #
-      # `ripgrep` is here for `verify-bundle`, which reads Ketcher's own
-      # `src`/`href` references out of its index.html. It is not on the runner by
-      # default, and without it the task fails on its last check.
+      # `ripgrep` is here for `verify-bundle`, which reads Ketcher's own `src`/`href`
+      # references out of its index.html. It is not on the runner by default, and
+      # without it the task fails on its last check.
       - name: Install the WebKitGTK build dependencies
         run: |
           sudo apt-get update
@@ -270,9 +265,9 @@ jobs:
             libayatana-appindicator3-dev librsvg2-dev libxdo-dev \
             ripgrep
 
-      # The crate is `dioxus-cli`, not `dx`: `dx` is the binary it installs and
-      # is not published to crates.io, so `dx@0.7.10` failed to resolve. The
-      # version matches the `dioxus` dependency.
+      # The crate is `dioxus-cli`, not `dx`: `dx` is the binary it installs and is not
+      # published to crates.io, so `dx@0.7.10` failed to resolve. The version
+      # matches the `dioxus` dependency.
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: |
@@ -284,11 +279,10 @@ jobs:
       - name: Build the desktop app and verify the bundle
         run: ./mk desktop
 
-  # ── Container images ────────────────────────────────────────────────────────
-  # Built, not pushed: there is no registry and no release yet, and pushing is
-  # deferred with the rest of the release tooling. What this proves is that the
-  # Dockerfile still builds, that the layer cache works, and that the runtime
-  # image passes the healthcheck it declares.
+  # Container images. Built, not pushed: there is no registry and no release yet,
+  # and pushing is deferred with the rest of the release tooling. What this proves
+  # is that the Dockerfile still builds, that the layer cache works, and that the
+  # runtime image passes the healthcheck it declares.
   docker:
     name: Container image
     runs-on: ubuntu-latest
@@ -303,8 +297,8 @@ jobs:
             cargo-binstall
             cargo-make
 
-      # The ~115 MB asset fetch is the slow part and it is inside the image
-      # build, so the timeout is generous by necessity rather than by caution.
+      # The ~115 MB asset fetch is the slow part and it is inside the image build, so
+      # the timeout is generous by necessity rather than by caution.
       - name: Build the runtime image
         run: ./mk docker-build
       - name: Assert the image runs as non-root and passes its healthcheck

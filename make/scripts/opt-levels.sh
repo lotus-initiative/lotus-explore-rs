@@ -10,10 +10,10 @@ cd "$(git rev-parse --show-toplevel)"
 profile=$(sed -n 's/^opt-level = "\(.\)"/\1/p' Cargo.toml | head -1)
 wasmopt=$(sed -n '/^\[web.wasm_opt\]/,/^\[/ s/^level = "\(.\)"/\1/p' apps/lotus-explore-rs/Dioxus.toml | head -1)
 # Only the values actually passed to a `dx` invocation, so this script cannot
-# match its own source and the prose in `make/web.toml` cannot either. The
-# anchor is a non-comment line; the doc comment above the release build names
-# `-Copt-level=` too, and reading that as a second declaration is how a
-# two-value check would come to report a mismatch that is only a sentence.
+# match its own source and the prose in `make/web.toml` cannot either. The anchor
+# is a non-comment line; the doc comment above the release build names
+# `-Copt-level=` too, and reading that as a second declaration is how a two-value
+# check would come to report a mismatch that is only a sentence.
 levels=$(grep -hv '^\s*#' make/*.toml | grep -ho -- '-Copt-level=.' | sed 's/.*=//' | sort -u | tr '\n' ' ')
 
 printf 'Cargo.toml [profile.release]   opt-level = %s\n' "$profile"

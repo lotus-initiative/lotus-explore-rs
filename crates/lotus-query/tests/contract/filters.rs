@@ -116,12 +116,11 @@ fn the_filter_fragments_land_in_the_outermost_where_block() {
     // The filter constrains `?ref_date`, which the middle subquery already
     // projects, and adds **no** triple of its own.
     //
-    // It used to add a required `?r wdt:P577 ?_year_date` at the outermost level.
-    // `?r` is bound by the occurrence block, which is optional in the taxon-free
-    // shapes, so a required triple on an unbound `?r` goes fresh and asks for
-    // every dated reference in Wikidata: 30 s and zero rows, the timeout reading
-    // as "nothing matched". And even with a sentinel in front of it, a narrower
-    // year range returned nothing while a wider one returned hundreds -- which a
+    // It used to add a required `?r wdt:P577 ?_year_date` at the outermost level. `?r` is
+    // bound by the occurrence block, optional in the taxon-free shapes, so a required triple
+    // on an unbound `?r` goes fresh and asks for every dated reference in Wikidata: 30s and
+    // zero rows, the timeout reading as "nothing matched". Even with a sentinel in front, a
+    // narrower year range returned nothing while a wider one returned hundreds -- which a
     // correct engine cannot do for two queries differing in one digit.
     assert!(
         !injected.contains("_year_date"),

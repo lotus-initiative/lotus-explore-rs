@@ -1,30 +1,30 @@
 #!/usr/bin/env bash
 # Install every tool the other tasks call, at a pinned version.
 #
-# `cargo binstall` is used where it is available because compiling these from
-# source is minutes each and they are prebuilt binaries. It is not a
-# requirement: `cargo install --locked --version` produces the same binary, just
-# slower, so a contributor without binstall gets the same set, later.
+# `cargo binstall` is used where available because compiling these from source is
+# minutes each and they are prebuilt binaries. It is not a requirement:
+# `cargo install --locked --version` produces the same binary, just slower, so a
+# contributor without binstall gets the same set, later.
 #
-# Versions are pinned rather than floating. A tool that changes its output
-# between releases changes what a task prints, and a task whose output is
-# asserted on -- `opt-levels` and the JUnit report both are -- is a task whose
-# failure is a version bump rather than a defect.
+# Versions are pinned rather than floating. A tool that changes its output between
+# releases changes what a task prints, and a task whose output is asserted on --
+# `opt-levels` and the JUnit report both are -- is a task whose failure is a
+# version bump rather than a defect.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-# The toolchain itself, from rust-toolchain.toml. rustup reads that file, so
-# this is one line and it cannot disagree with the pin.
+# The toolchain itself, from rust-toolchain.toml. rustup reads that file, so this
+# is one line and it cannot disagree with the pin.
 echo "==> toolchain"
 rustup show active-toolchain || rustup toolchain install
 
 # The Dioxus version the `dioxus` dependency is pinned to. Read rather than
 # repeated, because the two drifting is the failure this whole task exists to
-# stop: `dx` building an app against a different Dioxus is a build that
-# succeeds and an app that does not run.
-# The `.*` is deliberately non-greedy in the version itself and the closing
-# quote is explicit: a greedy match runs past the version to the *last* quote on
-# the line, which is the one closing `features = [...]`, so the result was
+# stop: `dx` building an app against a different Dioxus is a build that succeeds
+# and an app that does not run.
+# The `.*` is deliberately non-greedy in the version itself and the closing quote
+# is explicit: a greedy match runs past the version to the *last* quote on the
+# line, which is the one closing `features = [...]`, so the result was
 # `0.7.10", default-features = false, features = ["asset", ...`. It failed as an
 # argument to `cargo install --version` and named dioxus-cli as the cause, which
 # is the worst kind of wrong.
@@ -41,8 +41,8 @@ install_tool() {
   local spec="$crate@$version"
   echo "==> $spec"
   if $have_binstall; then
-    # `--no-confirm` because this is a script, and a prompt nobody is there to
-    # answer is a hang rather than a question.
+    # `--no-confirm` because this is a script, and a prompt nobody is there to answer
+    # is a hang rather than a question.
     if cargo binstall --no-confirm "$spec"; then
       return
     fi
@@ -53,8 +53,8 @@ install_tool() {
 
 # Test runner. Without this every other task that mentions tests is wrong.
 install_tool cargo-nextest 0.9.146
-# This task runner. Installing it is a chicken-and-egg for `./mk setup`,
-# which is why the first thing to try is a plain `cargo install`.
+# This task runner. Installing it is a chicken-and-egg for `./mk setup`, which is
+# why the first thing to try is a plain `cargo install`.
 install_tool cargo-make 0.37.24
 
 # Lints and manifest hygiene.
@@ -71,13 +71,12 @@ install_tool cargo-machete 0.9.2
 install_tool cargo-outdated 0.19.0
 # `cargo geiger` for the transitive unsafe audit, `cargo udeps` for unused
 # dependencies the manifest scan cannot see. Both are on the weekly schedule
-# rather than the gate, so a slow or advisory-heavy one cannot turn the gate
-# red.
+# rather than the gate, so a slow or advisory-heavy one cannot turn the gate red.
 install_tool cargo-geiger 0.13.0
 install_tool cargo-udeps 0.1.61
 
-# Coverage and mutation testing. The nextest integration is what makes the
-# coverage report describe the same run the suite performs.
+# The nextest integration is what makes the coverage report describe the same run
+# the suite performs.
 install_tool cargo-llvm-cov 0.9.1
 install_tool cargo-mutants 27.1.0
 
@@ -90,7 +89,7 @@ install_tool cargo-bloat 0.12.1
 # placeholder with no binary, so `cargo install tombi-cli` produces nothing. The
 # real binary is a GitHub release, and the version is read from `prek.toml` so
 # the hook and this cannot be pinned to different releases -- the same reasoning
-# as `dx` below, and for the same reason.
+# as `dx` below.
 TOMBI_VERSION=$(sed -n '/tombi-pre-commit/{n;s/rev = "v\([^"]*\)"/\1/p;}' prek.toml | head -1)
 : "${TOMBI_VERSION:?could not read the tombi version from prek.toml}"
 echo "==> tombi ${TOMBI_VERSION}"

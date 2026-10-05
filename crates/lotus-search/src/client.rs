@@ -36,11 +36,10 @@ pub type ChunkFuture<'a> =
 
 /// A response body being read a chunk at a time.
 ///
-/// This is what makes a result set larger than memory possible: the payload is
-/// never assembled, so peak cost is the finished set plus one chunk. Reading a
-/// response with [`HttpResponse::text`] instead costs the whole payload at once,
-/// which for the widest search measured is 2,990,730 edges at the 314 B/row a real export measures is about 940 MB of CSV against a 200 MB
-/// budget.
+/// What makes a result set larger than memory possible: the payload is never assembled, so
+/// peak cost is the finished set plus one chunk. [`HttpResponse::text`] costs the whole
+/// payload at once -- for the widest search measured, 2,990,730 edges at the 314 B/row a
+/// real export averages, about 940 MB of CSV against a 200 MB budget.
 pub trait BodyChunks {
     /// The next chunk, or `None` at end of body.
     fn next_chunk(&mut self) -> ChunkFuture<'_>;
@@ -121,12 +120,10 @@ pub trait Http: Clone + Send + Sync + 'static {
 
     /// POST a form-encoded query **with request headers**, asking for `accept`.
     ///
-    /// Separate from [`Http::post`] because only some transports can set headers,
-    /// and because the ones that cannot should not have to pretend: the default
-    /// ignores them, which is correct for a scripted test double and is the whole
-    /// reason this is an added method rather than a changed signature. Every
-    /// implementation in this workspace that talks to a real service overrides
-    /// it.
+    /// Separate from [`Http::post`] because only some transports can set headers and the
+    /// others should not have to pretend: the default ignores them, correct for a scripted
+    /// test double, which is why this is an added method rather than a changed signature.
+    /// Every implementation here that talks to a real service overrides it.
     fn post_form(
         &self,
         endpoint: &str,
@@ -160,12 +157,11 @@ mod tests {
     //! The default methods on the two traits, which are what a transport gets for
     //! free when it does not need the capability.
     //!
-    //! `post_json` and `into_chunks` are refusals rather than fallbacks, and both
-    //! had no test: every transport in this crate's test suite is scripted and
-    //! overrides whatever it needs, so the defaults were compiled and never
-    //! called. That left the one behaviour a *third-party* implementor of these
-    //! traits depends on -- the error they get when they do not override --
-    //! unpinned.
+    //! `post_json` and `into_chunks` are refusals, not fallbacks, and both were untested: every
+    //! transport in this crate's suite is scripted and overrides what it needs, so the
+    //! defaults were compiled and never called. That left the one behaviour a
+    //! *third-party* implementor depends on -- the error they get when they do not
+    //! override -- unpinned.
     //!
     //! The stubs below implement the four required methods and override nothing
     //! else, which is exactly the case the defaults exist for.

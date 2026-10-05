@@ -4,40 +4,38 @@
 #   docker compose up --build            # the API and the web client on :8787
 #   docker compose run --rm cli --help   # the CLI, same image family
 #
-# This is the shape a deployment behind a reverse proxy wants: the container
-# binds one port, serves HTTP only, and trusts the proxy to terminate TLS and to
-# set the forwarding headers. The `runtime` image has no `X-Forwarded-*` handling
-# of its own, so the proxy is what supplies it, and a proxy that does not is a
-# deployment whose logs name the proxy's address for every request.
+# This is the shape a deployment behind a reverse proxy wants: the container binds
+# one port, serves HTTP only, and trusts the proxy to terminate TLS and to set the
+# forwarding headers. The `runtime` image has no `X-Forwarded-*` handling of its
+# own, so the proxy supplies it, and a proxy that does not is a deployment whose
+# logs name the proxy's address for every request.
 
 services:
-  # The API and the web client in one process. This is `target runtime`.
   web:
     build:
       context: .
       target: runtime
       args:
-        # Overridable so `docker compose build --build-arg RUST_VERSION=...`
-        # can test the Dockerfile against another toolchain without editing it.
+        # Overridable so `docker compose build --build-arg RUST_VERSION=...` can
+        # test the Dockerfile against another toolchain without editing it.
         RUST_VERSION: "1.99.0"
         VCS_REF: "${VCS_REF:-local}"
     image: lotus-explore-rs:local
     container_name: lotus-explore-rs
     ports:
-      # 8080 on the host, 8787 in the container. The server listens on
-      # `0.0.0.0` inside the container because that is the only way it is
-      # reachable at all; the host side is mapped explicitly rather than with a
-      # bare `- 8787`, so a second project's port does not collide.
+      # 8080 on the host, 8787 in the container. The server listens on `0.0.0.0`
+      # inside the container because that is the only way it is reachable at all;
+      # the host side is mapped explicitly rather than with a bare `- 8787`, so a
+      # second project's port does not collide.
       - "127.0.0.1:8080:8787"
     environment:
       HOST: "0.0.0.0"
       PORT: "8787"
       PUBLIC_DIR: "/app/public"
       RUST_LOG: "info"
-    # The container runs as `nonroot` (uid 65532) and the image is
-    # read-only-rootfs-friendly: the server writes nothing to disk. A writable
-    # root is here only so a developer can bind-mount a file into it without
-    # rebuilding.
+    # The container runs as `nonroot` (uid 65532) and is read-only-rootfs-friendly:
+    # the server writes nothing to disk. A writable root is here only so a
+    # developer can bind-mount a file into it without rebuilding.
     #
     # For a deployment, set `read_only: true`; nothing in the image needs to
     # write, so the tmpfs for /tmp is belt-and-braces against a dependency that
@@ -45,16 +43,16 @@ services:
     read_only: false
     tmpfs:
       - /tmp
-    # `cap_drop: ALL` because the server binds an unprivileged port and needs
-    # no capability to do it. `no-new-privileges` so nothing can gain one.
+    # `cap_drop: ALL` because the server binds an unprivileged port and needs no
+    # capability to do it. `no-new-privileges` so nothing can gain one.
     cap_drop:
       - ALL
     security_opt:
       - no-new-privileges:true
-    # The image's own HEALTHCHECK, which is `lotus-healthcheck` against
-    # `/health`. `start_period` matches the image's: the first query to a public
-    # SPARQL endpoint is the slow one, and a container that is not yet answering
-    # because it is waiting on Wikidata is not unhealthy.
+    # The image's own HEALTHCHECK, which is `lotus-healthcheck` against `/health`.
+    # `start_period` matches the image's: the first query to a public SPARQL
+    # endpoint is the slow one, and a container that is not yet answering because
+    # it is waiting on Wikidata is not unhealthy.
     healthcheck:
       test: ["CMD", "/usr/local/bin/lotus-healthcheck", "127.0.0.1", "8787", "/health"]
       interval: 30s
@@ -62,9 +60,9 @@ services:
       start_period: 10s
       retries: 3
     restart: unless-stopped
-    # The API is chatty about a query being slow, and a reverse proxy in front
-    # will have its own timeout well below the server's own 45s, so this is set
-    # to match the server rather than to hide it.
+    # The API is chatty about a query being slow, and a reverse proxy in front will
+    # have its own timeout well below the server's own 45s, so this is set to match
+    # the server rather than to hide it.
     logging:
       driver: json-file
       options:
@@ -72,8 +70,8 @@ services:
         max-file: "3"
 
   # The web client with no API behind it, for a deployment that already has a
-  # proxy. `target static`, on nginx-unprivileged, so it also runs as non-root
-  # and listens on 8080 rather than 80.
+  # proxy. `target static`, on nginx-unprivileged, so it also runs as non-root and
+  # listens on 8080 rather than 80.
   #
   # Not started by `docker compose up`: it is an alternative to `web`, not an
   # addition to it. Start it with `docker compose --profile static up static`.
@@ -102,13 +100,13 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # The `lotus` binary, as an image. `run --rm cli search --taxon ...` runs a
+  # The `lotus` binary as an image. `run --rm cli search --taxon ...` runs a
   # one-shot query against the same code the web app runs, which is the point of
   # the shared crates and the reason this stage exists rather than a
   # `cargo install` on the host.
   #
-  # A `profiles` entry for the same reason as `static`: it is not a service,
-  # it is a way to run a binary.
+  # A `profiles` entry for the same reason as `static`: it is not a service, it is
+  # a way to run a binary.
   cli:
     profiles: ["cli"]
     build:
@@ -128,11 +126,11 @@ services:
     command: ["lotus", "--help"]
 
 # No `volumes:`. The container serves files baked into the image and fetches
-# nothing at runtime except SPARQL queries, so a bind mount would only be a way
-# to run different code than the one that was built.
+# nothing at runtime except SPARQL queries, so a bind mount would only be a way to
+# run different code than the one that was built.
 #
 # A deployment adds one thing here: the proxy that terminates TLS. This file
-# deliberately does not include one, because a local `docker compose up` behind
-# an SSH tunnel or a port-forward is a perfectly good way to work on the app,
-# and a self-signed certificate in a development environment is a worse
-# inconvenience than the one it prevents.
+# deliberately does not include one, because a local `docker compose up` behind an
+# SSH tunnel or a port-forward is a perfectly good way to work on the app, and a
+# self-signed certificate in a development environment is a worse inconvenience
+# than the one it prevents.

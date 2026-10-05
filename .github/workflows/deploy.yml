@@ -17,9 +17,9 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # The build fetches ~115 MB and compiles the wasm bundle. Without a ceiling a
-    # hung network call holds the job for the six-hour runner limit instead of
-    # failing in one where the log says what happened.
+    # The build fetches ~115 MB and compiles the wasm bundle. Without a ceiling a hung
+    # network call holds the job for the six-hour runner limit instead of failing in
+    # one where the log says what happened.
     timeout-minutes: 45
     environment:
       name: github-pages
@@ -28,23 +28,23 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with: { persist-credentials: false, fetch-depth: 1 }
 
-      # No Rust toolchain on the host, and no cargo cache. Every build step below
-      # runs inside the image -- `dx build` compiles the wasm bundle in the
-      # Dockerfile's own `wasm-builder` stage -- so a host toolchain would be
-      # installed, cached and never used. The compiler that produces this site
-      # is the one in `rust-toolchain.toml`, read by the Dockerfile.
+      # No Rust toolchain on the host, and no cargo cache. Every build step below runs
+      # inside the image -- `dx build` compiles the wasm bundle in the Dockerfile's
+      # own `wasm-builder` stage -- so a host toolchain would be installed, cached
+      # and never used. The compiler that produces this site is the one in
+      # `rust-toolchain.toml`, read by the Dockerfile.
       #
       # This replaces a pinned `dtolnay/rust-toolchain` step that existed to keep
-      # the deploy's compiler in step with the gate's. That concern moved into
-      # the Dockerfile, which reads the same file, so it cannot drift.
+      # the deploy's compiler in step with the gate's. That concern moved into the
+      # Dockerfile, which reads the same file, so it cannot drift.
       - uses: docker/setup-buildx-action@594f3bf4285d9ea8dc53c9a0c9c4092420091003
 
-      # The build fetches ~115 MB from four hosts. The retries inside
-      # fetch-assets cover a blip within one request; this covers the run as a
-      # whole, where a network cut part way through leaves a build context the
-      # next attempt would reuse with half its layers cached. A fresh
-      # _final_site each time matters for the same reason: a partial output from
-      # a failed attempt would otherwise be published by the one that followed.
+      # The build fetches ~115 MB from four hosts. The retries inside fetch-assets cover
+      # a blip within one request; this covers the run as a whole, where a network
+      # cut part way through leaves a build context the next attempt would reuse with
+      # half its layers cached. A fresh _final_site each time matters for the same
+      # reason: a partial output from a failed attempt would otherwise be published by
+      # the one that followed.
       - name: Build webapp with Docker (fetches Ketcher + dx build)
         run: |
           REPONAME="${GITHUB_REPOSITORY#*/}"
@@ -62,10 +62,10 @@ jobs:
             sleep 15
           done
 
-      # A `dx build` that dies after emitting the module but before wasm-opt
-      # leaves the unoptimised intermediate in place, and the export stage copies
-      # the whole `public` tree — so a build that somehow completed with one
-      # would publish it. 65 MB of debug-info wasm has no business on the site.
+      # A `dx build` that dies after emitting the module but before wasm-opt leaves the
+      # unoptimised intermediate in place, and the export stage copies the whole
+      # `public` tree — so a build that somehow completed with one would publish it.
+      # 65 MB of debug-info wasm has no business on the site.
       - name: Verify no unoptimised wasm reached the export
         run: |
           test ! -e _final_site/wasm
@@ -95,12 +95,12 @@ jobs:
           test ! -e _final_site/assets/styles.css
           ! grep -Eq '(@import "tailwindcss"|@source)' _final_site/assets/lotus-explore.css
 
-      # The structure editor and the toolkit are fetched, gitignored, and now
-      # referenced with `option_asset!` so a bare checkout can compile. That
-      # trade has a cost: if `fetch-assets` fails inside the image, the build no
-      # longer fails -- it produces a site with no editor and no toolkit, and
-      # every other check here still passes. Assert them in the export, where a
-      # missing one is otherwise indistinguishable from a working site.
+      # The structure editor and the toolkit are fetched, gitignored, and now referenced
+      # with `option_asset!` so a bare checkout can compile. That trade has a cost:
+      # if `fetch-assets` fails inside the image, the build no longer fails -- it
+      # produces a site with no editor and no toolkit, and every other check here
+      # still passes. Assert them in the export, where a missing one is otherwise
+      # indistinguishable from a working site.
       - name: Verify the third-party assets are exported
         run: |
           for f in assets/ketcher/index.html \
@@ -110,17 +110,17 @@ jobs:
             test -f "_final_site/$f" || {
               echo "::error::missing $f from the export"; exit 1; }
           done
-          # The editor loads its chunks by relative path, so the directory has to
-          # have travelled whole rather than as a lone entry document.
+          # The editor loads its chunks by relative path, so the directory has to have
+          # travelled whole rather than as a lone entry document.
           n=$(find _final_site/assets/ketcher -type f | wc -l | tr -d ' ')
           test "$n" -ge 20 || {
             echo "::error::only $n ketcher files exported; expected the whole directory"; exit 1; }
 
-      # Agent discoverability lives entirely in this one directory, and the
-      # upload step strips dot-directories by default (see include-hidden-files
-      # below). Every file here 404'd for exactly that reason, which is what an
-      # ARD registry reports as "catalog file could not be loaded". Assert them
-      # in the exported tree so that class of regression is a red build.
+      # Agent discoverability lives entirely in this one directory, and the upload step
+      # strips dot-directories by default (see include-hidden-files below). Every
+      # file here 404'd for exactly that reason, which is what an ARD registry
+      # reports as "catalog file could not be loaded". Assert them in the exported
+      # tree so that class of regression is a red build.
       - name: Verify agent-discovery manifests are exported
         run: |
           for f in ai-catalog.json api-catalog.json agent-skills.json security.txt; do
@@ -129,11 +129,11 @@ jobs:
           done
           python3 -c "import json,sys;json.load(open('_final_site/.well-known/ai-catalog.json'))"
 
-      # `.DS_Store` is not tracked, so a clean checkout has none — but a local
-      # `dx build` copies any that sit in the source `public/` into the bundle,
-      # and the export runs on a machine that may have them. The upload now
-      # includes dotfiles, so strip the junk here rather than publish it. The
-      # glob also catches `.DS_Store.br`, the precompressed sibling `dx` emits.
+      # `.DS_Store` is not tracked, so a clean checkout has none — but a local `dx build`
+      # copies any that sit in the source `public/` into the bundle, and the export
+      # runs on a machine that may have them. The upload now includes dotfiles, so
+      # strip the junk here rather than publish it. The glob also catches
+      # `.DS_Store.br`, the precompressed sibling `dx` emits.
       - name: Strip editor and OS junk from the export
         run: find _final_site -name '.DS_Store*' -delete
 

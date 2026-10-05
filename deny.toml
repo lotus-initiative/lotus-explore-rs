@@ -1,7 +1,7 @@
 [graph]
 all-features = true
 
-# ── Advisories ────────────────────────────────────────────────────────────────
+# Advisories
 [advisories]
 db-path = "$CARGO_HOME/advisory-dbs"
 db-urls = ["https://github.com/rustsec/advisory-db"]
@@ -9,17 +9,16 @@ db-urls = ["https://github.com/rustsec/advisory-db"]
 # exists and cargo-deny reports "No safe upgrade is available!" for each. They
 # are transitive, and the authors' own position is that they are finished rather
 # than abandoned -- dtolnay, who wrote `paste`, says so in its issue tracker.
-#
-# A crate that nobody maintains is a risk only if it needs maintaining. These
-# three are build-time helpers with no open security surface here, and there is
-# no version to move to. Re-check them when a patched release appears.
+# A crate that nobody maintains is a risk only if it needs maintaining: these three
+# are build-time helpers with no open security surface here, and there is no
+# version to move to. Re-check when a patched release appears.
 ignore = [
   "RUSTSEC-2024-0370",  # proc-macro-error is unmaintained
   "RUSTSEC-2024-0436",  # paste is unmaintained
   "RUSTSEC-2025-0057",  # fxhash is unmaintained
 ]
 
-# ── Licenses ──────────────────────────────────────────────────────────────────
+# Licenses
 # All project crates are AGPL-3.0-only. Dependencies must carry a license
 # compatible with the GNU Affero General Public License v3 or later.
 [licenses]
@@ -39,31 +38,30 @@ allow = [
   "bzip2-1.0.6",
   # MPL-2.0, file-level copyleft, from the HTML and CSS parsers the WebKit
   # bindings pull in (`cssparser`, `selectors`, `option-ext`). Compatible with
-  # AGPL-3.0 for a dependency whose files we do not modify, which is the only
-  # way it appears here -- every one of them is transitive.
+  # AGPL-3.0 for a dependency whose files we do not modify, which is the only way
+  # it appears here -- every one of them is transitive.
   "MPL-2.0",
-  # NCSA and the LLVM exception, both from `target-lexicon`, a build dependency
-  # of the wasm bindings. The exception only carves the compiler's builtins out
-  # of Apache-2.0's patent grant, so it is Apache-2.0 for this purpose.
+  # NCSA and the LLVM exception, both from `target-lexicon`, a build dependency of
+  # the wasm bindings. The exception only carves the compiler's builtins out of
+  # Apache-2.0's patent grant, so it is Apache-2.0 for this purpose.
   "NCSA",
   "Apache-2.0 WITH LLVM-exception",
 ]
 
 [licenses.private]
-# All workspace crates are unpublished first-party applications/libraries
-# (`publish = false`) and use AGPL-3.0-only intentionally. Keep third-party
-# dependency licensing strict while excluding these private crates from the
-# dependency-license gate.
+# All workspace crates are unpublished first-party crates (`publish = false`) and
+# use AGPL-3.0-only intentionally. Keeps third-party dependency licensing strict
+# while excluding these private crates from the dependency-license gate.
 ignore = true
 
-# ── Dependency bans ───────────────────────────────────────────────────────────
+# Dependency bans
 [bans]
 # Deny wildcard version requirements — they are unpinnable and unsafe.
 wildcards = "deny"
 # Highlight all transitive duplication in output.
 highlight = "all"
 
-# Duplicates: deny by default; carve out intentional exceptions below.
+# Duplicates are denied by default; the entries below are the intentional exceptions.
 multiple-versions = "deny"
 
 # Only allow the duplicate crates that are actually present in the current
@@ -88,15 +86,15 @@ skip = [
   { name = "thiserror" },
   { name = "thiserror-impl" },
   # `dioxus-web` 0.7.10 pins 0.4 while the rest of the graph resolves 0.5. Neither
-  # version is chosen here; the duplicate arrives with Dioxus. `wasm-streams` is only
-  # ever reached on wasm32, which no native build compiles, so the duplication costs
-  # nothing outside the browser bundle.
+  # version is chosen here; the duplicate arrives with Dioxus. `wasm-streams` is
+  # reached only on wasm32, which no native build compiles, so the duplication
+  # costs nothing outside the browser bundle.
   { name = "wasm-streams" },
   { name = "windows-sys" },
   { name = "winnow" },
-  # Added with the `desktop` feature, which pulls the WebKit and image stacks
-  # and their build-time parsers. Re-audited against the current lockfile; the
-  # pairs are two major versions of the same crate, not a second copy of a
+  # Added with the `desktop` feature, which pulls the WebKit and image stacks and
+  # their build-time parsers. Re-audited against the current lockfile; the pairs
+  # are two major versions of the same crate, not a second copy of a
   # security-sensitive one.
   { name = "bitflags" },
   { name = "convert_case" },
@@ -132,7 +130,7 @@ skip = [
   { name = "windows_x86_64_msvc" },
 ]
 
-# ── Source policy ─────────────────────────────────────────────────────────────
+# Source policy
 # Only allow crates from crates.io. Deny all unknown registries and git deps.
 [sources]
 unknown-registry = "deny"

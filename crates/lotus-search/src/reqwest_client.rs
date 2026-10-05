@@ -173,14 +173,13 @@ impl HttpResponse for reqwest::Response {
 /// How long a streamed body may go without yielding a byte before it is called
 /// stalled.
 ///
-/// An idle deadline, not an overall one, on purpose. A wide search is minutes of
-/// legitimate transfer, so a wall-clock cap would reject the very results it is
-/// supposed to bound; but a body that stops moving is a body whose reader has
-/// already returned, silently, with whatever had arrived. Without this the
-/// distinction between "still working" and "gave up" is unobservable.
+/// An idle deadline, not an overall one. A wide search is minutes of legitimate transfer, so
+/// a wall-clock cap would reject the very results it is meant to bound; but a body that stops
+/// moving is one whose reader has already returned, silently, with whatever arrived. Without
+/// this, "still working" and "gave up" are indistinguishable.
 ///
-/// Generous enough not to fire on a slow query still computing its first chunk:
-/// `QLever` can think for a while before the first byte of a wide answer.
+/// Generous enough not to fire on a slow query still computing its first chunk: `QLever` can
+/// think for a while before the first byte of a wide answer.
 pub const STREAM_STALL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(45);
 
 /// Why a transport error is not being reported as one.

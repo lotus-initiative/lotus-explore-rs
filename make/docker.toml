@@ -37,11 +37,11 @@ cwd = "${REPO_ROOT}"
 description = "Build all three images."
 dependencies = ["docker-build", "docker-build-cli", "docker-build-static"]
 
-# Cold and warm, in one command, because the difference between them is the
-# only number that says whether the layer structure is doing anything. A cold
-# build is `--no-cache` with the BuildKit cache mounts also dropped, since
-# otherwise `--no-cache` invalidates the instructions but not the mounts and the
-# number is neither of the two things it claims to be.
+# Cold and warm, in one command, because the difference between them is the only
+# number that says whether the layer structure is doing anything. A cold build is
+# `--no-cache` with the BuildKit cache mounts also dropped, since otherwise
+# `--no-cache` invalidates the instructions but not the mounts and the number is
+# neither of the two things it claims to be.
 [tasks."docker-timing"]
 cwd = "${REPO_ROOT}"
 description = "Report the cold and warm build times and the resulting image size."
@@ -61,10 +61,10 @@ docker run --rm -it \\
   lotus-explore-rs:local
 """
 
-# The read-only-rootfs run. This is the configuration a deployment should use,
-# and it is a task rather than a note because the failure mode of forgetting it
-# is a container that quietly cannot write its cache directory and serves
-# errors that look like a bug in the search use case.
+# The configuration a deployment should use, and a task rather than a note
+# because the failure mode of forgetting it is a container that quietly cannot
+# write its cache directory and serves errors that look like a bug in the search
+# use case.
 [tasks."docker-run-readonly"]
 cwd = "${REPO_ROOT}"
 description = "Run the runtime image with a read-only root filesystem."
@@ -77,9 +77,8 @@ docker run --rm -it \\
   lotus-explore-rs:local
 """
 
-# The CLI, as a container. `./mk cli` is the same query against the same
-# crates without the image; this is what proves the image is not a different
-# build.
+# The CLI as a container: the same query `./mk cli` runs against the same crates,
+# which is what proves the image is not a different build.
 [tasks."docker-cli"]
 cwd = "${REPO_ROOT}"
 description = "Run the CLI in its image. Arguments after -- are passed to lotus."
@@ -90,8 +89,8 @@ docker run --rm -it \\
   lotus:local "$@"
 """
 
-# Confirm the image is what it claims: non-root, with a healthcheck that
-# actually runs, and a server that answers behind it.
+# Confirm the image is what it claims: non-root, with a healthcheck that runs,
+# and a server that answers behind it.
 [tasks."docker-verify"]
 cwd = "${REPO_ROOT}"
 description = "Assert the image runs as non-root and passes its healthcheck."

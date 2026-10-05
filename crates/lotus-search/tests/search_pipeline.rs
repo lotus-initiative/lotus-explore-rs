@@ -182,14 +182,12 @@ async fn a_lone_q_is_a_search_term_not_an_identifier() {
 
 #[tokio::test]
 async fn a_molfile_asked_for_as_similarity_runs_as_a_similarity_search() {
-    // The mode asked for is the mode run. This used to downgrade a molfile to
-    // substructure on the belief that the similarity service could not take a
-    // multi-line literal; measured against the live endpoint it accepts a CTAB
-    // and answers a cutoff search, so the downgrade only hid the reader's choice.
-    // A structure input is resolved to a compound before the query is built, and
-    // that is a round trip like any other. It was missing from this script, and the
-    // search still passed only because the results parser used to read the
-    // counts payload as an empty result set.
+    // The mode asked for is the mode run. A molfile used to be downgraded to substructure on the
+    // belief that the similarity service could not take a multi-line literal; measured
+    // against the live endpoint it accepts a CTAB and answers a cutoff search, so the
+    // downgrade only hid the reader's choice. Resolving a structure input to a compound is
+    // a round trip like any other and was missing from this script -- the search passed only
+    // because the results parser used to read the counts payload as an empty result set.
     let http = Scripted::new(vec![(200, LOOKUP_CSV), (200, ROWS_CSV), (200, COUNTS_CSV)]);
     let request = SearchRequest::new(
         SearchCriteria {
@@ -501,11 +499,10 @@ async fn a_refused_url_is_an_error_naming_the_reason() {
 
 /// A wildcard and an empty box both mean "no taxon", and neither is looked up.
 ///
-/// The wildcard resolves to no QID because it names no Wikidata entity, which is
-/// exactly why `build_base_query` reads the distinction back out of `criteria.taxon`
-/// rather than off the QID. Both inputs must therefore arrive at the builder as
-/// `None`, and neither may cost a round trip — a `*` sent to the endpoint as a name
-/// would find nothing and report that no taxon matched.
+/// The wildcard resolves to no QID because it names no Wikidata entity, which is exactly why
+/// `build_base_query` reads the distinction back out of `criteria.taxon` rather than off the
+/// QID. Both must therefore arrive as `None`, and neither may cost a round trip -- a `*` sent
+/// as a name would find nothing and report that no taxon matched.
 ///
 /// The transport is given no replies, so any request at all fails the test.
 #[tokio::test]
@@ -530,18 +527,15 @@ async fn a_wildcard_and_an_empty_box_both_resolve_to_no_taxon() {
 
 /// An `InChIKey` in the structure box is looked up by `InChIKey`.
 ///
-/// An `InChIKey` is three hyphen-separated blocks -- 14, 10 and 1 -- so this is
-/// the test that the version block counts. `lotus-search` used to carry its own
-/// `looks_like_inchikey` that read the blocks as `(Some, Some, None)`, exactly
-/// two of them, and so answered `false` for every real `InChIKey`. That made
-/// this arm of `resolve_structure` unreachable, and an `InChIKey` fell through
-/// to the structure service and was searched for as if it were a SMILES.
+/// An `InChIKey` is three hyphen-separated blocks -- 14, 10 and 1 -- so this is the test
+/// that the version block counts. `lotus-search` used to carry its own `looks_like_inchikey`
+/// reading the blocks as `(Some, Some, None)`, exactly two of them, answering `false` for
+/// every real `InChIKey`. That made this arm of `resolve_structure` unreachable and an
+/// `InChIKey` fell through to the structure service, searched as if it were a SMILES.
 ///
-/// The assertion is on the *query*, not on the outcome. A wrong classifier and a
-/// right answer are indistinguishable from the result alone: the structure
-/// service would also have found the compound, eventually, by another route. What
-/// distinguishes them is which question went out, and only the query records
-/// that.
+/// The assertion is on the *query*, not the outcome: a wrong classifier with a right answer
+/// is indistinguishable from the result, since the structure service would also have found
+/// the compound eventually. Only the query records which question went out.
 #[tokio::test]
 async fn an_inchikey_in_the_structure_box_is_looked_up_by_inchikey() {
     const INCHIKEY: &str = "DBOVHQOUSDWAPQ-WTONXPSSSA-N";
@@ -600,22 +594,18 @@ async fn a_two_block_string_is_not_an_inchikey() {
     );
 }
 
-// ── the streaming retry loop ─────────────────────────────────────────────────
+// `execute_streaming` has its own copy of the retry decision that `execute` has, and the
+// three tests above all reach `execute` through `search`, which reads the whole body.
+// Nothing reached the streaming copy, so its decision was unverified: a transport could
+// have been sent a rejected query twice, a failing one not at all, or a query that
+// should have fallen back to WDQS not falling back, with the suite green throughout.
 //
-// `execute_streaming` has its own copy of the retry decision that `execute` has,
-// and the three tests above all reach `execute` -- through `search`, which reads
-// the whole body. Nothing reached the streaming copy, so its decision was
-// unverified: a transport could have been sent a rejected query twice, or a
-// failing one not at all, or a query that should have fallen back to WDQS not
-// falling back, and the suite would have stayed green.
+// `search_columnar` is the caller that matters -- `execute_streaming_with_fallback` is
+// how every large result set is fetched -- so this is where a mistake is expensive
+// rather than theoretical.
 //
-// `search_columnar` is the caller that matters -- `execute_streaming_with_fallback`
-// is how every large result set is fetched -- so this is the path where a mistake
-// is expensive rather than theoretical.
-//
-// The distinctions are between three statuses, because the code draws three:
-// `500` is retryable, `502` is retryable *and* endpoint-unavailable, and `400` is
-// neither.
+// Three statuses, because the code draws three: `500` is retryable, `502` is retryable
+// *and* endpoint-unavailable, `400` is neither.
 
 /// Read a `StreamAnswer` to the end, so a test can assert the body survived.
 async fn drain(mut answer: lotus_search::StreamAnswer) -> String {

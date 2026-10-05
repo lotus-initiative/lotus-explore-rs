@@ -97,24 +97,20 @@ pub fn build_base_query(criteria: &SearchCriteria, qid: Option<&str>) -> String 
                 &nomenclature,
             )
         }
-        // Three cases, and the first two used to be one.
+        // Nothing given is not the same request as `*`: nothing given means "no constraint I
+        // can apply", including compounds with no organism recorded, while `*` explicitly
+        // asks for everything with an occurrence and keeps requiring one. Sending both to
+        // one query made an empty box answer the narrower question silently.
         //
-        // Nothing given is not the same request as `*`. Nothing given means "no
-        // constraint I can apply", which includes the compounds with no organism
-        // recorded. `*` is the explicit request for everything with an occurrence, and
-        // it keeps requiring one. Sending both to the same query meant an empty box
-        // answered the narrower question without saying so.
+        // The wildcard is recognised from `criteria.taxon`, not `qid`, because
+        // `resolve_taxon` resolves `*` to `None` (it names no Wikidata entity) and the two
+        // arrive at the builder looking identical. Reading the difference off the QID alone
+        // is the bug this arm prevents.
         //
-        // The wildcard has to be recognised from `criteria.taxon` rather than from
-        // `qid`, because `resolve_taxon` resolves it to `None` -- it names no Wikidata
-        // entity -- so by the time the query is built the two arrive looking identical.
-        // Reading the difference off the QID alone therefore made `*` and an empty
-        // box build the same query, which is the bug this arm exists to prevent.
-        //
-        // Only the no-structure branch is corrected. In the structure branch above a
-        // wildcard is already expressed by not filtering the taxon, and routing it
-        // through the root taxon there would require an occurrence and so could
-        // return *fewer* compounds than "every taxon" is supposed to.
+        // Only the no-structure branch needs it. In the structure branch a wildcard is
+        // already expressed by not filtering the taxon, and routing it through the root
+        // taxon there would require an occurrence and so return *fewer* compounds than
+        // "every taxon" is supposed to.
         None if criteria.taxon.trim() == "*" => all_compounds_query(),
         None => match qid {
             Some(qid) if qid != "*" => compounds_by_taxon_query_with(qid, &nomenclature),
@@ -360,23 +356,18 @@ pub async fn search<H: Http>(
 
 /// A search that returns the whole result set, exactly, and in memory that fits.
 ///
-/// This is the path the browser takes. It differs from [`search`] in three ways,
-/// each of which is a decision rather than a convenience:
+/// The browser's path. Three differences from [`search`], each a decision:
 ///
-/// - **No `LIMIT`.** The query asks for every row. The old path asked for 500
-///   and then counted separately, which is why its filters could only ever see
-///   500 rows: the truncation was server-side, so nothing downstream could undo
-///   it. Here the whole set arrives and the table can filter all of it.
+/// - **No `LIMIT`.** The query asks for every row. Asking for 500 and counting separately
+///   left the filters able to see only those 500, since the truncation was server-side.
 /// - **No `COUNT` query.** [`lotus_model::ColumnarResultSet`] holds every row and
-///   deduplicates nothing, so its statistics *are* the endpoint's counts. The
-///   second query is not needed, and with it goes the `counts_query`
-///   construction whose deletion of two named blocks could silently make a filter
-///   count nothing.
-/// - **The body is never assembled.** The response is read through
-///   [`crate::BodyChunks`] and folded into the set a chunk at a time, so peak
-///   memory is the set plus one chunk rather than the set plus the payload. For
-///   the widest search -- 2,990,730 edges at the 314 B/row a real export averages
-///   -- that is the difference between about 940 MB of CSV and none.
+///   deduplicates nothing, so its statistics *are* the endpoint's counts. With the second
+///   query goes the `counts_query` construction whose deletion of two named blocks could
+///   silently make a filter count nothing.
+/// - **The body is never assembled.** The response is read through [`crate::BodyChunks`]
+///   and folded in a chunk at a time, so peak memory is the set plus one chunk rather than
+///   the set plus the payload. For the widest search -- 2,990,730 edges at the 314 B/row a
+///   real export averages -- that is about 940 MB of CSV versus none.
 ///
 /// # Errors
 /// Returns [`SearchError::Invalid`] if the criteria cannot be turned into a
@@ -473,17 +464,14 @@ pub struct StreamProgress {
 
 /// Fold a body into a columnar set, reporting progress after each chunk.
 ///
-/// The callback runs **once per chunk**, which for a wide search is tens of
-/// thousands of times. A caller that re-renders on every call will spend more
-/// time rendering than parsing, so it has to throttle; that is the caller's half
-/// of the contract and [`StreamProgress`] exists so it can.
+/// The callback runs **once per chunk**, tens of thousands of times on a wide search, so a
+/// caller re-rendering each time spends more rendering than parsing and has to throttle.
+/// [`StreamProgress`] exists so it can.
 ///
-/// Generic over the callback rather than taking a `&mut dyn FnMut`, which is not
-/// an aesthetic choice: a `dyn FnMut` is not `Send`, so a function taking one has
-/// a non-`Send` future, and [`columnar_from_chunks`] delegates here. The native
-/// and server paths need a `Send` future, and the browser needs a callback that
-/// captures a `Signal` and is emphatically not `Send`. Monomorphising is what
-/// lets both hold at once.
+/// Generic over the callback rather than `&mut dyn FnMut`: a `dyn FnMut` is not `Send`, so
+/// a function taking one has a non-`Send` future and [`columnar_from_chunks`] delegates
+/// here. Native and server paths need `Send`; the browser needs a callback capturing a
+/// `Signal`, emphatically not `Send`. Monomorphising lets both hold at once.
 ///
 /// # Errors
 /// Propagates any transport failure, and returns [`FetchError::Parse`] if the

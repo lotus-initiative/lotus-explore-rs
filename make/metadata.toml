@@ -7,10 +7,10 @@
 #
 # The `cd` in each is load-bearing. `emit-metadata` writes to paths relative to
 # the working directory, and cargo-make runs a task once per member crate with
-# that member as the working directory -- so without it, `metadata-write` writes
-# a second, untracked copy inside `apps/lotus-explore-rs/` and the committed
-# root copies stay stale. It also fails the gate's host-bearers check, which is
-# how it was caught.
+# that member as the working directory -- so without it, `metadata-write` writes a
+# second, untracked copy inside `apps/lotus-explore-rs/` and the committed root
+# copies stay stale. It also fails the gate's host-bearers check, which is how it
+# was caught.
 [tasks."metadata"]
 cwd = "${REPO_ROOT}"
 description = "Check the committed codemeta.json and CITATION.cff are up to date."
@@ -22,8 +22,8 @@ exec cargo run --locked -q -p lotus-jsonld --bin emit-metadata -- --check
 
 # The three places a version, an author and a licence are written down: the
 # manifests, the codemeta and the CITATION. `check` fails when the first and the
-# other two disagree; this is the write side, and it is not in the gate because a
-# gate that rewrites files is a gate that changes files.
+# other two disagree. Not in the gate, because a gate that rewrites files is a
+# gate that changes files.
 [tasks."metadata-write"]
 cwd = "${REPO_ROOT}"
 description = "Regenerate codemeta.json and CITATION.cff from lotus-jsonld."

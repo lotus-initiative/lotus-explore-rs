@@ -9,10 +9,10 @@ script = "cargo clippy --workspace --all-targets --all-features --locked -- -D w
 # The app is three programs: a browser client, a native window and an HTTP API.
 # `--workspace --all-features` covers the first two but the third is behind a
 # feature that changes which `main` is compiled, and `--all-features` compiles
-# `server` and `desktop` together, which is a build nobody ships. Each of the
-# two native programs is therefore linted on its own, the same way it is tested.
+# `server` and `desktop` together, which is a build nobody ships. Each of the two
+# native programs is therefore linted on its own, the same way it is tested.
 #
-# This is not belt-and-braces: `--features server` sat broken on main while a
+# Not belt-and-braces: `--features server` sat broken on main while a
 # workspace-wide clippy passed, because the API had a renamed request field its
 # own tests still used and nothing compiled it.
 [tasks."lint-native-builds"]
@@ -64,22 +64,21 @@ cwd = "${REPO_ROOT}"
 description = "Clippy the browser build for wasm32, warnings denied."
 script = "cargo clippy --target wasm32-unknown-unknown -p lotus-explore-rs --locked -- -D warnings"
 
-# Every feature combination in the workspace.
+# Every feature combination in the workspace, 16 of them.
 #
 # This was scoped to the library crates on the assumption that `dioxus` and
 # `utoipa` would make the powerset explode. It does not: no feature in this
-# workspace enables another except the app's `server`/`desktop` pair, and the
-# whole set is 16 combinations. So the whole workspace is checked, which is
-# also the only version that would catch a feature in a crate someone forgot to
-# think of as a library.
+# workspace enables another except the app's `server`/`desktop` pair. So the whole
+# workspace is checked, which is also the only version that would catch a feature
+# in a crate someone forgot to think of as a library.
 [tasks."feature-powerset"]
 cwd = "${REPO_ROOT}"
 description = "Check every feature combination in the workspace (16 of them)."
 script = "cargo hack check --workspace --feature-powerset --locked"
 
 # The unsafe audit. `unsafe_code = "forbid"` in the workspace lints covers this
-# crate's own code; this is the transitive question, which is a different one
-# and the only reason `cargo geiger` is here.
+# crate's own code; this is the transitive question, and the only reason
+# `cargo geiger` is here.
 [tasks."geiger"]
 cwd = "${REPO_ROOT}"
 description = "Report the unsafe code in the dependency tree."

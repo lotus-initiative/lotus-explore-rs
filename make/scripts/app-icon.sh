@@ -2,11 +2,10 @@
 # The macOS application icon, generated from the same artwork the web app uses.
 #
 # `dx` writes `CFBundleIconFile = icon.icns` into every macOS bundle whether or
-# not one is configured, so a bundle built without this file has a plist naming
-# a file that is not there, and Finder shows a generic icon. `iconutil` needs a
-# full iconset -- ten sizes, half of them at 2x -- so it is generated rather than
-# committed, and the mistake it prevents is an `.icns` that looks right and is
-# missing a size.
+# not one is configured, so a bundle built without this file has a plist naming a
+# file that is not there, and Finder shows a generic icon. `iconutil` needs a full
+# iconset -- ten sizes, half of them at 2x -- so it is generated rather than
+# committed, which prevents an `.icns` that looks right and is missing a size.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 if [ "$(uname -s)" != "Darwin" ]; then

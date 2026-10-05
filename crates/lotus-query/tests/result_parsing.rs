@@ -322,28 +322,18 @@ fn a_count_column_the_endpoint_omitted_reads_as_zero() {
 
 /// The two parsers must agree, row for row.
 ///
-/// There were once two implementations of "read a result set" in this crate:
-/// `parse_compounds_csv_capped`, on `csv::ByteRecord`, reached by the CLI and the
-/// server API, and `parse_compounds_columnar`, on the streaming reader, reached
-/// by the app in the browser and natively. Two implementations of one thing is a
-/// determinism hazard before it is a bug -- the CLI and the browser answering the
-/// same question differently, with nothing to point at.
+/// Two implementations of "read a result set" once existed here, reached by three consumers,
+/// and they disagreed: on a payload with one repeated row the `csv::ByteRecord` path
+/// (`parse_compounds_csv_capped`, used by the CLI and server API) returned 3 rows and the
+/// streaming reader (`parse_compounds_columnar`, used by the app) returned 4, the first
+/// deduplicating on the compound-taxon-reference triple and the second not. Same bytes, same
+/// query, different answer depending on which surface asked -- a determinism hazard before it
+/// is a bug.
 ///
-/// This runs the same bytes through both and compares. It is written *before* the
-/// streaming reader is made the only one, so that the collapse is checked against
-/// the behaviour that existed rather than against itself.
-/// The CLI, the server API and the browser must agree.
-///
-/// There were two implementations of "read a result set" in this crate, reached by
-/// three consumers, and they disagreed: on a payload with one repeated row the
-/// `csv::ByteRecord` path returned 3 rows and the streaming reader returned 4,
-/// because the first deduplicated on the compound-taxon-reference triple and the
-/// second did not. Same bytes, same query, different answer depending on which
-/// surface asked.
-///
-/// `parse_compounds_csv_capped` now delegates to the streaming reader, so there is
-/// one. This test is what keeps it that way, and it is the property we actually
-/// want rather than a statement about how the code is arranged.
+/// `parse_compounds_csv_capped` now delegates to the streaming reader, so there is one. This
+/// test keeps it that way, and states the property wanted rather than how the code is
+/// arranged. Written *before* the collapse, so it is checked against the behaviour that
+/// existed rather than against itself.
 #[test]
 fn both_parsers_read_the_same_rows_in_the_same_order() {
     use lotus_query::parse_compounds_columnar;

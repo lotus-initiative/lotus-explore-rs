@@ -362,17 +362,16 @@ fn the_isomeric_smiles_wins_over_the_connection_table() {
 
 /// A header naming exactly **one** known column is enough.
 ///
-/// The reader refuses a payload whose header resolves to nothing, because a query
-/// and a parser that have drifted apart otherwise produce an empty set that reads
-/// as "found nothing". The check is `any` of the four identity columns, not `all`
-/// of them: a response carrying only taxa, or only references, is a real shape --
-/// it is what a projection with no compound column would hand back -- and refusing
-/// it would be refusing a partial answer rather than an unrecognisable one.
+/// The reader refuses a payload whose header resolves to nothing, because a query and parser
+/// that have drifted apart otherwise produce an empty set reading as "found nothing". The check
+/// is `any` of the four identity columns, not `all`: a response carrying only taxa, or only
+/// references, is a real shape -- what a projection with no compound column hands back -- and
+/// refusing it would refuse a partial answer rather than an unrecognisable one.
 ///
-/// Two headers rather than one, because `taxon` and `ref_qid` sit at different
-/// positions in the `||` chain, and a single-column case only pins the position it
-/// happens to occupy. Mutation testing found both of these: `||` weakened to `&&`
-/// survives a header naming only `compound`.
+/// Two headers rather than one, because `taxon` and `ref_qid` sit at different positions in
+/// the `||` chain and a single-column case pins only the position it happens to occupy.
+/// Mutation testing found both: `||` weakened to `&&` survives a header naming only
+/// `compound`.
 #[test]
 fn a_header_naming_one_known_column_is_enough_to_parse() {
     for header in ["taxon", "ref_qid", "statement_id", "ref_node", "compound"] {

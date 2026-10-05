@@ -175,18 +175,16 @@ fn a_compound_identity_query_keeps_occurrences_optional() {
 
 #[test]
 fn the_optional_occurrences_are_planned_apart_from_the_seed() {
-    // This is a performance contract, and the shape is the only part of it that
-    // is visible here.
+    // A performance contract; the shape is the only part visible here.
     //
-    // The occurrence chain costs 0.1s on its own against this endpoint and 4.3s
-    // inside a bare `OPTIONAL` -- measured on Q3613679, 20 rows either way. It is
-    // the `OPTIONAL` and not the patterns, so the block is wrapped in its own
-    // subquery to hand the planner a left side of a known size.
+    // The occurrence chain costs 0.1s alone on this endpoint and 4.3s inside a bare
+    // `OPTIONAL` -- measured on Q3613679, 20 rows either way. The `OPTIONAL` is the cost, not
+    // the patterns, so the block sits in its own subquery to hand the planner a left side of
+    // known size.
     //
-    // The repeated `VALUES` inside the subquery is the part that makes it work
-    // and the part that looks redundant. Without it the subquery inherits `?c`
-    // from the enclosing scope, the planner is back where it started, and the
-    // twenty-fold cost comes straight back -- verified by removing it.
+    // The repeated `VALUES` inside that subquery is what makes it work, and what looks
+    // redundant: without it the subquery inherits `?c` from the enclosing scope, the planner is
+    // back where it started, and the twenty-fold cost returns -- verified by removing it.
     let query = exact_compound_query("Q18216", None);
     let occurrences_at = query.find("?c p:P703 ?statement").unwrap_or_else(|| {
         panic!("the occurrence chain should still be there:\n{query}");

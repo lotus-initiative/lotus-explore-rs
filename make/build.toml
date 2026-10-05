@@ -6,9 +6,6 @@ cwd = "${REPO_ROOT}"
 description = "Type-check the whole workspace, all targets."
 script = "cargo check --workspace --all-targets --locked"
 
-# One `cargo check -p <crate> --target wasm32` per crate keeps the wasm build
-# green.
-#
 # The four pure crates are checked for wasm *in their own right*, not only
 # because the app pulls them in: that is what keeps them free of IO. The app
 # would fail to build if any of them reached for a clock or a socket, but the
@@ -41,9 +38,9 @@ script = "cargo check -p lotus-explore-rs --target wasm32-unknown-unknown --lock
 cwd = "${REPO_ROOT}"
 description = "Link the wasm module and run it through wasm-bindgen, the way the release build does."
 # `check-wasm` above is `cargo check`, which stops before a linker runs. That is
-# the right boundary for the pure crates -- it is fast, and it is where a crate
-# that reached for a clock or a socket is caught -- but it cannot see anything
-# that goes wrong after linking, and the whole wasm pipeline lives there.
+# the right boundary for the pure crates -- fast, and where a crate that reached
+# for a clock or a socket is caught -- but it cannot see anything that goes wrong
+# after linking, and the whole wasm pipeline lives there.
 #
 # Concretely: `dx build` strips the linked module with `rustc-objcopy` and hands
 # it to wasm-bindgen, and a strip that is too aggressive produces a module
@@ -52,25 +49,20 @@ description = "Link the wasm module and run it through wasm-bindgen, the way the
 # missing file rather than as a corrupt input. `cargo check` is green throughout,
 # because there is nothing wrong with any of the Rust.
 #
-# So this links, strips and binds. It does not run `wasm-opt` or bundle, which is
-# what `dx build` does after this point: the bundle step is Dioxus's, and its
-# failure modes are the ones already covered by the container build.
+# So this links, strips and binds, with `dx build` rather than `cargo build`: the
+# strip happens inside dx, so a plain cargo build links the module and stops, and
+# would go green on exactly the input dx cannot use. It does not run `wasm-opt` or
+# bundle, which is what `dx build` does after this point: the bundle step is
+# Dioxus's, and its failure modes are the ones already covered by the container
+# build.
 #
-# `--release`, because the strip settings differ between the profiles and only
-# the release profile is the one that ships. A debug-profile link would pass
-# happily while the release one is broken, which is exactly the case this exists
-# for.
-# `dx build`, not `cargo build`. The strip happens inside dx, so a plain cargo
-# build links the module and stops: it would go green on exactly the input dx
-# cannot use. This is the task's whole reason for existing, and taking the
-# shorter command here would have made it decorative.
-#
-# `--release` for the reason above: the strip settings differ per profile and
-# only the release one ships.
+# `--release`, because the strip settings differ per profile and only the release
+# one ships. A debug-profile link would pass happily while the release one is
+# broken.
 #
 # `dx` itself is a CI dependency, installed by the desktop and container jobs.
-# `./mk ci` runs this task, so a contributor without dx gets a task failure
-# rather than a skipped one, which is the same trade every other gate task makes.
+# `./mk ci` runs this task, so a contributor without dx gets a task failure rather
+# than a skipped one, which is the same trade every other gate task makes.
 script = """
 cd apps/lotus-explore-rs
 dx build --release --platform web --package lotus-explore-rs --locked \
@@ -88,18 +80,14 @@ RUSTDOCFLAGS="-D warnings -D rustdoc::broken_intra_doc_links" \\
   cargo doc --workspace --no-deps --locked
 """
 
-# The published developer documentation, to `target/doc`.
-#
 # Not a GitHub Pages deployment and not an mdbook: the developer docs are three
-# markdown files, and an mdbook is a site generator for a site that does not
-# exist yet. This task is the whole of it -- a local `target/doc` you can open.
+# markdown files, and an mdbook is a site generator for a site that does not exist
+# yet. This task is the whole of it -- a local `target/doc`.
 [tasks."doc-open"]
 cwd = "${REPO_ROOT}"
 description = "Build the documentation and print the path to open it."
-# `cargo make doc` rather than a dependency on the `doc` task: a task listed in
-# `dependencies` is the better shape, but this one exists only to print a path
-# afterwards, and re-entering the task runner here would run the whole thing a
-# second time.
+# `cargo make doc` rather than a dependency on the `doc` task: re-entering the
+# task runner here would run the whole thing a second time.
 script = """
 cargo doc --workspace --no-deps --locked
 echo

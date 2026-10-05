@@ -5,24 +5,20 @@
 //!
 //! # Why not the `csv` reader
 //!
-//! The [`csv`] crate reads a `Read` incrementally already, but it reads to end
-//! of *input* to know it is done. That is fine for a file and wrong for a
-//! response body arriving in chunks: there is no `Read` that can say "not yet,
-//! ask me again later", and a reader that returns zero bytes is end of input to
-//! `csv` and would truncate the result at the first chunk boundary.
+//! The [`csv`] crate reads a `Read` incrementally, but reads to end of *input* to know it
+//! is done. Fine for a file, wrong for a body arriving in chunks: no `Read` can say "not
+//! yet, ask me again", and zero bytes is end of input to `csv`, truncating the result at
+//! the first chunk boundary.
 //!
-//! So the record splitting is done here, one chunk at a time, with an unfinished
-//! record carried across the boundary. The rules are RFC 4180's -- quoted
-//! fields, `""` for a literal quote, newlines inside quotes -- because the
-//! reference titles in this dataset contain commas, quotes and the occasional
-//! newline, and a splitter that mishandles them would silently shift every
-//! column to the right of them.
+//! So record splitting is done here, one chunk at a time, an unfinished record carried
+//! across the boundary. The rules are RFC 4180's -- quoted fields, `""` for a literal
+//! quote, newlines inside quotes -- because reference titles here contain commas, quotes
+//! and occasional newlines, and mishandling them silently shifts every column to the right.
 //!
-//! The parsing is deliberately as forgiving as
-//! [`parse_compounds_csv_capped`](super::parse_compounds_csv_capped): a short
-//! row reads as missing trailing fields rather than failing, because a search
-//! that has already returned usable rows should not be discarded over one
-//! malformed cell.
+//! Parsing is as forgiving as
+//! [`parse_compounds_csv_capped`](super::parse_compounds_csv_capped): a short row reads as
+//! missing trailing fields rather than failing, since a search that returned usable rows
+//! should not be discarded over one malformed cell.
 
 use crate::error::ParseError;
 use lotus_model::{ColumnarBuilder, ColumnarResultSet, RawRow};
@@ -83,16 +79,14 @@ impl CsvSplitter {
 
     /// Split `chunk`, appending every record it completes to `out`.
     ///
-    /// `out` is appended to rather than replaced, so a caller can reuse one
-    /// vector for the lifetime of the stream and drain it after each chunk.
+    /// `out` is appended to rather than replaced, so a caller can reuse one vector for the
+    /// life of the stream and drain it after each chunk.
     ///
-    /// Ordinary bytes are copied a *run* at a time rather than one at a time. The
-    /// obvious loop -- inspect a byte, `push` it, repeat -- spent 2.5 seconds of a
-    /// 1M-row build here, against about 0.4 for this, because it paid a capacity
-    /// check and a bounds check for every one of 291 million bytes. Between the
-    /// delimiters there is nothing to inspect, so the run goes across in one
-    /// `extend_from_slice` and the per-byte work happens only where a delimiter
-    /// actually is.
+    /// Ordinary bytes are copied a *run* at a time. The obvious per-byte loop spent 2.5s of
+    /// a 1M-row build against ~0.4s for this, paying a capacity check and a bounds check
+    /// for each of 291 million bytes. Nothing needs inspecting between delimiters, so the
+    /// run crosses in one `extend_from_slice` and per-byte work happens only at a
+    /// delimiter.
     pub fn feed(&mut self, chunk: &[u8], out: &mut Vec<Record>) {
         let mut at = 0;
         while at < chunk.len() {
@@ -149,35 +143,32 @@ impl CsvSplitter {
 
     /// Finish the stream, flushing a record that was still being read.
     ///
-    /// A payload that ends mid-record -- an unterminated quote, or a transport
-    /// that cut the body short -- yields the record it has rather than dropping
-    /// the row. A payload that ends cleanly flushes nothing.
+    /// A payload that ends mid-record -- an unterminated quote, or a transport that cut the body
+    /// short -- yields the record it has rather than dropping the row. A clean end flushes
+    /// nothing.
     /// End the stream, flushing whatever the last bytes left open.
     ///
-    /// Returns `true` if the input stopped inside a quoted field, which is the one
-    /// truncation that is unambiguously detectable.
+    /// Returns `true` if the input stopped inside a quoted field, the one truncation that is
+    /// unambiguously detectable.
     ///
-    /// That case matters because it used to pass for data. A response cut short by a
-    /// timeout, a proxy or a cancelled query can stop anywhere, and when it stopped
-    /// inside a quoted field this closed the partial record and handed it over like any
-    /// other. A short result set is then indistinguishable from a query that genuinely
-    /// matched fewer rows -- and every count, hash and export built on it describes rows
-    /// that were never returned.
+    /// That case matters because it used to pass for data: a response cut short by a timeout,
+    /// proxy or cancelled query can stop anywhere, and stopping inside a quoted field closed
+    /// the partial record and handed it over like any other. A short result set is then
+    /// indistinguishable from a query that genuinely matched fewer rows, and every count,
+    /// hash and export built on it describes rows that were never returned.
     ///
-    /// What cannot be detected is worth being exact about: a body that stops *between*
-    /// fields, or after a row's last field with no trailing newline, is byte-for-byte
-    /// identical to a complete final row. CSV allows the last record to omit its
-    /// terminator, so treating that as truncation would reject well-formed responses
-    /// from an endpoint that simply does not end with a newline. Only the unterminated
-    /// quote is unambiguous, and it is the common shape for a cut inside a title or a
-    /// SMILES -- the columns most likely to be mid-field when a response dies.
+    /// What cannot be detected, exactly: a body stopping *between* fields, or after a row's
+    /// last field with no trailing newline, is byte-for-byte identical to a complete final
+    /// row. CSV allows the last record to omit its terminator, so calling that truncation
+    /// would reject well-formed responses from an endpoint that does not end with a newline.
+    /// Only the unterminated quote is unambiguous, and it is the common shape for a cut
+    /// inside a title or SMILES -- the columns most likely mid-field when a response dies.
     pub fn end_of_input(&mut self, out: &mut Vec<Record>) -> bool {
-        // `in_quotes && !quote_pending`, not `in_quotes`. The flag is what makes the
-        // difference: a `"` seen inside a quoted field leaves the decision pending until
-        // the next byte says whether it closed the field or escaped a literal quote, so
-        // a field closed by the very last byte of the body is still flagged as in-quotes
-        // with a pending quote. That is a complete row. An *unresolved* flag is the
-        // opposite: the quote opened and nothing ever closed it.
+        // `in_quotes && !quote_pending`, not `in_quotes`. The flag is the difference: a `"`
+        // inside a quoted field leaves the decision pending until the next byte says whether
+        // it closed the field or escaped a literal quote, so a field closed by the very last
+        // byte is still in-quotes with a pending quote -- a complete row. An *unresolved*
+        // flag is the opposite: the quote opened and nothing closed it.
         let truncated = self.in_quotes && !self.quote_pending;
         self.quote_pending = false;
         if self.is_mid_record() {

@@ -34,9 +34,8 @@ script = "tombi format --check"
 # `[target.'cfg(not(target_arch = "wasm32"))'.dependencies]` owning the keys
 # written after it.
 #
-# Separate from `tombi-check` because the two fail for different reasons and a
-# contributor fixing formatting should not have to read a schema error, or the
-# other way round.
+# Separate from `tombi-check` because the two fail for different reasons, and a
+# contributor fixing formatting should not have to read a schema error.
 [tasks."tombi-lint"]
 cwd = "${REPO_ROOT}"
 description = "Validate every TOML file against its schema."
@@ -54,9 +53,9 @@ script = "typos"
 
 # Every `.rs` file must carry both AGPL-3.0-only headers on lines 1 and 2.
 #
-# The `cd` is not defensive: cargo-make runs a task once per workspace member
-# with the working directory set to that member, so a task that does not move to
-# the root is reading a different tree depending on which member invoked it.
+# The `cd` is not defensive: cargo-make runs a task once per workspace member with
+# the working directory set to that member, so a task that does not move to the
+# root is reading a different tree depending on which member invoked it.
 [tasks."license-headers"]
 cwd = "${REPO_ROOT}"
 description = "Check that every .rs file carries both AGPL SPDX headers."

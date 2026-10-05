@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 # Cold and warm build times, and the resulting image size.
 #
-# The cold run drops both the layer cache and the BuildKit cache mounts.
+# The cold run drops both the layer cache and the BuildKit cache mounts:
 # `--no-cache` alone invalidates the instructions but leaves the mounts, so the
-# number it produces is neither a cold build nor a warm one -- it is a third
-# thing that is easy to mistake for either.
-#
-# `docker buildx prune` needs the daemon and takes a while, so this is a task
-# you run on purpose rather than something the gate does.
+# number it produces is neither a cold build nor a warm one -- a third thing that
+# is easy to mistake for either. `docker buildx prune` needs the daemon and takes
+# a while, so this is a task run on purpose rather than something the gate does.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 

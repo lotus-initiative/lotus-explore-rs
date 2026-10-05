@@ -1,31 +1,25 @@
 # Tests, coverage and mutation testing.
 #
 # nextest does not run doctests. That is not a small gap here: each library
-# crate's README is its crate documentation via `#![doc = include_str!]`, and
-# the example in it is a doctest. `./mk test` therefore runs nextest and
-# then `cargo test --doc`, in that order, and so does CI. Dropping the second
-# line leaves the READMEs unchecked and nothing notices.
+# crate's README is its crate documentation via `#![doc = include_str!]`, and the
+# example in it is a doctest. `./mk test` therefore runs nextest and then
+# `cargo test --doc`, in that order, and so does CI.
 
-# The three programs the app can be, tested as three programs, and then the
-# doctests. `--workspace --all-targets` only builds the browser client; the other
-# two need a feature, and a build that is not compiled is a build whose tests do
-# not run. That is not hypothetical: `--features server` sat broken on main while
-# this passed.
+# `--workspace --all-targets` only builds the browser client; the other two need
+# a feature, and a build that is not compiled is a build whose tests do not run.
+# `--features server` sat broken on main while this passed.
 [tasks."test"]
 cwd = "${REPO_ROOT}"
 description = "Run every test: nextest for all three builds, then the doctests."
 dependencies = ["test-nextest", "test-server", "test-desktop", "test-doc"]
 
-# The everyday profile: fail at the first failure. A red run you are about to
-# read in full is not a run worth spending the time on.
+# The everyday profile: fail at the first failure. A red run nobody reads in full
+# is not worth the time.
 [tasks."test-nextest"]
 cwd = "${REPO_ROOT}"
 description = "Run the test suite with cargo-nextest, fail-fast."
 script = "cargo nextest run --workspace --locked --no-fail-fast --test-threads 4"
 
-# The three programs the app can be, tested as three programs. `--workspace`
-# only builds the browser client; the other two need a feature, and a build
-# that is not compiled is a build whose tests do not run.
 [tasks."test-server"]
 cwd = "${REPO_ROOT}"
 description = "Test the app's HTTP API build."
@@ -39,13 +33,13 @@ script = "cargo nextest run -p lotus-explore-rs --features desktop --all-targets
 # What CI runs, as one command. The `ci` task calls the per-build tasks
 # separately so a red test names the build it failed in; this is for a human who
 # wants the same set in one invocation.
+#
 # `--no-fail-fast` is passed here rather than being relied on from the profile:
 # `.config/nextest.toml` sets `fail-fast = false` for the `ci` profile, and this
-# is the flag that actually reaches the runner in 0.9.146.
+# is the flag that reaches the runner in 0.9.146.
 #
-# The doctests are a `dependency` rather than a second command: a task listed
-# there is run by the runner, and re-entering `cargo make` from inside a script
-# would fan out over all eight crates again.
+# The doctests are a `dependency` rather than a second command: re-entering
+# `cargo make` from inside a script would fan out over all eight crates again.
 [tasks."test-ci"]
 cwd = "${REPO_ROOT}"
 description = "The CI test run: nextest with the ci profile, then the doctests."
@@ -56,23 +50,16 @@ cwd = "${REPO_ROOT}"
 description = "Run the suite under the ci nextest profile."
 script = "cargo nextest run --workspace --locked --profile ci --no-fail-fast"
 
-# The doctests, on their own.
-#
 # `cargo test --doc` rather than nextest, because nextest does not run them.
-# `--workspace` because each library crate's README is a doctest and running
-# only the workspace default would skip the ones that matter most.
+# `--workspace` because each library crate's README is a doctest.
 [tasks."test-doc"]
 cwd = "${REPO_ROOT}"
 description = "Run the doctests, including the library crates' README examples."
 script = "cargo test --workspace --doc --locked --quiet"
 
-# Duplicate doctests.
-#
-# Each library crate's README is its crate documentation via `#![doc =
-# include_str!]`, so every example in one is a doctest rustdoc runs. Two crates
-# showing the same example is not a style problem: rustdoc runs it twice, the
-# second copy rots independently, and a reader who edits the first one has no way
-# to know a second exists.
+# Two crates showing the same example is not a style problem: rustdoc runs it
+# twice, the second copy rots independently, and a reader who edits the first one
+# has no way to know a second exists.
 #
 # `cargo dejadoc` hashes the canonical form of every doctest body and reports the
 # sites that share one. It exits 1 on any group, so this is a gate rather than a
@@ -90,65 +77,58 @@ fi
 cargo dejadoc
 """
 
-# The `#[ignore]`d network tests.
+# The `#[ignore]`d network tests. There are none today: the search use case is
+# tested through the `Http` trait against a scripted conversation, so the
+# QLever-to-WDQS fallback and the retry policy are both covered without a socket.
+# A test that genuinely has to reach the network goes here, opt-in, never in CI.
 #
-# There are none today. The search use case is tested through the `Http` trait
-# against a scripted conversation, so the QLever-to-WDQS fallback and the retry
-# policy are both covered without a socket -- and a test that reaches a live
-# endpoint is a test that fails when the endpoint is busy. A test that genuinely
-# has to reach the network goes here, opt-in, never in CI.
-#
-# `--run-ignored only` has no profile equivalent in nextest, which is why this
-# is a task and not just a profile: without the flag the `live` profile would
-# run every ordinary test under a different name.
+# `--run-ignored only` has no profile equivalent in nextest, which is why this is
+# a task and not just a profile: without the flag the `live` profile would run
+# every ordinary test under a different name.
 [tasks."test-live"]
 cwd = "${REPO_ROOT}"
 description = "Run the #[ignore]d network tests. Needs a network and an endpoint."
 script = "cargo nextest run --workspace --profile live --run-ignored only --locked --no-fail-fast"
 
-# Coverage, for the crates where a line count says something.
-#
-# `cargo llvm-cov nextest` rather than `cargo llvm-cov test`: it runs the
-# suite under nextest, so the report is of the same run CI performs and the
-# parallel overhead is not paid twice. `llvm-tools-preview` is in
-# `rust-toolchain.toml` because this needs it.
-#
 # Scoped to the library crates for the same reason mutation testing is: the app
 # is mostly Dioxus rendering and IO plumbing, where an executed line is not a
 # tested line. There the number is high and says nothing.
+# `cargo llvm-cov nextest` rather than `cargo llvm-cov test`: it runs the suite
+# under nextest, so the report is of the same run CI performs and the parallel
+# overhead is not paid twice. `llvm-tools-preview` is in `rust-toolchain.toml`
+# because this needs it.
 [tasks."cov"]
 cwd = "${REPO_ROOT}"
 description = "Coverage report for the library crates, via nextest."
 # Three things here are load-bearing, and all three were wrong at once. That is
 # why the report said 17% for a workspace that is really at 93%: the job stayed
-# green the whole time and the numbers were simply not measuring anything.
+# green throughout and the numbers were not measuring anything.
 #
 # `nextest`, not `nextest run`. `cargo llvm-cov nextest` shells out to
 # `cargo nextest run` itself, so the extra `run` is consumed as a *test-name
 # filter* rather than a subcommand -- llvm-cov says so in a warning buried in the
-# build output, worded as a note. A filter matching no test name runs almost
-# nothing: 2 of 327 tests ran, because two of them happened to contain the word.
+# build output. A filter matching no test name runs almost nothing: 2 of 327
+# tests ran, because two of them happened to contain the word.
 #
 # `--html`, because without a format llvm-cov writes no file. It prints the
-# summary table, which looks like a successful report, and leaves nothing behind
-# for the artifact upload -- which is where the "No files were found with the
-# provided path" warning came from.
+# summary table, which looks like a successful report, and leaves nothing for the
+# artifact upload -- which is where the "No files were found with the provided
+# path" warning came from.
 #
 # `--output-dir`, because `--html` defaults to `target/llvm-cov/html` while the
 # workflow uploads `target/llvm-cov-report/`. Named here so the path written is
-# the path uploaded, rather than two strings that have to agree.
+# the path uploaded.
 #
-# The two reports are separate `report` invocations, not two flags on one. That is
-# not a style choice: `--html` and `--lcov` are mutually exclusive on a single call
-# ("--html may not be used together with --lcov"), and passing both fails the task
-# outright. Running `report` twice reads the same instrumented profile, so this is
-# still one instrumented build -- which is the expensive part -- and the two
-# numbers describe the same run rather than two runs nobody can reconcile.
+# The two reports are separate `report` invocations, not two flags on one:
+# `--html` and `--lcov` are mutually exclusive on a single call ("--html may not
+# be used together with --lcov") and passing both fails the task outright. Running
+# `report` twice reads the same instrumented profile, so this is still one
+# instrumented build -- the expensive part -- and both numbers describe the same
+# run.
 #
 # The `lcov` half is load-bearing for Codecov, which cannot read an HTML report.
-# Without it the upload step finds no file and the badge silently reports nothing
-# while the job stays green, which is the failure mode this arrangement is
-# arranged to prevent elsewhere in this file.
+# Without it the upload finds no file and the badge silently reports nothing while
+# the job stays green.
 script = """
 cargo llvm-cov nextest --locked \\
   -p lotus-model -p lotus-query -p lotus-curation -p lotus-jsonld -p lotus-search \\
@@ -169,30 +149,24 @@ script = "cargo llvm-cov nextest --locked --summary-only --workspace"
 # executed lines; this checks that they are asserted on.
 #
 # `--test-tool nextest` because nextest is what the suite runs under elsewhere,
-# and a mutant evaluated against a different harness is a mutant evaluated
-# against a different suite.
+# and a mutant evaluated against a different harness is evaluated against a
+# different suite.
 #
-# Every library crate in the workspace. This started as three packages and was
-# grown one missed mutant at a time, which is backwards: the point of mutation
-# testing is that you do not know where the tests are thin until it says so.
+# Every library crate in the workspace. `apps/lotus-explore-rs` is excluded,
+# deliberately, with the reason written down in `mutants.toml`.
 #
-# `apps/lotus-explore-rs` is excluded, deliberately and with a reason. It is
-# ~2,700 mutants of Dioxus rendering -- a `match` arm on a `Signal`, an
-# `rswap!`, a literal in a `class` attribute -- and killing those means a
-# rendering test for every component. That is a large piece of work with a poor
-# ratio, so it is `mutants-ui`, opt-in, and the exclusion is written down in
-# `mutants.toml` rather than being an omission.
-# A preflight, because the failure this guards against is a wedged machine rather
-# than a red task. See make/scripts/mutants-preflight.sh: `cargo mutants` rebuilds the
-# workspace once per mutant, which a normal build never does, and two runs of this at
-# `--jobs 8` crashed a 16 GB laptop with a 94%-full volume. It refuses to start below
-# 20 GB free and says how to reclaim it; `MUTANTS_MIN_FREE_GB=0` overrides.
+# A preflight, because the failure it guards against is a wedged machine rather
+# than a red task. See make/scripts/mutants-preflight.sh: `cargo mutants`
+# rebuilds the workspace once per mutant, which a normal build never does, and
+# two runs of this at `--jobs 8` crashed a 16 GB laptop with a 94%-full volume.
+# It refuses to start below 20 GB free and says how to reclaim it;
+# `MUTANTS_MIN_FREE_GB=0` overrides.
 #
-# `--jobs` defaults to 4 rather than 8. Be clear that this is not a fix: the second
-# crash happened at `--jobs 2`, so concurrency is not the cause and no value of this
-# flag is known to be safe. It is reduced because it is the one knob that plausibly
-# moves memory pressure, not because 4 has been shown to work. `MUTANTS_JOBS=1`, one
-# package at a time, is the form that has a chance.
+# `--jobs` defaults to 4 rather than 8, and that is not a fix: the second crash
+# happened at `--jobs 2`, so concurrency is not the cause and no value of this
+# flag is known to be safe. It is reduced because it is the one knob that
+# plausibly moves memory pressure, not because 4 has been shown to work.
+# `MUTANTS_JOBS=1`, one package at a time, is the form that has a chance.
 [tasks."mutants"]
 cwd = "${REPO_ROOT}"
 description = "Mutation testing over the library crates, using nextest."
@@ -204,7 +178,9 @@ cargo mutants --test-tool nextest --jobs "${MUTANTS_JOBS:-4}" --timeout 300 \\
   --package lotus-cli --package lotus-web-assets
 """
 
-# The excluded UI crate, run on request. See the note above.
+# The excluded UI crate, run on request. ~2,700 mutants of Dioxus rendering --
+# a `match` arm on a `Signal`, an `rswap!`, a literal in a `class` attribute --
+# and killing those means a rendering test for every component.
 [tasks."mutants-ui"]
 cwd = "${REPO_ROOT}"
 description = "Mutation testing over the app crate. Large and mostly unkillable."
@@ -214,8 +190,8 @@ cargo mutants --test-tool nextest --package lotus-explore-rs \\
   --jobs "${MUTANTS_JOBS:-4}" --timeout 300
 """
 
-# The same packages, listed without running them. Use this to see what a change
-# added before paying for the run.
+# The same packages, listed without running them: what a change added, before
+# paying for the run.
 [tasks."mutants-list"]
 cwd = "${REPO_ROOT}"
 description = "List the mutants in the query and curation crates without running them."

@@ -1,16 +1,13 @@
 #!/usr/bin/env bash
-# Check that a built macOS bundle can actually answer everything the app asks
-# it for.
+# Check that a built macOS bundle can actually answer everything the app asks it
+# for.
 #
 # `dioxus-desktop` serves a request out of the bundle only when the path starts
-# with `/assets/`, joining it onto `Contents/Resources`. Anything else is looked
-# up on disk relative to the working directory and missed. That rule is why
-# RDKit and Ketcher 404ed in the window while working in a browser, and nothing
-# in the test suite could see it: the assets were absent, and the paths were
-# only ever assembled at runtime.
-#
-# So this walks the real bundle: the icon the plist names, every folder asset
-# the app can request, and Ketcher's own relative references.
+# with `/assets/`, joining it onto `Contents/Resources`. Anything else is looked up
+# on disk relative to the working directory and missed. That rule is why RDKit and
+# Ketcher 404ed in the window while working in a browser, and nothing in the test
+# suite could see it: the assets were absent, and the paths were only ever
+# assembled at runtime.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -23,14 +20,13 @@ fi
 
 # The bundle layout is the platform's, and it is not worth guessing: a macOS
 # build is `macos/App.app/Contents/Resources/assets`, a Linux build is
-# `linux/<name>/assets`, and the name is whatever the package is called.
-# Guessing is what made this check useless -- it reported "the assets are
-# missing" on every Linux run while the assets were present, in a directory it
-# had decided not to look in.
+# `linux/<name>/assets`, and the name is whatever the package is called. Guessing
+# is what made this check useless -- it reported "the assets are missing" on
+# every Linux run while the assets were present, in a directory it had decided
+# not to look in.
 #
-# So: find the directory that actually holds the editor, which is the only thing
-# this script is really about -- that the URLs the app can request resolve. And
-# say which one it used, so a failure is diagnosable from the log alone.
+# So: find the directory that actually holds the editor, and say which one it
+# used, so a failure is diagnosable from the log alone.
 resources=""
 for candidate in "$root"/macos/*.app/Contents/Resources \
                  $(find "$root" -maxdepth 3 -type d -name assets 2>/dev/null | sed 's|/assets$||' | sort); do
@@ -94,9 +90,9 @@ else
   fail=1
 fi
 
-# Ketcher loads its chunks by relative path, so the bundle is only correct if
-# those resolve inside it too. The paths are rewritten at runtime for a desktop
-# frame, so this is about the files, which is what the rewrite resolves against.
+# Ketcher loads its chunks by relative path, so the bundle is only correct if those
+# resolve inside it too. The paths are rewritten at runtime for a desktop frame,
+# so this is about the files, which is what the rewrite resolves against.
 while read -r ref; do
   [ -n "$ref" ] || continue
   if [ -f "$resources/assets/ketcher/${ref#./}" ]; then

@@ -2,31 +2,27 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Structural rules every generated query must satisfy, checked over *all* of them.
 //!
-//! The other contract modules assert what a given query should contain. This one
-//! asserts properties of every query the crate can generate, because the defect
-//! that actually shipped was not specific to one builder.
+//! The other contract modules assert what a given query should contain; this asserts properties
+//! of every query the crate can generate, because the defect that shipped was not specific to
+//! one builder.
 //!
 //! ## Why this exists
 //!
-//! `FILTER(BOUND(?ref))` was added inside three `OPTIONAL`s to stop an unbound
-//! `?r` becoming a fresh variable. It blanked every reference title, DOI and date
-//! in the product, and nothing caught it, because:
+//! `FILTER(BOUND(?ref))` was added inside three `OPTIONAL`s to stop an unbound `?r`
+//! becoming a fresh variable. It blanked every reference title, DOI and date in the product
+//! and nothing caught it: the query still ran and returned the same *number* of rows, the
+//! affected columns are optional so an empty cell is indistinguishable from a reference with
+//! genuinely no metadata, and the commit introducing it was fixing a real 54,116,026-row
+//! scan and verified its change by row count.
 //!
-//! - the query still ran, and returned the same *number* of rows;
-//! - the affected columns are optional, so an empty cell is indistinguishable
-//!   from a reference that genuinely has no metadata;
-//! - the commit that introduced it was fixing a real 54,116,026-row scan, and
-//!   verified its change by row count.
+//! The cause is a scoping rule that is easy to state and easy to forget: **a `FILTER` inside
+//! an `OPTIONAL` is evaluated against that `OPTIONAL`'s own solutions, before the join with
+//! the left side.** A variable bound only outside is unbound inside, `BOUND` of it is false,
+//! and the `OPTIONAL` rejects everything. Measured: 87 rows carried a title before the guard,
+//! 0 after.
 //!
-//! The cause is a scoping rule that is easy to state and easy to forget: **a
-//! `FILTER` inside an `OPTIONAL` is evaluated against that `OPTIONAL`'s own
-//! solutions, before the join with the left side.** So a variable bound only
-//! outside is unbound inside, `BOUND` of it is false, and the `OPTIONAL` rejects
-//! everything. Measured: 87 rows carried a title before the guard, 0 after.
-//!
-//! Nothing about that is visible in a row count, so it is checked here instead.
-//! These are lexical properties of the query text, which is the only place the
-//! rule is observable without an endpoint.
+//! None of that is visible in a row count, so it is checked here instead: lexical properties
+//! of the query text, the only place the rule is observable without an endpoint.
 
 use lotus_model::SmilesSearchType;
 use lotus_query::{
@@ -226,16 +222,16 @@ fn the_count_query_carries_no_reference_or_compound_metadata() {
 
 /// `?ref` must be projected, and must not be shown.
 ///
-/// It was dropped once on the grounds that nothing read it, which was wrong on
-/// both counts. It is the reference *node* -- `prov:wasDerivedFrom` -- and not the
-/// publication that `?ref_qid` names via `pr:P248`; the `CONSTRUCT` template emits
-/// `?statement prov:wasDerivedFrom ?ref`, so the provenance graph needs it. And it
-/// belongs in the parsed row even though no reader-facing column shows it.
+/// Dropped once on the grounds that nothing read it, wrong on both counts. It is the
+/// reference *node* -- `prov:wasDerivedFrom` -- not the publication `?ref_qid` names via
+/// `pr:P248`; the `CONSTRUCT` template emits `?statement prov:wasDerivedFrom ?ref`, so the
+/// provenance graph needs it. And it belongs in the parsed row even though no reader-facing
+/// column shows it.
 ///
-/// Dropping it is easy to do by accident and invisible when it happens: the query
-/// still runs, the row count is unchanged, and the loss only shows up in a Turtle
-/// export or in anything rebuilding the provenance graph. Hence both halves are
-/// pinned here -- projected for the machine, absent from the human-facing columns.
+/// Dropping it is easy to do by accident and invisible when it happens: the query still runs,
+/// the row count is unchanged, and the loss surfaces only in a Turtle export or in anything
+/// rebuilding the provenance graph. Hence both halves are pinned -- projected for the
+/// machine, absent from the human-facing columns.
 #[test]
 fn the_reference_node_is_projected_but_not_shown() {
     for (label, _query) in every_shape() {

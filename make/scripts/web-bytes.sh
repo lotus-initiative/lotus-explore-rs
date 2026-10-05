@@ -10,9 +10,9 @@ if [ ! -f "$out/index.html" ]; then
   echo "no build at $out -- run './mk web-build' first" >&2
   exit 1
 fi
-# `dx build` leaves a superseded bundle beside the current one, which inflates
-# the table. Prune before measuring, not after: a number that needs a second run
-# to become correct eventually gets misread.
+# `dx build` leaves a superseded bundle beside the current one, which inflates the
+# table. Prune before measuring, not after: a number that needs a second run to
+# become correct eventually gets misread.
 for asset in "$out"/assets/*.js "$out"/assets/*.wasm "$out"/assets/*.css; do
   [ -f "$asset" ] || continue
   case "$asset" in *.br) continue ;; esac

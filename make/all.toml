@@ -1,6 +1,6 @@
 # Every task file, in one list, so `extend` stays a single string. cargo-make
 # 0.37 takes one path here; a list is accepted only in later versions, and
-# `--list-all-steps` is how you see the result.
+# `--list-all-steps` is how the result is seen.
 extend = [
   { path = "format.toml" },
   { path = "lint.toml" },

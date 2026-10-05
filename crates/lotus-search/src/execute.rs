@@ -63,17 +63,15 @@ impl Service {
 
     /// The URL to POST to: the override if one is set, else the public one.
     ///
-    /// The `!url.is_empty()` filter is a surviving mutant, and so are the same
-    /// filter in `query_budget` and the same test in `request_headers`. All three
-    /// read one environment variable and all three decide what an *empty* one
-    /// means -- which no test can reach, because the workspace forbids
-    /// `unsafe_code` and `std::env::set_var` is `unsafe` on this toolchain. They
-    /// are one gap wearing three hats, and the fix is the one
-    /// `apps/lotus-explore-rs/src/server/config.rs` already uses: take the
-    /// variable as a parameter, so production passes an env reader and a test
-    /// passes a closure returning `Some(String::new())`. Recorded in
-    /// `mutants.toml` rather than done here, because `Service::target` is public
-    /// and making that change is an API decision rather than a test.
+    /// The `!url.is_empty()` filter is a surviving mutant, and so are the same filter in
+    /// `query_budget` and the same test in `request_headers`. All three read one environment
+    /// variable and decide what an *empty* one means -- which no test can reach, because the
+    /// workspace forbids `unsafe_code` and `std::env::set_var` is `unsafe` on this toolchain.
+    /// One gap wearing three hats; the fix is the one
+    /// `apps/lotus-explore-rs/src/server/config.rs` already uses, taking the variable as a
+    /// parameter so production passes an env reader and a test passes a closure returning
+    /// `Some(String::new())`. Recorded in `mutants.toml` rather than done here, because
+    /// `Service::target` is public and that change is an API decision, not a test.
     #[must_use]
     pub fn target(self) -> String {
         std::env::var(self.variable())
@@ -189,15 +187,13 @@ pub async fn execute<H: Http>(
         match send(http, &target, query, format).await {
             Ok(body) => return Ok(Answer { endpoint, body }),
             Err(err) => {
-                // `<` rather than `<=` is one surviving mutant here that is
-                // equivalent, and it is worth saying why rather than leaving it to
-                // be rediscovered. `attempt <= MAX_ATTEMPTS` is true on the last
-                // iteration too, so the body would take one more branch: store
-                // the error, sleep out the backoff, and let the `for` run out. It
-                // then returns `last` -- the error from that same last attempt,
-                // which is the identical value the line below returns directly.
-                // Same error, same number of requests, one wasted 400 ms. `<` is
-                // what is meant: the last attempt's failure is the answer.
+                // `<` rather than `<=` is an equivalent surviving mutant, recorded so it
+                // need not be rediscovered. `attempt <= MAX_ATTEMPTS` is true on the last
+                // iteration too, so the body takes one more branch: store the error, sleep
+                // out the backoff, let the `for` run out, then return `last` -- the error
+                // from that same last attempt, identical to the value the line below
+                // returns. Same error, same request count, one wasted 400 ms. `<` is meant:
+                // the last attempt's failure is the answer.
                 let worth_retrying = err.is_retryable() && attempt < MAX_ATTEMPTS;
                 if !worth_retrying {
                     return Err(err);
@@ -352,16 +348,15 @@ fn form_body(endpoint: &str, query: &str) -> String {
 ///         by this instance (30s). Please use a valid-access token ..."
 /// ```
 ///
-/// Asking for less than the server would use is the point. A query that gets
-/// cancelled at 30 s has already spent 30 s of a shared endpoint; cancelled at
-/// 25 s it costs five seconds less and returns the same refusal, sooner, with
-/// the endpoint's own account of which operation was still running.
+/// Asking for less than the server would use is the point: a query cancelled at 30 s has
+/// spent 30 s of a shared endpoint, while cancelled at 25 s it costs five seconds less and
+/// returns the same refusal, sooner, with the endpoint's own account of which operation was
+/// still running.
 ///
-/// `LOTUS_QLEVER_TIMEOUT` overrides it, in `QLever`'s own duration syntax (`30s`,
-/// `1500ms`, `1min`), for a deployment that has an access token and a raised
-/// ceiling. It is clamped to [`QLever::MAX_QUERY_BUDGET`] because the public
-/// instance rejects anything larger with a `403`, and a request that is certain
-/// to be refused should not be sent.
+/// `LOTUS_QLEVER_TIMEOUT` overrides it in `QLever`'s duration syntax (`30s`, `1500ms`,
+/// `1min`), for a deployment with an access token and a raised ceiling. Clamped to
+/// [`QLever::MAX_QUERY_BUDGET`] because the public instance rejects anything larger with a
+/// `403`, and a request certain to be refused should not be sent.
 #[must_use]
 fn query_budget(endpoint: &str) -> Option<String> {
     // Substring rather than `starts_with`, because this is a full URL and the
@@ -417,17 +412,15 @@ impl QLever {
 
 /// Headers sent with every `QLever` request.
 ///
-/// Two, and both are about being a good citizen rather than about function:
+/// Two, both about being a good citizen rather than function:
 ///
-/// - **`api-user-agent`** identifies the client. `QLever` allows this header
-///   explicitly, and a deployment running this app heavily is then something an
-///   operator can reach and raise a limit for, instead of an anonymous address
-///   that eventually gets blocked.
-/// - **`api-token`**, only when `LOTUS_QLEVER_TOKEN` is set. That is the
-///   documented way to ask for more than the anonymous budget, and it is the
-///   answer to "this workload is legitimately heavy": a token, not a faster
-///   retry loop. The variable is read per request rather than cached so a
-///   token can be rotated without restarting the process.
+/// - **`api-user-agent`** identifies the client. `QLever` allows it explicitly, so a
+///   deployment running this app heavily is something an operator can reach and raise a
+///   limit for, instead of an anonymous address that eventually gets blocked.
+/// - **`api-token`**, only when `LOTUS_QLEVER_TOKEN` is set: the documented way to ask for
+///   more than the anonymous budget, and the answer to "this workload is legitimately
+///   heavy" -- a token, not a faster retry loop. Read per request rather than cached so a
+///   token rotates without restarting the process.
 fn request_headers() -> Vec<(&'static str, String)> {
     let mut headers = vec![("api-user-agent", QLever::CLIENT_ID.to_string())];
     if let Ok(token) = std::env::var("LOTUS_QLEVER_TOKEN") {
@@ -480,14 +473,12 @@ pub struct StreamAnswer {
 
 /// POST `query`, and hand back its body to be read in chunks instead of at once.
 ///
-/// The difference from [`execute`] is the whole point: a result set whose payload
-/// does not fit in memory cannot be fetched with a method that assembles it
-/// first.
+/// The difference from [`execute`] is the point: a payload that does not fit in memory
+/// cannot be fetched by a method that assembles it first.
 ///
-/// There is no empty-body check, because finding out whether the body is empty
-/// means reading it, and reading it is what this method exists to avoid. A query
-/// that matches nothing returns a header row, which the CSV reader accepts and
-/// which becomes an empty result set.
+/// There is no empty-body check, because finding out whether the body is empty means
+/// reading it, which is what this method avoids. A query matching nothing returns a header
+/// row, which the CSV reader accepts and which becomes an empty result set.
 ///
 /// # Errors
 /// Returns [`FetchError`] if the request could not be sent or the endpoint
@@ -509,15 +500,13 @@ pub async fn execute_streaming<H: Http>(
                 return Ok(StreamAnswer { endpoint, chunks });
             }
             Err(err) => {
-                // `<` rather than `<=` is one surviving mutant here that is
-                // equivalent, and it is worth saying why rather than leaving it to
-                // be rediscovered. `attempt <= MAX_ATTEMPTS` is true on the last
-                // iteration too, so the body would take one more branch: store
-                // the error, sleep out the backoff, and let the `for` run out. It
-                // then returns `last` -- the error from that same last attempt,
-                // which is the identical value the line below returns directly.
-                // Same error, same number of requests, one wasted 400 ms. `<` is
-                // what is meant: the last attempt's failure is the answer.
+                // `<` rather than `<=` is an equivalent surviving mutant, recorded so it
+                // need not be rediscovered. `attempt <= MAX_ATTEMPTS` is true on the last
+                // iteration too, so the body takes one more branch: store the error, sleep
+                // out the backoff, let the `for` run out, then return `last` -- the error
+                // from that same last attempt, identical to the value the line below
+                // returns. Same error, same request count, one wasted 400 ms. `<` is meant:
+                // the last attempt's failure is the answer.
                 let worth_retrying = err.is_retryable() && attempt < MAX_ATTEMPTS;
                 if !worth_retrying {
                     return Err(err);
@@ -635,11 +624,9 @@ fn urlencode(value: &str) -> String {
 
 /// Wait before the next attempt.
 ///
-/// On native this is a tokio timer, which does not block the runtime. On wasm
-/// there is no reactor and no timer that does not itself need one, so the wait
-/// is dropped rather than blocking the browser's only thread: a client that
-/// cannot reach the endpoint at all will not reach it in a millisecond either,
-/// and freezing the page to find that out is worse than retrying at once.
+/// On native a tokio timer, which does not block the runtime. On wasm there is no reactor
+/// and no timer that does not itself need one, so the wait is dropped rather than blocking
+/// the browser's only thread.
 ///
 /// The `cfg` is on the function rather than inside it, so the wasm build has
 /// nothing to await and this is not a promise of a wait that never happens.
@@ -656,29 +643,25 @@ async fn backoff(duration: Duration) {
 /// control back would block the page. It costs a turn of the loop instead of the
 /// backoff, which is the right trade on a network failure.
 ///
-/// Not `futures_timer::Delay`, which was here first and **panicked in the
-/// browser**: on `wasm32-unknown-unknown` it falls back to `std::time::Instant`,
-/// which is unimplemented, so the failure read `time not implemented on this
-/// platform` from inside a retry -- reached only once a request had already
-/// failed, which is exactly when nobody is watching the console. The build was
-/// green and the app died on its first network error.
+/// Not `futures_timer::Delay`, which was here first and **panicked in the browser**: on
+/// `wasm32-unknown-unknown` it falls back to the unimplemented `std::time::Instant`, so the
+/// failure read `time not implemented on this platform` from inside a retry -- reached only
+/// once a request had already failed, exactly when nobody is watching the console. The
+/// build was green and the app died on its first network error.
 #[cfg(target_arch = "wasm32")]
 async fn backoff(_duration: Duration) {
-    // A client that cannot reach the endpoint will not reach it in a
-    // millisecond either, and blocking the browser's only thread to find that
-    // out is worse than retrying immediately.
-    // A resolved promise is the platform's own "run this on the next turn of
-    // the event loop", and awaiting one is how a future yields on a single-
-    // threaded browser runtime.
-    // The `Result` cannot be awaited to anything useful: an already-resolved
-    // promise does not reject, and there is nothing here for a failure to abort.
+    // A client that cannot reach the endpoint will not reach it in a millisecond either, and
+    // blocking the browser's only thread to find that out is worse than retrying at once.
+    // A resolved promise is the platform's own "run this on the next turn of the event
+    // loop", and awaiting one is how a future yields on a single-threaded browser runtime.
+    // The `Result` cannot be awaited usefully: an already-resolved promise does not reject,
+    // and there is nothing here for a failure to abort.
     //
-    // Mutating the body of *this* function is a survivor on a native run, and it
-    // is not a gap in the tests: `cfg(target_arch = "wasm32")` means none of it is
-    // compiled into the test binary, so no mutation of it can be observed from
-    // one. The same edit to the `#[cfg(not(target_arch = "wasm32"))]` twin above
-    // *is* caught, by `a_retry_waits_before_it_happens`. Killing this one would
-    // take a browser test, which is what `wasm-bindgen-test` would be for.
+    // Mutating *this* body survives a native run, and that is not a gap in the tests:
+    // `cfg(target_arch = "wasm32")` keeps none of it in the test binary, so no mutation of it
+    // is observable from one. The same edit to the `#[cfg(not(target_arch = "wasm32"))]`
+    // twin above *is* caught, by `a_retry_waits_before_it_happens`. Killing this one takes a
+    // browser test, which is what `wasm-bindgen-test` is for.
     let _ = JsFuture::from(Promise::resolve(&JsValue::UNDEFINED)).await;
 }
 
@@ -923,17 +906,14 @@ mod tests {
         );
     }
 
-    // ── `clamp_budget` ──────────────────────────────────────────────────────
+    // Pure, and until now reached only through `query_budget`, which reads an environment
+    // variable and so was not observable from a unit test: the workspace forbids
+    // `unsafe_code` and `std::env::set_var` is `unsafe` on this toolchain, leaving the
+    // budget arithmetic untested.
     //
-    // Pure, and until now reached only through `query_budget`, which reads an
-    // environment variable. That is not observable from a unit test: the
-    // workspace forbids `unsafe_code` and `std::env::set_var` is `unsafe` on
-    // this toolchain, so the budget arithmetic had no test at all.
-    //
-    // The cases below are the ones the parsing decides between, because each is a
-    // different spelling an operator can legitimately write in
-    // `LOTUS_QLEVER_TIMEOUT`. A budget that is silently misread is a query that
-    // runs for the wrong length of time, which is the outcome nobody notices.
+    // Each case below is a spelling an operator can legitimately write in
+    // `LOTUS_QLEVER_TIMEOUT`. A silently misread budget is a query running for the wrong
+    // length of time, which nobody notices.
 
     #[test]
     fn a_budget_in_milliseconds_is_taken_as_written() {
@@ -1024,12 +1004,9 @@ mod tests {
         assert_eq!(parsed, Some(30));
     }
 
-    // ── `request_headers` ───────────────────────────────────────────────────
-    //
-    // The token half reads `LOTUS_QLEVER_TOKEN`, so only the half that does not
-    // is reachable here. Asserted so that the unconditional part is pinned: a
-    // client that stopped identifying itself is not a failure any status code
-    // reports.
+    // The token half reads `LOTUS_QLEVER_TOKEN`, so only the half that does not is reachable
+    // here, pinned because a client that stopped identifying itself is a failure no status
+    // code reports.
 
     #[test]
     fn every_request_identifies_the_client_first() {

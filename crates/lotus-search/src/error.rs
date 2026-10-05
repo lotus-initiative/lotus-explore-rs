@@ -12,11 +12,8 @@ pub enum FetchError {
 
     /// The endpoint cancelled the query because it ran out of time.
     ///
-    /// Its own variant, and the most important thing this file says.
-    ///
-    /// `QLever` answers **`429` when a query exceeds its time limit**, not when
-    /// a client sends too many requests. Verified against `qlever.dev` on
-    /// 2026-10-04, and the distinction is not cosmetic:
+    /// `QLever` answers **`429` when a query exceeds its time limit**, not when a client
+    /// sends too many requests. Verified against `qlever.dev` on 2026-10-04:
     ///
     /// ```text
     /// POST /api/wikidata  timeout=3s   ->  429
@@ -26,15 +23,14 @@ pub enum FetchError {
     ///                  allowed by this instance (30s)."}
     /// ```
     ///
-    /// So a 429 is a statement about **one query being too expensive**, and
-    /// retrying it is the one thing that cannot help: the same query will run
-    /// for the same 30 seconds and be cancelled for the same reason. What it
-    /// does do is occupy the endpoint for the full budget, several times over,
-    /// which is how a client becomes the kind of client an operator blocks.
+    /// A 429 says **one query is too expensive**, and retrying is the one thing that cannot
+    /// help: the same query runs the same 30 seconds and is cancelled for the same reason,
+    /// while occupying the endpoint for the full budget each time -- how a client becomes
+    /// the kind an operator blocks.
     ///
-    /// It is therefore **not** [`Self::is_retryable`], and it is deliberately not
-    /// [`Self::is_endpoint_unavailable`] either: falling back to `WDQS` would not
-    /// make an expensive query cheap, it would run it twice on two endpoints.
+    /// Hence **not** [`Self::is_retryable`], and deliberately not
+    /// [`Self::is_endpoint_unavailable`] either: falling back to `WDQS` would not make an
+    /// expensive query cheap, it would run it twice on two endpoints.
     #[error("the query exceeded the endpoint's time limit ({}): {message}", budget.as_deref().unwrap_or("unset"))]
     TimedOut {
         /// The budget that was asked for, in the endpoint's own duration syntax.
@@ -62,13 +58,12 @@ pub enum FetchError {
 
     /// The body stopped before the result set did.
     ///
-    /// Its own variant rather than [`FetchError::Network`] because the two want
-    /// opposite behaviour. A network failure is worth repeating; this is a body
-    /// that began arriving and then ran out, and repeating it re-downloads
-    /// however many hundreds of megabytes already arrived in order to arrive at
-    /// the same place. It is also not a parse failure: the CSV read fine, there
-    /// is simply less of it than the query asked for, and the only honest
-    /// outcome is to refuse the answer rather than report the part that came.
+    /// Its own variant rather than [`FetchError::Network`] because the two want opposite
+    /// behaviour. A network failure is worth repeating; this is a body that began arriving and
+    /// ran out, and repeating it re-downloads however many hundreds of megabytes already
+    /// arrived to arrive in the same place. Not a parse failure either: the CSV read fine,
+    /// there is simply less of it than the query asked for, so the honest outcome is to refuse
+    /// the answer rather than report the part that came.
     #[error("the result set was cut short after {bytes_read} bytes: {reason}")]
     Truncated {
         /// How much of the body did arrive, so the message can say the answer
@@ -104,13 +99,11 @@ impl From<lotus_query::ParseError> for FetchError {
 impl FetchError {
     /// Whether a request that failed this way could succeed if sent again.
     ///
-    /// A 4xx will not: the query itself is the problem, and repeating it
-    /// repeats the rejection. A 5xx is the endpoint's.
+    /// A 4xx will not: the query itself is the problem, and repeating it repeats the rejection.
+    /// A 5xx is the endpoint's.
     ///
-    /// `TimedOut` is the one that used to say "a 429 might, later". It does
-    /// not, and the variant documents why in full: `QLever`'s 429 is a query
-    /// time limit, so a second attempt spends another full budget to arrive at
-    /// the same cancellation.
+    /// `TimedOut` is not retryable because `QLever`'s 429 is a query time limit: a second
+    /// attempt spends another full budget to arrive at the same cancellation.
     #[must_use]
     pub const fn is_retryable(&self) -> bool {
         match self {
@@ -200,26 +193,20 @@ impl ResponseFormat {
 
 /// Whether a status code is worth a second attempt.
 ///
-/// A free function so the retry policy is testable without constructing an error,
-/// and -- the reason it exists as its own function rather than as an arm inside
-/// [`FetchError::is_retryable`] -- so there is **one** rule rather than a copy in
-/// each place that retries.
+/// A free function so the retry policy is testable without constructing an error, and so
+/// there is **one** rule rather than a copy in each place that retries.
 ///
-/// That it is now the only copy is not a style preference. It was exported and
-/// called from nowhere, while `FetchError::is_retryable` carried its own inline
-/// `status == 429 || status >= 500`. Mutation testing found it: every mutant of
-/// this function survived, because the tests all went through the *copy*. The two
-/// could drift, and changing one would have left the retry loop disagreeing with
-/// the function that documents it.
+/// That it is now the only copy is not a style preference. It was exported and called from
+/// nowhere while `FetchError::is_retryable` carried its own inline
+/// `status == 429 || status >= 500`. Mutation testing found it: every mutant of this
+/// function survived, because the tests all went through the *copy*. The two could drift,
+/// and changing one would leave the retry loop disagreeing with the function documenting it.
 ///
-/// **`429` is not in this set, and that is the whole point of the change.** It
-/// used to be, on the assumption that it meant "too many requests, try again in
-/// a moment". It does not: `QLever` answers 429 when the query itself ran out
-/// of time (`src/engine/Server.cpp`, `CancellationException` -> 429, with the
-/// message "Operation timed out"). Retrying one spends the endpoint's entire
-/// budget again to be cancelled the same way, so a single broad search could
-/// previously cost four full-length queries. [`FetchError::TimedOut`] carries the
-/// measurement.
+/// **`429` is excluded deliberately.** `QLever` answers 429 when the query itself ran out of
+/// time (`src/engine/Server.cpp`, `CancellationException` -> 429, "Operation timed out"), not
+/// "too many requests". Retrying one spends the endpoint's entire budget again to be
+/// cancelled the same way, so a single broad search could cost four full-length queries.
+/// [`FetchError::TimedOut`] carries the measurement.
 #[must_use]
 pub const fn is_retryable_status(status: u16) -> bool {
     status >= 500
@@ -370,10 +357,10 @@ mod tests {
     /// The rule itself, on its own, rather than only through an error.
     ///
     /// These call the free function directly. The tests above went through
-    /// `FetchError::is_retryable`, which is a *separate* implementation of the same
-    /// rule -- that duplication is why every mutant of `is_retryable_status`
-    /// survived, since nothing reached the function they were mutating. It is now
-    /// the only copy, and these tests are what hold it to that.
+    /// `FetchError::is_retryable`, a *separate* implementation of the same rule -- the
+    /// duplication that let every mutant of `is_retryable_status` survive, since nothing
+    /// reached the function they were mutating. It is now the only copy, and these tests
+    /// hold it to that.
     #[test]
     fn the_retry_rule_is_a_server_error_and_nothing_else() {
         // The client-error side: none of them is worth another attempt. A 400 is
@@ -440,11 +427,10 @@ mod tests {
 
     /// Every format asks for what it says it wants.
     ///
-    /// The `Accept` header and the `action=` parameter are the whole of how a
-    /// format reaches the endpoint, so a constant in either place is silent: the
-    /// request still succeeds and returns the wrong shape, which the parser then
-    /// reports as somebody else's bug. `NTriples` has no `action` at all, and that
-    /// is a fact about `QLever` rather than an oversight -- pinning it stops a
+    /// The `Accept` header and the `action=` parameter are the whole of how a format reaches the
+    /// endpoint, so a constant in either place is silent: the request succeeds and returns
+    /// the wrong shape, which the parser reports as somebody else's bug. `NTriples` has no
+    /// `action` at all, a fact about `QLever` rather than an oversight -- pinning it stops a
     /// future arm "fixing" it into a fourth action.
     #[test]
     fn every_format_names_its_own_accept_header_and_action() {

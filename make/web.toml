@@ -1,9 +1,9 @@
 # The web app, the desktop window and the wasm bundle.
 #
-# `dx` is the Dioxus CLI, pinned to the same 0.7.10 as the `dioxus` dependency
-# in the root manifest. `dx` is the binary `dioxus-cli` installs and is not
-# published to crates.io, so `cargo binstall dx@0.7.10` does not resolve and
-# `./mk setup` installs `dioxus-cli` instead.
+# `dx` is the Dioxus CLI, pinned to the same 0.7.10 as the `dioxus` dependency in
+# the root manifest. `dx` is the binary `dioxus-cli` installs and is not published
+# to crates.io, so `cargo binstall dx@0.7.10` does not resolve and `./mk setup`
+# installs `dioxus-cli` instead.
 
 # fetch-assets must run from the app crate's directory so its relative asset
 # directories land inside `apps/lotus-explore-rs/public`, not at the repo-root
@@ -19,10 +19,10 @@ script = """
 #!/usr/bin/env bash
 set -euo pipefail
 cd apps/lotus-explore-rs
-# The retry is for the failure `fetch-assets` cannot see: a run cut off part way
+# The retry covers the failure `fetch-assets` cannot see: a run cut off part way
 # through leaves a half-populated `public/assets/`, and `dx build` succeeds
-# against that -- which publishes a site with no structure editor rather than
-# failing. `fetch-assets` already retries within a single request.
+# against that -- publishing a site with no structure editor rather than failing.
+# `fetch-assets` already retries within a single request.
 for attempt in 1 2 3; do
   if cargo run --locked -p lotus-web-assets --bin fetch-assets; then
     break
@@ -65,13 +65,10 @@ dx serve --package lotus-explore-rs --platform web --locked --open=false \\
   --rustc-args="-Cdebuginfo=0 -Cstrip=debuginfo"
 """
 
-# Dioxus supplies a different entry point per renderer and two of them cannot be
-# enabled at once, so the renderer is chosen by a feature. Without `--features
-# desktop` a native build has no user interface and exits immediately.
 # The API on its own, for developing against it without the Dioxus dev server.
 # The dev server proxies `/v1` to `127.0.0.1:8787` (see the `[[web.proxy]]` entry
-# in Dioxus.toml), so this is the other half of `./mk web-dev` when you need a
-# real query path rather than a fixture.
+# in Dioxus.toml), so this is the other half of `./mk web-dev` when a real query
+# path is needed rather than a fixture.
 [tasks."web-dev-api"]
 cwd = "${REPO_ROOT}"
 description = "Run the HTTP API on http://127.0.0.1:8787."
@@ -79,6 +76,9 @@ script = """
 exec cargo run --locked --features server -p lotus-explore-rs
 """
 
+# Dioxus supplies a different entry point per renderer and two of them cannot be
+# enabled at once, so the renderer is chosen by a feature. Without
+# `--features desktop` a native build has no user interface and exits immediately.
 [tasks."web-dev-desktop"]
 cwd = "${REPO_ROOT}"
 description = "Run the dev server for the native-window build."
@@ -88,12 +88,9 @@ cd apps/lotus-explore-rs
 dx serve --package lotus-explore-rs --desktop --locked --features desktop --open=false
 """
 
-# The release web build, with the optimisation level the profile declares.
-#
-# The `BROWSERSLIST` is the shipped floor, and it is set here rather than left
-# to autoprefixer because the browserslist config affects what Tailwind emits:
-# a wider floor means more vendor prefixes in the stylesheet that every page
-# loads.
+# The `BROWSERSLIST` is the shipped floor, and it is set here rather than left to
+# autoprefixer because the browserslist config affects what Tailwind emits: a
+# wider floor means more vendor prefixes in the stylesheet every page loads.
 [tasks."web-build"]
 cwd = "${REPO_ROOT}"
 description = "Build the optimised web bundle with dx."
@@ -106,14 +103,13 @@ BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' \\
 """
 
 # The desktop job in CI: compile the one target nothing else builds, then prove
-# the bundle can answer what the app asks of it. Every desktop-only bug so far
-# -- an unstyled window, a no-op download, a 404 for the toolkit -- compiled
-# cleanly, because nothing built this target.
-# `dx build` is the one step here that is not a task: it has to run from the app
-# crate's directory, because that is where the assets and the output tree are.
-# The two steps after it are dependencies rather than commands, so the runner runs
-# them instead of the script re-entering `cargo make` and fanning out over all
-# eight crates.
+# the bundle can answer what the app asks of it. Every desktop-only bug so far --
+# an unstyled window, a no-op download, a 404 for the toolkit -- compiled cleanly,
+# because nothing built this target.
+#
+# The steps after the build are dependencies rather than commands, so the runner
+# runs them instead of the script re-entering `cargo make` and fanning out over
+# all eight crates.
 [tasks."desktop"]
 cwd = "${REPO_ROOT}"
 description = "Build the desktop app and verify the bundle can answer every request."
@@ -122,7 +118,9 @@ dependencies = ["assets", "lint-desktop", "test-desktop", "desktop-build", "veri
 [tasks."desktop-build"]
 cwd = "${REPO_ROOT}"
 description = "Run dx build for the desktop bundle."
-# Shebang for the same reason as `assets`: `sh` is dash on the CI runners.
+# `dx build` is not a task: it has to run from the app crate's directory, which is
+# where the assets and the output tree are. Shebang for the same reason as
+# `assets`: `sh` is dash on the CI runners.
 script = """
 #!/usr/bin/env bash
 set -euo pipefail
@@ -135,7 +133,6 @@ exec dx build --package lotus-explore-rs --desktop --locked --features desktop
 # `[profile.release]` it is supposed to match. That drift shipped once: the one
 # build said `s` while the profile said `z`, and every release bundle was 185300
 # raw / 38433 brotli bytes larger than intended, with nothing in CI noticing.
-# Assert the three agree.
 [tasks."opt-levels"]
 cwd = "${REPO_ROOT}"
 description = "Assert the three declarations of the release opt-level agree."
@@ -153,8 +150,6 @@ cwd = "${REPO_ROOT}"
 description = "Inject the preload link for the content-hashed wasm module."
 script = "cargo run --locked --release -p lotus-web-assets --bin inject-wasm-preload"
 
-# Recompile the application stylesheet.
-#
 # The compiled sheet is committed, because `asset!` reads it at compile time and
 # a checkout without it cannot build the app. That makes it possible for it to go
 # stale, so a test in `document_head.rs` fails if a theme token is missing from
@@ -171,9 +166,9 @@ set -euo pipefail
 exec bash "make/scripts/web-css.sh"
 """
 
-# One number per transfer encoding, so a profile experiment is comparable with
-# the one before it instead of eyeballed. `raw` is what the linker emitted, `br`
-# is the sibling dx pre-compresses, `gzip -9` is the fallback for hosts without
+# One number per transfer encoding, so a profile experiment is comparable with the
+# one before it instead of eyeballed. `raw` is what the linker emitted, `br` is
+# the sibling dx pre-compresses, `gzip -9` is the fallback for hosts without
 # brotli. Only the bundle we actually ship is measured: no source maps.
 [tasks."web-bytes"]
 cwd = "${REPO_ROOT}"
@@ -184,14 +179,11 @@ set -euo pipefail
 exec bash "make/scripts/web-bytes.sh"
 """
 
-# The macOS application icon, generated from the same artwork the web app uses.
-#
 # `dx` writes `CFBundleIconFile = icon.icns` into every macOS bundle whether or
-# not one is configured, so a bundle built without this file has a plist naming
-# a file that is not there, and Finder shows a generic icon. `iconutil` needs a
+# not one is configured, so a bundle built without this file has a plist naming a
+# file that is not there, and Finder shows a generic icon. `iconutil` needs a
 # full iconset -- ten sizes, half of them at 2x -- so it is generated rather than
-# committed, and the mistake it prevents is an `.icns` that looks right and is
-# missing a size.
+# committed, which prevents an `.icns` that looks right and is missing a size.
 [tasks."app-icon"]
 cwd = "${REPO_ROOT}"
 description = "Generate the macOS .icns from the app's PNG artwork."
@@ -201,8 +193,6 @@ set -euo pipefail
 exec bash "make/scripts/app-icon.sh"
 """
 
-# Copy the icon into a built macOS bundle.
-#
 # Done here rather than through `Dioxus.toml` because `dx` accepts a `resources`
 # entry and does not put it where the plist looks, so a configured icon and a
 # Finder icon were two different files.
@@ -215,18 +205,12 @@ set -euo pipefail
 exec bash "make/scripts/bundle-icon.sh"
 """
 
-# Check that a built macOS bundle can actually answer everything the app asks
-# it for.
-#
 # `dioxus-desktop` serves a request out of the bundle only when the path starts
 # with `/assets/`, joining it onto `Contents/Resources`. Anything else is looked
-# up on disk relative to the working directory and missed. That rule is why
-# RDKit and Ketcher 404ed in the window while working in a browser, and nothing
-# in the test suite could see it: the assets were absent, and the paths were
-# only ever assembled at runtime.
-#
-# So this walks the real bundle: the icon the plist names, every folder asset
-# the app can request, and Ketcher's own relative references.
+# up on disk relative to the working directory and missed. That rule is why RDKit
+# and Ketcher 404ed in the window while working in a browser, and nothing in the
+# test suite could see it: the assets were absent, and the paths were only ever
+# assembled at runtime.
 [tasks."verify-bundle"]
 cwd = "${REPO_ROOT}"
 description = "Assert the built desktop bundle can answer every request the app makes."

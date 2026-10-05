@@ -2,11 +2,10 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Query construction.
 //!
-//! Every query this crate builds is a `SELECT` over the LOTUS projection in
-//! Wikidata, shaped as nested subqueries so that `QLever` can filter before it
-//! enriches. The nesting is load-bearing and is asserted in
-//! `tests/query_contract.rs`; those tests assert the builders' behaviour rather
-//! than their bytes, so whitespace may change but structure may not.
+//! Every query is a `SELECT` over the LOTUS projection in Wikidata, shaped as nested
+//! subqueries so `QLever` filters before it enriches. The nesting is load-bearing and
+//! asserted in `tests/query_contract.rs`, which checks builders' behaviour rather than
+//! their bytes: whitespace may change, structure may not.
 
 use lotus_model::taxon_nomenclature::{self, Relation};
 use lotus_model::{ElementState, SearchCriteria, SmilesSearchType, classify_structure};
@@ -191,32 +190,27 @@ PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
 
 /// The names `select_clause` projects, in order.
 ///
-/// The parser finds its columns by name, so this list and the projection have to
-/// be the same list. They were kept in step by hand and by nothing else, and the
-/// two copies are in different files: a projected name the parser does not know
-/// is not an error, it is a column that silently arrives empty. So the names are
-/// written down once here, and `the_projection_is_exactly_these_names` fails when
-/// the text and the list disagree.
+/// The parser finds its columns by name, so this list and the projection must be the
+/// same list. They were kept in step by hand and by nothing else, across two files: a
+/// projected name the parser does not know is not an error, it is a column that silently
+/// arrives empty. `the_projection_is_exactly_these_names` fails when text and list disagree.
 ///
-/// `compound_smiles_conn` and `compound_smiles_iso` are both here because both
-/// are projected and the parser picks between them; a single coalesced column
-/// would replace the pair rather than sit beside it.
+/// `compound_smiles_conn` and `compound_smiles_iso` are both here because both are
+/// projected and the parser picks between them; a coalesced column would replace the pair
+/// rather than sit beside it.
 ///
 /// `?ref` is the reference *node* URI -- `http://www.wikidata.org/reference/<hex>` --
 /// and **not** a QID, so it is projected whole rather than through the
-/// `STRAFTER`/`xsd:integer` treatment every QID column gets. Casting that URI is a
-/// type error on every row, which `QLever` reports as an unbound cell rather than a
-/// failed query, so the column would look present and be empty throughout.
-/// `?ref_qid` is the publication the node points at via
-/// `pr:P248`. They are different things and both are needed: the `CONSTRUCT`
-/// template emits `?statement prov:wasDerivedFrom ?ref`, and the result rows carry
-/// the node so the provenance graph can be rebuilt without re-querying.
+/// `STRAFTER`/`xsd:integer` treatment every QID column gets. That cast is a type error on
+/// every row, which `QLever` reports as an unbound cell rather than a failed query, so
+/// the column would look present and be empty throughout. `?ref_qid` is the publication
+/// the node points at via `pr:P248`; both are needed, since the `CONSTRUCT` template emits
+/// `?statement prov:wasDerivedFrom ?ref` and the rows carry the node so provenance can be
+/// rebuilt without re-querying.
 ///
-/// It is projected but never shown. The user-facing columns are named separately
-/// (see `export_rows::COLUMNS` and the CLI's own list), so restoring it here costs
-/// payload -- it was the largest single column on an unnarrowed result -- and buys
-/// correctness. Projecting a variable is not free: `QLever` computes it,
-/// serialises it, and sends it on every row.
+/// `?ref` is projected but never shown: user-facing columns are named separately (see
+/// `export_rows::COLUMNS`). Projecting it costs payload -- it was the largest single column
+/// on an unnarrowed result, and `QLever` computes, serialises and sends it on every row.
 pub const SELECT_COLUMNS: [&str; 15] = [
     "compound",
     "compoundLabel",
@@ -278,40 +272,31 @@ const ENRICHED_VARS: &str = "\
 
 /// Reference metadata: the title, DOI and date of the citing reference.
 ///
-/// **`BIND(COALESCE(?r, wd:Q0) AS ?_ref_source)` is load-bearing.** `?r` is bound
-/// by the occurrence block, which is itself optional, so a compound with no
-/// occurrence leaves `?r` unbound. A variable that is unbound entering an
-/// `OPTIONAL` is not "unbound" there -- SPARQL gives it a fresh binding, so
-/// `OPTIONAL { ?r wdt:P1476 ?ref_title }` silently becomes *every reference in
-/// Wikidata*, and the query then dies on the sort.
+/// **`BIND(COALESCE(?r, wd:Q0) AS ?_ref_source)` is load-bearing.** `?r` is bound by
+/// the optional occurrence block, so a compound with no occurrence leaves it unbound, and
+/// an unbound variable entering an `OPTIONAL` gets a fresh binding: `OPTIONAL { ?r
+/// wdt:P1476 ?ref_title }` silently becomes *every reference in Wikidata*, and the query
+/// then dies on the sort. Measured on `Q161495`: **54,116,026 rows** unguarded, and
+/// `QLever` answered `Operation timed out. Last operation: Sort (internal order)` with
+/// `resultsize: 0` -- an empty result that looks like "no occurrences" and is really "the
+/// query could not be answered".
 ///
-/// Measured for one compound with no occurrences, `Q161495`: **54,116,026 rows**
-/// unguarded. `QLever`'s answer was `Operation timed out. Last operation: Sort
-/// (internal order)`, with `resultsize: 0` -- an empty result that looks like
-/// "no occurrences" and is really "the query could not be answered".
+/// The guard is a sentinel, not `FILTER(BOUND(?ref))` per line: a `FILTER` inside an
+/// `OPTIONAL` is evaluated against *that `OPTIONAL`'s own solutions* before the join
+/// with the left side, so a variable bound only outside is unbound there and the filter
+/// rejects everything. Measured on `Q153`, 87 rows carried a title before the guard and
+/// **0** after, so every title, DOI and date came back empty -- which read as "the
+/// references have no metadata" rather than as a bug. Any variable bound nowhere gives
+/// the same 0.
 ///
-/// The guard is a sentinel rather than `FILTER(BOUND(?ref))` on each line, and
-/// that is not a style choice. A `FILTER` inside an `OPTIONAL` is evaluated
-/// against *that `OPTIONAL`'s own solutions*, before the join with the left side,
-/// so a variable bound only outside is unbound there and the filter rejects
-/// everything. `FILTER(BOUND(?ref))` therefore matched nothing, ever: measured on
-/// `Q153`, 87 rows carried a title before the guard and **0** after it. Every
-/// title, DOI and date came back empty, which read as "the references have no
-/// metadata" rather than as a bug. The same applies to any variable -- guarding
-/// on one that is bound nowhere gives the same 0.
+/// `COALESCE` binds `?r` to `wd:Q0`, which is not a Wikidata item, so `wd:Q0 wdt:P1476 ?x`
+/// matches nothing after one lookup instead of enumerating every reference. When there
+/// *is* an occurrence `?r` is bound, `COALESCE` passes it through, and a row whose
+/// reference has no title, DOI or date still comes back with those cells empty. Verified:
+/// `Q153` 88 rows with a title (62 ms), `Q161495` 1 row (24 ms).
 ///
-/// `COALESCE` binds `?r` to `wd:Q0` when there is no occurrence, and `Q0` is not
-/// a Wikidata item, so `wd:Q0 wdt:P1476 ?x` matches nothing after one lookup
-/// instead of enumerating every reference. When there *is* an occurrence `?r` is
-/// bound, `COALESCE` passes it straight through, and the three `OPTIONAL`s behave
-/// exactly as they did before: a row whose reference has no title, DOI or date
-/// still comes back with those cells empty.
-///
-/// Verified on the endpoint: `Q153` 88 rows with a title (62 ms), `Q161495` 1 row
-/// (24 ms).
-///
-/// The guard lives inside this constant so that `counts_query`, which removes this
-/// whole block by string match, still removes all of it.
+/// The guard lives inside this constant so `counts_query`, which removes this whole block
+/// by string match, still removes all of it.
 const REFERENCE_METADATA: &str = "
   BIND(COALESCE(?r, wd:Q0) AS ?_ref_source)
   OPTIONAL { ?_ref_source wdt:P1476 ?ref_title. }
@@ -350,13 +335,11 @@ pub fn all_compounds_query() -> String {
 
 /// Every compound, **including those with no occurrence statement**.
 ///
-/// The nothing-provided case, and deliberately not the same query as
+/// The nothing-provided case, deliberately not the same query as
 /// [`all_compounds_query`]. That one requires `P703`, so it answers "what has been
-/// reported, and where" -- which is what `*` asks. This one does not, so it also returns
-/// the compounds nobody has tied to an organism.
-///
-/// Before this existed the two were the same query, and the effect was that submitting
-/// the form with an empty taxon box answered a question the reader had not asked.
+/// reported, and where", which is what `*` asks. This one also returns the compounds nobody
+/// has tied to an organism: while the two were the same query, an empty taxon box answered
+/// a question the reader had not asked.
 #[must_use]
 pub fn all_compounds_including_untaxonomised_query() -> String {
     compounds_query_with(None, None, Occurrence::Optional)
@@ -372,10 +355,9 @@ pub fn compounds_by_taxon_query(taxon_qid: &str) -> String {
 /// Compounds found in `taxon_qid` and its descendants, following the
 /// nomenclatural relationships that `nomenclature` enables.
 ///
-/// This is the form the rest of the workspace calls, because which
-/// relationships to follow is a user-facing choice rather than a builder
-/// detail. A `Nomenclature` with all four off produces exactly the query the
-/// crate built before any of this existed.
+/// The form the rest of the workspace calls, because which relationships to follow is a
+/// user-facing choice rather than a builder detail. A `Nomenclature` with all four off
+/// produces exactly the pre-nomenclature query.
 ///
 /// [`Nomenclature`]: crate::Nomenclature
 #[must_use]
@@ -387,20 +369,17 @@ pub fn compounds_by_taxon_query_with(taxon_qid: &str, nomenclature: &Nomenclatur
 /// already resolved by the caller.
 ///
 /// The closure is the set of taxa the seed can be called -- what
-/// [`compounds_by_taxon_query_with`] computes in a subquery. Supplying it costs
-/// the caller a round trip and saves the endpoint roughly half the query's compute
-/// on a wide search; the measurement is in `docs/SPARQL-VARIANTS.md`, and the
-/// correctness requirement (both forms must return the same rows) is what
-/// disqualified the faster interleaved alternative.
+/// [`compounds_by_taxon_query_with`] computes in a subquery. Supplying it costs the caller a
+/// round trip and saves the endpoint roughly half the query's compute on a wide search
+/// (`docs/SPARQL-VARIANTS.md`); the correctness requirement that both forms return the same
+/// rows is what disqualified the faster interleaved alternative.
 ///
-/// **Pass an empty slice to get the subquery form.** That is not a silent
-/// fallback for a failed lookup: an empty `VALUES` list is a valid query that
-/// matches nothing, so a resolution that returned nothing must not be turned into
-/// an empty answer. Callers should treat "closure is empty" as "resolve it the
-/// other way", which is exactly what passing an empty slice does.
+/// **Pass an empty slice to get the subquery form.** Not a silent fallback for a failed
+/// lookup: an empty `VALUES` list is a valid query matching nothing, so a resolution that
+/// returned nothing must not become an empty answer. Treat "closure is empty" as "resolve
+/// it the other way", which is what passing an empty slice does.
 ///
-/// Nothing in the workspace calls this yet. It exists so that adopting it is a
-/// one-line change at the call site rather than a change to the query builder.
+/// Nothing calls this yet; it exists so adopting it is a one-line change at the call site.
 #[must_use]
 pub fn compounds_by_taxon_query_with_resolved_closure(
     taxon_qid: &str,
@@ -417,18 +396,15 @@ pub fn compounds_by_taxon_query_with_resolved_closure(
 
 /// One compound, by identity, with its occurrences.
 ///
-/// This is what [`SmilesSearchType::Exact`] is built on, and the reason it is a
-/// separate builder is that it does not call the structure service at all.
-/// Everything the structure field holds is resolved to a Wikidata compound first,
-/// and once it is, "this compound" is an identity question that Wikidata answers
-/// with an index scan. Substructure and similarity both have to load a structure
-/// index and score every candidate in it, which is a different order of magnitude
-/// for a question whose answer is one row.
+/// What [`SmilesSearchType::Exact`] is built on, separate because it does not call the
+/// structure service at all. The structure field is resolved to a Wikidata compound first,
+/// and then "this compound" is an identity question answered by an index scan; substructure
+/// and similarity must load a structure index and score every candidate, a different order
+/// of magnitude for a question whose answer is one row.
 ///
-/// The occurrence triples stay `OPTIONAL`, for the same reason they do in the
-/// taxon-less structure search: a compound with no occurrence data is precisely
-/// the compound someone is looking for when they search by name, and requiring
-/// one would hide it.
+/// Occurrence triples stay `OPTIONAL` for the same reason as in the taxon-less structure
+/// search: a compound with no occurrence data is precisely what a name search looks for,
+/// and requiring one would hide it.
 #[must_use]
 pub fn exact_compound_query(
     compound_qid: &str,
@@ -439,21 +415,18 @@ pub fn exact_compound_query(
 
 /// The same question for **every** compound a structure resolved to.
 ///
-/// A structure input names a molecule, and the structure service answers with
-/// everything within the cutoff: for `C[C@H](O)CO` that is the (R) compound, the
-/// (S) one and the achiral (RS) one. Asking about only the first of those is
-/// asking an arbitrary question -- measured, the first happens to be the achiral
-/// form, which Wikidata has no occurrence of, so the search returned nothing
+/// A structure input names a molecule, and the structure service answers with everything
+/// within the cutoff: for `C[C@H](O)CO` that is the (R), (S) and achiral (RS) compounds.
+/// Asking about only the first asks an arbitrary question -- measured, the first happens to
+/// be the achiral form, which Wikidata has no occurrence of, so the search returned nothing
 /// while the compound actually typed had six rows.
 ///
-/// So all of them are asked about at once, in one request: a `VALUES` list over
-/// `?c` rather than a seed of one. The rows that come back are still whatever
-/// the graph holds for those compounds, which is the point -- an occurrence of the
-/// (R) form and an occurrence of the (S) form are different facts about different
-/// items and both belong in the answer.
+/// All of them are therefore asked at once, in one request: a `VALUES` list over `?c` rather
+/// than a seed of one. Occurrences of the (R) and (S) forms are different facts about
+/// different items and both belong in the answer.
 ///
-/// Empty is not a special case: it means the structure named nothing, and the
-/// caller sends it down the service path instead of here.
+/// Empty is not a special case: it means the structure named nothing, and the caller sends
+/// it down the service path instead.
 #[must_use]
 pub fn exact_compounds_query(
     compound_qids: &[String],
@@ -475,11 +448,10 @@ fn compounds_query(
 
 /// Whether an occurrence statement (`P703`) has to be present.
 ///
-/// The two are different questions. `Required` asks what was reported and where;
-/// `Optional` asks what exists, which includes the compounds nobody has tied to an
-/// organism yet. Those are the `*` case and the nothing-provided case respectively, and
-/// conflating them meant that asking for everything silently answered the narrower
-/// question.
+/// Two different questions: `Required` asks what was reported and where, `Optional` asks
+/// what exists, including compounds nobody has tied to an organism. Those are the `*` case
+/// and the nothing-provided case, and conflating them made asking for everything silently
+/// answer the narrower question.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Occurrence {
     Required,
@@ -510,19 +482,17 @@ fn compounds_query_with_closure(
     // What makes `?c` a chemical entity rather than anything else with a
     // `found in taxon` statement.
     //
-    // `P703` is not specific to metabolites. Wikidata uses it for genes and
-    // proteins too, so a taxon search with no compound test returns
-    // `Q21629845` -- a protein-coding gene for an oxidoreductase subunit -- beside
-    // the metabolites, and nothing in the row says which it is.
+    // `P703` is not specific to metabolites: Wikidata uses it for genes and proteins too,
+    // so a taxon search with no compound test returns `Q21629845` -- a protein-coding gene
+    // for an oxidoreductase subunit -- beside the metabolites, with nothing in the row
+    // saying which it is. `P235`, the InChIKey, discriminates: that gene has neither `P235`
+    // nor `P233` (checked), a metabolite has both. The required-occurrence branch already
+    // carried this triple, so only the optional-occurrence and compound-seeded shapes leaked
+    // genes.
     //
-    // `P235`, the InChIKey, is the discriminator: that gene has neither `P235` nor
-    // `P233` (checked), while a metabolite has both. The required-occurrence branch
-    // already carried this triple, which is why only the optional-occurrence and
-    // compound-seeded shapes leaked genes.
-    //
-    // `P233` stays optional. Requiring both would drop real compounds that carry a
-    // canonical SMILES and no InChIKey, and dropping a metabolite to keep the shape
-    // tidy is the wrong trade in the other direction.
+    // `P233` stays optional: requiring both would drop real compounds with a canonical
+    // SMILES and no InChIKey, and dropping a metabolite to keep the shape tidy is the
+    // wrong trade in the other direction.
     let chemical = "?c wdt:P235 ?compound_inchikey .";
 
     let core = compound_seed.map_or_else(
@@ -543,16 +513,14 @@ fn compounds_query_with_closure(
           ?ref pr:P248 ?r .\
           ?t wdt:P225 ?taxon_name .{ancestry}"
                 ),
-                // Nothing was asked for, so nothing is required. A compound with no
-                // occurrence statement is not an error here; it is a compound whose
-                // organism nobody has recorded, and excluding it answers a narrower
-                // question than the one that was asked.
+                // Nothing was asked for, so nothing is required: a compound with no
+                // occurrence statement has no recorded organism, and excluding it answers
+                // a narrower question than the one asked.
                 //
-                // Optional as one block rather than per triple, so a row is either a
-                // complete occurrence -- taxon, reference and all -- or an
-                // occurrence-less compound with empty cells. Optional per triple would
-                // emit rows with a taxon but no reference, a shape the result store has
-                // no way to represent.
+                // Optional as one block, not per triple, so a row is either a complete
+                // occurrence -- taxon, reference and all -- or occurrence-less with empty
+                // cells. Per triple would emit rows with a taxon but no reference, a shape
+                // the result store cannot represent.
                 Occurrence::Optional => format!(
                     "{chemical} \
           OPTIONAL {{ \
@@ -566,44 +534,39 @@ fn compounds_query_with_closure(
             }
         },
         |qid| {
-            // The occurrence triple becomes optional here, because a compound
-            // with no occurrence data is exactly what a name search is looking
-            // for. See the doc comment on `exact_compound_query`.
+            // The occurrence triple becomes optional here because a compound with no
+            // occurrence data is exactly what a name search looks for; see
+            // `exact_compound_query`.
             //
-            // The block is wrapped in its own subquery, and the seed repeated
-            // inside it, because `OPTIONAL` costs this endpoint twenty times
-            // what the same patterns cost on their own. Measured on Q3613679:
-            // 4.3s as a bare `OPTIONAL`, 0.2s as a seeded subquery, for the same
-            // 20 rows. The block is what makes it slow, not the patterns --
-            // `?c p:P703 ?statement . ?statement ps:P703 ?t` and the three hops
-            // after it run in 0.1s outside an `OPTIONAL` -- so the subquery is
-            // there to hand the planner a left side of its own size instead of
-            // one it has to assume. Without the repeated `VALUES` inside, the
-            // subquery inherits the binding and the slow plan comes back.
+            // The block is wrapped in its own subquery with the seed repeated inside,
+            // because `OPTIONAL` costs this endpoint twenty times what the same patterns
+            // cost alone. Measured on Q3613679: 4.3s as a bare `OPTIONAL`, 0.2s as a
+            // seeded subquery, same 20 rows. The block is what makes it slow, not the
+            // patterns -- `?c p:P703 ?statement . ?statement ps:P703 ?t` and the three hops
+            // after run in 0.1s outside an `OPTIONAL` -- so the subquery hands the planner a
+            // left side of its own size instead of one it has to assume. Without the
+            // repeated `VALUES` inside, the subquery inherits the binding and the slow plan
+            // comes back.
             let seeded: String = qid
                 .iter()
                 .map(|q| escape_sparql_string(q))
                 .map(|q| format!("wd:{q}"))
                 .collect::<Vec<_>>()
                 .join(" ");
-            // A taxon on this route is a real constraint, so the occurrence
-            // block stops being optional when one is given.
+            // A taxon here is a real constraint, so the occurrence block stops being optional.
             //
-            // It used to be optional either way, with the taxon ancestry inside
-            // it. That does not constrain anything: `VALUES ?c` at the top level
-            // is unconditional, and the OPTIONAL only decides which occurrences
-            // are *shown*. So `--structure Q23118 --structure-search exact
-            // --taxon Gentiana` returned Q23118 with an empty taxon cell, and
-            // would have returned a compound reported only in some other taxon,
-            // still listing that other taxon. A taxon asked for and not applied
-            // is worse than a taxon not given, because the answer looks filtered.
+            // Leaving it optional with the taxon ancestry inside constrains nothing:
+            // `VALUES ?c` at the top level is unconditional, and the OPTIONAL only
+            // decides which occurrences are *shown*. `--structure Q23118
+            // --structure-search exact --taxon Gentiana` then returned Q23118 with an
+            // empty taxon cell, and would have returned a compound reported only in some
+            // other taxon while still listing that other taxon. A taxon asked for and not
+            // applied is worse than a taxon not given, because the answer looks filtered.
             //
-            // Optional stays right for the taxon-less case, which is why the
-            // branch is on the taxon rather than the branch removed: a compound
-            // with no occurrence data is exactly what a name search is looking
-            // for. Once a taxon is named the question is "reported *in* this
-            // taxon", and a compound with no such occurrence is not an answer --
-            // it is nothing, and the empty result says so.
+            // Optional stays right for the taxon-less case, hence branching on the taxon
+            // rather than removing the branch. Once a taxon is named the question is
+            // "reported *in* this taxon", and a compound with no such occurrence is not an
+            // answer -- it is nothing, and the empty result says so.
             let occurrences = format!(
                 "?c p:P703 ?statement .\
               ?statement ps:P703 ?t ;\
@@ -664,39 +627,30 @@ WHERE {{
 ///
 /// Read in **both** directions and closed transitively with `*`.
 ///
-/// The bidirectional read is not optional. Wikidata stores each relationship
-/// from both ends, but a curator enters whichever end they are looking at, and
-/// both are in active use: `Rosmarinus officinalis` carries `P12764` toward
-/// `Salvia rosmarinus`, while `Salvia rosmarinus` carries `P694` back. A search
-/// that read only one direction would find the newer name from the older one
-/// and not the reverse, which is the same bug in each of the four relations.
+/// The bidirectional read is load-bearing: a curator enters whichever end they are looking
+/// at, and both are in active use -- `Rosmarinus officinalis` carries `P12764` toward
+/// `Salvia rosmarinus`, while `Salvia rosmarinus` carries `P694` back. A one-directional
+/// read finds the newer name from the older one and not the reverse, in all four relations.
 ///
-/// The `*` is bounded in practice by the shape of the graph. These properties
-/// connect a taxon to the *other names of that same taxon*, so the closure is a
-/// handful of items, not a subtree — measured at 1 to 2 hops on every taxon
-/// tested. It is deliberately **not** the same closure as `P171*`: crossing
-/// from a name to a name is a rename, whereas crossing a parent link is
-/// descent into a different organism.
+/// The `*` is bounded by the graph's shape: these properties connect a taxon to the *other
+/// names of that same taxon*, so the closure is a handful of items, measured at 1 to 2 hops
+/// on every taxon tested. Deliberately **not** the `P171*` closure -- a name-to-name
+/// crossing is a rename, a parent link is descent into a different organism.
 ///
-/// # Why this is a separate subquery and not one big path
+/// # Why a separate subquery and not one big path
 ///
-/// The obvious spelling is to let the two closures interleave, as
-/// `?t (wdt:P171*|SYN*) wd:Q` — one path, and no subquery to reason about. It
-/// is wrong here for two reasons, and both cost time rather than correctness:
+/// Interleaving as `?t (wdt:P171*|SYN*) wd:Q` costs time twice over:
 ///
-/// 1. The endpoint evaluates a path from its endpoints, so `(P171*|SYN*)`
-///    anchored at `wd:Q` walks the whole `P171` tree *and* re-walks the
-///    nomenclatural closure at every node it passes, instead of expanding one
-///    seed list and then descending it once. On `Gentianales` (Q21754) that is
-///    11009 compounds against 11088 for the subquery form, reached more slowly.
-/// 2. Interleaving makes the result a fixpoint of two relations applied
-///    together, which means a synonym of a *descendant* silently joins the
-///    result. Whether that is right is arguable; that it is a decision nobody
-///    chose deliberately is not.
+/// 1. The endpoint evaluates a path from its endpoints, so `(P171*|SYN*)` anchored at `wd:Q`
+///    walks the whole `P171` tree *and* re-walks the nomenclatural closure at every node it
+///    passes, instead of expanding one seed list then descending once. On `Gentianales`
+///    (Q21754): 11009 compounds against 11088 for the subquery form, reached more slowly.
+/// 2. Interleaving makes the result a fixpoint of both relations, so a synonym of a
+///    *descendant* silently joins it. Whether that is right is arguable; that nobody chose
+///    it deliberately is not.
 ///
-/// So the seed is expanded first, on its own, and only the resulting handful of
-/// QIDs is handed to `P171*`. The expansion subquery is cheap because it is
-/// evaluated against one constant.
+/// So the seed is expanded first and only the resulting handful of QIDs is handed to
+/// `P171*`, which is cheap because the expansion is evaluated against one constant.
 fn nomenclature_path(nomenclature: Nomenclature) -> Option<String> {
     let mut alternatives: Vec<String> = Vec::new();
     for (property, _) in nomenclature.properties() {
@@ -707,11 +661,10 @@ fn nomenclature_path(nomenclature: Nomenclature) -> Option<String> {
     }
     // The inverses are appended afterwards, each with its own `^`.
     //
-    // Writing `^a|b` instead of `^a|^b` would be a silent bug: `^` binds to
-    // the single path that follows it, so that is "inverse of a, or b", and
-    // the properties after the first would be read forwards only. The expansion
-    // still returns rows, so the query looks fine and returns a different set —
-    // the worst shape a query bug can take.
+    // Writing `^a|b` instead of `^a|^b` would be a silent bug: `^` binds to the single path
+    // that follows it, so that reads as "inverse of a, or b" and later properties are read
+    // forwards only. The expansion still returns rows, so the query looks fine and returns a
+    // different set -- the worst shape a query bug can take.
     for (property, _) in nomenclature.properties() {
         alternatives.push(format!("^{property}"));
     }
@@ -721,9 +674,8 @@ fn nomenclature_path(nomenclature: Nomenclature) -> Option<String> {
 /// The taxon filter for the innermost subquery: a descendant of any taxon in the
 /// nomenclatural closure of `qid`.
 ///
-/// With every relationship off this is the `P171*` path the query has always
-/// used, unchanged, so a search that does not want them costs exactly what it
-/// used to.
+/// With every relationship off this is the unchanged `P171*` path, so a search that does not
+/// want them costs exactly what it used to.
 fn taxon_ancestry_pattern(qid: &str, nomenclature: Nomenclature) -> String {
     taxon_ancestry_pattern_with_roots(qid, nomenclature, &[])
 }
@@ -731,17 +683,15 @@ fn taxon_ancestry_pattern(qid: &str, nomenclature: Nomenclature) -> String {
 /// The taxon filter, optionally from a closure resolved before the query was built.
 ///
 /// `roots` is the seed's nomenclatural closure -- the taxa the seed can be called,
-/// which [`nomenclature_path`] would otherwise compute in a subquery. Passing them
-/// in trades that subquery for a `VALUES` list, which is the cheaper of the two by
-/// about half on the widest search this app can produce; see `docs/SPARQL-VARIANTS.md`
-/// for the measurement and for why the faster *interleaved* alternative is not
-/// used (it answers a different question, losing ~79 of 11,087 distinct compounds).
+/// which [`nomenclature_path`] would otherwise compute in a subquery. Passing them trades
+/// that subquery for a `VALUES` list, about half the cost on the widest search this app can
+/// produce (`docs/SPARQL-VARIANTS.md`). The faster *interleaved* alternative is not used
+/// because it answers a different question, losing ~79 of 11,087 distinct compounds.
 ///
-/// **Empty means "not resolved", and that is load-bearing.** An empty `VALUES` is a
-/// valid query that matches nothing, so a caller who resolved the closure and got
-/// nothing back would silently get an empty result rather than the full subtree.
-/// Falling back to the subquery makes the failure mode "slower" instead of
-/// "wrong", which is the only acceptable trade for a missing value.
+/// **Empty means "not resolved", and that is load-bearing.** An empty `VALUES` matches
+/// nothing, so a caller who resolved the closure and got nothing back would silently get an
+/// empty result instead of the full subtree. Falling back to the subquery makes the failure
+/// mode "slower" rather than "wrong".
 fn taxon_ancestry_pattern_with_roots(
     qid: &str,
     nomenclature: Nomenclature,
@@ -768,18 +718,15 @@ fn taxon_ancestry_pattern_with_roots(
 
 /// A `VALUES` lookup of taxa by scientific name (`P225`).
 ///
-/// An exact match, with no `FILTER` and no `LCASE`: `VALUES` is served from an
-/// index, and a case-folding scan of every label is the one thing that makes
-/// this slow. This is the path every taxon search takes first, so it stays the
-/// fast one — the common-name fallback is a second round trip precisely so this
-/// one does not have to become a scan.
+/// An exact match, no `FILTER` and no `LCASE`: `VALUES` is served from an index, and a
+/// case-folding scan of every label is what would make this slow. Every taxon search takes
+/// this path first, so it stays the fast one -- the common-name fallback is a second round
+/// trip precisely so this one need not become a scan.
 ///
-/// Known limit: `wdt:` keeps only the preferred-rank statement, so the 293
-/// `P225` values that are not preferred are invisible here. A taxon has one
-/// accepted scientific name, so in practice this is a rounding error, but it is
-/// a real gap rather than a guarantee and it is written down rather than
-/// discovered. See [`taxon_common_name_lookup_query`] for the far larger
-/// equivalent gap on `P1843`.
+/// Known limit: `wdt:` keeps only the preferred-rank statement, so the 293 non-preferred
+/// `P225` values are invisible here. A taxon has one accepted scientific name, so in practice
+/// a rounding error -- a real gap rather than a guarantee. See
+/// [`taxon_common_name_lookup_query`] for the far larger equivalent gap on `P1843`.
 #[must_use]
 pub fn taxon_lookup_query(name: &str) -> String {
     format!(
@@ -796,33 +743,30 @@ WHERE {{
 
 /// A lookup of taxa by **common** name (`P1843`).
 ///
-/// The fallback for [`taxon_lookup_query`], and it cannot be shaped like it.
-/// Three things force a different query, each of which was found by a name that
-/// returned nothing when it should not have:
+/// The fallback for [`taxon_lookup_query`], which it cannot be shaped like. Three
+/// requirements, each found by a name that returned nothing when it should not have:
 ///
 /// **The statement path, not `wdt:`.** `wdt:P1843` collapses a taxon to its
-/// preferred-rank value. *Gentiana lutea* (`Q158572`) carries 65 common names
-/// and `wdt:` returns exactly one of them — so a search for `bitterwort`, which
-/// is one of the other 64, found nothing. `p:P1843/ps:P1843` returns all 65.
-/// The same collapse costs `P225` 293 values out of four million, which is why
-/// the scientific path is left on the fast index and only `P1843` pays for the
-/// statement walk.
+/// preferred-rank value. *Gentiana lutea* (`Q158572`) carries 65 common names and
+/// `wdt:` returns one, so a search for `bitterwort` -- one of the other 64 -- found
+/// nothing. `p:P1843/ps:P1843` returns all 65. The same collapse costs `P225` 293
+/// values out of four million, which is why the scientific path keeps the fast index
+/// and only `P1843` pays for the statement walk.
 ///
-/// **The language tag has to go.** `P225` values are untagged literals, so a
-/// bare `"Gentiana lutea"` matches. Every `P1843` value is tagged — `bitterwort`
-/// is `bitterwort@en` — and a bare literal is not equal to a tagged one in
-/// SPARQL. Matching `STR()` against the lexical form drops the tag, which is the
-/// point: a common name is the word a reader reaches for in *their* language, so
-/// restricting the match to `@en` would break the feature for most of its users.
+/// **The language tag has to go.** `P225` values are untagged literals, so a bare
+/// `"Gentiana lutea"` matches; every `P1843` value is tagged (`bitterwort@en`) and a bare
+/// literal is not equal to a tagged one in SPARQL. Matching `STR()` against the lexical
+/// form drops the tag, which is the point: a common name is the word a reader reaches for
+/// in *their* language, so restricting to `@en` would break the feature for most of its
+/// users.
 ///
-/// **Case has to go too.** `P1843` stores whatever a curator typed, so the same
-/// taxon carries `bitterwort`, `Common wormwood` and `Bijvoet`. `LCASE` on both
-/// sides makes the search indifferent to that.
+/// **Case has to go too.** `P1843` stores whatever a curator typed, so the same taxon
+/// carries `bitterwort`, `Common wormwood` and `Bijvoet`; `LCASE` on both sides is
+/// indifferent to that.
 ///
-/// The cost is a scan of every `P1843` statement — measured at ~2.5s on
-/// `QLever`, against ~0.3s for the indexed scientific lookup. That is why this is
-/// a fallback rather than a second branch of the first query: a search that hits
-/// a scientific name never pays it.
+/// The cost is a scan of every `P1843` statement -- measured ~2.5s on `QLever` against
+/// ~0.3s for the indexed scientific lookup. Hence a fallback rather than a second branch:
+/// a search that hits a scientific name never pays it.
 #[must_use]
 pub fn taxon_common_name_lookup_query(name: &str) -> String {
     format!(
@@ -841,14 +785,12 @@ WHERE {{
 
 /// Language tags a compound's name is looked up under.
 ///
-/// A `rdfs:label` or `skos:altLabel` is language-tagged, so matching one means
-/// matching the tag too -- see [`compound_label_query`] for why that cannot be
-/// worked around. This is therefore a list rather than a wildcard, and it is a
-/// deliberate trade: these are the languages a chemical name is most likely to
-/// be typed in, and a name in one of the remaining ~280 will not resolve.
+/// A `rdfs:label` or `skos:altLabel` is language-tagged, so matching one means matching the
+/// tag too -- see [`compound_label_query`] for why that cannot be worked around. A list
+/// rather than a wildcard, a deliberate trade: these are the languages a chemical name is
+/// most likely typed in, and a name in one of the remaining ~280 will not resolve.
 ///
-/// Ordered roughly by how much chemistry is published in each, so truncating the
-/// list costs the least.
+/// Ordered roughly by how much chemistry is published in each, so truncating costs least.
 const COMPOUND_NAME_LANGUAGES: [&str; 16] = [
     "mul", "en", "de", "fr", "es", "nl", "it", "pt", "sv", "pl", "ru", "tr", "ja", "zh", "la", "cs",
 ];
@@ -866,27 +808,23 @@ fn tagged_name_values(name: &str) -> String {
 
 /// Resolve a structure to the Wikidata compound it is.
 ///
-/// The one lookup the structure service answers, and it is asked the narrowest
-/// question that has an answer: *is this structure a compound Wikidata has?* The
-/// cutoff is 1.0, so it only comes back for a structure that matches an indexed
-/// compound exactly.
+/// The one lookup the structure service answers, asked the narrowest question with an
+/// answer: *is this structure a compound Wikidata has?* The cutoff is 1.0, so it returns
+/// only for a structure matching an indexed compound exactly.
 ///
-/// This runs for every structure input, including in an exact search, because the
-/// exact route needs a QID and a structure is not one. It is still much cheaper
-/// than the searches it precedes: the service is asked to identify one structure
-/// rather than to rank an index, and the query that follows is an index scan on a
-/// single QID rather than a scan of every candidate compound.
+/// Runs for every structure input, including in an exact search, because the exact route
+/// needs a QID and a structure is not one. Still much cheaper than the searches it
+/// precedes: the service identifies one structure rather than ranking an index, and the
+/// query that follows is an index scan on a single QID rather than over every candidate.
 ///
-/// A miss is not an error here, unlike the other three lookups. A SMILES that
-/// Wikidata does not have is a perfectly good structure — it is simply not a
-/// compound in the database, and the search carries on with the reader's own
-/// structure. That is the asymmetry with a name: a name that matches nothing is a
-/// claim about a compound that does not exist, and a structure is not a claim at
-/// all.
+/// A miss is not an error here, unlike the other three lookups. A SMILES Wikidata does not
+/// have is a good structure that is simply not a compound in the database, and the search
+/// carries on with the reader's own structure. A name matching nothing is a claim about a
+/// compound that does not exist; a structure is not a claim at all.
 ///
-/// `LIMIT` is there because a structure can match more than one compound at 1.0 —
-/// stereoisomers and salts of the same thing. The cap keeps the resolution cheap;
-/// the caller reports the extras as an ambiguity rather than hiding them.
+/// `LIMIT` is there because a structure can match more than one compound at 1.0 --
+/// stereoisomers and salts of the same thing. The cap keeps resolution cheap and the caller
+/// reports the extras as an ambiguity rather than hiding them.
 #[must_use]
 pub fn structure_compound_lookup_query(structure: &str) -> String {
     format!(
@@ -916,20 +854,19 @@ const STRUCTURE_LOOKUP_LIMIT: usize = 5;
 /// **The DOI is uppercased before it is asked for, because that is how Wikidata
 /// stores them.** `?ref wdt:P356 "10.1002/andp.18280880206"` returns nothing;
 /// `?ref wdt:P356 "10.1002/ANDP.18280880206"` returns the item, in about 0.3s on
-/// `QLever`. A DOI is case-insensitive by specification, so lowercasing here would
-/// be as wrong as uppercasing a chemical formula, and the failure is silent —
-/// a lookup that matches nothing looks exactly like a DOI that does not exist.
+/// `QLever`. A DOI is case-insensitive by specification, so lowercasing here would be as
+/// wrong as uppercasing a chemical formula, and the failure is silent -- a lookup matching
+/// nothing looks exactly like a DOI that does not exist.
 ///
-/// Resolver prefixes are stripped first, since `doi:10.1002/andp.18280880206` and
-/// `https://doi.org/10.1002/andp.18280880206` are the same DOI and both are things a
-/// reader pastes out of a paper.
+/// Resolver prefixes are stripped first: `doi:10.1002/andp.18280880206` and
+/// `https://doi.org/10.1002/andp.18280880206` are the same DOI, and both are things a reader
+/// pastes out of a paper.
 ///
-/// Deliberately bare: a `SELECT ?ref WHERE {` with no `SERVICE` and no `OPTIONAL`.
-/// That is the shape [`is_reference_lookup`] recognises, which is what routes it to
-/// the WDQS scholarly subgraph when `QLever` is unreachable — the one WDQS service
-/// that answers `P356` quickly. Adding an English label would break that
-/// detection, and a title is not worth losing the fast route over: the rows that
-/// come back have the reference in them.
+/// Deliberately bare: `SELECT ?ref WHERE {` with no `SERVICE` and no `OPTIONAL`. That is
+/// the shape [`is_reference_lookup`] recognises, routing it to the WDQS scholarly subgraph
+/// when `QLever` is unreachable -- the one WDQS service that answers `P356` quickly. An
+/// English label would break that detection, and a title is not worth losing the fast route
+/// over: the rows carry the reference.
 #[must_use]
 pub fn reference_by_doi_query(doi: &str) -> String {
     format!(
@@ -962,18 +899,16 @@ SELECT ?ref WHERE {{
 
 /// Look a compound up by the QID the reader typed.
 ///
-/// A QID is already an identifier, so this is the cheapest of the four lookups: a
-/// `VALUES` and an optional label, with no matching anywhere. It runs anyway,
-/// for one reason — a mistyped QID otherwise produces an identity query that
-/// matches nothing and returns an empty table, which reads as "this compound has
-/// no results" rather than "that is not a compound". Confirming the item exists
-/// turns one of those into the other, with the input quoted back.
+/// A QID is already an identifier, so this is the cheapest of the four lookups: a `VALUES`
+/// and an optional label, no matching anywhere. It runs anyway, because a mistyped QID
+/// otherwise produces an identity query matching nothing and an empty table, which reads as
+/// "this compound has no results" rather than "that is not a compound". Confirming the item
+/// exists turns one into the other, with the input quoted back.
 ///
-/// The same shape as the other three, so all four return the same columns and the
-/// parser reads them the same way.
+/// Same shape as the other three, so all four return the same columns and the parser reads
+/// them alike.
 ///
-/// A lowercase `q` is accepted, the way the taxon field accepts one: a reader who
-/// types `q18216` means Q18216.
+/// A lowercase `q` is accepted, as in the taxon field: `q18216` means Q18216.
 #[must_use]
 pub fn compound_by_qid_query(qid: &str) -> String {
     let qid = qid.trim();
@@ -992,18 +927,15 @@ WHERE {{
 
 /// Look a compound up by `InChIKey` (`P235`).
 ///
-/// The one unambiguous identifier route: an `InChIKey`'s shape is fixed by the
-/// standard, so there is no question of a structure string being mistaken for a
-/// name. And it is the easiest of the three name-ish lookups by a wide margin —
-/// one indexed equality on a value that is unique in practice, against a name
-/// lookup's `VALUES` over fifteen language tags with a fallback query behind it.
+/// The one unambiguous identifier route: an `InChIKey`'s shape is fixed by the standard, so
+/// a structure string cannot be mistaken for a name. Also the easiest of the three
+/// name-ish lookups by a wide margin -- one indexed equality on a value unique in practice,
+/// against a name lookup's `VALUES` over fifteen language tags with a fallback query behind
+/// it. Measured ~0.2s on `QLever`.
 ///
-/// `P233` (canonical SMILES) comes back alongside. An exact search of the result
-/// does not need it, but a substructure or similarity search does: those ask
-/// about *other* compounds, and this is the structure they have to go to the
-/// service with.
-///
-/// Indexed and cheap: measured at ~0.2s on `QLever`.
+/// `P233` (canonical SMILES) comes back alongside. An exact search does not need it, but
+/// substructure and similarity ask about *other* compounds, and this is the structure they
+/// must take to the service.
 #[must_use]
 pub fn compound_inchikey_query(inchikey: &str) -> String {
     format!(
@@ -1022,20 +954,20 @@ WHERE {{
 
 /// Look a compound up by its label (`rdfs:label`).
 ///
-/// The shape is forced by measurement. Three ways to match a language-tagged
-/// literal were tried against the live endpoint:
+/// The shape is forced by measurement. Three ways to match a language-tagged literal,
+/// measured against the live endpoint:
 ///
-/// - `FILTER(LCASE(STR(?label)) = ...)` — a scan of 17.9M labels. **Times out.**
-/// - `?label ql:contains-word "..."` — accepted by `QLever`, but the text index is
-///   not loaded on this endpoint, so it silently returns nothing.
-/// - `VALUES ?name { "aspirin"@en ... }` — index-served, **~0.15s**. This one.
+/// - `FILTER(LCASE(STR(?label)) = ...)` -- a scan of 17.9M labels. **Times out.**
+/// - `?label ql:contains-word "..."` -- accepted by `QLever`, but the text index is not
+///   loaded here, so it silently returns nothing.
+/// - `VALUES ?name { "aspirin"@en ... }` -- index-served, **~0.15s**. This one.
 ///
-/// So the language tag has to be enumerated rather than discarded, which is why
+/// Hence the language tag is enumerated rather than discarded, which is why
 /// `COMPOUND_NAME_LANGUAGES` exists.
 ///
-/// `?compound_qid` is projected as an integer so the CSV carries a bare `Q…`,
-/// and `STRSTARTS` keeps lexemes out: `?compound rdfs:label "aspirin"@en` also
-/// matches three senses of the English lexeme, which are not compounds.
+/// `?compound_qid` is projected as an integer so the CSV carries a bare `Q…`, and
+/// `STRSTARTS` keeps lexemes out: `?compound rdfs:label "aspirin"@en` also matches three
+/// senses of the English lexeme, which are not compounds.
 #[must_use]
 pub fn compound_label_query(name: &str) -> String {
     format!(
@@ -1079,15 +1011,12 @@ WHERE {{
 
 /// A structure search through the IDSM/Sachem service.
 ///
-/// This is the route for [`SmilesSearchType::Substructure`] and
-/// [`SmilesSearchType::Similarity`], and — for input that resolved to no compound
-/// at all — for [`SmilesSearchType::Exact`] too. Exact has its own builder,
-/// [`exact_compound_query`], which is cheaper and is used whenever a QID is
-/// available.
+/// The route for [`SmilesSearchType::Substructure`] and [`SmilesSearchType::Similarity`],
+/// and for [`SmilesSearchType::Exact`] when the input resolved to no compound at all. Exact
+/// otherwise has the cheaper [`exact_compound_query`], used whenever a QID is available.
 ///
-/// Without `taxon_qid` the occurrence triple is optional, so a compound with
-/// no occurrence data is still returned — structure search is how such
-/// compounds are found in the first place.
+/// Without `taxon_qid` the occurrence triple is optional, so a compound with no occurrence
+/// data is still returned -- structure search is how such compounds are found at all.
 #[must_use]
 pub fn structure_search_query(
     structure: &str,
@@ -1245,20 +1174,18 @@ WHERE {{
 /// Wrap a `SELECT` in a `COUNT`, keeping the filters but dropping everything the
 /// count does not depend on.
 ///
-/// The display `OPTIONAL`s are stripped, and that is the point: `rdfs:label`
-/// with two `FILTER(LANG(…))` passes is the most expensive thing in the query,
-/// and a count that walked it would be slow enough to be rate-limited. The
-/// variables it leaves unbound project as `NULL`, which the `COUNT`s ignore.
+/// The display `OPTIONAL`s are stripped, and that is the point: `rdfs:label` with two
+/// `FILTER(LANG(…))` passes is the most expensive thing in the query, slow enough in a
+/// count to be rate-limited. Variables left unbound project as `NULL`, which the `COUNT`s
+/// ignore.
 ///
-/// The deletion is by literal text, so it is only correct because nothing a
-/// filter needs lives inside the two blocks being deleted. [`with_filters`] binds
-/// what a filter needs outside them: `?c wdt:P2067 ?compound_mass .` for a mass
-/// filter, `?r wdt:P577 ?ref_date .` for a year one, and `?c wdt:P274
-/// ?compound_formula_raw .` for a formula one. A filter reading a variable bound
-/// only inside a deleted block would survive here as a `FILTER` over an unbound
-/// variable and count nothing at all -- which is what the formula filter did
-/// until the third of those bindings was added, and every count on the page read
-/// zero for any search that used one.
+/// The deletion is by literal text, correct only because nothing a filter needs lives inside
+/// the deleted blocks. [`with_filters`] binds what a filter needs outside them: `?c
+/// wdt:P2067 ?compound_mass .` for mass, `?r wdt:P577 ?ref_date .` for year, `?c wdt:P274
+/// ?compound_formula_raw .` for formula. A filter reading a variable bound only inside a
+/// deleted block survives as a `FILTER` over an unbound variable and counts nothing -- which
+/// is what the formula filter did until its binding was added, and every count on the page
+/// read zero for any search using one.
 #[must_use]
 pub fn counts_query(base: &str) -> String {
     let Some(select_at) = base.find("SELECT") else {
@@ -1269,15 +1196,13 @@ pub fn counts_query(base: &str) -> String {
         .replace(REFERENCE_METADATA, "")
         .replace(COMPOUND_PROPERTIES, "");
 
-    // The year filter constrains `?ref_date`, and the block stripped above is what
-    // binds it. Left alone, the filter would reference an unbound variable in the
-    // count query, every solution would be filtered out, and every count would
-    // read zero -- a count that is silently, confidently wrong.
+    // The year filter constrains `?ref_date`, and the block stripped above is what binds
+    // it. Left alone, the filter references an unbound variable, every solution is filtered
+    // out, and every count reads zero -- silently, confidently wrong.
     //
-    // Rebinding it is not a workaround, it is the same binding the results query
-    // gets: the metadata OPTIONAL and this triple both supply `?ref_date` from
-    // `?r wdt:P577`, and the filter's own `BOUND()` drops rows with no date either
-    // way, so the two queries count the same set.
+    // Rebinding is not a workaround: the metadata OPTIONAL and this triple both supply
+    // `?ref_date` from `?r wdt:P577`, and the filter's own `BOUND()` drops dateless rows
+    // either way, so both queries count the same set.
     let year_filtered = stripped.contains("?ref_date");
     if year_filtered {
         stripped.push_str("\n?r wdt:P577 ?ref_date .");
@@ -1338,19 +1263,17 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
     // projects. So it needs no triple of its own and no join: just a FILTER on a
     // variable that is already in scope, guarded by BOUND.
     //
-    // The earlier form reached the date through a required `?r wdt:P577 ?_year_date`
-    // at the outermost level, which was wrong twice over. `?r` is bound by the
-    // occurrence block, which is optional in the taxon-free shapes, so a *required*
-    // triple on an unbound `?r` goes fresh and asks for every dated reference in
-    // Wikidata -- 30 s and zero rows, the timeout reading as "nothing matched". And
-    // even with a sentinel in front of it, a narrower range returned nothing while a
-    // wider one returned hundreds, which a correct engine cannot do for two queries
-    // differing in one digit.
+    // The earlier form reached the date through a required `?r wdt:P577 ?_year_date` at the
+    // outermost level, wrong twice over. `?r` is bound by the occurrence block, optional in
+    // the taxon-free shapes, so a *required* triple on an unbound `?r` goes fresh and asks
+    // for every dated reference in Wikidata -- 30 s and zero rows, the timeout reading as
+    // "nothing matched". And even with a sentinel in front, a narrower range returned
+    // nothing while a wider one returned hundreds, which a correct engine cannot do for two
+    // queries differing in one digit.
     //
-    // BOUND matters for the same reason the sentinel existed: with no reference the
-    // metadata OPTIONAL leaves `?ref_date` unbound, and `YEAR()` of an unbound value
-    // is an error that drops the row. Asking for a year range and getting nothing
-    // for a compound with no reference is the right answer; enumerating all of
+    // BOUND matters as the sentinel did: with no reference the metadata OPTIONAL leaves
+    // `?ref_date` unbound, and `YEAR()` of an unbound value is an error that drops the row.
+    // Returning nothing for a compound with no reference is the right answer; enumerating
     // Wikidata to find that out is not.
     if criteria.has_year_filter(year_max) {
         let _ = write!(
@@ -1379,14 +1302,12 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
 
     formula_filter(criteria, &mut required, &mut filters);
 
-    // A filter that binds nothing of its own is legitimate: the year filter
-    // constrains `?ref_date`, which the middle subquery already projects, and
-    // adding a `?r wdt:P577 ?_year_date` triple to satisfy the old rule made the
-    // query join against a variable that goes fresh when the occurrence block
-    // matched nothing. So the invariant is not "every filter binds", it is "every
-    // filter names a variable the query already binds" -- which is a property of
-    // the text, checked by the contract tests, and not something the buffers can
-    // tell us here.
+    // A filter that binds nothing of its own is legitimate: the year filter constrains
+    // `?ref_date`, already projected by the middle subquery, and adding a `?r wdt:P577
+    // ?_year_date` triple to satisfy the old rule made the query join against a variable that
+    // goes fresh when the occurrence block matched nothing. The invariant is therefore not
+    // "every filter binds" but "every filter names a variable the query already binds" --
+    // a property of the text, checked by the contract tests, invisible to these buffers.
     if required.is_empty() && filters.is_empty() {
         return base.to_string();
     }
@@ -1414,22 +1335,19 @@ fn formula_filter(criteria: &SearchCriteria, required: &mut String, out: &mut St
         return;
     }
 
-    // Without the BOUND guard, an unbound `?compound_formula_raw` makes every
-    // comparison below evaluate against an error rather than a value.
+    // Without the BOUND guard, an unbound `?compound_formula_raw` makes every comparison
+    // below evaluate against an error rather than a value.
     //
-    // The variable names here are part of the query text, and a query's bytes
-    // are what a cache key and a shared link are derived from, so they are not
-    // renamed for tidiness.
+    // The variable names are part of the query text, and a query's bytes are what a cache
+    // key and a shared link derive from, so they are not renamed for tidiness.
     //
-    // This triple is the reason the counts were wrong. `?compound_formula_raw` is
-    // bound by an `OPTIONAL` inside `COMPOUND_PROPERTIES`, and `counts_query`
-    // deletes that whole block because it is expensive and display-only -- except
-    // that when a formula filter is active it is neither display-only nor
-    // optional. The counts query kept `FILTER(BOUND(?compound_formula_raw))` over
-    // a variable nothing bound, so it matched no rows and every card on the page
-    // read zero for any search with a formula filter. Re-binding it here, outside
-    // the deleted block and in the same way the mass and year filters bind their
-    // own variables, is what makes it survive.
+    // This triple is why the counts were wrong. `?compound_formula_raw` is bound by an
+    // `OPTIONAL` inside `COMPOUND_PROPERTIES`, which `counts_query` deletes as expensive and
+    // display-only -- but with a formula filter active it is neither. The counts query kept
+    // `FILTER(BOUND(?compound_formula_raw))` over a variable nothing bound, matched no rows,
+    // and every card on the page read zero for any search with a formula filter. Binding it
+    // here, outside the deleted block and as the mass and year filters bind their own
+    // variables, is what makes it survive.
     let _ = writeln!(required, "?c wdt:P274 ?compound_formula_raw .");
 
     let _ = writeln!(out, "FILTER(BOUND(?compound_formula_raw))");
@@ -1510,20 +1428,19 @@ fn normalized_exact_formula(criteria: &SearchCriteria) -> Option<String> {
 /// Append a `BIND` yielding `symbol`'s count in the tokenised formula, or `0`,
 /// and return the variable it binds.
 ///
-/// The token separator is emitted as `\\|` because the pattern goes into a SPARQL
-/// string literal, where a backslash is itself escaped.
+/// The token separator is emitted as `\\|` because the pattern goes into a SPARQL string
+/// literal, where a backslash is itself escaped.
 ///
-/// A formula is tokenised by inserting `|` before *every* capital, so `C6H5COOH`
-/// becomes `|C6|H5|C|O|O|H`. The count is therefore the leading `\\|C([0-9]*)`
-/// match, and matching that greedily reads the **last** `|C` token rather than
-/// the first, which is wrong whenever a bare `C` follows a digit-bearing one:
-/// benzoic acid tokenises with a trailing bare `|C`, the capture comes back
-/// empty, and the count collapses to 1. Measured over the 3,301 distinct
-/// formulas on a real taxon, that miscounted `C₂H₅OOCH`.
+/// Tokenising inserts `|` before *every* capital, so `C6H5COOH` becomes `|C6|H5|C|O|O|H`.
+/// Counting the leading `\\|C([0-9]*)` greedily reads the **last** `|C` rather than the
+/// first, which is wrong whenever a bare `C` follows a digit-bearing one: benzoic acid
+/// tokenises with a trailing bare `|C`, the capture comes back empty, and the count collapses
+/// to 1. Measured over the 3,301 distinct formulas on a real taxon, that miscounted
+/// `C₂H₅OOCH`.
 ///
-/// So a digit-bearing token is preferred, and the greedy match is kept only for
-/// formulas that have none — where a single bare token does mean one atom
-/// (`CH4`), which the old empty-capture branch already got right.
+/// Hence a digit-bearing token is preferred, and the greedy match is kept only for formulas
+/// with none -- where a single bare token does mean one atom (`CH4`), which the old
+/// empty-capture branch already got right.
 fn bind_element_count(out: &mut String, symbol: &str) -> String {
     let var = format!("?_count_{}", symbol.to_ascii_lowercase());
     let pattern = format!(r"\\|{symbol}([0-9]*)(\\||$)");
@@ -1599,11 +1516,9 @@ CONSTRUCT {{
 
 /// Which Wikidata service a fallback query needs.
 ///
-/// This is a routing decision about the query, not about the network, so it
-/// belongs here rather than in the crate that holds the URLs. Naming the
-/// service instead of the endpoint also means the URLs stay overridable: a
-/// caller running its own mirror picks the URL and still gets the right
-/// rewrite.
+/// A routing decision about the query, not the network, so it belongs here rather than with
+/// the URLs. Naming the service keeps the URLs overridable: a caller running its own mirror
+/// picks the URL and still gets the right rewrite.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FallbackService {
     /// The main `WDQS` endpoint.

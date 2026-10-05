@@ -1,26 +1,24 @@
-# Mutation testing.
-#
-# `./mk mutants` covers every library crate in the workspace and nothing else.
-# This file says why `apps/lotus-explore-rs` is the one omission, so the gap is a
-# decision rather than an oversight; `apps/lotus-explore-rs/tests/
-# gate_consistency.rs` checks that the exclusion is still the one this file states.
+# Mutation testing. `./mk mutants` covers every library crate in the workspace
+# and nothing else; this file says why `apps/lotus-explore-rs` is the one
+# omission, so the gap is a decision rather than an oversight.
+# `apps/lotus-explore-rs/tests/gate_consistency.rs` checks the exclusion is
+# still the one stated here.
 #
 # Re-run on 2026-10-05 over `crates/lotus-search/src/execute.rs`, 95 mutants: 71
 # caught, 24 unviable, 8 surviving. Seven of the eight were gaps and are now
-# covered; the survivors left are the three below, and the reasons are at the
-# lines.
+# covered; the survivors left are the three below.
 #
-# The seven were one theme. `execute_streaming` and `execute_streaming_with_fallback`
-# each carry their own copy of the retry decision, and no test reached either: the
-# three existing retry/fallback tests all go through `search`, which reads the
-# whole body. `execute_streaming_with_fallback` is how every large result set is
-# actually fetched, so its being unverified was not a theoretical gap. Six tests
-# killed seven mutants, including the guard that stops a rejected query being run
-# a second time against `WDQS` and the `&&` that keeps a non-retryable failure
-# from being retried at all. The seventh was `json_exception`'s byte offset, which
-# needed a message ending in a multi-byte character: `end.max(i)` absorbs the
-# difference for every character *except* the last, so every ASCII test passed
-# against a broken offset too.
+# The seven were one theme. `execute_streaming` and
+# `execute_streaming_with_fallback` each carry their own copy of the retry
+# decision and no test reached either: the three existing retry/fallback tests
+# all go through `search`, which reads the whole body.
+# `execute_streaming_with_fallback` is how every large result set is fetched, so
+# its being unverified was not theoretical. Six tests killed seven mutants,
+# including the guard that stops a rejected query being run a second time against
+# `WDQS` and the `&&` that keeps a non-retryable failure from being retried at
+# all. The seventh was `json_exception`'s byte offset, which needed a message
+# ending in a multi-byte character: `end.max(i)` absorbs the difference for every
+# character *except* the last, so every ASCII test passed against a broken offset.
 #
 # The eight survivors, none of which a test can fix as the code stands:
 #
@@ -29,84 +27,80 @@
 # Three survivors that are one gap. Each reads one environment variable and each
 # decides what an *empty* value means, and no test can supply one: the workspace
 # forbids `unsafe_code` and `std::env::set_var` is `unsafe` on Rust 1.97+. The
-# fix is the one `apps/lotus-explore-rs/src/server/config.rs` already uses -- take
-# the variable as a parameter and pass an env reader -- but `Service::target` is
-# public, so that is an API decision and not a test to be written here.
+# fix is the one `apps/lotus-explore-rs/src/server/config.rs` already uses --
+# take the variable as a parameter and pass an env reader -- but `Service::target`
+# is public, so that is an API decision and not a test to be written here.
 #
 #   execute.rs: replace < with <= in `execute` and in `execute_streaming`
 #
 # Equivalent. On the last iteration `<=` is also true, so the body stores the
-# error, sleeps out the backoff, and lets the loop end -- and returns `last`,
-# which is the error from that same last attempt. Identical error, identical
-# request count, one wasted 400 ms.
+# error, sleeps out the backoff, lets the loop end and returns `last`, the error
+# from that same last attempt. Identical error, identical request count, one
+# wasted 400 ms.
 #
 #   execute.rs: replace backoff with () in the `#[cfg(target_arch = "wasm32")]`
 #   backoff
 #
 # Not observable from a native run: the `cfg` means none of that function is
-# compiled into the test binary. The same edit to the native twin *is* caught,
-# by `a_retry_waits_before_it_happens`. Killing this one needs a browser test.
+# compiled into the test binary. The same edit to the native twin *is* caught, by
+# `a_retry_waits_before_it_happens`. Killing this one needs a browser test.
 #
-# Recorded on 2026-09-30. That run: 947 mutants, 645 caught, 297 unviable, 5
-# surviving -- all five introduced by splitting fetch-assets, and all five since
-# killed.
+# Recorded on 2026-09-30: 947 mutants, 645 caught, 297 unviable, 5 surviving --
+# all five introduced by splitting fetch-assets, all five since killed.
 #
 # Re-run on 2026-10-01 after the healthcheck extraction: 961 mutants, 656 caught,
 # 301 unviable, 4 surviving. Two were real gaps (`is_retryable` and the attempt
-# guard in `get` had no test that could observe them) and are now covered; one was
-# the healthcheck exit status, killed by the `probe` extraction; one is the
+# guard in `get` had no test that could observe them) and are now covered; one
+# was the healthcheck exit status, killed by the `probe` extraction; one is the
 # equivalent `&&` written down below.
 #
 # Re-run on 2026-10-01 after the taxonomy work and the 1.99 bump: 1015 mutants,
-# 702 caught, 312 unviable, 1 surviving -- the same equivalent `&&`, at the same
-# kind of site, still the only one.
+# 702 caught, 312 unviable, 1 surviving -- the same equivalent `&&`.
 #
 # Re-run on 2026-10-02 after the structure resolution work: 1074 mutants, 743
-# caught, 331 unviable, 0 surviving. The first run of it reported 8, all in
-# `parse.rs` and all the same gap: `parse_compound_lookup_csv` and the `?matched_by`
-# column of `parse_taxon_csv` had no tests in this crate at all. They were covered
-# only through the app, which is the crate mutants does not run, so nothing here
-# could observe them. What killed them was fixtures that put the wanted columns
-# somewhere other than first -- a reader that matched `!=` against the header
-# would still produce rows, just the wrong ones, which is why every one of those
-# tests is about *which* column was read rather than whether a row appeared.
+# caught, 331 unviable, 0 surviving. The first run reported 8, all in `parse.rs`
+# and all the same gap: `parse_compound_lookup_csv` and the `?matched_by` column
+# of `parse_taxon_csv` had no tests in this crate at all, only through the app --
+# which is the crate mutants does not run. What killed them was fixtures that put
+# the wanted columns somewhere other than first -- a reader that matched `!=`
+# against the header would still produce rows, just the wrong ones, which is why
+# every one of those tests is about *which* column was read.
 
-# The app is ~2,700 mutants of Dioxus rendering -- a `match` arm on a `Signal`, an
-# `rswap!`, a literal in a `class` attribute. Killing those means a rendering
-# test for every component: a large piece of work with a poor ratio. It is
-# `./mk mutants-ui`, opt-in.
+# The app is ~2,700 mutants of Dioxus rendering -- a `match` arm on a `Signal`,
+# an `rswap!`, a literal in a `class` attribute. Killing those means a rendering
+# test per component: large work with a poor ratio. It is `./mk mutants-ui`,
+# opt-in.
 [package.lotus-explore-rs]
 exclude = true
 
 # No mutant survives in lotus-web-assets.
 #
-# It used to be one, and the record is kept because the reason it was ever allowed
-# is the reason this crate has a test seam worth arguing about.
+# One did, and the record is kept because the reason it was allowed is the reason
+# this crate has a test seam worth arguing about.
 #
 #   src/fetch_assets/mod.rs: replace main -> Result<..> with Ok(())
 #
-# That asked whether `main` stops propagating a failure, and the only way to observe
-# it was the exit status of a process -- something a unit test cannot reach. The
-# logic `main` contains is now the `run` function next to it, which is covered: its
-# error path is asserted on, and the mutant that short-circuited it is caught.
+# That asked whether `main` stops propagating a failure, and the only way to
+# observe it was a process exit status, which a unit test cannot reach. The logic
+# `main` contains is now the `run` function next to it: its error path is
+# asserted on, and the mutant that short-circuited it is caught.
 #
-# `healthcheck.rs` had the same shape and was left standing for the same reason. It
-# is no longer: `main` is now a thin wrapper over `probe`, and `probe` returning
-# `Default::default()` is caught by three tests. The extraction is what made it
-# killable, and it also exposed a real hazard -- `serve_once` blocked in `accept()`
-# forever when the code under test made no connection, so a broken `probe` showed up
-# as a mutation-testing *timeout* rather than a failure. The accept is bounded now.
+# `healthcheck.rs` had the same shape and was left standing for the same reason.
+# It is no longer: `main` is now a thin wrapper over `probe`, and `probe`
+# returning `Default::default()` is caught by three tests. The extraction is what
+# made it killable, and it exposed a real hazard -- `serve_once` blocked in
+# `accept()` forever when the code under test made no connection, so a broken
+# `probe` showed up as a mutation-testing *timeout* rather than a failure. The
+# accept is bounded now.
 #
-# One survivor remains elsewhere and is not in this crate:
+# One survivor remains elsewhere, not in this crate:
 #
 #   src/query.rs: replace && with || in with_filters
 #
-# It is equivalent, not a gap. Every branch of that function writes to both the
+# Equivalent, not a gap. Every branch of that function writes to both the
 # `required` and `filters` buffers or to neither, so the two can never disagree
-# about whether a filter was added and `&&` and `||` always agree. Recorded in a
-# comment at the line itself.
+# about whether a filter was added. Recorded in a comment at the line itself.
 #
 # The ~300 "unviable" are mutants that do not compile -- an array replaced with a
-# different arity, a function replaced with a body of the wrong type. They are not a
-# gap in the tests: cargo-mutants reports a build failure as unviable rather than
-# caught.
+# different arity, a function replaced with a body of the wrong type. Not a gap in
+# the tests: cargo-mutants reports a build failure as unviable rather than caught.

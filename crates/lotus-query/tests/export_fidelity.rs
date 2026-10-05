@@ -2,22 +2,20 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The two paths into a result set must produce the same bytes.
 //!
-//! There are two ways a [`ColumnarResultSet`] gets built. `from_entries` takes
-//! values a caller already holds; the streaming reader folds an endpoint's CSV a
-//! chunk at a time. Production uses the second and every test in the crate used
-//! the first, which means the streaming path -- the one with a chunk-boundary
-//! bug, a column-name typo and a truncation check in it -- was compared against
-//! nothing but itself.
+//! Two ways build a [`ColumnarResultSet`]: `from_entries` takes values a caller already holds,
+//! while the streaming reader folds an endpoint's CSV a chunk at a time. Production uses the
+//! second and every test in the crate used the first, so the streaming path -- the one with
+//! a chunk-boundary bug, a column-name typo and a truncation check in it -- was compared
+//! against nothing but itself.
 //!
-//! So this compares the two against each other, and it compares what comes out
-//! rather than what goes in: **the same rows, through both paths, must render
-//! byte-identical CSV, JSON and Turtle**, and read back as the same entries and
-//! the same statistics. A change to the parser, the projection, the store or the
-//! exporter that alters what a reader sees fails here.
+//! Hence comparing the two against each other, on what comes out rather than what goes in:
+//! **the same rows through both paths must render byte-identical CSV, JSON and Turtle**, and
+//! read back as the same entries and statistics. Any change to the parser, projection, store
+//! or exporter that alters what a reader sees fails here.
 //!
-//! Deliberately not a golden-file test. A recorded file is a copy that has to be
-//! regenerated deliberately, and regenerating it is exactly the moment someone
-//! decides the new output is fine. This compares two live paths, so there is
+//! Deliberately not a golden-file test: a recorded file is a copy someone regenerates
+//! deliberately, and that moment is exactly when the new output gets blessed. This compares
+//! two live paths, so there is
 //! nothing to bless: the question is never "is this the right output" but "are
 //! these two the same output", which is the question a refactor is allowed to ask.
 

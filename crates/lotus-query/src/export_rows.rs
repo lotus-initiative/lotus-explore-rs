@@ -4,37 +4,28 @@
 //!
 //! # Why this exists
 //!
-//! A download used to leave the browser: the app asked `QLever` or the API to run
-//! the query again and hand back a URL. Two things were wrong with that.
+//! A download used to leave the browser, asking `QLever` or the API to re-run the query and
+//! return a URL, which broke twice. The filename: the app names the file from the query and
+//! shows that name on click, but the producing service decides it too, so `QLever` appends
+//! its own suffix and the reader gets `lotus-export-1234.csv` after being told
+//! `rosa-2026-10-03.csv`, with no way to reconcile since the app is out of the request by
+//! then. And the query: the rows were already in memory, so the export made a second
+//! endpoint produce again the answer sitting in the tab -- on a three-million-row search, a
+//! second full execution of an expensive query.
 //!
-//! The filename did not match. The app names the file from the query, and shows that
-//! name to the reader the moment they click. When the file is then produced by another
-//! service, that service decides the name too: `QLever` appends its own suffix to a
-//! generic one, so the reader gets `lotus-export-1234.csv` after being told
-//! `rosa-2026-10-03.csv`. Nothing in the app can reconcile that, because by the time
-//! the name is chosen the app is no longer in the request.
-//!
-//! And it re-ran the query. The rows were already in memory -- that is what the table
-//! is drawn from -- so the export asked a second SPARQL endpoint to produce, again, the
-//! answer already sitting in the tab. On a three-million-row search that is a second
-//! full execution of an expensive query, against a service that was not asked for the
-//! first one either.
-//!
-//! Both are fixed by not leaving: the rows are read out of the set the table already
-//! holds. The filename is then the only name in play, and it is the one that was shown.
+//! Both are fixed by not leaving: rows are read out of the set the table already holds, so
+//! the shown filename is the only name in play.
 //!
 //! # Streaming
 //!
-//! Reading a set out is done in chunks, not by building the whole file. The set for a
-//! large search is already near the tab's budget, and a `String` holding the CSV would
-//! be a second copy of it: for two million rows that is roughly 600 MB of CSV, which
-//! is the failure the streaming WDQS path was written to avoid. [`RowExporter::next_chunk`]
-//! returns at most one chunk's worth, and the caller is expected to hand each chunk on
-//! and drop it before asking for the next.
+//! A set is read out in chunks, not built whole. The set is already near the tab's budget and
+//! a `String` of CSV would be a second copy: roughly 600 MB for two million rows, the failure
+//! the streaming WDQS path avoids. [`RowExporter::next_chunk`] returns at most one chunk's
+//! worth, and the caller hands each chunk on and drops it before asking for the next.
 //!
-//! The chunk boundary is deliberately not aligned to a row. Padding a chunk out to the
-//! target size would mean holding a partial row across calls, and a row is at most a
-//! few hundred bytes -- far less than the slack that would cost.
+//! The chunk boundary is deliberately not row-aligned: padding to the target size would mean
+//! holding a partial row across calls, and a row is at most a few hundred bytes -- far less
+//! than the slack that costs.
 
 use crate::export::ExportFormat;
 use lotus_model::{ColumnarResultSet, WIKIDATA_REFERENCE_BASE, WIKIDATA_STATEMENT_BASE};
@@ -43,39 +34,33 @@ use std::fmt::Write as _;
 
 /// Target bytes per chunk.
 ///
-/// Small on purpose. The chunk is the *only* copy of the export in memory at any
-/// moment, so this number is the entire transient cost of a download -- and it is
-/// doubled, briefly, while it is copied into JavaScript-owned storage.
+/// Small on purpose: the chunk is the *only* copy of the export in memory at any moment, so
+/// this number is the whole transient cost of a download, doubled briefly while copied into
+/// JavaScript-owned storage.
 ///
-/// 256 KiB was measurably fine on a desktop and was the wrong number on an iPhone: the
-/// per-chunk overhead is a pointer swap and an await, so the difference between 256 KiB
-/// and 64 KiB is a few thousand extra awaits on a 600 MB export -- nothing -- while the
-/// transient peak drops fourfold. Memory is the scarce resource here and latency is not,
-/// so the trade is not close.
+/// 256 KiB was fine on a desktop and wrong on an iPhone. Per-chunk overhead is a pointer swap
+/// and an await, so 256 KiB against 64 KiB is a few thousand extra awaits on a 600 MB export
+/// -- nothing -- while the transient peak drops fourfold. Memory is scarce here and latency
+/// is not.
 const CHUNK_TARGET: usize = 64 * 1024;
 
 /// The columns a locally-built export carries, in order.
 ///
-/// The SPARQL variable names the endpoint uses, so a file from here and a file from
-/// `QLever` are recognisably the same thing to anything that reads them. Two of the
-/// endpoint's fifteen are absent because the set does not keep them, and saying so is
-/// better than emitting a column of empty cells:
+/// The SPARQL variable names the endpoint uses, so a file from here and one from `QLever`
+/// read as the same thing. Two of the endpoint's fifteen are absent because the set does not
+/// keep them, and saying so beats emitting empty cells:
 ///
-/// - `compound_smiles_iso` (the isomeric SMILES) is not stored; only one SMILES per
-///   compound is, so which one it is would be a guess.
-/// - `ref` is the reference node as a URI. `ref` here carries the bare QID, which is
-///   what the set holds.
+/// - `compound_smiles_iso` is not stored; only one SMILES per compound is, so which one
+///   would be a guess.
+/// - `ref` is the reference node as a URI; `ref` here carries the bare QID the set holds.
 ///
-/// And one is renamed: the set keeps only the publication *year*, so the column is
-/// `ref_year` rather than `ref_date`. Emitting `ref_date` with a year in it would be
-/// a value that is wrong rather than one that is missing.
-/// The user-facing archive columns.
+/// One is renamed: the set keeps only the publication *year*, so the column is `ref_year`.
+/// Emitting `ref_date` with a year in it would be wrong rather than missing.
 ///
-/// Deliberately *not* the same list as `SELECT_COLUMNS`: the reference node is
-/// projected for the provenance graph and kept in the parsed row, but no column a
-/// person reads shows it. Asserted by rendering a set and looking for the node's
-/// hash in the output, rather than by comparing lists -- a test that compares the
-/// constants would only notice a rename.
+/// Deliberately *not* the same list as `SELECT_COLUMNS`: the reference node is projected for
+/// the provenance graph and kept in the parsed row, but no column a person reads shows it.
+/// Asserted by rendering a set and looking for the node's hash in the output, since a test
+/// comparing the constants would only notice a rename.
 const COLUMNS: [&str; 13] = [
     "compound",
     "compoundLabel",
@@ -248,10 +233,9 @@ impl<'a> RowExporter<'a> {
 
     /// The row's cells, in [`COLUMNS`] order, as borrowed where possible.
     ///
-    /// `Cow` because four of the thirteen are rendered rather than stored: the QIDs
-    /// come out of a numeric dictionary and the statement out of packed bytes, so they
-    /// have to be written into a buffer before they can be quoted. Borrowing keeps the
-    /// other nine off the heap.
+    /// `Cow` because four of the thirteen are rendered rather than stored: the QIDs come out of
+    /// a numeric dictionary and the statement out of packed bytes, so they need a buffer
+    /// before they can be quoted. Borrowing keeps the other nine off the heap.
     fn cells(set: &ColumnarResultSet, row: usize) -> Vec<Cow<'_, str>> {
         let mut out: Vec<Cow<'_, str>> = Vec::with_capacity(COLUMNS.len());
         out.push(render_qid(set.compound_qid_text(row)));
@@ -303,14 +287,12 @@ impl<'a> RowExporter<'a> {
         //     statement prov:wasDerivedFrom reference-node
         //     reference-node pr:P248         publication
         //
-        // This used to attach the taxon and the publication to the compound
-        // directly, with the compound itself as the subject of
-        // `prov:wasDerivedFrom`. That is not a smaller spelling of the same graph,
-        // it is a different one: the compound is not what was derived from the
-        // reference, the *statement* is, and two occurrences of one compound
-        // through different references became indistinguishable. It also dropped
-        // the reference node, which is why `?ref` has to be in the projection --
-        // without it there is nothing here to point at.
+        // Attaching taxon and publication to the compound directly, with the compound as
+        // the subject of `prov:wasDerivedFrom`, is a different graph, not a shorter
+        // spelling: the *statement* is what was derived from the reference, and two
+        // occurrences of one compound through different references became
+        // indistinguishable. It also dropped the reference node, which is why `?ref` has
+        // to be in the projection -- without it there is nothing to point at.
         let taxon = set
             .taxon_qid_text(row)
             .map(|t| t.trim().to_string())
@@ -444,12 +426,11 @@ fn statement_text(set: &ColumnarResultSet, row: usize) -> String {
 /// Unquoted and typed `xsd:decimal`, because Wikidata holds these as numbers. A quoted
 /// `"302.24"` is a *different value* to anything reading the graph, not a formatting
 /// preference: the mass is comparable with `>` only if it is a number.
-/// A Turtle typed number, or nothing at all when there is none.
+/// A Turtle typed number, or nothing when there is none.
 ///
-/// Empty rather than `[]`, for the same reason `quote` is: an empty blank node is
-/// a node, and `wdt:P2067 []` says a compound has a molecular mass of nothing.
-/// `emit` drops the triple, which is what the endpoint's CONSTRUCT does with an
-/// unbound object.
+/// Empty rather than `[]`, for the same reason `quote` is: an empty blank node is a node,
+/// and `wdt:P2067 []` says a compound has a molecular mass of nothing. `emit` drops the
+/// triple, as the endpoint's CONSTRUCT does with an unbound object.
 fn number(value: Option<f64>) -> String {
     value
         .filter(|mass| mass.is_finite())
@@ -465,13 +446,10 @@ fn number(value: Option<f64>) -> String {
 
 /// A Turtle object: a quoted literal, or nothing for a missing value.
 fn quote(value: Option<&str>) -> String {
-    // An absent value emits no triple at all. It used to emit `[]`, which is an
-    // empty blank node: valid syntax, a node that means nothing, and a graph that
-    // then contains `wdt:P235 []` for every compound missing an InChIKey. A
-    // consumer cannot tell that from a real value.
-    //
-    // This is the `CONSTRUCT` semantics the endpoint follows too: a triple whose
-    // object is unbound is simply not produced.
+    // An absent value emits no triple. Emitting `[]` instead would be valid syntax and a
+    // node meaning nothing, leaving `wdt:P235 []` for every compound missing an InChIKey,
+    // which a consumer cannot tell from a real value. This is the `CONSTRUCT` semantics the
+    // endpoint follows too: a triple with an unbound object is not produced.
     let Some(value) = value.map(str::trim).filter(|v| !v.is_empty()) else {
         return String::new();
     };
@@ -580,24 +558,21 @@ mod tests {
 
     /// The Turtle must carry the provenance chain the endpoint's CONSTRUCT emits.
     ///
-    /// It used to attach the taxon and the publication to the compound directly,
-    /// with the *compound* as the subject of `prov:wasDerivedFrom`. That is not a
-    /// shorter spelling of the same graph, it is a different one: the statement is
-    /// what was derived from the reference, so a compound reported by two
+    /// Attaching taxon and publication to the compound directly, with the *compound* as the
+    /// subject of `prov:wasDerivedFrom`, is a different graph, not a shorter spelling: the
+    /// statement is what was derived from the reference, so a compound reported by two
     /// references produced two identical triples and the occurrences became
-    /// indistinguishable. The reference node was dropped entirely, which is what
-    /// made `?ref` look unreadable.
+    /// indistinguishable. The reference node was dropped entirely, which is what made `?ref`
+    /// look unreadable.
     /// The reference node must not leak into anything a person reads.
     ///
-    /// Behavioural rather than a comparison of column lists: a distinctive hash
-    /// goes into a row and the exports are searched for it. Comparing constants
-    /// would only notice a rename, and the failure was never a rename -- it was
-    /// the value being routed to the wrong place entirely.
+    /// Behavioural, not a comparison of column lists: a distinctive hash goes into a row and the
+    /// exports are searched for it. Comparing constants would only notice a rename, and the
+    /// failure was never a rename -- the value was routed to the wrong place entirely.
     ///
-    /// Scope, established by trying to fool it: this catches the *value* reaching a
-    /// readable export. Adding a column name alone does not trip it, because the
-    /// name and the value come from separate lists and a name on its own carries
-    /// nothing. Verified to fail by pushing the hash into `cells`.
+    /// Scope, established by trying to fool it: this catches the *value* reaching a readable
+    /// export. A column name alone does not trip it, name and value coming from separate lists.
+    /// Verified to fail by pushing the hash into `cells`.
     #[test]
     fn the_reference_node_is_absent_from_the_readable_exports() {
         const HASH: &str = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
@@ -1046,12 +1021,8 @@ mod tests {
     /// The chunk target is 64 KiB, and that number is a measured decision rather
     /// than a round one.
     ///
-    /// The constant's own comment records why: at 256 KiB the export was measurably
-    /// fine on a desktop and the wrong number on a phone, and the per-chunk overhead
-    /// is a pointer swap and an await, so the smaller chunk costs a few thousand extra
-    /// awaits on a 600 MB export -- nothing -- while the transient peak drops
-    /// fourfold. A mutant that changes `64 * 1024` to `64 + 1024` still satisfies
-    /// every bound the suite checks, so nothing pinned the decision itself.
+    /// `CHUNK_TARGET` records why. A mutant changing `64 * 1024` to `64 + 1024` still
+    /// satisfies every bound the suite checks, so nothing else pinned the decision.
     #[test]
     fn the_chunk_target_is_the_measured_sixty_four_kib() {
         assert_eq!(

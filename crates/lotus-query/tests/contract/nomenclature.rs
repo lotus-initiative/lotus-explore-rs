@@ -280,15 +280,13 @@ fn no_taxon_means_no_ancestry_filter() {
 
 /// A resolved closure is inlined, and an absent one falls back to the subquery.
 ///
-/// The two halves are one behaviour: the fast form is only correct when it is
-/// given something. An empty `VALUES` list is a valid SPARQL query that matches
-/// nothing, so a closure resolution that returned nothing must degrade to the
-/// slower correct form rather than to an empty answer.
+/// One behaviour, two halves: the fast form is only correct when given something. An empty
+/// `VALUES` list is valid SPARQL matching nothing, so a resolution that returned nothing must
+/// degrade to the slower correct form, not to an empty answer.
 ///
-/// Measured on `Q21754` (`docs/SPARQL-VARIANTS.md`): the inlined form returns
-/// identical rows in 4,860 ms against 9,716 ms. What cannot be checked offline is
-/// that the rows are identical, which is why the numbers there come from the
-/// endpoint rather than from here.
+/// Measured on `Q21754` (`docs/SPARQL-VARIANTS.md`): the inlined form returns identical rows
+/// in 4,860 ms against 9,716 ms. Row identity is not checkable offline, which is why those
+/// numbers come from the endpoint.
 #[test]
 fn a_resolved_closure_is_inlined_and_an_empty_one_falls_back() {
     let nomenclature = lotus_query::Nomenclature::ALL_ON;
