@@ -108,9 +108,7 @@ const CSV_BYTES_PER_ROW: usize = 471;
 /// budget buys it, and the next format up does not fit in it.
 pub const DOWNLOAD_MAX_ROWS: usize = 1_000_000;
 
-pub const BLOB_PATH_ROW_LIMIT: usize = 500_000;
-
-/// Whether the in-memory path can carry `rows`.
+/// Whether the in-memory path can carry `rows` of `format`.
 ///
 /// Checked before a single chunk is produced, so finding out costs one comparison
 /// rather than a killed tab.

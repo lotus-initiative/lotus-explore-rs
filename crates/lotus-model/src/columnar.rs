@@ -64,10 +64,11 @@
 //! the set plus one buffer, and the row count is bounded by device memory rather
 //! than by payload size.
 //!
-//! The ceiling that *is* memory is `BLOB_PATH_ROW_LIMIT`, and it guards the paths
-//! that collect the body with `.text()` -- roughly 500 B/row of payload on top of
-//! the set. Compression does not lower it: a phone decompresses the whole body
-//! into a string either way.
+//! The ceiling that *is* memory guards the last-resort export path -- the one
+//! reached when a browser can neither stream to a file nor to private storage --
+//! and it is denominated in bytes rather than rows, because a row costs 471 B as
+//! CSV and roughly 1,500 B as Turtle. Compression does not lower it: a phone
+//! decompresses the whole body into a string either way.
 //!
 //! # Exactness
 //!
