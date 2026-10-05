@@ -1,5 +1,5 @@
-compound,compoundLabel,compound_inchikey,compound_smiles_conn,compound_smiles_iso,compound_mass,compound_formula,taxon,taxon_name,ref_qid,ref_node,ref_title,ref_doi,ref_date,statement_id
-1,Quercetin,IIYFPWUAQGXNF-FGGY-VCPS-NA-NSA,O=c1c(O)c(-c2ccc(O)c(O)c2)oc2cc(O)cc(O)c12,"C1=CC(=CC(=C1)O)O",302.236, C17H12O7 ,16521,taxon placeholder,1000,,An article,10.1/A,2021-04-23T00:00:00Z,http://www.wikidata.org/entity/statement/S1
-2,Has isomeric SMILES only,Q2KEY,C1=CC=CC=C1,CC1=CC=CC=C1,92.138,C7H8,2,Second taxon,1000,,An article,10.1/A,2021-04-23T00:00:00Z,http://www.wikidata.org/entity/statement/S1
+compound,compoundLabel,compound_inchikey,compound_smiles_conn,compound_smiles_iso,compound_mass,compound_formula,taxon,taxon_name,ref_qid,ref_node,ref_title,ref_doi,ref_year,statement_id
+1,Quercetin,IIYFPWUAQGXNF-FGGY-VCPS-NA-NSA,O=c1c(O)c(-c2ccc(O)c(O)c2)oc2cc(O)cc(O)c12,"C1=CC(=CC(=C1)O)O",302.236, C17H12O7 ,16521,taxon placeholder,1000,,An article,10.1/A,2021,http://www.wikidata.org/entity/statement/S1
+2,Has isomeric SMILES only,Q2KEY,C1=CC=CC=C1,CC1=CC=CC=C1,92.138,C7H8,2,Second taxon,1000,,An article,10.1/A,2021,http://www.wikidata.org/entity/statement/S1
 3,No taxon or reference,Q3KEY,CCO,,46.069,C2H6O,,,1001,,Other article,https://doi.org/10.1/B,2019,http://www.wikidata.org/entity/statement/S2
-1,Quercetin,IIYFPWUAQGXNF-FGGY-VCPS-NA-NSA,O=c1c(O)c(-c2ccc(O)c(O)c2)oc2cc(O)cc(O)c12,"C1=CC(=CC(=C1)O)O",302.236,C17H12O7,16521,taxon placeholder,1000,,An article,10.1/A,2021-04-23T00:00:00Z,http://www.wikidata.org/entity/statement/S1
+1,Quercetin,IIYFPWUAQGXNF-FGGY-VCPS-NA-NSA,O=c1c(O)c(-c2ccc(O)c(O)c2)oc2cc(O)cc(O)c12,"C1=CC(=CC(=C1)O)O",302.236,C17H12O7,16521,taxon placeholder,1000,,An article,10.1/A,2021,http://www.wikidata.org/entity/statement/S1

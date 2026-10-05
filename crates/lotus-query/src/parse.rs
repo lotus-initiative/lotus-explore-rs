@@ -68,7 +68,7 @@ impl Columns {
             reference: find("ref_qid"),
             ref_title: find("ref_title"),
             ref_doi: find("ref_doi"),
-            ref_date: find("ref_date"),
+            ref_date: find("ref_year"),
             reference_node: find("ref_node"),
             statement: find("statement_id"),
         }

@@ -231,7 +231,7 @@ pub const SELECT_COLUMNS: [&str; 15] = [
     "ref_node",
     "ref_title",
     "ref_doi",
-    "ref_date",
+    "ref_year",
     "statement_id",
 ];
 
@@ -255,7 +255,7 @@ SELECT DISTINCT
   (STRAFTER(STR(?ref), "reference/") AS ?ref_node)
   ?ref_title
   ?ref_doi
-  ?ref_date
+  (SUBSTR(STR(?ref_date), 1, 4) AS ?ref_year)
   (STRAFTER(STR(?statement), "statement/") AS ?statement_id)
 "#,
         normalize_digits_expr("?compound_formula_raw")
