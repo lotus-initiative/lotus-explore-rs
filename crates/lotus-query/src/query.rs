@@ -1213,9 +1213,23 @@ pub fn counts_query(base: &str) -> String {
         return base.to_string();
     };
     let prefixes = &base[..select_at];
-    let stripped = base[select_at..]
+    let mut stripped = base[select_at..]
         .replace(REFERENCE_METADATA, "")
         .replace(COMPOUND_PROPERTIES, "");
+
+    // The year filter constrains `?ref_date`, and the block stripped above is what
+    // binds it. Left alone, the filter would reference an unbound variable in the
+    // count query, every solution would be filtered out, and every count would
+    // read zero -- a count that is silently, confidently wrong.
+    //
+    // Rebinding it is not a workaround, it is the same binding the results query
+    // gets: the metadata OPTIONAL and this triple both supply `?ref_date` from
+    // `?r wdt:P577`, and the filter's own `BOUND()` drops rows with no date either
+    // way, so the two queries count the same set.
+    let year_filtered = stripped.contains("?ref_date");
+    if year_filtered {
+        stripped.push_str("\n?r wdt:P577 ?ref_date .");
+    }
 
     format!(
         "{prefixes}
@@ -1262,23 +1276,28 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
         let _ = writeln!(required, "?c wdt:P2067 ?compound_mass .");
     }
 
-    // The year filter reaches `?r`, and `?r` is bound by the occurrence block,
-    // which is optional in the taxon-free shapes. An unbound `?r` entering a
-    // *required* triple goes fresh -- SPARQL binds it rather than leaving it
-    // unbound -- so this becomes "every dated reference in Wikidata", the same
-    // explosion the metadata sentinel exists to prevent. Measured on a
-    // taxon-free year-filtered search: 30 s and zero rows, because the query
-    // timed out and an empty result reads as "nothing matched".
+    // The year filter constrains `?ref_date`, which the middle subquery already
+    // projects. So it needs no triple of its own and no join: just a FILTER on a
+    // variable that is already in scope, guarded by BOUND.
     //
-    // `?_ref_source` cannot be reused here: it is bound inside the middle
-    // subquery and not projected, so it is not in scope at the point these
-    // fragments are spliced in. Hence a second sentinel, on its own variable.
+    // The earlier form reached the date through a required `?r wdt:P577 ?_year_date`
+    // at the outermost level, which was wrong twice over. `?r` is bound by the
+    // occurrence block, which is optional in the taxon-free shapes, so a *required*
+    // triple on an unbound `?r` goes fresh and asks for every dated reference in
+    // Wikidata -- 30 s and zero rows, the timeout reading as "nothing matched". And
+    // even with a sentinel in front of it, a narrower range returned nothing while a
+    // wider one returned hundreds, which a correct engine cannot do for two queries
+    // differing in one digit.
+    //
+    // BOUND matters for the same reason the sentinel existed: with no reference the
+    // metadata OPTIONAL leaves `?ref_date` unbound, and `YEAR()` of an unbound value
+    // is an error that drops the row. Asking for a year range and getting nothing
+    // for a compound with no reference is the right answer; enumerating all of
+    // Wikidata to find that out is not.
     if criteria.has_year_filter(year_max) {
-        let _ = writeln!(required, "BIND(COALESCE(?r, wd:Q0) AS ?_year_ref)");
-        let _ = writeln!(required, "?_year_ref wdt:P577 ?_year_date .");
         let _ = write!(
             filters,
-            "FILTER(YEAR(?_year_date) >= {} && YEAR(?_year_date) <= {})",
+            "FILTER(BOUND(?ref_date) && YEAR(?ref_date) >= {} && YEAR(?ref_date) <= {})",
             criteria.year_min, criteria.year_max
         );
     }
@@ -1302,20 +1321,15 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
 
     formula_filter(criteria, &mut required, &mut filters);
 
-    // One buffer decides this, not both. Every branch above writes to `required`
-    // and `filters` together or to neither, so they cannot disagree about whether a
-    // filter was added, and testing the second one is a second opinion about a
-    // question the first already answered.
-    //
-    // The `debug_assert` is the invariant that makes it safe, and it is there
-    // because the two are written independently: a branch that filtered without
-    // binding, or bound without filtering, would leave a filter that silently
-    // never applies rather than one that fails loudly.
-    debug_assert!(
-        filters.is_empty() || !required.is_empty(),
-        "a filter branch must bind what it filters on, or every row is dropped"
-    );
-    if required.is_empty() {
+    // A filter that binds nothing of its own is legitimate: the year filter
+    // constrains `?ref_date`, which the middle subquery already projects, and
+    // adding a `?r wdt:P577 ?_year_date` triple to satisfy the old rule made the
+    // query join against a variable that goes fresh when the occurrence block
+    // matched nothing. So the invariant is not "every filter binds", it is "every
+    // filter names a variable the query already binds" -- which is a property of
+    // the text, checked by the contract tests, and not something the buffers can
+    // tell us here.
+    if required.is_empty() && filters.is_empty() {
         return base.to_string();
     }
 

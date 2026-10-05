@@ -113,22 +113,30 @@ fn the_filter_fragments_land_in_the_outermost_where_block() {
         injected.contains("?c wdt:P2067 ?compound_mass ."),
         "mass becomes required"
     );
-    // Through a sentinel, not `?r` directly: `?r` is bound by the occurrence
-    // block, which is optional in the taxon-free shapes, and an unbound `?r`
-    // entering a required triple goes fresh -- "every dated reference in
-    // Wikidata". Measured: 30 s and zero rows, the timeout reading as no match.
+    // The filter constrains `?ref_date`, which the middle subquery already
+    // projects, and adds **no** triple of its own.
+    //
+    // It used to add a required `?r wdt:P577 ?_year_date` at the outermost level.
+    // `?r` is bound by the occurrence block, which is optional in the taxon-free
+    // shapes, so a required triple on an unbound `?r` goes fresh and asks for
+    // every dated reference in Wikidata: 30 s and zero rows, the timeout reading
+    // as "nothing matched". And even with a sentinel in front of it, a narrower
+    // year range returned nothing while a wider one returned hundreds -- which a
+    // correct engine cannot do for two queries differing in one digit.
     assert!(
-        injected.contains("BIND(COALESCE(?r, wd:Q0) AS ?_year_ref)"),
-        "the year filter must reach the reference through a sentinel: {injected}"
+        !injected.contains("_year_date"),
+        "the year filter must not bind its own date variable: {injected}"
     );
     assert!(
-        injected.contains("?_year_ref wdt:P577 ?_year_date ."),
-        "the reference date becomes required"
+        !injected.contains("wdt:P577"),
+        "the year filter must not add a P577 triple: {injected}"
     );
     assert!(
         injected.contains("FILTER(?compound_mass >= 100.000000 && ?compound_mass <= 400.000000)")
     );
-    assert!(injected.contains("FILTER(YEAR(?_year_date) >= 1990 && YEAR(?_year_date) <= 2010)"));
+    assert!(injected.contains(
+        "FILTER(BOUND(?ref_date) && YEAR(?ref_date) >= 1990 && YEAR(?ref_date) <= 2010)"
+    ));
     assert!(
         injected.trim_end().ends_with('}'),
         "and the block is closed again"
@@ -425,11 +433,16 @@ fn a_reference_constraint_composes_with_the_year_filter() {
         filtered.contains("VALUES ?r { wd:Q34460861 }"),
         "{filtered}"
     );
+    // The reference constraint and the year filter compose without either adding
+    // a triple: the filter constrains ?ref_date, which the middle subquery already
+    // projects, and the reference constrains ?r through VALUES.
     assert!(
-        filtered.contains("?_year_ref wdt:P577 ?_year_date"),
+        filtered.contains("FILTER(BOUND(?ref_date) && YEAR(?ref_date)"),
         "{filtered}"
     );
-    assert!(filtered.contains("FILTER(YEAR(?_year_date)"), "{filtered}");
+    // `P577` still appears in the base query, inside the metadata OPTIONAL, so the
+    // check is for the bare form the filter used to add -- not for the predicate.
+    assert!(!filtered.contains("?r wdt:P577"), "{filtered}");
 }
 
 /// `([A-Z])` splits every capital, so `C6H5COOH` tokenises to `|C6|H5|C|O|O|H`.

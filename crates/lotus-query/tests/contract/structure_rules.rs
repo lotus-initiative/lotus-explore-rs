@@ -205,13 +205,22 @@ fn reference_metadata_goes_through_the_sentinel() {
 fn the_count_query_carries_no_reference_or_compound_metadata() {
     for (label, query) in every_shape() {
         let counts = lotus_query::counts_query(&query);
-        for needle in ["P1476", "P356", "P577", "_ref_source", "P2017", "P2067"] {
+        for needle in ["P1476", "P356", "_ref_source", "P2017", "P2067"] {
             assert!(
                 !counts.contains(needle),
                 "{label}: counts_query kept `{needle}`; the strip is a string match, so \
                  anything guarding or fetching that column has to live inside the constant"
             );
         }
+
+        // `P577` may reappear only as the year filter's binding, never as a fetch.
+        assert_eq!(
+            counts.contains("wdt:P577"),
+            counts.contains("?ref_date"),
+            "{label}: P577 must be present exactly when a year filter needs ?ref_date \
+             bound. Without the rebinding the filter references an unbound variable, \
+             every solution is filtered out, and every count reads zero."
+        );
     }
 }
 

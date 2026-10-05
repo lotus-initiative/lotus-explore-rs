@@ -827,9 +827,11 @@ fn no_optional_over_a_reference_is_left_unguarded() {
 #[test]
 fn the_count_query_still_drops_the_guarded_reference_block() {
     let counts = lotus_query::counts_query(&compounds_by_taxon_query("Q16521"));
-    // `COALESCE` itself is not a useful needle: the label BIND uses one too, and
-    // that one is not part of this block.
-    for needle in ["P1476", "P356", "P577", "_ref_source"] {
+    // `P577` is the one that needs care: the counts query must not fetch the
+    // reference *date*, but it does rebind `?ref_date` when a year filter is
+    // present, because that filter constrains a variable this block would
+    // otherwise be the only thing to bind. Asserted as a pair below.
+    for needle in ["P1476", "P356", "_ref_source"] {
         assert!(
             !counts.contains(needle),
             "counts_query kept `{needle}`: the strip is a string match on the \\
