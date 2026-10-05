@@ -152,7 +152,7 @@ from `lotus search --explain`, not asserted:
 |---|---|---|
 | reference | `VALUES ?r { wd:… }` in the outer `WHERE` | every shape |
 | mass | `?c wdt:P2067` + a `FILTER` on the projected mass | every shape |
-| year | `?r wdt:P577` + `YEAR(?ref_date)` | every shape |
+| year | `FILTER(BOUND(?ref_year) && YEAR(?ref_year) …)` — no triple of its own | every shape |
 | formula | element-count binds + a `FILTER` | every shape |
 
 So the answer to "is it one query with filters bolted on" is **no, and it is not

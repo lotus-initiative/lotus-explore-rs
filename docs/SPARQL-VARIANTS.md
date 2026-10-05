@@ -210,9 +210,44 @@ empty throughout. `?ref_qid` is a different identifier and is unaffected: it is 
 publication the node points at via `pr:P248`.
 
 `?ref` is projected again, stored per row, and shown to nobody -- the user-facing
-column list is a separate constant. The payload cost above is real and is being
-paid for correctness. Two gates now hold this in place: `?ref` is in
-`SELECT_COLUMNS`, and no `STRAFTER(STR(?ref)` appears anywhere in the query.
+column list is a separate constant.
+
+**And then projected as an identity rather than a URI** (`7aadcb1`). Sent whole and
+stripped on arrival, the reference namespace was 35 wasted characters a row and the
+statement namespace 39 more. Both now go over the wire as the part that identifies
+them:
+
+    (STRAFTER(STR(?ref), "reference/")       AS ?ref_node)
+    (STRAFTER(STR(?statement), "statement/") AS ?statement_id)
+    (SUBSTR(STR(?ref_date), 1, 4)            AS ?ref_year)
+
+They need new names because QLever refuses an `AS` clause whose target already
+appears in the body -- and `?ref_date` *is* in the body whenever the year filter is
+on. `RowExporter` puts the namespaces back when it writes Turtle, which is where the
+URI is actually wanted.
+
+Measured on `Q21754`, cumulatively:
+
+| step | raw | wire |
+|---|---|---|
+| both URIs, whole | 18,385,046 | 4,217,812 |
+| identities instead of URIs | 15,973,054 | 4,089,281 |
+| year instead of `xsd:dateTime` | 15,143,494 | 4,007,601 |
+
+**17.6% off the raw payload and 5.0% off the wire.** The gap between those two
+numbers is the whole point of quoting both: gzip already compresses a namespace
+repeated on every row to almost nothing, so what this buys is decompression and
+parse, not bandwidth. The first change was 13.1% of raw and **3.0% of wire**; a
+figure quoted without its compressed counterpart would have been misleading.
+
+Three gates hold the projection in place: `ref_node` is in `SELECT_COLUMNS`, the
+namespaces are asserted absent from the query, and the Turtle round-trip is checked
+to still emit full URIs for `p:P703` and `prov:wasDerivedFrom`.
+
+The year step also merges rows that `SELECT DISTINCT` had kept apart because they
+differed only in the discarded part of a date. That is not a silent content change:
+the store already dropped those rows, and the CLI returns the same 27,952 rows over
+the same 11,087 compounds either way.
 
 The transferable lesson is narrow and worth stating: **a payload measurement can
 tell you a column is unread by the code you measured, and cannot tell you whether

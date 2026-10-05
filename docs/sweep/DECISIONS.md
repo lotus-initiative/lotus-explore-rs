@@ -57,6 +57,50 @@ Two exporters exist and only one was ever measured. See `docs/SPARQL-VARIANTS.md
 > 1 misparse in 3,301 formulas on a real taxon, 0 membership flips. Prefers a
 > digit-bearing token now.
 
+### 7. ~~FIX — genes returned as metabolites~~ **DONE** · `2e0945b`
+
+> `P703` is not specific to metabolites. `Q21629845`, a protein-coding gene, came
+> back in a taxon search beside the metabolites with nothing in the row to say
+> which it was. The optional-occurrence and compound-seeded shapes had no
+> compound test; `P235`, the InChIKey, is the discriminator and the `taxon`/`star`
+> shapes already required it.
+
+Nothing lost: `Q21754` returns 27,952 rows over 11,087 compounds before and after,
+and every row now carries an InChIKey — which also fixed the null SMILES on the
+exact route.
+
+### 8. ~~FIX — a taxon on the exact-structure route was not applied~~ **DONE** · `ebce36f`
+
+> `--structure Q23118 --structure-search exact --taxon Gentiana` returned Q23118
+> with an empty taxon cell. The taxon sat inside the occurrence `OPTIONAL`, so it
+> decided only which occurrences were *shown*; `VALUES ?c` above it was
+> unconditional. A compound reported only in some other taxon came back still
+> listing that other taxon.
+
+### 9. ~~FIX — the year filter returned nothing for a narrow range~~ **DONE** · `1ff4779`
+
+> `--taxon Q21754 --year-min 2020 --year-max 2026` returned 0 rows over 452
+> occurrences. The filter reached the date through a *required* `?r wdt:P577` at the
+> outermost level; `?r` is bound by the occurrence block, optional in the taxon-free
+> shapes, so an unbound `?r` went fresh and asked for every dated reference in
+> Wikidata. The fix is no triple at all: `?ref_date` is already projected.
+
+Worth recording how it was found: by not believing a measurement. An earlier commit
+recorded the same query returning 0 as *correct*, on the strength of a group-by I
+ran myself, and that group-by was wrong. Several later readings were rate limits
+rather than results.
+
+### 10. ~~DECIDE — two result parsers, three consumers~~ **DONE** · `541b170`
+
+> The CLI and the server API read results with `csv::ByteRecord`; the app used the
+> streaming reader. They were not equivalent: on a payload with one repeated row
+> one returned 3 and the other 4, because only one deduplicated. The browser was
+> the odd one out.
+
+There is one reader now, and the decisions it forced are written up in the commit:
+no deduplication, garbage refused rather than read as empty, a truncated payload
+refused rather than read as complete.
+
 ### What the six have in common
 
 Three of them passed every gate that existed. The gates were blind because they
