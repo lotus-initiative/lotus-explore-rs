@@ -43,6 +43,14 @@ pub enum Format {
     Jsonl,
     /// JSON-LD, following the Bioschemas profiles.
     Jsonld,
+    /// RDF Turtle, for ingestion into a triple store.
+    ///
+    /// Rendered from the fetched rows rather than by asking the endpoint to run
+    /// the `CONSTRUCT`, because the rows are already here: a second request would
+    /// fetch the same result again just to change its syntax. `ttl` and `turtle`
+    /// are accepted as aliases, which is what anyone typing them expects.
+    #[value(alias = "ttl", alias = "turtle")]
+    Rdf,
     /// The SPARQL that produced the rows.
     Query,
 }
@@ -66,6 +74,7 @@ pub fn write_rows<W: Write>(
         Format::Json => write_json(&mut out, result)?,
         Format::Jsonl => write_jsonl(&mut out, &result.rows)?,
         Format::Jsonld => write_jsonld(&mut out, result)?,
+        Format::Rdf => write_rdf(&mut out, result)?,
         Format::Query => writeln!(out, "{}", result.query)?,
     }
     if !quiet {
@@ -209,6 +218,22 @@ fn write_jsonl<W: Write>(out: &mut W, rows: &[CompoundEntry]) -> anyhow::Result<
     for row in rows {
         serde_json::to_writer(&mut *out, row)?;
         writeln!(out)?;
+    }
+    Ok(())
+}
+
+/// Write the result set as Turtle, one chunk at a time.
+///
+/// Chunked for the same reason the row exporters are: the set is already fully
+/// built, so streaming the chunks keeps a large export from also building a second
+/// copy of it as one string.
+fn write_rdf<W: Write>(out: &mut W, result: &SearchResult) -> anyhow::Result<()> {
+    use lotus_query::{ExportFormat, RowExporter};
+
+    let set = lotus_model::ColumnarResultSet::from_entries(&result.rows);
+    let mut exporter = RowExporter::new(ExportFormat::Rdf, &set);
+    while let Some(chunk) = exporter.next_chunk() {
+        out.write_all(chunk.as_bytes())?;
     }
     Ok(())
 }

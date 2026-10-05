@@ -374,6 +374,12 @@ impl<'a> RowExporter<'a> {
     }
 
     fn emit(&mut self, subject: &str, predicate: &str, object: &str) {
+        // An empty object means the value was absent, and a triple whose object is
+        // unbound is not emitted -- which is what the endpoint's CONSTRUCT does, and
+        // what makes this file readable by the same tooling.
+        if object.is_empty() || subject.is_empty() {
+            return;
+        }
         // `writeln!` rather than `write!` with a trailing `\n`: the clippy lint exists
         // because the two forms drift, and this one has no reason to be the exception.
         let _ = writeln!(self.chunk, "{subject} {predicate} {object} .");
@@ -443,8 +449,15 @@ fn number(value: Option<f64>) -> String {
 
 /// A Turtle object: a quoted literal, or nothing for a missing value.
 fn quote(value: Option<&str>) -> String {
+    // An absent value emits no triple at all. It used to emit `[]`, which is an
+    // empty blank node: valid syntax, a node that means nothing, and a graph that
+    // then contains `wdt:P235 []` for every compound missing an InChIKey. A
+    // consumer cannot tell that from a real value.
+    //
+    // This is the `CONSTRUCT` semantics the endpoint follows too: a triple whose
+    // object is unbound is simply not produced.
     let Some(value) = value.map(str::trim).filter(|v| !v.is_empty()) else {
-        return "[]".to_string();
+        return String::new();
     };
     let mut out = String::with_capacity(value.len() + 2);
     out.push('"');

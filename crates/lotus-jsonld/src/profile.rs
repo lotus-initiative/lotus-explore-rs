@@ -129,6 +129,25 @@ impl Profile {
         }
     }
 
+    /// Every property name this profile knows about: required, recommended, and
+    /// whatever the type itself brings.
+    ///
+    /// Used by a test that asserts the emitters stay inside the profile. The
+    /// failure it exists to prevent is quiet: an extra property does not break
+    /// validation, it just asserts something nobody checked.
+    #[must_use]
+    pub fn declared_properties(self) -> Vec<&'static str> {
+        let mut all: Vec<&'static str> = self
+            .required()
+            .iter()
+            .chain(self.recommended().iter())
+            .copied()
+            .collect();
+        all.sort_unstable();
+        all.dedup();
+        all
+    }
+
     /// Every profile, for iteration by a test or a validator command.
     #[must_use]
     pub const fn all() -> &'static [Self] {

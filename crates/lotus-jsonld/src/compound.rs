@@ -19,14 +19,10 @@ fn identifiers(entry: &CompoundEntry, entity: &str) -> Vec<Value> {
         "http://wikiba.se/ontology#WikidataItem",
     )];
     if let Some(key) = entry.inchikey.as_deref() {
-        out.push(property_value(
-            "inchikey",
-            key,
-            "string",
-            "https://www.iupac.org/inchi",
-        ));
-        // The profile names the property `inChIKey`, so the identifier uses that
-        // spelling rather than Wikidata's P235.
+        // `inChIKey` is the property the profile names. A second identifier under
+        // a made-up `inchikey` propertyID, typed with an IUPAC vocabulary IRI as a
+        // valueType, was also emitted: two identifiers for one value, neither of
+        // them named by the profile. It is gone.
         out.push(json!({"@type": "PropertyValue", "propertyID": "inChIKey", "value": key}));
     }
     out
@@ -74,8 +70,12 @@ pub fn compound_jsonld(entry: &CompoundEntry) -> Value {
         object.insert("molecularFormula".into(), json!(formula));
     }
     if let Some(mass) = entry.mass {
+        // Only `molecularWeight`. The row's mass is Wikidata `P2067`, which is the
+        // molecular mass and *not* the monoisotopic mass, and it was also being
+        // emitted under `monoisotopicMolecularWeight` with the same number. A second
+        // property asserting a quantity the data does not carry, carrying it wrong,
+        // is worse than the property being absent.
         object.insert("molecularWeight".into(), json!(mass));
-        object.insert("monoisotopicMolecularWeight".into(), json!(mass));
     }
     if let Some(doi) = entry.ref_doi.as_deref() {
         object.insert("citation".into(), json!(doi_uri(doi)));
