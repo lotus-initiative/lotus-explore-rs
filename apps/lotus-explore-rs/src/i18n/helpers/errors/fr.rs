@@ -54,7 +54,7 @@ pub fn err_query_stage_failed(stage: &str, detail: &str) -> String {
 }
 
 pub fn err_compound_not_found(input: &str) -> String {
-    format!("Composant « {input} » introuvable dans Wikidata.")
+    format!("Composé « {input} » introuvable dans Wikidata.")
 }
 
 pub fn err_taxon_not_found(taxon: &str) -> String {

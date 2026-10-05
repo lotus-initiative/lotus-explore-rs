@@ -40,7 +40,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::ResolvedTaxon => "Taxon risolto",
         TextKey::DuplicateRowsHint => "Perché alcuni composti compaiono più di una volta?",
         TextKey::DuplicateRowsExplain => {
-            "Ogni riga è un composto così come una fonte lo riporta: un composto trovato da tre articoli occupa tre righe che differiscono solo per il riferimento. Le occorrenze sono distinte, i composti no. Il numero più piccolo accanto al conteggio delle righe è quanti composti distinti contiene il risultato."
+            "Ogni riga è un composto così come un riferimento lo riporta: un composto trovato da tre articoli occupa tre righe che differiscono solo per il riferimento. Le occorrenze sono distinte, i composti no. Il numero più piccolo accanto al conteggio delle righe indica quanti composti distinti contiene il risultato."
         }
         TextKey::QueryHash => "Hash della query",
         TextKey::ResultHash => "Hash del risultato",
@@ -48,7 +48,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::CopyFullQueryHash => "Copia hash completo della query (SHA-256)",
         TextKey::CopyFullResultHash => "Copia hash completo del risultato (SHA-256)",
         TextKey::CopyShareableLink => "Copia link condivisibile",
-        TextKey::Unique => "Unici",
+        TextKey::Unique => "Uniche",
         TextKey::LoadingTitle => "Interrogazione di Wikidata tramite QLever...",
         TextKey::LoadingHint => "Un numero elevato di risultati può richiedere alcuni secondi.",
         TextKey::LoadingResolvingStructure => "Risoluzione della struttura...",
@@ -56,7 +56,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::LoadingResolvingTaxon => "Risoluzione del taxon...",
         TextKey::LoadingFetchingResults => "Recupero risultati...",
         TextKey::LoadingRowsSoFar => "finora",
-        TextKey::LoadingProcessingResults => "Elaborazione dei conteggi risultati...",
+        TextKey::LoadingProcessingResults => "Elaborazione dei conteggi dei risultati...",
         TextKey::LoadingRendering => "Rendering della tabella...",
         TextKey::Retry => "Riprova",
         TextKey::ErrorHintValidation => "Controlla l'input e riprova.",
@@ -108,7 +108,9 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::TaxonPlaceholder => "un nome, un QID o * per tutto",
         TextKey::TaxonNomenclature => "Cerca anche con altri nomi",
         TextKey::TaxonNomenclatureAccepted => "nome accettato e suoi sinonimi",
-        TextKey::TaxonNomenclatureBasionym => "bionimo (il nome della descrizione originale)",
+        TextKey::TaxonNomenclatureBasionym => {
+            "basionimo (il nome sotto cui è stato descritto originariamente)"
+        }
         TextKey::TaxonNomenclatureProtonym => {
             "combinazione originale (il nome alla prima pubblicazione)"
         }
@@ -128,7 +130,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::CopyExtendedSmilesMol => "Copia come SMILES esteso / MOL V3000",
 
         TextKey::FormulaFilter => "Filtro formula",
-        TextKey::ExactFormula => "Formula bruta",
+        TextKey::ExactFormula => "Formula esatta",
         TextKey::MinCount => "min",
         TextKey::MaxCount => "max",
         TextKey::MinCountAria => "conteggio minimo",
@@ -204,7 +206,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::FooterForData => " per i dati ",
         TextKey::FooterForCode => " per il codice",
         TextKey::TableTriplesAria => "Triple composto-taxon-riferimento",
-        TextKey::OpenFullSizeDepiction => "Apri la rappresentazione a dimensione piena",
+        TextKey::OpenFullSizeDepiction => "Apri la rappresentazione a grandezza naturale",
         TextKey::OpenInWikidata => "Apri in Wikidata",
         TextKey::OpenInScholia => "Apri in Scholia",
         TextKey::OpenInCompoundScholia => "Apri il composto in Scholia",

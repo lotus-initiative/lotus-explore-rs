@@ -23,7 +23,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::DismissError => "Fermer l'erreur",
         TextKey::Language => "Langue",
         TextKey::PageTitle => "Explorateur LOTUS",
-        TextKey::DarkModeToggle => "Basculer thème clair/sombre",
+        TextKey::DarkModeToggle => "Basculer le thème clair/sombre",
         TextKey::DarkMode => "Sombre",
         TextKey::LightMode => "Clair",
         TextKey::SkipToResults => "Passer au contenu principal",
@@ -70,7 +70,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
             "Limite de débit atteinte sur le service amont. Attendez environ une minute puis réessayez."
         }
         TextKey::ErrorHintQueryTooExpensive => {
-            "Cette recherche est trop large : le point d'accés l'a annulée après 25 secondes. Réduisez-la avec un taxon, une plage de masse, une année ou une formule, puis relancez-la."
+            "Cette recherche est trop large : le point d'accès l'a annulée après 25 secondes. Réduisez-la avec un taxon, une plage de masse, une année ou une formule, puis relancez-la."
         }
         TextKey::ErrorHintBadRequest => {
             "Le serveur a rejeté la requête. Vérifiez les paramètres de recherche."
@@ -119,7 +119,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::Examples => "Exemples",
         TextKey::ExampleSets => "Remplir le champ avec",
         TextKey::StructureSmilesOrMol => "Structure, nom de composé ou InChIKey",
-        TextKey::StructurePlaceholder => "SMILES, un Molfile, un nom ou une clé InChI",
+        TextKey::StructurePlaceholder => "SMILES, un Molfile, un nom ou un InChIKey",
         TextKey::Exact => "Exact",
         TextKey::Substructure => "Sous-structure",
         TextKey::Similarity => "Similarité",
@@ -130,7 +130,8 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::CopyExtendedSmilesMol => "Copier au format SMILES étendu / MOL V3000",
 
         TextKey::FormulaFilter => "Filtre de formule",
-        TextKey::ExactFormula | TextKey::Formula => "Formule exacte",
+        TextKey::ExactFormula => "Formule exacte",
+        TextKey::Formula => "Formule",
         TextKey::MinCount => "min",
         TextKey::MaxCount => "max",
         TextKey::MinCountAria => "compte minimum",

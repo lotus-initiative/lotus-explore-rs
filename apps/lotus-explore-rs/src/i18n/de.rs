@@ -124,7 +124,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::EditCopyDaylightSmiles => "Bearbeiten -> Als Daylight SMILES kopieren",
         TextKey::CopyExtendedSmilesMol => "Als erweiterte SMILES / MOL V3000 kopieren",
         TextKey::FormulaFilter => "Formelfilter",
-        TextKey::ExactFormula => "Summenformel",
+        TextKey::ExactFormula => "Exakte Formel",
         TextKey::MinCount => "min",
         TextKey::MaxCount => "max",
         TextKey::MinCountAria => "Mindestanzahl",

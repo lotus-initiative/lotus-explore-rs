@@ -7,7 +7,6 @@ use crate::i18n::Locale;
 /// Typed keys for localized error messages and validation feedback.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ErrorKey {
-    // Validation errors
     InvalidSearchInput,
     TaxonTooLong,
     StructureTooLong,
@@ -16,26 +15,14 @@ pub enum ErrorKey {
     YearOutOfRange,
     YearRangeInvalid,
     ElementCountTooHigh,
-
-    // Taxon resolution errors
     TaxonNotFound,
     TaxonResolutionFailed,
-
-    // Configuration errors
     ApiNotConfigured,
-
-    // Format/parse errors
     UnsupportedFormat,
     TaxonParseFailed,
-
-    // Query/processing errors
     QueryStageFailed,
-
-    // Warnings
     InputStandardized,
     AmbiguousTaxon,
-
-    // Platform-specific (wasm)
     #[cfg(target_arch = "wasm32")]
     WasmLargeQueryFallback,
     #[cfg(target_arch = "wasm32")]
@@ -128,7 +115,7 @@ fn lookup_fr(key: ErrorKey) -> String {
             "L'année est en dehors de la plage prise en charge.".to_string()
         }
         ErrorKey::YearRangeInvalid => {
-            "L'année de n'excessif ne peut pas dépasser l'année à.".to_string()
+            "L'année de début ne peut pas dépasser l'année de fin.".to_string()
         }
         ErrorKey::ElementCountTooHigh => {
             "Les décomptes d'éléments de formule sont trop élevés.".to_string()
@@ -204,7 +191,7 @@ fn lookup_it(key: ErrorKey) -> String {
             "La massa minima non può superare la massa massima.".to_string()
         }
         ErrorKey::YearOutOfRange => "L'anno è fuori dall'intervallo supportato.".to_string(),
-        ErrorKey::YearRangeInvalid => "L'anno da non può superare l'anno a.".to_string(),
+        ErrorKey::YearRangeInvalid => "L'anno iniziale non può superare l'anno finale.".to_string(),
         ErrorKey::ElementCountTooHigh => {
             "I conteggi degli elementi della formula sono troppo alti.".to_string()
         }

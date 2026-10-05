@@ -50,11 +50,11 @@ pub fn err_taxon_parse_failed(detail: &str) -> String {
 }
 
 pub fn err_query_stage_failed(stage: &str, detail: &str) -> String {
-    format!("Fase {stage} non riuscita: {detail}")
+    format!("Fase di {stage} non riuscita: {detail}")
 }
 
 pub fn err_compound_not_found(input: &str) -> String {
-    format!("Composto «{input}» non trovato in Wikidata.")
+    format!("Composto '{input}' non trovato in Wikidata.")
 }
 
 pub fn err_taxon_not_found(taxon: &str) -> String {

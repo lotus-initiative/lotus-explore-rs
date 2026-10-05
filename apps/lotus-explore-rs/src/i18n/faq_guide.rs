@@ -211,7 +211,7 @@ pub const SECTIONS: &[GuideSection] = &[
         },
         summaries: Labels {
             en: "Accepted name, basionym, original combination, replacement name — four separate switches, because they answer four different questions.",
-            fr: "Nom accepté, basionyme, combination originale, nom de remplacement — quatre interrupteurs distincts, car ils répondent à quatre questions différentes.",
+            fr: "Nom accepté, basionyme, combinaison originale, nom de remplacement — quatre interrupteurs distincts, car ils répondent à quatre questions différentes.",
             de: "Akzeptierter Name, Basionym, Originalkombination, Ersatzname — vier getrennte Schalter, weil sie vier verschiedene Fragen beantworten.",
             it: "Nome accettato, basionimo, combinazione originale, nome sostitutivo — quattro interruttori separati, perché rispondono a quattro domande diverse.",
         },
@@ -318,7 +318,7 @@ pub const SECTIONS: &[GuideSection] = &[
         titles: Labels {
             en: "How a name, a structure or a key becomes a compound",
             fr: "Comment un nom, une structure ou une clé devient un composé",
-            de: "Wie ein Name, eine Struktur oder ein Schlüssel zu einem Molekül wird",
+            de: "Wie ein Name, eine Struktur oder ein Schlüssel zu einer Verbindung wird",
             it: "Come un nome, una struttura o una chiave diventa un composto",
         },
         summaries: Labels {

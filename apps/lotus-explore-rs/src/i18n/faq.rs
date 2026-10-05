@@ -129,7 +129,7 @@ pub const ENTRIES: &[FaqEntry] = &[
             (
                 Locale::It,
                 "Che cos'è LOTUS?",
-                "LOTUS Explorer cerca in LOTUS, un grafo di dati linked open di prodotti naturali, risolto da Wikidata.",
+                "LOTUS Explorer cerca in LOTUS, un grafo di dati aperti collegati di prodotti naturali, risolto da Wikidata.",
             ),
         ],
     },
@@ -228,7 +228,7 @@ pub const ENTRIES: &[FaqEntry] = &[
             (
                 Locale::De,
                 "Was passiert, wenn ich nur eine Struktur angebe?",
-                "Die Struktur wird für sich allein gesucht, ohneTaxon-Filter, und Vorkommen sind optional. Das ist beabsichtigt: Einen Stoff, dem kein Organismus zugeordnet wurde, wird trotzdem zurückgegeben – so findet man einen Stoff ganz ohne Vorkommensdaten. Geben Sie zusätzlich ein Taxon an, greift der Filter und jede Zeile ist dann ein Vorkommen in diesem Taxon.",
+                "Die Struktur wird für sich allein gesucht, ohneTaxon-Filter, und Vorkommen sind optional. Das ist beabsichtigt: Eine Verbindung, der kein Organismus zugeordnet wurde, wird trotzdem zurückgegeben – so findet man eine Verbindung ganz ohne Vorkommensdaten. Geben Sie zusätzlich ein Taxon an, greift der Filter und jede Zeile ist dann ein Vorkommen in diesem Taxon.",
             ),
             (
                 Locale::It,
@@ -280,7 +280,7 @@ pub const ENTRIES: &[FaqEntry] = &[
             (
                 Locale::De,
                 "Warum liefert ein leeres Taxon-Feld so viele Ergebnisse?",
-                "Ein leeres Feld legt keine Einschränkung fest, also fragt die Suche jeden Stoff in LOTUS ab – auch die ohne zugeordneten Organismus. Es wird nichts abgetastet und nichts begrenzt: Sie erhalten jede passende Zeile, bei einem Graphen dieser Größe also sehr viele Daten. Geben Sie ein Taxon, eine Struktur oder eine Referenz an, um die Suche einzugrenzen.",
+                "Ein leeres Feld legt keine Einschränkung fest, also fragt die Suche jede Verbindung in LOTUS ab – auch die, denen kein Organismus zugeordnet ist. Es wird nichts abgetastet und nichts begrenzt: Sie erhalten jede passende Zeile, bei einem Graphen dieser Größe also sehr viele Daten. Geben Sie ein Taxon, eine Struktur oder eine Referenz an, um die Suche einzugrenzen.",
             ),
             (
                 Locale::It,
@@ -332,7 +332,7 @@ pub const ENTRIES: &[FaqEntry] = &[
             (
                 Locale::De,
                 "Was ist eine QID?",
-                "Ein Wikidata-Kennzeichen: ein `Q` gefolgt von einer Zahl, das eine Entität eindeutig benennt. Sie ist der Verknüpfungsschlüssel zwischen Ihrer Abfrage und dem Rest des Graphen.",
+                "Ein Wikidata-Kennzeichen: ein `Q` gefolgt von einer Zahl, das eine Entität eindeutig benennt. Es ist der Verknüpfungsschlüssel zwischen Ihrer Abfrage und dem Rest des Graphen.",
             ),
             (
                 Locale::It,
@@ -556,7 +556,7 @@ pub fn faq_chrome(locale: Locale) -> FaqChrome {
             contents_label: "Sezioni",
             contents_heading: "In questa pagina",
             reference_heading: "Come funziona",
-            reference_intro: "Perché lo strumento risponde come fa. Apri una sezione per il dettaglio.",
+            reference_intro: "Perché lo strumento risponde in questo modo. Apri una sezione per i dettagli.",
         },
     }
 }
