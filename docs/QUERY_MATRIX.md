@@ -80,8 +80,7 @@ The same gap exists in the structure branch and is **not** fixed, on purpose:
 there a wildcard is already expressed by not filtering the taxon, and routing it
 through the root taxon `Q2382443` would require an occurrence and so could return
 fewer compounds than "every taxon" is supposed to. That is a judgement about
-result size rather than a bug fix, so it is left for a human — see
-`docs/sweep/REVIEW.md`.
+result size rather than a bug fix, so it is left open.
 
 ## The empty-taxon cells return the whole graph
 
@@ -118,8 +117,9 @@ Two things follow that are worth a human's attention rather than a change here:
   genuinely different limits, which is defensible but should be known.
 - An empty taxon therefore really does ask the endpoint for the entire
   projection — measured elsewhere in this repo at 2,990,730 rows and ~873 MB of
-  CSV. Nothing caps it below that on the web path. Whether the reader is *told*
-  that before waiting for it is a UI question; see `docs/sweep/REVIEW.md`.
+  CSV. Nothing caps it below that on the web path. The reader *is* told, in the
+  FAQ entry `empty-taxon-box`. What remains open is whether to cap it, or make an
+  empty box mean the narrower question; both are product calls.
 
 ## What this table does not cover
 
@@ -129,9 +129,10 @@ Two things follow that are worth a human's attention rather than a change here:
 - **Real parse validation.** Every cell is checked for balanced braces and
   parentheses and for scoped `^` in property paths, which catches a malformed
   query, but it does not parse the query with a SPARQL grammar. Doing that
-  honestly needs a parser dependency (`oxigraph` or `spareval`), which is a
-  dependency decision and so is flagged in `docs/sweep/REVIEW.md` rather than
-  taken here.
+  honestly needs a parser dependency (`oxigraph` or `spareval`). Neither is in the
+  tree, and adding one to a workspace that reaches the endpoint only through a
+  scripted `Http` trait is a decision worth making deliberately rather than taking
+  here; `spareval` (pure Rust, parse-only, much smaller) is the one to add.
 
 ## The distinct shapes, measured
 
@@ -192,7 +193,8 @@ were is how a measurement ends up measuring the wrong thing.
 It briefly made it into the user-facing documentation too: `docs/cli.md` and the
 CLI crate's README used `--taxon Q16521` as the runnable example, which would have
 given anyone who copied it an empty result. Both now use `Q21754`, which is
-verified to have compounds (27,952 rows, 11,087 distinct compounds, measured).
+verified to have compounds (11,087 distinct compounds, measured; the row count
+varies with endpoint load and is not a property of the query).
 
 **The general rule: verify a QID against the graph before using it as an example,
 and never promote a fixture identifier into reference data without doing so.**
