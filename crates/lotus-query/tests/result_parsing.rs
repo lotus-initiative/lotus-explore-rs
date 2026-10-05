@@ -296,3 +296,74 @@ fn a_count_column_the_endpoint_omitted_reads_as_zero() {
     );
     assert_eq!(stats.n_taxa, 0);
 }
+
+/// The two parsers must agree, row for row.
+///
+/// There were once two implementations of "read a result set" in this crate:
+/// `parse_compounds_csv_capped`, on `csv::ByteRecord`, reached by the CLI and the
+/// server API, and `parse_compounds_columnar`, on the streaming reader, reached
+/// by the app in the browser and natively. Two implementations of one thing is a
+/// determinism hazard before it is a bug -- the CLI and the browser answering the
+/// same question differently, with nothing to point at.
+///
+/// This runs the same bytes through both and compares. It is written *before* the
+/// streaming reader is made the only one, so that the collapse is checked against
+/// the behaviour that existed rather than against itself.
+/// Ignored because it fails, and it should not.
+///
+/// The failure is the finding, not a mistake in the test: on a payload with one
+/// repeated row this parser returns 3 and the streaming reader returns 4, because
+/// `parse_compounds_csv_capped` deduplicates on the compound-taxon-reference
+/// triple and `parse_compounds_columnar` does not. That is the CLI and the server
+/// API answering differently from the browser, for identical bytes.
+///
+/// It is `#[ignore]`d rather than deleted so the property stays written down, and
+/// so it starts passing the moment the two are collapsed onto one reader. Do not
+/// "fix" it by loosening the comparison.
+#[test]
+#[ignore = "the two parsers disagree; collapsing them onto the streaming reader is the fix"]
+fn both_parsers_read_the_same_rows_in_the_same_order() {
+    use lotus_query::parse_compounds_columnar;
+
+    for name in ["compounds.csv"] {
+        let bytes = fixture(name);
+
+        let (via_csv, csv_stats, csv_capped) =
+            parse_compounds_csv_capped(&bytes, 1000).expect("the csv reader accepts the fixture");
+        let set =
+            parse_compounds_columnar(bytes.as_slice()).expect("the streaming reader accepts it");
+        let via_stream: Vec<_> = (0..set.row_count()).filter_map(|r| set.entry(r)).collect();
+
+        assert_eq!(
+            via_csv.len(),
+            via_stream.len(),
+            "{name}: the two parsers returned different row counts"
+        );
+        for (index, (a, b)) in via_csv.iter().zip(via_stream.iter()).enumerate() {
+            assert_eq!(
+                a.compound_qid, b.compound_qid,
+                "{name}: row {index} compound differs"
+            );
+            assert_eq!(a.name, b.name, "{name}: row {index} label differs");
+            assert_eq!(
+                a.taxon_qid, b.taxon_qid,
+                "{name}: row {index} taxon differs"
+            );
+            assert_eq!(
+                a.reference_qid, b.reference_qid,
+                "{name}: row {index} reference differs"
+            );
+            assert_eq!(a.pub_year, b.pub_year, "{name}: row {index} year differs");
+            assert_eq!(
+                a.statement, b.statement,
+                "{name}: row {index} statement differs"
+            );
+        }
+        assert_eq!(
+            csv_stats.n_entries,
+            set.stats().n_entries,
+            "{name}: the two parsers disagree about how many rows there were"
+        );
+        let _ = csv_capped;
+    }
+}
