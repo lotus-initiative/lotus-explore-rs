@@ -476,3 +476,42 @@ fn the_element_count_prefers_a_token_that_carries_digits() {
          rather than running on to the last |C of any kind: {filtered}"
     );
 }
+
+/// A taxon named on the exact-structure route has to constrain the result.
+///
+/// It used to sit inside an `OPTIONAL`, where it decided only which occurrences
+/// were *shown*. `VALUES ?c` above it was unconditional, so
+/// `--structure Q23118 --structure-search exact --taxon Gentiana` returned Q23118
+/// with an empty taxon cell -- and would have returned a compound reported only in
+/// some other taxon, still listing that other taxon. A taxon asked for and not
+/// applied is worse than a taxon not given, because the answer looks filtered.
+#[test]
+fn a_taxon_on_the_exact_route_is_not_optional() {
+    use lotus_query::exact_compound_query;
+
+    // `OPTIONAL` on its own is no signal: the metadata and compound-property
+    // layers are optional in every shape. What marks the optional *occurrence*
+    // block is the seeded subquery it is wrapped in, which exists so the planner
+    // is handed a left side of a known size.
+    let none = exact_compound_query("Q23118", None);
+    assert!(
+        none.contains("SELECT * WHERE"),
+        "a taxon-less exact search keeps the optional occurrence block: a compound \
+         with no occurrence is what a name search is looking for\n{none}"
+    );
+
+    let some = exact_compound_query("Q23118", Some(("Q21754", &Nomenclature::ALL_ON)));
+    assert!(
+        !some.contains("SELECT * WHERE"),
+        "a taxon was given, so the occurrence block cannot be optional\n{some}"
+    );
+    // And it is the taxon that constrains it, not merely the presence of one.
+    assert!(
+        some.contains("Q21754"),
+        "the taxon must reach the query\n{some}"
+    );
+    assert!(
+        some.contains("VALUES ?c { wd:Q23118 }"),
+        "the compound seed must survive alongside the taxon\n{some}"
+    );
+}

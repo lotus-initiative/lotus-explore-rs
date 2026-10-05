@@ -568,19 +568,51 @@ fn compounds_query_with_closure(
                 .map(|q| format!("wd:{q}"))
                 .collect::<Vec<_>>()
                 .join(" ");
-            format!(
-                "VALUES ?c {{ {seeded} }}
-          OPTIONAL {{
-            {{ SELECT * WHERE {{
-              VALUES ?c {{ {seeded} }}
-              ?c p:P703 ?statement .\
+            // A taxon on this route is a real constraint, so the occurrence
+            // block stops being optional when one is given.
+            //
+            // It used to be optional either way, with the taxon ancestry inside
+            // it. That does not constrain anything: `VALUES ?c` at the top level
+            // is unconditional, and the OPTIONAL only decides which occurrences
+            // are *shown*. So `--structure Q23118 --structure-search exact
+            // --taxon Gentiana` returned Q23118 with an empty taxon cell, and
+            // would have returned a compound reported only in some other taxon,
+            // still listing that other taxon. A taxon asked for and not applied
+            // is worse than a taxon not given, because the answer looks filtered.
+            //
+            // Optional stays right for the taxon-less case, which is why the
+            // branch is on the taxon rather than the branch removed: a compound
+            // with no occurrence data is exactly what a name search is looking
+            // for. Once a taxon is named the question is "reported *in* this
+            // taxon", and a compound with no such occurrence is not an answer --
+            // it is nothing, and the empty result says so.
+            let occurrences = format!(
+                "?c p:P703 ?statement .\
               ?statement ps:P703 ?t ;\
                          prov:wasDerivedFrom ?ref .\
               ?ref pr:P248 ?r .\
-              ?t wdt:P225 ?taxon_name .{ancestry}
+              ?t wdt:P225 ?taxon_name .{ancestry}"
+            );
+            if taxon_qid.is_some() {
+                format!(
+                    "VALUES ?c {{ {seeded} }}
+          ?c p:P703 ?statement .\
+          ?statement ps:P703 ?t ;\
+                     prov:wasDerivedFrom ?ref .\
+          ?ref pr:P248 ?r .\
+          ?t wdt:P225 ?taxon_name .{ancestry}"
+                )
+            } else {
+                format!(
+                    "VALUES ?c {{ {seeded} }}
+          OPTIONAL {{
+            {{ SELECT * WHERE {{
+              VALUES ?c {{ {seeded} }}
+              {occurrences}
             }} }}
           }}"
-            )
+                )
+            }
         },
     );
 

@@ -27,6 +27,7 @@ use std::io::{self, Write};
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand, ValueEnum};
+use lotus_model::SmilesSearchType;
 
 mod curate;
 mod output;
@@ -406,6 +407,27 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
                  --explain to run the search that resolves it."
             );
         };
+        // A structure input is resolved to a compound before an exact search runs,
+        // and resolution needs the network this flag exists to avoid. So the query
+        // printed here is the pre-resolution one, which for an exact structure
+        // search is not the query that will run.
+        //
+        // Refusing instead would be more honest and would also remove the flag for
+        // its most ordinary use, so it prints and says so on stderr, where it does
+        // not pollute a pipeline reading the query on stdout. The taxon's own
+        // resolution is handled the other way -- by refusing -- because there the
+        // unresolved query is a *different question* (`P171*` missing entirely),
+        // not merely a different spelling of the same one.
+        let structure = lotus_search::normalize_structure(&criteria.structure);
+        if !structure.is_empty() && criteria.structure_search == SmilesSearchType::Exact {
+            eprintln!(
+                "lotus: this is the query before the structure is resolved. An exact \
+                 structure search resolves {structure:?} to a compound first and runs \
+                 a query seeded on that compound, so this is not the query that will \
+                 run."
+            );
+        }
+
         let query = lotus_search::build_execution_query(&request, resolved.as_deref());
         println!("{query}");
         return Ok(ExitCode::SUCCESS);
