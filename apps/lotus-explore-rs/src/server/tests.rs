@@ -24,6 +24,7 @@ use crate::server::{
     query_logic::{apply_request, build_execution_query},
     state::{
         AppState, CachedExportResponse, export_inflight_cell, prune_cache, search_inflight_cell,
+        taxon_cache_put,
     },
     types::{ExportUrlResponse, SearchRequest},
 };
@@ -280,6 +281,20 @@ async fn a_search_is_shed_with_a_retry_after_when_every_upstream_slot_is_busy() 
     assert_eq!(config.upstream_queue_wait, Duration::from_millis(1_000));
 
     let state = AppState::new(&config);
+
+    // Resolve the taxon from the cache, not from QLever.
+    //
+    // `resolve_taxon_qid_cached` runs before the permit gate, so with an empty
+    // cache this test asked the public endpoint to look up "Gentiana lutea" and
+    // then asserted on the gate. When that lookup failed the answer was a 502
+    // from the resolution rather than the 503 under test, which is why this
+    // failed roughly one run in five and passed on a good network.
+    taxon_cache_put(
+        &state,
+        "gentiana lutea".into(),
+        (Some("Q2598745".into()), Some("Gentiana lutea".into())),
+    );
+
     // Take the only permit and never give it back.
     let semaphore = state.upstream_permits.clone();
     let held = semaphore
