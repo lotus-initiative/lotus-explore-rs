@@ -21,7 +21,9 @@ use lotus_query::{
 };
 use lotus_query::{
     Nomenclature, all_compounds_including_untaxonomised_query, all_compounds_query,
-    compounds_by_taxon_query_with, counts_query, limit_query, structure_search_query_with,
+    compound_alias_query, compound_inchikey_query, compound_label_query,
+    compounds_by_taxon_query_with, counts_query, exact_compounds_query, limit_query,
+    reference_by_doi_query, structure_compound_lookup_query, structure_search_query_with,
     taxon_lookup_query, with_filters,
 };
 
@@ -125,8 +127,56 @@ pub fn build_base_query(criteria: &SearchCriteria, qid: Option<&str>) -> String 
 /// The query that will actually be sent: the base query plus the active filters.
 #[must_use]
 pub fn build_execution_query(request: &SearchRequest, qid: Option<&str>) -> String {
-    let base = build_base_query(&request.criteria, qid);
-    with_filters(&base, &request.criteria, request.year_max)
+    build_execution_query_with(request, qid, &ResolvedInputs::default())
+}
+
+/// What resolution found, for the query builder to use instead of the raw input.
+///
+/// A separate parameter rather than a rewritten `SearchCriteria`, because the two
+/// say different things: `criteria.structure` is what the reader typed, and a name
+/// that identified a compound must still be searched *by that compound* rather
+/// than by the text.
+#[derive(Debug, Clone, Default)]
+pub struct ResolvedInputs {
+    /// Compound QIDs a structure field resolved to. Non-empty only when the
+    /// structure was something other than a SMILES the service could take.
+    pub compounds: Vec<String>,
+    /// The reference QID a DOI resolved to.
+    pub reference_qid: Option<String>,
+}
+
+/// Build the query with resolution applied.
+///
+/// An exact structure search that resolved to compounds goes by QID: the client's
+/// rule, and the reason `--structure ethanol --structure-search exact` used to
+/// fail. Handing the *name* to the structure service is a 500, because a name is
+/// not a structure. Everything else takes the existing route with the canonical
+/// SMILES substituted for the input.
+#[must_use]
+pub fn build_execution_query_with(
+    request: &SearchRequest,
+    qid: Option<&str>,
+    resolved: &ResolvedInputs,
+) -> String {
+    let mut criteria = request.criteria.clone();
+    if let Some(reference) = &resolved.reference_qid {
+        criteria.reference.clone_from(reference);
+    }
+
+    let base = if !resolved.compounds.is_empty()
+        && criteria.structure_search == lotus_model::SmilesSearchType::Exact
+    {
+        let taxon = match qid {
+            Some("*") => Some("Q2382443"),
+            other => other,
+        };
+        let nomenclature = Nomenclature::from(&criteria);
+        exact_compounds_query(&resolved.compounds, taxon.map(|t| (t, &nomenclature)))
+    } else {
+        build_base_query(&criteria, qid)
+    };
+
+    with_filters(&base, &criteria, request.year_max)
 }
 
 /// Resolve a taxon's input to a QID.
@@ -264,7 +314,15 @@ pub async fn search<H: Http>(
             source: e,
         })?;
 
-    let query = build_execution_query(request, taxon.qid.as_deref());
+    let resolved =
+        resolve_inputs(http, &request.criteria)
+            .await
+            .map_err(|e| SearchError::Transport {
+                stage: "structure or reference",
+                source: e,
+            })?;
+
+    let query = build_execution_query_with(request, taxon.qid.as_deref(), &resolved);
     let limit = request.limit.unwrap_or(DEFAULT_ROW_LIMIT);
     let display_query = limit_query(&query, limit);
 
@@ -338,7 +396,15 @@ pub async fn search_columnar<H: Http>(
             source: e,
         })?;
 
-    let query = build_execution_query(request, taxon.qid.as_deref());
+    let resolved =
+        resolve_inputs(http, &request.criteria)
+            .await
+            .map_err(|e| SearchError::Transport {
+                stage: "structure or reference",
+                source: e,
+            })?;
+
+    let query = build_execution_query_with(request, taxon.qid.as_deref(), &resolved);
     let mut body = crate::execute_streaming_with_fallback(http, &query, ResponseFormat::Csv)
         .await
         .map_err(|e| SearchError::Transport {
@@ -591,4 +657,204 @@ mod tests {
             "a wildcard keeps requiring an occurrence however it arrived"
         );
     }
+}
+
+/// Resolve every input that is not already an identifier.
+///
+/// # Errors
+/// Returns [`FetchError`] if a lookup cannot be run or read, and
+/// [`FetchError::Parse`] if a name or a DOI matched nothing. A miss is a
+/// validation failure to report, not a broken query: a name is a claim about
+/// which compound is meant, so there is nothing to guess at when it matches
+/// nothing.
+///
+/// Taxon is resolved by the caller, separately, because its result also carries
+/// notes the caller prints. Structure and reference carry no such thing, so they
+/// are one call.
+pub async fn resolve_inputs<H: Http>(
+    http: &H,
+    criteria: &SearchCriteria,
+) -> Result<ResolvedInputs, FetchError> {
+    let mut resolved = ResolvedInputs::default();
+
+    let structure = normalize_structure(&criteria.structure);
+    if !structure.is_empty() {
+        let found = resolve_structure(http, &structure).await?;
+        resolved.compounds = found.compounds;
+    }
+
+    resolved.reference_qid = resolve_reference(http, &criteria.reference).await?;
+    Ok(resolved)
+}
+
+/// What a structure field resolved to.
+///
+/// Mirrors the client's resolution order exactly, because the two must agree: a
+/// name typed into the CLI and the same name typed into the browser are the same
+/// question, and answering them differently makes the CLI useless for reproducing
+/// anything the app shows.
+///
+/// | Typed | Resolved by |
+/// |---|---|
+/// | a `QID` | passed through, nothing to look up |
+/// | an `InChIKey` | `compound_inchikey_query` |
+/// | a name | `compound_label_query`, then `compound_alias_query` |
+/// | a SMILES or molfile | `structure_compound_lookup_query` (the service, cutoff 1) |
+///
+/// The asymmetry with taxa is deliberate and is the client's rule, not an
+/// oversight: a name is a claim about *which* compound is meant, so a name that
+/// matches nothing is an error, while a structure is not a claim at all -- a
+/// SMILES Wikidata has no compound for is a perfectly good structure, and
+/// searching it is what was asked for.
+#[derive(Debug, Clone)]
+pub struct StructureResolution {
+    /// The compound QIDs a name, `InChIKey` or exact structure resolved to.
+    ///
+    /// More than one is normal: a structure at a cutoff of 1.0 matches
+    /// stereoisomers and salts of the same thing, and `6d67d76` established that
+    /// asking about only the first of those asks an arbitrary question.
+    pub compounds: Vec<String>,
+    /// The structure to search with: the reader's own input when nothing resolved,
+    /// and the compound's canonical SMILES when a name identified one.
+    pub smiles: String,
+    /// The input as typed.
+    pub looked_up: String,
+}
+
+/// Resolve a structure field to compound QIDs, in the client's order.
+///
+/// # Errors
+/// Returns [`FetchError`] if a lookup cannot be run or read.
+pub async fn resolve_structure<H: Http>(
+    http: &H,
+    input: &str,
+) -> Result<StructureResolution, FetchError> {
+    let trimmed = input.trim();
+    let mut compounds = Vec::new();
+    let mut canonical = None;
+
+    if is_qid(trimmed) {
+        compounds.push(trimmed.to_ascii_uppercase());
+    } else if looks_like_inchikey(trimmed) {
+        compounds.extend(
+            lookup_compounds(http, &compound_inchikey_query(trimmed))
+                .await?
+                .into_iter()
+                .map(|c| c.qid),
+        );
+        // The lookup projects the canonical SMILES, so a name or InChIKey that
+        // resolves hands back the structure to search with for free.
+        if let Some(first) = canonical_smiles_of(http, &compound_inchikey_query(trimmed)).await? {
+            canonical = Some(first);
+        }
+    } else if lotus_model::could_be_a_compound_name(trimmed) {
+        let by_label = lookup_compounds(http, &compound_label_query(trimmed)).await?;
+        compounds.extend(by_label.iter().map(|c| c.qid.clone()));
+        if let Some(first) = by_label.iter().find_map(|c| {
+            if c.canonical_smiles.is_empty() {
+                None
+            } else {
+                Some(c.canonical_smiles.clone())
+            }
+        }) {
+            canonical = Some(first);
+        }
+        if compounds.is_empty() {
+            compounds.extend(
+                lookup_compounds(http, &compound_alias_query(trimmed))
+                    .await?
+                    .into_iter()
+                    .map(|c| c.qid),
+            );
+        }
+    } else {
+        compounds.extend(
+            lookup_compounds(http, &structure_compound_lookup_query(trimmed))
+                .await?
+                .into_iter()
+                .map(|c| c.qid),
+        );
+    }
+
+    Ok(StructureResolution {
+        compounds,
+        smiles: canonical.unwrap_or_else(|| trimmed.to_string()),
+        looked_up: trimmed.to_string(),
+    })
+}
+
+/// The canonical SMILES from a compound lookup, which projects one per row.
+///
+/// # Errors
+/// Returns [`FetchError`] if the lookup cannot be run or read.
+async fn canonical_smiles_of<H: Http>(http: &H, query: &str) -> Result<Option<String>, FetchError> {
+    Ok(lookup_compounds(http, query)
+        .await?
+        .into_iter()
+        .map(|c| c.canonical_smiles)
+        .find(|s| !s.is_empty()))
+}
+
+/// Run a compound-lookup query and parse its rows.
+///
+/// # Errors
+/// Returns [`FetchError`] if the lookup cannot be run or read.
+async fn lookup_compounds<H: Http>(
+    http: &H,
+    query: &str,
+) -> Result<Vec<lotus_query::CompoundMatch>, FetchError> {
+    let csv = crate::execute_with_fallback(http, query, ResponseFormat::Csv)
+        .await?
+        .text()?;
+    lotus_query::parse_compound_lookup_csv(csv.as_bytes())
+        .map_err(|e| FetchError::Parse(e.to_string()))
+}
+
+/// An `InChIKey`: 14 characters, then a hyphen, then 10.
+///
+/// Shape rather than a lookup, because the alternative is asking the endpoint
+/// about every structure spelling in order to find out it was an `InChIKey`.
+#[must_use]
+pub fn looks_like_inchikey(value: &str) -> bool {
+    let mut parts = value.trim().split('-');
+    let (Some(first), Some(second), None) = (parts.next(), parts.next(), parts.next()) else {
+        return false;
+    };
+    first.len() == 14
+        && second.len() == 10
+        && first
+            .chars()
+            .chain(second.chars())
+            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
+}
+
+/// Resolve a reference field, which is a DOI or a QID, to the QID to filter on.
+///
+/// # Errors
+/// Returns [`FetchError`] if the lookup cannot be run or read, and
+/// [`FetchError::Parse`] if the DOI matched no reference.
+pub async fn resolve_reference<H: Http>(
+    http: &H,
+    input: &str,
+) -> Result<Option<String>, FetchError> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    if is_qid(trimmed) {
+        return Ok(Some(trimmed.to_ascii_uppercase()));
+    }
+
+    let csv =
+        crate::execute_with_fallback(http, &reference_by_doi_query(trimmed), ResponseFormat::Csv)
+            .await?
+            .text()?;
+    let matches = lotus_query::parse_reference_lookup_csv(csv.as_bytes())
+        .map_err(|e| FetchError::Parse(e.to_string()))?;
+
+    matches
+        .first()
+        .map(|found| found.qid.clone())
+        .map(Some)
+        .ok_or_else(|| FetchError::Parse(format!("no reference matched {trimmed:?}")))
 }

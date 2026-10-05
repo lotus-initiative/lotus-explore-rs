@@ -124,6 +124,12 @@ struct SearchArgs {
     #[arg(long, default_value_t = 10_000.0)]
     mass_max: f64,
 
+    /// Restrict to compounds a reference reports. A DOI (`10.1021/JF60160A010`)
+    /// or a Wikidata QID; both are resolved before the search runs, the same way
+    /// the browser resolves them.
+    #[arg(long, value_name = "DOI_OR_QID")]
+    reference: Option<String>,
+
     /// Earliest publication year.
     #[arg(long, default_value_t = 1800)]
     year_min: u16,
@@ -335,6 +341,7 @@ fn criteria_from_args(args: &SearchArgs, year_max: u16) -> lotus_model::SearchCr
     criteria.structure_threshold = args.threshold;
     criteria.mass_min = args.mass_min;
     criteria.mass_max = args.mass_max;
+    criteria.reference = args.reference.clone().unwrap_or_default();
     criteria.year_min = args.year_min;
     criteria.year_max = year_max;
     criteria.formula_exact = args.formula.clone().unwrap_or_default();

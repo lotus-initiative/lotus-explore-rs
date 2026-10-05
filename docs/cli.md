@@ -32,7 +32,7 @@ cargo build --release -p lotus-cli
 lotus search --taxon Q21754
 lotus search --structure c1ccccc1 --structure-search similarity --threshold 0.9
 lotus search --taxon Q21754 --carbon 10..20 --bromine excluded
-lotus search --taxon Q21754 --year-min 2015 --year-max 2024
+lotus search --taxon Q21754 --reference 10.1021/JF60160A010
 ```
 
 `--taxon` also takes a scientific name --- `--taxon "Gentiana lutea"` is looked
