@@ -43,19 +43,17 @@ client.
 
 The repository once had a `lotus` crate holding the models, the queries, the
 parsers and the HTTP client, and the web app had a second copy of several of
-those. Two implementations of "what a taxon filter means" existed and they
+those, including two implementations of "what a taxon filter means" that
 disagreed. The refactor that produced the layout above deleted `crates/lotus`
 and moved the app onto these crates, which is the only reason the arrows point
-inward now.
+inward now. [`FRONTENDS.md`](FRONTENDS.md) has the later instance of the same
+failure and why a duplicated dispatch is invisible to tests.
 
-Two things that came out of that are worth knowing about, because the code looks
-odd otherwise:
-
-- `SearchCriteria` has no `Default`. "No filters" is not a value, it is a value
-  *plus a year*. The old `default()` supplied a year by reading a clock and a
-  taxon by hardcoding `"Gentiana lutea"`.
-- `has_year_filter`, `has_effective_filters` and `with_filters` take the year as
-  an argument. The application has the clock, so the application passes it.
+Two things came out of that refactor and look odd without knowing it:
+`SearchCriteria` has no `Default`, because "no filters" is a value *plus a year*
+and the old `default()` supplied the year by reading a clock; and
+`has_year_filter`, `has_effective_filters` and `with_filters` take the year as an
+argument, because the application has the clock.
 
 ## Testing
 
@@ -63,18 +61,14 @@ odd otherwise:
   for query builders, recorded fixtures for the parsers.
 - `lotus-search` is tested through the `Http` trait, including the fallback path
   and the retry policy, which is otherwise very hard to provoke.
-- `lotus-cli` runs 20 integration tests offline by asserting on `--explain`,
+- `lotus-cli` runs its integration tests offline by asserting on `--explain`,
   which prints the SPARQL without sending it.
 - `docs/cli.md` is checked against `--help` in both directions, and every
   documented example is run with `--explain` appended.
 
-```bash
-./mk ci        # everything the pipeline runs
-./mk metadata  # codemeta.json and CITATION.cff are current
-```
-
-The full task list is `./mk --list-all-steps`; it is not copied here so
-that it cannot go stale.
+The full task list is `./mk --list-all-steps`; it is not copied here so that it
+cannot go stale. [`CONTRIBUTING.md`](../CONTRIBUTING.md) covers the test
+conventions and what to run.
 
 ## See also
 
@@ -85,3 +79,7 @@ that it cannot go stale.
   four nomenclatural relationships
 - [`STRUCTURE-SEARCH.md`](STRUCTURE-SEARCH.md) --- how a name, an InChIKey or a QID
   becomes a compound identity, and when the structure service is called at all
+- [`QUERY_MATRIX.md`](QUERY_MATRIX.md) --- the twelve argument combinations and the
+  query each one builds
+- [`SPARQL-VARIANTS.md`](SPARQL-VARIANTS.md) --- query forms measured against the
+  live endpoint, and which were kept

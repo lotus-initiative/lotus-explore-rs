@@ -88,10 +88,11 @@ follow them.
   | How many rows this machine renders, the clock, cache keys | the app |
   | Anything a person sees | the app |
 
-The rule behind the table: **a crate that can be pure is pure.** `lotus-model`,
-`lotus-query`, `lotus-curation` and `lotus-jsonld` have no HTTP, no clock and no
-async runtime, and CI builds them for `wasm32` in their own right. If you find
-yourself wanting a clock in one of them, the year is meant to be an argument.
+The rule behind the table is **a crate that can be pure is pure**: no HTTP, no
+clock, no async runtime in the four library crates, checked in CI by building
+them for `wasm32` in their own right. If you want a clock in one of them, the
+year is meant to be an argument. The reasoning is in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Two things that will bite you
 

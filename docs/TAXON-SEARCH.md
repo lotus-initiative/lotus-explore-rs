@@ -1,17 +1,9 @@
 # Taxon search and nomenclatural names
 
-> **Reader-facing answer lives on the FAQ.**
-> The behaviour described here — what a search does, and what each switch changes — is
-> now on `/faq`, translated, and is the page a reader is sent to. This file keeps the
-> *engineering rationale*: why the query is shaped this way, what was measured, and which
-> failure each decision avoids. If you are here to find out how the tool behaves, use the
-> FAQ; if you are here to find out why it is built this way, keep reading.
->
-> Concretely, these have moved and are not repeated below: the four relationships and
-> what each one means, the measured table of what each switch changes, the
-> accepted/synonym versus old/new distinction, and the deliberate omissions — hybrids,
-> and the `Mentha` over-reach. Kept here because they are what the rationale refers to.
-
+> **Reader-facing answer lives on the FAQ.** What a search does and what each switch
+> changes is now on `/faq`, translated. This file keeps the *engineering rationale*:
+> why the query is shaped this way, what was measured, and which failure each decision
+> avoids.
 
 A taxon search in LOTUS does not ask one question. It asks *"which compounds
 were reported from this organism?"*, and the organism a paper names is rarely

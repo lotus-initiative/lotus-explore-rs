@@ -4,12 +4,6 @@ The workspace layout --- what each crate is for, and which of them may be pure -
 is in [`docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md). This page covers
 what this application adds on top of it.
 
-`lotus-model`, `lotus-query`, `lotus-curation` and `lotus-jsonld` have no HTTP,
-no clock, and no async runtime. They are built for `wasm32` in CI in their own
-right, not only because the app happens to pull them in, and that is what keeps
-them free of IO: a crate that cannot read a clock cannot read the current year
-by accident, so it takes the year as an argument and its tests pin one.
-
 `lotus-search` owns the decisions --- which endpoint, when to fall back, whether
 a taxon string is a name or a QID --- and takes its transport as a two-method
 trait. The whole use case, including the QLever-to-WDQS fallback, is tested
@@ -74,8 +68,6 @@ app rather than in a crate a query library depends on.
   state commit.
 - Typed errors (`thiserror`) at all boundaries; user messages are derived
   separately.
-- A crate that can be pure is pure. Anything that needs a year, a clock or a
-  request takes it as a parameter.
 - Both halves of a serialisation contract live together. The URL scheme was once
   split between a model method and a DTO, which is how a rename breaks every
   link already in a browser's history.

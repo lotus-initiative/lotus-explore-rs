@@ -13,20 +13,13 @@ the same query.
 ## Quick start
 
 ```bash
-cd apps/lotus-explore-rs
-cargo run -p lotus-web-assets --bin fetch-assets
-dx serve --platform web --package lotus-explore-rs --locked
-```
-
-That is a development server. For the release build, the optional HTTP API, and how to serve the
-output the way the deploy does, see [`apps/lotus-explore-rs/README.md`](apps/lotus-explore-rs/README.md).
-
-For the terminal instead:
-
-```bash
 cargo install --path crates/lotus-cli
 lotus search --taxon "Gentiana lutea" --format csv
 ```
+
+For the web explorer, the release build, the optional HTTP API, and how to serve
+the output the way the deploy does, see
+[`apps/lotus-explore-rs/README.md`](apps/lotus-explore-rs/README.md).
 
 ## The crates
 
@@ -43,7 +36,7 @@ lotus search --taxon "Gentiana lutea" --format csv
 
 Each library crate has a README that is compiled as its documentation, so the example in it is
 checked as a doctest. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) says why the boundaries
-are where they are.
+are where they are, and is the one place the crate table above is explained.
 
 ## Prerequisites
 
@@ -60,23 +53,22 @@ is not needed, because Dioxus builds the Tailwind itself.
 
 ## Working on it
 
-`./mk ci` is every check CI runs, in order. It needs no network access.
-
 ```bash
 ./mk ci       # formatting, clippy, tests, docs, wasm, supply chain
 ./mk mutants  # mutation testing: a passing test run cannot tell you this
 ```
 
-`./mk --list-all-steps` is the list of tasks. It is the authoritative one:
-a copy of it in this file would be a copy that goes stale.
+`./mk ci` is every check CI runs, in order, and needs no network access.
+`./mk --list-all-steps` is the list of tasks and is the authoritative one: a copy
+of it in this file would be a copy that goes stale.
 
 `./mk` is a script at the repository root and the only command to learn. It runs
 `cargo make --no-workspace`, and the flag is the point: without it cargo-make
 re-runs each task once per crate, so `./mk ci` is 71s and a bare `cargo make ci`
 is 578s — the same checks, eight times over. The comment in `mk` has the detail.
 
-[`CONTRIBUTING.md`](CONTRIBUTING.md) has the full list, where a change belongs, and how to
-refresh the fixtures.
+[`CONTRIBUTING.md`](CONTRIBUTING.md) has where a change belongs, the test
+conventions, and how to refresh the fixtures.
 
 ## Documentation
 

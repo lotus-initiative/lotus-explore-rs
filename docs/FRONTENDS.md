@@ -23,7 +23,7 @@ the one front end that sets a row limit of its own. The endpoints are overridabl
 
 - **`lotus curate` never writes.** It is a read-only auditor: it looks up each
   entry in Wikidata, labels what is missing, and exits. There is no code path
-  that submits a statement, and that is deliberate.
+  that submits a statement, and that is deliberate. See [`cli.md`](cli.md).
 - **Endpoints are overridable**, so all three can be pointed at a local QLever.
 - **Licence.** Everything here is AGPL-3.0-only, including the docs.
 
@@ -34,9 +34,9 @@ the one front end that sets a row limit of its own. The endpoints are overridabl
 ```
 
 That fetches the assets and starts the dev server, with the rustc flags that
-make it usable: the dev bundle is dominated by debug info rather than code, and
-`docs/PERFORMANCE.md` has the measurements. Running `dx serve` by hand does not,
-and the difference is 63.6 MiB of payload against 6.4 MiB.
+make it usable: the dev bundle is dominated by debug info rather than code.
+Running `dx serve` by hand does not, and the difference is 63.6 MiB of payload
+against 6.4 MiB. `docs/PERFORMANCE.md` has the measurements.
 
 The commands underneath, if you want to run them directly:
 

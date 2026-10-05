@@ -29,14 +29,12 @@ clap = { version = "4", features = ["derive", "env"] }
 clap_complete = "4"
 clap_mangen = "0.2"
 console_log = "1.1"
-# `web` and `desktop` are mutually exclusive renderers in Dioxus: each one
-# supplies a different `main`. Naming `web` here meant a native build had no UI
-# to run at all -- `dx serve --desktop` compiled, launched, and exited. The
-# renderer is chosen by the app crate, per target, instead of being fixed for
-# the workspace.
+# No renderer named: `web` and `desktop` each supply a different `main`, so a
+# workspace-fixed one meant a native build had no UI at all -- `dx serve
+# --desktop` compiled, launched, and exited. The app crate picks per target.
 dioxus = { version = "=0.7.10", default-features = false, features = ["asset", "devtools", "document", "minimal", "router"] }
-# The native renderer. Behind the app's `desktop` feature, because it needs a
-# WebView toolchain that a browser-only machine has no reason to install.
+# The native renderer, behind the app's `desktop` feature: it needs a WebView
+# toolchain a browser-only machine has no reason to install.
 dioxus-desktop = { version = "=0.7.10", default-features = false }
 dirs = "6"
 env_logger = "0.11"
@@ -79,33 +77,24 @@ pedantic = { level = "deny", priority = -2 }
 
 # Clippy nursery lints (experimental, may be noisy)
 nursery = { level = "deny", priority = -3 }
-#
-# `future_not_send` is in here, and it is denied, and the app still carries a
-# `#[allow]` for it in fifteen modules. That is not a gap left over: the app is a
-# Dioxus program, `spawn` is single-threaded by design, and the thing the lint
-# objects to -- a future holding a Dioxus `Signal`, which is a `RefCell` -- is
-# how a component updates state.
-#
+
+# `future_not_send` is in here and denied, and the app still carries an
+# `#[allow]` for it in fifteen modules. That is not a gap left over: Dioxus
+# `spawn` is single-threaded by design, and what the lint objects to -- a future
+# holding a `Signal`, which is a `RefCell` -- is how a component updates state.
 # The fix was attempted and does not close. `LotusRepository: Send + Sync` is
-# real and is in `repositories/mod.rs`, and it removes one of the three causes.
-# The other two are the coordinator and the executor, both of which exist to hold
-# the `Signal`:
+# real and removes one of three causes; the other two are the coordinator and
+# the executor, which exist to hold the `Signal`. Naming the concrete type in a
+# future's signature is what makes the compiler look inside it (`SearchLifecycle`
+# was added to hide it), and behind a trait it cannot be `Send` either:
+# `&dyn T` needs `T: Sync` and `Box<dyn T>` needs `T: Send`, and the implementor
+# holds a `RefCell`. Every route back to a type the compiler can see through is
+# a route to the same error. Making the future `Send` would mean reporting search
+# progress by some channel other than Dioxus state -- a change to how the app is
+# built, not a lint fix.
 #
-#   - naming the concrete type in a future's signature is what sends the compiler
-#     looking inside the `Signal`, so `SearchLifecycle` was added to hide it
-#   - behind a trait, `&dyn SearchLifecycle` is `Send` only if the trait is
-#     `Sync`, and it cannot be: the implementor holds a `RefCell`
-#   - `Box<dyn SearchLifecycle>` is `Send` only if the trait is `Send`, and it
-#     cannot be, for the same reason
-#
-# So every route back to a type the compiler can see through is a route to the
-# same error. Making the future `Send` would mean not holding the `Signal` in it,
-# which means reporting search progress by some channel other than Dioxus state.
-# That is a change to how the app is built, not a lint fix, and it is not one to
-# make inside a cleanup.
-#
-# Everything else in `nursery` stays denied: the deny is what catches the things
-# that are fixable, and the fifteen suppressions are the ones that are not.
+# The rest of `nursery` stays denied: the deny catches what is fixable, and the
+# fifteen suppressions are the parts that are not.
 
 # Clippy cargo lints (Cargo.toml hygiene)
 # Note: multiple_crate_versions is allow-listed due to transitive deps from dioxus
@@ -119,9 +108,9 @@ indexing_slicing = "deny"
 missing_assert_message = "deny"
 panic = "deny"
 # `shadow_unrelated` was tried and dropped: it fires on ordinary test-local
-# shadowing (`let root = ...` inside a block that already has a `root`), which is
-# idiomatic Rust rather than a defect, and 28 hits across the workspace is
-# enough noise that the lint would be ignored rather than obeyed.
+# shadowing (`let root = ...` in a block that already has a `root`), which is
+# idiomatic rather than defective, and 28 hits is enough noise that the lint
+# would be ignored rather than obeyed.
 todo = "deny"
 # Any unsafe block must come with a justification comment
 undocumented_unsafe_blocks = "deny"
@@ -154,23 +143,14 @@ unused_crate_dependencies = "deny"
 unused_must_use = "deny"
 
 # `unused_assignments`, `unused_imports`, `unused_variables` and
-# `unused_extern_crates` were tried here and removed again. All four are in
-# rustc's default `unused` group, so CI's `RUSTFLAGS: "-D warnings"` already
-# fails on them; listing them only moved the failure earlier.
-#
-# That "earlier" is the problem. Mutation testing rewrites a function body and
-# re-runs the tests, and a mutation that leaves an unused binding then fails to
-# *compile* rather than failing an assertion. cargo-mutants reports a build
-# failure as unviable, so promoting these lints quietly turned 230 mutants that
-# a test would have caught into ones nothing evaluates: 639 caught became 407,
-# with no test and no line of code any worse for it.
-#
-# The lint's job is to catch a defect in the code as written; mutation testing's
-# is to show which behaviours the tests pin. Denying a default warn costs the
-# second to buy the first nothing it did not already have.
-#
-# `clippy::shadow_unrelated` was also tried: it fires on ordinary test-local
-# shadowing, which is idiomatic rather than defective.
+# `unused_extern_crates` were tried here and removed. All four are in rustc's
+# default `unused` group, so CI's `RUSTFLAGS: "-D warnings"` already fails on
+# them; listing them only moved the failure earlier -- and that is the problem.
+# Mutation testing rewrites a function body and re-runs the tests, so a mutation
+# leaving an unused binding fails to *compile* instead of failing an assertion,
+# and cargo-mutants reports a build failure as unviable. Promoting these lints
+# turned 230 mutants a test would have caught into ones nothing evaluates: 639
+# caught became 407, with no test and no line of code any worse.
 
 # `dev` keeps the debug assertions and overflow checks the release profile drops,
 # which is the point: the two profiles differ in what they check, not only in
@@ -183,11 +163,9 @@ debug = 1
 #
 # `opt-level = "z"` and `lto = "fat"` because the payload is downloaded before
 # anything renders, and every byte is a byte the reader waits for. `z` over `s`
-# trades a little speed for size, which is the right way round for a module this
-# large. `overflow-checks = false` is the one field here that trades correctness
-# for size, and it is deliberate: this is a query client, not a ledger, and the
-# checks protect arithmetic that either cannot overflow or is checked where it
-# matters.
+# trades a little speed for size, the right way round for a module this large.
+# `overflow-checks = false` is the one field here that trades correctness for
+# size, and it is deliberate: this is a query client, not a ledger.
 #
 # `strip = "debuginfo"`, not `"symbols"`. This costs about 3 KB of the 475 KB
 # brotli-compressed wasm bundle -- 0.6% -- and it is not optional.
@@ -196,15 +174,12 @@ debug = 1
 # wasm-bindgen, because that is how it extracts embedded assets. Since LLVM 23
 # (Rust 1.99) `--strip-all` removes custom sections, and one of them is
 # `__wasm_bindgen_unstable`, which carries the metadata wasm-bindgen needs to
-# generate the JS bindings. Strip it and wasm-bindgen cannot process the module:
-#
-#   the `__wasm_bindgen_unstable` custom section is missing, but the module still
-#   contains wasm-bindgen shims
-#
-# `--strip-debug` leaves the custom sections alone, so the module survives. The
-# error this produces is reported much later and says nothing about the cause:
-# wasm-opt fails to open a `_bg.wasm` that wasm-bindgen never got round to
-# writing, so the first thing you read is "Failed opening ...".
+# generate the JS bindings. Strip it and wasm-bindgen cannot process the module
+# -- reporting `the __wasm_bindgen_unstable custom section is missing, but the
+# module still contains wasm-bindgen shims`. `--strip-debug` leaves custom
+# sections alone, so the module survives; the failure then surfaces much later
+# and misleadingly, as wasm-opt failing to open a `_bg.wasm` that wasm-bindgen
+# never wrote ("Failed opening ...").
 #
 # Verified on both toolchains: `--strip-all` drops the section on 1.99 and keeps
 # it on 1.98.1, which is the whole of the difference between a build that works

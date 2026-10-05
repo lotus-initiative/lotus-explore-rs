@@ -399,9 +399,8 @@ pub fn compounds_by_taxon_query_with(taxon_qid: &str, nomenclature: &Nomenclatur
 /// an empty answer. Callers should treat "closure is empty" as "resolve it the
 /// other way", which is exactly what passing an empty slice does.
 ///
-/// Nothing in the workspace calls this yet. It exists so the decision in
-/// `docs/sweep/REVIEW.md` section 16 is a one-line change at the call site rather
-/// than a change to the query builder.
+/// Nothing in the workspace calls this yet. It exists so that adopting it is a
+/// one-line change at the call site rather than a change to the query builder.
 #[must_use]
 pub fn compounds_by_taxon_query_with_resolved_closure(
     taxon_qid: &str,

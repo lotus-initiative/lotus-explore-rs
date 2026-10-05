@@ -1,14 +1,12 @@
 ## graphify
 
-This project has a knowledge graph at `graphify-out/` (4.1 MB `graph.json`, plus
-`GRAPH_REPORT.md` and dated snapshots). It is generated output: `graphify-out/`
-is git-ignored, so the graph is a local convenience and not a source of truth
-about the code.
+This project has a knowledge graph at `graphify-out/` (8.7 MB `graph.json`, plus
+`GRAPH_REPORT.md` and dated snapshots). It is generated output and git-ignored, so
+it is a local convenience and not a source of truth about the code.
 
 **Check that graphify is on `PATH` before relying on it.** It is installed per
-machine, not per repository, and it was absent on the machine this was last
-written on --- every commit reported
-`could not locate a Python with graphify installed`. When `graphify` is missing,
+machine, not per repository, and has been absent on machines where every commit
+reported `could not locate a Python with graphify installed`. When it is missing,
 use `grep` and the compiler instead; do not spend the task trying to install it.
 Everything below applies only when the command resolves.
 

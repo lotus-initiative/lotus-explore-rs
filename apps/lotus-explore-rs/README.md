@@ -78,15 +78,9 @@ consequences.
 
 ## Development testing
 
-Run the workspace test suite:
-
 ```bash
 ./mk test   # nextest for every build, then the doctests
 ```
-
-The suite runs under `cargo-nextest` rather than `cargo test`, so the README
-examples in the library crates are checked as doctests in a second step —
-`./mk test` runs both, in that order.
 
 For production-sized local performance and Lighthouse checks, build the release
 bundle first and serve that directory with any static file server:
@@ -107,41 +101,22 @@ reload, which is why the two are not interchangeable for measurement.
 
 ## Setup: external assets
 
-RDKit.js and the Scholia Citation.js bundle are fetched into
-`public/assets/vendor` by the deploy helper. `RDKIT_VERSION` defaults to
-`latest`, and `CITATION_JS_REF` defaults to Scholia's `main` branch; both can be
-overridden for reproducible or mirror-based builds. The curation bridges load
-the files on demand when needed. The static `index.html` owns early metadata,
-CSS, and bootstrap discovery; `document_head::CurationScripts` adds the
-route-specific curation bridges.
-
-### CSS Build Dependencies (Tailwind)
-
-`dx serve` and `dx build` generate and watch Tailwind automatically. Node.js and
-npm are not required.
-
-### External asset refs
-
-The asset helper defaults to the latest Ketcher and RDKit releases and the
-Scholia `main` branch. Override them with `KETCHER_VERSION`, `RDKIT_VERSION`, or
-`CITATION_JS_REF` when a build needs a specific ref.
-
-### Ketcher (115 MB)
-
-Ketcher and the curation assets must be fetched before serving or deploying:
+`fetch-assets` downloads ~115 MB of Ketcher, RDKit and the Scholia Citation.js
+bundle into `public/assets/vendor`. It must run before serving or deploying:
 
 ```bash
 cd apps/lotus-explore-rs   # from repo root
 cargo run -p lotus-web-assets --bin fetch-assets
 ```
 
-Or fold the fetch into the build command:
+It defaults to the latest Ketcher and RDKit releases and Scholia's `main`
+branch; override with `KETCHER_VERSION`, `RDKIT_VERSION` and `CITATION_JS_REF`
+for a reproducible or mirror-based build. The curation bridges load the files on
+demand. The static `index.html` owns early metadata, CSS and bootstrap
+discovery; `document_head::CurationScripts` adds the route-specific bridges.
 
-```bash
-cargo run -p lotus-web-assets --bin fetch-assets && \
-  dx build --release --platform web --package lotus-explore-rs --locked \
-    --debug-symbols=false --rustc-args=-Copt-level=z
-```
+`dx serve` and `dx build` generate and watch Tailwind automatically, so Node.js
+and npm are not required.
 
 ## Citation
 

@@ -66,26 +66,16 @@ for the test that runs every example in this file.
 
 A taxon search follows the taxon's *nomenclatural closure* by default: the name
 you gave, plus the other names Wikidata links to it, plus the descendants of all
-of them. That is four independent relationships, each with its own flag:
-
-- **accepted name and its synonyms** (`P1420`) — no chronology; either name may
-  be the older one. So `--taxon "Leontopodium nivale"` also finds the 33
-  compounds filed under its accepted name *Leontopodium alpinum*.
-- **basionym and new combination** (`P566`) — the name the taxon was first
-  described under, and the combination its genus was later moved into. So
-  `--taxon "Houpoea officinalis"` finds the 226 compounds filed under its
-  basionym *Magnolia officinalis*.
-- **original combination / protonym** (`P1403`) — the binomial as first
-  published, before any reclassification.
-- **replacement name** (`P694`, *nomen novum*) and the name it displaced. So
-  `--taxon "Salvia rosmarinus"` finds the 595 compounds filed under *Rosmarinus
-  officinalis*, and the two searches return the same 304 compounds.
+of them. That is four independent relationships, each with its own `--no-…` flag
+to switch it off: accepted name and synonyms (`P1420`), basionym and new
+combination (`P566`), original combination / protonym (`P1403`), and replacement
+name (`P694`).
 
 Accepted/synonym and old/new are kept apart deliberately: the first is a
 taxonomic judgement that can change, the second a nomenclatural fact that does
-not, and Wikidata stores them under four separate property pairs. Pass any
-`--no-…` flag to switch one relationship off. See
-[TAXON-SEARCH.md](TAXON-SEARCH.md) for the properties and the traversal.
+not, and Wikidata stores them under four separate property pairs.
+[TAXON-SEARCH.md](TAXON-SEARCH.md) has the vocabulary, the properties, the
+traversal, and the measured table of what each switch changes.
 
 `--structure-search exact` asks for one molecule. With a structure that is a
 similarity search at a cutoff of 1, since there is nothing else to search by; the
