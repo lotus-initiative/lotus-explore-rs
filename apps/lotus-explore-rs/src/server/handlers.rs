@@ -492,7 +492,7 @@ pub async fn export_file(
     let select_url = export::qlever_export_url(&cached.query, ExportFormat::Csv);
     let http = lotus_search::reqwest_client::ReqwestClient::new()
         .map_err(|e| ApiError::upstream(format!("could not open the export client: {e}")))?;
-    let mut response = http
+    let response = http
         .get(&select_url, lotus_search::ResponseFormat::Csv.accept())
         .await
         .map_err(|e| ApiError::upstream(format!("export fetch failed: {e}")))?;

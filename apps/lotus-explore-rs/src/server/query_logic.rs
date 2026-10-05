@@ -8,7 +8,6 @@ use crate::server::errors::ApiError;
 use crate::server::state::{AppState, taxon_cache_get, taxon_cache_put};
 use crate::server::types::SearchRequest;
 use crate::sparql;
-use flate2::{Compression, write::GzEncoder};
 use lotus_model::{SearchCriteria, TaxonMatch};
 
 pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
@@ -215,12 +214,4 @@ async fn resolve_taxon_qid(
     };
 
     Ok((Some(best.qid.clone()), warning))
-}
-
-pub fn gzip_bytes(input: &[u8]) -> std::io::Result<Vec<u8>> {
-    use std::io::Write;
-
-    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-    encoder.write_all(input)?;
-    encoder.finish()
 }
