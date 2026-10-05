@@ -19,8 +19,28 @@ joins less is not an optimisation. 2026-10-04.
 
 | Form | distinct compounds | total rows |
 |---|---|---|
-| two subqueries (current) | **11,087** | 27,952 |
+| two subqueries (current) | **11,087** | not stable — see below |
 | interleaved single path | 11,008 | 27,831 |
+
+**The row counts in this document are not reproducible, and never were.** Two
+tables below recorded the *same* query as 27,952 and as 32,160. Running it three
+times on one day gives 31,519, then 0, then a hard failure:
+
+```
+$ lotus search --taxon Q21754 --format csv | wc -l
+31520
+$ lotus search --taxon Q21754 --format csv | wc -l
+1            # header only, exit 0
+$ lotus search --taxon Q21754 --format csv
+lotus: the results query failed: the query exceeded the endpoint's time limit
+(30s): 429 Too Many Requests
+```
+
+QLever rate-limits this query, and a rate-limited run can come back `200` with no
+rows rather than as an error. So the earlier figures were captured under different
+endpoint load and recorded as if they measured the query. **Distinct compounds is
+the only stable number here — 11,087, on every run that completed.** The row counts
+are a property of the endpoint's mood.
 
 **The interleaved form loses 79 distinct compounds.** It is disqualified, and
 this is the number that decides it. A 19% speed advantage on a form that answers
@@ -41,13 +61,19 @@ The closure for this taxon is **two taxa** — `Q21754` and one synonym,
 `Q2102991` — which is what `nomenclature_path` predicts ("a handful of items, not
 a subtree; measured at 1 to 2 hops on every taxon tested").
 
-| Form | distinct compounds | total rows | **server ms** | wall |
-|---|---|---|---|---|
-| two subqueries (current) | 11,087 | 32,160 | 9,716 | 61.85 s |
-| interleaved | 11,008 — lossy | — | — | — |
-| **inlined `VALUES`** | **11,087** | **32,160** | **4,860** | **41.90 s** |
+| Form | distinct compounds | **server ms** | wall |
+|---|---|---|---|
+| two subqueries (current) | 11,087 | 9,716 | 61.85 s |
+| interleaved | 11,008 — lossy | — | — |
+| **inlined `VALUES`** | **11,087** | **4,860** | **41.90 s** |
 
-**This is the answer to the question: the inlined form returns byte-identical row
+The `total rows` column is gone from this table on purpose. It read 32,160 for both
+surviving forms, which is what made the inlined form look byte-identical; the rows
+are not stable (see Step 1), so that agreement was never evidence. What the
+inlining actually buys is the server time: **4,860 ms against 9,716 ms**, on the
+compounds, which are stable.
+
+**This is the answer to the question: the inlined form returns the same distinct
 counts and runs in half the time.** 50% off the endpoint's compute, 32% off wall
 clock including result transfer.
 
@@ -115,7 +141,7 @@ opened to settle, and it is an uncomfortable one:
 before they wait, (2) put a real cap on the web path for this one case, or (3)
 make the empty box mean the narrower question so it is bounded by construction.
 All three are product decisions and none is a query-builder change, which is why
-they are in `docs/sweep/REVIEW.md` rather than fixed here.
+they are open rather than fixed here.
 
 Also not measured: the trimmed form (dropping the `rdfs:label` `OPTIONAL`s and
 their `FILTER(LANG(…))`), and `counts_query` against the full select. Both are
@@ -160,6 +186,7 @@ replaced by:
 **Measure the row count as well as the time.** A form that is faster because it
 joins less is not an optimisation, and a timing on its own cannot tell the
 difference.
+
 ## Projection: `?ref`, dropped and put back
 
 **This section is a reversal. It is kept because the reasoning was sound and the
@@ -246,8 +273,8 @@ to still emit full URIs for `p:P703` and `prov:wasDerivedFrom`.
 
 The year step also merges rows that `SELECT DISTINCT` had kept apart because they
 differed only in the discarded part of a date. That is not a silent content change:
-the store already dropped those rows, and the CLI returns the same 27,952 rows over
-the same 11,087 compounds either way.
+the store already dropped those rows, and the CLI returns the same distinct
+compounds either way -- 11,087, which is the stable number.
 
 The transferable lesson is narrow and worth stating: **a payload measurement can
 tell you a column is unread by the code you measured, and cannot tell you whether
@@ -295,8 +322,8 @@ Recovering those 27 MB requires either accepting the merge, or carrying a
 discriminator alongside the coalesced column, which gives the bytes back.
 
 The Turtle would have been fine, incidentally: the `CONSTRUCT` template names both
-variables and both are bound by the `WHERE`, and the two rewritten queries came out
-byte-identical. It was the CSV that could not afford it.
+variables and both are bound by the `WHERE`, so the two rewritten queries were
+equivalent. It was the CSV that could not afford it.
 
 ## The sort cliff is smaller than recorded, and ranking does not help
 
