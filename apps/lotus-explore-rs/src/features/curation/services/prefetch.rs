@@ -2,21 +2,17 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! What a whole curation run asks Wikidata **once**, before it walks the rows.
 //!
-//! Everything the row loop needs from Wikidata is one of four questions: does
-//! this `InChIKey` exist, what is this taxon's item, what is this DOI's item,
-//! and is this occurrence already recorded (optionally *by this paper*). All
-//! four are per row and all four have a batched form, so a run asks each of them
-//! once.
+//! Four per-row questions -- does this `InChIKey` exist, what is this taxon's
+//! item, what is this DOI's item, is this occurrence recorded (optionally *by
+//! this paper*) -- each with a batched form, so a run asks each once: five
+//! queries per run, whatever the row count. Four POSTs per row made a
+//! two-hundred-row import up to eight hundred requests to a shared public
+//! endpoint, and a second pass over the dependency rows repeated every one.
 //!
-//! Without this, curation was the heaviest thing this project did to a public
-//! endpoint: four POSTs per row, so a two-hundred-row import was up to eight
-//! hundred, and a second pass over the dependency rows repeated every one of
-//! them. It is five queries per run now, whatever the row count.
-//!
-//! The prefetch lives here, rather than in the row loop, for one reason: the keys
-//! it batches on are the ones the row loop will look up, and those are private to
-//! this module tree. A prefetch that keyed differently would be a cache that never
-//! hits, which is the one failure mode a cache cannot report.
+//! Lives here rather than in the row loop because the keys it batches on are the
+//! ones the row loop looks up and those are private to this module tree. A
+//! prefetch keyed differently is a cache that never hits, the one failure mode a
+//! cache cannot report.
 #![expect(
     clippy::future_not_send,
     reason = "the RDKit bridge holds a Dioxus signal across its await; see enrichment.rs"
@@ -41,10 +37,9 @@ struct Asked {
 impl Asked {
     /// Ask both, and record every answer in the cache the row loop reads.
     ///
-    /// `false` is recorded for a pair that did not come back, because that is
-    /// what the per-pair `ASK` returned. Recording the misses is what makes the
-    /// cache complete: a run where every compound already exists must not fall
-    /// through to a per-row request for each of them.
+    /// Misses record as `false`, matching the per-pair `ASK`. A cache of hits
+    /// only would send a run where every compound already exists back to the
+    /// network once per row.
     async fn answer_into(
         self,
         repository: &dyn CurationKnowledgeRepository,
@@ -80,10 +75,9 @@ fn annotate(error: &CurationError, phase: &str) -> CurationError {
 
 /// One row, reduced to what Wikidata is asked about it.
 ///
-/// The reduction is separate from the asking because the *asking* needs the
-/// toolkit -- RDKit runs through a Dioxus signal, so it needs a runtime -- and
-/// the decisions worth testing do not. Every question this module asks is decided
-/// from these three values, and those are testable without a browser.
+/// Separate from the asking because the *asking* needs a runtime (RDKit runs
+/// through a Dioxus signal) and every question here is decided from these three
+/// values, which are testable without a browser.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct RowKeys<'a> {
     /// The `InChIKey` the structure converted to, or `None` if it did not convert.
@@ -143,10 +137,9 @@ pub(super) async fn prefetch_for_keys(
 
 /// One query for every `InChIKey` in the batch.
 ///
-/// The structures are converted here rather than being passed in because the
-/// `InChIKey` is what the batch is keyed on and the conversion is local: RDKit in
-/// the browser, no network. A row whose structure cannot be read contributes no
-/// key, which is also why this cannot happen before conversion.
+/// Converted here because the `InChIKey` is what the batch keys on and the
+/// conversion is local: RDKit in the browser, no network. A row whose structure
+/// cannot be read contributes no key, so this cannot precede conversion.
 async fn prefetch_compounds(
     rows: &[RowKeys<'_>],
     repository: &dyn CurationKnowledgeRepository,
@@ -379,11 +372,11 @@ mod tests {
     /// The load-bearing assertion of this module: **one** request per question,
     /// whatever the row count.
     ///
-    /// Before this, every question was asked once per row: four POSTs per row, so
-    /// a two-hundred-row import was up to eight hundred requests to a shared
-    /// public endpoint. The number that has to stay fixed is the multiplier, not
-    /// the total -- so the test runs the same prefetch at two row counts and
-    /// asserts the request count did not move.
+    /// Every question was once asked per row -- four POSTs per row, so a
+    /// two-hundred-row import was up to eight hundred requests to a shared public
+    /// endpoint. What must stay fixed is the multiplier, not the total, so the
+    /// test runs the same prefetch at two row counts and asserts the request
+    /// count did not move.
     #[test]
     fn a_prefetch_costs_the_same_however_many_rows_there_are() {
         let taxa = HashMap::from([("gentiana lutea".to_string(), "Q158572".to_string())]);
@@ -455,12 +448,8 @@ mod tests {
         );
     }
 
-    /// Every answer the batch returned has to be in the cache, **including the
-    /// misses**.
-    ///
-    /// A cache that stores only the hits sends the row loop to the network for
-    /// every pair Wikidata does *not* have -- which is most of them, since a
-    /// curation run is mostly work still to do.
+    /// Including the misses: a cache of hits only sends the row loop to the
+    /// network for every pair Wikidata does *not* have, which is most of them.
     #[test]
     fn a_batch_answer_fills_the_cache_for_the_rows_that_follow() {
         let rows = [keys(Some("KEY"), Some("Gentiana lutea"), None)];

@@ -75,10 +75,9 @@ pub trait CurationKnowledgeRepository: Send + Sync {
 
     /// Fetch every compound in a run with one query, keyed by `InChIKey`.
     ///
-    /// A batch item rather than a convenience because the per-key method above it
-    /// is what a curation run used to call once per row, and four requests per row
-    /// against a shared public endpoint is what that cost. Keys absent from the
-    /// map are absent from Wikidata.
+    /// A batch item, not a convenience: the per-key method above it is what a run
+    /// used to call once per row, four requests per row against a shared public
+    /// endpoint. Keys absent from the map are absent from Wikidata.
     fn fetch_compounds_by_inchikeys(
         &self,
         keys: &[String],
@@ -86,10 +85,9 @@ pub trait CurationKnowledgeRepository: Send + Sync {
 
     /// Which `(compound, taxon)` pairs Wikidata already records, in one query.
     ///
-    /// The batch form of [`CurationKnowledgeRepository::compound_has_taxon`]. The
-    /// set is the answer, not a map: what the caller wants is "which of these do
-    /// I still have to write", and a pair that is not in the set is `false`, which
-    /// is what the `ASK` said.
+    /// Batch form of [`CurationKnowledgeRepository::compound_has_taxon`]. A set,
+    /// not a map: the caller wants "which of these do I still have to write", and
+    /// absence is `false`, which is what the `ASK` said.
     fn existing_occurrences(
         &self,
         pairs: &[OccurrencePair],

@@ -43,15 +43,12 @@ pub async fn try_execute<R: LotusRepository>(
         Some(Ok(response)) => {
             let api_elapsed = perf::end_timer("LOTUS:api_search", api_timer);
 
-            // Only usable if what came back *is* the whole result set.
-            //
-            // The API answers with a page plus the true total. The columnar set
+            // Only usable if what came back *is* the whole result set. The columnar set
             // derives its counts from the rows it holds, so a partial page would
-            // report the page's row count as the total -- understating the result
-            // by whatever was left behind. There is no honest way to keep both:
-            // a total that disagrees with the rows is the bug this whole path
-            // exists to remove. So a partial page is declined and the caller falls
-            // through to the streaming SPARQL path, which returns everything.
+            // report the page's row count as the total. A total that disagrees
+            // with the rows is the bug this whole path exists to remove, so a
+            // partial page is declined and the caller falls through to the
+            // streaming SPARQL path.
             // The timer is already closed above; ending it again would ask the
             // browser to close a label that is not open.
             if response.total_matches > response.rows.len() {
@@ -207,12 +204,8 @@ mod tests {
 
     #[test]
     fn a_partial_api_page_is_declined_so_the_counts_cannot_understate() {
-        // The API answers with a page plus the true total. Folding only the page
-        // into a columnar set would report the page's row count as the total, so
-        // the caller falls through to the streaming SPARQL path instead. This is
-        // the one behaviour change on this path, and it is the whole point of the
-        // refactor: a total that disagrees with the rows is not a trade worth
-        // making for one fewer round trip.
+        // The one behaviour change on this path, and the whole point of the refactor: a
+        // total that disagrees with the rows is not worth saving a round trip.
         futures::executor::block_on(async {
             let repo = StubRepo::successful(sample_response());
             let request = SearchRequest::new(

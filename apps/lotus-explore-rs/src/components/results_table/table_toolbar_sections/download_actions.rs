@@ -24,11 +24,9 @@ use std::sync::Arc;
     not(target_arch = "wasm32"),
     allow(unused_variables, clippy::needless_pass_by_value)
 )]
-/// The three signals the download buttons share.
-///
-/// Grouped because passing them separately ran the argument count past the limit
-/// clippy enforces, and because they are one thing: what the download UI is
-/// currently showing.
+/// The three signals the download buttons share: what the download UI is currently
+/// showing. Grouped because passing them separately ran the argument count past the
+/// limit clippy enforces.
 #[derive(Clone, Copy, PartialEq)]
 pub(super) struct DownloadSignals {
     /// A download is in flight.
@@ -39,9 +37,8 @@ pub(super) struct DownloadSignals {
     pub notice: Signal<Option<String>>,
 }
 
-// The criteria snapshot is only needed by the browser build, which has to
-// rebuild the query from the form the user submitted. A desktop build already
-// holds the SPARQL string, so the snapshot is never read there.
+// Only the browser build needs the criteria snapshot: it must rebuild the query from
+// the form the user submitted, while a desktop build already holds the SPARQL string.
 #[cfg_attr(
     not(target_arch = "wasm32"),
     allow(unused_variables, clippy::needless_pass_by_value)
@@ -84,10 +81,9 @@ fn spawn_query_download(
                     log::warn!(
                         "event=download phase=table_query state=error reason=missing_criteria_snapshot"
                     );
-                    // The picker was armed above and no export is going to consume it.
-                    // Left armed it would sit on a handle the reader has already chosen
-                    // a location for, and the next click would overwrite it -- so the
-                    // file they picked would never appear.
+                    // The picker was armed above and no export will consume it. Left
+                    // armed it would overwrite the handle the reader already chose a
+                    // location for, so the file they picked would never appear.
                     crate::download::clear_file_sink();
                     *download_busy.write() = false;
                     *download_status.write() = None;
@@ -97,9 +93,8 @@ fn spawn_query_download(
             },
             query,
             filename,
-            // The rows the table is drawn from, so the file is written from them rather
-            // than by asking a service to run the query again. Browser-only: a desktop
-            // build has no route that builds a file in memory.
+            // Written from the rows on screen rather than by re-running the query.
+            // Browser-only: a desktop build has no route that builds a file in memory.
             #[cfg(target_arch = "wasm32")]
             Some(Arc::clone(&rows)),
         )
@@ -115,9 +110,8 @@ fn spawn_query_download(
                 format.log_name()
             ),
         }
-        // On a desktop build the message is the path the file was written to. A
-        // window has no download shelf, so without this the file appears in
-        // ~/Downloads and the UI looks like the click did nothing.
+        // On desktop the message is the path written to: a window has no download
+        // shelf, so without it the UI looks like the click did nothing.
         *download_notice.write() = Some(outcome.unwrap_or_else(|e| e));
         *download_busy.write() = false;
         *download_status.write() = None;
@@ -179,9 +173,9 @@ fn dispatch_metadata_download_blob(
 
 /// The result of a finished download: where the file went, or why it did not.
 ///
-/// Separate from the spinner, which is only on screen while a download is in
-/// flight. A desktop export finishes by writing a file, and without this the
-/// user has no way to tell that from a click that did nothing.
+/// Separate from the spinner, which is only on screen while a download is in flight:
+/// a desktop export finishes by writing a file, and without this the user cannot tell
+/// that from a click that did nothing.
 #[component]
 fn DownloadNotice(notice: ReadSignal<Option<String>>) -> Element {
     let Some(text) = notice.read().clone() else {
@@ -231,10 +225,9 @@ fn DownloadQueryButton(
     /// The rows on screen. The export is written from these rather than by asking a
     /// service to run the query a second time.
     ///
-    /// An `ArcPtrEq` memo rather than a plain signal: the set is behind an `Arc` and
-    /// comparing two sets by value would walk every row to decide whether the toolbar
-    /// should re-render. Pointer equality is both correct -- a new set is a new
-    /// pointer -- and free.
+    /// An `ArcPtrEq` memo: comparing two sets by value would walk every row to decide
+    /// whether the toolbar should re-render. Pointer equality is correct -- a new set
+    /// is a new pointer -- and free.
     rows: ReadSignal<
         crate::features::explore::selectors::ArcPtrEq<lotus_model::ColumnarResultSet>,
     >,
@@ -254,28 +247,24 @@ fn DownloadQueryButton(
             label: Some(label.to_string()),
             onclick: {
                 let filename = move || filename.clone();
-                // Read inside the handler, not here. The `onclick: { .. }` block
-                // is evaluated while the template is built, so hoisting the
-                // snapshot out of the closure deep-copied a `SearchCriteria`
-                // (three `String`s) on every render of the toolbar — three
-                // times over, once for each of the CSV/JSON/RDF buttons — with
-                // no click involved. Reading at click time is also the fresher
-                // value: it is the criteria of the results on screen now.
+                // Read inside the handler: the `onclick: { .. }` block is evaluated
+                // while the template is built, so hoisting the snapshot out of the
+                // closure deep-copied a `SearchCriteria` (three `String`s) on every
+                // toolbar render, three times over for CSV/JSON/RDF, with no click
+                // involved. Click time is also the fresher value: the criteria of the
+                // results on screen now.
                 move |_| {
                     #[cfg(target_arch = "wasm32")]
                     let criteria_snapshot = Some(Arc::new(criteria.read().clone()));
                     #[cfg(not(target_arch = "wasm32"))]
                     let criteria_snapshot = None;
 
-                    // Here, inside the handler, and nowhere later: `showSaveFilePicker`
-                    // is only permitted while the click is still a user gesture, and
-                    // the export runs in a task `spawn`ed from this handler, which has
-                    // already lost it by the time it asks. Arming it now and letting the
-                    // export collect the handle is what lets a full-size file be
-                    // written to disk instead of assembled in memory.
-                    //
-                    // The suggested name is the one the button already displays, so the
-                    // dialog opens on the filename the reader was promised.
+                    // Here and nowhere later: `showSaveFilePicker` is only permitted
+                    // while the click is still a user gesture, and the export runs in a
+                    // task `spawn`ed from this handler, which has lost it by the time it
+                    // asks. Arming now and letting the export collect the handle is
+                    // what writes a full-size file to disk instead of assembling it in
+                    // memory. The suggested name is the one the button displays.
                     #[cfg(target_arch = "wasm32")]
                     {
                         crate::download::arm_file_sink(&filename());
@@ -287,8 +276,8 @@ fn DownloadQueryButton(
                         filename(),
                         sparql_query.clone(),
                         signals,
-                        // The rows on screen. Read once here so the file can be written
-                        // from them instead of re-running the query elsewhere.
+                        // Read once here so the file is written from these rows rather
+                        // than by re-running the query.
                         Arc::clone(&rows.read().0),
                     );
                 }
@@ -317,13 +306,11 @@ fn DownloadMetadataButton(
             disabled,
             class: "inline-flex shrink-0 items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-9 px-4 py-1.5 text-ui active:scale-[0.98]",
             title: Some(title.to_string()),
-            // See the note in download_query_button: the visible label is the
-            // accessible name, the tooltip holds the description.
+            // As in `DownloadQueryButton`: visible label is the accessible name.
             label: Some(label.to_string()),
             onclick: {
-                // Same reasoning as `DownloadQueryButton`: this block runs
-                // while the template is built, so the filename was rebuilt on
-                // every render rather than on the click that needs it.
+                // Same reasoning as `DownloadQueryButton`: this block runs while the
+                // template is built, so the filename was rebuilt on every render.
                 move |_| {
                     let filename = toolbar_model.read().metadata_filename.clone();
                     dispatch_metadata_download_blob(
@@ -342,13 +329,12 @@ pub fn DownloadActionsGroup() -> Element {
     let locale = crate::hooks::use_locale();
     let explore = use_results_context().explore;
 
-    // Each selector subscribes to exactly one field; the component only
-    // re-renders when any of these specific fields change.
+    // Each selector subscribes to exactly one field, so the component re-renders
+    // only when one of these fields changes.
     let criteria = crate::features::explore::selectors::use_ui_selector(explore, |ui| {
         ui.executed_criteria.clone()
     });
-    // Subscribed separately from `criteria` so the toolbar re-renders when the rows
-    // change, not only when the criteria do. Same reasoning as the other selectors.
+    // Separate from `criteria` so the toolbar re-renders when the rows change.
     let rows = crate::features::explore::selectors::use_result_arc_selector(explore, |result| {
         result.set.clone()
     });
@@ -368,9 +354,8 @@ pub fn DownloadActionsGroup() -> Element {
 
     let download_results_label = t(locale, TextKey::DownloadResults);
 
-    // Separate `notice` from `status`, which the spinner shows only while a
-    // download is in flight. A desktop export finishes by writing a file, and
-    // nothing on screen would otherwise say so.
+    // Separate `notice` from `status`, which the spinner shows only while a download is
+    // in flight: a desktop export finishes by writing a file.
     let signals = DownloadSignals {
         busy: use_signal(|| false),
         status: use_signal(|| None),
@@ -475,10 +460,9 @@ pub fn DownloadActionsGroup() -> Element {
                                     if let Some(win) = web_sys::window() {
                                         let _ = win.open_with_url_and_target(url, "_blank");
                                     }
-                                    // A desktop window is not a browser, so
-                                    // there is nothing to navigate. This branch
-                                    // used to be absent, which made the button a
-                                    // no-op in the window.
+                                    // A desktop window is not a browser, so there is
+                                    // nothing to navigate: without this branch the
+                                    // button was a no-op in the window.
                                     #[cfg(not(target_arch = "wasm32"))]
                                     if let Err(e) = crate::download::open_externally(url) {
                                         log::warn!(

@@ -2,12 +2,11 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! In-process structure-field → compound-resolution cache.
 //!
-//! The same contract as [`super::taxon_cache`], and the same reason: the cached
-//! value is the whole resolution rather than just the QID, so a repeat search
-//! reproduces the notice instead of losing it. That matters more here than it does
-//! for taxa, because the input is a *string* and strings are retyped: a miss is
-//! cached too, so a name that matched nothing is refused the same way twice
-//! rather than being looked up again and then quietly answered.
+//! The same contract as [`super::taxon_cache`]: the cached value is the whole
+//! resolution, not just the QID, so a repeat search reproduces the notice.
+//! Stricter here because the input is a *string* and strings are retyped — a miss
+//! is cached too, so a name that matched nothing is refused identically twice
+//! rather than looked up again and quietly answered.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -30,16 +29,14 @@ pub struct CachedCompound {
     pub candidates: Vec<String>,
     /// Every distinct QID the structure service matched, first-seen order.
     ///
-    /// The search asks about **all** of them rather than the one named by
-    /// `qid`. A structure input names a molecule and the service answers with
-    /// everything inside the cutoff -- the (R) form, the (S) form and the
-    /// achiral one -- so keeping only the first asks an arbitrary question.
-    /// Measured on `C[C@H](O)CO`: the first match was the achiral `Q161495`,
-    /// which has no occurrence in Wikidata at all, while `Q27093218`, the (R)
-    /// form, has six.
+    /// The search asks about **all** of them, not only the one named by `qid`:
+    /// the service answers with everything inside the cutoff — the (R) form, the
+    /// (S) form, the achiral one — so keeping the first asks an arbitrary
+    /// question. Measured on `C[C@H](O)CO`: the first match was the achiral
+    /// `Q161495`, with no occurrence in Wikidata at all, while the (R) form
+    /// `Q27093218` has six.
     ///
-    /// Bounded by the `LIMIT` on the lookup query, so this is a handful of QIDs
-    /// rather than a set of any size.
+    /// Bounded by the `LIMIT` on the lookup query, so a handful of QIDs.
     pub all_qids: Vec<String>,
 }
 
@@ -80,10 +77,8 @@ pub enum CompoundNotice {
 
 /// What the cache knows about an input.
 ///
-/// Three states, not two. "Looked up and found nothing" has to be
-/// distinguishable from "never looked up", because only the second is worth
-/// asking again — and that is the whole reason a miss is remembered rather than
-/// simply absent.
+/// Three states, not two: only "never looked up" is worth asking again, which is
+/// why a miss is remembered rather than simply absent.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Cached {
     /// Looked up, and it named a compound.
@@ -129,13 +124,10 @@ pub fn clear() {
 
 /// Narrow a candidate list to the one that was used, with the rest listed.
 ///
-/// Distinct QIDs only. The endpoint can return the same compound twice for one
-/// name — once per label it carries that matches — and counting those would tell
-/// the reader that several compounds matched when they are looking at one.
-///
-/// An `InChIKey` is a single compound by construction, so a candidate list longer
-/// than one there would mean the endpoint disagreed with itself; it is treated as
-/// unambiguous rather than as noise.
+/// Distinct QIDs only: the endpoint can return one compound twice for a name,
+/// once per matching label, and counting those would claim several compounds
+/// matched. An `InChIKey` is a single compound by construction, so a longer list
+/// there means the endpoint disagreed with itself and is treated as unambiguous.
 #[must_use]
 pub fn pick(matches: &[CompoundMatch]) -> Option<CachedCompound> {
     // Distinct QIDs, and for each one the row that is most useful: a compound

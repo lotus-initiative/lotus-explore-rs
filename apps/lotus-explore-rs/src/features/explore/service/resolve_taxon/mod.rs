@@ -30,11 +30,10 @@ pub struct TaxonResolution {
     pub qid: Option<String>,
     /// Everything worth telling the user about how this name resolved.
     ///
-    /// A list rather than an `Option` because a single lookup can raise more
-    /// than one: `bacteria` is both spelled differently from `Bacteria` and
-    /// ambiguous. Collapsing them to one would mean deciding which to drop, and
-    /// that decision is not the resolver's to make — they are two true things
-    /// about the same resolution.
+    /// A list rather than an `Option` because a single lookup can raise more than
+    /// one: `bacteria` is both spelled differently from `Bacteria` and ambiguous.
+    /// Collapsing them to one would mean deciding which to drop, and that decision
+    /// is not the resolver's to make.
     pub warnings: Vec<LookupNotice>,
 }
 
@@ -78,11 +77,11 @@ pub async fn resolve<R: LotusRepository>(
         });
     }
 
-    // A guard rather than a handle: this function returns from three places below
-    // this line, and only the first of them used to close the timer. The other two --
-    // including the SPARQL path that most searches take -- left
-    // `LOTUS:taxon_resolution` open for the rest of the session, so every later
-    // resolution found the label taken and reported a duration measured from here.
+    // A guard rather than a handle: this function returns from three places below,
+    // and only the first closed the timer. The other two -- including the SPARQL
+    // path most searches take -- left `LOTUS:taxon_resolution` open for the rest
+    // of the session, so every later resolution found the label taken and
+    // reported a duration measured from here.
     let taxon_timer = perf::Timer::start("LOTUS:taxon_resolution");
     let sanitized = sanitize_taxon_input(taxon);
 
@@ -91,8 +90,8 @@ pub async fn resolve<R: LotusRepository>(
         standardized: sanitized.clone(),
     });
 
-    // Fast path: cache hit. The notice comes back out of the cache rather than
-    // being recomputed, so a repeat search reports what the first one reported.
+    // Fast path: the notice comes back out of the cache rather than being
+    // recomputed, so a repeat search reports what the first one reported.
     if let Some(cached) = taxon_cache::lookup(&sanitized) {
         let taxon_elapsed = taxon_timer.end();
         telemetry::taxon_cache_hit(taxon_elapsed, &sanitized, &cached.qid);
@@ -103,22 +102,21 @@ pub async fn resolve<R: LotusRepository>(
         });
     }
 
-    // Slow path: SPARQL query, scientific name first.
+    // Slow path: SPARQL, scientific name first.
     //
-    // The common-name lookup is a *second* round trip rather than a second
-    // branch of this one, and that is the whole design. The scientific lookup is
-    // served from an index and answers in about 0.3s; the common-name lookup
-    // cannot be (every `P1843` value is language-tagged and inconsistently
-    // capitalised, so it has to compare lexical forms, which is a scan of every
-    // statement -- about 2.5s measured). Folding it in with a UNION would make
-    // every taxon search pay the 2.5s, including the overwhelming majority that
-    // hit a scientific name and never needed it.
+    // The common-name lookup is a *second* round trip rather than a second branch
+    // of this one, and that is the whole design. The scientific lookup is index
+    // served and answers in about 0.3s; the common-name lookup cannot be (every
+    // `P1843` value is language-tagged and inconsistently capitalised, so comparing
+    // lexical forms is a scan of every statement -- about 2.5s measured). A UNION
+    // would make every taxon search pay that 2.5s, including the overwhelming
+    // majority that hit a scientific name and never needed it.
     let mut matches = lookup(repo, metrics, lotus_query::taxon_lookup_query(&sanitized)).await?;
 
     if matches.is_empty() {
-        // No scientific name, so try the common one. Resolving rather than
-        // refusing is deliberate: sending the reader to Wikidata to perform the
-        // lookup this tool just did is a worse answer than a labelled one.
+        // No scientific name, so try the common one. Resolving rather than refusing is
+        // deliberate: sending the reader to Wikidata to redo this lookup is a
+        // worse answer than a labelled one.
         matches = lookup(
             repo,
             metrics,
@@ -155,8 +153,8 @@ async fn lookup<R: LotusRepository>(
     query: String,
 ) -> Result<Vec<TaxonMatch>, DomainError> {
     // Its own label, not `LOTUS:taxon_resolution`: a `console.time` label holds one
-    // timer document-wide, so a nested site sharing the outer label would be refused
-    // by the browser and its `timeEnd` would close the outer one instead.
+    // timer document-wide, so a nested site sharing the outer label is refused by
+    // the browser and its `timeEnd` closes the outer one instead.
     let timer = perf::start_timer("LOTUS:taxon_lookup");
     let csv = repo.sparql_body(&query).await.map_err(|error| {
         let _ = perf::end_timer("LOTUS:taxon_lookup", timer);
@@ -347,12 +345,12 @@ mod tests {
 
     #[test]
     fn a_repeat_search_reports_the_same_notice_as_the_first() {
-        // The reported symptom: searching a name that both needed standardizing
-        // and matched two candidates said one thing on the first run and another
-        // on the second, because the second run read the answer from the cache
-        // and the cache held only the QID.
+        // The reported symptom: a name that both needed standardizing and matched two
+        // candidates said one thing on the first run and another on the second,
+        // because the second read the answer from the cache, which held only the
+        // QID.
         //
-        // A name unique to this test, because the cache is process-wide.
+        // A name unique to this test: the cache is process-wide.
         let csv = "taxon,taxon_name\nQ900001,Bacteriostaticum\nQ900002,Bacteriostaticum\n";
         let repo = StubRepo::ok(csv);
 

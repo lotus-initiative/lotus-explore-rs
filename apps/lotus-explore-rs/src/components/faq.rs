@@ -2,19 +2,17 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The `/faq` page: the questions readers actually ask, grouped and linkable.
 //!
-//! Deliberately not a disclosure widget. A `<details>` per question hides the answer
-//! behind a click, which costs a keyboard user a tab stop per question and hides the
-//! text from anything that reads the page rather than renders it -- a search engine,
-//! a reader mode, an agent. The answers here are two or three sentences each, so
-//! showing all of them costs one scroll and buys a page that can be read, indexed and
-//! quoted in any order.
+//! Deliberately not a disclosure widget: a `<details>` per question costs a keyboard
+//! user a tab stop each and hides the text from anything that reads the page rather
+//! than renders it — a search engine, a reader mode, an agent. At two or three
+//! sentences per answer, showing all of them costs one scroll and buys a page that
+//! can be read, indexed and quoted in any order.
 //!
-//! The structure is what makes it navigable rather than merely readable: one `h1`
-//! owned by the page header, an `h2` for the page, an `h3` per category and an `h4`
-//! per question, no level skipped, and every question carrying a stable `id`. Those
-//! ids are the same fragments emitted as `@id` in the `FAQPage` structured data, so a
-//! link to one question works from the page, from a search result, and from an agent
-//! that read the markup.
+//! Navigable rather than merely readable: one `h1` owned by the page header, an `h2`
+//! for the page, an `h3` per category, an `h4` per question, no level skipped, and a
+//! stable `id` per question. Those ids are the same fragments emitted as `@id` in the
+//! `FAQPage` structured data, so a link to one question works from the page, from a
+//! search result, and from an agent that read the markup.
 
 use crate::app::routes::RouteQuery;
 use crate::components::layout::escape_faq_script_element;
@@ -31,9 +29,8 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
     let chrome = faq_chrome(locale);
     let reference_heading = chrome.reference_heading;
     let reference_intro = chrome.reference_intro;
-    // Deep-linked already: the router puts `/faq#download-formats` in `hash`, and the
-    // browser scrolls to it once the element with that id exists. Doing it here as
-    // well would race the render.
+    // Deep-linked already: the router puts `/faq#download-formats` in `hash` and the
+    // browser scrolls once the element exists. Scrolling here too would race the render.
     let _ = (query, hash);
 
     let questions_by_category: Vec<(FaqCategory, Vec<&'static FaqEntry>)> = FaqCategory::ALL
@@ -49,15 +46,13 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
     rsx! {
         section {
             class: "w-full max-w-none px-4 pt-3 sm:px-6 lg:px-8",
-            // `aria-labelledby` rather than `aria-label`, so the section announces the
-            // same heading a sighted reader sees instead of a second string to keep in
-            // sync.
+            // `aria-labelledby` so the section announces the heading a sighted reader
+            // sees, not a second string to keep in sync.
             aria_labelledby: "faq-heading",
 
-            // The structured data sits in the tree, not the head: `document::Script`
-            // installs itself once with `use_hook` and would keep showing the first
-            // locale's answers after the reader switched language. JSON-LD is valid in
-            // the body and consumers read it from there.
+            // In the tree, not the head: `document::Script` installs itself once with
+            // `use_hook` and would keep showing the first locale's answers after a
+            // language switch. JSON-LD is valid in the body.
             script {
                 type: "application/ld+json",
                 dangerous_inner_html: escape_faq_script_element(&faq_json_ld(locale)),
@@ -75,25 +70,17 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
                     "{chrome.intro}"
                 }
 
-                // A table of contents, because the point of grouping is that a reader
-                // can aim at one group rather than scroll twelve questions to find out
-                // whether downloads are covered.
+                // A table of contents: grouping exists so a reader can aim at one group
+                // rather than scroll twelve questions to learn whether downloads are covered.
                 nav {
                     class: "mt-6",
                     aria_label: "{chrome.contents_label}",
                     h3 { class: "text-subtitle font-semibold text-text", "{chrome.contents_heading}" }
-                    // No list markers here, deliberately.
-                    //
-                    // A `ul` that is `display: flex` lays its items out as flex
-                    // boxes, and a marker is drawn *outside* the box it belongs to. So
-                    // `gap` spaces the items while the dots stay pinned to the
-                    // container's padding edge, and the two drift apart as the row
-                    // narrows: on a phone the dots end up hard against the text. It is
-                    // the same in both directions -- the marker is not part of the
-                    // layout the gap is measuring.
-                    //
-                    // Four short links read better as inline links than as a bulleted
-                    // list anyway, and a row of them wants no bullet.
+                    // No list markers, deliberately. A marker is drawn *outside* the box
+                    // it belongs to, so a flex container's `gap` spaces the items while
+                    // the dots stay pinned to the container's padding edge, drifting
+                    // apart as the row narrows until on a phone the dots touch the text.
+                    // Four short links read better inline than bulleted anyway.
                     ul { class: "mt-2 flex list-none flex-wrap items-baseline gap-x-4 gap-y-1 text-body",
                         for (category, _) in questions_by_category.iter() {
                             li {
@@ -116,10 +103,9 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
                     dl { class: "mt-3 flex flex-col gap-5",
                         for entry in entries {
                             div { class: "min-w-0",
-                                // The question is the term and the answer the
-                                // description, which is what makes "copy the definition"
-                                // and most screen-reader browse modes work here rather
-                                // than only reading top to bottom.
+                                // Term and description, so "copy the definition" and
+                                // most screen-reader browse modes work, not only reading
+                                // top to bottom.
                                 dt {
                                     class: "text-body font-semibold text-text",
                                     h4 { id: "{entry.id}",
@@ -138,10 +124,8 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
 
                 // ── The long-form reference ────────────────────────────────────
                 //
-                // Separate from the questions above because it answers a different
-                // question. The Q&A says what the tool does; this says why, which is what a
-                // reader needs when a result surprises them — and a reader who cannot
-                // resolve a surprise stops trusting the number.
+                // The Q&A says what the tool does; this says why, which is what a reader
+                // needs when a result surprises them.
                 h3 {
                     id: "faq-how-it-works",
                     class: "mt-10 scroll-mt-24 text-subtitle font-semibold text-text",
@@ -152,8 +136,7 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
                     "{reference_intro}"
                 }
 
-                // Said where the reader will see it, rather than left to be inferred from
-                // a page that is otherwise translated.
+                // Said where the reader sees it, not left to be inferred.
                 if let Some((label, detail)) = untranslated_notice(locale) {
                     div {
                         class: "mt-4 rounded-lg border border-border bg-surface p-4",
@@ -168,11 +151,10 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
 
                 div { class: "mt-4 flex flex-col gap-3",
                     for section in SECTIONS {
-                        // Collapsed by default: there are five sections and the questions
-                        // above are what most readers arrived for. A disclosure control is
-                        // keyboard-operable and its content stays in the accessibility tree
-                        // and in the document, so nothing is hidden from a screen reader or
-                        // a crawler by being collapsed.
+                        // Collapsed by default: five sections, and most readers arrived for
+                        // the questions above. A disclosure is keyboard-operable and its
+                        // content stays in the accessibility tree and the document, so
+                        // collapsing hides nothing from a screen reader or a crawler.
                         details {
                             class: "rounded-xl border border-shell-border bg-shell-raised",
                             id: "{section.id}",
@@ -180,8 +162,7 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
                             summary {
                                 class: "cursor-pointer list-none px-4 py-3 text-body font-semibold text-text marker:content-none",
                                 div { "{section.title(locale)}" }
-                                // The summary stands alone when collapsed, so it has to
-                                // read as a summary rather than as a teaser.
+                                // Stands alone when collapsed, so a summary not a teaser.
                                 p {
                                     class: "mt-1 text-sm font-normal leading-relaxed text-muted",
                                     "{section.summary(locale)}"
@@ -202,10 +183,9 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
 
 /// The anchor for a category heading.
 ///
-/// `rsx!` interpolates a `&str`, so the heading needs a string and `FaqCategory` is an
-/// enum that does not have one. Deriving `as_str` on the enum would put the id next to
-/// the category it names, which is where it belongs; this match keeps it next to the
-/// markup that renders it, and the test below asserts the two cannot drift apart.
+/// `rsx!` interpolates a `&str` and `FaqCategory` is an enum without one. Deriving
+/// `as_str` would put the id next to the category it names; this match keeps it next to
+/// the markup, and the test below asserts they cannot drift.
 fn category_anchor(category: FaqCategory) -> &'static str {
     match category {
         FaqCategory::About => "faq-about",
@@ -313,11 +293,9 @@ mod tests {
 
     /// The page's furniture must not be written inline.
     ///
-    /// An explicit list rather than a scanner for string literals. A scanner was tried
-    /// and produced false positives on class lists, on `//` comments, and on the
-    /// assertion messages of the tests themselves -- three false positives in one run,
-    /// which is how a guard like that ends up ignored. Naming the strings that actually
-    /// regressed is narrower, has no false positives, and says what it is for.
+    /// An explicit list, not a literal scanner: a scanner was tried and false-positived
+    /// on class lists, on `//` comments, and on the tests' own assertion messages — three
+    /// false positives in one run, which is how a guard ends up ignored.
     #[test]
     fn no_user_visible_text_is_hardcoded_in_the_page() {
         let source = include_str!("faq.rs");
@@ -356,22 +334,18 @@ mod tests {
         }
     }
 
-    /// A `ul` here must not be both a flex container and bulleted.
-    ///
-    /// The two interact: a marker is painted outside the box it belongs to, so a flex
-    /// container's `gap` spaces the items while the dots stay at the container's padding
-    /// edge. The pair looks correct at a wide viewport and collapses at a narrow one,
-    /// which is why this only showed up on a phone.
+    /// A `ul` here must not be both flex and bulleted: a marker is painted outside the
+    /// box it belongs to, so `gap` spaces the items while the dots stay at the padding
+    /// edge. The pair looks correct wide and collapses narrow — a phone-only failure.
     #[test]
     fn no_list_combines_a_flex_layout_with_markers() {
         let source = include_str!("faq.rs");
         let mut checked = 0;
 
         for (index, line) in source.lines().enumerate() {
-            // The `ul` and its class attribute are on one line in this file, which is
-            // how rsx! formats a single-attribute element. An earlier version of this
-            // scanner looked for the class on the *following* line, matched nothing,
-            // and was saved from passing by the count assertion at the end.
+            // The `ul` and its class are on one line here, how rsx! formats a
+            // single-attribute element. An earlier scanner looked for the class on the
+            // next line, matched nothing, and passed only because of `checked > 0`.
             if !line.contains("ul {") {
                 continue;
             }
@@ -428,8 +402,8 @@ mod tests {
 
     #[test]
     fn every_category_actually_has_questions() {
-        // An empty category renders a heading with nothing under it, which is a
-        // dead end for a reader and a useless entry in the contents list.
+        // An empty category renders a heading with nothing under it: a dead end and a
+        // useless contents entry.
         for category in FaqCategory::ALL {
             assert!(
                 ENTRIES.iter().any(|e| e.category == category),

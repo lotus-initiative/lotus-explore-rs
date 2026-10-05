@@ -90,12 +90,9 @@ pub fn StatBar() -> Element {
     let explore = use_results_context().explore;
     let toolbar_snapshot = use_toolbar_result_snapshot(explore);
     let snapshot_ref = toolbar_snapshot.read();
-    // The result set always carries its own exact counts, so there is no fallback
-    // to compute: the value that used to be recomputed from the rows on every
-    // render is now the answer the fetch already had.
-    // The set always carries its own counts, so this is never absent in
-    // practice. It is read as `Option` because the snapshot is shared with the
-    // toolbar and with the download-only path, where no result was fetched.
+    // The set always carries its own exact counts, so this is never absent in
+    // practice: there is no fallback to recompute. `Option` only because the
+    // snapshot is shared with the download-only path, where no result was fetched.
     let stats = snapshot_ref.total_stats.clone().unwrap_or_default();
     let entries_value = stats.n_entries;
     let entries_unique_value = stats.n_entries_unique;
@@ -113,19 +110,15 @@ pub fn StatBar() -> Element {
                 plus: false,
                 stripe: StatStripe::Entries,
             }
-            // The pointer a collaborator asked for.
-            //
             // "1,234 entries / 800 unique" reads as a bug until you know a row is one
-            // compound *as reported by one reference*. It is the reference column that
-            // makes the rows differ, so the explanation goes next to the number that
-            // differs rather than in a help page nobody opens.
+            // compound *as reported by one reference*. The reference column makes the
+            // rows differ, so the explanation goes next to the number that differs rather
+            // than in a help page nobody opens.
             //
-            // A `<details>` rather than a `title` tooltip: there is no hover on a
-            // phone, and the reader who is confused on a phone is the reader who needs
-            // this. It also stays in the accessibility tree and the document, so a
-            // screen reader reaches the same words.
-            // Only when rows and distinct compounds actually differ: a result with no
-            // duplicates showing "why are compounds listed twice?" invites the reader to
+            // A `<details>` rather than a `title` tooltip: there is no hover on a phone,
+            // and it stays in the accessibility tree and the document, so a screen reader
+            // reaches the same words. Shown only when rows and distinct compounds differ,
+            // because a duplicate-free result raising the question invites the reader to
             // go looking for a problem that is not there.
             if entries_unique_value != entries_value {
                 details {

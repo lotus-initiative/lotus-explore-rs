@@ -2,45 +2,29 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Clickable examples for a text field.
 //!
-//! The pattern this replaces was an inert row of `<span>`s that looked like
-//! buttons, plus the examples folded into the field's `placeholder`. Both look like
-//! they work, and neither does:
+//! Replaces an inert row of `<span>`s styled like buttons, and examples folded into
+//! the field's `placeholder`. Both advertise an affordance the control lacks: a span
+//! chip is not focusable, not announced as actionable, and clicking it does nothing;
+//! a `placeholder` is not a label, vanishes on first keystroke, is the
+//! lowest-contrast text on the page, and is announced inconsistently or not at all.
 //!
-//! - A `<span>` that looks like a chip has an affordance it does not have. It is
-//!   not focusable, not announced as actionable, and clicking it does nothing. That
-//!   is worse than showing nothing: it advertises a capability the control lacks.
-//! - A `placeholder` is not a label and is not a durable instruction. It vanishes
-//!   the moment anything is typed, it is the lowest-contrast text on the page, and
-//!   screen readers announce it inconsistently or not at all. An example nobody can
-//!   read once they start typing is not an example.
+//! So: real buttons under a visible heading, each named for what it does, each
+//! putting the cursor in the field it filled. Two details make it work:
 //!
-//! So: a real group of real buttons under a visible heading, each named for what it
-//! does, each putting the cursor in the field it filled.
+//! - **Focus moves to the field**, so the user need not Tab back and the screen
+//!   reader announces the value just set — cheaper and more reliable than an
+//!   `aria-live` region saying the same thing.
+//! - **`type="button"`, always**: a button in a form with no `type` is
+//!   `type="submit"`, so every suggestion would run the search.
 //!
-//! ## The two details that make it work
+//! It asks rather than writes because these inputs are controlled: a value assigned
+//! to the element is overwritten by the next render. The owner applies the value and
+//! this moves the cursor, the only thing it needs the document for — through `eval`
+//! rather than `web-sys`, because the browser and a desktop window have different DOM
+//! libraries and this crate is built for both.
 //!
-//! **Focus moves to the field.** A button that fills a field and leaves focus where
-//! it was means the user has to Tab back to carry on. Moving focus also tells a
-//! screen reader the value that was just set, which is cheaper and more reliable
-//! than an `aria-live` region saying the same thing.
-//!
-//! **`type="button"`, always.** A button in a form with no `type` is
-//! `type="submit"`, so every suggestion would run the search. Nobody asked for
-//! that, and it makes two suggestions in a row impossible.
-//!
-//! ## Why it asks rather than writes
-//!
-//! The field is filled by the owner's own state, not by writing to the DOM. These
-//! inputs are controlled: a value assigned to the element is overwritten by the
-//! next render, so setting one and hoping would flicker back. The owner applies the
-//! value and this moves the cursor, which is the only thing it needs the document
-//! for -- and it needs that through `eval` rather than `web-sys`, because the
-//! browser and a desktop window have different DOM libraries and this crate is
-//! built for both.
-//!
-//! The `<datalist>` alongside each of these stays. It is the right affordance for
-//! someone who knows what they want and is typing; this is the right one for
-//! someone who does not. Neither replaces the other, and neither replaces the
+//! The `<datalist>` alongside each of these stays: right for someone who knows what
+//! they want and is typing, this for someone who does not. Neither replaces the
 //! `<label>`.
 
 use crate::i18n::{TextKey, t};
@@ -125,23 +109,15 @@ pub fn focus(target: &str) {
 
 #[cfg(test)]
 mod tests {
-    //! What the example buttons have to be.
+    //! Read what came out, not the text of a file — the repo's rule from `a11y_smoke`.
+    //! A source-text assertion passes when the markup is right *and* when a `sed`
+    //! left a name in a comment, and fails when rustfmt wraps a line. So render the
+    //! component and look at the HTML.
     //!
-    //! The repo's own rule, from `a11y_smoke`: read what came out, not the text of
-    //! a file. A source-text assertion passes when the markup is right *and* when a
-    //! `sed` left a name behind in a comment, and it fails when rustfmt wraps a
-    //! line. So this renders the component and looks at the HTML.
-    //!
-    //! Every fact asserted here was a bug, or would have been one:
-    //!
-    //! - The examples were `<span>`s styled like buttons: an affordance the control
-    //!   did not have. Not focusable, not actionable, and clicking did nothing.
-    //! - A `<button>` with no `type` inside a form is `type="submit"`, so every
-    //!   example would have run the search.
-    //! - The group had no name, so a screen reader met two buttons apparently
-    //!   floating on the page with nothing tying them to the field they fill.
-    //! - Each button was named only its value, which says what it is and not what
-    //!   it does.
+    //! Every fact asserted here was a bug, or would have been one: examples as inert
+    //! `<span>` chips; a `<button>` with no `type` inside a form, so each would have
+    //! run the search; an unnamed group, leaving two buttons floating with nothing
+    //! tying them to the field they fill; buttons named only their value.
 
     #![allow(clippy::expect_used, clippy::panic, clippy::unwrap_used)]
 
@@ -237,8 +213,8 @@ mod tests {
             2,
             "one button per example:\n{html}"
         );
-        // The old markup. A chip that cannot be activated is worse than no chip,
-        // because it advertises a capability the control does not have.
+        // The old markup: a chip that cannot be activated advertises a capability
+        // the control does not have.
         assert!(
             !html.contains("<span class=\"rounded-full"),
             "no example is an inert span:\n{html}"

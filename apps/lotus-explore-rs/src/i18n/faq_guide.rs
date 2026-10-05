@@ -4,27 +4,25 @@
 //!
 //! # Why this is separate from the questions
 //!
-//! The [`super`] Q&A answers "what does this do". This answers "why does it do that",
-//! and the second question is the one a reader actually has when a result surprises
-//! them — why a synonym returned a compound, why a genus returned nothing, why
-//! `ATP` was refused. A FAQ that only states the behaviour cannot answer any of those,
-//! and a reader who cannot resolve a surprise stops trusting the number.
+//! The [`super`] Q&A answers "what does this do"; this answers "why does it do that",
+//! the question a reader actually has when a result surprises them — why a synonym
+//! returned a compound, why a genus returned nothing, why `ATP` was refused. A reader
+//! who cannot resolve a surprise stops trusting the number.
 //!
 //! # Why the prose is English and the headings are not
 //!
-//! Every heading, summary and category label here is translated, because those are what
-//! a reader scans and navigates by, and an untranslated heading over translated answers
-//! reads as a broken translation rather than an absent one.
+//! Every heading, summary and category label is translated, because those are what a
+//! reader scans by, and an untranslated heading over translated answers reads as a
+//! broken translation rather than an absent one.
 //!
-//! The body prose is English, and the page says so where the reader will see it. The
-//! alternative -- machine-translating several thousand words of taxonomy and query
-//! mechanics into three languages with nobody checking the result -- produces text that
-//! *looks* localised and is wrong in the specifics that matter most here. A wrong
-//! statement about when a lookup runs is worse than an honest English one.
+//! The body prose is English, and the page says so where the reader sees it.
+//! Machine-translating several thousand words of taxonomy and query mechanics with
+//! nobody checking the result produces text that *looks* localised and is wrong in the
+//! specifics that matter most; a wrong statement about when a lookup runs is worse than
+//! an honest English one.
 //!
 //! [`FaqBlock::Table`] carries most of the content, deliberately: a table of measured
-//! numbers states its facts faster than prose does, and does not need translating to be
-//! readable.
+//! numbers states its facts faster than prose and reads without translating.
 
 use crate::i18n::Locale;
 
@@ -55,11 +53,9 @@ pub enum FaqBlock {
     Text(&'static str),
     /// A bulleted list.
     ///
-    /// Present because prose this long will want one eventually, and a content-only
-    /// addition should not need a renderer change. It has no user right now: every list
-    /// worth having here turned out to be a table, and a table carries column headers.
-    /// Kept out rather than left as a dead variant the build denies -- add it back with
-    /// the first section that needs it.
+    /// Present so a content-only addition need not change the renderer. It has no user
+    /// right now: every list worth having turned out to be a table, and a table carries
+    /// column headers. Kept out rather than left as a dead variant the build denies.
     #[allow(dead_code)]
     List(&'static [&'static str]),
     /// A table. The first row is the header.
@@ -586,9 +582,8 @@ mod tests {
 
     #[test]
     fn the_summary_is_long_enough_to_be_a_summary() {
-        // A collapsed section shows only its summary. One that is shorter than its title
-        // is not a summary, and a reader opening the section learns nothing from having
-        // done so.
+        // A collapsed section shows only its summary, so one shorter than its title
+        // teaches nothing for opening it.
         for section in SECTIONS {
             for locale in LOCALES {
                 assert!(
@@ -602,8 +597,7 @@ mod tests {
 
     #[test]
     fn no_locale_serves_the_english_title_or_summary() {
-        // A missing translation that falls through to English is invisible in review and
-        // obvious to a reader.
+        // English fallback is invisible in review and obvious to a reader.
         for section in SECTIONS {
             for locale in [Locale::Fr, Locale::De, Locale::It] {
                 assert_ne!(
@@ -694,9 +688,8 @@ mod tests {
 
     #[test]
     fn the_notice_appears_for_every_locale_but_english() {
-        // The deep-dive body is English. A reader in another language has to be told, at
-        // the point where they will see it, rather than inferring it from a page that is
-        // otherwise translated.
+        // The body is English, so a reader in another language is told at the point they
+        // will see it rather than inferring it.
         assert!(
             untranslated_notice(Locale::En).is_none(),
             "an English reader does not need to be told the page is in English"
@@ -715,8 +708,7 @@ mod tests {
 
     #[test]
     fn labels_pick_the_locale_that_was_asked_for() {
-        // A guard on the lookup itself: the four arms are positional, and a mistake there
-        // would silently serve one language to every reader.
+        // The four arms are positional, so a mistake serves one language to every reader.
         let labels = Labels {
             en: "english",
             fr: "french",

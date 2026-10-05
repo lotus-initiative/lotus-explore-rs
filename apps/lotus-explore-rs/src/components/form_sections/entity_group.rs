@@ -3,25 +3,19 @@
 //! The per-entity chrome a search-filter group is wrapped in.
 //!
 //! A LOTUS result is always three things at once — a compound, a taxon, and a
-//! reference — and every filter constrains one of them. Grouping the controls by
-//! the thing they constrain, rather than by the input they happen to use, is
-//! what makes the set finite: three groups, and each filter has exactly one
-//! obvious home. The colour is the one the results table and the stat bar
-//! already use for each of the three, so a group and the column it filters are
-//! recognisably the same object.
+//! reference — and every filter constrains one of them. Grouping by the thing
+//! constrained rather than by the input used is what makes the set finite: three
+//! groups, one obvious home per filter. The colour is the one the results table
+//! and the stat bar already use, so a group and the column it filters read as the
+//! same object.
 //!
-//! What belongs inside a group is decided once, here:
-//!
-//! - the group's own primary filter is always visible — the one thing almost
-//!   every search needs;
-//! - everything else is a *narrowing* of that, and goes into a collapsed
-//!   [`AdvancedFilters`] disclosure. Collapsed by default, because a dozen
-//!   visible inputs is what made the previous layout hard to scan: a mass range
-//!   and a publication year look equally load-bearing until you read them, and
-//!   most searches leave both alone.
-//!
-//! Nothing is removed, only relocated, so the same query is expressible either
-//! way.
+//! What goes inside a group is decided once, here: the primary filter is always
+//! visible — the one thing almost every search needs — and everything else is a
+//! *narrowing* of that, in a collapsed [`AdvancedFilters`] disclosure. Collapsed
+//! by default because a dozen visible inputs was hard to scan: a mass range and a
+//! publication year look equally load-bearing until read, and most searches leave
+//! both alone. Nothing is removed, only relocated, so the same query is expressible
+//! either way.
 
 use crate::i18n::{TextKey, t};
 use dioxus::prelude::*;
@@ -82,9 +76,9 @@ impl FilterEntity {
 /// One entity's filter group: a named, coloured box holding the primary filter
 /// and, when there is one, a collapsed set of advanced sub-filters.
 ///
-/// `advanced` is `None` for an entity that has nothing to narrow, rather than an
-/// empty disclosure: a collapsed box that opens onto nothing reads as a control
-/// that did not load.
+/// `advanced` is `None` for an entity with nothing to narrow, not an empty
+/// disclosure: a collapsed box that opens onto nothing reads as a control that did
+/// not load.
 #[component]
 pub fn EntityFilters(entity: FilterEntity, primary: Element, advanced: Option<Element>) -> Element {
     let locale = crate::hooks::use_locale();
@@ -144,12 +138,10 @@ fn AdvancedFilters(
             }
             div {
                 id: "{body_id}",
-                // A query container, because what is inside this panel is sized
-                // by the panel and not by the window. The group is one cell of a
-                // one-to-three column grid, so at a desktop width it can be a
-                // third of the page -- and a layout keyed to viewport breakpoints
-                // reads that narrow column as a wide screen and packs eight
-                // fields into it.
+                // A query container, not viewport breakpoints: this panel is one
+                // cell of a one-to-three column grid and can be a third of the
+                // page, which a viewport-keyed layout reads as a wide screen and
+                // packs eight fields into.
                 class: "@container flex w-full min-w-0 flex-col gap-3 border-t border-shell-border p-2",
                 {children}
             }
@@ -171,9 +163,8 @@ mod tests {
         FilterEntity::Reference,
     ];
 
-    /// The three groups and their colours have to be the ones the rest of the app
-    /// already uses; a group painted in a fourth colour is a group nobody can
-    /// match to a column.
+    /// The three groups and colours are the ones the rest of the app already
+    /// uses; a fourth colour is a group nobody can match to a column.
     #[test]
     fn each_entity_maps_to_its_existing_wikidata_colour() {
         assert_eq!(FilterEntity::Compound.color(), "wd-compound");
@@ -205,9 +196,8 @@ mod tests {
 
     // ── What the markup actually says ────────────────────────────────────────
     //
-    // Asserting on rendered HTML rather than on the source, for the reason
-    // `a11y_smoke` records: a class name that was meant to be applied and was
-    // not is invisible to a source-text check and obvious to this one.
+    // Rendered HTML, not source, per `a11y_smoke`: a class name meant to be
+    // applied and not applied is invisible to a source-text check.
 
     #[component]
     fn WithAdvanced() -> Element {
@@ -289,8 +279,8 @@ mod tests {
             !html.contains("<details open"),
             "and it starts closed, so a group opens in its cheapest shape:\n{html}"
         );
-        // Collapsed by default only works if the content is still in the
-        // document; hiding it with CSS would leave it focusable and announced.
+        // Collapsed by default only works with the content still in the document:
+        // CSS hiding would leave it focusable and announced.
         assert!(
             html.contains(r#"id="advanced-input""#),
             "the advanced controls are rendered, just not shown:\n{html}"

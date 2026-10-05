@@ -27,13 +27,13 @@ mod wasm;
 
 /// Result of a successful full-results fetch.
 ///
-/// Just the result set. There is no row limit anywhere on this path and no second
-/// query for the totals, so there is nothing else to carry: the set holds every
-/// row the endpoint returned, deduplicates nothing, and
-/// [`ColumnarResultSet::stats`] *is* the answer the `COUNT` query used to give.
+/// Just the result set. No row limit anywhere on this path and no second query for
+/// totals, so there is nothing else to carry: the set holds every row the endpoint
+/// returned, deduplicates nothing, and [`ColumnarResultSet::stats`] *is* the answer
+/// the `COUNT` query used to give.
 ///
-/// A field here could disagree with the rows it describes. That was the bug this
-/// path exists to fix, so the struct is not given the chance to reintroduce it.
+/// A field here could disagree with the rows it describes — the bug this path
+/// exists to fix, so the struct is not given the chance to reintroduce it.
 pub struct FetchResult {
     /// Every row, stored by column.
     pub set: Arc<ColumnarResultSet>,
@@ -45,7 +45,7 @@ impl FetchResult {
     /// A search that was never sent, so nothing came back.
     ///
     /// Download-only searches resolve a taxon and build a query without fetching
-    /// anything, and their outcome differs from a real search only in this.
+    /// anything; their outcome differs from a real search only in this.
     #[must_use]
     pub fn empty() -> Self {
         Self {
@@ -101,8 +101,7 @@ struct PlannedResultsFetch<'a> {
 /// `on_fetching` is called before the network fetch begins and `on_processing`
 /// before the body is folded into the set; in tests pass `|| ()`.
 // `progress` is only called on the wasm path, so only there does it need to be
-// mutable. Without this the native build warns about a `mut` it cannot use, and
-// adding one for wasm would warn there instead.
+// mutable; otherwise the native build warns about a `mut` it cannot use.
 #[cfg_attr(
     not(target_arch = "wasm32"),
     expect(
@@ -136,10 +135,10 @@ pub(super) async fn fetch<
     #[cfg(target_arch = "wasm32")]
     let result = wasm::fetch_results(repo, &plan, metrics, &processing, &mut progress).await;
 
-    // The native path assembles the export on disk and has no chunked reader to
-    // count rows in, so there is no progress to report. Dropped explicitly rather
-    // than left as an unused binding, because "no progress on this path" is a
-    // decision and an accidental silence would look identical.
+    // The native path assembles the export on disk with no chunked reader to count
+    // rows in, so there is no progress to report. Dropped explicitly, because
+    // "no progress on this path" is a decision and accidental silence would look
+    // identical.
     #[cfg(not(target_arch = "wasm32"))]
     let result = {
         drop(progress);
@@ -181,8 +180,7 @@ mod no_limit_gate {
     //! toolbar reported the whole set's count.
     //!
     //! The tests look for the identifier *followed by a parenthesis*, which is a
-    //! call. Matching the bare name would also match this module's own prose -- the
-    //! file being checked explains in a comment why `counts_query` is gone -- and a
+    //! call. Matching the bare name would also match this module's own prose, and a
     //! gate that fails when someone documents the thing it forbids is a gate that
     //! gets deleted.
 

@@ -3,18 +3,16 @@
 //! How the curation page reaches the `RDKit` bridge in the page.
 //!
 //! `document::eval` is the only channel that works in every renderer. The
-//! alternative -- `web_sys::window()` and a reflected call into the bridge -- is
+//! alternative -- `web_sys::window()` plus a reflected call into the bridge -- is
 //! wasm-only, because a native build has no `window` object even though the
-//! window *is* a `WebView`. A native build that used it therefore had to bypass
-//! `RDKit` and call a third-party HTTP service instead, which is why a desktop
-//! window behaved differently from a browser.
+//! window *is* a `WebView`; that pushed native onto a third-party HTTP service,
+//! which is why a desktop window behaved differently from a browser.
 //!
-//! Getting a value *out* of the page is the part that is easy to get wrong.
-//! Awaiting the `Eval` itself returns what the script evaluates to
-//! synchronously, so an `async` bridge method arrives as `null`. Dioxus's
-//! supported answer is the eval channel: the script pushes the result with
-//! `dioxus.send` once its promise settles, and Rust awaits `recv`. That is what
-//! this module does, and it is why there is no polling loop here.
+//! Getting a value *out* of the page is easy to get wrong: awaiting the `Eval`
+//! itself returns what the script evaluates to synchronously, so an `async`
+//! bridge method arrives as `null`. The script instead pushes the result with
+//! `dioxus.send` once its promise settles and Rust awaits `recv` -- hence no
+//! polling loop here.
 
 // A `WebView` round trip, so these futures are not `Send`. Every caller is on a
 // component's own single-threaded task, which is the right shape for it.
@@ -31,17 +29,15 @@ use serde_json::Value;
 
 use super::CurationError;
 
-/// Call a method on the `RDKit` bridge and return its answer.
-///
-/// Waits for `RDKit` to finish loading first, which the bridge does internally.
+/// Call a method on the `RDKit` bridge and return its answer, after the bridge
+/// loads `RDKit` internally.
 ///
 /// # Errors
 /// Returns a message if the bridge is missing, the load failed, the call threw,
 /// or nothing arrived on the channel.
 pub(super) async fn rdkit_bridge_call(method: &str, smiles: &str) -> Result<Value, CurationError> {
-    // The SMILES is user input, so it goes in as a JSON string literal rather
-    // than being interpolated raw: a quote or a backslash would otherwise end
-    // the literal and change what the script parses as.
+    // The SMILES is user input: raw interpolation would let a quote or a
+    // backslash end the literal and change what the script parses as.
     let smiles_literal = serde_json::to_string(smiles.trim())
         .map_err(|e| CurationError::Parse(format!("could not encode the structure: {e}")))?;
 

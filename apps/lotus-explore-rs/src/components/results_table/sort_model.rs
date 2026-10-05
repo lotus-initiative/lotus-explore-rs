@@ -8,8 +8,6 @@ use lotus_model::CompoundEntry;
 use std::cmp::Ordering;
 use std::sync::{Arc, Mutex};
 
-// --- Lazy sort index cache ---------------------------------------------------
-
 /// The cache slot for a column: one per `SortColumn` variant, and the order is
 /// what the match below says it is.
 const fn sort_column_index(col: SortColumn) -> usize {
@@ -25,10 +23,8 @@ const fn sort_column_index(col: SortColumn) -> usize {
 
 /// Number of sortable columns.
 ///
-/// Derived from the match rather than written down beside it: a variant added to
-/// `SortColumn` without a slot here would silently index past the end of the cache
-/// array, and a literal `6` is exactly the kind of thing that survives adding a
-/// seventh variant.
+/// Derived from the match, not written down beside it: a variant added to `SortColumn`
+/// without a slot here would silently index past the end of the cache array.
 const NUM_SORT_COLS: usize = match SortColumn::all().last() {
     Some(last) => sort_column_index(*last) + 1,
     None => 0,
@@ -61,13 +57,11 @@ impl std::fmt::Debug for SortIndexCache {
     }
 }
 
-/// Build a new lazy sort index cache backed by `set`.
-/// No sort work is performed here; indices are computed on first access per
-/// column.
+/// Build a new lazy sort index cache backed by `set`. No sort work happens here;
+/// indices are computed on first access per column.
 ///
-/// The cache is keyed on the set's identity rather than its contents, so replacing
-/// the result set replaces every cached order and a stale order cannot outlive
-/// the data it was sorted from.
+/// Keyed on the set's identity, not its contents, so a new result set replaces every
+/// cached order and a stale order cannot outlive the data it was sorted from.
 #[must_use]
 pub(super) fn build_sort_index_cache(set: Arc<ColumnarResultSet>) -> SortIndexCache {
     SortIndexCache(Arc::new(SortCacheInner {
@@ -95,15 +89,13 @@ impl SortIndexCache {
         // Compute outside the lock so that other columns can be accessed
         // concurrently on native; on WASM the Mutex is a no-op anyway.
         let computed = build_sorted_indices_for_column(&self.0.set, col);
-        // Store and return; a benign race on native means two threads might
-        // both compute the same column — both results are identical, so the
-        // last writer's value is silently discarded by get_or_insert.
-        // `if let Some` rather than `expect`: `expect_used` is denied, and this
-        // is an invariant the type system cannot see -- `sort_column_index`
-        // returns a `usize` with no upper bound. A variant added to `SortColumn`
-        // without a slot in `all()` would land here, and the honest result is the
-        // freshly computed indices with nothing cached, not a panic in a render
-        // path.
+        // A benign race on native means two threads compute the same column; both
+        // results are identical, so `get_or_insert` discards the last writer's value.
+        //
+        // `if let Some` rather than `expect`: `expect_used` is denied, and a `SortColumn`
+        // variant without a slot in `all()` is an invariant the type system cannot see.
+        // The honest result is freshly computed indices with nothing cached, not a
+        // panic in a render path.
         {
             let mut guard = self
                 .0
@@ -135,12 +127,8 @@ impl SortIndexCache {
         let ascending = self.ascending_for(col);
         let computed = reversed_indices(&ascending);
 
-        // `if let Some` rather than `expect`: `expect_used` is denied, and this
-        // is an invariant the type system cannot see -- `sort_column_index`
-        // returns a `usize` with no upper bound. A variant added to `SortColumn`
-        // without a slot in `all()` would land here, and the honest result is the
-        // freshly computed indices with nothing cached, not a panic in a render
-        // path.
+        // `if let Some` rather than `expect`, for the reason given in
+        // `ascending_for`.
         {
             let mut guard = self
                 .0
@@ -167,10 +155,10 @@ pub(super) fn indices_for_sort(cache: &SortIndexCache, sort: SortState) -> Arc<[
 
 /// Test-only helper: directly build a sorted index from a slice without caching.
 ///
-/// Takes [`CompoundEntry`] values so the tests can state a result set as rows
-/// without knowing how one is stored. The path under test is the columnar one:
-/// the rows are folded into a set and sorted out of it, so a reader bug in either
-/// the builder or the comparison shows up here.
+/// Takes [`CompoundEntry`] values so the tests can state a result set as rows without
+/// knowing how one is stored. The columnar path is the one under test: the rows are
+/// folded into a set and sorted out of it, so a reader bug in either the builder or
+/// the comparison shows up here.
 #[cfg(test)]
 #[must_use]
 pub(super) fn build_sorted_indices(rows: &[CompoundEntry], sort: SortState) -> Arc<[u32]> {
@@ -201,9 +189,9 @@ fn reversed_indices(indices: &[u32]) -> Arc<[u32]> {
 /// Compare two rows of `set` on one column.
 ///
 /// Every field is read straight out of the set. Comparing
-/// [`lotus_model::CompoundEntry`] values would work and would be wrong: building one
-/// costs thirteen `Arc<str>`s, and a sort of three million rows would allocate
-/// thirty-nine million of them to answer a question about one column.
+/// [`lotus_model::CompoundEntry`] values would work and would be wrong: one costs
+/// thirteen `Arc<str>`s, so sorting three million rows would allocate thirty-nine
+/// million of them to answer a question about one column.
 fn compare_rows(set: &ColumnarResultSet, a: usize, b: usize, column: SortColumn) -> Ordering {
     match column {
         SortColumn::Name => set.compound_label(a).cmp(&set.compound_label(b)),

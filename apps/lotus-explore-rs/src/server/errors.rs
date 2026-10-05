@@ -29,21 +29,18 @@ pub struct SharedApiError {
     pub(crate) message: String,
     /// Carried through, not dropped.
     ///
-    /// This is the type a *leader* hands to the followers coalesced behind it,
-    /// so a shed search's `Retry-After` reaches the caller through here. An
-    /// earlier version of this conversion zeroed the field with the reasoning
-    /// that a follower has no queue to join -- true, and beside the point: the
-    /// header is what stops the follower coming straight back.
+    /// A *leader* hands this to the followers coalesced behind it, so a shed
+    /// search's `Retry-After` reaches the caller. Zeroing it because a follower
+    /// has no queue to join is beside the point: the header is what stops the
+    /// follower coming straight back.
     pub(crate) retry_after: Option<u64>,
 }
 
 impl ApiError {
-    /// The server is at its upstream budget, and the answer comes back with a
-    /// `Retry-After`.
-    ///
-    /// Shedding load at the door is the polite half of a concurrency limit: the
-    /// alternative is to accept the request, start a query the shared public
-    /// endpoint will cancel, and then tell the caller to wait.
+    /// The server is at its upstream budget; the answer carries a `Retry-After`.
+    /// Shedding at the door is the polite half of a concurrency limit — the
+    /// alternative is accepting the request, starting a query the shared public
+    /// endpoint will cancel, then telling the caller to wait.
     #[must_use]
     pub(crate) fn upstream_overloaded(message: impl Into<String>, retry_after: u64) -> Self {
         Self {

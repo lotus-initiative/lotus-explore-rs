@@ -16,12 +16,11 @@ pub struct AppConfig {
     pub(crate) max_concurrency: usize,
     /// How many queries may be in flight to `QLever` at once.
     ///
-    /// A second, much smaller limit than `max_concurrency`, and it is the one
-    /// that matters for politeness. `max_concurrency` bounds what this server
-    /// will accept; this bounds what it will ask of somebody else's public
-    /// endpoint. `QLever` serves Wikidata from one machine for everyone, and a
-    /// single unconstrained search holds its budget for ~30 s, so four in flight
-    /// is already a large ask.
+    /// Much smaller than `max_concurrency`, and the one that matters for
+    /// politeness: `max_concurrency` bounds what this server accepts, this bounds
+    /// what it asks of somebody else's public endpoint. `QLever` serves Wikidata
+    /// from one machine for everyone and a single unconstrained search holds its
+    /// budget for ~30 s, so four in flight is already a large ask.
     pub(crate) upstream_concurrency: usize,
     /// How long a search waits for an upstream permit before being shed.
     pub(crate) upstream_queue_wait: Duration,
@@ -220,14 +219,12 @@ mod tests {
 
     use super::*;
 
-    //
-    // clap's `#[arg(env = "...")]` attribute guarantees flag > env > default
-    // priority. These tests verify flag resolution and defaults directly.
-    // Env-var-only override behavior cannot be tested here because the
-    // workspace enforces `#![forbid(unsafe_code)]` and
-    // `std::env::set_var` / `remove_var` are unsafe in Rust 1.97+. The
-    // existing `from_provider` tests in tests.rs cover the env-value parsing
-    // layer with mock closures.
+    // clap's `#[arg(env = "...")]` guarantees flag > env > default priority;
+    // these tests verify flag resolution and defaults directly. Env-only
+    // overrides are untestable here: the workspace enforces
+    // `#![forbid(unsafe_code)]` and `std::env::set_var` / `remove_var` are unsafe
+    // in Rust 1.97+. The `from_provider` tests in tests.rs cover the env-value
+    // parsing layer with mock closures.
 
     #[test]
     fn cli_port_flag_overrides_default() {

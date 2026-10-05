@@ -5,18 +5,16 @@
 //! The result set arrives as a [`ColumnarResultSet`] -- every row the endpoint
 //! returned, stored by column -- and **stays that way**. Nothing here materialises
 //! a [`CompoundEntry`](lotus_model::CompoundEntry) for more than the rows on
-//! screen; the view model is a list of row offsets and a sort state, and the
-//! rows themselves are read out of the set when the virtualiser asks for a
-//! window.
+//! screen; the view model is a list of row offsets and a sort state, and rows are
+//! read out of the set when the virtualiser asks for a window.
 //!
-//! Two steps, in increasing order of cost, and the component memoises them at that
-//! granularity:
+//! Two steps in increasing cost, memoised at that granularity:
 //!
 //! 1. [`apply_sort`] — pick the index order. Runs when the sort changes; the
 //!    sort-index cache is shared, not rebuilt.
-//! 2. [`filter_order`] — drop the rows the column filters exclude. Runs when the
-//!    filters change. Applied *after* sorting so the visible order is the order
-//!    asked for, with holes removed, rather than the filter's order.
+//! 2. [`filter_order`] — drop rows the column filters exclude. Runs when the
+//!    filters change, *after* sorting so the visible order is the order asked for
+//!    with holes removed, rather than the filter's order.
 //!
 //! Filtering compiles to one bitmap per constrained dictionary, so a keystroke
 //! costs a pass over the dictionaries and four bit tests per row rather than a
@@ -103,11 +101,9 @@ pub(super) fn apply_sort(state: &PreparedTableState, sort: SortState) -> TableVi
 /// Narrow `order` to the rows that survive `filters`, preserving the order.
 ///
 /// Filtering the sorted order rather than sorting the filtered rows is the point:
-/// a user who sorts by mass and then types a taxon name still wants mass order,
-/// not name order, and recomputing the sort would also throw away the cached
-/// index that made sorting cheap.
-///
-/// An empty filter set returns the order untouched, so the common case costs one
+/// a user who sorts by mass then types a taxon name still wants mass order, and
+/// recomputing the sort would throw away the cached index that made it cheap. An
+/// empty filter set returns the order untouched, so the common case costs one
 /// comparison and allocates nothing.
 #[must_use]
 pub(super) fn filter_order(

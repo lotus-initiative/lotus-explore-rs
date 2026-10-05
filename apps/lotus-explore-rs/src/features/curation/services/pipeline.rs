@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-// No `future_not_send` suppression here, and none is needed: `curate_rows` takes a
-// callback returning a concrete `Fut`, and the future it builds from that is
-// `Send`. The other modules on the curation path hold a Dioxus `Signal` across
-// their awaits and do need one; this one passes a closure that touches nothing
-// thread-local.
+// No `future_not_send` suppression needed: `curate_rows` takes a callback
+// returning a concrete `Fut`, and the future it builds is `Send`. Other curation
+// modules hold a Dioxus `Signal` across their awaits and do need one; this one
+// passes a closure touching nothing thread-local.
 
 use crate::i18n::Locale;
 use lotus_curation::{

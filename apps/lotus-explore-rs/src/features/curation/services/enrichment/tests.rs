@@ -2,11 +2,10 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for the curation pipeline, kept in their own file.
 //!
-//! These assert the exact `QuickStatements` lines a row produces, because that
-//! string is what a curator submits: a wrong property or a missing reference QID
-//! is a wrong edit to Wikidata, and nothing downstream would notice. The two
-//! mock repositories differ only in whether Wikidata already records the
-//! occurrence, so what is under test is the statement the row would produce.
+//! Asserts the exact `QuickStatements` lines a row produces: a wrong property or
+//! missing reference QID is a wrong edit to Wikidata and nothing downstream
+//! would notice. The two mock repositories differ only in whether Wikidata
+//! already records the occurrence.
 
 // Test code: a failing assertion is how it reports.
 #![allow(clippy::panic)]

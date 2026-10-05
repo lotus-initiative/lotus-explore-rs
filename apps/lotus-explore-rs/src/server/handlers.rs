@@ -108,17 +108,15 @@ async fn prepare_search_request(
 
 /// Take one of the server's `QLever` query slots, or shed the search.
 ///
-/// The polite limit, and deliberately not the same limit as `max_concurrency`:
-/// that one bounds what this server will *accept*, and this one bounds what it
-/// will ask of somebody else's public endpoint. `QLever` serves Wikidata for
-/// everyone from a single machine and cancels any query over 30 s, so a handful
-/// of our searches in flight at once is already a large ask, and an unconstrained
-/// one holds its slot for the whole budget.
+/// Deliberately not `max_concurrency`: that bounds what this server *accepts*,
+/// this bounds what it asks of somebody else's public endpoint. `QLever` serves
+/// Wikidata for everyone from one machine and cancels any query over 30 s, so a
+/// handful in flight is a large ask and an unconstrained one holds its slot for
+/// the whole budget.
 ///
-/// Shedding with a `Retry-After` rather than queueing indefinitely is the other
-/// half of it. A caller told to come back in a few seconds stops being the
-/// reason the queue is long, and the endpoint never sees the query at all --
-/// which is the only outcome that is unambiguously good for it.
+/// Shedding with a `Retry-After` instead of queueing indefinitely: a caller told
+/// to return in a few seconds stops lengthening the queue, and the endpoint never
+/// sees the query at all.
 async fn acquire_upstream_permit(
     permits: &Arc<Semaphore>,
     wait: Duration,

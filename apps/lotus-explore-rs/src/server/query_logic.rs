@@ -125,23 +125,18 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
 
 /// The query the API sends, which is the query the browser sends.
 ///
-/// This used to be a second implementation of the same dispatch that
-/// `lotus_search::build_base_query` performs, and the two disagreed. The
-/// divergence was not hypothetical: the server resolved a wildcard to
-/// `Some("*")` where the library resolves it to `None`, so it had to match both
-/// together -- and `None` is also what an *empty* taxon box produces. The result
-/// was that an empty taxon box ran `all_compounds_query`, which requires `P703`,
-/// while the same request in the browser ran
-/// `all_compounds_including_untaxonomised_query`, which does not.
-///
-/// So the API answered the narrower question for a blank box -- the exact bug
+/// Was a second implementation of the dispatch `lotus_search::build_base_query`
+/// performs, and the two disagreed: the server resolved a wildcard to
+/// `Some("*")` where the library resolves it to `None`, and `None` is also what an
+/// *empty* taxon box produces. An empty box then ran `all_compounds_query`
+/// (requires `P703`) while the browser ran
+/// `all_compounds_including_untaxonomised_query` (does not) — the exact bug
 /// commit 4ead47a set out to fix, fixed in the library and still live here. Two
 /// implementations of one dispatch is what let that happen.
 ///
-/// One implementation now. The wildcard still arrives as `Some("*")`, which the
-/// library's own match handles: `Some(_) => all_compounds_query()`, so the API
-/// keeps requiring an occurrence for `*` and gains the broader answer for a blank
-/// box, agreeing with the browser on both.
+/// One implementation now. The wildcard still arrives as `Some("*")`, handled by
+/// the library's own match (`Some(_) => all_compounds_query()`), so the API keeps
+/// requiring an occurrence for `*` and gains the broader answer for a blank box.
 pub fn build_execution_query(
     criteria: &SearchCriteria,
     resolved_taxon_qid: Option<&str>,

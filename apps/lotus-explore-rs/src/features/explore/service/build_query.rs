@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! SPARQL query construction service.
-//! Pure, synchronous, zero-I/O — ideal for unit testing without stubs.
+//! SPARQL query construction. Pure, synchronous, zero-I/O.
 
 use crate::services::search_telemetry as telemetry;
 use lotus_model::{SearchCriteria, SmilesSearchType};
@@ -28,31 +27,29 @@ pub fn normalize_smiles(raw: &str) -> String {
 
 /// What the structure field resolved to.
 ///
-/// Both parts matter and neither is optional, because the search mode needs both
-/// to answer: the compound for an identity search, and the structure for the two
-/// modes that call the structure service.
+/// The search mode needs both parts to answer: the compound for an identity
+/// search, the structure for the two modes that call the structure service.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedStructure {
     /// The Wikidata compound the input resolved to, when it resolved to one.
     ///
     /// `None` means the input named nothing — a SMILES Wikidata does not have,
     /// which is a perfectly good structure. That is the only way to get `None`; a
-    /// name, an `InChIKey` or a QID that matched nothing is an error instead.
+    /// name, an `InChIKey` or a QID matching nothing is an error instead.
     pub compound: Option<String>,
     /// Every compound the input resolved to, searched together.
     ///
-    /// Empty exactly when [`Self::compound`] is `None`. A structure names a
-    /// molecule and the structure service answers with everything inside the
-    /// cutoff, so this is normally several QIDs -- the stereoisomers of what was
-    /// typed. `compound` is the one named in the notice; this is the set the
-    /// query asks about.
+    /// Empty exactly when [`Self::compound`] is `None`. A structure names a molecule
+    /// and the service answers with everything inside the cutoff, so this is
+    /// normally several QIDs — the stereoisomers of what was typed. `compound` is
+    /// the one named in the notice; this is the set the query asks about.
     pub compounds: Vec<String>,
     /// The literal the structure service is handed.
     ///
-    /// The resolved compound's canonical SMILES (`P233`) when there is one, and
-    /// the reader's own input otherwise. A substructure or similarity search on a
-    /// name therefore searches the compound's own structure rather than the text
-    /// that named it, which is the only thing those two modes could mean.
+    /// The resolved compound's canonical SMILES (`P233`) when there is one, else the
+    /// reader's own input. A substructure or similarity search on a name therefore
+    /// searches the compound's own structure, the only thing those modes could
+    /// mean.
     pub structure: String,
 }
 
@@ -77,15 +74,14 @@ pub fn build_sparql_query(
 ) -> String {
     let nomenclature = lotus_query::Nomenclature::from(crit);
 
-    // Exact means this one compound, and it is answered without the structure
-    // service: an index scan on the QID rather than a load and a scan of every
-    // candidate compound. The taxon filter, when there is one, still expands the
-    // nomenclature.
+    // Exact means this one compound, answered without the structure service: an
+    // index scan on the QID rather than a load and a scan of every candidate. The
+    // taxon filter, when there is one, still expands the nomenclature.
     //
-    // It needs a compound, which is why the resolution runs first for every input
+    // It needs a compound, which is why resolution runs first for every input
     // kind. Input that named nothing falls through to the service below, where
     // `Exact` becomes the same-molecule search.
-    // All the compounds, not the one the notice names. See `ResolvedStructure`.
+    // All the compounds, not just the one the notice names. See `ResolvedStructure`.
     if crit.structure_search == SmilesSearchType::Exact && !resolved.compounds.is_empty() {
         let taxon = taxon_qid.and_then(|t| (t != "*").then_some((t, &nomenclature)));
         return lotus_query::exact_compounds_query(&resolved.compounds, taxon);
@@ -169,9 +165,9 @@ mod tests {
 
     #[test]
     fn a_structure_that_resolved_to_nothing_still_calls_the_service() {
-        // The common case for a SMILES: not a compound Wikidata has. The exact
-        // mode then means the same molecule, which is the only answer the service
-        // can give about a structure.
+        // The common case for a SMILES: not a compound Wikidata has. `Exact` then
+        // means the same molecule, the only answer the service can give about a
+        // structure.
         let crit = SearchCriteria {
             structure: "c1ccccc1".into(),
             ..SearchCriteria::up_to_year(crate::clock::current_year())
@@ -203,10 +199,10 @@ mod tests {
     /// Every match the structure service returned is searched, not just the one
     /// the notice names.
     ///
-    /// The bug this is about: `pick` took the first match, and for
-    /// `C[C@H](O)CO` that is the achiral `Q161495`, which has no occurrence in
-    /// Wikidata, while `Q27093218` -- the (R) form that was actually typed --
-    /// has six. Asking only the first asked an arbitrary question.
+    /// The bug this is about: `pick` took the first match, and for `C[C@H](O)CO` that
+    /// is the achiral `Q161495`, which has no occurrence in Wikidata, while
+    /// `Q27093218` -- the (R) form actually typed -- has six. Asking only the first
+    /// asked an arbitrary question.
     #[test]
     fn an_exact_search_asks_about_every_compound_the_structure_resolved_to() {
         let crit = SearchCriteria {
@@ -236,9 +232,9 @@ mod tests {
 
     #[test]
     fn a_substructure_search_of_a_resolved_compound_does_call_the_service() {
-        // The mode is a question about *other* compounds, so it overrides the
-        // resolution: it needs the service, and it gets the compound's own
-        // structure rather than the text that named it.
+        // A question about *other* compounds, so it overrides the resolution: it needs
+        // the service, and gets the compound's own structure, not the text that
+        // named it.
         let crit = SearchCriteria {
             structure: "amarogentina".into(),
             structure_search: SmilesSearchType::Substructure,

@@ -3,18 +3,16 @@
 
 //! How often a row count is worth telling the UI about.
 //!
-//! Its own module, compiled on every target, because the alternative is a policy
-//! that only exists inside a `cfg(target_arch = "wasm32")` file -- and a policy
-//! whose tests never run is a policy nobody checks. There is nothing wasm-specific
-//! about counting rows.
+//! Its own module, compiled on every target: a policy living inside a
+//! `cfg(target_arch = "wasm32")` file has tests that never run. There is nothing
+//! wasm-specific about counting rows.
 
 /// Rows that must arrive between two progress reports.
 ///
 /// The transport reports once per chunk and a wide search is tens of thousands of
 /// chunks, so reporting every one would re-render the overlay more often than a
-/// reader can see it, and cost more than the parse it is reporting on. At ~16 KB
-/// a chunk this is a handful of updates per second, which is more often than the
-/// number changes visibly.
+/// reader can see it, costing more than the parse it reports on. At ~16 KB a chunk
+/// this is a handful of updates per second.
 pub const PROGRESS_ROW_STEP: usize = 5_000;
 
 /// Decides which row counts are worth reporting, and remembers the last one.
@@ -46,8 +44,7 @@ impl ProgressThrottle {
 
     /// The row count to show, or `None` to show nothing new.
     ///
-    /// `total` is the count so far; it is not called with a total to reach,
-    /// because there is none.
+    /// `rows` is the count so far; there is no total to reach.
     #[must_use]
     pub fn offer(&mut self, rows: usize) -> Option<usize> {
         let worth_reporting = match self.reported {
@@ -63,8 +60,8 @@ impl ProgressThrottle {
 
     /// The count to show when the body has finished.
     ///
-    /// Separate from [`Self::offer`] because the last chunk is as likely to fall
-    /// short of the step as anything else, and it is the one that matters.
+    /// Separate from [`Self::offer`] because the last chunk is as likely to fall short
+    /// of the step as any other, and it is the one that matters.
     #[must_use]
     pub fn finish(&self) -> Option<usize> {
         self.reported
@@ -121,7 +118,7 @@ mod tests {
     #[test]
     fn a_report_smaller_than_the_last_one_is_dropped() {
         // The stale-chunk case: a retry restarting the fetch, or a callback from a
-        // superseded attempt, offering a count the reader has already passed.
+        // superseded attempt, offering a count already passed.
         let mut throttle = ProgressThrottle::new(100);
         let mut shown = Vec::new();
         for chunk in [0usize, 500, 200, 900, 100_000] {

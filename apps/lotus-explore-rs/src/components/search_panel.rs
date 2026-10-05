@@ -2,12 +2,11 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Search panel and its subsection components.
 //!
-//! The panel is three groups — compound, taxon, reference — not one input per
-//! criteria field. Every filter here constrains one of the three things a
-//! result row is about, and the four boxes this replaced were grouped by input
-//! type instead, which is why a molecular mass and a publication year looked
-//! like peers of a taxon name. See `form_sections::entity_group` for the rule
-//! that decides what is always visible and what is collapsed.
+//! Three groups — compound, taxon, reference — not one input per criteria field.
+//! Every filter constrains one of the three things a result row is about; the four
+//! boxes this replaced were grouped by input type, which is why a molecular mass
+//! and a publication year looked like peers of a taxon name. See
+//! `form_sections::entity_group` for what is always visible and what collapses.
 
 use crate::components::form_sections::{
     EntityFilters, FieldExamples, FilterEntity, FormulaSection, MassRangeInput, TaxonInput,
@@ -22,11 +21,9 @@ use crate::state::{use_form_criteria_context, use_results_context};
 use crate::ui::a11y_contract::SEARCH_PANEL_BODY_ID;
 use dioxus::prelude::*;
 
-/// The example buttons, one of each kind the field accepts.
-///
-/// The list and the explanation of it live in `lotus-model`, next to the code
-/// that classifies an input, so the buttons and the resolver cannot disagree
-/// about which one is a name and which is a structure.
+/// The example buttons, one of each kind the field accepts. The list and its
+/// explanation live in `lotus-model`, next to the input classifier, so the buttons
+/// and the resolver cannot disagree about what is a name and what is a structure.
 use lotus_model::REFERENCE_INPUT_EXAMPLES as REFERENCE_SUGGESTIONS;
 use lotus_model::STRUCTURE_INPUT_EXAMPLES as STRUCTURE_SUGGESTIONS;
 use lotus_model::SmilesSearchType;
@@ -55,12 +52,11 @@ pub fn SearchPanel() -> Element {
             id: "lotus-search-form",
             class: "flex-0-auto flex flex-col gap-2 rounded-xl border border-border bg-panel-soft p-3.5 w-full min-w-0 min-h-[300px]",
             aria_label: t(locale, TextKey::Search).to_string(),
-            // WebMCP declarative tool registration. These four `tool*`
-            // attributes are the ones a WebMCP-capable browser reads; it
-            // synthesises the input schema from the named controls below and
-            // `toolparamdescription` supplies each property's description.
-            // The `data-mcp-*` hooks further down are a separate, non-standard
-            // convention kept for tooling that predates WebMCP — they register
+            // WebMCP declarative tool registration. These four `tool*` attributes are
+            // what a WebMCP-capable browser reads: it synthesises the input schema from
+            // the named controls below, and `toolparamdescription` gives each property
+            // its description. The `data-mcp-*` hooks further down are a separate,
+            // non-standard convention kept for tooling that predates WebMCP and register
             // nothing on their own. See docs/DESIGN_SYSTEM.md.
             "toolname": "search_lotus",
             "tooldescription": "Search LOTUS compounds by taxon, structure or compound name, mass range, publication year, and formula.",
@@ -87,10 +83,9 @@ pub fn SearchPanel() -> Element {
                 ReferenceFilters {}
             }
 
-            // The two actions share one row rather than stacking: `Search` is the
-            // thing a reader came to do, and a reset below it reads as part of the
-            // filters above. The grid does the work without touching
-            // `SearchButton`'s own `w-full`, which a flex wrapper would fight.
+            // One row rather than stacking: a reset below `Search` reads as part of the
+            // filters above. The grid does the work without fighting `SearchButton`'s own
+            // `w-full`.
             div {
                 class: "grid w-full grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]",
                 SearchButton {
@@ -99,10 +94,9 @@ pub fn SearchPanel() -> Element {
                     on_click: move |()| button_search.search(),
                 }
                 ResetFiltersButton {
-                    // Disabled rather than hidden when nothing is set. A control
-                    // that appears and disappears moves the buttons around under
-                    // the pointer, and its absence tells a reader nothing about
-                    // whether the form is filtered.
+                    // Disabled, not hidden, when nothing is set: a control that appears
+                    // and disappears moves the buttons under the pointer, and its absence
+                    // says nothing about whether the form is filtered.
                     disabled: !has_filters,
                     on_click: move |()| reset_filters.reset(year_max),
                 }
@@ -150,11 +144,10 @@ fn TaxonFilters() -> Element {
 
 /// Reference: which paper, and when it was published.
 ///
-/// The identifier is what makes this group a search rather than a filter. A
-/// reference has no short common string — it has a title, which is prose — so
-/// what a reader has is a DOI off a paper they are reading, or a QID if they went
-/// and looked it up. Both name exactly one item, so both resolve the same way the
-/// taxon and structure fields do.
+/// The identifier makes this group a search rather than a filter: a reference has no
+/// short common string — only a title, which is prose — so a reader has a DOI off a
+/// paper they are reading, or a QID. Both name exactly one item, so both resolve as
+/// the taxon and structure fields do.
 #[component]
 fn ReferenceFilters() -> Element {
     let primary = rsx! { ReferenceInput {} };
@@ -221,9 +214,8 @@ fn ReferenceInput() -> Element {
 fn StructureInput() -> Element {
     let locale = crate::hooks::use_locale();
     let ctx = use_form_criteria_context();
-    // Only the two fields this actually draws. The threshold is not one of them,
-    // and subscribing to it would re-render the field on every tick of the
-    // slider that lives in the advanced panel.
+    // Only the two fields this draws. The threshold lives in the advanced panel, and
+    // subscribing to it would re-render this field on every slider tick.
     let structure_fields = use_criteria_selector(ctx.criteria, |criteria| {
         (criteria.structure.clone(), criteria.structure_search)
     });
@@ -261,19 +253,15 @@ fn StructureInput() -> Element {
 
 /// How the structure is matched: contains a substructure, or is similar to it.
 ///
-/// Available for every kind of input, not just for structures. A name, an
-/// `InChIKey` and a QID all resolve to a compound, and a reader who wants
-/// "compounds containing this one" is asking a real question that the answer to
-/// which compound does not settle. Reserving the control for SMILES would have
-/// meant the two narrower modes were unreachable from the input people actually
-/// use.
+/// Available for every kind of input, not just structures: a name, an `InChIKey` and
+/// a QID all resolve to a compound, and "compounds containing this one" is a real
+/// question that knowing which compound does not settle. Reserving the control for
+/// SMILES would make the two narrower modes unreachable from the input people use.
 ///
-/// Exact is the default and needs no control of its own to be understood: it is
-/// the answer to "which compound did I just name", and it is the one route that
-/// does not call the structure service.
+/// Exact is the default and needs no control to be understood: it answers "which
+/// compound did I just name" and is the one route that skips the structure service.
 ///
-/// The threshold follows the mode, so it is here too rather than sitting in the
-/// compound group's primary slot.
+/// The threshold follows the mode, so it sits here rather than in the primary slot.
 #[component]
 fn StructureSearchOptions() -> Element {
     let locale = crate::hooks::use_locale();
@@ -290,9 +278,9 @@ fn StructureSearchOptions() -> Element {
 
     rsx! {
         fieldset { class: "m-0 flex flex-col gap-1.5 border-0 p-0",
-            // On the fieldset, not on each radio: WebMCP describes a radio
-            // group as one parameter, and repeating it on both controls
-            // synthesises a conflicting property and fails schema validation.
+            // On the fieldset, not on each radio: WebMCP describes a radio group as one
+            // parameter, and repeating it synthesises a conflicting property that fails
+            // schema validation.
             "toolparamdescription": "How the resolved compound is searched: exact (that compound only), substructure, or similarity.",
             legend { class: "text-micro font-semibold uppercase tracking-wide text-subtle", "{t(locale, TextKey::StructureSearchMode)}" }
             label { class: "inline-flex items-center gap-1.5 text-ui text-muted",
@@ -371,14 +359,10 @@ fn StructureSearchOptions() -> Element {
 
 #[cfg(test)]
 mod tests {
-    //! What the panel's reset control has to be, read from rendered HTML.
-    //!
-    //! The repo's rule, from `a11y_smoke`: look at what came out, not at the text
-    //! of a file. A source-text assertion passes when the markup is right *and*
-    //! when a search-and-replace left a name behind in a comment.
-    //!
-    //! The rule itself is written down at length in
-    //! `form_sections::field_examples`.
+    //! What the panel's reset control has to be, read from rendered HTML per the
+    //! `a11y_smoke` rule — a source-text assertion passes when the markup is right
+    //! *and* when a search-and-replace left a name in a comment. The rule is written
+    //! out at length in `form_sections::field_examples`.
     #![allow(clippy::expect_used, clippy::panic)]
 
     use super::*;
@@ -470,10 +454,9 @@ mod tests {
 
     #[test]
     fn the_reset_does_not_submit_the_form() {
-        // The load-bearing one. The reset sits inside the search form beside a
-        // `type="submit"` button, and a button with no type in a form is a
-        // submit: without this, clearing the filters would also run the search
-        // that had just been cleared.
+        // Load-bearing: the reset sits in the search form beside a `type="submit"`
+        // button, and a button with no type in a form is a submit — so clearing the
+        // filters would also run the search just cleared.
         let html = reset_markup(&render());
         assert!(
             html.contains(r#"type="button""#),
@@ -487,8 +470,8 @@ mod tests {
 
     #[test]
     fn the_reset_is_disabled_until_something_is_set() {
-        // Matched on the attribute, not the word: the class list carries
-        // `disabled:` variants whatever the state is.
+        // Matched on the attribute: the class list carries `disabled:` variants
+        // whatever the state.
         let pristine = reset_markup(&render());
         assert!(
             pristine.contains("disabled=true"),
@@ -506,8 +489,8 @@ mod tests {
 
     #[test]
     fn the_reset_has_no_second_accessible_name() {
-        // DESIGN_SYSTEM.md: the visible text is the accessible name, and an
-        // `aria-label` that can drift from it is a WCAG 2.5.3 failure.
+        // DESIGN_SYSTEM.md: visible text is the accessible name, and an `aria-label`
+        // that can drift from it is a WCAG 2.5.3 failure.
         let html = reset_markup(&render());
         assert!(
             !html.contains("aria-label"),

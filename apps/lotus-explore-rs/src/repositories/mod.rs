@@ -35,10 +35,9 @@ pub enum RepositoryError {
 
     /// A result set that stopped short of what the query asked for.
     ///
-    /// Its own variant rather than a [`RepositoryError::Network`] because a
-    /// caller must be able to tell "nothing came" from "some of it came, and
-    /// that is not the same as all of it". Collapsing the two is how a search
-    /// ends up reporting the row count of whatever bytes survived.
+    /// Its own variant rather than [`RepositoryError::Network`] so a caller can
+    /// tell "nothing came" from "some came, which is not all of it" — collapsing
+    /// the two makes a search report the row count of whatever bytes survived.
     #[error("incomplete result set: {0}")]
     Truncated(Arc<str>),
 }
@@ -84,22 +83,20 @@ pub trait LotusRepository: Clone + 'static {
 
     /// Execute a result query and fold the whole answer into a columnar set.
     ///
-    /// This is the interactive path. It differs from [`Self::sparql_body`] in the
-    /// one way that matters: the body is never assembled. A result set that does
-    /// not fit in memory cannot be fetched by a method that holds it in memory
-    /// first, and the widest search measures 2,990,730 edges at the 314 B/row a
-    /// real export averages -- about 940 MB of decompressed CSV -- against a
-    /// 200 MB budget.
+    /// The interactive path: unlike [`Self::sparql_body`] it never assembles the
+    /// body. A result set too large for memory cannot be fetched by a method that
+    /// holds it in memory first, and the widest search measures 2,990,730 edges
+    /// at the 314 B/row a real export averages — about 940 MB of decompressed
+    /// CSV — against a 200 MB budget.
     ///
-    /// `query` must be the *unlimited* query. A `LIMIT` here would put the old
-    /// truncation back, server-side, where nothing downstream could undo it.
+    /// `query` must be the *unlimited* query: a `LIMIT` here puts the old
+    /// truncation back server-side, where nothing downstream could undo it.
     ///
-    /// The default refuses rather than silently falling back to
-    /// [`Self::sparql_body`]: a transport that cannot stream has to say so,
-    /// because the alternative looks like it worked and exhausts memory later.
+    /// The default refuses rather than falling back to [`Self::sparql_body`],
+    /// because the fallback looks like it worked and exhausts memory later.
     ///
-    /// `on_progress` is called once per chunk read, so a caller that re-renders
-    /// on every call has to throttle -- see
+    /// `on_progress` fires once per chunk read, so a caller that re-renders on
+    /// every call must throttle — see
     /// [`lotus_search::columnar_from_chunks_reporting`].
     ///
     /// # Errors

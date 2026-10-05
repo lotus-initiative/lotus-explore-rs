@@ -3,13 +3,12 @@
 
 //! The structured data in the page head.
 //!
-//! Without this, LOTUS Explorer is a page about a dataset that describes
-//! nothing about itself. Google Dataset Search and the Bioschemas validator
-//! both read the document, and neither can read a page with no markup -- which
-//! is the point of emitting it: a search result set is worth indexing even
-//! though the page that produced it is an application rather than an article.
+//! Without this, LOTUS Explorer is a page about a dataset that describes nothing
+//! about itself. Google Dataset Search and the Bioschemas validator both read the
+//! document: a search result set is worth indexing even though the page that
+//! produced it is an application rather than an article.
 //!
-//! The markup is built by `lotus-jsonld` and arrives here already serialized.
+//! Built by `lotus-jsonld` and already serialized when it arrives.
 
 use dioxus::prelude::*;
 
@@ -18,14 +17,13 @@ use crate::state::use_results_context;
 
 /// Make a JSON string safe to sit inside a `<script>` element.
 ///
-/// This is not optional. HTML parsing ends at the first `</script` it sees,
-/// whatever the surrounding JavaScript or JSON thinks, so a taxon called
-/// `</script><img onerror=...>` would close the element and inject markup. JSON
-/// escaping does not help: `/` is not escaped by `serde_json`, because a slash
-/// needs no escape inside a JSON string.
+/// HTML parsing ends at the first `</script` it sees, whatever the surrounding
+/// JavaScript or JSON thinks, so a taxon called `</script><img onerror=...>` would
+/// close the element and inject markup. JSON escaping does not help: `serde_json`
+/// leaves `/` alone because a slash needs no escape inside a JSON string.
 ///
-/// A `U+2028` or `U+2029` is also replaced: those are line terminators to a
-/// JavaScript parser, so leaving them in breaks the block outright.
+/// `U+2028` and `U+2029` are line terminators to a JavaScript parser, so leaving
+/// them in breaks the block outright.
 #[must_use]
 pub fn escape_for_script_element(json: &str) -> String {
     json.replace("</", "<\\/")
@@ -35,17 +33,15 @@ pub fn escape_for_script_element(json: &str) -> String {
 
 /// The `application/ld+json` block for the current result set.
 ///
-/// Renders nothing until a search has produced metadata: a JSON-LD block
-/// describing an empty result set is a claim about data that does not exist,
-/// and a consumer cannot tell it apart from a real one.
+/// Renders nothing until a search has produced metadata: a JSON-LD block describing
+/// an empty result set is a claim about data that does not exist, and a consumer
+/// cannot tell it apart from a real one.
 /// Make an FAQ JSON-LD string safe to sit inside a `<script>` element.
 ///
-/// The same hazard as [`escape_for_script_element`] and the same fix: HTML parsing
-/// ends at the first `</script`, and `serde_json` does not escape `/` because a slash
-/// needs no escape inside a JSON string. The FAQ text is authored rather than derived
-/// from a taxon name, so it cannot currently contain a slash-bracket sequence -- but
-/// that is a property of today's copy, not of the code path, and the next answer that
-/// mentions markup would break the page.
+/// The same hazard and fix as [`escape_for_script_element`]. The FAQ text is authored
+/// rather than derived from a taxon name, so it cannot currently contain a
+/// slash-bracket sequence — but that is a property of today's copy, not of the code
+/// path, and the next answer mentioning markup would break the page.
 #[must_use]
 pub fn escape_faq_script_element(json: &str) -> String {
     escape_for_script_element(json)
@@ -64,17 +60,15 @@ pub fn StructuredDataHead() -> Element {
         return rsx! {};
     }
 
-    // Rendered in the tree rather than through `document::Script`. That
-    // component installs itself with `use_hook`, which runs once: it would keep
-    // showing the first search's markup after the second one ran, which is a
-    // claim about data the page no longer has. A JSON-LD block is valid
-    // anywhere in the document and consumers read it from the body, so a
-    // reactive element in the tree is both correct and updatable.
+    // Rendered in the tree, not through `document::Script`: that component installs
+    // itself with `use_hook`, which runs once, so it would keep showing the first
+    // search's markup after the second — a claim about data the page no longer has.
+    // JSON-LD is valid anywhere and consumers read it from the body.
     rsx! {
         script {
             type: "application/ld+json",
-            // Escaped above: `serde_json` does not escape `/`, so a slash in the
-            // markup would otherwise be able to close this element.
+            // `serde_json` does not escape `/`, so a slash in the markup could
+            // otherwise close this element.
             dangerous_inner_html: escape_for_script_element(json),
         }
     }
@@ -88,8 +82,8 @@ mod tests {
 
     #[test]
     fn a_closing_script_tag_cannot_escape_the_element() {
-        // The whole point: JSON escaping leaves `</script>` intact, so a
-        // taxon name that happens to contain one ends the element early.
+        // JSON escaping leaves `</script>` intact, so a taxon name containing one
+        // would end the element early.
         let json = r#"{"name":"</script><img src=x onerror=alert(1)>"}"#;
         let escaped = escape_for_script_element(json);
         assert!(
@@ -113,8 +107,8 @@ mod tests {
 
     #[test]
     fn line_terminators_that_break_javascript_are_escaped() {
-        // Valid JSON, invalid JavaScript: U+2028 terminates a line in a JS
-        // parser, so a taxon name with one in it would throw rather than parse.
+        // Valid JSON, invalid JavaScript: U+2028 terminates a line in a JS parser,
+        // so a taxon name with one in it throws rather than parses.
         let escaped = escape_for_script_element("{\"a\":\"x\u{2028}y\"}");
         assert!(!escaped.contains('\u{2028}'), "{escaped}");
         assert!(escaped.contains("\\u2028"), "{escaped}");
@@ -123,16 +117,15 @@ mod tests {
 
     #[test]
     fn ordinary_json_is_unchanged() {
-        // The escaping is narrow on purpose: rewriting more than necessary
-        // would change bytes a consumer might be hashing.
+        // Narrow on purpose: rewriting more would change bytes a consumer might hash.
         let json = r#"{"@type":"Dataset","name":"LOTUS occurrences — Rosa","n":42}"#;
         assert_eq!(escape_for_script_element(json), json);
     }
 
     #[test]
     fn escaping_preserves_the_json_after_it_is_unescaped_by_a_parser() {
-        // `\/` is a legal JSON escape for `/`, so the escaped form still parses
-        // to the original string. If this fails, the escaping corrupted it.
+        // `\/` is a legal JSON escape for `/`, so the escaped form must still parse
+        // to the original string.
         let original = r#"{"name":"a/b</script>c"}"#;
         let escaped = escape_for_script_element(original);
         let parsed: serde_json::Value =

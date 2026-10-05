@@ -28,12 +28,11 @@ enum AskCacheKey {
 
 /// What a whole run already knows, so the per-row path asks nothing.
 ///
-/// Three caches, and the reason they are here rather than scattered through the
-/// row loop is arithmetic: a curation run is over *N* rows, and the questions are
-/// per row, so anything not batched costs `N` requests to a shared public
-/// endpoint. A 200-row import used to be up to 800. It is now five, whatever
-/// `N` is: one for every compound's `InChIKey`, one for taxon names, one for
-/// DOIs, one for "does this occurrence exist" and one for "...by this paper".
+/// Here rather than scattered through the row loop because of arithmetic: *N*
+/// rows times a per-row question is `N` requests to a shared public endpoint, and
+/// a 200-row import was up to 800. It is now five whatever `N` is -- one each for
+/// compound `InChIKey`s, taxon names, DOIs, "does this occurrence exist" and
+/// "...by this paper".
 #[derive(Default)]
 pub struct OccurrenceAskCache {
     values: HashMap<AskCacheKey, bool>,
@@ -54,10 +53,9 @@ fn write_cached_ask(cache: &Mutex<OccurrenceAskCache>, key: AskCacheKey, value: 
 
 /// Record a batch of `(compound, taxon)` answers, all the same verdict.
 ///
-/// The shape the prefetch has: it asks "which of these pairs are recorded" and
-/// gets back the ones that are, so the misses have to be written as `false` as
-/// well. A cache that only stored hits would send the row loop to the network for
-/// every pair that is *not* already there, which is most of them.
+/// The prefetch asks "which of these pairs are recorded" and gets only the ones
+/// that are, so misses are written as `false` too: a cache of hits only would send
+/// the row loop to the network for most pairs.
 pub fn record_pairs_cached(
     cache: &Mutex<OccurrenceAskCache>,
     pairs: impl IntoIterator<Item = (String, String)>,
@@ -212,15 +210,15 @@ mod tests {
             })
         }
 
-        // Two trait items, so two bodies are the trait's shape rather than a copy
-        // someone made. `resolve_taxon_qids_batch` cannot call
-        // `resolve_reference_qids_batch`: they are separate items of the same
-        // trait, and neither is a specialisation of the other. A helper both call
-        // would be three functions to express two empty stubs.
+        // Two trait items, so two bodies are the trait's shape rather than a
+        // copy: `resolve_taxon_qids_batch` cannot call
+        // `resolve_reference_qids_batch`, being separate items of the same trait
+        // and neither a specialisation of the other. A shared helper would be
+        // three functions to express two empty stubs.
         //
-        // The marker goes last because it has to be the line immediately above the
-        // function; with prose in between it is not seen and the pair is reported
-        // anyway, which is a gate that looks broken rather than one that is.
+        // The marker goes last because it must be the line immediately above the
+        // function; prose in between makes the pair get reported anyway, which
+        // looks like a broken gate.
         // dejadoc: allow
         fn resolve_taxon_qids_batch(
             &self,

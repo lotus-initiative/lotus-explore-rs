@@ -3,17 +3,14 @@
 //! Structure conversion, mass and stereochemistry, all through the `RDKit`
 //! bridge.
 //!
-//! One path, for every renderer. The app used to branch on the target: a browser
-//! asked `RDKit` in the page, and a native build went over HTTP to
-//! `api.naturalproducts.net`. That second path was the reason a desktop window
-//! behaved differently from a browser at all -- it answered
+//! One path, for every renderer. Branching on the target made a desktop window
+//! differ from a browser: the HTTP branch (`api.naturalproducts.net`) answered
 //! `Unsupported output format: isomericsmiles`, had no exact-mass endpoint, and
 //! made the structure editor and the curation page disagree with the web build.
 //!
-//! A desktop window is a `WebView`, so `RDKit` runs in it exactly as it does in
-//! a browser. What a native build cannot do is call `web_sys` -- there is no
-//! `window` object to reach -- and `document::eval` is the call that works in
-//! both.
+//! A desktop window is a `WebView`, so `RDKit` runs in it as in a browser. What
+//! native cannot do is call `web_sys` -- there is no `window` object to reach --
+//! and `document::eval` works in both.
 
 // Every function here awaits `document::eval`, which is a `WebView` round trip
 // and so produces a future that is not `Send`. Each is called from a component's
@@ -122,10 +119,8 @@ pub(super) async fn resolve_exact_mass(
 
 /// Read an exact mass out of a JSON payload, at any depth.
 ///
-/// Test-only: the mass a row records now comes from `RDKit`, so nothing in the
-/// app parses a mass out of a service response. Kept because the reading rules
-/// it encodes -- a mass arrives as a number, as a numeric string, or with
-/// thousands separators -- are worth pinning.
+/// Test-only, kept to pin the reading rules: a mass arrives as a number, a
+/// numeric string, or with thousands separators.
 #[cfg(test)]
 pub fn extract_exact_mass_from_json(value: &Value) -> Option<f64> {
     if let Some(v) = value

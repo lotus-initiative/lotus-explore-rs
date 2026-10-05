@@ -3,11 +3,9 @@
 //! In-process taxon name → resolution cache.
 //!
 //! The cached value is the whole resolution, not just the QID. Caching only the
-//! QID makes the notice depend on whether the lookup hit the cache: the first
-//! run reports an ambiguous name, and the second run — which never re-reads the
-//! candidate list — cannot, so the same query tells the user two different
-//! things. A cache that holds only the answer to the question it was asked is
-//! not enough when the answer has a reason attached.
+//! QID makes the notice depend on the cache: the first run reports an ambiguous
+//! name, the second — never re-reading the candidate list — cannot, so one query
+//! tells the user two different things.
 
 use std::cell::RefCell;
 use std::collections::HashMap;

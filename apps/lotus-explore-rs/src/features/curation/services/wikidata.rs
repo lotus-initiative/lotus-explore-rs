@@ -94,31 +94,22 @@ pub async fn fetch_wikidata_compound_by_inchikey(
     }))
 }
 
-/// Fetch every compound in a run with **one** query.
+/// Fetch every compound in a run with **one** query, keyed by the `InChIKey` the
+/// caller computed locally, returning a map.
 ///
-/// The per-key function above is right for one row and ruinous for two hundred:
-/// curation drives a shared public endpoint, and one POST per row is what makes
-/// an import look like an attack. This asks for all of them at once, keyed by the
-/// `InChIKey` the caller already computed locally, and returns a map.
+/// A `SELECT` with `VALUES`, not `N` `ASK`s or a join over every compound: one
+/// index probe per key, same rows the per-key query returns. One POST per row
+/// against a shared public endpoint is what made an import look like an attack.
+/// A row absent from the map is absent from Wikidata.
 ///
-/// A `SELECT` with `VALUES`, not `N` `ASK`s and not a join over every compound:
-/// the keys are known, so the endpoint's work is one index probe per key and the
-/// answer shape is the same rows the per-key query returns. Rows absent from the
-/// map are absent from Wikidata, which is the answer the caller wanted.
+/// No `LIMIT`: Wikidata has a handful of items for some structures, and that
+/// ambiguity is per key, so `MIN(?compound)` picks deterministically instead of
+/// letting plan order decide. The aggregate projects as **`?compound_item`** —
+/// an `AS` clause may not target a variable the body already binds, and the
+/// endpoint's refusal ("The target ?compound of an AS clause was already used in
+/// the query body") is a `400` naming neither this function nor the run.
 ///
-/// No `LIMIT`: the per-key query's `LIMIT 1` was there because Wikidata has a
-/// handful of items for some structures. That ambiguity is per key, so
-/// `MIN(?compound)` picks the same item deterministically instead of letting the
-/// order decide, and a run that resolves a compound to the *second* of two
-/// candidates can no longer depend on which query the endpoint happened to plan
-/// first. The aggregate is projected as **`?compound_item`**: an `AS` clause may
-/// not target a variable the body already binds, and the endpoint's own refusal
-/// ("The target ?compound of an AS clause was already used in the query body") is
-/// a `400` that names neither this function nor the run it broke.
-/// The batched compound query, as a function so a test can check it.
-///
-/// Split out of the request path because a query is only testable if the test can
-/// see the string that was sent.
+/// A function so a test can see the string that was sent.
 fn build_compound_lookup_query(keys: &[String]) -> String {
     let values = inchi_values(keys);
     format!(
@@ -154,14 +145,9 @@ pub async fn fetch_compounds_by_inchikeys<'a>(
 
     let mut resolved: HashMap<String, WikidataCompound> = HashMap::new();
     for binding in json_bindings(&json) {
-        // `compound_item`, not `compound`. The aggregate needs a target the body
-        // did not already bind, and SPARQL says so in as many words:
-        //
-        //   400 Invalid SPARQL query: The target ?compound of an AS clause was
-        //       already used in the query body.
-        //
-        // Which is what the first version of this query returned, for every
-        // curation run, with a message that names neither the app nor the run.
+        // `compound_item`, not `compound`: the aggregate needs a target the body
+        // did not already bind, and QLever answers `400 Invalid SPARQL query: The
+        // target ?compound of an AS clause was already used in the query body`.
         let (Some(key), Some(qid)) = (
             binding_value(binding, "key"),
             binding
@@ -211,17 +197,16 @@ fn inchi_values(keys: &[String]) -> String {
 }
 
 /// Resolve every `(compound, taxon)` occurrence question in a run with **one**
-/// query, and say which pairs Wikidata already records.
+/// query, returning which pairs Wikidata already records.
 ///
-/// The per-pair `ASK` is the right question and the wrong shape for a batch. An
-/// `ASK` returns one boolean for the whole query, so `N` of them is `N` requests
-/// to learn `N` bits. Asking instead for the pairs that *exist* returns all the
+/// `N` per-pair `ASK`s are `N` requests to learn `N` bits, since an `ASK` returns
+/// one boolean for the whole query. Asking for the pairs that *exist* returns the
 /// same bits as the complement of one row set.
 ///
-/// Chunked, because one `VALUES` block with a thousand entries is a query the
-/// endpoint has to plan, and one that fails fails the run. The caller chooses the
-/// chunk size; the default here is above what a spreadsheet of compounds produces
-/// and well below what is expensive to plan.
+/// Chunked because one `VALUES` block with a thousand entries is a query the
+/// endpoint must plan, and a planning failure fails the run. The caller picks the
+/// chunk size; the default here exceeds what a spreadsheet of compounds produces
+/// and stays well below what is expensive to plan.
 pub async fn existing_occurrences(
     pairs: &[(String, String)],
     chunk_size: usize,
@@ -655,17 +640,12 @@ mod tests {
 
     use super::*;
 
-    /// The rule that broke curation, as an assertion rather than as a story.
-    ///
-    /// `MIN(?compound) AS ?compound` is a `400` from QLever with the message "The
-    /// target ?compound of an AS clause was already used in the query body", and
-    /// it broke *every* curation run. There is no SPARQL parser in this workspace
-    /// to hand the query to, so this checks the one property that query got wrong,
-    /// on the generated text: a variable that an `AS` clause introduces must not
-    /// appear anywhere else in the query.
-    ///
-    /// Not a substitute for asking the endpoint -- it is the check that could have
-    /// caught this before a user did.
+    /// `MIN(?compound) AS ?compound` is a QLever `400` ("The target ?compound of
+    /// an AS clause was already used in the query body") and broke *every*
+    /// curation run. No SPARQL parser exists here to hand the query to, so this
+    /// checks the property it got wrong on the generated text: a variable an `AS`
+    /// clause introduces must not appear elsewhere in the query. Not a substitute
+    /// for asking the endpoint.
     fn assert_as_targets_are_not_used_elsewhere(query: &str) {
         let mut rest = query;
         while let Some(start) = rest.find(" AS ?") {
@@ -745,13 +725,11 @@ mod tests {
         );
     }
 
-    /// A name the batch cannot resolve is a name the row loop will ask about
-    /// again, one request at a time.
-    ///
-    /// The batch used to try only the raw spelling while the single-row lookup
-    /// tried the canonicalised one too, so every row whose name needed
-    /// canonicalising paid for a second request to be asked the same question.
-    /// Both spellings now go into the one batched query, under one lookup key.
+    /// A name the batch cannot resolve is one the row loop re-asks, one request at
+    /// a time. The batch tried only the raw spelling while the single-row lookup
+    /// also tried the canonicalised one, so every row needing canonicalisation
+    /// paid for a second identical request. Both spellings now go into the one
+    /// batched query under one lookup key.
     #[test]
     fn the_batch_query_asks_for_both_spellings_of_a_name() {
         let lookups = vec![

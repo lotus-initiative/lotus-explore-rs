@@ -3,19 +3,18 @@
 
 //! Fetching the whole result set in the browser.
 //!
-//! One query, no row limit, and a body that is folded into a columnar set a chunk
-//! at a time. The three things this replaced are each gone for a reason:
+//! One query, no row limit, and a body folded into a columnar set a chunk at a
+//! time. Three things it replaced, each gone for a reason:
 //!
-//! - **`LIMIT`.** It was appended server-side, so the table's filters could only
-//!   ever see the first 500 rows of the result set. Nothing downstream could undo
-//!   it; the truncation happened before the request left.
+//! - **`LIMIT`.** Appended server-side, so the table's filters could only ever see
+//!   the first 500 rows; the truncation happened before the request left.
 //! - **The `COUNT` query.** The set holds every row and deduplicates nothing, so
 //!   its statistics are the counts. That also retires `counts_query`, whose
 //!   construction deletes two named blocks from the query text and whose filter
 //!   re-binding can silently make a filter count nothing.
 //! - **The response cache of CSV bodies.** It held eight whole payloads with no
 //!   bound on body size. What is cached now is the finished set, and an `Arc` of
-//!   it costs nothing to share, so there is one copy rather than eight.
+//!   it costs nothing to share: one copy rather than eight.
 
 use super::{FetchResult, PlannedResultsFetch};
 use super::{PROGRESS_ROW_STEP, ProgressThrottle};
@@ -34,9 +33,8 @@ pub(super) async fn fetch_results<R: LotusRepository>(
     on_processing: &impl Fn(),
     on_progress: &mut impl FnMut(usize),
 ) -> Result<FetchResult, DomainError> {
-    // Reuse a previously built set on back/repeat navigation instead of
-    // re-hitting QLever. The key is the query text, which is now the whole
-    // request: there is no limit left to distinguish one page from another.
+    // Reuse a previously built set on back/repeat navigation instead of re-hitting
+    // QLever. The key is the query text, which is now the whole request.
     let key = plan.execution_query.to_owned();
 
     let timer = perf::start_timer("LOTUS:results_columnar_query");
@@ -85,15 +83,12 @@ pub(super) fn is_probable_memory_limit(err: &DomainError) -> bool {
 
     match err {
         DomainError::Transport { source, .. } => match source {
-            // Neither of these is a body too big to hold, so neither should earn
-            // the reader a "narrow your query" hint.
+            // Neither is a body too big to hold, so neither earns the reader a "narrow
+            // your query" hint.
             //
             // `Truncated` is the one worth spelling out: a stalled or cut-short
-            // body is a *transfer* failure, and offering to narrow the query for
-            // it would fix it only by accident -- by accident returning fewer rows
-            // quickly. It is grouped with `NotConfigured` because that is what the
-            // question being asked here answers for both: is there evidence the
-            // result set did not fit?
+            // body is a *transfer* failure, and offering to narrow the query would
+            // fix it only by accident -- by returning fewer rows quickly.
             RepositoryError::NotConfigured | RepositoryError::Truncated(_) => false,
             RepositoryError::Network(detail) | RepositoryError::Parse(detail) => {
                 has_memory_signature(detail.as_ref())

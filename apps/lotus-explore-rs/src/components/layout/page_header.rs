@@ -48,9 +48,8 @@ pub fn PageHeader() -> Element {
                         Link {
                              to: NavigationTarget::Internal(home.navigation_string()),
 
-                            // Link to the home page; `text-accent` on the chrome
-                            // plane is 5.64:1 light / 7.78:1 dark, so the hover
-                            // keeps 4.5:1 contrast.
+                            // `text-accent` on the chrome plane is 5.64:1 light / 7.78:1 dark,
+                            // so the hover keeps 4.5:1 contrast.
                             class: "break-words text-text no-underline hover:text-accent",
                             "{t(locale, TextKey::PageTitle)}"
                         }
@@ -67,21 +66,16 @@ pub fn PageHeader() -> Element {
                 }
             }
             p {
-                // `line-clamp-3`, not 2: the German subtitle needs three lines
-                // down to 320px (114 chars), French three down to 360px (108),
-                // and three still at 390px for German. At two they were cut
-                // with an ellipsis while English (93 chars) and Italian fit,
-                // so the truncation only ever hit two of the four locales.
-                // Three is the measured maximum across all four below 430px,
-                // so nothing is cropped and short locales still take two.
+                // `line-clamp-3`, not 2: German needs three lines down to 320px
+                // (114 chars) and French three down to 360px (108), while English (93
+                // chars) and Italian fit in two, so clamping at two truncated only two of
+                // the four locales. Three is the measured maximum across all four below
+                // 430px: nothing cropped, short locales still two.
                 //
-                // `mb-2`, not `pb-2`: the clamp's `overflow: hidden` cuts at
-                // the *padding* box, so padding underneath a clamped element
-                // opens an 8px band inside the clip. The next line's ink starts
-                // 4px into that band and got sliced off horizontally, which
-                // read as half-cut letters rather than a clean ellipsis. A
-                // bottom margin sits outside the clip, so the clearance is
-                // unchanged and nothing bleeds.
+                // `mb-2`, not `pb-2`: the clamp's `overflow: hidden` cuts at the *padding*
+                // box, so padding below a clamped element opens an 8px band inside the
+                // clip and the next line's ink, starting 4px in, was sliced rather than
+                // ellipsised. A margin sits outside the clip.
                 class: "mt-3 line-clamp-3 break-words mb-2 text-sm leading-6 text-critical-muted sm:max-w-[72ch] sm:line-clamp-none",
                 "{t(locale, TextKey::PageSubtitle)}"
             }

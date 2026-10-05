@@ -25,9 +25,9 @@ impl SearchOutcome {
     /// Fold a REST response into the same shape the SPARQL path produces.
     ///
     /// Only called when the response holds the whole result set; see
-    /// `api_pipeline` for why a partial page is declined rather than counted.
-    /// Nothing is truncated, so `display_capped_rows` is always false -- the set
-    /// cannot be hiding rows that were never fetched.
+    /// `api_pipeline` for why a partial page is declined. Nothing is truncated,
+    /// so `display_capped_rows` is always false — the set cannot hide rows never
+    /// fetched.
     #[must_use]
     pub fn from_api_response(response: SearchResponse) -> Self {
         let display_capped_rows = false;

@@ -775,9 +775,6 @@
   .gap-y-1 {
     row-gap: var(--spacing-1);
   }
-  .self-end {
-    align-self: flex-end;
-  }
   .truncate {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1083,9 +1080,6 @@
   }
   .pb-1 {
     padding-bottom: var(--spacing-1);
-  }
-  .pb-1\.5 {
-    padding-bottom: calc(var(--spacing) * 1.5);
   }
   .pb-2 {
     padding-bottom: var(--spacing-2);

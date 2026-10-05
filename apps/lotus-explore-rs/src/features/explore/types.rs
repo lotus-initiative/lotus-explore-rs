@@ -35,19 +35,17 @@ pub enum ErrorKind {
     /// The endpoint cancelled the query because it outran its time budget.
     ///
     /// Its own kind because the advice is the opposite of every other failure's:
-    /// nothing about waiting, retrying or reconnecting helps, because the query
-    /// is not going to become cheaper. The only thing that helps is a narrower
-    /// one, so the message says that instead of offering a button whose second
-    /// click spends the endpoint's whole budget again.
+    /// waiting, retrying or reconnecting cannot help — the query will not become
+    /// cheaper. Only a narrower query helps, so the message says that instead of
+    /// offering a button whose second click spends the budget again.
     QueryTooExpensive,
     Parse,
     /// The result set stopped short of the whole answer.
     ///
     /// Its own kind because the generic hint is wrong here. Every other failure
-    /// suggests something the user can change — retry, fix the query, check the
-    /// network — and this one must not: the rows on screen would be a fraction
-    /// of the real set, so the message has to say the answer is incomplete
-    /// rather than suggest trying again and implying that will fix it.
+    /// suggests something changeable — retry, fix the query, check the network —
+    /// and this one must not: the rows on screen are a fraction of the real set,
+    /// so the message says the answer is incomplete.
     Truncated,
     #[cfg(target_arch = "wasm32")]
     Memory,
@@ -81,11 +79,9 @@ impl std::fmt::Display for QueryStage {
 /// Something true about how a search's free-text input resolved, formatted by
 /// the UI layer.
 ///
-/// Named for the act rather than for one of the two things that resolves,
-/// because both do: the taxon field becomes a QID and the structure field
-/// becomes a Wikidata compound. They share a channel so that every fact about a
-/// search reaches the notice bar together, rather than one of them having to be
-/// dropped because there was only room for one.
+/// Named for the act because both things resolve: the taxon field becomes a QID,
+/// the structure field a Wikidata compound. One channel so every fact about a
+/// search reaches the notice bar together instead of one being dropped for room.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LookupNotice {
     /// The raw input was normalized before lookup.
@@ -97,10 +93,10 @@ pub enum LookupNotice {
     /// scientific name (`P225`).
     ///
     /// It resolved, which is the point: refusing it would send the reader to
-    /// Wikidata to perform a lookup this tool has already done. But a common
-    /// name is what prose calls the organism rather than what the compounds are
-    /// filed under, and the same word is used for unrelated taxa in different
-    /// languages, so the reader is told what it resolved to.
+    /// Wikidata for a lookup already done. But a common name is what prose calls
+    /// the organism rather than what the compounds are filed under, and the same
+    /// word names unrelated taxa across languages, so the reader is told what it
+    /// resolved to.
     CommonName {
         chosen_name: String,
         chosen_qid: String,
@@ -108,10 +104,9 @@ pub enum LookupNotice {
     /// A structure field resolved to a Wikidata compound, by one of the routes
     /// that is not an identifier.
     ///
-    /// Named rather than reused from [`LookupNotice::CommonName`] because the
-    /// two are not the same advice: a taxon common name is a poor way to pick an
-    /// organism, while a compound's label or alias is how that compound is
-    /// actually written about, and only the structure search mode changes what
+    /// Separate from [`LookupNotice::CommonName`]: a taxon common name is a poor
+    /// way to pick an organism, while a compound's label or alias is how that
+    /// compound is written about, and only the structure mode changes what
     /// happens next.
     CompoundResolved {
         /// The label or alias that was typed.
@@ -129,12 +124,11 @@ pub enum LookupNotice {
     /// More than one compound matched a structure or a label; `chosen_*` is the
     /// one that was used.
     ///
-    /// Split from [`LookupNotice::AmbiguousTaxon`] rather than shared with it,
-    /// for the same reason [`LookupNotice::CompoundResolved`] is split from
-    /// [`LookupNotice::CommonName`]: the reader's next move is the same, but the
-    /// sentence is not. "Ambiguous taxon name" on a structure search names the
-    /// wrong kind of thing, and points the reader at the field they did not type
-    /// into.
+    /// Split from [`LookupNotice::AmbiguousTaxon`] for the same reason
+    /// [`LookupNotice::CompoundResolved`] is split from
+    /// [`LookupNotice::CommonName`]: same next move, different sentence.
+    /// "Ambiguous taxon name" on a structure search names the wrong kind of thing
+    /// and points at a field never typed into.
     AmbiguousCompound {
         chosen_name: String,
         chosen_qid: String,

@@ -46,18 +46,16 @@ pub(super) fn pick_best_match<'a>(
     sanitized: &str,
     matches: &'a [TaxonMatch],
 ) -> Result<MatchSelection<'a>, DomainError> {
-    // Two passes over the candidates, because the two things being ranked are
-    // independent questions:
+    // Two independent questions, so two passes: an exact reading of the input
+    // beats a partial one, and at equal exactness a scientific name beats a
+    // common name.
     //
-    // 1. an exact reading of the input beats a partial one, and
-    // 2. a scientific name beats a common name at equal exactness.
-    //
-    // The second outranks nothing and is outranked by nothing: a common name
-    // that the reader typed as a common name is still better answered by the
-    // taxon that *calls itself* that than by the one somebody happened to record
-    // the word as a vernacular name for. Getting this the other way round is the
-    // failure this ordering exists to prevent — `Bacteria` is the scientific name
-    // of Q10876 and a common name of several unrelated things.
+    // The second outranks nothing and is outranked by nothing: a common name the
+    // reader typed as a common name is better answered by the taxon that *calls
+    // itself* that than by one somebody happened to record the word as a
+    // vernacular name for. Inverted, `Bacteria` would send every bacteria search
+    // to the wrong kingdom: it is the scientific name of Q10876 and a common name
+    // of several unrelated things.
     let best = matches
         .iter()
         .filter(|candidate| eq_casefold(&candidate.name, sanitized))
@@ -173,9 +171,9 @@ mod tests {
 
     #[test]
     fn a_scientific_name_beats_a_common_name_at_equal_exactness() {
-        // The whole point: `Bacteria` is the scientific name of Q10876 and a
-        // common name of Q4034791. Ordering these the other way round sends
-        // every bacteria search to the wrong kingdom.
+        // `Bacteria` is the scientific name of Q10876 and a common name of Q4034791;
+        // ordered the other way round, every bacteria search goes to the wrong
+        // kingdom.
         let matches = vec![
             common("Bacteria", "Q4034791"),
             candidate("Bacteria", "Q10876"),
@@ -206,8 +204,8 @@ mod tests {
 
     #[test]
     fn an_exact_scientific_name_beats_a_partial_scientific_one() {
-        // Exactness outranks nothing about the source: this is still two
-        // scientific names, and the one the reader typed is the answer.
+        // Exactness outranks the source: still two scientific names, and the one
+        // typed is the answer.
         let matches = vec![
             candidate("Gentiana", "Q1"),
             candidate("Gentiana lutea", "Q2"),
@@ -220,9 +218,8 @@ mod tests {
 
     #[test]
     fn exactness_outranks_the_source() {
-        // Only the common name matches the input exactly; the scientific name is
-        // a different organism entirely. Exactness decides first, so the common
-        // name wins — and still says so, because it still is one.
+        // The scientific name is a different organism entirely. Exactness decides
+        // first, so the common name wins — and still says so, being one.
         let matches = vec![
             common("Gentiana", "Q777"),
             candidate("Gentiana lutea", "Q2"),
@@ -245,7 +242,7 @@ mod tests {
     #[test]
     fn a_common_name_that_matches_nothing_exactly_still_wins_over_nothing() {
         // Partial reading: the common name is the best available answer, and the
-        // ambiguity notice lists what else could have been meant.
+        // ambiguity notice lists the alternatives.
         let matches = vec![common("Gentian", "Q777"), candidate("Gentiana lutea", "Q2")];
 
         let selection = pick_best_match("Gentia", &matches).expect("selection should succeed");

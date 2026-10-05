@@ -79,10 +79,9 @@ async fn fetch_results_csv<R: LotusRepository>(
 
 /// Fold the spooled body into a columnar set.
 ///
-/// The body is spooled to a file first, which is how the native path keeps a large
-/// result off the heap while the endpoint is still answering. The file is then
-/// read back through the incremental CSV reader, so the peak is the finished set
-/// rather than the set plus the whole payload.
+/// Spooling to a file keeps a large result off the heap while the endpoint is
+/// still answering. Reading it back through the incremental CSV reader makes the
+/// peak the finished set, not the set plus the whole payload.
 fn process_full_results_csv(
     payload: FetchedResultsPayload,
 ) -> Result<ProcessedResults, DomainError> {

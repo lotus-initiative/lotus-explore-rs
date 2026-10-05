@@ -10,16 +10,14 @@
 //! Structure resolution — maps whatever is in the structure field to the
 //! compound it names and the structure the search service will be given.
 //!
-//! This is the counterpart to [`super::resolve_taxon`] and exists for the same
-//! reason: the field used to require something only the endpoint could interpret,
-//! and a reader typing `amarogentina` deserves the same answer as one typing a
-//! taxon name.
+//! The counterpart to [`super::resolve_taxon`]: the field used to require
+//! something only the endpoint could interpret, and a reader typing
+//! `amarogentina` deserves the same answer as one typing a taxon name.
 //!
 //! ## Everything is resolved, then the mode decides
 //!
-//! Resolution runs first, for **every** input kind, because the default mode
-//! needs a QID and a structure is not one. Only once a compound is known does the
-//! search mode say anything about it:
+//! Resolution runs first, for **every** input kind, because the exact mode needs a
+//! QID and a structure is not one.
 //!
 //! | Typed | Resolved by | Round trips |
 //! | --- | --- | --- |
@@ -28,33 +26,29 @@
 //! | a name | [`compound_label_query`], then [`compound_alias_query`] | 1 or 2 |
 //! | a SMILES or molfile | [`structure_compound_lookup_query`] | 1 — the service, at a cutoff of 1 |
 //!
-//! What happens next is not this module's business: it hands back a
-//! [`ResolvedStructure`] holding the compound (when there is one) and the
-//! structure to search with, and [`super::build_query`] picks the route from the
-//! mode. A compound the reader named is searched by identity — no service, no
-//! index load — and the two broader modes go to the service with that compound's
-//! own canonical SMILES.
+//! This module hands back a [`ResolvedStructure`] and stops; [`super::build_query`]
+//! picks the route from the mode. A compound the reader named is searched by
+//! identity — no service, no index load — and the two broader modes go to the
+//! service with that compound's own canonical SMILES.
 //!
 //! ## The guard
 //!
 //! A SMILES must never be silently replaced by a same-spelled Wikidata item, so
 //! [`lotus_model::could_be_a_compound_name`] decides what may be sent to the name
-//! lookup at all. It is the reason `CC` and `CCC` stay structures, and it is
-//! where the cost of that decision is written down: `ATP`, `GDP` and `NAD` are
-//! real compound names that it refuses.
+//! lookup at all. It is the reason `CC` and `CCC` stay structures, and where the
+//! cost of that decision is written down: `ATP`, `GDP` and `NAD` are real compound
+//! names it refuses.
 //!
 //! ## Why a name that misses is an error, and a structure is not
 //!
-//! A name, an `InChIKey` or a QID is a claim about *which* compound is meant.
-//! There is nothing to guess at when it matches nothing, and searching for a
-//! structure literally spelled `aspirin` would return a confusingly empty result
-//! instead of saying the name is unknown.
-//!
-//! A structure is not a claim at all, so a structure Wikidata has no compound for
-//! is not a miss: it is a good structure that is simply not in the database, and
-//! searching it is what the reader asked for. This is the one asymmetry with the
-//! other three routes, and it is what keeps every structure search that ever
-//! worked still working.
+//! A name, an `InChIKey` or a QID is a claim about *which* compound is meant, and
+//! there is nothing to guess at when it matches nothing. Searching for a structure
+//! literally spelled `aspirin` would return a confusingly empty result instead of
+//! saying the name is unknown. A structure is not a claim at all, so a structure
+//! Wikidata has no compound for is not a miss: it is a good structure simply not in
+//! the database, and searching it is what the reader asked for. This is the one
+//! asymmetry with the other three routes, and it keeps every structure search that
+//! ever working still working.
 //!
 //! [`compound_by_qid_query`]: lotus_query::compound_by_qid_query
 //! [`compound_inchikey_query`]: lotus_query::compound_inchikey_query
@@ -82,13 +76,12 @@ pub struct StructureResolution {
 
 /// Resolve the structure field.
 ///
-/// Everything the field holds is resolved to a Wikidata compound first, including
-/// a structure, because the exact route needs a QID and a structure is not one.
+/// Everything is resolved to a Wikidata compound first, including a structure,
+/// because the exact route needs a QID and a structure is not one.
 ///
-/// Fails only on input that was *claiming* to name a compound and did not: a QID,
-/// an `InChIKey` or a plausible name that matched nothing. A structure that
-/// Wikidata has no compound for is not a failure, so no search that worked
-/// before can stop working.
+/// Fails only on input *claiming* to name a compound and matching nothing: a QID,
+/// an `InChIKey` or a plausible name. A structure with no Wikidata compound is not
+/// a failure, so no search that worked before can stop working.
 pub async fn resolve<R: LotusRepository>(
     input: &str,
     repo: &R,
@@ -102,9 +95,8 @@ pub async fn resolve<R: LotusRepository>(
         });
     }
 
-    // Both remembered outcomes short-circuit: a hit is answered from the cache,
-    // and a miss is answered from it too. Only `Unknown` means "ask the
-    // endpoint".
+    // Both remembered outcomes short-circuit: a hit from the cache, a miss from it
+    // too. Only `Unknown` means "ask the endpoint".
     let claims_a_compound = names_a_compound(trimmed);
     match structure_cache::lookup(trimmed) {
         structure_cache::Cached::Unknown => {}
@@ -112,9 +104,9 @@ pub async fn resolve<R: LotusRepository>(
     }
 
     let found = lookup(trimmed, claims_a_compound, repo, metrics).await?;
-    // Remembered either way, so a repeat search does not repeat the lookup -- and
-    // the miss is the one worth remembering, since it is the one a reader is
-    // most likely to retype.
+    // Remembered either way, so a repeat search does not repeat the lookup; the
+    // miss is the one worth remembering, being the one a reader most likely
+    // retypes.
     structure_cache::store(trimmed, found.clone());
 
     match found {
@@ -122,19 +114,16 @@ pub async fn resolve<R: LotusRepository>(
             resolved: to_resolved(input, &cached),
             notices: to_notices(&cached),
         }),
-        // A name, an `InChIKey` or a QID that matched nothing: a claim about a
-        // compound that does not exist, and nothing to guess at. Refused, the
-        // same way an unknown taxon name is.
+        // A name, an `InChIKey` or a QID matching nothing: a claim about a
+        // compound that does not exist. Refused like an unknown taxon name.
         None if claims_a_compound => {
             Err(DomainError::Validation(ValidationFault::CompoundNotFound {
                 input: input.to_owned(),
             }))
         }
-        // A structure Wikidata has no compound for. Not a miss at all: it is a
-        // good structure that is simply not in the database, and searching it is
-        // what the reader asked for. This is the one asymmetry with the other
-        // three routes, and it is deliberate -- nothing about a structure is a
-        // claim that can turn out to be wrong.
+        // A structure with no Wikidata compound. Not a miss: a good structure
+        // simply not in the database. Nothing in a structure is a claim that
+        // can turn out wrong.
         None => Ok(StructureResolution {
             resolved: ResolvedStructure::unresolved(input),
             notices: Vec::new(),
@@ -152,10 +141,9 @@ fn to_resolved(input: &str, cached: &CachedCompound) -> ResolvedStructure {
         } else {
             cached.all_qids.clone()
         },
-        // The compound's own structure when it has one. Otherwise the reader's
-        // input stands, which for a name means the text that named the compound
-        // -- the structure service will say so itself, and that is the right
-        // place for it to surface.
+        // The compound's own structure. Otherwise the input stands, which for a
+        // name is the text that named the compound -- the structure service
+        // says so itself, which is the right place for it to surface.
         structure: if cached.canonical_smiles.is_empty() {
             input.to_owned()
         } else {
@@ -166,10 +154,10 @@ fn to_resolved(input: &str, cached: &CachedCompound) -> ResolvedStructure {
 
 /// Rebuild a resolution from the cache.
 ///
-/// A remembered miss raises the same error a first-time miss does. Handing the
+/// A remembered miss raises the same error a first-time miss does; handing the
 /// input back as a structure instead would make the second search of a typo
-/// return something while the first refused it -- which is the same "the notice
-/// changes when you search again" failure the taxon cache was written to avoid.
+/// return something while the first refused it -- the "notice changes when you
+/// search again" failure the taxon cache was written to avoid.
 fn from_cached(
     input: &str,
     entry: structure_cache::Cached,
@@ -222,17 +210,16 @@ fn to_notices(cached: &CachedCompound) -> Vec<LookupNotice> {
 
 /// Run the lookup this input calls for.
 ///
-/// One route per input kind. The `InChIKey` and the QID each stop at their own
-/// query: an `InChIKey` names one compound by construction and a QID names one
-/// outright, so if neither is known a name lookup is not going to find what the
-/// reader meant. A name is the only kind that can be wrong in a way another kind
-/// would catch, which is why it is the only one that falls through — label first,
-/// then alias, because a label is the item's preferred name and so is the one a
-/// reader meant.
+/// One route per input kind. An `InChIKey` names one compound by construction and
+/// a QID names one outright, so if neither is known a name lookup will not find
+/// what the reader meant. A name is the only kind that can be wrong in a way
+/// another kind would catch, so it is the only one that falls through — label
+/// first, then alias, because a label is the item's preferred name and so the
+/// one a reader meant.
 ///
-/// A structure is asked of the structure service instead: "is this a compound you
-/// have?" is the one question that identifies it, and at a cutoff of 1.0 it is
-/// also the narrowest one with an answer.
+/// A structure is asked of the structure service instead: "is this a compound
+/// you have?" is the one question that identifies it, and at a cutoff of 1.0 the
+/// narrowest one with an answer.
 async fn lookup<R: LotusRepository>(
     input: &str,
     names_a_compound: bool,
@@ -368,9 +355,8 @@ mod tests {
 
     #[test]
     fn a_structure_resolves_through_the_structure_service() {
-        // A structure is not a QID, so the exact route needs one. The only thing
-        // that can supply it is the service, asked the narrowest question there
-        // is: is this structure a compound you have?
+        // A structure is not a QID, so the exact route needs one, and only the
+        // service can supply it.
         structure_cache::clear();
         let repo = StubRepo::new(vec![Ok(csv("Q18216,aspirin,CC(=O)OC1=CC=CC=C1C(=O)O"))]);
         let resolution = resolve_on("C[C@H](O)CO", &repo);
@@ -386,9 +372,9 @@ mod tests {
 
     #[test]
     fn a_structure_wikidata_does_not_have_is_not_an_error() {
-        // The one asymmetry with the other three routes. A SMILES is not a claim
-        // about a compound, so there is nothing in it that can turn out wrong --
-        // and refusing it would break every structure search there ever was.
+        // The one asymmetry with the other three routes: nothing in a SMILES can
+        // turn out wrong, and refusing it would break every structure search
+        // there ever was.
         structure_cache::clear();
         let repo = StubRepo::new(vec![Ok(csv(""))]);
         let resolution = resolve_on("C[C@H](O)CO", &repo);
@@ -408,8 +394,8 @@ mod tests {
 
     #[test]
     fn a_qid_is_confirmed_by_one_query_and_names_its_compound() {
-        // One `VALUES` and nothing else. It is still a lookup, because a QID that
-        // names nothing has to say so rather than return an empty table.
+        // Still a lookup, because a QID that names nothing has to say so
+        // rather than return an empty table.
         structure_cache::clear();
         let repo = StubRepo::new(vec![Ok(csv("Q18216,aspirin,CC(=O)O"))]);
         let resolution = resolve_on("Q18216", &repo);
@@ -488,10 +474,9 @@ mod tests {
 
     #[test]
     fn a_name_that_resolves_to_nothing_is_an_error() {
-        // The taxon field's rule, for the same reason: a name is a claim about
-        // which compound is meant, and there is nothing to guess at if it
-        // matched nothing. A structure cannot reach here, so no existing search
-        // can start failing.
+        // The taxon field's rule: a name claims which compound is meant, and there
+        // is nothing to guess at if it matched nothing. A structure cannot
+        // reach here, so no existing search can start failing.
         structure_cache::clear();
         let repo = StubRepo::new(vec![Ok(csv("")), Ok(csv(""))]);
         let outcome = futures::executor::block_on(resolve(
@@ -551,9 +536,9 @@ mod tests {
 
     #[test]
     fn a_resolved_compound_hands_its_own_structure_to_the_service() {
-        // The whole reason the lookups fetch `P233`. A substructure or
-        // similarity search needs a structure, and for a name the text that named
-        // the compound is not one.
+        // The whole reason the lookups fetch `P233`: a substructure or similarity
+        // search needs a structure, and the text that named the compound is not
+        // one.
         structure_cache::clear();
         let repo = StubRepo::new(vec![Ok(csv("Q18216,aspirin,CC(=O)OC1=CC=CC=C1C(=O)O"))]);
         let resolution = resolve_on("Aspirin", &repo);
@@ -566,9 +551,9 @@ mod tests {
 
     #[test]
     fn a_compound_with_no_canonical_smiles_falls_back_to_what_was_typed() {
-        // Nothing better is available, and the service will reject a name as a
-        // structure with a message about the structure — which is the right place
-        // for that to surface, rather than an error raised here.
+        // Nothing better is available, and the service rejects a name as a structure
+        // with a message about the structure — the right place for that to
+        // surface, rather than an error raised here.
         structure_cache::clear();
         let repo = StubRepo::new(vec![Ok(csv("Q18216,aspirin,"))]);
         let resolution = resolve_on("Aspirin", &repo);
@@ -633,10 +618,10 @@ mod tests {
 
     #[test]
     fn a_service_failure_on_the_structure_route_is_not_read_as_not_in_wikidata() {
-        // The failure mode worth naming: this route answers "is this a compound
-        // you have?", and an unreachable service answering "no" would send every
-        // structure search down the fallback silently — looking like a database
-        // that has never heard of the compound.
+        // The failure mode worth naming: an unreachable service answering "no" to "is
+        // this a compound you have?" would send every structure search down the
+        // fallback silently, looking like a database that never heard of the
+        // compound.
         structure_cache::clear();
         let repo = StubRepo::new(vec![Err(RepositoryError::network("timeout"))]);
         let outcome = futures::executor::block_on(resolve(

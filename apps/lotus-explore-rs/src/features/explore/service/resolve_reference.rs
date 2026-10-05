@@ -7,15 +7,13 @@
 //! Reference resolution — turns a QID or a DOI into the Wikidata item to constrain
 //! the search by.
 //!
-//! This is the third of the three resolutions, and the smallest. A taxon has a
-//! scientific name and a common one. A compound has a name, a formula and an
-//! `InChIKey`. A reference has a title, which is prose — and matching prose
-//! against several hundred thousand references is a question with no useful
-//! answer, since every paper has a title and a great many are the same three
-//! words.
+//! The third and smallest of the three resolutions. A reference's only usable
+//! field is its title, which is prose — and matching prose against several hundred
+//! thousand references has no useful answer, since a great many titles are the same
+//! three words.
 //!
-//! What a reference does have is two identifiers that each name exactly one item,
-//! and both are recognised by shape before any request is made:
+//! What it does have is two identifiers that each name exactly one item, both
+//! recognised by shape before any request is made:
 //!
 //! | Typed | Lookup |
 //! | --- | --- |
@@ -40,17 +38,17 @@ use lotus_query::ReferenceMatch;
 pub struct ReferenceResolution {
     /// The Wikidata item, or `None` when the field was left empty.
     ///
-    /// `None` means "no constraint", not "not found": a reference that matched
-    /// nothing is an error, not an absent filter.
+    /// `None` means "no constraint", not "not found": a reference matching nothing
+    /// is an error, not an absent filter.
     pub qid: Option<String>,
     pub notices: Vec<LookupNotice>,
 }
 
 /// Whether this field is worth a round trip at all.
 ///
-/// False for an empty field, so a search that does not mention a reference does
-/// not pay for one. Both recognised shapes do pay: a QID is confirmed to exist,
-/// and a DOI is a lookup in its own right.
+/// False for an empty field, so a search not mentioning a reference does not pay
+/// for one. Both recognised shapes do pay: a QID is confirmed to exist, and a DOI
+/// is a lookup in its own right.
 #[must_use]
 pub fn requires_remote_lookup(reference: &str) -> bool {
     let trimmed = reference.trim();
@@ -127,10 +125,9 @@ async fn run<R: LotusRepository>(
         })
     })?;
 
-    // An empty result is a legitimate answer — the endpoint said it has no such
-    // reference — and `resolve` turns it into "not found". Reading it as a
-    // transport failure would tell the reader to retry instead of correcting
-    // the DOI.
+    // An empty result is a legitimate answer and `resolve` turns it into "not
+    // found"; reading it as a transport failure would tell the reader to retry
+    // instead of correcting the DOI.
     Ok(parsed)
 }
 
@@ -208,8 +205,8 @@ mod tests {
 
     /// One row whose only column is the item URI the lookup projects.
     ///
-    /// Yields a `Result` because a transport failure is one of the cases these
-    /// tests ask about, and the stub's replies are one type whatever they hold.
+    /// A `Result` because transport failure is one of the cases under test, and
+    /// the stub's replies are one type whatever they hold.
     #[expect(
         clippy::unnecessary_wraps,
         reason = "the stub replies are uniformly `Result`, including the failures under test"
@@ -259,8 +256,8 @@ mod tests {
 
     #[test]
     fn a_doi_is_asked_for_in_upper_case() {
-        // Wikidata stores DOIs uppercased, and a lowercased lookup returns nothing
-        // at all -- which is indistinguishable from a DOI that does not exist.
+        // Wikidata stores DOIs uppercased, and a lowercased lookup returns nothing,
+        // indistinguishable from a DOI that does not exist.
         let repo = StubRepo::new(vec![csv("http://www.wikidata.org/entity/Q34460861")]);
         let resolution = resolve_on("10.1002/andp.18280880206", &repo);
         assert_eq!(resolution.qid.as_deref(), Some("Q34460861"));
@@ -294,28 +291,26 @@ mod tests {
 
     #[test]
     fn the_doi_query_keeps_the_shape_the_scholarly_fallback_recognises() {
-        // `is_reference_lookup` detects a bare `SELECT ?ref WHERE {` that scans
-        // `P356`, and that detection is what routes a failed lookup to the WDQS
-        // scholarly subgraph -- the one WDQS service that answers `P356` quickly.
-        // Adding an English label to the query would quietly cost that fast route,
-        // which is why the lookup deliberately does not fetch one.
+        // `is_reference_lookup` detects a bare `SELECT ?ref WHERE {` that scans `P356`,
+        // and that detection routes a failed lookup to the WDQS scholarly subgraph
+        // -- the one WDQS service that answers `P356` quickly. An English label
+        // would quietly cost that fast route, so the lookup does not fetch one.
         let doi = lotus_query::reference_by_doi_query("10.1002/andp.18280880206");
         assert!(lotus_query::is_reference_lookup(&doi), "{doi}");
     }
 
     #[test]
     fn the_qid_query_is_not_mistaken_for_a_doi_scan() {
-        // It must *not* match: there is no `P356` scan here, just a `VALUES`, so
-        // the main endpoint answers it and routing it to the scholarly subgraph
-        // would buy nothing.
+        // Must *not* match: no `P356` scan here, just a `VALUES`, so the main endpoint
+        // answers it and the scholarly subgraph would buy nothing.
         let qid = lotus_query::reference_by_qid_query("Q23118");
         assert!(!lotus_query::is_reference_lookup(&qid), "{qid}");
     }
 
     #[test]
     fn something_that_is_neither_a_qid_nor_a_doi_is_refused() {
-        // There is no third route, so this is the reader being told the accepted
-        // forms rather than the constraint being dropped in silence.
+        // No third route: the reader is told the accepted forms rather than having
+        // the constraint dropped in silence.
         let repo = StubRepo::new(vec![]);
         for input in [
             "Gentiana lutea",
