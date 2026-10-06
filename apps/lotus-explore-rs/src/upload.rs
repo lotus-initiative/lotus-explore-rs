@@ -52,11 +52,6 @@ pub enum UploadError {
     #[error("blob read error: {0}")]
     UploadBlob(String),
 
-    /// Browser-only operation, raised by the native stubs.
-    #[cfg(not(target_arch = "wasm32"))]
-    #[error("download is only available in the browser")]
-    BrowserOnly,
-
     /// App-level validation error, raised by the native stubs.
     #[cfg(not(target_arch = "wasm32"))]
     #[error("{0}")]
@@ -182,55 +177,6 @@ impl UploadBlobLines {
         // Yield so the UI stays responsive between chunks.
         TimeoutFuture::new(0).await;
         Ok(())
-    }
-}
-
-/// Native stub.
-#[cfg(not(target_arch = "wasm32"))]
-pub struct UploadBlobLines;
-
-#[cfg(not(target_arch = "wasm32"))]
-impl UploadBlobLines {
-    // The three allows below are on the native stub and nowhere else, because the
-    // stub is the only reason they fire: the wasm half of this module awaits a
-    // real `Blob::slice`, takes real references and returns real data. Clipping
-    // any of it would mean the two halves no longer have the same shape, and a
-    // caller that compiles against one and not the other is exactly the bug this
-    // pairing exists to prevent.
-    // Zero-sized on native, so there is nothing to copy either way, but the wasm
-    // half takes a reference and the two signatures have to match. This is a
-    // whole-function allow rather than one on the parameter because clippy reports
-    // it on the signature, not the binding.
-    #[expect(
-        clippy::trivially_copy_pass_by_ref,
-        reason = "the wasm half takes `&UploadBlob`; the pair must match"
-    )]
-    #[must_use]
-    pub fn new(_blob: &UploadBlob) -> Self {
-        Self
-    }
-
-    // `std::future::ready` would return a future rather than an `async fn`, and
-    // the caller's `.await` would then be awaiting a value instead of this
-    // reader's state -- the signature is the contract, not the body.
-    // Both names, because the stub is an inherent method rather than a trait
-    // impl: `unused_async_trait_impl` and `unused_async` are separate lints and
-    // which one fires depends on how clippy classifies the item. Naming one and
-    // getting the other is a build failure.
-    #[expect(
-        clippy::unused_async,
-        reason = "the wasm half of this method awaits `Blob::slice`; the pair must match"
-    )]
-    #[expect(
-        clippy::unused_async_trait_impl,
-        reason = "same reason as unused_async above; both lints cover this stub"
-    )]
-    #[expect(
-        clippy::needless_pass_by_ref_mut,
-        reason = "the wasm half takes `&mut self` because the reader has state; the pair must match"
-    )]
-    pub async fn next_line(&mut self) -> Result<Option<String>, UploadError> {
-        Err(UploadError::BrowserOnly)
     }
 }
 
