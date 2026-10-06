@@ -245,43 +245,15 @@ mod tests {
         assert_eq!(cli.get("HOST"), Some("0.0.0.0".to_string()));
     }
 
+    /// One shape, three rejections: non-numeric, negative, and past `u16::MAX`.
+    /// Each must name `PORT` in the message, so that is what the table asserts.
     #[test]
-    fn from_provider_invalid_port_string_returns_error() {
-        let result = AppConfig::from_provider(|name| {
-            if name == "PORT" {
-                Some("not-a-port".to_string())
-            } else {
-                None
-            }
-        });
-        let err = result.expect_err("non-numeric port should error");
-        assert!(err.contains("PORT"));
-    }
-
-    #[test]
-    fn from_provider_negative_port_returns_error() {
-        let result = AppConfig::from_provider(|name| {
-            if name == "PORT" {
-                Some("-1".to_string())
-            } else {
-                None
-            }
-        });
-        let err = result.expect_err("negative port should error");
-        assert!(err.contains("PORT"));
-    }
-
-    #[test]
-    fn from_provider_port_overflow_returns_error() {
-        let result = AppConfig::from_provider(|name| {
-            if name == "PORT" {
-                Some("70000".to_string())
-            } else {
-                None
-            }
-        });
-        let err = result.expect_err("port > u16::MAX should error");
-        assert!(err.contains("PORT"));
+    fn from_provider_rejects_a_port_it_cannot_parse() {
+        for bad in ["not-a-port", "-1", "70000"] {
+            let result = AppConfig::from_provider(|name| (name == "PORT").then(|| bad.to_string()));
+            let err = result.expect_err("an unparseable port should error");
+            assert!(err.contains("PORT"), "{bad:?} should be named in the error");
+        }
     }
 
     #[test]

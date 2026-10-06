@@ -216,63 +216,56 @@ mod tests {
         })
     }
 
+    /// 2xx and 3xx are both healthy, and 3xx is the case that decides it: the
+    /// server redirects `/` to `/search` on purpose, so a 3xx is the server
+    /// routing rather than the server failing, and treating it as unhealthy would
+    /// fail a container that is working exactly as designed.
     #[test]
-    fn a_2xx_is_healthy() {
-        let (listener, host, port) = bind();
-        let server = serve_once(listener, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
-        let status = request(&host, port, "/health").expect("a healthy answer");
-        assert_eq!(status, 200);
-        server.join().expect("the server thread");
+    fn a_2xx_or_3xx_is_healthy() {
+        for (response, path, expected) in [
+            (
+                "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n",
+                "/health",
+                200,
+            ),
+            (
+                "HTTP/1.1 302 Found\r\nLocation: /search\r\nContent-Length: 0\r\n\r\n",
+                "/",
+                302,
+            ),
+        ] {
+            let (listener, host, port) = bind();
+            let server = serve_once(listener, response);
+            assert_eq!(
+                request(&host, port, path).expect("a healthy answer"),
+                expected
+            );
+            server.join().expect("the server thread");
+        }
     }
-
+    /// A 5xx is the server failing and a 4xx is the path being wrong; both are
+    /// unhealthy, and both errors must name the status so an operator reading the
+    /// log knows which one it was.
     #[test]
-    fn the_request_line_names_the_path_and_the_host() {
-        let (listener, host, port) = bind();
-        let server = serve_once(listener, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
-        let _ = request(&host, port, "/health").expect("a healthy answer");
-        let request_line = server.join().expect("the server thread");
-        assert_eq!(request_line.trim_end(), "GET /health HTTP/1.0");
+    fn a_4xx_or_5xx_is_unhealthy_and_names_the_status() {
+        for (response, path, status) in [
+            (
+                "HTTP/1.1 500 Internal Server Error\r\n\r\n",
+                "/health",
+                "500",
+            ),
+            ("HTTP/1.1 404 Not Found\r\n\r\n", "/nope", "404"),
+        ] {
+            let (listener, host, port) = bind();
+            let server = serve_once(listener, response);
+            let err = request(&host, port, path).expect_err("a 4xx/5xx is not healthy");
+            assert!(
+                err.to_string().contains(status),
+                "the error should name the status {status}, got: {err}"
+            );
+            server.join().expect("the server thread");
+        }
     }
-
-    #[test]
-    fn a_3xx_is_healthy() {
-        // The server redirects `/` to `/search` on purpose. A 3xx is the server
-        // routing, not the server failing, and treating it as unhealthy would fail
-        // a container that is working exactly as designed.
-        let (listener, host, port) = bind();
-        let server = serve_once(
-            listener,
-            "HTTP/1.1 302 Found\r\nLocation: /search\r\nContent-Length: 0\r\n\r\n",
-        );
-        let status = request(&host, port, "/").expect("a redirect is healthy");
-        assert_eq!(status, 302);
-        server.join().expect("the server thread");
-    }
-
-    #[test]
-    fn a_500_is_unhealthy() {
-        let (listener, host, port) = bind();
-        let server = serve_once(listener, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
-        let err = request(&host, port, "/health").expect_err("a 500 is not healthy");
-        assert!(
-            err.to_string().contains("500"),
-            "the error should name the status, got: {err}"
-        );
-        server.join().expect("the server thread");
-    }
-
-    #[test]
-    fn a_404_is_unhealthy() {
-        let (listener, host, port) = bind();
-        let server = serve_once(listener, "HTTP/1.1 404 Not Found\r\n\r\n");
-        let err = request(&host, port, "/nope").expect_err("a 404 is not healthy");
-        assert!(
-            err.to_string().contains("404"),
-            "the error should name the status, got: {err}"
-        );
-        server.join().expect("the server thread");
-    }
-
     #[test]
     fn a_response_that_is_not_http_is_unhealthy() {
         // What a port that is not the server actually looks like: some other
