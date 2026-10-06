@@ -19,8 +19,10 @@ fn supported_download_formats_include_documented_values() {
     assert!(is_supported_download_format("csv"));
     assert!(is_supported_download_format("json"));
     assert!(is_supported_download_format("ndjson"));
+    assert!(is_supported_download_format("ttl"));
+    // The pre-rename name, kept so a shared link still offers the right format.
     assert!(is_supported_download_format("rdf"));
-    assert!(!is_supported_download_format("ttl"));
+    assert!(!is_supported_download_format("turtle"));
 }
 
 #[test]

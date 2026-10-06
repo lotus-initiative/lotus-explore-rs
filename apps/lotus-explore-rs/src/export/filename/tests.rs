@@ -35,6 +35,6 @@ fn export_filename_with_structure_filter_keeps_search_type() {
     };
     criteria.structure = "c1ccccc1".into();
     criteria.structure_search = SmilesSearchType::Similarity;
-    let name = generate_filename(&criteria, "rdf");
-    assert!(name.ends_with("_all_taxa_similarity_filtered.rdf"));
+    let name = generate_filename(&criteria, "ttl");
+    assert!(name.ends_with("_all_taxa_similarity_filtered.ttl"));
 }

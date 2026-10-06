@@ -132,11 +132,11 @@ fn startup_action_download_has_priority_over_execute() {
 fn startup_action_invalid_download_format_is_preserved() {
     let mut params = QueryParams::new();
     params.insert("download".into(), "1".into());
-    params.insert("format".into(), "ttl".into());
+    params.insert("format".into(), "nt".into());
 
     let startup = parse_startup_action_from_params(&params);
     assert!(startup.pending_format.is_none());
-    assert_eq!(startup.pending_invalid_format.as_deref(), Some("ttl"));
+    assert_eq!(startup.pending_invalid_format.as_deref(), Some("nt"));
     assert!(!startup.direct_execute);
 }
 

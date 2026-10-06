@@ -157,7 +157,7 @@ URL-driven execution and exports:
 - `?execute=true` --- run query on load
 - `?download=true&format=csv` --- download CSV
 - `?download=true&format=json` --- download SPARQL Results JSON
-- `?download=true&format=rdf` --- download RDF (Turtle)
+- `?download=true&format=ttl` --- download RDF (Turtle). `format=rdf` still works, for links made before the rename.
 
 When both `download` and `execute` are present, `download` takes priority.
 

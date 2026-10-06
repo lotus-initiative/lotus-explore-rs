@@ -26,9 +26,11 @@ fn parse_rejects_unknown_and_empty() {
 fn a_mime_type_is_not_a_format_name() {
     // The response is `text/turtle`, but that is a content type rather
     // than a format, and treating it as one would make the accepted set
-    // larger than the documented one.
+    // larger than the documented one. `ttl` was the same case while it was
+    // not yet the extension, and is the extension now.
     assert_eq!(ExportFormat::parse("text/turtle"), None);
-    assert_eq!(ExportFormat::parse("ttl"), None);
+    assert_eq!(ExportFormat::parse("application/rdf+xml"), None);
+    assert_eq!(ExportFormat::parse("turtle"), None);
 }
 
 #[test]

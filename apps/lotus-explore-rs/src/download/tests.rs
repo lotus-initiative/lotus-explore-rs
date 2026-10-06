@@ -11,8 +11,10 @@ fn parse_download_format_supports_documented_aliases() {
     );
     assert_eq!(DownloadFormat::parse("json"), Some(DownloadFormat::Json));
     assert_eq!(DownloadFormat::parse("ndjson"), Some(DownloadFormat::Json));
-    assert_eq!(DownloadFormat::parse("rdf"), Some(DownloadFormat::Rdf));
+    assert_eq!(DownloadFormat::parse("ttl"), Some(DownloadFormat::Rdf));
     assert_eq!(DownloadFormat::parse(" JSON "), Some(DownloadFormat::Json));
-    assert_eq!(DownloadFormat::parse("RDF"), Some(DownloadFormat::Rdf));
-    assert_eq!(DownloadFormat::parse("ttl"), None);
+    assert_eq!(DownloadFormat::parse("TTL"), Some(DownloadFormat::Rdf));
+    // Still accepted so export links handed out before the rename keep resolving.
+    assert_eq!(DownloadFormat::parse("rdf"), Some(DownloadFormat::Rdf));
+    assert_eq!(DownloadFormat::parse("turtle"), None);
 }

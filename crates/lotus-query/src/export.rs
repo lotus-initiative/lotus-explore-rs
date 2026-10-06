@@ -27,31 +27,39 @@ pub enum ExportFormat {
 
 impl ExportFormat {
     /// Parse from a CLI argument, URL fragment or header ("csv", "json",
-    /// "ndjson", "rdf"). Returns `None` for anything else.
+    /// "ndjson", "ttl"). Returns `None` for anything else.
     ///
-    /// The three names are the whole documented set. Accepting `ttl` or
-    /// `turtle` would be friendlier, but the served content type is
-    /// `text/turtle` while the requested name is `rdf`, and quietly widening
-    /// what a URL accepts means a link that works today 404s after a rename.
-    /// A format that is not in the documentation should be added to the
-    /// documentation first.
+    /// `rdf` is accepted as well as `ttl`, and kept for links rather than for
+    /// taste. This name is a URL path segment, so renaming it outright breaks
+    /// every export link already handed out and every one cached by a browser;
+    /// parsing the old name costs one arm and leaves those working.
+    ///
+    /// `turtle` is *not* accepted. The set of names a URL accepts is the
+    /// documented set, and a format that is not in the documentation should be
+    /// added to the documentation first.
     #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         match s.trim().to_ascii_lowercase().as_str() {
             "csv" => Some(Self::Csv),
             "json" | "ndjson" => Some(Self::Json),
-            "rdf" => Some(Self::Rdf),
+            "ttl" | "rdf" => Some(Self::Rdf),
             _ => None,
         }
     }
 
     /// File extension without a leading dot.
+    ///
+    /// Turtle is named for what it is, so this is `ttl`. The previous `rdf` is
+    /// the conventional extension for RDF/XML, which this never produces: the
+    /// content type is `text/turtle` and the endpoint action is
+    /// `turtle_export`, so a reader handed a `.rdf` was handed a file whose
+    /// extension promised a serialization it did not contain.
     #[must_use]
     pub const fn extension(self) -> &'static str {
         match self {
             Self::Csv => "csv",
             Self::Json => "json",
-            Self::Rdf => "rdf",
+            Self::Rdf => "ttl",
         }
     }
 
@@ -88,15 +96,21 @@ impl ExportFormat {
         }
     }
 
-    /// Short name for a log line, a metric label or a filename.
+    /// Short name for a log line or a metric label.
     ///
     /// Deliberately [`Self::extension`] rather than a second copy of the same
     /// match. The two were written out separately and had drifted into being
-    /// character-for-character identical, which is what `cargo dejadoc` reports:
-    /// three formats whose log name happens to be their extension. If a format is
-    /// ever added whose log name is *not* its extension -- `ndjson` and `json`
-    /// being the obvious candidate -- this becomes a real function again, and the
-    /// gate that flagged the copy is what should prompt that change.
+    /// character-for-character identical, which is what `cargo dejadoc` reports.
+    /// If a format is ever added whose log name is *not* its extension --
+    /// `ndjson` and `json` being the obvious candidate -- this becomes a real
+    /// function again, and the gate that flagged the copy is what should prompt
+    /// that change.
+    ///
+    /// So this is `ttl` for Turtle and not a second word for it: the format was
+    /// renamed, and a log line disagreeing with the extension is the drift this
+    /// function exists to prevent. That also renames the telemetry series from
+    /// `rdf` to `ttl`, which is the same event under a new name rather than a
+    /// second event.
     #[must_use]
     pub const fn log_name(self) -> &'static str {
         self.extension()

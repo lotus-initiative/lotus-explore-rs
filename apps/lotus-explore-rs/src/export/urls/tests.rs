@@ -37,7 +37,7 @@ fn the_api_url_is_the_one_the_server_serves() {
     );
     assert_eq!(
         api_export_file_url("abc123", ExportFormat::Rdf),
-        "/v1/export-file/abc123/rdf"
+        "/v1/export-file/abc123/ttl"
     );
 }
 

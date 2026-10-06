@@ -451,7 +451,7 @@ pub async fn export_urls(
     path = "/v1/export-file/{cache_key}/{format}",
     params(
         ("cache_key" = String, Path, description = "Export cache key returned by /v1/export-url"),
-        ("format" = String, Path, description = "Export format: csv|json|rdf"),
+        ("format" = String, Path, description = "Export format: csv|json|ttl (rdf accepted for older links)"),
         ("filename" = Option<String>, Query, description = "Optional direct filename (disables gzip wrapping)")
     ),
     responses(
