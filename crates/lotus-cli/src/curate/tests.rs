@@ -10,7 +10,8 @@
 )]
 
 use super::{
-    CuratedReport, Finding, convertible_smiles, should_warn_about_unchecked, unchecked_count,
+    CurateArgs, CuratedReport, Finding, convertible_smiles, should_warn_about_unchecked,
+    unchecked_count,
 };
 use lotus_curation::{CurationInputRow, CurationResultRow, CurationStatus};
 
@@ -142,4 +143,129 @@ fn a_batch_with_nothing_convertible_sends_nothing() {
         Vec::<&str>::new()
     );
     assert_eq!(convertible_smiles(&[]).len(), 0, "expected no entries");
+}
+
+/// The six status keys, all six arms.
+///
+/// Four of these had no test. They are a wire format: the doc says the strings
+/// are what "a person greps for and what a downstream script switches on", which
+/// makes a renamed arm a silent break for anything reading the output, and no
+/// test could tell.
+///
+/// Duplicated knowledge, recorded rather than acted on: the web client carries a
+/// second copy of these six strings in
+/// `apps/lotus-explore-rs/src/components/curation_results_table.rs`. The two
+/// crates cannot see each other -- the app does not depend on `lotus-cli` -- so
+/// nothing can assert they agree, and a test in either crate cannot catch a
+/// divergence. Worth a decision by a human: one shared table, or an accepted
+/// duplication with the strings written down somewhere both can read.
+#[test]
+fn every_status_has_a_stable_key() {
+    use lotus_curation::CurationStatus;
+    for (status, expected) in [
+        (CurationStatus::ExistingComplete, "existing_complete"),
+        (CurationStatus::ExistingNeedsUpdates, "existing_updates"),
+        (CurationStatus::NewCompound, "new_compound"),
+        (CurationStatus::PendingDependencies, "pending_dependencies"),
+        (CurationStatus::NotChecked, "not_checked"),
+        (CurationStatus::Error, "error"),
+    ] {
+        assert_eq!(
+            super::status_key(&status),
+            expected,
+            "{status:?} has the wrong key: a downstream script switching on it breaks"
+        );
+    }
+}
+
+/// The keys are also distinct, so a script can tell two statuses apart.
+///
+/// Cheap to assert and the thing a rename would actually collide with: two arms
+/// agreeing would make `existing_updates` and `existing_complete`
+/// indistinguishable in a report, and both are common.
+#[test]
+fn no_two_statuses_share_a_key() {
+    use lotus_curation::CurationStatus;
+    let all = [
+        CurationStatus::ExistingComplete,
+        CurationStatus::ExistingNeedsUpdates,
+        CurationStatus::NewCompound,
+        CurationStatus::PendingDependencies,
+        CurationStatus::NotChecked,
+        CurationStatus::Error,
+    ];
+    for (i, a) in all.iter().enumerate() {
+        for b in all.iter().skip(i + 1) {
+            assert_ne!(
+                super::status_key(a),
+                super::status_key(b),
+                "{a:?} and {b:?} render identically, so a report cannot distinguish them"
+            );
+        }
+    }
+}
+
+/// An input with no usable rows is a failure, not an empty report.
+///
+/// `parse_tsv` accepts a header it understands, so a file of nothing but the
+/// header parses to zero findings. Reporting success with no output would look
+/// like "checked your rows, there was nothing to say", which is a different and
+/// wrong claim from "I found no rows in what you gave me".
+#[tokio::test]
+async fn an_input_with_no_usable_rows_fails_rather_than_reporting_nothing() {
+    let dir = temp_dir("no-usable-rows");
+    let input = dir.join("empty.tsv");
+    std::fs::write(&input, "name\tsmiles\ttaxon\tdoi\n").expect("the fixture is writable");
+
+    let args = CurateArgs {
+        input: Some(input.display().to_string()),
+        offline: true,
+        quiet: true,
+        format: super::ReportFormat::Table,
+        output: None,
+        log: super::LogLevel::Warn,
+    };
+
+    let code = super::run(&args).await.expect("run does not error");
+    assert_eq!(
+        format!("{code:?}"),
+        format!("{:?}", std::process::ExitCode::FAILURE),
+        "zero usable rows must be a failure exit"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// A path that does not exist is an error naming the path.
+///
+/// The user needs to know *which* file: `lotus curate typo.tsv` is a typo, and
+/// "No such file or directory" alone does not say so.
+#[tokio::test]
+async fn a_missing_input_file_names_the_path_it_could_not_read() {
+    let args = CurateArgs {
+        input: Some("lotus-nonexistent-input.tsv".to_string()),
+        offline: true,
+        quiet: true,
+        format: super::ReportFormat::Table,
+        output: None,
+        log: super::LogLevel::Warn,
+    };
+
+    let error = super::run(&args).await.expect_err("a missing file errors");
+    let rendered = error.to_string();
+    assert!(
+        rendered.contains("lotus-nonexistent-input.tsv"),
+        "the error must name the file: {rendered:?}"
+    );
+}
+
+/// A scratch directory under the temp dir, removed by the caller.
+///
+/// Hand-rolled rather than a `tempfile` dev-dependency: the earlier session
+/// removed `tempfile` from this crate for having no call site, and three call
+/// sites now is not a reason to put a dependency and a transitive graph back.
+fn temp_dir(label: &str) -> std::path::PathBuf {
+    let mut dir = std::env::temp_dir();
+    dir.push(format!("lotus-curate-{label}-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("the temp directory is creatable");
+    dir
 }
