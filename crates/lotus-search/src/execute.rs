@@ -410,6 +410,20 @@ impl QLever {
     );
 }
 
+/// The header `QLever` reads an access token from.
+///
+/// `Authorization: Bearer <token>`, read by `ParsedRequestBuilder::addPrefixOrGet`
+/// alongside an `access-token` parameter. The previous spelling here was
+/// `api-token`, which `QLever` does not read: measured against qlever.dev, a
+/// request carrying a token under that name gets byte-identical treatment to one
+/// carrying none -- same 403, same message -- so it was never a token at all, and
+/// the budget it was written to raise stayed where it was.
+///
+/// `Bearer` rather than the token bare: the builder strips exactly this prefix and
+/// throws if the header does not start with it, so a bare token is a 500 rather
+/// than a 403 and reads as a bug in the client.
+const ACCESS_TOKEN_HEADER: &str = "Authorization";
+
 /// Headers sent with every `QLever` request.
 ///
 /// Two, both about being a good citizen rather than function:
@@ -417,19 +431,34 @@ impl QLever {
 /// - **`api-user-agent`** identifies the client. `QLever` allows it explicitly, so a
 ///   deployment running this app heavily is something an operator can reach and raise a
 ///   limit for, instead of an anonymous address that eventually gets blocked.
-/// - **`api-token`**, only when `LOTUS_QLEVER_TOKEN` is set: the documented way to ask for
+/// - **`Authorization: Bearer <token>`**, only when a token is set: the way to ask for
 ///   more than the anonymous budget, and the answer to "this workload is legitimately
 ///   heavy" -- a token, not a faster retry loop. Read per request rather than cached so a
 ///   token rotates without restarting the process.
+///
+/// The token is the *only* way past the ceiling, and it is worth being exact about
+/// what it buys. `Server::verifyUserSubmittedQueryTimeout` compares the submitted
+/// `timeout` against the server's configured default and refuses anything larger
+/// with a 403 unless the token checks out; there is no parameter that separates
+/// computation from transfer. A token therefore raises the budget for the request
+/// as a whole, which is the only lever there is for a query whose rows take longer
+/// to send than to compute.
 fn request_headers() -> Vec<(&'static str, String)> {
     let mut headers = vec![("api-user-agent", QLever::CLIENT_ID.to_string())];
-    if let Ok(token) = std::env::var("LOTUS_QLEVER_TOKEN") {
-        let token = token.trim().to_string();
-        if !token.is_empty() {
-            headers.push(("api-token", token));
-        }
+    if let Some(token) = access_token() {
+        headers.push((ACCESS_TOKEN_HEADER, format!("Bearer {token}")));
     }
     headers
+}
+
+/// The access token, from the environment where it can be set at all.
+///
+/// Empty is not a token, and a token of only whitespace is not one either: both
+/// would otherwise be sent as `Bearer `, which the server reads as an empty token
+/// and answers as it answers a wrong one.
+fn access_token() -> Option<String> {
+    let token = std::env::var("LOTUS_QLEVER_TOKEN").ok()?.trim().to_string();
+    if token.is_empty() { None } else { Some(token) }
 }
 
 /// Keep an operator's `LOTUS_QLEVER_TIMEOUT` under the ceiling the public

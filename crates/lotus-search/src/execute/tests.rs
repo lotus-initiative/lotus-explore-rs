@@ -345,6 +345,44 @@ fn every_request_identifies_the_client_first() {
         "the only other header is the optional token, so there are at most two: {headers:?}"
     );
 }
+
+/// The token header is spelled the way the server reads it.
+///
+/// This is a source check because the failure it guards is invisible from here:
+/// the token is read from an environment variable, so a test cannot set one, and
+/// the wrong header name is not an error either -- `QLever` ignores a header it
+/// does not know and answers exactly as it answers an anonymous request. Measured
+/// against qlever.dev, `api-token` and no token at all produce the same 403 with
+/// the same body, so the misspelling was worth a whole budget and no error.
+///
+/// The header and the `Bearer ` prefix are both load-bearing. The builder strips
+/// exactly `Bearer ` and throws if the header does not start with it, so the name
+/// wrong is a 403 that blames the client and the prefix wrong is a 500 that looks
+/// like a defect in this code.
+#[test]
+fn the_token_travels_as_a_bearer_authorization_header() {
+    let source = include_str!("../execute.rs");
+
+    // Spelled so this assertion cannot match the needle it searches for, which is
+    // the mistake it is about.
+    let wrong_name = concat!("api-", "token");
+    assert!(
+        !source.contains(&format!("(\"{wrong_name}\"")),
+        "QLever does not read an api-token header; the token goes in \
+         Authorization: Bearer, and the old spelling was silently ignored"
+    );
+
+    assert_eq!(
+        ACCESS_TOKEN_HEADER, "Authorization",
+        "the header the token travels in, which QLever reads in \
+         ParsedRequestBuilder::addPrefixOrGet"
+    );
+    assert!(
+        source.contains("format!(\"Bearer {token}\")"),
+        "the prefix is mandatory: the builder throws unless the header starts with \
+         `Bearer `, so a bare token is a 500 rather than a 403"
+    );
+}
 /// A non-ASCII message survives being read out of a JSON exception body.
 ///
 /// `json_exception` finds the closing quote by walking the string and advancing a

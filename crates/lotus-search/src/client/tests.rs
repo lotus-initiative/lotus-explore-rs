@@ -131,7 +131,7 @@ async fn a_transport_that_cannot_post_json_refuses_rather_than_guessing() {
 /// that does not expect to be asked gets.
 #[tokio::test]
 async fn the_default_post_form_ignores_the_headers_it_is_given() {
-    let sent = [("api-token", "secret".to_string())];
+    let sent = [("Authorization", "Bearer secret".to_string())];
 
     let response = Minimal
         .post_form("https://example.test", "text/csv", "q=1".into(), &sent)

@@ -77,10 +77,35 @@ Two headers go out with every request:
   politeness theatre: a deployment running this app heavily should be something
   an operator can *contact and raise a limit for*, rather than an anonymous
   address that eventually gets blocked.
-- **`api-token`**, when `LOTUS_QLEVER_TOKEN` is set. This is the documented way
-  to be given more than the anonymous budget, and it is the answer to "this
+- **`Authorization: Bearer <token>`**, when `LOTUS_QLEVER_TOKEN` is set. This is
+  how to be given more than the anonymous budget, and it is the answer to "this
   workload is legitimately heavy": **a token, not a faster retry loop.** The
   variable is read per request, so a token can be rotated without a restart.
+
+  QLever reads a token from that header or from an `access-token` parameter, and
+  refuses with a 400 if both are given and differ. There is no `api-token`
+  header: an earlier version of this document described one, and it was never
+  read by the server — measured against `qlever.dev`, a request carrying a token
+  that way is answered identically to one carrying none.
+
+  A token is operator-granted, not self-service. The server is started with
+  `--access-token=<secret>`, so there is nothing to sign up for: an operator
+  decides who gets one. Which is also why the `api-user-agent` header above
+  matters — it is how the request that needs a limit identifies itself to the
+  person who can grant it.
+
+### What a token does and does not buy
+
+It raises the ceiling on the whole request. QLever compares the `timeout` you
+submit against the server's configured default and answers anything larger with
+a 403 unless the token checks out; the value you submit then becomes the actual
+limit. **There is no parameter that budgets computation separately from
+transfer.** A query that computes in 10 s and takes 20 s to send is inside a
+30 s budget and outside a 25 s one, and no setting separates the two phases.
+
+So for a large result set the options are a token (more budget for the whole
+request), fewer rows, or a narrower query — and asking for a smaller `timeout`
+makes a transfer-bound query fail sooner without making it faster.
 
 ## The query that trips it
 

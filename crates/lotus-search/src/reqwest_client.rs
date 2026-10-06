@@ -73,10 +73,10 @@ impl Http for ReqwestClient {
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body);
         // `api-user-agent` is how `QLever` is told who is calling, and
-        // `api-token` is how it is told the caller has been given more than the
-        // anonymous budget. Both are ordinary headers here; the reason they are
-        // in the transport rather than in the query builder is that a header is
-        // a property of the request, not of the query.
+        // `Authorization: Bearer <token>` is how it is told the caller has been
+        // given more than the anonymous budget. Both are ordinary headers here;
+        // the reason they are in the transport rather than in the query builder
+        // is that a header is a property of the request, not of the query.
         for (name, value) in headers {
             request = request.header(*name, value);
         }
