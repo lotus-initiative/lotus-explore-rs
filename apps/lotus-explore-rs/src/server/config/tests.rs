@@ -40,7 +40,7 @@ fn cli_host_flag_overrides_default() {
 fn from_provider_rejects_a_port_it_cannot_parse() {
     for bad in ["not-a-port", "-1", "70000"] {
         let result = AppConfig::from_provider(|name| (name == "PORT").then(|| bad.to_string()));
-        let err = result.expect_err("an unparseable port should error");
+        let err = result.expect_err("an unparsable port should error");
         assert!(err.contains("PORT"), "{bad:?} should be named in the error");
     }
 }
