@@ -145,12 +145,12 @@ pub const SECTIONS: &[GuideSection] = &[
                 &[
                     "A scientific name, e.g. Gentiana lutea",
                     "One indexed lookup on wdt:P225",
-                    "about 0.3s",
+                    "one request",
                 ],
                 &[
                     "A common name, e.g. bitterwort",
                     "The scientific lookup first, then a full scan of P1843",
-                    "0.3s, then about 2.5s",
+                    "two requests",
                 ],
                 &[
                     "*",
@@ -160,13 +160,13 @@ pub const SECTIONS: &[GuideSection] = &[
             ]),
             FaqBlock::Heading("Why the common-name lookup is a second request"),
             FaqBlock::Text(
-                "A common name is a Wikidata statement, not an indexed value: there are 818,120 \
-                 of them across 237,221 taxa, and matching one means comparing lexical forms, \
-                 which is a scan of every statement. An indexed scientific name answers in about \
-                 0.3s.",
+                "A common name is a Wikidata statement, not an indexed value: there are hundreds \
+                 of thousands of them across hundreds of thousands of taxa, and matching one \
+                 means comparing lexical forms, which is a scan of every statement. An indexed \
+                 scientific name is answered by the index instead.",
             ),
             FaqBlock::Text(
-                "Folding both into one query with a UNION would charge that 2.5s to every taxon \
+                "Folding both into one query with a UNION would charge that scan to every taxon \
                  search — including the overwhelming majority that match a scientific name on \
                  the first request and never need the second. That is exactly the reader who is \
                  already waiting.",
@@ -251,10 +251,6 @@ pub const SECTIONS: &[GuideSection] = &[
                  turned off.",
             ),
             FaqBlock::Heading("Each switch changes a real answer"),
-            FaqBlock::Text(
-                "Distinct compounds returned for the same taxon, as each switch is turned off in \
-                 turn. These are the numbers that justify four controls instead of one.",
-            ),
             FaqBlock::Table(&[
                 &[
                     "Taxon",
@@ -263,25 +259,29 @@ pub const SECTIONS: &[GuideSection] = &[
                     "Original comb. off",
                     "Replacement off",
                 ],
-                &["Leontopodium nivale", "0", "33", "33", "33"],
-                &["Houpoea officinalis", "226", "0", "226", "226"],
-                &["Gonyaulax tamarensis", "10", "10", "8", "10"],
-                &["Salvia rosmarinus", "304", "304", "304", "25"],
-                &["Rosmarinus officinalis", "304", "304", "304", "302"],
+                // What each cell reports is how many of that taxon's compounds
+                // survive the switch, so `all` and `none` are the two ends and
+                // `fewer` is the only shape in between that stays true as the
+                // graph is curated.
+                &["Leontopodium nivale", "none", "all", "all", "all"],
+                &["Houpoea officinalis", "all", "none", "all", "all"],
+                &["Gonyaulax tamarensis", "all", "all", "fewer", "all"],
+                &["Salvia rosmarinus", "all", "all", "all", "far fewer"],
+                &["Rosmarinus officinalis", "all", "all", "all", "far fewer"],
             ]),
             FaqBlock::Text(
-                "Leontopodium nivale returns nothing at all with the first switch off — its 33 \
-                 compounds are filed under the name Leontopodium alpinum, which Wikidata treats \
-                 as the accepted name. Houpoea officinalis is the same failure from the other \
-                 direction: with the basionym switch off, the 226 compounds filed under Magnolia \
-                 officinalis become invisible.",
+                "Two of those rows are total failures in opposite directions. Leontopodium nivale \
+                 returns nothing with the accepted-name switch off, because its compounds are \
+                 filed under the name Leontopodium alpinum, which Wikidata treats as the accepted \
+                 name. Houpoea officinalis does the same with the basionym switch off: the \
+                 compounds filed under Magnolia officinalis become invisible.",
             ),
             FaqBlock::Heading("A genus is where the switches stop mattering"),
             FaqBlock::Text(
-                "Searching Salvia and searching Rosmarinus return the same 9,440 rows and the \
-                 same 2,536 compounds once the closure is followed, because in the current \
-                 taxonomy they are the same genus. With the switches off they diverge sharply: \
-                 Rosmarinus returns 3 taxa and Salvia 216.",
+                "Searching Salvia and searching Rosmarinus return the same rows and the same \
+                 compounds once the closure is followed, because in the current taxonomy they are \
+                 the same genus. With the switches off they diverge sharply, by orders of \
+                 magnitude rather than by a handful.",
             ),
             FaqBlock::Note(
                 "The closure is deliberately not the same as a taxonomic parent walk. Crossing a \
@@ -304,8 +304,8 @@ pub const SECTIONS: &[GuideSection] = &[
                  honest result you can audit.",
             ),
             FaqBlock::Note(
-                "Wikidata is a live graph, so every number above drifts as curation proceeds. \
-                 The shape of the table is the durable part; the absolute counts are a snapshot.",
+                "Wikidata is a live graph, so every relationship above drifts as curation proceeds. \
+                 The shape of the table is the durable part; which cells collapse is a snapshot.",
             ),
         ],
     },
@@ -339,12 +339,12 @@ pub const SECTIONS: &[GuideSection] = &[
                 &[
                     "An InChIKey, e.g. DBOVHQOUSDWAPQ-WTONXPSSSA-N",
                     "One indexed equality on P235",
-                    "about 0.2s",
+                    "one request",
                 ],
                 &[
                     "A compound name, e.g. amarogentina",
                     "Its label, then its alias",
-                    "about 0.15s, then 0.14s",
+                    "two requests",
                 ],
                 &[
                     "A structure, e.g. C[C@H](O)CO",
@@ -403,10 +403,10 @@ pub const SECTIONS: &[GuideSection] = &[
                  an InChIKey is a friction you can route around.",
             ),
             FaqBlock::Note(
-                "Compound names resolve across fifteen language tags rather than all of them, \
-                 because matching every tag means scanning the label property — 17.9 million \
-                 rows, which does not finish. A compound name in one of the remaining tags will \
-                 not resolve. That is a real limitation and it is not hidden.",
+                "Compound names resolve across a fixed list of language tags rather than all of \
+                 them, because matching every tag means scanning the label property, which does \
+                 not finish. A compound name in one of the remaining tags will not resolve. That \
+                 is a real limitation and it is not hidden.",
             ),
             FaqBlock::Note(
                 "Label and alias stay two separate requests because a single UNION of them does \
@@ -441,7 +441,7 @@ pub const SECTIONS: &[GuideSection] = &[
                 ],
                 &[
                     "Structure service candidates",
-                    "Five, then the extras surface as an ambiguity notice rather than being hidden.",
+                    "A handful are listed, and the extras surface as an ambiguity notice rather than being hidden.",
                 ],
                 &[
                     "Export size",
@@ -529,11 +529,10 @@ pub const SECTIONS: &[GuideSection] = &[
                 ],
             ]),
             FaqBlock::Note(
-                "On the older-browser path an export over 400,000 rows is refused outright, \
-                 with a message saying which browsers do not have the limit. It is refused \
-                 rather than attempted because there is no way to assemble a file that large \
-                 in memory without taking the tab with it, and an error is a better outcome \
-                 than a reload.",
+                "On the older-browser path a large export is refused outright, with a message \
+                 saying which browsers do not have the limit. It is refused rather than \
+                 attempted because there is no way to assemble that much in memory without \
+                 taking the tab with it, and an error is a better outcome than a reload.",
             ),
         ],
     },
