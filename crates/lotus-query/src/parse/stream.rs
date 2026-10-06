@@ -246,6 +246,12 @@ pub struct CsvColumnarReader {
     scratch: Vec<Record>,
     rows_read: usize,
     bytes_read: usize,
+    /// The last [`TRUNCATION_NOTICE_WINDOW`] bytes of the body, for the notice.
+    ///
+    /// Kept rather than searched for as the stream arrives, because the notice is
+    /// written at the very end and can straddle a chunk boundary: a body cut
+    /// between the marker and its reason would otherwise read as complete.
+    tail: Vec<u8>,
 }
 
 impl CsvColumnarReader {
@@ -266,6 +272,7 @@ impl CsvColumnarReader {
     /// ones empty.
     pub fn feed(&mut self, chunk: &[u8]) -> Result<usize, ParseError> {
         self.bytes_read += chunk.len();
+        self.keep_tail(chunk);
         // The scratch buffer is moved out rather than borrowed, because
         // `read_header` and `push` both need `&mut self`. Its allocation comes
         // back afterwards, so it is reused for every chunk of the stream.
@@ -274,6 +281,19 @@ impl CsvColumnarReader {
         self.splitter.feed(chunk, &mut scratch);
         self.absorb(scratch)?;
         Ok(self.rows_read)
+    }
+
+    /// Extend the tail window with `chunk`, keeping only the last window's worth.
+    ///
+    /// The window is a constant size, so the tail is never longer than a chunk
+    /// plus the window; taking the last `WINDOW` bytes of the concatenation is
+    /// therefore always correct and never allocates more than that.
+    fn keep_tail(&mut self, chunk: &[u8]) {
+        self.tail.extend_from_slice(chunk);
+        let excess = self.tail.len().saturating_sub(TRUNCATION_NOTICE_WINDOW);
+        if excess > 0 {
+            self.tail.drain(..excess);
+        }
     }
 
     /// Fold a batch of finished records into the set.
@@ -353,7 +373,8 @@ impl CsvColumnarReader {
     /// Finish the body, or refuse it if it stopped mid-record.
     ///
     /// # Errors
-    /// [`ParseError`] if the response ended inside a quoted field, or has no header row.
+    /// [`ParseError`] if the endpoint appended its truncation notice, if the response
+    /// ended inside a quoted field, or if there is no header row.
     /// A truncated body is refused rather than parsed: the rows before the cut are
     /// valid, and returning them would present an incomplete answer as a complete one.
     pub fn finish(mut self) -> Result<ColumnarResultSet, ParseError> {
@@ -364,8 +385,64 @@ impl CsvColumnarReader {
         }
         self.absorb(scratch)?;
         self.check_header()?;
+        if let Some(reason) = truncation_notice(&self.tail) {
+            return Err(ParseError::new(truncated_by_endpoint(reason)));
+        }
         Ok(self.builder.build())
     }
+}
+
+/// How much of the body's end is kept, to look for the notice in.
+///
+/// The notice is a few hundred bytes, so a kilobyte is generous. Kept as a
+/// constant rather than a literal in the slice because the whole point is that
+/// this window is sized to the notice, and a window that silently stopped
+/// covering it would make truncation undetectable again.
+const TRUNCATION_NOTICE_WINDOW: usize = 1024;
+
+/// What `QLever` appends to a result it could not finish sending.
+///
+/// It has no other way to say so: the transfer is already committed to HTTP, so
+/// the error is written into the body of an otherwise-`200` response. The exact
+/// wording is theirs, and what is matched is the stable marker rather than the
+/// prose around it.
+const TRUNCATION_NOTICE_MARKER: &[u8] = b"!!!!>>#";
+
+/// The reasons `QLever` names, matched case-insensitively and without the period.
+const TRUNCATION_REASONS: &[&str] = &["Operation timed out", "Query was canceled"];
+
+/// The reason the endpoint gave, if the body ends in its truncation notice.
+///
+/// Returns `None` for a complete answer, which is the case this exists to
+/// distinguish.
+fn truncation_notice(tail: &[u8]) -> Option<&'static str> {
+    let at = tail
+        .windows(TRUNCATION_NOTICE_MARKER.len())
+        .rposition(|window| window == TRUNCATION_NOTICE_MARKER)?;
+    // `at` came from `rposition` over `windows` of the same length, so it is a
+    // valid boundary; `get` rather than a slice because this crate forbids
+    // indexing on external input and the compiler cannot see that invariant.
+    let text = String::from_utf8_lossy(tail.get(at..)?);
+    // The reason is on its own line after the prose, and is worth keeping: it is
+    // the only account of *why* the answer stopped, and "timed out" and "cancelled"
+    // read very differently to someone whose query keeps dying.
+    let lines: Vec<&str> = text.lines().map(str::trim).collect();
+    lines.iter().find_map(|line| {
+        let line = line.strip_suffix('.').unwrap_or(line);
+        TRUNCATION_REASONS
+            .iter()
+            .find(|reason| line.eq_ignore_ascii_case(reason))
+            .copied()
+    })
+}
+
+/// The message a truncation produces, carrying the endpoint's own reason.
+fn truncated_by_endpoint(reason: &'static str) -> String {
+    format!(
+        "the endpoint stopped sending before the result was complete, so these rows \
+         are only part of the answer and are not being reported as if they were all \
+         of it (the endpoint said: {reason}); re-run the search, or narrow it"
+    )
 }
 
 /// The message a truncated body produces.

@@ -217,3 +217,76 @@ async fn the_plain_wrapper_folds_the_same_set_as_the_reporting_one() {
         "the reporting variant still reported per chunk, so this is a real comparison"
     );
 }
+
+/// A truncated export is refused, and the reason is the endpoint's own.
+///
+/// `QLever` cannot report a failure that happens after the `200` is committed, so
+/// it writes the error into the body of the answer. Without reading it, a result
+/// cut at a row boundary is a valid CSV file with fewer rows in it, and the row
+/// count the UI shows is then a guess it cannot tell from an answer.
+///
+/// The marker and the prose are theirs; the payload below is the tail of a real
+/// response captured from `qlever.dev`, because a hand-written fixture would only
+/// prove that the parser agrees with itself.
+const TRUNCATED_TAIL: &str = "Q4,Salicylic,138.1,Q10,Q100\n\
+Q7,Paracetamol,151.1,Q10,Q100\n\
+!!!!>># An error has occurred while exporting the query result. Unfortunately due \
+to limitations in the HTTP 1.1 protocol, there is no better way to report this \
+than to append it to the incomplete result. The error message was:\n\
+Operation timed out.\n";
+
+/// Parse `body`, returning the error message on failure.
+async fn parse_or_message(body: &str, chunk: usize) -> Result<usize, String> {
+    let chunks = streamed_body(body, chunk).await;
+    columnar_from_chunks(chunks)
+        .await
+        .map(|set| set.row_count())
+        .map_err(|e| e.to_string())
+}
+
+#[tokio::test]
+async fn a_truncated_export_is_refused_rather_than_parsed() {
+    for chunk in [1usize, 7, 64, 512, 4096] {
+        let body = format!("{RESULT_CSV}{TRUNCATED_TAIL}");
+        let error = parse_or_message(&body, chunk)
+            .await
+            .expect_err("a truncated answer must not parse");
+        assert!(
+            error.contains("stopped sending"),
+            "chunk size {chunk} gave {error:?}, which does not say the answer was cut"
+        );
+        assert!(
+            error.contains("Operation timed out"),
+            "the endpoint's own reason must survive into the message: {error:?}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn the_same_body_without_the_notice_is_the_answer_it_claims_to_be() {
+    // The other half: the check has to be narrow, or it refuses good results.
+    // The two bodies differ only in the notice.
+    let complete = RESULT_CSV;
+    let rows = parse_or_message(complete, 64)
+        .await
+        .expect("a complete answer parses");
+    assert_eq!(rows, 2);
+
+    let truncated = format!("{RESULT_CSV}{TRUNCATED_TAIL}");
+    assert!(
+        parse_or_message(&truncated, 64).await.is_err(),
+        "the notice has to change the outcome"
+    );
+}
+
+#[tokio::test]
+async fn a_notice_split_across_a_chunk_boundary_is_still_seen() {
+    // The notice arrives at the very end and can straddle a boundary. A tail
+    // window smaller than the notice would read a cut body as complete, which is
+    // the failure this whole check exists to prevent.
+    let body = format!("{RESULT_CSV}{TRUNCATED_TAIL}");
+    let error = parse_or_message(&body, 13)
+        .await
+        .expect_err("the notice is found whatever the chunking");
+    assert!(error.contains("Operation timed out"), "{error:?}");
+}
