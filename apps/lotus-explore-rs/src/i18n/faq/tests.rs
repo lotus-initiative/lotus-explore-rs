@@ -192,3 +192,37 @@ fn entries_declare_the_locales_they_carry() {
         let _: &FaqEntry = entry;
     }
 }
+
+/// `{name}` placeholders, in the order they appear.
+fn placeholders(text: &str) -> Vec<&str> {
+    text.split('{')
+        .skip(1)
+        .filter_map(|tail| tail.split_once('}').map(|(name, _)| name))
+        .collect()
+}
+
+#[test]
+fn every_locale_answers_the_same_questions_with_the_same_placeholders() {
+    // An English answer with a placeholder and a French one without renders as a
+    // sentence with a hole in it, and nothing upstream notices: the page renders,
+    // the JSON-LD parses, and the gate is green. The FAQ is four parallel tables
+    // in one file, so this is checkable rather than a review problem.
+    for entry in ENTRIES {
+        let english_question = entry.question(Locale::En);
+        let english_answer = entry.answer(Locale::En);
+        for locale in LOCALES {
+            assert_eq!(
+                placeholders(entry.question(locale)),
+                placeholders(english_question),
+                "{}: the {locale:?} question has a different placeholder set",
+                entry.id
+            );
+            assert_eq!(
+                placeholders(entry.answer(locale)),
+                placeholders(english_answer),
+                "{}: the {locale:?} answer has a different placeholder set",
+                entry.id
+            );
+        }
+    }
+}
