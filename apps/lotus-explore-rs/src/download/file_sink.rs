@@ -296,6 +296,16 @@ impl OpfsSink {
         // Named exactly as the download is, so the `File` handed back by `getFile()`
         // already carries the name the reader was shown. A `.part` suffix here would
         // have to be stripped later for no benefit.
+        //
+        // An earlier version of this asked for the export through
+        // `getDirectoryHandle`, which does not fail for a name that is not a
+        // directory yet -- it makes one. Every browser that reached that code has a
+        // *directory* sitting where its export file should be, and `getFileHandle`
+        // refuses such a name with a `TypeMismatchError` rather than replacing it.
+        // So the leftover is cleared first: the name is this export's own, and an
+        // entry of the wrong kind under it is debris from our own bug rather than
+        // anything of the reader's.
+        let _ = remove_entry(&exports, filename).await;
         let handle = file_handle(&exports, filename, true).await?;
 
         // Probed, not assumed. `createWritable` is missing on Safari before 17, and a
