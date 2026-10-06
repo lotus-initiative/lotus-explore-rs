@@ -267,3 +267,47 @@ fn a_real_output_is_trimmed_and_kept() {
     .into_result("SMILES");
     assert_eq!(result.unwrap_or_default().as_deref(), Some("CCO"));
 }
+
+/// Two branches in `convert_structures` with nothing on them, both of which
+/// decide whether a bad reply becomes a retryable fault or a silent omission.
+#[tokio::test]
+async fn a_refused_request_names_the_conversion_rather_than_the_service() {
+    // The conversion is a POST that never reached anything, so the message has
+    // to say which request failed. `is_recoverable` is what a retry loop reads,
+    // and a transport fault is the one worth retrying.
+    let http = script(vec![(0, "connection refused".to_string())]);
+
+    let err = convert_structures(&http, &["CCO"])
+        .await
+        .expect_err("a refused request is an error");
+
+    assert!(
+        matches!(err, CurationError::Http(ref m) if m.contains("structure conversion")),
+        "the error must name the request that failed: {err:?}"
+    );
+    assert!(
+        err.is_recoverable(),
+        "a transport fault is worth retrying: {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_reply_with_no_results_array_is_a_parse_failure() {
+    // The service answered 200 with JSON that has no `results`. Reading that as
+    // "no structures converted" would drop every row in the file; reading it as
+    // a parse failure stops the run instead.
+    let http = script(vec![(200, r#"{"status":"ok"}"#.to_string())]);
+
+    let err = convert_structures(&http, &["CCO"])
+        .await
+        .expect_err("a reply with no results is not an answer");
+
+    assert!(
+        matches!(err, CurationError::Parse(ref m) if m.contains("result rows")),
+        "{err:?}"
+    );
+    assert!(
+        !err.is_recoverable(),
+        "a shape this does not read will not read on a retry either: {err:?}"
+    );
+}

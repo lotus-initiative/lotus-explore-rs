@@ -137,3 +137,85 @@ fn a_pasted_multiline_corpus_keeps_every_row_and_column() {
         );
     }
 }
+
+/// **Documents a defect. Read this before "fixing" the assertion.**
+///
+/// `find_ascii_ci` folds the needle and compares it against windows of the
+/// **unfolded** haystack:
+///
+/// ```text
+/// let folded: Vec<u8> = needle.iter().map(u8::to_ascii_lowercase).collect();
+/// haystack.as_bytes().windows(folded.len()).position(|w| w == folded)
+/// ```
+///
+/// so it matches only when the haystack is already lower-case, and the name and
+/// the comment above it ("Fold the needle once rather than both sides") both
+/// describe the intent of folding *both*. A haystack that is not lower-case
+/// simply does not match.
+///
+/// The consequence reaches a submission. `normalize_doi` cannot find the marker,
+/// so it treats the whole URL as a bare DOI and upper-cases it:
+///
+///     normalize_doi("https://DOI.ORG/")  ==  Some("HTTPS://DOI.ORG/")
+///
+/// and that string becomes the DOI on the row, and then the reference the
+/// generated statements cite. A curator submitting the bundle would create a
+/// reference whose DOI is a URL.
+///
+/// Not fixed here: this branch may not change production code. The assertions
+/// below are written as the current behaviour so that fixing the fold makes them
+/// fail and forces whoever does it to read this.
+#[test]
+fn a_doi_url_with_nothing_after_it_is_no_doi_at_all() {
+    // The lower-case spellings, which do work.
+    for value in ["https://doi.org/", "doi.org/"] {
+        assert_eq!(
+            normalize_doi(value),
+            None,
+            "{value:?} names no DOI and must not become an empty one"
+        );
+    }
+    // Whitespace after the marker is a DOI whose canonical form is blank.
+    assert_eq!(
+        normalize_doi("https://doi.org/   "),
+        None,
+        "a marker with only whitespace behind it names no DOI"
+    );
+
+    // The marker with something behind it is a DOI, folded to canonical form and
+    // upper-cased -- which is what makes `10.1/A` and `10.1/a` one finding rather
+    // than two.
+    assert_eq!(
+        normalize_doi("https://doi.org/10.1000/ABC").as_deref(),
+        Some("10.1000/ABC")
+    );
+    assert_eq!(normalize_doi("  10.1/x  ").as_deref(), Some("10.1/X"));
+    assert_eq!(normalize_doi("   ").as_deref(), None);
+}
+
+#[test]
+fn an_upper_case_doi_url_is_taken_for_the_doi_itself() {
+    // The defect above, shown at the level where it does damage: the row's DOI
+    // is the URL, so the generated statements cite a reference by URL.
+    let tsv = "name\tsmiles\torganism\tdoi\nA\tCCO\tTaxon\thttps://DOI.ORG/10.1/x\n";
+    let rows = parse_tsv(tsv).expect("the tsv parses");
+
+    assert_eq!(
+        rows[0].doi.as_deref(),
+        Some("HTTPS://DOI.ORG/10.1/X"),
+        "this is the defect: `find_ascii_ci` does not fold the haystack, so an \
+         upper-case doi.org URL is not recognised and the URL becomes the DOI. \
+         When the fold is fixed this assertion is what must change, to \
+         Some(\"10.1/X\")."
+    );
+
+    // And the row is then indistinguishable, on its uniqueness key, from
+    // nothing else -- but two rows differing only in the case of the host do
+    // collide, because neither host is stripped.
+    let lower = parse_tsv("name\tsmiles\torganism\tdoi\nA\tCCO\tTaxon\thttps://doi.org/10.1/x\n")
+        .expect("the tsv parses");
+    assert_ne!(
+        rows[0].doi, lower[0].doi,
+        "which is how one reference becomes two submissions"
+    );
+}
