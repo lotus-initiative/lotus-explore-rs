@@ -141,3 +141,7 @@ impl CurationError {
         matches!(self, Self::Http(_))
     }
 }
+
+#[cfg(test)]
+#[path = "types/tests.rs"]
+mod tests;
