@@ -601,3 +601,165 @@ fn the_preamble_is_written_exactly_once_and_before_the_data() {
         }
     }
 }
+
+/// The Turtle fallback, the absolute-URI reference node, and the empty-object
+/// skip all sat in `push_triples` and `emit` with nothing asserting them.
+///
+/// Scoped mutation returned a survivor for each: the fallback arm deleted, the
+/// `http://` test narrowed to `&&`, and the empty-object guard narrowed to `&&`.
+#[test]
+fn an_occurrence_with_no_statement_falls_back_to_the_direct_taxon_edge() {
+    // Lossy -- the taxon is attached to the compound rather than to a statement
+    // the occurrence was derived from -- but it keeps the occurrence in the
+    // graph, which is the point. Without the arm the occurrence is simply gone
+    // from the export, silently.
+    let row = CompoundEntry {
+        statement: None,
+        ..full_row()
+    };
+    let rdf = render(ExportFormat::Rdf, &set_of(&[row]));
+
+    assert!(
+        rdf.contains("wdt:P703"),
+        "with no statement to hang it on, the taxon must still be emitted:\n{rdf}"
+    );
+    assert!(
+        rdf.contains("wd:Q128267"),
+        "and it must be the taxon this row names:\n{rdf}"
+    );
+    assert!(
+        !rdf.contains("p:P703"),
+        "there is no statement to reify through, so no reified edge:\n{rdf}"
+    );
+}
+
+#[test]
+fn an_absolute_uri_reference_node_is_left_alone_rather_than_prefixed() {
+    // The stored value is normally the node's hash with the namespace already
+    // stripped, so the namespace goes back on here. Not every
+    // `prov:wasDerivedFrom` object is a `/reference/<hex>` node, and prefixing
+    // one of those produced `.../reference/http://www.wikidata.org/r` -- a URI
+    // naming a URI naming a URI.
+    let absolute = "http://www.wikidata.org/entity/Q100000001";
+    let row = CompoundEntry {
+        reference_node: arc(absolute),
+        ..full_row()
+    };
+    let rdf = render(ExportFormat::Rdf, &set_of(&[row]));
+
+    assert!(
+        rdf.contains(&format!("<{absolute}>")),
+        "an absolute URI must be emitted as itself:\n{rdf}"
+    );
+    assert!(
+        !rdf.contains("reference/http://"),
+        "the namespace must not be prefixed onto one:\n{rdf}"
+    );
+}
+
+#[test]
+fn a_triple_with_an_empty_object_or_subject_is_not_emitted() {
+    // What the endpoint's own CONSTRUCT does, and what makes the file loadable:
+    // a triple whose object is unbound is not written, rather than written with
+    // nothing after the predicate.
+    let rdf = render(ExportFormat::Rdf, &set_of(&[empty_row()]));
+
+    for line in rdf.lines().filter(|l| !l.trim_start().starts_with('@')) {
+        if line.trim().is_empty() {
+            continue;
+        }
+        assert!(
+            line.split_whitespace().count() >= 4,
+            "a triple needs a subject, predicate, object and the full stop: {line:?}"
+        );
+        assert!(
+            !line.contains("> <") && !line.ends_with("> .") && !line.contains("  ."),
+            "an unbound value was written as an empty object: {line:?}"
+        );
+    }
+    // The row has no inchikey, no formula and no taxon at all, so the triples
+    // that survive are the ones it does have.
+    assert!(
+        rdf.contains("@prefix"),
+        "the preamble is still emitted even for an all-empty row:\n{rdf}"
+    );
+}
+
+#[test]
+fn chunking_batches_rows_rather_than_emitting_one_chunk_per_row() {
+    // The bound is there so a large export never holds the whole file in memory.
+    // Inverting the comparison does not break the bound -- every chunk is still
+    // small -- it just makes each chunk hold a single row, so a million rows
+    // become a million sink writes and the streaming is defeated while the
+    // output is byte-identical. Every existing chunk test passes against that,
+    // because they check size and concatenation and not how many chunks there are.
+    let rows: Vec<CompoundEntry> = (0..20_000)
+        .map(|index| CompoundEntry {
+            compound_qid: arc(&format!("Q{index}")),
+            ..full_row()
+        })
+        .collect();
+    let set = set_of(&rows);
+    let whole = render(ExportFormat::Csv, &set);
+    let mut exporter = RowExporter::new(ExportFormat::Csv, &set);
+    let mut chunks = 0usize;
+    let mut total = 0usize;
+    while let Some(chunk) = exporter.next_chunk() {
+        chunks += 1;
+        total += chunk.len();
+    }
+
+    assert!(
+        chunks > 1 && chunks < rows.len() / 10,
+        "{chunks} chunks for {} rows: chunking must batch rows, not emit one per row",
+        rows.len()
+    );
+    assert_eq!(
+        total,
+        whole.len(),
+        "and the batched chunks must still be the whole file"
+    );
+}
+
+#[test]
+fn the_preamble_is_the_first_chunk_and_appears_once() {
+    // Deleting the `!` from `if !self.in_body` makes the preamble unreachable:
+    // it is only pushed on the transition into the body, and `in_body` starts
+    // false. The output is then rows with no column names, which a CSV reader
+    // accepts and a person cannot.
+    let set = set_of(&[full_row()]);
+    let mut exporter = RowExporter::new(ExportFormat::Csv, &set);
+    let first = exporter.next_chunk().expect("the preamble is a chunk");
+    assert!(
+        first.starts_with("compound"),
+        "the first chunk must start with the header row, got {first:?}"
+    );
+    // And be nothing but it. The preamble is returned as soon as it exists
+    // rather than padded out to the chunk target, so the header arrives on its
+    // own -- which is what lets a sink start writing before it has a whole
+    // target's worth of rows. A first chunk carrying rows with the header means
+    // the early return did not happen, and every chunk-bound assertion still
+    // passes because the output is byte-identical.
+    assert_eq!(
+        first.lines().count(),
+        1,
+        "the preamble must be a chunk of its own, got {first:?}"
+    );
+    assert_eq!(
+        first.lines().next().unwrap_or_default().split(',').count(),
+        render(ExportFormat::Csv, &set)
+            .lines()
+            .next()
+            .unwrap_or_default()
+            .split(',')
+            .count(),
+        "and it must be the whole header, not part of one"
+    );
+
+    let rdf = render(ExportFormat::Rdf, &set_of(&[full_row(), full_row()]));
+    assert_eq!(
+        rdf.matches("@prefix wd:").count(),
+        1,
+        "the preamble is emitted once, not once per chunk"
+    );
+}
