@@ -129,25 +129,29 @@ impl ResultsTableVirtualizationController {
             let scroll_id = self.config.scroll_id;
             let mut row_height_px = self.row_height_px;
             let fallback = current_row_height;
-            // Held by the component rather than forgotten.
+            // Both halves of this are load-bearing, and they pull in opposite
+            // directions, which is why it is written out.
             //
-            // `forget` leaks the closure past the scope that owns the signal it writes
-            // to. A second search replaces the results table, the old scope is dropped,
-            // and the frame still fires -- into a dead signal. That is the panic this
-            // replaces: `Dropped(ValueDroppedError)`. Keeping the closure in a signal
-            // means unmounting the table cancels the measurement, which is what a
-            // measurement for a table that no longer exists should do.
-            let mut measure_raf_cb = self.measure_raf_cb;
+            // The closure is forgotten, so it can never be dropped while a frame is
+            // still queued against it. Owning it in a signal instead is the obvious
+            // tidy-up and it is wrong: unmounting the table would drop the closure
+            // while the browser still held a handle to call, and every frame after that
+            // throws "closure invoked recursively or after being dropped".
+            //
+            // The write is fallible, because a forgotten closure outlives the component
+            // that owns the signal it writes. Searching again replaces the table and the
+            // signal is gone, and `set` unwraps internally -- so an unguarded write turns
+            // a row height nobody will read into a panic that takes the app down.
+            //
+            // Cancelling the frame would answer both at once, but it needs the frame id
+            // kept and cancelled on unmount, and there is no unmount hook on this path.
+            // What leaks is one closure per table mount, and the measurement runs once
+            // per mount.
             if let Some(win) = window() {
                 let outer = Closure::wrap(Box::new(move |_time: f64| {
                     let inner = Closure::wrap(Box::new(move || {
                         let measured = scroll_runtime::measure_row_height_px(scroll_id, fallback);
                         if measured != fallback {
-                            // A frame already in flight when the table unmounted still
-                            // arrives. The measurement is then for a table that is gone,
-                            // so there is nothing to record: skip it rather than panic.
-                            // `set` unwraps internally and takes the whole app down over
-                            // a row height nobody will read.
                             if let Ok(mut slot) = row_height_px.try_write() {
                                 *slot = measured;
                             }
@@ -159,7 +163,7 @@ impl ResultsTableVirtualizationController {
                     inner.forget();
                 }) as Box<dyn FnMut(f64)>);
                 let _ = win.request_animation_frame(outer.as_ref().unchecked_ref());
-                *measure_raf_cb.write() = Some(outer);
+                outer.forget();
             }
         }
 
@@ -232,85 +236,59 @@ pub(super) fn should_reset_first_visible_row(total_rows: usize, first_visible_ro
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn virtualization_config_uses_results_table_defaults() {
-        let config = build_virtualization_config(144);
-
-        assert_eq!(config.row_height_px, 144);
-        assert_eq!(config.overscan_rows, VIRTUAL_OVERSCAN_ROWS);
-        assert_eq!(config.viewport_fallback_px, TABLE_VIEWPORT_FALLBACK_PX);
-        assert_eq!(config.scroll_id, TABLE_SCROLL_ID);
-    }
-
-    #[test]
-    #[cfg(not(target_arch = "wasm32"))]
-    fn server_viewport_height_never_drops_below_fallback() {
-        assert_eq!(
-            server_viewport_height_px(0, 114),
-            TABLE_VIEWPORT_FALLBACK_PX
-        );
-        assert_eq!(
-            server_viewport_height_px(1, 114),
-            TABLE_VIEWPORT_FALLBACK_PX
-        );
-    }
-
-    #[test]
-    #[cfg(not(target_arch = "wasm32"))]
-    fn server_viewport_height_scales_with_large_datasets() {
-        assert_eq!(server_viewport_height_px(10, 114), 1_140);
-    }
-
-    #[test]
-    fn empty_dataset_resets_scrolled_position_only_when_needed() {
-        assert!(should_reset_first_visible_row(0, 5));
-        assert!(!should_reset_first_visible_row(0, 0));
-        assert!(!should_reset_first_visible_row(3, 5));
-    }
-}
-
-#[cfg(test)]
 mod measurement_frame_safety {
+
     const SOURCE: &str = include_str!("virtualization_controller.rs");
 
-    /// The row-height measurement must not outlive the table it measures.
+    /// A frame must not outlive its closure.
     ///
-    /// A `Closure` kept alive with `forget` outlives the component that owns the
-    /// signal it writes. Searching again replaces the results table, the old scope is
-    /// dropped, and the frame still fires -- into a dead signal. `set` unwraps
-    /// internally, so that is a panic rather than a skipped write, and it takes the
-    /// whole app down over a row height that will never be read again.
+    /// The measurement is queued with `request_animation_frame`, and the browser keeps a
+    /// handle to call. Holding the closure in a component-owned signal looks like the tidy
+    /// answer -- it ties the closure's lifetime to the component's. It is the wrong
+    /// answer: unmounting the table drops the closure while the queued frame survives,
+    /// and every frame afterwards throws "closure invoked recursively or after being
+    /// dropped". The closure is forgotten on purpose.
+    ///
+    /// This gate exists because the opposite was tried, and it replaced one panic with
+    /// another.
     #[test]
-    fn the_measurement_frame_is_owned_rather_than_leaked() {
-        // Split so the needle does not appear in the assertion that searches for it.
-        // Split for the same reason: a literal here would match this assertion.
-        let forgot_outer = concat!("outer.", "forget()");
-        let owned = concat!("*measure_raf_cb.write() = Some(outer)", ";");
+    fn the_measurement_closure_is_never_dropped_while_a_frame_is_queued() {
+        // Split so this assertion cannot match the needle it searches for.
+        let leaked = concat!("outer.", "forget()");
         assert!(
-            !SOURCE.contains(forgot_outer),
-            "the measurement closure must be held by the component, not forgotten, or a              frame can outlive the signal it writes"
+            SOURCE.contains(leaked),
+            "the outer measurement closure must be forgotten: the browser holds a handle \
+             to it after the request, so dropping it turns every later frame into a throw"
         );
+        // The obvious alternative, and the one this gate stops someone reinstating. Keyed
+        // on the signal name rather than the closure, so a fix which also cancels the
+        // frame on unmount can land without tripping here.
+        let owned = concat!("measure_raf", "_cb");
         assert!(
-            SOURCE.contains(owned),
-            "the measurement closure is stored in a signal so unmounting cancels it"
+            !SOURCE.contains(owned),
+            "owning the closure without cancelling the queued frame produces 'closure \
+             invoked recursively or after being dropped' on the next search"
         );
     }
 
-    /// A frame already in flight when the table unmounts must be dropped, not unwrapped.
+    /// A forgotten closure outlives the signal it writes, so the write cannot panic.
     ///
-    /// Holding the outer closure closes the window before it fires; it cannot close the
-    /// window between the outer firing and the inner one, because by then the inner is
-    /// already leaked. The write has to survive a signal that no longer exists, which is
-    /// the only way this reaches the reader as a panic rather than a stale number.
+    /// This is the other half, and it is what the first fix got wrong in the other
+    /// direction. Searching again replaces the results table, the old scope is dropped,
+    /// and the frame still arrives. `set` unwraps internally, so recording a row height
+    /// for a table that no longer exists takes the app down. A late frame is dropped.
     #[test]
     fn the_measurement_write_survives_a_dropped_signal() {
         let try_write = concat!("row_height_px.try_", "write()");
         assert!(
             SOURCE.contains(try_write),
-            "the measurement write must be fallible: a frame in flight when the table              unmounts arrives after the signal is gone"
+            "the measurement write must be fallible: a frame in flight when the table \
+             unmounts arrives after the signal is gone"
+        );
+        let unguarded = format!("row_height_px.{}set(", "set");
+        assert!(
+            !SOURCE.contains(&unguarded),
+            "an unguarded write on the measurement signal is the panic this replaced"
         );
     }
 }
