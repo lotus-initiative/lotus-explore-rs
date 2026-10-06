@@ -56,6 +56,37 @@ thread_local! {
     static PENDING_FILE_SINK: RefCell<Option<Picker>> = const { RefCell::new(None) };
 }
 
+thread_local! {
+    /// The last export written through the private-storage sink, awaiting removal.
+    ///
+    /// Held rather than removed on a timer. An anchor click only *starts* a download:
+    /// the browser resolves the URL afterwards, so anything deleted on a delay is
+    /// deleted on a guess. Removing the previous export when the next one opens is the
+    /// same cleanup with nothing left to race -- the browser is demonstrably finished
+    /// with the old file by the time there is a new one to write.
+    static PENDING_EXPORT_NAME: RefCell<Option<String>> = const { RefCell::new(None) };
+}
+
+/// Remove the export the previous download left behind, now that a new one is starting.
+///
+/// Best-effort by design: a failure here is a file the browser will reclaim under
+/// storage pressure, and refusing the new export over it would trade a working
+/// download for a stale temporary.
+#[cfg(target_arch = "wasm32")]
+async fn discard_previous_export() {
+    let previous = PENDING_EXPORT_NAME.with(|slot| slot.borrow_mut().take());
+    let Some(previous) = previous else {
+        return;
+    };
+    let Ok(root) = opfs_root().await else {
+        return;
+    };
+    let Ok(exports) = directory_handle(&root, EXPORTS_DIR, false).await else {
+        return;
+    };
+    let _ = remove_entry(&exports, &previous).await;
+}
+
 /// Ask the browser where to write `suggested_name`, right now, while the click that
 /// triggered the download is still a user gesture.
 ///
@@ -255,6 +286,10 @@ pub struct OpfsSink {
 impl OpfsSink {
     /// Open a temporary file in the exports directory and keep it writable.
     pub async fn open(filename: &str) -> Result<Self, String> {
+        // The previous export goes now, not on a timer: by this point the browser is
+        // finished with it, and the origin's quota is what a large export runs into.
+        discard_previous_export().await;
+
         let root = opfs_root().await?;
         let exports = directory_handle(&root, EXPORTS_DIR, true).await?;
 
@@ -365,17 +400,37 @@ impl OpfsSink {
 
         let clicked = crate::upload::download_url(&url, filename);
 
-        // The temporary goes either way: a successful download and a failed one must
-        // not both leave the file behind, and exports are large enough that a few of
-        // them would fill the origin's quota.
-        let _ = remove_entry(&exports, &self.name).await;
-        // The object URL keeps the file alive for the browser's download to read, so it
-        // is not revoked here; the document drops it on unload.
-        if clicked {
-            Ok(())
-        } else {
-            Err("the browser refused to start the download".to_string())
+        // Not revoked here. The object URL is a handle into this file, so revoking or
+        // deleting the entry underneath it is what makes the browser report the file
+        // as missing.
+        if !clicked {
+            // Nothing was started, so nothing will read it: this is the one case where
+            // the temporary can go immediately.
+            let _ = remove_entry(&exports, &self.name).await;
+            return Err("the browser refused to start the download".to_string());
         }
+
+        // The temporary goes, but only once the browser has actually taken the file.
+        //
+        // Deleting it here instead -- which is where it used to be -- raced the
+        // download. An anchor click only *starts* one: Firefox resolves the URL
+        // afterwards, by which time a `removeEntry` already awaited has made the blob
+        // a dead handle, and the reader gets "Firefox can't find the file at blob:...".
+        // Chromium reads the blob eagerly enough to hide the race, so it looked like
+        // Firefox again, and it was this module's fourth consecutive defect to present
+        // that way.
+        //
+        // A macrotask is enough: it is one turn of the event loop after the click, by
+        // which time the download has taken its reference and holds it for its own
+        // duration. Revoking the URL is left to the document, which drops it on
+        // unload -- revoking it here would cancel a download still in flight.
+        // The file stays until the next export, which is what makes this race-free
+        // rather than merely slower to lose. Deleting it on a timer is still a guess
+        // about when the browser has finished reading; deferring to the next export is
+        // not, because by then the download has either completed or been abandoned,
+        // and both are states the next export can observe without racing anything.
+        PENDING_EXPORT_NAME.with(|slot| *slot.borrow_mut() = Some(self.name.clone()));
+        Ok(())
     }
 }
 

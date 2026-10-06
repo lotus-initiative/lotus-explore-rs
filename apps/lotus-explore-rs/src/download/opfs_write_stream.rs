@@ -106,3 +106,39 @@ fn the_read_back_is_awaited_too() {
          to disk"
     );
 }
+
+/// The finished export must outlive the click that started its download.
+///
+/// Deleting the entry right after the click raced the download. An anchor click only
+/// *starts* one -- the browser resolves the blob URL afterwards -- so a `removeEntry`
+/// awaited at that point had usually already landed, and Firefox reported the file as
+/// missing. Chromium read the blob eagerly enough to hide it, which is what made a
+/// fourth defect in this one sink look like a Firefox limitation.
+///
+/// So the temporary is removed when the *next* export opens, which cannot race: the
+/// browser is finished with the old file by the time there is a new one to write.
+#[test]
+fn the_finished_export_is_removed_by_the_next_one_and_not_by_the_click() {
+    // Keyed on the call site rather than on the absence of the function: both exist,
+    // and only the placement is the defect.
+    let click_and_delete = concat!(
+        "download_url(&url, filename)",
+        ";\n\n        // The temporary goes either way"
+    );
+    assert!(
+        !SINK.contains(click_and_delete),
+        "removing the export in the same breath as the click races the download, \
+         and the reader gets 'Firefox can't find the file at blob:...'"
+    );
+    let deferred = concat!("PENDING_EXPORT_NAME", ".with(|slot|");
+    assert!(
+        SINK.contains(deferred),
+        "the finished export is held until the next one opens, rather than deleted \
+         on a guess about when the browser has finished reading it"
+    );
+    let swept = concat!("discard_previous_export()", ".await");
+    assert!(
+        SINK.contains(swept),
+        "the previous export is removed when a new export starts writing"
+    );
+}
