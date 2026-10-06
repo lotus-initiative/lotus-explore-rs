@@ -93,7 +93,7 @@ pub fn warn_compound_resolved(label: &str, qid: &str) -> String {
 }
 
 pub fn warn_ambiguous_taxon(best_name: &str, best_qid: &str, names: &str) -> String {
-    format!("Nome taxon ambiguo; uso {best_name} ({best_qid}). Candidati: {names}")
+    format!("Nome di taxon ambiguo; uso {best_name} ({best_qid}). Candidati: {names}")
 }
 
 /// More than one compound matched, and the one that was used is named.

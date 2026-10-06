@@ -10,7 +10,7 @@ pub(super) const fn heading_tsv_import() -> &'static str {
 }
 
 pub(super) const fn heading_queued_rows() -> &'static str {
-    "Lignes en file"
+    "Lignes en attente"
 }
 
 pub(super) const fn heading_results() -> &'static str {
@@ -94,7 +94,7 @@ pub(super) const fn hint_expected_tsv_headers() -> &'static str {
 }
 
 pub(super) const fn hint_scroll_curation_results() -> &'static str {
-    "Astuce : faites glisser horizontalement pour voir toutes les colonnes."
+    "Astuce : faites glisser horizontalement pour voir toutes les colonnes des résultats."
 }
 
 pub(super) fn msg_name_smiles_required() -> String {
@@ -147,7 +147,7 @@ pub(super) const fn msg_curation_rate_limited() -> &'static str {
 
 pub(super) fn msg_prerequisites_pending(count: usize) -> String {
     format!(
-        "{count} ligne(s) attend(ent) encore des entités préalables. Exécutez les prérequis, créez-les ou fusionnez-les dans Wikidata, puis lancez la seconde passe."
+        "{count} ligne(s) attendent encore des entités préalables. Exécutez les prérequis, créez-les ou fusionnez-les dans Wikidata, puis lancez la seconde passe."
     )
 }
 
@@ -186,7 +186,7 @@ pub(super) const fn curation_badge_second_pass_required() -> &'static str {
 }
 
 pub(super) const fn curation_mass_warning_title() -> &'static str {
-    "La masse exacte n'a pas pu être déterminée à partir des points de terminaison des descripteurs"
+    "La masse exacte n'a pas pu être déterminée à partir des points d'accès des descripteurs"
 }
 
 pub(super) const fn msg_delay_advice() -> &'static str {

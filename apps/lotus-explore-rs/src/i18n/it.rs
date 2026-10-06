@@ -50,7 +50,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::CopyShareableLink => "Copia link condivisibile",
         TextKey::Unique => "Uniche",
         TextKey::LoadingTitle => "Interrogazione di Wikidata tramite QLever...",
-        TextKey::LoadingHint => "Un numero elevato di risultati può richiedere alcuni secondi.",
+        TextKey::LoadingHint => "Un elevato numero di risultati può richiedere alcuni secondi.",
         TextKey::LoadingResolvingStructure => "Risoluzione della struttura...",
         TextKey::LoadingResolvingReference => "Risoluzione del riferimento...",
         TextKey::LoadingResolvingTaxon => "Risoluzione del taxon...",

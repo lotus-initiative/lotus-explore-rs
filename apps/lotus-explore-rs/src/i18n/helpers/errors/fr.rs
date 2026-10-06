@@ -93,7 +93,7 @@ pub fn warn_compound_resolved(label: &str, qid: &str) -> String {
 }
 
 pub fn warn_ambiguous_taxon(best_name: &str, best_qid: &str, names: &str) -> String {
-    format!("Nom de taxon ambigu; utilisation de {best_name} ({best_qid}). Candidats : {names}")
+    format!("Nom de taxon ambigu ; utilisation de {best_name} ({best_qid}). Candidats : {names}")
 }
 
 /// More than one compound matched, and the one that was used is named.
@@ -102,7 +102,7 @@ pub fn warn_ambiguous_taxon(best_name: &str, best_qid: &str, names: &str) -> Str
 /// the same, but naming a compound "an ambiguous taxon name" points them at the
 /// field they did not type into.
 pub fn warn_ambiguous_compound(best_name: &str, best_qid: &str, names: &str) -> String {
-    format!("Composé ambigu; utilisation de {best_name} ({best_qid}). Candidats : {names}")
+    format!("Composé ambigu ; utilisation de {best_name} ({best_qid}). Candidats : {names}")
 }
 
 /// La recherche ne nomme ni structure, ni taxon, ni référence : tout LOTUS est

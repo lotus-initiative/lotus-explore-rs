@@ -95,7 +95,7 @@ pub fn warn_compound_resolved(label: &str, qid: &str) -> String {
 }
 
 pub fn warn_ambiguous_taxon(best_name: &str, best_qid: &str, names: &str) -> String {
-    format!("Mehrdeutiger Taxonname; verwende {best_name} ({best_qid}). Kandidaten: {names}")
+    format!("Mehrdeutiger Taxonname; verwendet wird {best_name} ({best_qid}). Kandidaten: {names}")
 }
 
 /// More than one compound matched, and the one that was used is named.
@@ -104,7 +104,7 @@ pub fn warn_ambiguous_taxon(best_name: &str, best_qid: &str, names: &str) -> Str
 /// the same, but naming a compound "an ambiguous taxon name" points them at the
 /// field they did not type into.
 pub fn warn_ambiguous_compound(best_name: &str, best_qid: &str, names: &str) -> String {
-    format!("Mehrdeutige Verbindung; verwende {best_name} ({best_qid}). Kandidaten: {names}")
+    format!("Mehrdeutige Verbindung; verwendet wird {best_name} ({best_qid}). Kandidaten: {names}")
 }
 
 /// Die Suche nennt weder Struktur noch Taxon noch Referenz und durchsucht daher

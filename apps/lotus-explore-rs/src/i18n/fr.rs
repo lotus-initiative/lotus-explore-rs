@@ -50,7 +50,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::CopyFullQueryHash => "Copier le hash complet de la requête (SHA-256)",
         TextKey::CopyFullResultHash => "Copier le hash complet du résultat (SHA-256)",
         TextKey::CopyShareableLink => "Copier le lien à partager",
-        TextKey::Unique => "uniques",
+        TextKey::Unique => "Uniques",
         TextKey::LoadingTitle => "Interrogation de Wikidata via QLever...",
         TextKey::LoadingHint => "Les grands jeux de résultats peuvent prendre du temps.",
         TextKey::LoadingResolvingStructure => "Résolution de la structure...",

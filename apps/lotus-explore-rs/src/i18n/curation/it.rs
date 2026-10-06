@@ -26,7 +26,7 @@ pub(super) const fn heading_quickstatements_dependencies() -> &'static str {
 }
 
 pub(super) const fn placeholder_molecule_name() -> &'static str {
-    "Nome molecola"
+    "Nome della molecola"
 }
 
 pub(super) const fn placeholder_taxon_optional() -> &'static str {
