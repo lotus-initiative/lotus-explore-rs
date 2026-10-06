@@ -340,8 +340,18 @@ impl OpfsSink {
         let get_file: js_sys::Function = Reflect::get(&entry, &"getFile".into())
             .map_err(|_| "the finished export cannot be read back".to_string())?
             .unchecked_into();
-        let file: JsValue = get_file
+        let pending: JsValue = get_file
             .call0(&entry)
+            .map_err(|error| describe_js_error("reading the finished export", &error))?;
+
+        // Awaited. `getFile()` returns a promise for the `File`, and handing that
+        // promise to `createObjectURL` throws "TypeError: Type error" -- which is the
+        // whole download failing at its last step, once the export has already been
+        // written to disk. `open` awaits `createWritable` for the same reason, and
+        // forgetting it there made the sink unusable everywhere; this is the same
+        // omission at the other end of it.
+        let file: JsValue = JsFuture::from(pending.unchecked_into::<js_sys::Promise>())
+            .await
             .map_err(|error| describe_js_error("reading the finished export", &error))?;
 
         // A `File` is a `Blob`, so the existing object-URL path takes it unchanged. The

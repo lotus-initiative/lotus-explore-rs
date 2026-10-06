@@ -83,3 +83,26 @@ fn the_export_is_requested_as_a_file_and_not_as_a_directory() {
          method it was written with"
     );
 }
+
+/// Reading the finished export back is asynchronous, and so is writing it.
+///
+/// `getFile()` returns a promise for the `File`. Handed that promise to
+/// `createObjectURL` instead, the export is written to disk correctly and the
+/// download then dies at its final step with "TypeError: Type error" -- so the
+/// export is refused on every browser that reaches the sink, after doing all the
+/// work. The sink is not selected until the fix above, which is why this waited
+/// behind that one to be noticed.
+#[test]
+fn the_read_back_is_awaited_too() {
+    // Keyed on the binding, not on `JsFuture::from(pending` -- which is the shape
+    // `open` already uses for `createWritable`, so matching that would have this
+    // gate pass on the broken source for the wrong reason. The read-back is the
+    // only site binding `file`.
+    let awaited = concat!("let file: JsValue = JsFuture::from(pending");
+    assert!(
+        SINK.contains(awaited),
+        "`getFile()` returns a promise for the File; without awaiting it the whole \
+         export fails at the last step with a TypeError, having already been written \
+         to disk"
+    );
+}
