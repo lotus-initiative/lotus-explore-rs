@@ -209,9 +209,7 @@ pub enum DomainError {
 }
 
 impl DomainError {
-    /// Construct a transport error for the given query stage and repository source.
-    /// This function is primarily used in unit tests and benchmarks to construct
-    /// error scenarios for testing error handling and propagation logic.
+    /// A transport error for `stage`, carrying the repository error it came from.
     #[cfg(test)]
     pub fn transport(stage: QueryStage, source: crate::repositories::RepositoryError) -> Self {
         Self::Transport { stage, source }

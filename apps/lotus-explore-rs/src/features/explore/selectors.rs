@@ -70,9 +70,7 @@ pub fn use_criteria_selector<T: PartialEq + Clone + 'static>(
     use_memo(move || f(&criteria.read()))
 }
 
-/// Snapshot of commonly-queried explore UI state flags.
-/// Used to reduce signal reads and prevent unnecessary component re-renders
-/// across results viewport, table, and toolbar sections.
+/// Snapshot of the explore UI state flags the viewport, table and toolbar all read.
 // Each bool is an independent UI flag read by separate components; collapsing
 // them into a state machine would couple unrelated rendering concerns.
 #[allow(
