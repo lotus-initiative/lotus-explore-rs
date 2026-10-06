@@ -393,6 +393,5 @@ pub fn creation_statements(
 /// Bytes rather than constructed values, so a change in the wire shape has to be
 /// made here deliberately, where the mistake would otherwise be invisible.
 #[cfg(test)]
-#[cfg(test)]
 #[path = "knowledge/tests.rs"]
 mod tests;

@@ -34,7 +34,6 @@ pub(super) struct ResultsTableVirtualizationController {
     #[cfg(target_arch = "wasm32")]
     scroll_raf_scheduled: Signal<bool>,
     #[cfg(target_arch = "wasm32")]
-    #[cfg(target_arch = "wasm32")]
     scroll_raf_id: Signal<Option<i32>>,
 }
 
@@ -53,7 +52,6 @@ pub(super) fn use_results_table_virtualization(
     let scroll_host = use_signal(|| None::<web_sys::HtmlElement>);
     #[cfg(target_arch = "wasm32")]
     let scroll_raf_scheduled = use_signal(|| false);
-    #[cfg(target_arch = "wasm32")]
     #[cfg(target_arch = "wasm32")]
     let scroll_raf_id = use_signal(|| None::<i32>);
 
@@ -90,7 +88,6 @@ pub(super) fn use_results_table_virtualization(
         scroll_host,
         #[cfg(target_arch = "wasm32")]
         scroll_raf_scheduled,
-        #[cfg(target_arch = "wasm32")]
         #[cfg(target_arch = "wasm32")]
         scroll_raf_id,
     }
@@ -142,10 +139,10 @@ impl ResultsTableVirtualizationController {
                 let outer = Closure::wrap(Box::new(move |_time: f64| {
                     let inner = Closure::wrap(Box::new(move || {
                         let measured = scroll_runtime::measure_row_height_px(scroll_id, fallback);
-                        if measured != fallback {
-                            if let Ok(mut slot) = row_height_px.try_write() {
-                                *slot = measured;
-                            }
+                        if measured != fallback
+                            && let Ok(mut slot) = row_height_px.try_write()
+                        {
+                            *slot = measured;
                         }
                     }) as Box<dyn FnMut()>);
                     if let Some(win) = window() {
