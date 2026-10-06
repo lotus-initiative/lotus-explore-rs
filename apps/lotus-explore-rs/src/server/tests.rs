@@ -544,60 +544,42 @@ async fn search_rejects_malformed_json_payload() {
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
+/// A body that parses as JSON but names no taxon and no structure is rejected by
+/// both write endpoints, as 400, with a JSON body whose error names the field the
+/// caller left out. The status alone would not be enough: a 400 that names
+/// nothing leaves the caller guessing which of the two to send.
 #[tokio::test]
-async fn search_rejects_semantically_empty_payload() {
-    let config = test_config();
-    let app = build_router(config.max_body_bytes, &config, AppState::new(&config));
+async fn both_write_endpoints_reject_a_semantically_empty_payload() {
+    for (uri, what) in [("/v1/search", "search"), ("/v1/export-url", "export")] {
+        let config = test_config();
+        let app = build_router(config.max_body_bytes, &config, AppState::new(&config));
 
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/v1/search")
-                .header("content-type", "application/json")
-                .body(Body::from("{}"))
-                .expect("request"),
-        )
-        .await
-        .expect("empty search payload response");
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(uri)
+                    .header("content-type", "application/json")
+                    .body(Body::from("{}"))
+                    .expect("request"),
+            )
+            .await
+            .unwrap_or_else(|e| panic!("empty {what} payload response: {e}"));
 
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    assert!(content_type_header(&response).starts_with("application/json"));
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{uri}");
+        assert!(
+            content_type_header(&response).starts_with("application/json"),
+            "{uri}"
+        );
 
-    let json = body_json(response).await;
-    assert!(
-        json.get("error")
-            .and_then(serde_json::Value::as_str)
-            .is_some_and(|msg| msg.contains("taxon") || msg.contains("smiles"))
-    );
-}
-
-#[tokio::test]
-async fn export_url_rejects_semantically_empty_payload() {
-    let config = test_config();
-    let app = build_router(config.max_body_bytes, &config, AppState::new(&config));
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/v1/export-url")
-                .header("content-type", "application/json")
-                .body(Body::from("{}"))
-                .expect("request"),
-        )
-        .await
-        .expect("empty export payload response");
-
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    assert!(content_type_header(&response).starts_with("application/json"));
-
-    let json = body_json(response).await;
-    assert!(
-        json.get("error")
-            .and_then(serde_json::Value::as_str)
-            .is_some_and(|msg| msg.contains("taxon") || msg.contains("smiles"))
-    );
+        let json = body_json(response).await;
+        assert!(
+            json.get("error")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|msg| msg.contains("taxon") || msg.contains("smiles")),
+            "{uri} should name the missing field"
+        );
+    }
 }
 
 #[tokio::test]
