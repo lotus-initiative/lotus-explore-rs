@@ -370,3 +370,96 @@ fn a_non_ascii_message_survives_being_read_out_of_a_json_exception() {
         "the endpoint's own words are what the user should read, unaltered"
     );
 }
+
+/// A reference lookup: `wdqs_fallback` routes these to the scholarly subgraph
+/// rather than the main endpoint, because `P356` is slow there and this is the
+/// one query that only needs `P356`.
+const REFERENCE_LOOKUP: &str = "SELECT ?ref WHERE { ?ref wdt:P356 \"10.1000/nope\" . }";
+
+#[test]
+fn a_reference_lookup_falls_back_to_the_scholarly_subgraph_and_not_the_main_endpoint() {
+    // The routing is the whole point of `wdqs_fallback`, and the Scholarly arm
+    // had no test: a mutant that sent every fallback to the main endpoint would
+    // still pass, because the main endpoint answers reference lookups too --
+    // just slowly, which is the complaint the routing exists to answer.
+    assert!(lotus_query::is_reference_lookup(REFERENCE_LOOKUP));
+    let (service, _) = lotus_query::wdqs_fallback(REFERENCE_LOOKUP);
+    assert!(
+        matches!(service, lotus_query::FallbackService::Scholarly),
+        "a reference lookup must route to the scholarly subgraph, got {service:?}"
+    );
+
+    // And a query that is not a reference lookup goes the other way.
+    let (service, _) = lotus_query::wdqs_fallback(
+        "SELECT ?compound WHERE { ?compound wdt:P31 wd:Q11365 . OPTIONAL { ?x ?y ?z } }",
+    );
+    assert!(
+        matches!(service, lotus_query::FallbackService::Main),
+        "an ordinary query must route to the main endpoint, got {service:?}"
+    );
+}
+
+#[test]
+fn an_exception_with_no_closing_quote_falls_through_to_the_next_reader() {
+    // `json_exception` returns `None` when the value never closes -- a truncated
+    // response, or an endpoint that cut the connection mid-body. `compact` then
+    // falls through to the `<title>` reader and then to the first non-empty
+    // line, so a truncated exception still produces one readable line rather
+    // than no message at all.
+    assert_eq!(
+        json_exception(r#"{"exception":"Variable ?s was not decl"#),
+        None,
+        "an unterminated exception must not be reported as one"
+    );
+    let compacted = compact(br#"{"exception":"truncated mid-body"#);
+    assert!(
+        !compacted.is_empty(),
+        "a truncated exception must still yield a readable line"
+    );
+    assert!(
+        compacted.contains("truncated mid-body"),
+        "the fallback reader dropped the message: {compacted:?}"
+    );
+}
+
+#[test]
+fn an_endpoint_unavailable_is_exactly_network_or_502() {
+    // This predicate decides whether the query is retried against a second
+    // endpoint. Anything broader and a rejected query runs twice on two public
+    // endpoints; anything narrower and a real outage is not survived at all.
+    assert!(FetchError::Network("connection refused".into()).is_endpoint_unavailable());
+    assert!(
+        FetchError::Http {
+            status: 502,
+            message: "Bad Gateway".into()
+        }
+        .is_endpoint_unavailable()
+    );
+
+    for not_unavailable in [
+        // A 429 from QLever means the query ran out of time, not that the
+        // endpoint is down. Falling back would spend WDQS's whole budget too.
+        FetchError::Http {
+            status: 429,
+            message: "timeout".into(),
+        },
+        FetchError::Http {
+            status: 400,
+            message: "syntax error".into(),
+        },
+        FetchError::Http {
+            status: 503,
+            message: "maintenance".into(),
+        },
+        FetchError::TimedOut {
+            budget: Some("60s".into()),
+            message: "cancelled".into(),
+        },
+        FetchError::Parse("bad csv".into()),
+    ] {
+        assert!(
+            !not_unavailable.is_endpoint_unavailable(),
+            "{not_unavailable:?} must not trigger a fallback to a second endpoint"
+        );
+    }
+}
