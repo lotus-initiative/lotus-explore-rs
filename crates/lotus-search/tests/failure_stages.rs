@@ -22,7 +22,7 @@ const NOW: u16 = 2026;
 
 /// A criteria with no taxon, no structure and no reference: `search` then runs
 /// exactly one query, the results one.
-fn bare() -> SearchCriteria {
+const fn bare() -> SearchCriteria {
     SearchCriteria::up_to_year(NOW)
 }
 
@@ -40,7 +40,7 @@ fn always_unreachable() -> Scripted {
 
 /// The stage a failure is reported against, or `""` if it is not a transport
 /// error.
-fn stage_of(error: &SearchError) -> &str {
+const fn stage_of(error: &SearchError) -> &str {
     match error {
         SearchError::Transport { stage, .. } => stage,
         SearchError::Invalid(_) => "",
