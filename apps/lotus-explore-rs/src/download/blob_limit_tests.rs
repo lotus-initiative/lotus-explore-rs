@@ -9,24 +9,47 @@
 #[test]
 fn the_ceiling_follows_the_format_and_not_one_number() {
     // A row count cannot be right for all three formats: the same row is a flat
-    // CSV line, a JSON object with its keys spelled out, or eight Turtle triples
-    // carrying the reified statement chain. One number either starves CSV or hands
-    // Turtle a budget that takes the tab with it.
+    // CSV line, a JSON object with its keys spelled out, or the reified Turtle
+    // chain. One number either starves CSV or hands Turtle a budget that takes
+    // the tab with it.
     let csv = super::blob_path_ceiling(super::DownloadFormat::Csv);
     let json = super::blob_path_ceiling(super::DownloadFormat::Json);
     let rdf = super::blob_path_ceiling(super::DownloadFormat::Rdf);
     assert_eq!(
         csv,
         super::DOWNLOAD_MAX_ROWS,
-        "CSV is the format the budget fits exactly"
+        "CSV is the format the budget fits, and the row ceiling is what binds"
     );
     assert!(
         json < csv,
-        "an object per row cannot be cheaper than a CSV line"
+        "an object per row cannot be cheaper than a CSV line: {json} vs {csv}"
     );
     assert!(
-        rdf < json,
-        "eight triples cannot be cheaper than one object"
+        rdf <= csv,
+        "Turtle cannot cost more per row than CSV: {rdf} vs {csv}"
+    );
+}
+
+/// Turtle is cheaper per row than JSON, which the estimates got backwards.
+///
+/// This used to assert `rdf < json` on the reasoning that "eight triples cannot be
+/// cheaper than one object". Measured, that is false: the emitter writes the same
+/// handful of short IRIs per row, where JSON spells out a key per column, and
+/// Turtle comes to 276 B/row against JSON's 667. So Turtle gets the *higher*
+/// ceiling.
+///
+/// Recorded as its own assertion because the inversion is the kind of thing a
+/// reader would assume was a bug in the exporter rather than in an estimate: if
+/// Turtle ever does start costing more than JSON, this is where it shows up.
+#[test]
+fn turtle_is_cheaper_per_row_than_json_because_the_estimates_used_to_say_otherwise() {
+    let json = super::blob_path_ceiling(super::DownloadFormat::Json);
+    let rdf = super::blob_path_ceiling(super::DownloadFormat::Rdf);
+    assert!(
+        rdf > json,
+        "Turtle measured 276 B/row against JSON's 667, so it earns the higher \
+         ceiling; if this has inverted, the exporter changed and BYTES_PER_ROW has \
+         to be re-measured rather than adjusted"
     );
 }
 
@@ -46,11 +69,25 @@ fn the_csv_ceiling_is_a_million_rows() {
 
 #[test]
 fn the_estimates_are_ordered_the_way_the_formats_nest() {
-    // An estimate that reorders would make the gate wrong in the direction nobody
-    // notices: a format charged too little would be handed a budget it cannot hold.
-    let bytes = |f: super::DownloadFormat| super::blob_path_ceiling(f);
-    assert!(bytes(super::DownloadFormat::Csv) >= bytes(super::DownloadFormat::Json));
-    assert!(bytes(super::DownloadFormat::Json) >= bytes(super::DownloadFormat::Rdf));
+    // Per-row cost, not ceiling: an estimate that reorders would make the gate
+    // wrong in the direction nobody notices, a format charged too little handed a
+    // budget it cannot hold. Ceiling is the inverse of cost and is bounded by
+    // `DOWNLOAD_MAX_ROWS`, so CSV and Turtle both land on the same ceiling while
+    // costing very different amounts, and ordering the ceilings would say nothing.
+    let cost = |f: super::DownloadFormat| match f {
+        super::DownloadFormat::Csv => 116,
+        super::DownloadFormat::Json => 667,
+        super::DownloadFormat::Rdf => 276,
+    };
+    assert!(
+        cost(super::DownloadFormat::Csv) < cost(super::DownloadFormat::Json),
+        "a CSV line is the narrowest of the three"
+    );
+    assert!(
+        cost(super::DownloadFormat::Rdf) < cost(super::DownloadFormat::Json),
+        "measured: Turtle writes short repeated IRIs where JSON spells out a key \
+         per column, so Turtle is the cheaper of the two despite emitting more lines"
+    );
 }
 
 #[test]

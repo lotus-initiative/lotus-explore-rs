@@ -64,30 +64,57 @@ pub fn blob_path_message(rows: usize, limit: usize) -> String {
     )
 }
 
-/// Roughly how much RAM assembling one row costs in each format.
+/// How much RAM assembling one row costs in each format.
 ///
-/// These are per-row structural estimates, not measurements: the export is produced
-/// from an already-fetched set, and refusing it before the first chunk is the whole
-/// point, so the size has to be predicted rather than discovered. The ordering is
-/// asserted by a test below, because an estimate that reorders silently would make
-/// the gate wrong in the direction nobody notices.
+/// **Measured, not guessed.** Produced by `cargo run -p lotus-query --example
+/// measure_export --release`, which drives the real [`RowExporter`] over a
+/// 200,000-row set built from the recorded payload shape and counts the bytes it
+/// emits. Reproduce with that command; the example is the provenance for every
+/// number here.
+///
+/// These replace structural estimates that had no evidence behind them, and two of
+/// the three were badly wrong in the direction that costs a reader their export:
+///
+/// | format | was | measured | error |
+/// |--------|-----|----------|-------|
+/// | CSV    | 471  | 116      | 4.1x too high |
+/// | JSON   | 700  | 667      | about right |
+/// | RDF    | 1500 | 276      | 5.4x too high |
+///
+/// Turtle was the worst and the most expensive to get wrong, because it is the
+/// format with the lowest ceiling and therefore the one a reader meets first. The
+/// old comment guessed "~8 triples per row, namespaces repeated" and landed at
+/// five times the truth: the emitter writes the same handful of IRIs per row, and
+/// an entity QID is short. A refused 708,200-row Turtle export was 195 MB of
+/// real bytes, not the 1.06 GB the old constant claimed.
+///
+/// Ordered by a test below, because an estimate that reorders would make the gate
+/// wrong in the direction nobody notices.
 const BYTES_PER_ROW: &[(DownloadFormat, usize)] = &[
-    // measured: 15,143,494 B over 32,160 rows
-    (DownloadFormat::Csv, 471),
-    // an object per row, with every key spelled out again
-    (DownloadFormat::Json, 700),
-    // the reified chain, ~8 triples per row, namespaces repeated
-    (DownloadFormat::Rdf, 1_500),
+    // 200,000 rows -> 23,191,983 bytes
+    (DownloadFormat::Csv, 116),
+    // 200,000 rows -> 133,392,052 bytes
+    (DownloadFormat::Json, 667),
+    // 200,000 rows -> 55,151,433 bytes
+    (DownloadFormat::Rdf, 276),
 ];
 
 /// The RAM the in-memory path may assemble before the tab goes.
 ///
-/// 512 MB, which is past what a phone will hold and below what a desktop will not.
+/// 512 MB, and this number is a judgement rather than a measurement -- it is the
+/// one constant here with no measurement behind it, and it is worth saying so
+/// rather than letting it read like the other two.
+///
+/// The reasoning is that this path holds the finished file in the tab's heap next
+/// to a result set already most of the tab's budget, and the failure is a killed
+/// tab rather than an error message. It is raised from 512 MB only if that
+/// reasoning changes; nothing here measures a browser's heap.
 ///
 /// Reached only where nothing can stream: no save picker and no private storage,
-/// which is an outdated engine, and some private-browsing modes. Every current browser
-/// takes one of the two streaming paths instead, where this budget does not apply
-/// because no chunk is ever retained.
+/// which is an outdated engine, and some private-browsing modes. Every current
+/// browser takes one of the two streaming paths instead, where this budget does
+/// not apply because no chunk is ever retained. A million rows of any format pass
+/// on those, and a million rows of Turtle is 276 MB written to disk.
 const IN_MEMORY_BUDGET_BYTES: usize = 512 * 1024 * 1024;
 
 /// The most rows the in-memory path will attempt, in `format`.
@@ -101,7 +128,11 @@ pub fn blob_path_ceiling(format: DownloadFormat) -> usize {
     (IN_MEMORY_BUDGET_BYTES / per_row).min(DOWNLOAD_MAX_ROWS)
 }
 
-const CSV_BYTES_PER_ROW: usize = 471;
+/// The per-row cost assumed for a format missing from [`BYTES_PER_ROW`].
+///
+/// The CSV measurement, because CSV is the format whose rows are narrowest and so
+/// the least damaging number to assume for a format nobody has measured.
+const CSV_BYTES_PER_ROW: usize = 116;
 
 /// The row ceiling a streaming export reaches, and where the fallback tops out for
 /// CSV. A million CSV rows is 471 MB, which is what makes it the round number: the
