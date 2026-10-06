@@ -205,7 +205,6 @@ fn describe_js_error(what: &str, error: &JsValue) -> String {
     }
 }
 
-// ── OPFS: the path for browsers without the File System Access API ──────────
 //
 // `showSaveFilePicker` is Chromium-only. Safari and Firefox have neither it nor any
 // equivalent that can be called from a gesture, so on those the export still has to
@@ -263,11 +262,28 @@ impl OpfsSink {
         // already carries the name the reader was shown. A `.part` suffix here would
         // have to be stripped later for no benefit.
         let handle = directory_handle(&exports, filename, true).await?;
-        let create: js_sys::Function = Reflect::get(&handle, &"createWritable".into())
-            .map_err(|_| "the export file is not writable".to_string())?
-            .unchecked_into();
-        let writable = create
+
+        // Probed, not assumed. `createWritable` is missing on Safari before 17, and a
+        // missing method used to reach `.call0` as `undefined`, producing
+        // `TypeError: can't access property "call"` -- which reads like a bug in this
+        // code rather than a browser that cannot do it. There is already a capability
+        // probe for `getDirectory` above; this is the second half of it, because a
+        // browser can have OPFS and still not be able to write to a file in it.
+        let create = Reflect::get(&handle, &"createWritable".into())
+            .map_err(|_| "the export file cannot be opened for writing".to_string())?;
+        if !create.is_function() {
+            return Err("this browser has private storage but cannot write to it".to_string());
+        }
+        let create: js_sys::Function = create.unchecked_into();
+        let pending = create
             .call0(&handle)
+            .map_err(|error| describe_js_error("opening the temporary export", &error))?;
+
+        // Awaited. `createWritable` is asynchronous and returns a promise for the
+        // stream; holding the promise and then calling `.write` on it found nothing,
+        // so this sink failed on every browser rather than only the old ones.
+        let writable = JsFuture::from(pending.unchecked_into::<js_sys::Promise>())
+            .await
             .map_err(|error| describe_js_error("opening the temporary export", &error))?;
 
         Ok(Self {
@@ -421,34 +437,5 @@ async fn remove_entry(parent: &JsValue, name: &str) -> Result<(), String> {
 }
 
 #[cfg(test)]
-mod tests {
-    #![allow(clippy::expect_used, clippy::panic)]
-
-    use super::{arm_file_sink, clear_file_sink, take_file_sink};
-
-    // There is no `window` in a native test, so these assert the slot's own
-    // behaviour rather than the browser's: arming, taking, and clearing must not leak
-    // a handle into a later export.
-
-    #[test]
-    fn taking_an_unarmed_sink_yields_nothing() {
-        clear_file_sink();
-        assert!(take_file_sink().is_none());
-    }
-
-    #[test]
-    fn clearing_is_idempotent() {
-        clear_file_sink();
-        clear_file_sink();
-        assert!(take_file_sink().is_none());
-    }
-
-    #[test]
-    fn arming_without_a_window_reports_no_sink() {
-        // Native has no `window`, so `arm_file_sink` cannot produce a promise and must
-        // say so rather than arming something unusable.
-        clear_file_sink();
-        assert!(!arm_file_sink("anything.csv"));
-        assert!(take_file_sink().is_none());
-    }
-}
+#[path = "file_sink/tests.rs"]
+mod tests;
