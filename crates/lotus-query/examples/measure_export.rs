@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Measure what each export format actually costs per row, using the real
 //! exporters and a payload shaped like the recorded one.
 
