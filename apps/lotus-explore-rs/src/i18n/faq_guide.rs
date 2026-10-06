@@ -1,28 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! The long-form reference behind the short answers: how a name becomes an identity.
+//! The long-form reference behind the short answers: why the tool answers as it does.
 //!
-//! # Why this is separate from the questions
-//!
-//! The [`super`] Q&A answers "what does this do"; this answers "why does it do that",
-//! the question a reader actually has when a result surprises them — why a synonym
-//! returned a compound, why a genus returned nothing, why `ATP` was refused. A reader
-//! who cannot resolve a surprise stops trusting the number.
-//!
-//! # Why the prose is English and the headings are not
-//!
-//! Every heading, summary and category label is translated, because those are what a
-//! reader scans by, and an untranslated heading over translated answers reads as a
-//! broken translation rather than an absent one.
-//!
-//! The body prose is English, and the page says so where the reader sees it.
-//! Machine-translating several thousand words of taxonomy and query mechanics with
-//! nobody checking the result produces text that *looks* localised and is wrong in the
-//! specifics that matter most; a wrong statement about when a lookup runs is worse than
-//! an honest English one.
-//!
-//! [`FaqBlock::Table`] carries most of the content, deliberately: a table of measured
-//! numbers states its facts faster than prose and reads without translating.
+//! Headings, summaries and category labels are translated; the body prose is English
+//! and the page says so where the reader sees it. A wrong statement about when a lookup
+//! runs is worse than an honest English one.
 
 use crate::i18n::Locale;
 
@@ -32,30 +14,23 @@ pub struct GuideSection {
     pub id: &'static str,
     /// The heading, and the label on the disclosure control.
     titles: Labels,
-    /// One sentence shown when the section is collapsed.
-    ///
-    /// This is what a reader sees before deciding to open it, so it has to stand alone:
-    /// it is a summary, not a teaser.
+    /// One sentence shown when the section is collapsed. It has to stand alone: a
+    /// reader sees it before deciding to open anything.
     summaries: Labels,
     /// The section's body. English.
     pub blocks: &'static [FaqBlock],
 }
 
-/// A piece of a section's body.
-///
-/// `Copy` because a block is static data and the renderer takes it by value rather than
-/// borrowing through `&'static`, which keeps the `rsx!` arms free of lifetime noise.
+/// A piece of a section's body. `Copy` because a block is static data and the
+/// renderer takes it by value, which keeps the `rsx!` arms free of lifetime noise.
 #[derive(Clone, Copy)]
 pub enum FaqBlock {
     /// A subheading, one level below the section.
     Heading(&'static str),
     /// A paragraph.
     Text(&'static str),
-    /// A bulleted list.
-    ///
-    /// Present so a content-only addition need not change the renderer. It has no user
-    /// right now: every list worth having turned out to be a table, and a table carries
-    /// column headers. Kept out rather than left as a dead variant the build denies.
+    /// A bulleted list. No section uses one yet: every list worth having turned out
+    /// to be a table, which carries column headers.
     #[allow(dead_code)]
     List(&'static [&'static str]),
     /// A table. The first row is the header.
@@ -64,11 +39,8 @@ pub enum FaqBlock {
     Note(&'static str),
 }
 
-/// The three translations of a section's own words.
-///
-/// A tuple rather than a lookup table because there are exactly four locales and the
-/// pairing is checked by a test; a `BTreeMap` would be a runtime lookup for a value
-/// known at compile time.
+/// The four translations of a section's own words. A tuple because the pairing is
+/// checked by a test; a map would be a runtime lookup for a compile-time value.
 #[derive(Clone, Copy)]
 struct Labels {
     en: &'static str,
@@ -173,8 +145,7 @@ pub const SECTIONS: &[GuideSection] = &[
             ),
             FaqBlock::Note(
                 "If the endpoint is unreachable the search fails rather than falling through to \
-                 the slow lookup. If the endpoint is down, the scan would be down too, and two \
-                 failed round trips is a slower way to learn the same thing.",
+                 the slow lookup: if the endpoint is down, the scan would be down too.",
             ),
             FaqBlock::Heading("Why a common name resolves at all"),
             FaqBlock::Text(
@@ -185,9 +156,7 @@ pub const SECTIONS: &[GuideSection] = &[
                  answer.",
             ),
             FaqBlock::Note(
-                "The notice is part of the cached result, not recomputed. A repeat search \
-                 reproduces it rather than silently losing it — which is what made the two \
-                 notices look like they were taking turns.",
+                "The notice is part of the cached result, so a repeat search reproduces it.",
             ),
             FaqBlock::Heading("Names are standardised first"),
             FaqBlock::Text(
@@ -290,18 +259,15 @@ pub const SECTIONS: &[GuideSection] = &[
             ),
             FaqBlock::Note(
                 "Hybrid parentage (P1531) is excluded on purpose. A hybrid is a different \
-                 organism with a parent of its own; P1531 records which parent it was bred \
-                 from, which is provenance rather than identity. It is also asymmetric in the \
-                 wrong direction — following it from a parent would pull in every garden hybrid \
-                 ever bred from that parent, compounding at each generation.",
+                 organism with a parent of its own; P1531 records provenance, not identity. It \
+                 is also asymmetric in the wrong direction — following it from a parent pulls in \
+                 every garden hybrid ever bred from that parent.",
             ),
             FaqBlock::Note(
                 "One over-reach is documented rather than patched. Following Salvia's closure \
                  reaches Mentha, because Wikidata records Mentha as a synonym of Audibertia and \
-                 Audibertia as a synonym of Salvia. Each statement is individually defensible; \
-                 their composition is not. Capping the closure does not remove it, and a \
-                 hand-kept list of genera some curator once cross-linked would be worse than an \
-                 honest result you can audit.",
+                 Audibertia as a synonym of Salvia. Each statement is defensible; their \
+                 composition is not, and capping the closure would not remove it.",
             ),
             FaqBlock::Note(
                 "Wikidata is a live graph, so every relationship above drifts as curation proceeds. \
@@ -391,16 +357,14 @@ pub const SECTIONS: &[GuideSection] = &[
             FaqBlock::Text(
                 "A structure that Wikidata has no compound for is not a miss. It is a good \
                  structure that is simply not in the database, and searching it is what you \
-                 asked for. Nothing about a SMILES is a claim that can turn out to be wrong — \
-                 which is why refusing it would break every structure search there ever was.",
+                 asked for.",
             ),
             FaqBlock::Heading("Names that look like structures"),
             FaqBlock::Text(
                 "ATP, GDP and NAD are compound names Wikidata knows, and they are refused. They \
                  are written the same way as CC and CCC, which are both plausible things to type \
                  in a structure box. A structure silently replaced by a same-spelled Wikidata \
-                 item is a failure you cannot detect; a name you have to retype as a structure or \
-                 an InChIKey is a friction you can route around.",
+                 item is a failure you cannot detect.",
             ),
             FaqBlock::Note(
                 "Compound names resolve across a fixed list of language tags rather than all of \

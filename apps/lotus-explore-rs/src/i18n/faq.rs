@@ -561,23 +561,12 @@ pub fn faq_chrome(locale: Locale) -> FaqChrome {
 }
 
 /// The FAQ's label in the view switcher.
-///
-/// Here rather than beside `view_label_explorer` and friends, which are curation
-/// strings dispatched across four locale files: this is one word and the content it
-/// names lives in this module. Not four strings, because "FAQ" is an initialism
-/// written the same way in every language this app ships — a `match` would be four
-/// identical arms, which is what the lint objects to.
 #[must_use]
 pub const fn faq_nav_label(_locale: Locale) -> &'static str {
     "FAQ"
 }
 
 /// The `FAQPage` structured data for these questions.
-///
-/// Hand-built rather than derived: the consumer that matters reads the shape, not the
-/// string — a `FAQPage` with one `Question` per entry, each with a non-empty `Answer`.
-/// Emitting it makes the answers findable by a search engine and legible to an agent,
-/// the same reason the result set emits dataset markup.
 #[must_use]
 pub fn faq_json_ld(locale: Locale) -> String {
     use std::fmt::Write as _;
