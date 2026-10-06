@@ -261,7 +261,7 @@ impl OpfsSink {
         // Named exactly as the download is, so the `File` handed back by `getFile()`
         // already carries the name the reader was shown. A `.part` suffix here would
         // have to be stripped later for no benefit.
-        let handle = directory_handle(&exports, filename, true).await?;
+        let handle = file_handle(&exports, filename, true).await?;
 
         // Probed, not assumed. `createWritable` is missing on Safari before 17, and a
         // missing method used to reach `.call0` as `undefined`, producing
@@ -335,7 +335,7 @@ impl OpfsSink {
     pub async fn hand_to_browser(&self, filename: &str, mime: &str) -> Result<(), String> {
         let root = opfs_root().await?;
         let exports = directory_handle(&root, EXPORTS_DIR, false).await?;
-        let entry = directory_handle(&exports, &self.name, false).await?;
+        let entry = file_handle(&exports, &self.name, false).await?;
 
         let get_file: js_sys::Function = Reflect::get(&entry, &"getFile".into())
             .map_err(|_| "the finished export cannot be read back".to_string())?
@@ -417,6 +417,39 @@ async fn directory_handle(parent: &JsValue, name: &str, create: bool) -> Result<
     JsFuture::from(handle.unchecked_into::<js_sys::Promise>())
         .await
         .map_err(|error| describe_js_error("opening the exports directory", &error))
+}
+
+/// `getFileHandle(name, { create })` on `parent`.
+///
+/// Deliberately not [`directory_handle`], and that is the whole point of the second
+/// function. Asking the exports directory for the export by name through
+/// `getDirectoryHandle` *succeeds*: it hands back a directory called `results.ttl`.
+/// A directory handle has no `createWritable`, so the probe in [`OpfsSink::open`]
+/// reported "this browser has private storage but cannot write to it" and no
+/// browser could ever use the private-storage sink.
+///
+/// Chromium never found out, because a save picker answers first and this branch is
+/// only reached by the browsers without one. Firefox reaching it turned a defect
+/// that was everywhere into a defect that looked like a browser limitation, and the
+/// reader paid for it in refused exports.
+async fn file_handle(parent: &JsValue, name: &str, create: bool) -> Result<JsValue, String> {
+    let get: js_sys::Function = Reflect::get(parent, &"getFileHandle".into())
+        .map_err(|_| "private storage does not support files".to_string())?
+        .unchecked_into();
+    let options = js_sys::Object::new();
+    Reflect::set(
+        &options,
+        &"create".into(),
+        &wasm_bindgen::JsValue::from_bool(create),
+    )
+    .map_err(|_| "could not describe the private-storage request".to_string())?;
+    let name_value = wasm_bindgen::JsValue::from_str(name);
+    let handle: JsValue = get
+        .call2(parent, &name_value, &options)
+        .map_err(|error| describe_js_error("opening the export file", &error))?;
+    JsFuture::from(handle.unchecked_into::<js_sys::Promise>())
+        .await
+        .map_err(|error| describe_js_error("opening the export file", &error))
 }
 
 /// `removeEntry(name, { recursive })`, ignoring a missing entry.

@@ -48,3 +48,38 @@ fn a_missing_capability_is_reported_as_a_capability() {
          reason rather than a TypeError"
     );
 }
+
+/// The export is a file, so it has to be asked for by the file-handle method.
+///
+/// This sink could never open, anywhere. `OpfsSink::open` requested the export
+/// through `getDirectoryHandle`, which does not fail for a name that is not a
+/// directory yet: it makes one. So the handle it got back had no
+/// `createWritable`, and the probe above reported "this browser has private
+/// storage but cannot write to it" -- a browser's fault, on a browser with
+/// nothing wrong with it.
+///
+/// Only the browsers without a save picker ever reached the line, so Chromium
+/// stayed green through two rounds of gates and Firefox was the first to be
+/// refused an export it could have streamed to disk.
+#[test]
+fn the_export_is_requested_as_a_file_and_not_as_a_directory() {
+    // Split so this assertion cannot match the needle it searches for.
+    let as_file = concat!("file_handle(&exports, ", "filename");
+    assert!(
+        SINK.contains(as_file),
+        "the export must be opened through the file-handle method"
+    );
+    let as_directory = concat!("directory_handle(&exports, ", "filename");
+    assert!(
+        !SINK.contains(as_directory),
+        "the directory method succeeds for a name that is not a directory and \
+         returns one, which cannot be written to; only browsers with no save \
+         picker ever reached this, which is why it looked browser-specific"
+    );
+    let read_back = concat!("file_handle(&exports, &self.", "name");
+    assert!(
+        SINK.contains(read_back),
+        "the finished export must be read back through the same file-handle \
+         method it was written with"
+    );
+}
