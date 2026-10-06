@@ -4,7 +4,29 @@
 #[cfg(target_arch = "wasm32")]
 use dioxus::prelude::*;
 #[cfg(target_arch = "wasm32")]
+use std::cell::RefCell;
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
+
+// The closure a queued frame will call, kept alive for the life of the page.
+//
+// A `Closure` handed to `requestAnimationFrame` must outlive the browser's
+// handle to it. Holding it in a `Signal` ties its life to the component, and
+// searching again replaces the table: the controller, its signals and the
+// closure go together while the frame is still queued, and the callback then
+// throws "closure invoked recursively or after being dropped".
+//
+// `forget()` would also work and is what the row-height measurement does, but it
+// leaks one closure per schedule. This holds one, because a frame is only ever
+// queued when none is outstanding, so the slot is replaced rather than grown.
+//
+// Nothing here is ever taken back out. A closure whose frame has already fired is
+// inert, and the next schedule overwrites it.
+#[cfg(target_arch = "wasm32")]
+thread_local! {
+    static PENDING_FRAME_CLOSURE: RefCell<Option<RafClosure>> =
+        const { RefCell::new(None) };
+}
 
 #[cfg(any(target_arch = "wasm32", test))]
 #[must_use]
@@ -76,8 +98,6 @@ pub(super) fn measure_row_height_px(
 #[cfg(target_arch = "wasm32")]
 pub(super) type RafClosure = wasm_bindgen::closure::Closure<dyn FnMut(f64)>;
 #[cfg(target_arch = "wasm32")]
-type RafSignal = Signal<Option<RafClosure>>;
-#[cfg(target_arch = "wasm32")]
 type RafIdSignal = Signal<Option<i32>>;
 #[cfg(target_arch = "wasm32")]
 type ScrollHostSignal = Signal<Option<web_sys::HtmlElement>>;
@@ -88,7 +108,6 @@ type ScrollHostSignal = Signal<Option<web_sys::HtmlElement>>;
 pub(super) struct ScrollFrameState {
     pub scroll_host: ScrollHostSignal,
     pub raf_scheduled: Signal<bool>,
-    pub raf_cb: RafSignal,
     pub raf_id: RafIdSignal,
 }
 
@@ -107,7 +126,6 @@ pub(super) fn schedule_virtual_scroll_frame(
     let ScrollFrameState {
         mut scroll_host,
         raf_scheduled: mut scroll_raf_scheduled,
-        raf_cb: mut scroll_raf_cb,
         raf_id: mut scroll_raf_id,
     } = frame;
     let div = if let Some(existing) = scroll_host.peek().as_ref() {
@@ -137,7 +155,6 @@ pub(super) fn schedule_virtual_scroll_frame(
     let mut first_visible_row_sig = first_visible_row;
     let mut viewport_height_px_sig = viewport_height_px;
     let mut scroll_raf_scheduled_sig = scroll_raf_scheduled;
-    let mut scroll_raf_cb_sig = scroll_raf_cb;
     let mut scroll_raf_id_sig = scroll_raf_id;
     let div_for_raf = div;
     let raf_cb = wasm_bindgen::closure::Closure::wrap(Box::new(move |_ts: f64| {
@@ -152,14 +169,21 @@ pub(super) fn schedule_virtual_scroll_frame(
         }
         *scroll_raf_id_sig.write() = None;
         *scroll_raf_scheduled_sig.write() = false;
-        *scroll_raf_cb_sig.write() = None;
+        // The closure is deliberately not cleared here. It is the thing the
+        // browser is calling right now; dropping it from inside its own
+        // invocation frees the state this stack frame is reading, which is what
+        // makes wasm-bindgen throw "closure invoked recursively or after being
+        // dropped". `PENDING_FRAME_CLOSURE` owns it instead.
     }) as Box<dyn FnMut(f64)>);
 
-    *scroll_raf_cb.write() = Some(raf_cb);
     let scheduled_id: Option<i32> = web_sys::window().and_then(|win| {
-        scroll_raf_cb.peek().as_ref().and_then(|cb| {
-            win.request_animation_frame(cb.as_ref().unchecked_ref())
-                .ok()
+        PENDING_FRAME_CLOSURE.with(|slot| {
+            let mut slot = slot.borrow_mut();
+            *slot = Some(raf_cb);
+            slot.as_ref().and_then(|cb| {
+                win.request_animation_frame(cb.as_ref().unchecked_ref())
+                    .ok()
+            })
         })
     });
     if let Some(id) = scheduled_id {
@@ -167,7 +191,6 @@ pub(super) fn schedule_virtual_scroll_frame(
     } else {
         *scroll_raf_id.write() = None;
         *scroll_raf_scheduled.write() = false;
-        *scroll_raf_cb.write() = None;
     }
 }
 

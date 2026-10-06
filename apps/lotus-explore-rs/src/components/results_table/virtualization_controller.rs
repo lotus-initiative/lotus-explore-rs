@@ -34,7 +34,6 @@ pub(super) struct ResultsTableVirtualizationController {
     #[cfg(target_arch = "wasm32")]
     scroll_raf_scheduled: Signal<bool>,
     #[cfg(target_arch = "wasm32")]
-    scroll_raf_cb: Signal<Option<scroll_runtime::RafClosure>>,
     #[cfg(target_arch = "wasm32")]
     scroll_raf_id: Signal<Option<i32>>,
 }
@@ -55,7 +54,6 @@ pub(super) fn use_results_table_virtualization(
     #[cfg(target_arch = "wasm32")]
     let scroll_raf_scheduled = use_signal(|| false);
     #[cfg(target_arch = "wasm32")]
-    let scroll_raf_cb = use_signal(|| None::<wasm_bindgen::closure::Closure<dyn FnMut(f64)>>);
     #[cfg(target_arch = "wasm32")]
     let scroll_raf_id = use_signal(|| None::<i32>);
 
@@ -93,7 +91,6 @@ pub(super) fn use_results_table_virtualization(
         #[cfg(target_arch = "wasm32")]
         scroll_raf_scheduled,
         #[cfg(target_arch = "wasm32")]
-        scroll_raf_cb,
         #[cfg(target_arch = "wasm32")]
         scroll_raf_id,
     }
@@ -191,7 +188,6 @@ impl ResultsTableVirtualizationController {
         let frame = scroll_runtime::ScrollFrameState {
             scroll_host: self.scroll_host,
             raf_scheduled: self.scroll_raf_scheduled,
-            raf_cb: self.scroll_raf_cb,
             raf_id: self.scroll_raf_id,
         };
         scroll_runtime::schedule_virtual_scroll_frame(
