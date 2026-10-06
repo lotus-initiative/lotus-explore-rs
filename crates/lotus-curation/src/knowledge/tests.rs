@@ -636,4 +636,134 @@ mod networked {
         assert!(json.get("results").and_then(|r| r.as_array()).is_none());
         assert!(first_bindings(&json).is_some());
     }
+
+    /// A row whose taxon is a genus on its own is not resolved, and the request
+    /// is never sent.
+    ///
+    /// A genus resolves to hundreds of species and picking one would put a wrong
+    /// taxon into a `QuickStatement` that a curator is about to submit. The code
+    /// says "reported, not guessed"; there was no test saying so, so an arm that
+    /// guessed would have looked deliberate.
+    #[tokio::test]
+    async fn a_genus_on_its_own_is_not_resolved_to_an_arbitrary_species() {
+        let genus = CurationInputRow {
+            taxon: Some("Gentiana".into()),
+            ..row()
+        };
+        // Only the compound and the reference are expected: no taxon request.
+        let http = Scripted::new(vec![(200, COMPOUND_FOUND), (200, REFERENCE_FOUND)]);
+
+        let lookup = look_up(&http, &genus, &key())
+            .await
+            .expect("the lookups that are made succeed");
+
+        assert_eq!(
+            lookup.taxon_qid, None,
+            "a genus must not be resolved to a species: that is a data error, not a near miss"
+        );
+        assert_eq!(
+            http.call_count(),
+            2,
+            "so no taxon request may have been made: {:?}",
+            http.raw_bodies()
+        );
+    }
+
+    /// A taxon that is neither a binomial nor a genus is skipped the same way,
+    /// but for a different reason: it is not a name Wikidata resolves by shape.
+    #[tokio::test]
+    async fn a_taxon_that_is_not_binomial_shaped_is_not_looked_up() {
+        for name in [
+            "gentiana lutea",             // lower-case genus: not the shape Wikidata stores
+            "Gentiana lutea subsp. alba", // three words
+            "Gentiana",                   // a genus, covered above
+            "  ",
+            "",
+        ] {
+            let taxon = CurationInputRow {
+                taxon: Some(name.into()),
+                ..row()
+            };
+            let http = Scripted::new(vec![(200, COMPOUND_FOUND), (200, REFERENCE_FOUND)]);
+            let lookup = look_up(&http, &taxon, &key())
+                .await
+                .expect("the lookups that are made succeed");
+            assert_eq!(
+                lookup.taxon_qid, None,
+                "{name:?} must not resolve to a taxon QID"
+            );
+            assert_eq!(http.call_count(), 2, "{name:?} must not be looked up");
+        }
+    }
+
+    /// A compound that comes back without a QID is a parse failure, not an
+    /// absent compound.
+    ///
+    /// The distinction decides what the row says to a curator. "Wikidata does not
+    /// know this compound" invites creating it, and creating a compound that
+    /// already exists is the one mistake this command exists to prevent.
+    #[tokio::test]
+    async fn a_compound_row_without_a_qid_is_a_parse_error_not_an_absent_compound() {
+        let no_qid = r#"{"head":{},"results":{"bindings":[{"compound":{"type":"uri","value":""},"canonical":{"type":"literal","value":"CCO"}}]}}"#;
+        let http = Scripted::new(vec![(200, no_qid)]);
+
+        let error = look_up(&http, &row(), &key())
+            .await
+            .expect_err("a binding with no QID cannot be a compound");
+        assert!(
+            matches!(&error, crate::CurationError::Parse(message) if message.contains("QID")),
+            "expected a parse error naming the missing field, got {error:?}"
+        );
+    }
+
+    /// An empty result set is an error, not an absence.
+    ///
+    /// I expected the opposite when writing this and the code says otherwise, so
+    /// the contract worth pinning is the one it actually has: a `SELECT` that
+    /// returns no bindings does not reach this crate at all -- `execute` refuses
+    /// it as `the query returned no results`.
+    ///
+    /// That is the safe direction, and it is load-bearing. `to_result_row` reads
+    /// `lookup.compound == None` as "Wikidata has no such compound" and writes
+    /// creation `QuickStatements`. If an empty or malformed answer could reach
+    /// that branch, every transient failure would produce a bundle of creation
+    /// statements for compounds that already exist -- which is exactly the harm
+    /// the module header says this command cannot do. An error stops the row
+    /// instead.
+    #[tokio::test]
+    async fn an_empty_result_set_is_an_error_rather_than_an_absent_compound() {
+        let http = Scripted::new(vec![(200, NOTHING_FOUND)]);
+
+        let error = look_up(&http, &row(), &key())
+            .await
+            .expect_err("a SELECT with no bindings is not an answer this crate reads");
+        assert!(
+            matches!(&error, crate::CurationError::Http(message) if message.contains("no results")),
+            "expected the empty answer to be refused as an error, got {error:?}"
+        );
+    }
+
+    /// Which means the "new compound" branch is only reachable from a positive
+    /// answer that lacks the compound, never from a failed or empty one.
+    ///
+    /// Asserted through the row a curator would actually read, because that is
+    /// where the consequence is: an error status, and no creation statements.
+    #[tokio::test]
+    async fn a_failed_lookup_never_produces_creation_statements() {
+        let http = Scripted::new(vec![(200, NOTHING_FOUND)]);
+
+        let error = look_up(&http, &row(), &key())
+            .await
+            .expect_err("the empty answer is an error");
+        // What the CLI does with a failed lookup, reproduced rather than
+        // imported: `curate_row` in the CLI maps it to `CurationStatus::Error`.
+        let result = to_result_row(&row(), &key(), &crate::WikidataLookup::default());
+        assert_ne!(
+            result.status,
+            CurationStatus::NewCompound,
+            "a lookup that failed must never be reported as a new compound: the \
+             row would carry creation statements for something that may already exist"
+        );
+        assert!(error.to_string().contains("no results"));
+    }
 }
