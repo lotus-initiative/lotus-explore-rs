@@ -18,6 +18,48 @@ fn download_specs_keep_expected_formats() {
     assert_eq!(DOWNLOAD_QUERY_RDF_SPEC.format, DownloadFormat::Rdf);
 }
 
+/// The name the toolbar shows is the name the download gets.
+///
+/// These three used to be spelled as literals next to each other, which is how
+/// `rdf_filename` outlived the rename to `ttl`: `extension()` changed, and a
+/// literal three lines away did not. The reader was shown one name and handed a
+/// file under another.
+///
+/// Derived from the format rather than written out, so a format that is renamed
+/// renames the toolbar with it and there is nothing left here to keep in step.
+#[test]
+fn the_toolbar_filenames_follow_the_formats_own_extension() {
+    let criteria = SearchCriteria::up_to_year(crate::clock::current_year());
+    let model = build_download_toolbar_model(
+        &criteria,
+        Some("SELECT * WHERE { ?s ?p ?o }"),
+        None,
+        None,
+        None,
+    );
+
+    for (name, format) in [
+        (&model.csv_filename, DownloadFormat::Csv),
+        (&model.json_filename, DownloadFormat::Json),
+        (&model.rdf_filename, DownloadFormat::Rdf),
+    ] {
+        assert!(
+            name.ends_with(&format!(".{}", format.extension())),
+            "{name} does not carry {}'s extension",
+            format.log_name()
+        );
+    }
+
+    assert!(
+        model
+            .rdf_filename
+            .ends_with(&format!(".{}", DownloadFormat::Rdf.extension())),
+        "Turtle is named for what it is, and this is the assertion that would have \
+         caught the toolbar still saying rdf after the rename: {}",
+        model.rdf_filename
+    );
+}
+
 #[test]
 fn toolbar_model_uses_hashes_for_metadata_filename_when_both_are_present() {
     let criteria = SearchCriteria::up_to_year(crate::clock::current_year());

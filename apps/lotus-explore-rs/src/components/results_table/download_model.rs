@@ -120,9 +120,9 @@ pub(super) fn build_download_toolbar_model_with_endpoint(
 ) -> DownloadToolbarModel {
     DownloadToolbarModel {
         export_available: sparql_query.is_some() || metadata_json.is_some(),
-        csv_filename: export::generate_filename(criteria, "csv"),
-        json_filename: export::generate_filename(criteria, "json"),
-        rdf_filename: export::generate_filename(criteria, "rdf"),
+        csv_filename: export::generate_filename(criteria, DownloadFormat::Csv.extension()),
+        json_filename: export::generate_filename(criteria, DownloadFormat::Json.extension()),
+        rdf_filename: export::generate_filename(criteria, DownloadFormat::Rdf.extension()),
         metadata_filename: build_metadata_filename(criteria, query_hash, result_hash),
         sparql_endpoint_ui: endpoint,
         ui_url: build_sparql_ui_url(sparql_query, endpoint),
