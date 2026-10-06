@@ -211,6 +211,12 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::Statement => "Aussage",
         TextKey::SparqlQuery => "SPARQL-Abfrage",
         TextKey::CopySparqlQuery => "SPARQL-Abfrage kopieren",
+        TextKey::ShowFailedQuery => {
+            "Diese Suche wurde nicht abgeschlossen — verwendete Abfrage anzeigen"
+        }
+        TextKey::FailedQueryReconstructed => {
+            "Aus Ihren Suchkriterien neu erstellt, also nah an der gesendeten Abfrage statt einer wortgetreuen Kopie. Passen Sie sie an und starten Sie erneut."
+        }
         TextKey::StaleResults => {
             "Ihre Suchkriterien haben sich geändert. Führen Sie die Suche erneut aus, um Ergebnisse zu sehen."
         }

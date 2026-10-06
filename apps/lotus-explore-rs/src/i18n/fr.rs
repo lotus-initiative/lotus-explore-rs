@@ -223,6 +223,10 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::Statement => "Déclaration",
         TextKey::SparqlQuery => "Requête SPARQL",
         TextKey::CopySparqlQuery => "Copier la requête SPARQL",
+        TextKey::ShowFailedQuery => "Cette recherche n'a pas abouti — afficher la requête utilisée",
+        TextKey::FailedQueryReconstructed => {
+            "Reconstituée à partir de vos critères de recherche : proche de la requête envoyée plutôt qu'une copie exacte. Ajustez-la puis relancez."
+        }
         TextKey::StaleResults => {
             "Vos critères de recherche ont changé. Relancez la recherche pour voir les résultats correspondants."
         }

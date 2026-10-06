@@ -284,6 +284,18 @@ pub enum TextKey {
     Statement,
     SparqlQuery,
     CopySparqlQuery,
+    /// Summary of the disclosure holding the query a failed search attempted.
+    ///
+    /// A warning rather than a neutral label, because this is the results area of
+    /// a search that did not finish. It replaces an always-expanded query block,
+    /// which made the largest thing on the page the least useful one.
+    ShowFailedQuery,
+    /// Said above the query inside that disclosure.
+    ///
+    /// Its own key because the query is rebuilt from the search criteria rather
+    /// than remembered, so calling it the query that failed would overstate what
+    /// is being shown.
+    FailedQueryReconstructed,
     /// Shown when the form was edited but the search was not re-run.
     StaleResults,
 }

@@ -203,6 +203,10 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::Statement => "Statement",
         TextKey::SparqlQuery => "SPARQL Query",
         TextKey::CopySparqlQuery => "Copy SPARQL query",
+        TextKey::ShowFailedQuery => "This search did not finish — show the query it used",
+        TextKey::FailedQueryReconstructed => {
+            "Rebuilt from your search criteria, so it is close to what was sent rather than a byte-for-byte copy. Use it to adjust and re-run."
+        }
         TextKey::StaleResults => {
             "Your search criteria changed. Run the search again to see results for them."
         }
