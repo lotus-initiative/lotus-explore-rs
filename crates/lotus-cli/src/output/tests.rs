@@ -411,3 +411,126 @@ fn the_dataset_hash_is_stable_and_says_something() {
         "the name is part of it"
     );
 }
+
+/// The Turtle output had no test at all -- `write_rdf` was 43 regions of
+/// uncovered code, the whole path from a result set to a `.ttl` file on disk.
+///
+/// Every other format in this module is asserted on its encoding decisions. The
+/// Turtle writer has one of its own: it streams through `RowExporter` rather
+/// than building a string, so the thing worth pinning is that streaming produces
+/// the same document a single-shot writer would.
+fn rdf_of(rows: &[CompoundEntry]) -> String {
+    let mut out = Vec::new();
+    write_rdf(&mut out, &result_with(rows)).expect("the writer does not fail");
+    String::from_utf8(out).expect("Turtle is UTF-8")
+}
+
+fn result_with(rows: &[CompoundEntry]) -> SearchResult {
+    SearchResult {
+        rows: rows.to_vec(),
+        stats: None,
+        taxon: None,
+        query: "SELECT ?compound WHERE { ?compound wdt:P31 wd:Q11388 . }".to_owned(),
+        truncated: false,
+    }
+}
+
+#[test]
+fn the_turtle_output_is_a_document_with_the_prefixes_and_the_rows() {
+    let turtle = rdf_of(&[full_entry()]);
+
+    assert!(
+        turtle.contains("@prefix wd:"),
+        "a Turtle file without prefixes is not loadable: {turtle}"
+    );
+    assert!(
+        turtle.contains("@prefix wdt:"),
+        "the writer must declare what it uses: {turtle}"
+    );
+    assert!(
+        turtle.contains("wd:Q1234"),
+        "the compound must appear as a Wikidata entity, not a bare string: {turtle}"
+    );
+    assert!(
+        turtle.trim_end().ends_with('.'),
+        "every statement ends in a full stop: {turtle}"
+    );
+}
+
+#[test]
+fn the_turtle_output_is_written_in_chunks_and_is_still_one_document() {
+    // `write_rdf` walks `RowExporter::next_chunk` rather than building a string,
+    // so a large export does not also exist as one allocation. Streaming and
+    // correctness are separate claims and the first is the reason the function
+    // looks the way it does; this asserts the second, which is what streaming
+    // can lose.
+    let many: Vec<CompoundEntry> = (0..200)
+        .map(|n| CompoundEntry {
+            compound_qid: Arc::from(format!("Q{n}")),
+            ..full_entry()
+        })
+        .collect();
+
+    let turtle = rdf_of(&many);
+    for n in 0..200 {
+        assert!(
+            turtle.contains(&format!("wd:Q{n} ")),
+            "row {n} is missing from a streamed export: the chunk boundary dropped it"
+        );
+    }
+    assert_eq!(
+        turtle.matches("@prefix wd:").count(),
+        1,
+        "the preamble is emitted once however many chunks it took"
+    );
+}
+
+#[test]
+fn a_result_set_with_no_rows_still_produces_a_valid_turtle_document() {
+    // An empty export is a real outcome -- a search that matched nothing -- and
+    // a zero-byte file is not a Turtle file. A parser asked to load it says so.
+    let turtle = rdf_of(&[]);
+    assert!(
+        turtle.contains("@prefix"),
+        "an empty result set must still declare its prefixes: {turtle:?}"
+    );
+}
+
+#[test]
+fn a_value_that_would_break_the_document_is_escaped() {
+    // A quote in a compound name is the same hazard as in CSV, and Turtle is the
+    // format where it is easiest to forget: the value goes inside a quoted
+    // literal and a bare `"` ends it.
+    let awkward = CompoundEntry {
+        name: Arc::from(r#"He said "hello", loudly"#),
+        ..full_entry()
+    };
+    let turtle = rdf_of(&[awkward]);
+
+    // The label is a literal on the compound, so it is where an unescaped quote
+    // would land. Asserted on that line rather than over the whole document: a
+    // structural check over every line also fires on healthy ones, because every
+    // literal in the file opens and closes with a quote.
+    // Found by the value rather than by a predicate: `P225` is the taxon's name,
+    // not the compound's, and guessing the predicate is how this assertion came
+    // to be wrong the first time.
+    let label_line = turtle
+        .lines()
+        .find(|line| line.contains("He said"))
+        .unwrap_or_else(|| panic!("no line carries the name in:\n{turtle}"));
+
+    assert!(
+        label_line.contains(r#"\"hello\""#),
+        "the embedded quotes must be escaped, not bare: {label_line:?}"
+    );
+    assert!(
+        !label_line.contains(r#""hello""#),
+        "a bare quote inside the literal would end it early: {label_line:?}"
+    );
+    // And the value is still there, escaped rather than dropped -- a parser
+    // reading it gets back the text the user typed.
+    assert!(
+        label_line.contains("He said"),
+        "the value must survive escaping: {label_line:?}"
+    );
+}
