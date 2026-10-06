@@ -356,17 +356,24 @@ fetchable:
   | `assets/lotus-explore.css.br` | 200, `application/octet-stream`, 8360 B |
 
 The host gzips on the fly and never negotiates the precompressed brotli. The
-consequence is measurable on the critical path:
+consequence is measurable on the critical path, measured 2026-10-05 against the
+live host with `curl`:
 
-  | Encoding | wasm transfer |
-  | -------- | ------------- |
-  | brotli   | 456 KiB       |
-  | gzip     | 585 KiB       |
+  | Encoding | wasm transfer | how it is reached                    |
+  | -------- | ------------- | ------------------------------------ |
+  | brotli   | 526 KiB       | requested directly; nothing links it |
+  | gzip     | 690 KiB       | what `Accept-Encoding: br` still gets |
 
-129 KiB, worth roughly 0.63 s at mobile throttling --- a larger LCP lever than
+164 KiB, worth roughly 0.8 s at mobile throttling --- a larger LCP lever than
 every optimisation in [`PERFORMANCE.md`](PERFORMANCE.md) combined. The `.br`
 files remain in the artifact because they are the right thing to ship for any
 host that does negotiate them.
+
+The second column is the part worth acting on: the 526 KiB brotli sibling **is
+deployed and is never fetched**. A link to it is not the fix either — the host
+serves `.br` as `application/octet-stream`, so `instantiateStreaming` would
+reject it. This needs a host that negotiates encoding, which is the same
+conclusion the section below reaches about `_headers`.
 
 ## What GitHub Pages actually honours
 

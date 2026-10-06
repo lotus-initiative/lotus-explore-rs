@@ -135,7 +135,6 @@ fn the_first_fault_wins_so_the_message_is_stable() {
     );
 }
 
-// ── The boundary each limit is allowed to reach ─────────────────────────
 //
 // Every one of these is a `>` where `<=` is what the range means. Tightening
 // it to `>=` rejects the value the documentation says is valid; loosening it

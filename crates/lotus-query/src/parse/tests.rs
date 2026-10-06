@@ -174,7 +174,6 @@ fn an_empty_payload_is_an_empty_result_not_an_error() {
     );
 }
 
-// ── The taxon and compound lookup readers ─────────────────────────────────
 //
 // Both read a small result set whose columns are named, not positional, and
 // both are looked up by name so that a query gaining or reordering a projection
@@ -283,8 +282,6 @@ fn a_lookup_payload_with_none_of_the_columns_is_no_rows() {
     assert_eq!(parse_taxon_csv(bytes).expect("valid CSV").len(), 0);
 }
 
-// ── Reading a payload that is not a result set ──────────────────────────────
-
 /// A payload that is not a result set is refused, not read as an empty one.
 ///
 /// This test used to assert the opposite, and it said why: the CSV reader was
@@ -308,8 +305,6 @@ fn a_header_with_no_recognisable_columns_is_refused_rather_than_read_as_empty() 
         "the refusal says why: {err}"
     );
 }
-
-// ── The reference lookup reader ──────────────────────────────────────────────
 
 #[test]
 fn a_reference_lookup_reads_the_qid_out_of_the_item_uri() {

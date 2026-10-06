@@ -804,7 +804,6 @@ fn apply_request_clamps_similarity_threshold() {
     assert!((c.structure_threshold - 0.5).abs() < f64::EPSILON);
 }
 
-// ── lotus-api .expect() audit (#8) ─────────────────────────────────────────────
 //
 // The four production `.expect("... inflight mutex")` calls in `state.rs` are now
 // `Result<(…, ApiError)>` with `.map_err(|_| ApiError::upstream(...))`; these

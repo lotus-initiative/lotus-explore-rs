@@ -227,8 +227,6 @@ fn a_taxon_lookup_escapes_its_literal() {
     assert!(query.contains(r#"VALUES ?taxon_name { "Gentiana \"lutea\" \\ x" }"#));
 }
 
-// ── Formula element ranges ────────────────────────────────────────────────────
-
 #[test]
 fn an_element_pinned_to_its_full_range_gets_no_filter() {
     // `min > 0` is false, `max < default_max` is false, so nothing is emitted.
@@ -387,8 +385,6 @@ fn every_filter_something_counts_query_keeps_still_has_its_binding() {
         }
     }
 }
-
-// ── The reference constraint ───────────────────────────────────────────────
 
 #[test]
 fn a_reference_constraint_binds_the_referenced_item() {

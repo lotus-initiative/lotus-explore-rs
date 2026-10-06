@@ -369,10 +369,13 @@ fn headers_advertise_absolute_link_relations() -> Result<(), Box<dyn Error>> {
 /// `index_html_agrees_with_base_url`); documentation, where a measurement
 /// of the old host is history; and this directory's own test fixtures, which are
 /// pinned to the real host on purpose.
-const HOST_BEARING_SOURCES: [&str; 6] = [
+const HOST_BEARING_SOURCES: [&str; 8] = [
     "metadata/site-metadata.json",
     "index.html",
     "docs/DEPLOYMENT.md",
+    // Records measurements taken against the deployed site -- the point of the
+    // table is which behaviour the live host has, so the host has to be named.
+    "docs/PERFORMANCE.md",
     // The build script and these tests, which name the live host to check the
     // rewrite below actually reaches the files it claims to.
     "build.rs",
@@ -381,6 +384,8 @@ const HOST_BEARING_SOURCES: [&str; 6] = [
     // relative. It is a comment, not a link, and it is the reason a reader
     // does not "fix" it back to a rooted path and break the deployed site.
     "src/vendor_assets.rs",
+    // The same comment as above, in the tests that moved out of that file.
+    "src/vendor_assets/tests.rs",
 ];
 
 #[test]

@@ -45,12 +45,5 @@ fn format_mass_value(mass: f64) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn formats_mass_to_four_decimals() {
-        assert_eq!(format_mass_value(194.0797), "194.0797");
-        assert_eq!(format_mass_value(12.0), "12.0000");
-    }
-}
+#[path = "numeric/tests.rs"]
+mod tests;

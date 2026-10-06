@@ -107,7 +107,6 @@ fn a_forbidden_halogen_counts_as_a_formula_filter() {
     assert!(c.has_formula_filter());
 }
 
-// ── Boundary cases around the "is this a filter?" predicates ─────────────
 //
 // These are all `min > 0 || max < default` guards. Each half is reachable
 // alone, and a mutation that turns one `>` into `<` makes a real filter look

@@ -213,7 +213,6 @@ fn a_taxon_lookup_is_an_exact_values_match() {
     assert!(!query.contains("LCASE"));
 }
 
-// ── The common-name fallback ─────────────────────────────────────────────────
 //
 // Each assertion below is a bug that shipped. They are pinned here because the
 // failure mode in every case is the same and it is invisible: the query runs,
@@ -262,8 +261,6 @@ fn the_scientific_lookup_stays_on_the_index_and_says_which_property_it_used() {
     );
     assert!(query.contains(r#"BIND("scientific" AS ?matched_by)"#));
 }
-
-// ── The compound lookups ─────────────────────────────────────────────────────
 
 #[test]
 fn a_compound_lookup_never_unions_two_label_properties() {
@@ -425,8 +422,6 @@ fn both_bounds_together_emit_both_ends() {
     );
 }
 
-// ── The reference lookup queries ──────────────────────────────────────────────
-
 #[test]
 fn a_doi_lookup_asks_p356_for_the_uppercased_doi() {
     // Every assertion here is a query that would run, be answered, and return
@@ -489,8 +484,6 @@ fn a_qid_lookup_accepts_a_lowercase_q_and_surrounding_space() {
     );
 }
 
-// ── Reference-lookup detection ────────────────────────────────────────────────
-
 #[test]
 fn a_doi_lookup_is_recognised_but_a_qid_lookup_is_not() {
     // The distinction is what routes a failed DOI to the WDQS scholarly subgraph,
@@ -539,8 +532,6 @@ fn only_the_selection_shape_makes_it_a_lookup() {
         "PREFIX wd: <x> ?compound wdt:P356 ?ref ."
     ));
 }
-
-// ── Structure literals ───────────────────────────────────────────────────────
 
 /// A molfile in one line: classified as a molfile by its terminator, but with no
 /// newline of its own.

@@ -190,19 +190,5 @@ async fn delay_for(backoff: Duration) {
 }
 
 #[cfg(test)]
-pub(super) mod test_exports {
-    use super::*;
-
-    pub fn build_search_succeeded_action_for_tests(
-        request: &SearchRequest,
-        outcome: SearchOutcome,
-    ) -> ExploreAction {
-        build_search_succeeded_action(request, outcome)
-    }
-
-    pub fn validate_search_criteria_for_tests(
-        criteria: &SearchCriteria,
-    ) -> Result<(), DomainError> {
-        validate_search_criteria(criteria)
-    }
-}
+#[path = "runtime/test_exports.rs"]
+pub(super) mod test_exports;

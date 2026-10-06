@@ -139,22 +139,5 @@ pub const fn success_transition_actions(success_action: ExploreAction) -> [Explo
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn stale_token_detection_requires_exact_match() {
-        assert!(!is_stale_token(4, 4));
-        assert!(is_stale_token(4, 5));
-    }
-
-    #[test]
-    fn success_actions_emit_rendering_before_result_commit() {
-        let actions = success_transition_actions(ExploreAction::ErrorDismissed);
-        assert!(matches!(
-            actions[0],
-            ExploreAction::SearchPhaseChanged(QueryPhase::Rendering)
-        ));
-        assert!(matches!(actions[1], ExploreAction::ErrorDismissed));
-    }
-}
+#[path = "lifecycle/tests.rs"]
+mod tests;

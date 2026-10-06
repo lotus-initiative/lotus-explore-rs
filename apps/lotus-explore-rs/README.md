@@ -95,9 +95,10 @@ cargo run -p lotus-web-assets --bin inject-wasm-preload
 ```
 
 That writes the bundle to `target/dx/lotus-explore-rs/release/web/public`, which
-is what the deploy publishes: 1.4 MiB raw / 456 KiB brotli, against the dev
-server's 6.4 MiB. `dx serve` intentionally serves the debug WASM bundle for hot
-reload, which is why the two are not interchangeable for measurement.
+is what the deploy publishes: 1.6 MiB raw / 527 KiB brotli, against the dev
+server's 6.4 MiB. `./mk web-bytes` prints the current figure and refuses to run
+against a stale bundle. `dx serve` intentionally serves the debug WASM bundle for
+hot reload, which is why the two are not interchangeable for measurement.
 
 ## Setup: external assets
 

@@ -47,20 +47,5 @@ pub(super) async fn fetch_reference_quickstatements(_doi: &str) -> Option<Vec<St
 }
 
 #[cfg(test)]
-mod tests {
-    #![allow(clippy::expect_used)]
-
-    use super::parse_quickstatements_text;
-
-    #[test]
-    fn parse_quickstatements_text_filters_blank_lines() {
-        let parsed = parse_quickstatements_text("\nCREATE\n\nLAST|P31|Q123\n  \n")
-            .expect("parsed quickstatements");
-        assert_eq!(parsed, vec!["CREATE", "LAST|P31|Q123"]);
-    }
-
-    #[test]
-    fn parse_quickstatements_text_returns_none_for_empty_input() {
-        assert_eq!(parse_quickstatements_text("  \n\n\t"), None);
-    }
-}
+#[path = "reference_metadata/tests.rs"]
+mod tests;

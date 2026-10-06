@@ -168,14 +168,5 @@ fn parse_exact_mass_scalar(value: &Value) -> Option<f64> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::extract_exact_mass_from_json;
-
-    #[test]
-    fn a_mass_is_found_at_any_depth() {
-        let nested = serde_json::json!({
-            "results": [{ "compound": { "exact_molecular_weight": "46.04186" } }]
-        });
-        assert_eq!(extract_exact_mass_from_json(&nested), Some(46.04186));
-    }
-}
+#[path = "chemical/tests.rs"]
+mod tests;

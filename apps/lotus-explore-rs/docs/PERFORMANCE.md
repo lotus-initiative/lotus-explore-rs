@@ -6,11 +6,46 @@ negotiates the precompressed `.br` siblings, because the Dioxus dev server
 serves neither the `.br` files nor `_headers` and therefore overstates every
 transfer.
 
+## Do not compare these numbers with a PageSpeed run against the live host
+
+This is the single most expensive thing to get wrong in this file, so it is
+first.
+
+Every Lighthouse figure below was taken against a **synthetic harness** that
+negotiates brotli, sends `ETag`/`Last-Modified`, honours `_headers`, and rewrites
+unknown paths to `index.html`. The production host does **none** of those four,
+because it is GitHub Pages, which implements none of them. Measured on
+2026-10-05 against `lotus.nprod.net`:
+
+| what the harness does | the live host actually does |
+| --------------------- | --------------------------- |
+| serves the 527 KiB `.br` | serves 679 KiB of gzip, `.br` deployed but never requested |
+| sends a validator | sends `ETag` |
+| applies `_headers` | ignored: no CSP, no `immutable`, no HSTS, no `Link:` |
+| rewrites paths to `index.html` | ignored: `/faq` 301s to `/faq/` |
+
+So a PageSpeed run against the live host measures a **larger** module than any
+figure in this file, and a **shorter** cache lifetime, and will not match them.
+That is not a regression and there is nothing to bisect. Measure the live host
+against the live host, and treat the tables below as characterising the
+application's payload rather than its production experience.
+
+Two more differences that catch people out:
+
+- **The live host is not a build of HEAD.** Deploys land whenever they land; the
+  copy measured on 2026-10-05 21:24 UTC sat between two commits.
+- **`./mk web-bytes` refuses to run on a stale bundle** and says so. It is the
+  source of every byte figure here, and it prints a warning when the build is
+  older than HEAD. Ignore that warning and the table describes a different
+  programme.
+
+## Where the harness matters
+
 Four things that harness has to do, and what each one costs when it does not:
 
 | what the server does                                      | what goes wrong without it                                             |
 | -------------------------------------------------------- | ---------------------------------------------------------------------- |
-| serves the `.br` sibling for `Accept-Encoding: br`         | 585 KiB of on-the-fly gzip instead of 456 KiB, \~\ 0.63 s at mobile     |
+| serves the `.br` sibling for `Accept-Encoding: br`         | 679 KiB of on-the-fly gzip instead of 527 KiB, \~\ 0.74 s at mobile     |
 | sends an `ETag` or `Last-Modified`                         | Chrome re-fetches every repeated URL and invents a 7 % regression       |
 | applies `_headers`                                         | it carries the CSP, and the app does not boot without it               |
 | rewrites unknown paths to `index.html`, as `_redirects` does | `/search` 404s and the audit measures an error page                     |
@@ -152,11 +187,18 @@ taken.
 
 ## The real remaining lever is the host, not the code
 
-The module transfers as 456 KiB when the host serves the precompressed `.br`,
-and as 585 KiB of on-the-fly gzip when it does not. That 129 KiB is worth
-roughly 0.63 s at mobile throttling --- larger than everything on this page
+The module transfers as 527 KiB when the host serves the precompressed `.br`,
+and as 679 KiB of on-the-fly gzip when it does not. That 152 KiB is worth
+roughly 0.74 s at mobile throttling --- larger than everything on this page
 combined. See [`DEPLOYMENT.md`](DEPLOYMENT.md) for what the production host
-actually does.
+actually does, and note the section at the top of this file: the live host is
+one of the "does not" columns, so the 679 KiB is the number that matters and the
+527 KiB is the one a host that negotiates brotli would deliver.
+
+Both figures are from `./mk web-bytes` on the current `HEAD`. The module was
+456 KiB of brotli when this section was first written and has grown ~15 % since,
+mostly from the curation and reference work; the growth is in the module rather
+than in anything this file recommends changing.
 
 Below that, the honest next step is code-splitting or trimming `lotus`, which is
 a project rather than a tweak. There is no further profile dial: `opt-level` is
@@ -243,7 +285,7 @@ them is most of the build time. The dev server now strips them, which is a 10x
 smaller payload and a 7x faster dev build, and neither flag changes codegen so
 hot reload is unaffected. What it costs is line numbers in panic backtraces.
 
-The remaining gap between 6.4 MiB and the shipped 456 KiB brotli is the
+The remaining gap between 6.4 MiB and the shipped 527 KiB brotli is the
 difference between a debug server and a release build. Take numbers from the
 release build and a static server that negotiates the precompressed `.br`
 siblings, never from `dx serve`.
@@ -263,7 +305,41 @@ phantom cost. The other thing to know is that `build.rs` runs
 *any* wasm compile of the app. `./mk ci` runs
 `cargo check --target wasm32-unknown-unknown`, so the CI gate silently destroys
 the last `dx` bundle. Always run `dx build` after `./mk ci` if you intend to
-measure afterwards.
+measure afterwards. It can also strike mid-build: a `web-build` failed on
+2026-10-05 with `Failed to rename output file … assets/ketcher/static/js/` while
+`dx` was still copying assets, and the identical command succeeded on the retry.
+
+### `./mk web-bytes` was deleting the module it was meant to measure
+
+Worth recording, because every payload number in this file claims to come from
+that script, and for a while it could not have.
+
+It pruned "superseded" assets with `grep -qF "$base" index.html || rm -f`. `dx`
+names the module in the **glue JS**, not in `index.html`, so a bare `dx build`
+produced an `index.html` that referenced no asset at all — and the prune deleted
+the module. Every run removed the largest artefact on the page.
+
+The failure was silent because the totals summed whatever survived. It reported
+`TOTAL 111` raw KiB for an application whose module alone is 1673 KiB: wrong by
+an order of magnitude, in the same table format as a real measurement. Two
+independent bugs pointing the same way — the module was removed, and nothing
+noticed.
+
+It also failed to run at all on macOS. The portable `size()` fell through to
+GNU `stat -c%s` when BSD `stat` rejected the macOS form, and the usage error from
+the *fallback* — not anything about the measurement — was what surfaced.
+
+The script is now non-destructive, and refuses rather than repairs:
+
+- **no module** → error, with the reason and the fix, instead of a total;
+- **two modules** → error naming both, because choosing is the judgement the
+  measurement is supposed to be making;
+- **stale bundle** → warning naming the build time and the HEAD commit time;
+- **nothing is deleted**, ever. A measurement tool that mutates its input can
+  only report on itself. Files that `index.html` does not name are listed and
+  counted rather than removed, since a total that quietly double-counts a
+  superseded copy is the same class of error as one that quietly omits the
+  module.
 
 ## Render path
 

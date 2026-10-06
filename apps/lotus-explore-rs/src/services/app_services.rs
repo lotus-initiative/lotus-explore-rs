@@ -44,14 +44,5 @@ const _: () = {
 };
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn app_services_repository_is_consistent() {
-        let services = AppServices::new();
-        let repo1 = services.repository();
-        let repo2 = services.repository();
-        assert_eq!(repo1, repo2);
-    }
-}
+#[path = "app_services/tests.rs"]
+mod tests;

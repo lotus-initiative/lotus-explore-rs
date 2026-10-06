@@ -133,8 +133,6 @@ fn a_single_line_smiles_substructure_search_uses_the_cheap_service() {
     );
 }
 
-// ── Exact: the query that does not call the structure service ────────────────
-
 #[test]
 fn a_compound_query_never_touches_the_structure_service() {
     // The whole point of the identity path. Substructure and similarity both have

@@ -96,8 +96,6 @@ fn asset_prefix_is_none_without_a_preload() {
     assert!(asset_prefix("  <script type=\"module\" src=\"/a.js\"></script>").is_none());
 }
 
-// ── The module script index.html actually loads ───────────────────────────
-
 #[test]
 fn the_module_name_comes_from_the_module_script() {
     assert_eq!(
@@ -131,8 +129,6 @@ fn a_module_script_with_no_src_has_no_module_name() {
         "an inlined module script loads no external file to name"
     );
 }
-
-// ── Finding the one wasm the glue will fetch ──────────────────────────────
 
 #[test]
 fn the_single_hashed_module_is_found() {
@@ -233,8 +229,6 @@ fn an_ambiguous_bundle_is_refused_rather_than_guessed() {
         Ok(name) => panic!("two modules should be refused, got {name}"),
     }
 }
-
-// ── Where the preload link lands ──────────────────────────────────────────
 
 #[test]
 fn the_link_goes_on_the_line_after_the_anchor() {

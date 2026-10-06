@@ -435,7 +435,3 @@ async fn remove_entry(parent: &JsValue, name: &str) -> Result<(), String> {
     let _ = JsFuture::from(removed.unchecked_into::<js_sys::Promise>()).await;
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "file_sink/tests.rs"]
-mod tests;

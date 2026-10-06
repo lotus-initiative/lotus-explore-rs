@@ -272,8 +272,6 @@ fn prepared_rows_appear_in_same_order_as_entries() {
     assert_eq!(view_model.order.as_ref(), &[1, 2, 0]);
 }
 
-// ── Filtering ───────────────────────────────────────────────────────────────
-
 /// Three rows over two taxa and two reference titles, indexed 0 Alpha, 1 Beta,
 /// 2 Gamma — so a filtered order can be told apart from a re-sorted one.
 fn filter_fixture() -> Vec<CompoundEntry> {
