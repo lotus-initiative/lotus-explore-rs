@@ -4,28 +4,37 @@
 #[cfg(target_arch = "wasm32")]
 use dioxus::prelude::*;
 #[cfg(target_arch = "wasm32")]
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+#[cfg(target_arch = "wasm32")]
+use std::rc::Rc;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 
-// The closure a queued frame will call, kept alive for the life of the page.
+// The closure each queued frame will call, kept alive for the life of the page.
 //
-// A `Closure` handed to `requestAnimationFrame` must outlive the browser's
-// handle to it. Holding it in a `Signal` ties its life to the component, and
-// searching again replaces the table: the controller, its signals and the
-// closure go together while the frame is still queued, and the callback then
-// throws "closure invoked recursively or after being dropped".
+// A `Closure` handed to `requestAnimationFrame` must outlive the browser's handle
+// to it. Dropping it zeroes its index, and the next frame the browser delivers
+// throws "closure invoked recursively or after being dropped" -- the same bug, and
+// the same deliberate leak, as the row-height measurement recorded in
+// `virtualization_controller/measurement_frame_safety.rs`.
 //
-// `forget()` would also work and is what the row-height measurement does, but it
-// leaks one closure per schedule. This holds one, because a frame is only ever
-// queued when none is outstanding, so the slot is replaced rather than grown.
+// Holding the closure in a `Signal` ties its life to the component, and searching
+// again replaces the table: the scope dies while the frame is still queued. A
+// process-wide slot outlives the scope, but a slot that keeps only the newest
+// closure reintroduces the same failure one level up. The table being replaced and
+// the table replacing it share that slot, while the guard which stops two frames
+// from overlapping is per-instance and cannot see the two meet. So the incoming
+// table zeroes the outgoing table's closure and the pending frame throws.
 //
-// Nothing here is ever taken back out. A closure whose frame has already fired is
-// inert, and the next schedule overwrites it.
+// The slot therefore keeps every outstanding closure and reclaims only the ones
+// whose frame has already fired. Each callback shares a flag which lives outside
+// the slot, so a frame can mark itself without borrowing the storage holding it and
+// reclaiming is always safe. Nothing accumulates either: the guard admits one frame
+// per instance at a time, so a steady stream of frames reuses a single entry.
 #[cfg(target_arch = "wasm32")]
 thread_local! {
-    static PENDING_FRAME_CLOSURE: RefCell<Option<RafClosure>> =
-        const { RefCell::new(None) };
+    static PENDING_FRAME_CLOSURES: RefCell<Vec<(Rc<Cell<bool>>, RafClosure)>> =
+        const { RefCell::new(Vec::new()) };
 }
 
 #[cfg(any(target_arch = "wasm32", test))]
@@ -102,6 +111,38 @@ type RafIdSignal = Signal<Option<i32>>;
 #[cfg(target_arch = "wasm32")]
 type ScrollHostSignal = Signal<Option<web_sys::HtmlElement>>;
 
+/// Park a closure the browser now holds a handle to.
+///
+/// Reclaims an entry whose frame has already fired, and grows only while every
+/// entry is still outstanding. The single-slot version assumed that case away, and
+/// assuming it is what dropped a queued frame on every search.
+#[cfg(target_arch = "wasm32")]
+fn retain_frame_closure(fired: Rc<Cell<bool>>, raf_cb: RafClosure) {
+    PENDING_FRAME_CLOSURES.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        match slot.iter_mut().find(|(done, _)| done.get()) {
+            Some(reclaimable) => *reclaimable = (fired, raf_cb),
+            None => slot.push((fired, raf_cb)),
+        }
+    });
+}
+
+/// Record `next`, unless the signal is gone or already holds it.
+///
+/// A frame outlives the scope that queued it: searching again replaces the table
+/// and the browser still delivers the frame. `peek` and `write` unwrap internally,
+/// so a late frame has to record nothing rather than take the page down.
+#[cfg(target_arch = "wasm32")]
+fn try_write_if_changed<T: Copy + PartialEq + 'static>(mut sig: Signal<T>, next: T) {
+    let differs = match sig.try_peek() {
+        Ok(current) => *current != next,
+        Err(_) => return,
+    };
+    if differs && let Ok(mut slot) = sig.try_write() {
+        *slot = next;
+    }
+}
+
 /// Bundled scroll-RAF state, reducing `schedule_virtual_scroll_frame`'s arity.
 #[cfg(target_arch = "wasm32")]
 #[derive(Clone, Copy)]
@@ -152,43 +193,43 @@ pub(super) fn schedule_virtual_scroll_frame(
     }
     *scroll_raf_scheduled.write() = true;
 
-    let mut first_visible_row_sig = first_visible_row;
-    let mut viewport_height_px_sig = viewport_height_px;
+    let first_visible_row_sig = first_visible_row;
+    let viewport_height_px_sig = viewport_height_px;
     let mut scroll_raf_scheduled_sig = scroll_raf_scheduled;
     let mut scroll_raf_id_sig = scroll_raf_id;
     let div_for_raf = div;
+    let fired = Rc::new(Cell::new(false));
+    let fired_in_cb = Rc::clone(&fired);
     let raf_cb = wasm_bindgen::closure::Closure::wrap(Box::new(move |_ts: f64| {
+        // Mark first, and unconditionally. Reclaiming the slot depends on it, and a
+        // signal write below that finds a dropped scope must not strand the entry.
+        fired_in_cb.set(true);
         let top = usize::try_from(div_for_raf.scroll_top().max(0)).unwrap_or(0);
         let height = usize::try_from(div_for_raf.client_height().max(0)).unwrap_or(0);
         let next_first = next_first_visible_row(top, row_height_px, total_rows);
-        if next_first != *first_visible_row_sig.peek() {
-            *first_visible_row_sig.write() = next_first;
+        try_write_if_changed(first_visible_row_sig, next_first);
+        if height > 0 {
+            try_write_if_changed(viewport_height_px_sig, height);
         }
-        if height > 0 && height != *viewport_height_px_sig.peek() {
-            *viewport_height_px_sig.write() = height;
+        if let Ok(mut slot) = scroll_raf_id_sig.try_write() {
+            *slot = None;
         }
-        *scroll_raf_id_sig.write() = None;
-        *scroll_raf_scheduled_sig.write() = false;
-        // The closure is deliberately not cleared here. It is the thing the
-        // browser is calling right now; dropping it from inside its own
-        // invocation frees the state this stack frame is reading, which is what
-        // makes wasm-bindgen throw "closure invoked recursively or after being
-        // dropped". `PENDING_FRAME_CLOSURE` owns it instead.
+        if let Ok(mut slot) = scroll_raf_scheduled_sig.try_write() {
+            *slot = false;
+        }
     }) as Box<dyn FnMut(f64)>);
 
     let scheduled_id: Option<i32> = web_sys::window().and_then(|win| {
-        PENDING_FRAME_CLOSURE.with(|slot| {
-            let mut slot = slot.borrow_mut();
-            *slot = Some(raf_cb);
-            slot.as_ref().and_then(|cb| {
-                win.request_animation_frame(cb.as_ref().unchecked_ref())
-                    .ok()
-            })
-        })
+        win.request_animation_frame(raf_cb.as_ref().unchecked_ref())
+            .ok()
     });
     if let Some(id) = scheduled_id {
+        // The browser holds the handle from here on, so the closure has to be kept.
+        retain_frame_closure(fired, raf_cb);
         *scroll_raf_id.write() = Some(id);
     } else {
+        // Nothing was queued, so nothing holds the handle and letting the closure go
+        // now is safe.
         *scroll_raf_id.write() = None;
         *scroll_raf_scheduled.write() = false;
     }
@@ -197,3 +238,7 @@ pub(super) fn schedule_virtual_scroll_frame(
 #[cfg(test)]
 #[path = "scroll_runtime/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "scroll_runtime/frame_closure_safety.rs"]
+mod frame_closure_safety;
