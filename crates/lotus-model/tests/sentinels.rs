@@ -161,3 +161,52 @@ fn a_row_with_no_statement_is_absent_rather_than_empty_text() {
         "an empty cell is an absent statement, not an empty string"
     );
 }
+
+#[test]
+fn a_reference_node_renders_its_hash_and_nothing_keeps_it_absent() {
+    // `reference_node_text` had no test in this crate, which is the only place a
+    // mutant of it can be killed: cargo-mutants runs one package's own suite, so
+    // an assertion in a downstream crate cannot see it. Two mutants survived --
+    // the function replaced with `None` and with `Some("")` -- because every
+    // fixture in the tree left the column empty.
+    //
+    // The hash is what identifies the reference. A row that names one renders it;
+    // a row that names none renders nothing rather than an empty string, so the
+    // export's cell is blank instead of a value that reads as an identifier.
+    let hash = "9F1C0E4A-7B2D-4C6E-8A91-3D5F7B2E9C10";
+    let mut builder = ColumnarBuilder::new();
+    builder.push(RawRow {
+        compound_qid: "Q1",
+        reference_qid: "Q100",
+        reference_node: hash,
+        ..RawRow::default()
+    });
+    builder.push(RawRow {
+        compound_qid: "Q1",
+        reference_qid: "Q100",
+        reference_node: "",
+        ..RawRow::default()
+    });
+    let set = builder.build();
+
+    assert_eq!(
+        set.reference_node_text(0).as_deref(),
+        Some(hash),
+        "a row naming a reference node must render it"
+    );
+    assert_eq!(
+        set.reference_node_text(1),
+        None,
+        "a row naming none must render nothing, not an empty identifier"
+    );
+
+    // And through `entry`, which is the path the export takes: the two rows
+    // differ only in that column, so a builder that lost it would be caught.
+    let with = set.entry(0).expect("row 0 is present");
+    let without = set.entry(1).expect("row 1 is present");
+    assert_eq!(with.reference_node.as_ref(), hash);
+    assert!(
+        without.reference_node.is_empty(),
+        "and the rebuilt entry must agree with the accessor"
+    );
+}
