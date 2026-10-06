@@ -290,3 +290,74 @@ async fn a_notice_split_across_a_chunk_boundary_is_still_seen() {
         .expect_err("the notice is found whatever the chunking");
     assert!(error.contains("Operation timed out"), "{error:?}");
 }
+
+/// The structure to search with, chosen from a name that resolved.
+///
+/// A name typed into the structure field resolves to a compound, and the search
+/// then runs against *that compound's* canonical SMILES rather than the text the
+/// user typed. Two rules in there had no test: a match with no SMILES is skipped
+/// rather than taken, and an empty match list leaves the user's own text alone.
+#[tokio::test]
+async fn a_name_that_resolves_is_searched_by_the_compounds_own_smiles() {
+    let found = "compound_qid,compound_label,canonical_smiles,matched_by\n\
+                 Q9,Amarogentina,COCC1OC(O)C(O)C(O)C1O,label\n";
+    let http = Scripted::new(vec![(200, found)]);
+    let resolution = resolve_structure(&http, "amarogentina")
+        .await
+        .expect("the name resolves");
+
+    assert_eq!(
+        resolution.smiles, "COCC1OC(O)C(O)C(O)C1O",
+        "the search must run against the compound's structure, not the name"
+    );
+    assert_eq!(
+        resolution.looked_up, "amarogentina",
+        "and the input is reported as typed"
+    );
+}
+
+#[tokio::test]
+async fn a_match_with_no_smiles_is_skipped_for_one_that_has_one() {
+    // Several stereoisomers can carry the label. The first one with a structure
+    // wins -- taking the first match and its empty SMILES would hand an empty
+    // string to the structure service, which is a request that cannot succeed.
+    let found = "compound_qid,compound_label,canonical_smiles,matched_by\n\
+                 Q1,Amarogentina,,label\n\
+                 Q2,Amarogentina,CCO,label\n\
+                 Q3,Amarogentina,CCC,label\n";
+    let http = Scripted::new(vec![(200, found)]);
+    let resolution = resolve_structure(&http, "amarogentina")
+        .await
+        .expect("the name resolves");
+
+    assert_eq!(
+        resolution.smiles, "CCO",
+        "the first match that HAS a structure wins, not the first match"
+    );
+    assert_eq!(
+        resolution.compounds,
+        vec!["Q1".to_string(), "Q2".to_string(), "Q3".to_string()],
+        "every match is kept, because a cutoff of 1.0 legitimately returns several"
+    );
+}
+
+#[tokio::test]
+async fn a_name_that_resolves_to_nothing_keeps_the_users_own_text() {
+    // Nothing matched, so there is no compound to take a structure from. The
+    // input stands: passing an empty string to the structure service would be a
+    // request for nothing.
+    let empty = "compound_qid,compound_label,canonical_smiles,matched_by\n";
+    let http = Scripted::new(vec![(200, empty), (200, empty)]);
+    let resolution = resolve_structure(&http, "amarogentina")
+        .await
+        .expect("an unresolved name is not an error here");
+
+    assert!(
+        resolution.compounds.is_empty(),
+        "nothing matched, so there are no compounds"
+    );
+    assert_eq!(
+        resolution.smiles, "amarogentina",
+        "and the user's own text is what would be searched"
+    );
+}
