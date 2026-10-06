@@ -305,6 +305,9 @@
   .m-0 {
     margin: calc(var(--spacing) * 0);
   }
+  .mx-0 {
+    margin-inline: calc(var(--spacing) * 0);
+  }
   .mx-1 {
     margin-inline: var(--spacing-1);
   }
@@ -341,14 +344,14 @@
   .mt-10 {
     margin-top: calc(var(--spacing) * 10);
   }
+  .mb-0 {
+    margin-bottom: calc(var(--spacing) * 0);
+  }
   .mb-2 {
     margin-bottom: var(--spacing-2);
   }
   .mb-3 {
     margin-bottom: var(--spacing-3);
-  }
-  .mb-4 {
-    margin-bottom: var(--spacing-4);
   }
   .ml-auto {
     margin-left: auto;
@@ -779,9 +782,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  .overflow-auto {
-    overflow: auto;
   }
   .overflow-hidden {
     overflow: hidden;
