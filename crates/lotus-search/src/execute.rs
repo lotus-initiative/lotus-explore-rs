@@ -339,8 +339,8 @@ fn form_body(endpoint: &str, query: &str) -> String {
 
 /// The time budget to ask `endpoint` for, and to hold ourselves to.
 ///
-/// **Five seconds under `QLever`'s own ceiling, measured.** Asking for the
-/// server's 30 s is a `403`, not a longer query:
+/// **At `QLever`'s own ceiling, measured.** Asking for more than the server allows
+/// is a `403`, not a longer query:
 ///
 /// ```text
 /// POST /api/wikidata  timeout=60s
@@ -348,10 +348,18 @@ fn form_body(endpoint: &str, query: &str) -> String {
 ///         by this instance (30s). Please use a valid-access token ..."
 /// ```
 ///
-/// Asking for less than the server would use is the point: a query cancelled at 30 s has
-/// spent 30 s of a shared endpoint, while cancelled at 25 s it costs five seconds less and
-/// returns the same refusal, sooner, with the endpoint's own account of which operation was
-/// still running.
+/// Asking for the ceiling rather than less is deliberate, and an earlier version
+/// asked for 25 s on the reasoning that a query cancelled early costs a shared
+/// endpoint less time. That reasoning was wrong about what the budget covers. It
+/// is not a limit on computation: the endpoint stops *sending* when it runs out,
+/// appending a notice to a `200` that the response body then carries. So a smaller
+/// budget does not return the same refusal sooner -- it returns fewer rows, which
+/// is the one outcome that is indistinguishable from an answer.
+///
+/// A duration at this precision has to be spelled in milliseconds. `29.9s` is
+/// answered with a `500` ("Failed to convert string to duration type. Examples
+/// for valid strings: '100ms', '3s'"), so a fractional second is not a smaller
+/// budget, it is a malformed one.
 ///
 /// `LOTUS_QLEVER_TIMEOUT` overrides it in `QLever`'s duration syntax (`30s`, `1500ms`,
 /// `1min`), for a deployment with an access token and a raised ceiling. Clamped to
@@ -392,8 +400,11 @@ impl QLever {
     /// the same budget.
     const HOST: &'static str = "qlever.dev";
 
-    /// What to ask for when nothing says otherwise: the public instance allows
-    /// 30 s, and this leaves five seconds of headroom.
+    /// What to ask for when nothing says otherwise: the public instance's own
+    /// ceiling, in milliseconds because that is the only spelling it accepts at
+    /// this precision. Spelled `30s` it is the same value; the explicit unit is
+    /// here because a reader comparing this against the ceiling should not have to
+    /// work out whether `29.9s` would be understood.
     const DEFAULT_QUERY_BUDGET: &'static str = "30s";
 
     /// The largest budget the public instance accepts. Measured, not assumed:

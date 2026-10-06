@@ -68,7 +68,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
             "Limite di richieste raggiunto sul servizio upstream. Attendi circa un minuto e riprova."
         }
         TextKey::ErrorHintQueryTooExpensive => {
-            "Questa ricerca è troppo ampia: il servizio l'ha annullata dopo 25 secondi. Restringila con un taxon, un intervallo di massa, un anno o una formula, poi riesegui la ricerca."
+            "Questa ricerca è troppo ampia: il servizio si è interrotto dopo 30 secondi. Restringila con un taxon, un intervallo di massa, un anno o una formula, poi riesegui la ricerca."
         }
         TextKey::ErrorHintBadRequest => {
             "Il server ha rifiutato la richiesta. Controlla i parametri di ricerca."

@@ -57,11 +57,21 @@ Every `QLever` request now carries `timeout=30s`. Measured, not assumed: the
 public instance allows 30 s, and asking for more than that is a `403` rather than
 a longer query.
 
-Five seconds of headroom is deliberate. A query that is going to be cancelled has
-already spent the endpoint's budget; cancelled at 25 s it costs five seconds less
-and returns the same refusal, sooner, and with the endpoint's own account of
-which operation was still running (`Last operation: Sort … on ?r`) instead of a
-bare status.
+Asking for the ceiling rather than less is deliberate. An earlier version asked for
+25 s on the reasoning that a query going to be cancelled anyway costs a shared
+endpoint less time if it is cut short. That reasoning was wrong about what the
+budget covers. It is not a limit on computation: the endpoint stops **sending**
+when it runs out, appending a notice to a `200` whose body then carries it. A
+smaller budget therefore does not return the same refusal sooner — it returns
+fewer rows, which is the one outcome indistinguishable from an answer.
+
+This is why the truncation check exists rather than a shorter budget. A refused
+query says so in the status; a truncated one does not.
+
+Note the spelling: a duration at this precision must be given in milliseconds.
+`29.9s` is answered with a `500` — *"Failed to convert string to duration type.
+Examples for valid strings: '100ms', '3s'"* — so a fractional second is not a
+smaller budget but a malformed one.
 
 `LOTUS_QLEVER_TIMEOUT` overrides the budget in QLever's own duration syntax
 (`30s`, `1500ms`, `1min`) for a deployment that has an access token and a raised
