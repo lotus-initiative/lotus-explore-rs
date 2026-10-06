@@ -399,14 +399,23 @@ impl OpfsSink {
             .await
             .map_err(|error| describe_js_error("reading the finished export", &error))?;
 
-        // A `File` is a `Blob`, so the existing object-URL path takes it unchanged. The
-        // MIME type is already on the `File` OPFS recorded, so `mime` is only a fallback
+        // A `File` is a `Blob`, so the object-URL path takes it unchanged. The MIME
+        // type is already on the `File` OPFS recorded, so `mime` is only a fallback
         // for the case where the entry has none.
+        //
+        // Checked, not asserted. `unchecked_into` here states that the value is a
+        // Blob without looking, and `createObjectURL` then rejects it with a bare
+        // "TypeError: Type error" that names neither the value nor the reason --
+        // which is what a reader on iOS sees, where every browser is WebKit and
+        // the export has already been written to disk by the time this runs.
         let _ = mime;
-        let url = web_sys::Url::create_object_url_with_blob(
-            &file.clone().unchecked_into::<web_sys::Blob>(),
-        )
-        .map_err(|error| describe_js_error("preparing the download", &error))?;
+        let blob = file.clone().dyn_into::<web_sys::Blob>().map_err(|_| {
+            "this browser returned something from the export file that is not a \
+             Blob, so the download cannot be prepared from it"
+                .to_string()
+        })?;
+        let url = web_sys::Url::create_object_url_with_blob(&blob)
+            .map_err(|error| describe_js_error("preparing the download", &error))?;
 
         let clicked = crate::upload::download_url(&url, filename);
 
