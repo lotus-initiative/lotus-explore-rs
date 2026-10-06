@@ -588,6 +588,10 @@ fn flags_ask_for_formula(criteria: &lotus_model::SearchCriteria) -> bool {
 }
 
 #[cfg(test)]
+#[path = "main/range_tests.rs"]
+mod range_tests;
+
+#[cfg(test)]
 #[path = "main/civil_year_tests.rs"]
 mod civil_year_tests;
 
