@@ -14,8 +14,9 @@
 
 use lotus_search::testing::Scripted;
 use lotus_search::{
-    ChunkedBody, FetchError, ResponseFormat, StreamProgress, columnar_from_chunks_reporting,
-    execute_streaming_with_fallback, resolve_reference, resolve_structure,
+    ChunkedBody, FetchError, ResponseFormat, StreamProgress, columnar_from_chunks,
+    columnar_from_chunks_reporting, execute_streaming_with_fallback, resolve_reference,
+    resolve_structure,
 };
 
 /// The result CSV the endpoint produces, with one value containing a comma and a
@@ -177,5 +178,42 @@ async fn a_doi_that_matched_nothing_is_an_error_and_not_an_empty_result() {
     assert!(
         matches!(error, FetchError::Parse(_)),
         "expected a parse error, got {error:?}"
+    );
+}
+
+#[tokio::test]
+async fn the_plain_wrapper_folds_the_same_set_as_the_reporting_one() {
+    // `columnar_from_chunks` is the public entry point -- the reporting variant
+    // is the one the app uses, because the app has a `Signal` to update -- and it
+    // had no test at all. That let a mutant replace its whole body with an empty
+    // set and survive: nothing called it, so nothing noticed.
+    //
+    // What it owes a caller is that dropping the progress callback changes
+    // nothing else: the same body in, the same rows out.
+    let plain = columnar_from_chunks(streamed_body(RESULT_CSV, 32).await)
+        .await
+        .expect("the CSV parses");
+    let mut reports = 0usize;
+    let reporting =
+        columnar_from_chunks_reporting(streamed_body(RESULT_CSV, 32).await, &mut |_| {
+            reports += 1;
+        })
+        .await
+        .expect("the CSV parses");
+
+    assert_eq!(
+        plain.row_count(),
+        reporting.row_count(),
+        "the wrapper and the reporting variant must fold the same rows"
+    );
+    assert_eq!(plain.row_count(), 2, "which is the two rows in the fixture");
+    assert_eq!(
+        plain.stats().n_compounds,
+        reporting.stats().n_compounds,
+        "and the same statistics, so the wrapper is not quietly a different query"
+    );
+    assert!(
+        reports > 1,
+        "the reporting variant still reported per chunk, so this is a real comparison"
     );
 }
