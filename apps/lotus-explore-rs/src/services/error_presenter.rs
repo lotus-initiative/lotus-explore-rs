@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! User-facing formatting for domain errors and warnings.
 
+use crate::features::explore::truncation::{Reason, truncation_reason};
 use crate::features::explore::{
     DomainError, ErrorKind, LookupNotice, ParseFault, QueryStage, ValidationFault,
 };
@@ -12,9 +13,10 @@ use crate::i18n::{
     err_invalid_search_input, err_mass_out_of_range, err_mass_range_invalid,
     err_query_stage_failed, err_reference_not_an_identifier, err_reference_not_found,
     err_similarity_threshold_invalid, err_structure_too_long, err_taxon_not_found,
-    err_taxon_parse_failed, err_taxon_too_long, err_unsupported_format, err_year_out_of_range,
-    err_year_range_invalid, t, warn_ambiguous_compound, warn_ambiguous_taxon,
-    warn_compound_resolved, warn_input_standardized, warn_taxon_common_name, warn_wdqs_fallback,
+    err_taxon_parse_failed, err_taxon_too_long, err_truncated_by_endpoint, err_unsupported_format,
+    err_year_out_of_range, err_year_range_invalid, t, warn_ambiguous_compound,
+    warn_ambiguous_taxon, warn_compound_resolved, warn_input_standardized, warn_taxon_common_name,
+    warn_wdqs_fallback,
 };
 use crate::repositories::RepositoryError;
 
@@ -181,6 +183,19 @@ fn format_validation_fault(locale: Locale, fault: &ValidationFault) -> String {
 }
 
 fn format_parse_fault(locale: Locale, fault: &ParseFault) -> String {
+    // A truncation is not a parse failure to a reader, and the detail is an
+    // English sentence from `lotus-query` -- so a translated frame with an
+    // English sentence inside it, and the wrong advice. Recognised here through
+    // the same helper the classifier uses, because the two must not disagree.
+    let truncated = match fault {
+        ParseFault::CompoundCsv { details }
+        | ParseFault::TaxonPick { details }
+        | ParseFault::TaxonCsv { details }
+        | ParseFault::ResultsCsv { details } => truncation_reason(details),
+    };
+    if let Some(reason) = truncated {
+        return err_truncated_by_endpoint(locale, Reason::of(reason));
+    }
     match fault {
         ParseFault::CompoundCsv { details } | ParseFault::TaxonPick { details } => {
             err_query_stage_failed(

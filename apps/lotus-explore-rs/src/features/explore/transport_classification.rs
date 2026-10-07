@@ -80,6 +80,15 @@ fn classify_http_error(status: u16, body: &str) -> TransportFailureKind {
 }
 
 fn classify_parse_error(detail: &str) -> TransportFailureKind {
+    // Before the SPARQL classes: a body that ends in the endpoint's truncation
+    // notice is a parse failure to `lotus-query` and a partial result to the
+    // reader, and nothing else in that detail looks like either. Without this,
+    // `ErrorKind::Truncated` is never reached for the common case, so the
+    // truncation hint is not shown and a retry is decided as though the query
+    // had been rejected.
+    if super::truncation::truncation_reason(detail).is_some() {
+        return TransportFailureKind::Truncated;
+    }
     match classify_sparql_error_text(detail) {
         SparqlErrorClass::CacheConflict => TransportFailureKind::CacheConflict,
         SparqlErrorClass::RateLimit => TransportFailureKind::RateLimit,

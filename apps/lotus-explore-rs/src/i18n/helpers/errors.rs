@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use super::Locale;
+use crate::features::explore::truncation::Reason;
 
 mod de;
 mod en;
@@ -45,6 +46,17 @@ macro_rules! dispatch {
                 Locale::Fr => fr::$name($arg),
                 Locale::De => de::$name($arg),
                 Locale::It => it::$name($arg),
+            }
+        }
+    };
+    // one `Reason` arg → String
+    ($name:ident, reason: Reason) => {
+        pub fn $name(locale: Locale, reason: Reason) -> String {
+            match locale {
+                Locale::En => en::$name(reason),
+                Locale::Fr => fr::$name(reason),
+                Locale::De => de::$name(reason),
+                Locale::It => it::$name(reason),
             }
         }
     };
@@ -92,6 +104,7 @@ dispatch!(err_reference_not_found, input: &str);
 dispatch!(err_reference_not_an_identifier, input: &str);
 
 dispatch!(err_query_stage_failed, stage: &str, detail: &str);
+dispatch!(err_truncated_by_endpoint, reason: Reason);
 
 dispatch!(warn_input_standardized, original: &str, normalized: &str);
 dispatch!(warn_taxon_common_name, name: &str, qid: &str);

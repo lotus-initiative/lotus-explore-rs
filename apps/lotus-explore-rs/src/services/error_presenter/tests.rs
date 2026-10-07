@@ -230,3 +230,106 @@ fn a_cancelled_query_is_advised_to_narrow_not_to_retry() {
         "the hint must not suggest a retry: {hint}"
     );
 }
+
+/// The regression: a translated frame with an English sentence inside it.
+///
+/// `lotus-query` writes one English sentence when a body ends in the notice
+/// `QLever` appends to a `200` whose query ran out of time. It reached the user
+/// through four layers as a bare `String`, every layer called it a generic parse
+/// failure, and `format_parse_fault` interpolated it into a translated frame --
+/// so a French or German reader saw their own language and then a paragraph of
+/// English, with the wrong advice ("refine your query") for a result set that
+/// was merely incomplete.
+#[test]
+fn the_endpoints_truncation_notice_is_reported_in_the_readers_language() {
+    // The detail `lotus-query` produces, verbatim.
+    let detail = "the endpoint stopped sending before the result was complete, so these \
+                  rows are only part of the answer and are not being reported as if they \
+                  were all of it (the endpoint said: Operation timed out); re-run the \
+                  search, or narrow it";
+
+    for locale in [Locale::En, Locale::Fr, Locale::De, Locale::It] {
+        let rendered = super::format_domain_error(
+            locale,
+            &DomainError::Parse(ParseFault::ResultsCsv {
+                details: detail.to_string(),
+            }),
+        );
+
+        assert!(
+            !rendered.contains("the endpoint stopped sending"),
+            "{locale:?} still shows the raw English detail:\n{rendered}"
+        );
+        assert!(
+            !rendered.contains("(the endpoint said:"),
+            "{locale:?} still shows the raw reason clause:\n{rendered}"
+        );
+        assert!(
+            !rendered.contains("could not parse the response"),
+            "{locale:?} still reports it as a parse failure rather than a truncation:\n{rendered}"
+        );
+        // And it says the answer is partial, which is the actionable part.
+        assert!(
+            rendered.chars().count() > 40,
+            "{locale:?} says too little to act on: {rendered}"
+        );
+    }
+
+    // The four are actually different, so a missing translation cannot pass.
+    let messages: Vec<String> = [Locale::En, Locale::Fr, Locale::De, Locale::It]
+        .iter()
+        .map(|locale| {
+            super::format_domain_error(
+                *locale,
+                &DomainError::Parse(ParseFault::ResultsCsv {
+                    details: detail.to_string(),
+                }),
+            )
+        })
+        .collect();
+    for (i, a) in messages.iter().enumerate() {
+        for b in messages.iter().skip(i + 1) {
+            assert_ne!(a, b, "two locales render the same truncation message");
+        }
+    }
+}
+
+/// The reason is translated too, and it survives being read back out.
+#[test]
+fn each_reason_the_endpoint_can_give_has_its_own_sentence() {
+    let with = |reason: &str| {
+        format!(
+            "the endpoint stopped sending before the result was complete, so these rows \
+             are only part of the answer and are not being reported as if they were all \
+             of it (the endpoint said: {reason}); re-run the search, or narrow it"
+        )
+    };
+
+    let rendered: Vec<String> = ["Operation timed out", "Query was canceled", "Brand new"]
+        .iter()
+        .map(|reason| {
+            super::format_domain_error(
+                Locale::En,
+                &DomainError::Parse(ParseFault::ResultsCsv {
+                    details: with(reason),
+                }),
+            )
+        })
+        .collect();
+
+    for (i, a) in rendered.iter().enumerate() {
+        for b in rendered.iter().skip(i + 1) {
+            assert_ne!(
+                a, b,
+                "two reasons render identically, so the reader cannot tell a query \
+                 that timed out from one that was cancelled"
+            );
+        }
+    }
+    // An unrecognised reason is still reported -- the answer is still partial --
+    // rather than dropped.
+    assert!(
+        rendered.iter().all(|message| !message.is_empty()),
+        "an unknown reason must still produce a message"
+    );
+}

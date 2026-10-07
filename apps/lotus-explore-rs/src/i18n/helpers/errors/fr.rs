@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
+use crate::features::explore::truncation::Reason;
+
 pub fn err_invalid_search_input() -> String {
     "Veuillez saisir un nom de taxon / QID, ou une structure SMILES.".to_string()
 }
@@ -115,4 +117,23 @@ pub fn warn_wdqs_fallback() -> String {
 #[cfg(target_arch = "wasm32")]
 pub fn error_hint_memory() -> &'static str {
     "Résultat trop volumineux pour la mémoire de l'appareil."
+}
+
+/// Why the result set was cut short, in this locale.
+///
+/// `reason` is one of three classifications rather than the endpoint's own words.
+/// `QLever`'s notice is English, so quoting it inside a translated sentence puts
+/// a service diagnostic in the middle of the prose, and translating it means
+/// translating a message another project may reword. An unrecognised reason is
+/// reported as not-given rather than dropped: an unknown reason is still a
+/// reason, and the reader still needs to know the answer was partial.
+pub fn err_truncated_by_endpoint(reason: Reason) -> String {
+    let reason = match reason {
+        Reason::TimedOut => "la requête a expiré",
+        Reason::Cancelled => "la requête a été annulée",
+        Reason::Other => "le point d'accès ne l'a pas précisé",
+    };
+    format!(
+        "Le point d'accès a cessé l'envoi avant la fin du résultat : ces lignes n'en sont qu'une partie et ne sont pas présentées comme si elles constituaient toute la réponse. Motif : {reason}. Relancez la recherche, ou restreignez-la."
+    )
 }

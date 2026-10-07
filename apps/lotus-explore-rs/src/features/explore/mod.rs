@@ -46,6 +46,7 @@ mod sparql_errors;
 pub mod structure_cache;
 pub mod taxon_cache;
 mod transport_classification;
+pub mod truncation;
 pub mod types;
 mod url_codec;
 pub mod url_state;

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
+use crate::features::explore::truncation::Reason;
+
 pub fn err_invalid_search_input() -> String {
     "Please enter a taxon name / QID, or a SMILES structure.".to_string()
 }
@@ -113,4 +115,23 @@ pub fn warn_wdqs_fallback() -> String {
 #[cfg(target_arch = "wasm32")]
 pub fn error_hint_memory() -> &'static str {
     "Result too large for current device memory."
+}
+
+/// Why the result set was cut short, in this locale.
+///
+/// `reason` is one of three classifications rather than the endpoint's own words.
+/// `QLever`'s notice is English, so quoting it inside a translated sentence puts
+/// a service diagnostic in the middle of the prose, and translating it means
+/// translating a message another project may reword. An unrecognised reason is
+/// reported as not-given rather than dropped: an unknown reason is still a
+/// reason, and the reader still needs to know the answer was partial.
+pub fn err_truncated_by_endpoint(reason: Reason) -> String {
+    let reason = match reason {
+        Reason::TimedOut => "the query ran out of time",
+        Reason::Cancelled => "the query was cancelled",
+        Reason::Other => "the endpoint did not say",
+    };
+    format!(
+        "The endpoint stopped sending before the result was complete, so these rows are only part of the answer and are not being reported as if they were all of it. Reason: {reason}. Re-run the search, or narrow it."
+    )
 }
