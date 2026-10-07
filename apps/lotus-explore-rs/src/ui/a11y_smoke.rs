@@ -96,7 +96,22 @@ mod brand {
         );
     }
 
-    /// Every colour the mark paints with, as a class the dark palette names.
+    /// The files the app pins the icon to, in place of the OS-following one.
+    ///
+    /// `favicon.svg` answers for the reader's OS. These exist for the states
+    /// the OS cannot describe: the theme toggle overriding it, and
+    /// `?dark_mode=` on a shared link.
+    const PINNED_LIGHT: &str = include_str!("../../public/favicon-light.svg");
+    const PINNED_DARK: &str = include_str!("../../public/favicon-dark.svg");
+
+    fn pinned() -> [(&'static str, &'static str); 2] {
+        [
+            ("favicon-light.svg", PINNED_LIGHT),
+            ("favicon-dark.svg", PINNED_DARK),
+        ]
+    }
+
+    /// Every colour the mark paints with, as a class the palettes name.
     const PALETTE_CLASSES: [&str; 5] = [
         "lotus-wordmark",
         "lotus-ink",
@@ -105,30 +120,80 @@ mod brand {
         "lotus-green",
     ];
 
-    #[test]
-    fn the_mark_follows_the_readers_colour_scheme() {
-        // A favicon is its own document: the page's stylesheet and its
-        // `data-theme` attribute do not reach it, and `currentColor` resolves
-        // against the SVG document, which has no theme at all. So the only
-        // mechanism that works is `prefers-color-scheme` inside the file.
-        //
-        // Without it the tab icon was a near-black wordmark on a dark tab
-        // background, in every one of the four locales.
-        assert!(
-            MARK.contains("prefers-color-scheme: dark"),
-            "the mark never asks the reader's colour scheme, so the tab icon is \
-             the same in both themes"
-        );
+    /// The mark with the stylesheet and the palette hexes blanked out: the two
+    /// things the three files are meant to disagree about, and nothing else.
+    fn skeleton(svg: &str) -> String {
+        let head = svg
+            .split_once("<style type=\"text/css\">")
+            .map_or("", |(head, _)| head);
+        let tail = svg.rsplit_once("</style>").map_or("", |(_, tail)| tail);
+        let mut body = format!("{head}@@{tail}");
         for class in PALETTE_CLASSES {
-            assert!(
-                MARK.contains(&format!(".{class}{{fill:")),
-                "{class} has no dark-mode fill, so whatever it paints stays the \
-                 light-theme colour in a dark tab"
+            let start = format!("class=\"{class}\" fill=\"");
+            let mut from = 0;
+            // Every occurrence, not the first: `lotus-ink` is three separate
+            // paths, and blanking only the first would leave the other two
+            // comparing their real hexes.
+            while let Some(at) = body[from..].find(&start) {
+                let after = from + at + start.len();
+                let end = body[after..].find('"').map_or(body.len(), |n| after + n);
+                body.replace_range(after..end, "@@");
+                from = after + 2;
+            }
+        }
+        body
+    }
+
+    #[test]
+    fn the_pinned_icons_are_the_same_artwork() {
+        // Three files hold one drawing, because a favicon cannot pull its
+        // artwork from another file. Nothing stops a petal being added to just
+        // one of them -- and the wrong one is invisible, because the icon still
+        // looks like a logo, just not like the other theme's logo. So compare
+        // what is left once the palette and the stylesheet are removed: if the
+        // artwork changes, this fails and the other two must be regenerated.
+        let canonical = skeleton(MARK);
+        for (file, svg) in pinned() {
+            assert_eq!(
+                skeleton(svg),
+                canonical,
+                "{file} is not the same drawing as favicon.svg"
             );
+        }
+    }
+
+    #[test]
+    fn a_pinned_icon_does_not_ask_the_os_anything() {
+        // The pinned files exist precisely because the OS answer is the wrong
+        // one. A `prefers-color-scheme` block left in one of them would still
+        // be consulted, and on the machine that needs the pin -- the reader who
+        // overrode their OS -- it would hand back the colour they chose
+        // against, which is the bug this pair was added to close.
+        for (file, svg) in pinned() {
+            // No `@media` at all rather than no mention of the feature: the
+            // comment in each file explains the rule by name, and the defect is
+            // a live media query, not the word.
             assert!(
-                MARK.contains(&format!("class=\"{class}\"")),
-                "{class} is styled but nothing uses it: the rule can never match"
+                !svg.contains("@media"),
+                "{file} is pinned for a theme the app already decided, but still \
+                 carries a media query, so the icon can disagree with the page"
             );
+        }
+    }
+
+    #[test]
+    fn the_pinned_icons_paint_a_palette() {
+        // With no stylesheet block to fall back on, the fill has to be on the
+        // elements. A class that lost its `fill` renders as flat black, which
+        // passes every geometry check above.
+        for (file, svg) in pinned() {
+            for class in PALETTE_CLASSES {
+                assert!(
+                    svg.contains(&format!("class=\"{class}\" fill=\"#")),
+                    "{file} has a {class} with no fill on the element, so it \
+                     renders black"
+                );
+            }
         }
     }
 

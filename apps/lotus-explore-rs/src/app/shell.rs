@@ -157,8 +157,9 @@ fn AppRuntimeEffects() -> Element {
         }
     });
 
-    // Sync <html lang> and <html data-theme> in a single effect, so the theme
-    // lands in one write and the browser does not reflow between the two.
+    // Sync <html lang>, <html data-theme> and the tab icon in a single effect, so
+    // the theme lands in one write and the browser does not reflow between the
+    // two.
     //
     // `document::eval` rather than `web_sys`: the theme lives on an attribute of
     // the root `<html>` element, which no rsx node in this tree owns, and
@@ -166,17 +167,22 @@ fn AppRuntimeEffects() -> Element {
     // previous version reached for `web_sys` under `cfg(target_arch = "wasm32")`
     // and did nothing on native, so the toggle moved the state and the window
     // never changed colour.
+    //
+    // The icon is pinned here because a favicon is its own document and cannot
+    // see `data-theme`; `theme_icon_href` explains the rest and resolves
+    // through the deployment base, so a subpath deploy asks for the icon
+    // where the inline script put every other asset.
     use_effect(move || {
         let lang = locale.read().lang_code();
-        let theme = if app_state.read().dark_mode {
-            "dark"
-        } else {
-            "light"
-        };
+        let dark_mode = app_state.read().dark_mode;
+        let theme = if dark_mode { "dark" } else { "light" };
+        let icon = crate::features::explore::url_state::theme_icon_href(dark_mode);
         document::eval(&format!(
             "var el = document.documentElement; \
              el.setAttribute('lang', '{lang}'); \
-             el.setAttribute('data-theme', '{theme}');"
+             el.setAttribute('data-theme', '{theme}'); \
+             var icon = document.querySelector('link[rel=\"icon\"][type=\"image/svg+xml\"]'); \
+             if (icon) icon.href = '{icon}';"
         ));
     });
 

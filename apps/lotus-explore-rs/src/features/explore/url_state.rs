@@ -58,6 +58,25 @@ pub fn deployment_href(path: &str) -> String {
     path.to_string()
 }
 
+/// The tab icon that matches the theme this app has decided on.
+///
+/// A favicon is its own document, so it cannot see `data-theme` and
+/// `prefers-color-scheme` inside it answers for the reader's operating system
+/// rather than for this app -- which follows the OS on a first visit, but not
+/// once the toggle has overridden it or a `?dark_mode=` link has said otherwise.
+/// `favicon.svg` carries that OS-driven default for the first paint; once the
+/// app is running it pins one of the two files here.
+///
+/// The `.ico` and PNG icons are left alone: a raster image has no palette to
+/// swap, so browsers that pick one of those get the light mark.
+pub fn theme_icon_href(dark_mode: bool) -> String {
+    deployment_href(if dark_mode {
+        "favicon-dark.svg"
+    } else {
+        "favicon-light.svg"
+    })
+}
+
 #[cfg(target_arch = "wasm32")]
 fn current_search() -> String {
     web_sys::window()
