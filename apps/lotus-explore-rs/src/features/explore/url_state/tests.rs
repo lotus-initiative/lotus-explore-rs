@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for `url_state`, in their own file.
 
-use super::{deployment_base_path, theme_icon_href};
+use super::{deployment_base_path, theme_chrome_color, theme_icon_href};
 
 /// Every client-side route, which is the same list the server router, the
 /// Dockerfile export stage, `nginx.conf`, and `index.html` each keep.
@@ -66,5 +66,35 @@ fn the_pinned_icons_are_not_the_os_driven_one() {
     // question on exactly the machine the pin exists for.
     for dark_mode in [false, true] {
         assert_ne!(theme_icon_href(dark_mode), "favicon.svg");
+    }
+}
+
+/// The browser chrome has to follow the page, not the OS, once the theme is
+/// the reader's choice -- and `index.html` can only express "follow the OS".
+#[test]
+fn the_browser_chrome_follows_the_app_theme() {
+    let light = theme_chrome_color(false);
+    let dark = theme_chrome_color(true);
+    assert_ne!(light, dark, "one colour cannot serve both themes");
+    for color in [light, dark] {
+        assert_eq!(color.len(), 7, "'{color}' is not a #rrggbb colour");
+        assert!(
+            color.starts_with('#') && color[1..].chars().all(|c| c.is_ascii_hexdigit()),
+            "'{color}' is not a hex colour"
+        );
+    }
+}
+
+/// The chrome colours the app sets at runtime must be the ones `index.html`
+/// already ships, or a reader who never overrides the OS sees the app change
+/// the address bar out from under them for no reason.
+#[test]
+fn the_runtime_chrome_matches_the_one_in_the_markup() {
+    const INDEX: &str = include_str!("../../../../index.html");
+    for color in [theme_chrome_color(false), theme_chrome_color(true)] {
+        assert!(
+            INDEX.contains(color),
+            "{color} is set at runtime but is not declared in index.html"
+        );
     }
 }

@@ -77,6 +77,21 @@ pub fn theme_icon_href(dark_mode: bool) -> String {
     })
 }
 
+/// The colour the browser paints its own chrome -- the mobile address bar, the
+/// status bar, the task switcher card -- in for this theme.
+///
+/// `index.html` declares a `prefers-color-scheme` pair, which is right before
+/// the app boots and then stops being right: the same reason the favicon needs
+/// pinning. Once the theme is the reader's choice rather than the OS's, the
+/// chrome has to follow the page, or a light page on a dark machine wears a dark
+/// address bar.
+///
+/// These are the two values `index.html` already ships, so a reader who never
+/// overrides sees no change at all.
+pub fn theme_chrome_color(dark_mode: bool) -> &'static str {
+    if dark_mode { "#10141b" } else { "#f6f8fb" }
+}
+
 #[cfg(target_arch = "wasm32")]
 fn current_search() -> String {
     web_sys::window()

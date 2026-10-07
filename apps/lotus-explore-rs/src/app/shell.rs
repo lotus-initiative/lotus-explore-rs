@@ -172,17 +172,27 @@ fn AppRuntimeEffects() -> Element {
     // see `data-theme`; `theme_icon_href` explains the rest and resolves
     // through the deployment base, so a subpath deploy asks for the icon
     // where the inline script put every other asset.
+    //
+    // `theme-color` moves for the same reason and is set here for the same
+    // reason: `index.html` can only express "follow the OS", and once the theme
+    // is the reader's choice the browser's own chrome has to follow the page.
     use_effect(move || {
         let lang = locale.read().lang_code();
         let dark_mode = app_state.read().dark_mode;
         let theme = if dark_mode { "dark" } else { "light" };
         let icon = crate::features::explore::url_state::theme_icon_href(dark_mode);
+        let chrome = crate::features::explore::url_state::theme_chrome_color(dark_mode);
         document::eval(&format!(
             "var el = document.documentElement; \
              el.setAttribute('lang', '{lang}'); \
              el.setAttribute('data-theme', '{theme}'); \
              var icon = document.querySelector('link[rel=\"icon\"][type=\"image/svg+xml\"]'); \
-             if (icon) icon.href = '{icon}';"
+             if (icon) icon.href = '{icon}'; \
+             var metas = document.querySelectorAll('meta[name=\"theme-color\"]'); \
+             for (var m = 0; m < metas.length; m += 1) {{ \
+               metas[m].setAttribute('content', '{chrome}'); \
+               metas[m].removeAttribute('media'); \
+             }}"
         ));
     });
 
