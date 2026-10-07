@@ -42,13 +42,22 @@ fn each_theme_pins_an_icon_that_exists() {
     const DARK: &str = include_str!("../../../../public/favicon-dark.svg");
 
     for (dark_mode, file, artwork) in [
-        (false, "favicon-light.svg", LIGHT),
-        (true, "favicon-dark.svg", DARK),
+        (false, "/favicon-light.svg", LIGHT),
+        (true, "/favicon-dark.svg", DARK),
     ] {
         let href = theme_icon_href(dark_mode);
         assert_eq!(
             href, file,
             "dark_mode={dark_mode} must pin {file}, not {href}"
+        );
+        // `deployment_href` strips the base's trailing slash and appends, so a
+        // bare filename fuses onto the last segment: `/lotus-explore-rs` +
+        // `favicon-light.svg`. That 404s into the SPA fallback, the icon never
+        // changes, and the reader keeps the OS-driven `favicon.svg` -- which is
+        // how a light page ended up wearing a dark tab icon.
+        assert!(
+            href.starts_with('/'),
+            "'{href}' has no leading slash, so the deployment base fuses onto it"
         );
         // The artwork is compiled in, so a missing file is a build error
         // rather than a 404 at runtime; assert it is the real mark anyway,

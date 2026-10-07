@@ -69,11 +69,15 @@ pub fn deployment_href(path: &str) -> String {
 ///
 /// The `.ico` and PNG icons are left alone: a raster image has no palette to
 /// swap, so browsers that pick one of those get the light mark.
+/// The leading slash is not optional: `deployment_href` trims the trailing
+/// slash off the base and then appends, so a bare filename joins the last
+/// segment -- `/lotus-explore-rs` + `favicon-light.svg`, which 404s into the
+/// SPA fallback. Every other caller passes `/`-prefixed paths for that reason.
 pub fn theme_icon_href(dark_mode: bool) -> String {
     deployment_href(if dark_mode {
-        "favicon-dark.svg"
+        "/favicon-dark.svg"
     } else {
-        "favicon-light.svg"
+        "/favicon-light.svg"
     })
 }
 

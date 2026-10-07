@@ -111,14 +111,13 @@ mod brand {
         ]
     }
 
-    /// Every colour the mark paints with, as a class the palettes name.
-    const PALETTE_CLASSES: [&str; 5] = [
-        "lotus-wordmark",
-        "lotus-ink",
-        "lotus-red",
-        "lotus-teal",
-        "lotus-green",
-    ];
+    /// The only element whose colour follows the theme.
+    ///
+    /// The flower is deliberately not in here. Reported: the ask was for the
+    /// icon's *text* to switch, and recolouring the petals made the mark read
+    /// as two different logos depending on the theme. The wordmark is five
+    /// `<path>` elements in one `<g>`; the flower is everything else.
+    const THEMED: &str = "lotus-wordmark";
 
     /// The mark with the stylesheet and the palette hexes blanked out: the two
     /// things the three files are meant to disagree about, and nothing else.
@@ -128,8 +127,8 @@ mod brand {
             .map_or("", |(head, _)| head);
         let tail = svg.rsplit_once("</style>").map_or("", |(_, tail)| tail);
         let mut body = format!("{head}@@{tail}");
-        for class in PALETTE_CLASSES {
-            let start = format!("class=\"{class}\" fill=\"");
+        {
+            let start = format!("class=\"{THEMED}\" fill=\"");
             let mut from = 0;
             // Every occurrence, not the first: `lotus-ink` is three separate
             // paths, and blanking only the first would leave the other two
@@ -182,54 +181,87 @@ mod brand {
     }
 
     #[test]
-    fn the_pinned_icons_paint_a_palette() {
+    fn the_pinned_icons_paint_the_wordmark() {
         // With no stylesheet block to fall back on, the fill has to be on the
-        // elements. A class that lost its `fill` renders as flat black, which
+        // element. A class that lost its `fill` renders as flat black, which
         // passes every geometry check above.
         for (file, svg) in pinned() {
-            for class in PALETTE_CLASSES {
-                assert!(
-                    svg.contains(&format!("class=\"{class}\" fill=\"#")),
-                    "{file} has a {class} with no fill on the element, so it \
-                     renders black"
-                );
-            }
+            assert!(
+                svg.contains(&format!("class=\"{THEMED}\" fill=\"#")),
+                "{file} has no fill on the wordmark, so it renders black"
+            );
         }
     }
 
     #[test]
-    fn no_colour_can_win_over_the_palette() {
-        // An inline `style="fill:…"` attribute beats every stylesheet rule that
-        // is not `!important`, so a path carrying one ignores the dark palette
-        // entirely -- and the file still looks correct in a light tab, which is
-        // why this is invisible until someone switches their system to dark.
-        // Only live markup: the file carries a commented-out hover animation,
-        // and an inline fill inside a comment cannot render or override anything.
-        let live: String = MARK
-            .split("<!--")
-            .enumerate()
-            .filter(|(i, _)| i % 2 == 0)
-            .map(|(_, chunk)| chunk)
-            .collect::<Vec<_>>()
-            .join("");
-
-        let inline_fills: Vec<&str> = live
-            .lines()
-            .flat_map(|line| {
-                let mut out = Vec::new();
-                let mut rest = line;
-                while let Some(at) = rest.find("style=\"fill:") {
-                    let tail = &rest[at..];
-                    out.push(tail.split('"').nth(1).unwrap_or_default());
-                    rest = tail.get(2..).unwrap_or_default();
-                }
-                out
-            })
+    fn only_the_wordmark_follows_the_theme() {
+        // The regression guard for the over-reach: the dark palette started out
+        // recolouring the petals too, which was not what was asked for and
+        // split one logo into two. The flower must keep its brand colours in
+        // every file, and the only selector the dark block may name is the
+        // wordmark.
+        const BRAND_FILLS: [&str; 4] = ["#484848", "#900", "#069", "#396"];
+        for (file, svg) in std::iter::once(("favicon.svg", MARK)).chain(pinned()) {
+            for colour in BRAND_FILLS {
+                assert!(
+                    svg.contains(&format!("style=\"fill:{colour};fill-opacity:1")),
+                    "{file} dropped the flower's {colour} petal, so the logo is \
+                     no longer the logo"
+                );
+            }
+        }
+        // Bounded by the style block: everything after the media query would
+        // otherwise run on into the artwork, where the wordmark element is.
+        let dark_block = MARK
+            .split_once("@media (prefers-color-scheme: dark)")
+            .and_then(|(_, tail)| tail.split_once("</style>").map(|(block, _)| block))
+            .unwrap_or_default();
+        // Every class name the dark block mentions. Splitting on punctuation
+        // says what it means without walking the nested braces: the wordmark is
+        // the only element allowed to be named in there.
+        let named: Vec<&str> = dark_block
+            .split(|c: char| !(c.is_alphanumeric() || c == '-'))
+            .filter(|token| token.starts_with("lotus-"))
             .collect();
+        assert_eq!(
+            named,
+            [THEMED],
+            "the dark palette also themes {named:?}, but only the wordmark may \
+             follow the theme"
+        );
+    }
+
+    #[test]
+    fn the_wordmark_is_not_painted_inline() {
+        // An inline `style="fill:…"` attribute beats every stylesheet rule that
+        // is not `!important`, so a wordmark carrying one would ignore the
+        // dark palette entirely -- and the file would still look right in a
+        // light tab, which is why this is invisible until someone switches to
+        // dark.
+        //
+        // Scoped to the wordmark on purpose. The flower paints itself inline and
+        // always did; it no longer follows the theme, so there is nothing to
+        // override. An earlier version of this walked the whole file and passed
+        // for the wrong reason: it stripped comments by keeping only the text
+        // before the first `<!--`, which threw away every live element after
+        // it -- the flower, and the bug it was looking for.
+        let wordmark = MARK
+            .split_once(&format!("class=\"{THEMED}\""))
+            .and_then(|(_, rest)| rest.split_once('>').map(|(_, after)| after))
+            .map_or("", |after| after.split("</g>").next().unwrap_or_default());
         assert!(
-            inline_fills.is_empty(),
-            "these fills are inline styles and cannot be overridden by the dark \
-             palette: {inline_fills:?}"
+            !wordmark.is_empty(),
+            "the {THEMED} group was not found, so this asserts nothing"
+        );
+        assert!(
+            !wordmark.contains("style=\"fill:"),
+            "the wordmark paints itself inline, so the dark palette cannot reach \
+             it: {wordmark}"
+        );
+        assert!(
+            MARK.contains(&format!("class=\"{THEMED}\" fill=\"#")),
+            "the wordmark needs a fill on the element, or it renders black in \
+             the browsers that ignore the media query"
         );
     }
 
