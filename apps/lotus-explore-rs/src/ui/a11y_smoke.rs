@@ -96,6 +96,91 @@ mod brand {
         );
     }
 
+    /// Every colour the mark paints with, as a class the dark palette names.
+    const PALETTE_CLASSES: [&str; 5] = [
+        "lotus-wordmark",
+        "lotus-ink",
+        "lotus-red",
+        "lotus-teal",
+        "lotus-green",
+    ];
+
+    #[test]
+    fn the_mark_follows_the_readers_colour_scheme() {
+        // A favicon is its own document: the page's stylesheet and its
+        // `data-theme` attribute do not reach it, and `currentColor` resolves
+        // against the SVG document, which has no theme at all. So the only
+        // mechanism that works is `prefers-color-scheme` inside the file.
+        //
+        // Without it the tab icon was a near-black wordmark on a dark tab
+        // background, in every one of the four locales.
+        assert!(
+            MARK.contains("prefers-color-scheme: dark"),
+            "the mark never asks the reader's colour scheme, so the tab icon is \
+             the same in both themes"
+        );
+        for class in PALETTE_CLASSES {
+            assert!(
+                MARK.contains(&format!(".{class}{{fill:")),
+                "{class} has no dark-mode fill, so whatever it paints stays the \
+                 light-theme colour in a dark tab"
+            );
+            assert!(
+                MARK.contains(&format!("class=\"{class}\"")),
+                "{class} is styled but nothing uses it: the rule can never match"
+            );
+        }
+    }
+
+    #[test]
+    fn no_colour_can_win_over_the_palette() {
+        // An inline `style="fill:…"` attribute beats every stylesheet rule that
+        // is not `!important`, so a path carrying one ignores the dark palette
+        // entirely -- and the file still looks correct in a light tab, which is
+        // why this is invisible until someone switches their system to dark.
+        // Only live markup: the file carries a commented-out hover animation,
+        // and an inline fill inside a comment cannot render or override anything.
+        let live: String = MARK
+            .split("<!--")
+            .enumerate()
+            .filter(|(i, _)| i % 2 == 0)
+            .map(|(_, chunk)| chunk)
+            .collect::<Vec<_>>()
+            .join("");
+
+        let inline_fills: Vec<&str> = live
+            .lines()
+            .flat_map(|line| {
+                let mut out = Vec::new();
+                let mut rest = line;
+                while let Some(at) = rest.find("style=\"fill:") {
+                    let tail = &rest[at..];
+                    out.push(tail.split('"').nth(1).unwrap_or_default());
+                    rest = tail.get(2..).unwrap_or_default();
+                }
+                out
+            })
+            .collect();
+        assert!(
+            inline_fills.is_empty(),
+            "these fills are inline styles and cannot be overridden by the dark \
+             palette: {inline_fills:?}"
+        );
+    }
+
+    #[test]
+    fn the_wordmark_does_not_lean_on_currentcolor() {
+        // `currentColor` in a favicon resolves against the SVG's own document,
+        // which inherits nothing -- so it renders as the default black and can
+        // never follow the page's theme. That is what the wordmark was painted
+        // with.
+        assert!(
+            !MARK.contains("currentColor"),
+            "favicon.svg paints with currentColor, which cannot see the page's \
+             theme: the tab icon is black whatever the reader chose"
+        );
+    }
+
     #[test]
     fn the_lockup_box_matches_the_artwork() {
         let (width, height) = artwork_extent();
