@@ -144,24 +144,6 @@ mod brand {
     }
 
     #[test]
-    fn the_pinned_icons_are_the_same_artwork() {
-        // Three files hold one drawing, because a favicon cannot pull its
-        // artwork from another file. Nothing stops a petal being added to just
-        // one of them -- and the wrong one is invisible, because the icon still
-        // looks like a logo, just not like the other theme's logo. So compare
-        // what is left once the palette and the stylesheet are removed: if the
-        // artwork changes, this fails and the other two must be regenerated.
-        let canonical = skeleton(MARK);
-        for (file, svg) in pinned() {
-            assert_eq!(
-                skeleton(svg),
-                canonical,
-                "{file} is not the same drawing as favicon.svg"
-            );
-        }
-    }
-
-    #[test]
     fn a_pinned_icon_does_not_ask_the_os_anything() {
         // The pinned files exist precisely because the OS answer is the wrong
         // one. A `prefers-color-scheme` block left in one of them would still
@@ -194,12 +176,10 @@ mod brand {
     }
 
     #[test]
-    fn only_the_wordmark_follows_the_theme() {
-        // The regression guard for the over-reach: the dark palette started out
-        // recolouring the petals too, which was not what was asked for and
-        // split one logo into two. The flower must keep its brand colours in
-        // every file, and the only selector the dark block may name is the
-        // wordmark.
+    fn the_flower_never_follows_the_theme() {
+        // Reported: the ask was for the icon's text, and recolouring the petals
+        // made the mark read as two different logos. The four brand fills stay
+        // inline, in every file, exactly as they shipped.
         const BRAND_FILLS: [&str; 4] = ["#484848", "#900", "#069", "#396"];
         for (file, svg) in std::iter::once(("favicon.svg", MARK)).chain(pinned()) {
             for colour in BRAND_FILLS {
@@ -210,25 +190,36 @@ mod brand {
                 );
             }
         }
-        // Bounded by the style block: everything after the media query would
-        // otherwise run on into the artwork, where the wordmark element is.
-        let dark_block = MARK
-            .split_once("@media (prefers-color-scheme: dark)")
-            .and_then(|(_, tail)| tail.split_once("</style>").map(|(block, _)| block))
-            .unwrap_or_default();
-        // Every class name the dark block mentions. Splitting on punctuation
-        // says what it means without walking the nested braces: the wordmark is
-        // the only element allowed to be named in there.
-        let named: Vec<&str> = dark_block
-            .split(|c: char| !(c.is_alphanumeric() || c == '-'))
-            .filter(|token| token.starts_with("lotus-"))
-            .collect();
-        assert_eq!(
-            named,
-            [THEMED],
-            "the dark palette also themes {named:?}, but only the wordmark may \
-             follow the theme"
+    }
+
+    #[test]
+    fn the_mark_is_one_flat_colour() {
+        // The stylesheet was removed deliberately: the mark is a single colour
+        // in both themes, so it cannot be repainted behind the app's back by
+        // the reader's operating system, and a tab icon cannot flash the wrong
+        // shade while the app is still deciding which theme it is in.
+        assert!(
+            !MARK.contains("@media"),
+            "the mark still carries a media query, so its colour depends on the \
+             reader's OS rather than being the one that ships"
         );
+        assert!(
+            !MARK.contains("currentColor"),
+            "the mark defers to a colour keyword it cannot resolve in a favicon"
+        );
+        let fill = wordmark_group(MARK);
+        assert_eq!(
+            fill, "#484848",
+            "the wordmark is the brand ink on the light canvas"
+        );
+    }
+
+    /// The wordmark group's `fill`, or `currentColor` when it defers.
+    fn wordmark_group(svg: &str) -> &str {
+        svg.split('<')
+            .find(|chunk| chunk.starts_with("g ") && chunk.contains("lotus-wordmark"))
+            .and_then(|tag| tag.split_once("fill=\""))
+            .map_or("", |(_, value)| value.split('"').next().unwrap_or_default())
     }
 
     #[test]
