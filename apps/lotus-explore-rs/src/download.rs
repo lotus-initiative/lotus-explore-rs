@@ -148,6 +148,37 @@ pub fn blob_path_can_carry(rows: usize, format: DownloadFormat) -> bool {
     rows <= blob_path_ceiling(format)
 }
 
+/// The in-browser inputs to a download, grouped so the signature is target-uniform.
+///
+/// Both fields only mean something where a result set can be walked in the tab. They
+/// were separate `#[cfg]`-gated parameters, which made the parameter list itself
+/// differ between targets, so a call that compiles natively was not the call the
+/// browser build saw.
+#[cfg(target_arch = "wasm32")]
+pub struct BrowserDownload {
+    /// The search the rows belong to, for the formats that re-execute it.
+    pub criteria: Arc<SearchCriteria>,
+    /// The rows already in memory. `None` on the reference-lookup and metadata paths,
+    /// which have no row set of their own and still go out to a service.
+    pub rows: Option<Arc<lotus_model::ColumnarResultSet>>,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl BrowserDownload {
+    #[must_use]
+    pub fn new(
+        criteria: Arc<SearchCriteria>,
+        rows: Option<Arc<lotus_model::ColumnarResultSet>>,
+    ) -> Self {
+        Self { criteria, rows }
+    }
+}
+
+/// A desktop build has neither, and asks for nothing.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct BrowserDownload;
+
 /// Execute a download in the given format.
 ///
 /// Returns a message describing the outcome, for display. On a desktop build that
@@ -156,10 +187,9 @@ pub fn blob_path_can_carry(rows: usize, format: DownloadFormat) -> bool {
 /// from a button that did nothing.
 pub async fn execute_download(
     format: DownloadFormat,
-    #[cfg(target_arch = "wasm32")] criteria: std::sync::Arc<SearchCriteria>,
+    #[cfg_attr(not(target_arch = "wasm32"), allow(unused_variables))] browser: BrowserDownload,
     query: Arc<str>,
     filename: String,
-    #[cfg(target_arch = "wasm32")] rows: Option<std::sync::Arc<lotus_model::ColumnarResultSet>>,
 ) -> Result<String, String> {
     let dl_timer = perf::start_timer(export_timer_label(format));
     log::info!("event=download format={} state=started", format.log_name());
@@ -172,12 +202,8 @@ pub async fn execute_download(
     // does not name it the way the toolbar said it would -- so the name on screen and
     // the name on disk disagreed, with nothing in between able to reconcile them.
     // It also means re-running a query the tab had already run to get the same rows.
-    //
-    // `rows` is `None` when there is no result set to read, which is the reference-lookup
-    // and metadata paths: those have no row set of their own. Those still go out to a
-    // service, because there is nothing here to build from.
     #[cfg(target_arch = "wasm32")]
-    if let Some(set) = rows {
+    if let Some(set) = browser.rows {
         return wasm::execute_download_from_rows(format, &set, &filename, dl_timer)
             .await
             .map(|()| filename);
@@ -186,7 +212,7 @@ pub async fn execute_download(
     #[cfg(target_arch = "wasm32")]
     {
         let name = filename.clone();
-        wasm::execute_download_wasm(format, criteria, query, filename, dl_timer)
+        wasm::execute_download_wasm(format, browser.criteria, query, filename, dl_timer)
             .await
             // The browser owns the download and shows its own progress UI, so
             // there is nothing for the app to add.

@@ -5,7 +5,7 @@
 //! More detail in the type and function docs below.
 
 use crate::app_state::{AppState, MetricsState};
-use crate::download::execute_download;
+use crate::download::{BrowserDownload, execute_download};
 use crate::features::explore::actions::ExploreAction;
 use crate::features::explore::command::SearchCommand;
 use crate::features::explore::download_effects::{self, DispatchPhase, StartupTriggerMode};
@@ -16,6 +16,8 @@ use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
 use dioxus::prelude::*;
 use lotus_search::SearchCriteria;
+// Only the browser arm hands rows to the in-memory export; a desktop write goes
+// back to the endpoint and never reads them.
 #[cfg(target_arch = "wasm32")]
 use std::sync::Arc;
 
@@ -145,6 +147,10 @@ pub fn use_download_dispatch_effect(
                 query,
                 filename,
                 format,
+                // Unused on a desktop write, which asks the endpoint again rather
+                // than embedding the criteria in a file it builds in memory.
+                #[cfg(not(target_arch = "wasm32"))]
+                    criteria: _,
                 #[cfg(target_arch = "wasm32")]
                 criteria,
             } => {
@@ -167,20 +173,19 @@ pub fn use_download_dispatch_effect(
                 );
                 spawn(async move {
                     telemetry::download_dispatch_started(format.log_name());
-                    if let Err(err) = execute_download(
-                        format,
-                        #[cfg(target_arch = "wasm32")]
+                    // Read out of the live result state: the rows for this search are
+                    // already here, so the export is a walk over them rather than a
+                    // second execution of the query.
+                    #[cfg(target_arch = "wasm32")]
+                    let browser = BrowserDownload::new(
                         criteria,
-                        query,
-                        filename,
-                        // Read out of the live result state: the rows for this search
-                        // are already here, so the export is a walk over them rather
-                        // than a second execution of the query.
-                        #[cfg(target_arch = "wasm32")]
                         Some(Arc::clone(&explore.read().result.set)),
-                    )
-                    .await
-                    {
+                    );
+
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let browser = BrowserDownload;
+
+                    if let Err(err) = execute_download(format, browser, query, filename).await {
                         telemetry::download_dispatch_error(format.log_name(), &err);
                     }
                     dispatch_explore_action(explore, ExploreAction::DownloadDispatchFinished);

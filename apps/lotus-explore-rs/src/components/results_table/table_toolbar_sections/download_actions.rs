@@ -8,7 +8,7 @@ use super::super::download_model::{
     build_download_toolbar_model_with_endpoint,
 };
 use crate::components::ui::Button;
-use crate::download::{execute_download, trigger_download};
+use crate::download::{BrowserDownload, execute_download, trigger_download};
 use crate::features::explore::use_toolbar_result_snapshot;
 use crate::i18n::{TextKey, t};
 use crate::perf;
@@ -73,32 +73,30 @@ fn spawn_query_download(
             query.contains("SERVICE"),
             query.len()
         );
-        let outcome: Result<String, String> = execute_download(
-            format,
-            #[cfg(target_arch = "wasm32")]
-            {
-                let Some(criteria_snapshot) = criteria_snapshot else {
-                    log::warn!(
-                        "event=download phase=table_query state=error reason=missing_criteria_snapshot"
-                    );
-                    // The picker was armed above and no export will consume it. Left
-                    // armed it would overwrite the handle the reader already chose a
-                    // location for, so the file they picked would never appear.
-                    crate::download::clear_file_sink();
-                    *download_busy.write() = false;
-                    *download_status.write() = None;
-                    return;
-                };
-                criteria_snapshot
-            },
-            query,
-            filename,
-            // Written from the rows on screen rather than by re-running the query.
-            // Browser-only: a desktop build has no route that builds a file in memory.
-            #[cfg(target_arch = "wasm32")]
-            Some(Arc::clone(&rows)),
-        )
-        .await;
+        // The rows on screen, not a re-run of the query. Browser-only: a desktop
+        // build has no route that builds a file in memory.
+        #[cfg(target_arch = "wasm32")]
+        let browser = {
+            let Some(criteria_snapshot) = criteria_snapshot else {
+                log::warn!(
+                    "event=download phase=table_query state=error reason=missing_criteria_snapshot"
+                );
+                // The picker was armed above and no export will consume it. Left
+                // armed it would overwrite the handle the reader already chose a
+                // location for, so the file they picked would never appear.
+                crate::download::clear_file_sink();
+                *download_busy.write() = false;
+                *download_status.write() = None;
+                return;
+            };
+            BrowserDownload::new(criteria_snapshot, Some(Arc::clone(&rows)))
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let browser = BrowserDownload;
+
+        let outcome: Result<String, String> =
+            execute_download(format, browser, query, filename).await;
 
         match &outcome {
             Ok(_) => log::info!(
