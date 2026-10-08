@@ -63,10 +63,42 @@ description = "Link the wasm module and run it through wasm-bindgen, the way the
 # `dx` itself is a CI dependency, installed by the desktop and container jobs.
 # `./mk ci` runs this task, so a contributor without dx gets a task failure rather
 # than a skipped one, which is the same trade every other gate task makes.
+#
+# Retried, because `dx build` copies ~65 assets in parallel and its copy of the
+# 29 MB Ketcher bundle intermittently loses a race with the directory that copy
+# creates for it:
+#
+#   ERROR Failed to copy asset ".../assets/ketcher/static/js/main.e47c48ad.js":
+#   Failed to rename output file to: .../public/assets/../assets/ketcher/...
+#     1: No such file or directory (os error 2)
+#
+# It hit 2 of 5 runs on a clean checkout, always on that one file, always as the
+# last of the 65, and always passed on an immediate retry. The Rust is not
+# involved: the module had already linked, stripped and bound by then.
+#
+# The retry does not weaken the gate. What this task exists to catch is a bad
+# strip, which is deterministic -- a stripped-wrong module fails identically on
+# every attempt, so three attempts all fail and the task still goes red. What it
+# does not catch is intermittent, so retrying only removes the noise from the
+# signal. Fails after three attempts, and says which attempt it was on.
 script = """
 cd apps/lotus-explore-rs
-dx build --release --platform web --package lotus-explore-rs --locked \
-  --debug-symbols=false --rustc-args=-Copt-level=z
+for attempt in 1 2 3; do
+  if dx build --release --platform web --package lotus-explore-rs --locked \
+      --debug-symbols=false --rustc-args=-Copt-level=z; then
+    exit 0
+  fi
+  if [ "$attempt" = 3 ]; then
+    echo "::error::dx build failed on all 3 attempts"
+    exit 1
+  fi
+  echo "::warning::dx build attempt $attempt failed on the asset copy; retrying"
+  # The failed run leaves a partially-written asset tree, and dx does not clear
+  # it between runs. Removing it is what makes attempt 2 a clean run rather than
+  # a second run against the wreckage of the first.
+  rm -rf "${REPO_ROOT}/target/dx"
+  sleep 5
+done
 """
 
 # rustdoc with warnings denied. Without `-D warnings` a rustdoc warning is
