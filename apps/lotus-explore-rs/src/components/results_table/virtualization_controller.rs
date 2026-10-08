@@ -10,6 +10,7 @@ use dioxus::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
 use super::scroll_runtime;
+use super::scroll_signals::ScrollSignals;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 #[cfg(target_arch = "wasm32")]
@@ -21,20 +22,9 @@ use web_sys::window;
 pub(super) struct ResultsTableVirtualizationController {
     pub(super) config: VirtualizationConfig,
     pub(super) state: VirtualizationState,
-    #[cfg(target_arch = "wasm32")]
     row_height_px: Signal<usize>,
-    #[cfg(target_arch = "wasm32")]
-    row_height_measured: Signal<bool>,
-    #[cfg(target_arch = "wasm32")]
-    first_visible_row: Signal<usize>,
-    #[cfg(target_arch = "wasm32")]
-    viewport_height_px: Signal<usize>,
-    #[cfg(target_arch = "wasm32")]
-    scroll_host: Signal<Option<web_sys::HtmlElement>>,
-    #[cfg(target_arch = "wasm32")]
-    scroll_raf_scheduled: Signal<bool>,
-    #[cfg(target_arch = "wasm32")]
-    scroll_raf_id: Signal<Option<i32>>,
+    /// Browser-only scroll state, empty on a native render.
+    scroll: ScrollSignals,
 }
 
 #[must_use]
@@ -42,27 +32,18 @@ pub(super) fn use_results_table_virtualization(
     total_rows: usize,
 ) -> ResultsTableVirtualizationController {
     let row_height_px = use_signal(|| ROW_HEIGHT_PX_COMFORTABLE);
-    #[cfg(target_arch = "wasm32")]
-    let row_height_measured = use_signal(|| false);
-    #[cfg(target_arch = "wasm32")]
-    let first_visible_row = use_signal(|| 0usize);
-    #[cfg(target_arch = "wasm32")]
-    let viewport_height_px = use_signal(|| TABLE_VIEWPORT_FALLBACK_PX);
-    #[cfg(target_arch = "wasm32")]
-    let scroll_host = use_signal(|| None::<web_sys::HtmlElement>);
-    #[cfg(target_arch = "wasm32")]
-    let scroll_raf_scheduled = use_signal(|| false);
-    #[cfg(target_arch = "wasm32")]
-    let scroll_raf_id = use_signal(|| None::<i32>);
+    let scroll = ScrollSignals::new(TABLE_VIEWPORT_FALLBACK_PX);
 
     let config = build_virtualization_config(*row_height_px.read());
 
+    // The browser half knows its own first visible row and viewport height;
+    // a native render has neither, and derives the height from the row count.
     #[cfg(target_arch = "wasm32")]
     let state = use_virtualization::use_virtualization(
         config,
         total_rows,
-        *first_visible_row.read(),
-        *viewport_height_px.read(),
+        *scroll.first_visible_row.read(),
+        *scroll.viewport_height_px.read(),
     );
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -76,20 +57,8 @@ pub(super) fn use_results_table_virtualization(
     ResultsTableVirtualizationController {
         config,
         state,
-        #[cfg(target_arch = "wasm32")]
         row_height_px,
-        #[cfg(target_arch = "wasm32")]
-        row_height_measured,
-        #[cfg(target_arch = "wasm32")]
-        first_visible_row,
-        #[cfg(target_arch = "wasm32")]
-        viewport_height_px,
-        #[cfg(target_arch = "wasm32")]
-        scroll_host,
-        #[cfg(target_arch = "wasm32")]
-        scroll_raf_scheduled,
-        #[cfg(target_arch = "wasm32")]
-        scroll_raf_id,
+        scroll,
     }
 }
 
@@ -97,23 +66,23 @@ impl ResultsTableVirtualizationController {
     #[cfg(target_arch = "wasm32")]
     pub(super) fn sync_after_render(&mut self, total_rows: usize) {
         if total_rows == 0 {
-            self.row_height_measured.set(false);
+            self.scroll.row_height_measured.set(false);
             if *self.row_height_px.read() != ROW_HEIGHT_PX_COMFORTABLE {
                 self.row_height_px.set(ROW_HEIGHT_PX_COMFORTABLE);
             }
             return;
         }
 
-        if should_reset_first_visible_row(total_rows, *self.first_visible_row.read()) {
-            self.first_visible_row.set(0);
+        if should_reset_first_visible_row(total_rows, *self.scroll.first_visible_row.read()) {
+            self.scroll.first_visible_row.set(0);
             return;
         }
 
         let current_row_height = *self.row_height_px.read();
         let row_height_for_frame = current_row_height;
 
-        if !*self.row_height_measured.read() {
-            self.row_height_measured.set(true);
+        if !*self.scroll.row_height_measured.read() {
+            self.scroll.row_height_measured.set(true);
             let scroll_id = self.config.scroll_id;
             let mut row_height_px = self.row_height_px;
             let fallback = current_row_height;
@@ -157,8 +126,8 @@ impl ResultsTableVirtualizationController {
 
         // Schedule a frame only during initial attachment/measurement and viewport bootstrap,
         // not on every rerender (which can produce visible jitter while scrolling slowly).
-        let should_bootstrap_frame = self.scroll_host.peek().is_none()
-            || *self.viewport_height_px.read() == TABLE_VIEWPORT_FALLBACK_PX;
+        let should_bootstrap_frame = self.scroll.scroll_host.peek().is_none()
+            || *self.scroll.viewport_height_px.read() == TABLE_VIEWPORT_FALLBACK_PX;
         if should_bootstrap_frame {
             self.schedule_scroll_frame(total_rows, row_height_for_frame);
         }
@@ -183,17 +152,17 @@ impl ResultsTableVirtualizationController {
     #[cfg(target_arch = "wasm32")]
     fn schedule_scroll_frame(&self, total_rows: usize, row_height_px: usize) {
         let frame = scroll_runtime::ScrollFrameState {
-            scroll_host: self.scroll_host,
-            raf_scheduled: self.scroll_raf_scheduled,
-            raf_id: self.scroll_raf_id,
+            scroll_host: self.scroll.scroll_host,
+            raf_scheduled: self.scroll.raf_scheduled,
+            raf_id: self.scroll.raf_id,
         };
         scroll_runtime::schedule_virtual_scroll_frame(
             frame,
             self.config.scroll_id,
             row_height_px,
             total_rows,
-            self.first_visible_row,
-            self.viewport_height_px,
+            self.scroll.first_visible_row,
+            self.scroll.viewport_height_px,
         );
     }
 }
