@@ -494,6 +494,16 @@ legend {
         width: 100%;
         height: auto;
         aspect-ratio: 1213.7 / 1148.69;
+
+        /* The LOTUS text follows the page: dark ink on the light canvas, and
+           the page's own light text on the dark one. The drawing ships the ink
+           on the element, because the browser tab is the same file and a
+           favicon cannot see this page's theme -- a presentation attribute is
+           the lowest-priority thing CSS can address, so this rule wins there
+           and nowhere else. */
+        .lotus-wordmark {
+            fill: currentColor;
+        }
     }
 }
 

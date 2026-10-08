@@ -192,6 +192,50 @@ mod brand {
         }
     }
 
+    /// The tab icon's two inks: what the browser tab shows, on each theme.
+    ///
+    /// `#484848` on light is the brand ink, and the same value the flower uses
+    /// for its dark parts. On dark it is the app's own second text plane, which
+    /// reads as white on a tab strip without the glare of pure `#ffffff` at the
+    /// size a favicon is drawn.
+    const TAB_INKS: (&str, &str) = ("#484848", "#d5deea");
+
+    #[test]
+    fn the_tab_text_is_white_on_dark() {
+        let (light, dark) = TAB_INKS;
+        assert_eq!(
+            wordmark_group(PINNED_LIGHT),
+            light,
+            "the light tab icon's text should be the brand ink {light}"
+        );
+        assert_eq!(
+            wordmark_group(PINNED_DARK),
+            dark,
+            "the dark tab icon's text should be {dark} so it reads white on the \
+             tab background"
+        );
+    }
+
+    #[test]
+    fn the_header_text_follows_the_page() {
+        // One drawing serves both surfaces. The tab cannot see the page's theme,
+        // so its ink is baked into the two pinned files; the header is in the
+        // page, so it takes the inherited colour -- `var(--text)`, which is
+        // near-white on the dark canvas. A presentation attribute is the
+        // lowest-priority thing CSS addresses, so this rule overrides the baked
+        // ink without the drawing needing a second copy.
+        assert!(
+            STYLES.contains("fill: currentColor"),
+            "the header logo no longer takes the page's text colour, so the \
+             LOTUS text stays dark on the dark canvas"
+        );
+        assert!(
+            MARK.contains(&format!("class=\"{THEMED}\" fill=\"#")),
+            "the mark must carry its ink as a presentation attribute, or the \
+             header rule has nothing to override"
+        );
+    }
+
     #[test]
     fn the_mark_is_one_flat_colour() {
         // The stylesheet was removed deliberately: the mark is a single colour

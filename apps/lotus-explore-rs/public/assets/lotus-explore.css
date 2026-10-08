@@ -365,6 +365,9 @@
       width: 100%;
       height: auto;
       aspect-ratio: 1213.7 / 1148.69;
+      .lotus-wordmark {
+        fill: currentColor;
+      }
     }
   }
   .line-clamp-2 {
