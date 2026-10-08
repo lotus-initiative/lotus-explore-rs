@@ -12,9 +12,9 @@ use std::time::Duration;
 /// What an open timer holds: `performance.now()` on wasm, an [`std::time::Instant`]
 /// natively.
 #[cfg(target_arch = "wasm32")]
-pub(super) type WasmHandle = f64;
+pub(super) type Handle = f64;
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) type WasmHandle = std::time::Instant;
+pub(super) type Handle = std::time::Instant;
 
 #[cfg(target_arch = "wasm32")]
 fn now_ms() -> f64 {
@@ -25,12 +25,12 @@ fn now_ms() -> f64 {
 
 /// Take a reading to measure elapsed time from.
 #[cfg(target_arch = "wasm32")]
-pub(super) fn start() -> WasmHandle {
+pub(super) fn start() -> Handle {
     now_ms()
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) fn start() -> WasmHandle {
+pub(super) fn start() -> Handle {
     std::time::Instant::now()
 }
 
@@ -58,7 +58,7 @@ pub(super) fn close(_label: &str) {}
 
 /// How long `handle` has been open.
 #[cfg(target_arch = "wasm32")]
-pub(super) fn elapsed(handle: WasmHandle) -> Duration {
+pub(super) fn elapsed(handle: Handle) -> Duration {
     // Clamped: `performance.now()` is monotonic, but a handle that came back from a
     // dropped scope can read as ahead of "now", and a negative duration in a log line
     // is worse than a zero.
@@ -66,7 +66,7 @@ pub(super) fn elapsed(handle: WasmHandle) -> Duration {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) fn elapsed(handle: WasmHandle) -> Duration {
+pub(super) fn elapsed(handle: Handle) -> Duration {
     handle.elapsed()
 }
 

@@ -109,15 +109,24 @@ pub(super) async fn build_execution_plan<R: LotusRepository>(
     //
     // A copy, because the form renders from the criteria and the field must keep
     // showing the DOI that was typed.
+    //
+    // `resolve` runs for every non-blank input, the same shape the taxon field uses
+    // above. It has to: `resolve` is what refuses input that is neither a QID nor a
+    // DOI, and guarding the call with `requires_remote_lookup` skipped the validator
+    // for exactly that input, so the constraint was blanked and the reader got an
+    // unfiltered result set with nothing saying the reference had been ignored. The
+    // guard now only decides whether the phase is worth showing.
     let reference = request.criteria().reference.trim();
-    let reference_resolution = if resolve_reference::requires_remote_lookup(reference) {
-        on_phase(QueryPhase::ResolvingReference);
-        resolve_reference::resolve(reference, repo, metrics).await?
-    } else {
+    let reference_resolution = if reference.is_empty() {
         resolve_reference::ReferenceResolution {
             qid: None,
             notices: Vec::new(),
         }
+    } else {
+        if resolve_reference::requires_remote_lookup(reference) {
+            on_phase(QueryPhase::ResolvingReference);
+        }
+        resolve_reference::resolve(reference, repo, metrics).await?
     };
     let mut criteria = request.criteria().clone();
     criteria

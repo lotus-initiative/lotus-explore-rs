@@ -13,7 +13,7 @@ use std::sync::{LazyLock, Mutex, PoisonError};
 use std::time::Duration;
 
 /// What an open timer holds. Target-dependent by construction; see [`clock`].
-pub type TimerHandle = clock::WasmHandle;
+pub type TimerHandle = clock::Handle;
 
 /// The `console.time()` labels currently open, so a close can be checked.
 ///
@@ -85,7 +85,7 @@ pub fn log_timing(phase: &str, message: &str, duration: Option<Duration>) {
 
 /// Start a `console.time()` block on WASM, or start an [`std::time::Instant`] on native.
 #[must_use]
-pub fn start_timer(label: &str) -> clock::WasmHandle {
+pub fn start_timer(label: &str) -> clock::Handle {
     if !claim_timer(label) {
         // Already open, which means this label is used from two places at once. Say so
         // in the app's own log rather than the browser console's, and carry on: the
@@ -106,7 +106,7 @@ pub fn start_timer(label: &str) -> clock::WasmHandle {
 /// Closing a label that is not open is a no-op for the console and still returns a
 /// duration measured from `started`, so an error path that closes early does not make
 /// the caller's own measurement wrong.
-pub fn end_timer(label: &str, started: clock::WasmHandle) -> Duration {
+pub fn end_timer(label: &str, started: clock::Handle) -> Duration {
     if release_timer(label) {
         clock::close(label);
     }
@@ -130,7 +130,7 @@ pub fn end_timer(label: &str, started: clock::WasmHandle) -> Duration {
 #[must_use = "a Timer that is dropped without reading its duration measures nothing"]
 pub struct Timer {
     label: String,
-    handle: Option<clock::WasmHandle>,
+    handle: Option<clock::Handle>,
 }
 
 impl Timer {
