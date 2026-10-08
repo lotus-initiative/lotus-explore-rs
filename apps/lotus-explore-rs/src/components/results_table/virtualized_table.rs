@@ -38,14 +38,22 @@ pub(super) fn VirtualizedResultsTable(table_view_model: Memo<TableViewModel>) ->
     rsx! {
         div {
             id: virtualization.config.scroll_id,
-            role: "region",
+            // Focusable so the scroll area is reachable and arrow-scrollable from the
+            // keyboard. Deliberately not `role="region"`: the results `<section>`
+            // outside is already a region named "Compound-taxon-reference triples", and
+            // a second region with the same name is worse than none — a screen reader
+            // listing landmarks showed two identically-named entries and could not say
+            // which was the table. axe calls this `landmark-unique`.
+            //
+            // `aria-labelledby` instead of a second `aria-label` for the same reason:
+            // one name, from the caption that already carries it.
             tabindex: "0",
-            aria_label: "{t(locale, TextKey::TableTriplesAria)}",
              class: "results-table-scroll scrollbar-hidden-x w-full max-w-none rounded-xl border border-shell-border bg-shell-raised",
              onscroll: on_scroll,
 
             table {
-                aria_label: "{t(locale, TextKey::TableTriplesAria)}",
+                // No `aria-label`: the caption below names the table, and an
+                // `aria-label` would override it rather than agree with it.
                 // A floor, not a width. The `colgroup` below states what each
                 // column asks for; this only stops `table-auto` crushing them
                 // on a narrow viewport. It sits about 50px above the widest
