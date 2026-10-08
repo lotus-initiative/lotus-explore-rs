@@ -12,7 +12,7 @@
 # first rule. GitHub Pages ignores this whole file (it is Cloudflare/Netlify
 # syntax) — there the equivalent is the "Enforce HTTPS" setting in the repo's
 # Pages configuration, which is not expressible as a file. See docs/DEPLOYMENT.md.
-http://lotus.nprod.net/*  https://lotus.nprod.net/:splat  301!
+http://lotus-initiative.github.io/*  https://lotus-initiative.github.io/:splat  301!
 
 # SPA fallback: redirect unknown routes to index.html (200 = rewrite, not 301).
 # Excludes static asset paths so the Ketcher iframe and WASM bundle load directly.

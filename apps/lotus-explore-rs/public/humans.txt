@@ -8,7 +8,7 @@
   Email: Contact via https://github.com/lotusnprod/lotus-explore-rs/issues
 
 /* THANKS */
-  LOTUS initiative — https://lotus.nprod.net
+  LOTUS initiative — https://lotus-initiative.github.io
   Wikidata community — https://wikidata.org/
   Dioxus framework — https://dioxuslabs.com/
   RDKit.js — https://www.rdkitjs.com/
@@ -21,7 +21,7 @@
   Language: English with French, German, Italian localizations
   Standards: HTML5, CSS3, WebAssembly, WCAG 2.1 AA, JSON-LD
   Components: Rust + Dioxus compiled to WASM
-  Infrastructure: GitHub Pages (https://lotus.nprod.net/lotus-explore-rs/)
+  Infrastructure: GitHub Pages (https://lotus-initiative.github.io/lotus-explore-rs/)
   Repository: https://github.com/lotusnprod/lotus-explore-rs
   Search inputs: taxon filters, SMILES, Molfile V2000/V3000
   Curation: TSV import, QuickStatements generation, structure resolution lookup

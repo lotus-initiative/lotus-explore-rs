@@ -35,4 +35,4 @@ Allow: /
 User-agent: Googlebot
 Allow: /
 
-Sitemap: https://lotus.nprod.net/lotus-explore-rs/sitemap.xml
+Sitemap: https://lotus-initiative.github.io/lotus-explore-rs/sitemap.xml

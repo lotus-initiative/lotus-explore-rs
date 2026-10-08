@@ -23,7 +23,7 @@ root-relative link resolves to the domain root and 404s.
 - Browse taxonomy and references for each result
 - Export results as CSV, JSON, RDF, or SPARQL
 - Import TSV rows and generate QuickStatements for Wikidata curation
-- A guided FAQ at https://lotus.nprod.net/lotus-explore-rs/faq
+- A guided FAQ at https://lotus-initiative.github.io/lotus-explore-rs/faq
 
 ## Docs
 
@@ -41,12 +41,12 @@ documentation, and are not served from the site itself.
 
 Machine-readable descriptions of this app, for agents.
 
-- [AI capability catalog](https://lotus.nprod.net/lotus-explore-rs/.well-known/ai-catalog.json)
-- [API catalog](https://lotus.nprod.net/lotus-explore-rs/.well-known/api-catalog.json)
-- [Agent skills](https://lotus.nprod.net/lotus-explore-rs/.well-known/agent-skills.json)
-- [Security policy](https://lotus.nprod.net/lotus-explore-rs/.well-known/security.txt)
-- [robots.txt](https://lotus.nprod.net/lotus-explore-rs/robots.txt)
-- [sitemap.xml](https://lotus.nprod.net/lotus-explore-rs/sitemap.xml)
+- [AI capability catalog](https://lotus-initiative.github.io/lotus-explore-rs/.well-known/ai-catalog.json)
+- [API catalog](https://lotus-initiative.github.io/lotus-explore-rs/.well-known/api-catalog.json)
+- [Agent skills](https://lotus-initiative.github.io/lotus-explore-rs/.well-known/agent-skills.json)
+- [Security policy](https://lotus-initiative.github.io/lotus-explore-rs/.well-known/security.txt)
+- [robots.txt](https://lotus-initiative.github.io/lotus-explore-rs/robots.txt)
+- [sitemap.xml](https://lotus-initiative.github.io/lotus-explore-rs/sitemap.xml)
 - Structured data: JSON-LD in the page head
 
 Every entry above is also linked from the document head, because the one
@@ -76,21 +76,21 @@ The tools drive the real controls, so a human watching sees the same
 fields fill and the same results appear. What they return comes from
 Wikidata and third-party services and is flagged `untrustedContentHint`.
 
-- Search form: https://lotus.nprod.net/lotus-explore-rs/search
-- Curation forms: https://lotus.nprod.net/lotus-explore-rs/curation
+- Search form: https://lotus-initiative.github.io/lotus-explore-rs/search
+- Curation forms: https://lotus-initiative.github.io/lotus-explore-rs/curation
 
 ## Data sources
 
 - [Wikidata Query Service](https://query.wikidata.org/)
 - [QLever Wikidata endpoint](https://qlever.cs.uni-freiburg.de/wikidata)
 - [DOI metadata](https://doi.org/)
-- [LOTUS initiative](https://lotus.nprod.net)
+- [LOTUS initiative](https://lotus-initiative.github.io)
 
 ## Citation
 
 - [Paper](https://elifesciences.org/articles/70780)
 - [DOI](https://doi.org/10.7554/eLife.70780)
-- [BibTeX](https://lotus.nprod.net/lotus-explore-rs/docs/references.bib)
+- [BibTeX](https://lotus-initiative.github.io/lotus-explore-rs/docs/references.bib)
 
 ## Licensing
 
@@ -99,7 +99,7 @@ Wikidata and third-party services and is flagged `untrustedContentHint`.
 
 ## Project
 
-- [App](https://lotus.nprod.net/lotus-explore-rs/)
+- [App](https://lotus-initiative.github.io/lotus-explore-rs/)
 - [Repository and source](https://github.com/lotusnprod/lotus-explore-rs)
 - [Issues](https://github.com/lotusnprod/lotus-explore-rs/issues)
 - [Discussions](https://github.com/lotusnprod/lotus-explore-rs/discussions)

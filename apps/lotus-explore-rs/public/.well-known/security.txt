@@ -4,5 +4,5 @@
 Contact: https://github.com/lotusnprod/lotus-explore-rs/security/advisories/new
 Expires: 2027-01-01T00:00:00.000Z
 Preferred-Languages: en, fr, de, it
-Canonical: https://lotus.nprod.net/lotus-explore-rs/.well-known/security.txt
+Canonical: https://lotus-initiative.github.io/lotus-explore-rs/.well-known/security.txt
 Policy: https://github.com/lotusnprod/lotus-explore-rs/blob/main/SECURITY.md

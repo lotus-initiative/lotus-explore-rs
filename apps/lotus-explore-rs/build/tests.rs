@@ -26,15 +26,15 @@ fn with_base_url(base_url: &str) -> Result<Metadata, Box<dyn Error>> {
 
 #[test]
 fn host_and_hostname_drop_the_subpath() -> Result<(), Box<dyn Error>> {
-    let meta = with_base_url("https://lotus.nprod.net/lotus-explore-rs/")?;
+    let meta = with_base_url("https://lotus-initiative.github.io/lotus-explore-rs/")?;
     assert_eq!(
         host(&meta),
-        "https://lotus.nprod.net",
+        "https://lotus-initiative.github.io",
         "origin keeps the scheme"
     );
     assert_eq!(
         hostname(&meta),
-        "lotus.nprod.net",
+        "lotus-initiative.github.io",
         "authority drops the subpath"
     );
     Ok(())
@@ -44,14 +44,15 @@ fn host_and_hostname_drop_the_subpath() -> Result<(), Box<dyn Error>> {
 fn every_host_bearing_artefact_follows_base_url() -> Result<(), Box<dyn Error>> {
     // Change `base_url` and no generated file may keep the old host.
     for base in [
-        "https://lotus.nprod.net/lotus-explore-rs/",
+        "https://lotus-initiative.github.io/lotus-explore-rs/",
         "https://lotus.example.org/explorer/",
         "https://lotus.example.org/",
     ] {
         let meta = with_base_url(base)?;
         let expected = hostname(&meta);
         // Any host that is not this one is stale for this base_url.
-        let stale = ["nprod.net", "example.org", "github.io", "localhost"];
+        // `github.io` is the canonical host now, so it cannot be on this list.
+        let stale = ["nprod.net", "example.org", "localhost"];
 
         let redirects = build_redirects_txt(&meta);
         assert!(

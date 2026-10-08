@@ -110,9 +110,9 @@ pub fn result_set_jsonld(set: &ResultSet<'_>) -> Value {
         ],
         "includedInDataCatalog": {
             "@type": "DataCatalog",
-            "@id": "https://lotus.nprod.net/lotus-explore-rs",
+            "@id": "https://lotus-initiative.github.io/lotus-explore-rs",
             "name": "LOTUS",
-            "url": "https://lotus.nprod.net/lotus-explore-rs",
+            "url": "https://lotus-initiative.github.io/lotus-explore-rs",
         },
     });
 
@@ -139,11 +139,11 @@ pub fn dataset_jsonld() -> Value {
     crate::stamp(
         json!({
         "@type": "Dataset",
-        "@id": "https://lotus.nprod.net/lotus-explore-rs",
+        "@id": "https://lotus-initiative.github.io/lotus-explore-rs",
         "name": "LOTUS",
         "description": "The LOTUS knowledge base of chemical structures and biological \
                         sources, stored in Wikidata and queried over SPARQL.",
-        "url": "https://lotus.nprod.net/lotus-explore-rs",
+        "url": "https://lotus-initiative.github.io/lotus-explore-rs",
         "identifier": [
             property_value(
                 "wikidata",
@@ -174,9 +174,9 @@ pub fn dataset_jsonld() -> Value {
         ],
         "includedInDataCatalog": {
             "@type": "DataCatalog",
-            "@id": "https://lotus.nprod.net/lotus-explore-rs",
+            "@id": "https://lotus-initiative.github.io/lotus-explore-rs",
             "name": "LOTUS",
-            "url": "https://lotus.nprod.net/lotus-explore-rs",
+            "url": "https://lotus-initiative.github.io/lotus-explore-rs",
         },
         }),
         Profile::Dataset,

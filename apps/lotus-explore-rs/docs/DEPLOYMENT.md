@@ -2,44 +2,50 @@
 
 The site is published by `.github/workflows/deploy.yml` with
 `actions/upload-pages-artifact` + `actions/deploy-pages`, and is served from
-`https://lotus.nprod.net/lotus-explore-rs/`. Everything below was measured
-against the live host with `curl`, not inferred from the configuration.
+`https://lotus-initiative.github.io/lotus-explore-rs/`. The measurements further
+down were taken with `curl` against whichever host was live at the time; where
+they name `lotus.nprod.net`, that is history.
 
-## The canonical host is `lotus.nprod.net`
+## The canonical host is `lotus-initiative.github.io`
 
-`lotus.nprod.net` is a CNAME to `lotusnprod.github.io`, and GitHub Pages 301s
-the `github.io` name to the custom domain. So `github.io` is not an alternative
-address for this site, it is a redirect away from it. Measured:
+There is no custom domain. The `github.io` name *is* the site, published from
+the `lotus-initiative` organisation, and the path segment is the repository name.
+That is the reverse of the previous arrangement, where `lotus.nprod.net` was a
+CNAME and GitHub Pages 301'd `lotusnprod.github.io` to it -- which made the
+`github.io` name a redirect rather than an address, and the reason the generated
+artefacts were once pinned to the custom domain.
 
-  | Request                                          | Result                                                 |
-  | ------------------------------------------------ | ------------------------------------------------------ |
-  | `https://lotusnprod.github.io/lotus-explore-rs/` | **301** -> `https://lotus.nprod.net/lotus-explore-rs/` |
-  | `https://lotusnprod.github.io/`                  | **301** -> `https://lotus.nprod.net/`                  |
-  | `https://lotus.nprod.net/lotus-explore-rs/`      | 200                                                    |
-  | `https://lotus.nprod.net/`                       | 200                                                    |
+Measured against the current host:
 
-`base_url` in `metadata/site-metadata.json` was still the `github.io` form,
-which put the retired host into every generated artefact: `llms.txt`,
-`robots.txt`'s `Sitemap:`, `sitemap.xml`, `humans.txt`, `security.txt`'s
-`Canonical:`, and the `ai-catalog.json` `documentationUrl`, `logoUrl` and
-per-tool `url` fields. An agent that fetched `documentationUrl` was sent to a
-host that redirects, and `sitemap.xml` advertised redirect URLs to crawlers. All
-of them now use `lotus.nprod.net`; `lotus_home_url` moves with it, since the
-LOTUS initiative home is the same site at the root.
+  | Request                                                     | Result                        |
+  | ----------------------------------------------------------- | ----------------------------- |
+  | `https://lotus-initiative.github.io/lotus-explore-rs/`       | 200                           |
+  | `https://lotus-initiative.github.io/lotus-explore-rs/search`  | 301 -> `.../search/`          |
+  | `https://lotus-initiative.github.io/lotus-explore-rs/search/` | 200, byte-identical to root   |
+  | `https://lotus-initiative.github.io/lotus-explore-rs/llms.txt`| 200 `text/plain`              |
+
+That trailing-slash 301 is worth knowing about: GitHub Pages serves a directory
+only when the request has the slash, and the client-side routes are directories
+in the published artefact rather than a server rewrite. `search/` and `/` serve
+the same 11801 bytes, so a refresh on any route boots the app rather than
+GitHub's 404. There is no `404.html` and none is needed -- the per-route
+directories are what do the work, which is the opposite of the SPA-rewrite
+approach the `_redirects` file describes for the Cloudflare path.
+
+`base_url` in `metadata/site-metadata.json` is the one value every generated
+artefact derives from: `llms.txt`, `robots.txt`'s `Sitemap:`, `sitemap.xml`,
+`humans.txt`, `security.txt`'s `Canonical:`, and the `ai-catalog.json`
+`documentationUrl`, `logoUrl` and per-tool `url` fields. `lotus_home_url` is
+optional and defaults to the origin of `base_url`.
 
 `index.html` is hand-maintained rather than generated, so its `og:url` and the
 JSON-LD `url` are set by hand to match. Note the contrast with `rel=canonical`:
 that one is empty in the source and rewritten at runtime from
-`window.location.origin`, so it was always correct and never named the wrong
-host. `og:url` and JSON-LD have no such fallback, which is exactly why they were
-the ones that went stale.
+`window.location.origin`, so it is always correct and never names the wrong
+host. `og:url` and JSON-LD have no such fallback, which is why they are the two
+that need editing by hand.
 
-Worth keeping in mind when reading a canonical URL from this repo: the
-`github.io` name is a redirect, not a synonym. Anything that hardcodes it adds a
-hop, and anything that treats it as the site's identity (a sitemap, an agent
-catalog, a citation) points at the wrong origin.
-
-### Changing the CNAME
+### Changing the host
 
 `rg nprod.net` looks alarming -- 43 hits, 13 of them in this file -- but almost
 every hit is generated output that is committed to the tree. There is exactly

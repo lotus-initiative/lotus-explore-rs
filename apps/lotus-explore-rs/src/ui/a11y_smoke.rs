@@ -167,9 +167,14 @@ mod brand {
         // With no stylesheet block to fall back on, the fill has to be on the
         // element. A class that lost its `fill` renders as flat black, which
         // passes every geometry check above.
+        //
+        // Read off the group rather than matched as a literal `class="…" fill="…"`
+        // pair: the files have been minified, and a minifier is free to reorder
+        // attributes, so the adjacency this used to assert was a property of the
+        // formatting rather than of the drawing.
         for (file, svg) in pinned() {
             assert!(
-                svg.contains(&format!("class=\"{THEMED}\" fill=\"#")),
+                wordmark_group(svg).starts_with('#'),
                 "{file} has no fill on the wordmark, so it renders black"
             );
         }
@@ -230,7 +235,7 @@ mod brand {
              LOTUS text stays dark on the dark canvas"
         );
         assert!(
-            MARK.contains(&format!("class=\"{THEMED}\" fill=\"#")),
+            wordmark_group(MARK).starts_with('#'),
             "the mark must carry its ink as a presentation attribute, or the \
              header rule has nothing to override"
         );
@@ -294,7 +299,7 @@ mod brand {
              it: {wordmark}"
         );
         assert!(
-            MARK.contains(&format!("class=\"{THEMED}\" fill=\"#")),
+            wordmark_group(MARK).starts_with('#'),
             "the wordmark needs a fill on the element, or it renders black in \
              the browsers that ignore the media query"
         );

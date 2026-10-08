@@ -28,7 +28,7 @@
         "wikidata"
       ],
       "type": "application/agent-card+json",
-      "url": "https://lotus.nprod.net/lotus-explore-rs/search"
+      "url": "https://lotus-initiative.github.io/lotus-explore-rs/search"
     },
     {
       "capabilities": [
@@ -56,13 +56,13 @@
         "rdkit"
       ],
       "type": "application/agent-card+json",
-      "url": "https://lotus.nprod.net/lotus-explore-rs/curation"
+      "url": "https://lotus-initiative.github.io/lotus-explore-rs/curation"
     }
   ],
   "host": {
     "displayName": "LOTUS Explore-rs",
-    "documentationUrl": "https://lotus.nprod.net/lotus-explore-rs/llms.txt",
-    "logoUrl": "https://lotus.nprod.net/lotus-explore-rs/favicon.svg"
+    "documentationUrl": "https://lotus-initiative.github.io/lotus-explore-rs/llms.txt",
+    "logoUrl": "https://lotus-initiative.github.io/lotus-explore-rs/favicon.svg"
   },
   "specVersion": "1.0"
 }

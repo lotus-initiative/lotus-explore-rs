@@ -4,7 +4,7 @@
 
 use super::{in_folder, last_segment, native_asset_url, web_asset_url};
 
-/// The published site is at a subpath, `https://lotus.nprod.net/lotus-explore-rs/`,
+/// The published site is at a subpath, `https://lotus-initiative.github.io/lotus-explore-rs/`,
 /// so a web asset URL must be **relative**. Rooting it broke the deployed site
 /// outright: every asset 404'd and the editor and the toolkit both vanished,
 /// while a local dev server at `/` kept working, so nothing local caught it.

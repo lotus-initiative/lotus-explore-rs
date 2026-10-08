@@ -76,7 +76,7 @@ fn a_taxon_name_becomes_a_url_slug() {
     let node = result_set_jsonld(&set(&rows, "SELECT ?s WHERE {}"));
     assert_eq!(
         node["@id"],
-        json!("https://lotus.nprod.net/lotus-explore-rs/dataset/gentiana-lutea/abc")
+        json!("https://lotus-initiative.github.io/lotus-explore-rs/dataset/gentiana-lutea/abc")
     );
 }
 
@@ -94,7 +94,7 @@ fn an_empty_taxon_reads_as_all_organisms() {
     );
     assert_eq!(
         node["@id"],
-        json!("https://lotus.nprod.net/lotus-explore-rs/dataset/all-taxa/abc")
+        json!("https://lotus-initiative.github.io/lotus-explore-rs/dataset/all-taxa/abc")
     );
 }
 

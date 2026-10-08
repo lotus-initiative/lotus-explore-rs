@@ -51,7 +51,7 @@
   },
   "readme": "https://github.com/lotusnprod/lotus-explore-rs/blob/main/README.md",
   "relatedLink": [
-    "https://lotus.nprod.net/lotus-explore-rs",
+    "https://lotus-initiative.github.io/lotus-explore-rs",
     "https://github.com/lotusnprod/lotus-explore-rs/issues",
     "https://github.com/lotusnprod/lotus-explore-rs/blob/main/CONTRIBUTING.md"
   ],
@@ -63,6 +63,6 @@
       "version": ">= 1.97"
     }
   ],
-  "url": "https://lotus.nprod.net/lotus-explore-rs",
+  "url": "https://lotus-initiative.github.io/lotus-explore-rs",
   "version": "0.1.0"
 }

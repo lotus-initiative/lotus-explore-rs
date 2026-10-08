@@ -3,7 +3,7 @@
     "name": "LOTUS Explore-rs",
     "short_name": "LOTUS-rs",
     "description": "Explore LOTUS with taxon filters, structure search, and Wikidata curation workflows.",
-    "base_url": "https://lotus.nprod.net/lotus-explore-rs/",
+    "base_url": "https://lotus-initiative.github.io/lotus-explore-rs/",
     "repo_url": "https://github.com/lotusnprod/lotus-explore-rs",
     "issues_url": "https://github.com/lotusnprod/lotus-explore-rs/issues",
     "discussions_url": "https://github.com/lotusnprod/lotus-explore-rs/discussions",

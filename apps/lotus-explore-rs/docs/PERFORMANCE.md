@@ -15,7 +15,7 @@ Every Lighthouse figure below was taken against a **synthetic harness** that
 negotiates brotli, sends `ETag`/`Last-Modified`, honours `_headers`, and rewrites
 unknown paths to `index.html`. The production host does **none** of those four,
 because it is GitHub Pages, which implements none of them. Measured on
-2026-10-05 against `lotus.nprod.net`:
+2026-10-05 against the then-live host `lotus.nprod.net`:
 
 | what the harness does | the live host actually does |
 | --------------------- | --------------------------- |

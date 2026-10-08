@@ -6,11 +6,11 @@ abstract: A linked open data explorer for the LOTUS compound-taxon-reference kno
 version: 0.1.0
 license: AGPL-3.0-only
 repository-code: "https://github.com/lotusnprod/lotus-explore-rs"
-url: "https://lotus.nprod.net/lotus-explore-rs"
+url: "https://lotus-initiative.github.io/lotus-explore-rs"
 doi: 10.7554/eLife.70780
 identifiers:
   - type: url
-    value: "https://lotus.nprod.net/lotus-explore-rs"
+    value: "https://lotus-initiative.github.io/lotus-explore-rs"
   - type: doi
     value: "https://doi.org/10.7554/eLife.70780"
 keywords:

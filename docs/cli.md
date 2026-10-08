@@ -4,7 +4,7 @@ Search the LOTUS knowledge graph: chemical compounds, the organisms they occur
 in, and the references that report them. The data is the Wikidata projection of
 the LOTUS database, queried over SPARQL.
 
-Every filter the [web explorer](https://lotus.nprod.net/lotus-explore-rs) offers
+Every filter the [web explorer](https://lotus-initiative.github.io/lotus-explore-rs) offers
 is available here, and the output formats are the same, so a result set can be
 moved between the two without changing anything but the command line.
 

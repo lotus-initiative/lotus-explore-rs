@@ -60,7 +60,7 @@ const ASSET_DIR: &str = "assets";
 /// The URL a bundled folder is served at, in a browser.
 ///
 /// **Relative, and that is the whole point.** The site is published under a
-/// subpath -- `https://lotus.nprod.net/lotus-explore-rs/` -- so a root-relative
+/// subpath -- `https://lotus-initiative.github.io/lotus-explore-rs/` -- so a root-relative
 /// `/assets/...` resolves to the domain root, where nothing is published, and
 /// every asset 404s. A relative URL resolves against the document, so it is
 /// correct at any base path: `/` for a local dev server, `/lotus-explore-rs/`
