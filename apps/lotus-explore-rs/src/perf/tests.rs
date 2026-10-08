@@ -12,9 +12,7 @@
 //! sites have to be on one call path for the collision to matter and that is
 //! not something a unit test can arrange.
 
-use super::Timer;
-#[cfg(target_arch = "wasm32")]
-use super::release_timer;
+use super::{Timer, end_timer, label_is_open, start_timer};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -191,49 +189,61 @@ fn a_timer_reports_a_duration_and_cannot_be_read_twice() {
 
 #[test]
 fn a_dropped_timer_is_closed_rather_than_leaked() {
-    // The leak this pins is invisible on native, where `end_timer` reads the
-    // handle and ignores the label, so native asserts only that dropping the
-    // guard runs the close without panicking and does not close twice. On wasm
-    // the label itself is observable, and that is where the assertions bite.
+    // The leak this pins used to be invisible on native, where `end_timer` read the
+    // handle and ignored the label, so the native build answered "is this label held?"
+    // with `None` and asserted nothing. CI checks wasm but never runs it, so the whole
+    // test was a no-op on the only target CI executes.
+    //
+    // Both targets now share one registry, so the assertions below bite everywhere.
+    // What stays target-dependent is only the browser console behind it.
     let label = "LOTUS:test_timer_dropped";
     {
         let _timer = Timer::start(label);
-        if let Some(open) = label_is_open(label) {
-            assert!(open, "the guard should hold the label while it is in scope");
-        }
-    }
-    if let Some(open) = label_is_open(label) {
         assert!(
-            !open,
-            "the guard must release its label when it goes out of scope, or every \
-             later timer with this label finds it taken"
-        );
-
-        // And the label is genuinely reusable afterwards, which is the part that
-        // was broken: a second open has to be a fresh timer, not the already-open
-        // branch that skips `console.time` and reports the wrong duration.
-        let _second = Timer::start(label);
-        assert!(
-            label_is_open(label).unwrap_or(true),
-            "the label should be reusable once the guard has released it"
+            label_is_open(label),
+            "the guard should hold the label while it is in scope"
         );
     }
+    assert!(
+        !label_is_open(label),
+        "the guard must release its label when it goes out of scope, or every later \
+         timer with this label finds it taken"
+    );
+
+    // And the label is genuinely reusable afterwards, which is the part that was
+    // broken: a second open has to be a fresh timer, not the already-open branch that
+    // skips `console.time` and reports the wrong duration.
+    let _second = Timer::start(label);
+    assert!(
+        label_is_open(label),
+        "the label should be reusable once the guard has released it"
+    );
 }
 
-/// Whether `label` is currently held, on whichever target is being tested.
-///
-/// `Some` on wasm, where this is the real `OPEN_TIMERS` entry. `None` on native,
-/// which has no global label namespace to ask about.
-// `Option` is load-bearing across targets and redundant within either one: wasm
-// answers from the real registry and native has no registry to ask. The lint reads
-// only the wasm arm, where the `Option` really is always `Some`.
-#[cfg(target_arch = "wasm32")]
-#[allow(clippy::unnecessary_wraps)]
-fn label_is_open(label: &str) -> Option<bool> {
-    Some(!release_timer(label))
-}
+/// Opening one label twice is reported rather than silently accepted.
+#[test]
+fn opening_the_same_label_twice_is_reported() {
+    // This is the `Timer "LOTUS:taxon_resolution" already exists.` bug. The browser
+    // rejects the second `console.time` and both durations come out wrong -- plausibly
+    // wrong, which is worse than an obvious zero.
+    let label = "LOTUS:test_timer_duplicate";
+    let first = Timer::start(label);
+    assert!(label_is_open(label), "the first open takes the label");
 
-#[cfg(not(target_arch = "wasm32"))]
-fn label_is_open(_label: &str) -> Option<bool> {
-    None
+    // A second open of a label already held must not take it again, and must not go on
+    // to overwrite the open timer. `start_timer` logs and carries on; what matters is
+    // that the label stays a single timer rather than becoming two.
+    let started = start_timer(label);
+    assert!(
+        label_is_open(label),
+        "a duplicate open leaves the label held exactly once"
+    );
+
+    // The outer guard still closes it, and the registry is empty afterwards.
+    drop(first);
+    let _ = end_timer(label, started);
+    assert!(
+        !label_is_open(label),
+        "every open must be matched by a close, including the duplicate"
+    );
 }
