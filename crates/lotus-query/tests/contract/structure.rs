@@ -107,6 +107,41 @@ fn a_single_line_smiles_is_double_quoted_with_escapes() {
 }
 
 #[test]
+fn a_triple_quote_in_a_molfile_cannot_end_the_literal() {
+    // A molfile goes into a `'''…'''` literal because it spans lines, and the
+    // escape only handled `"` and `\`. A `'''` inside the payload therefore closed
+    // the literal early and everything after it became query text: an uploaded
+    // molfile could append its own triples to the `SERVICE` block.
+    //
+    // Pinned here because the escape is one function shared by every structure
+    // search, and the failure is silent -- the endpoint answers with a different
+    // result set rather than an error.
+    let payload = "mol\n''' . } UNION { ?c wdt:P235 ?injected . }\nEND\n";
+    let query = structure_search_query(payload, SmilesSearchType::Substructure, 0.8, None);
+
+    let literal = query
+        .split_once("sachem:query ")
+        .map(|(_, rest)| rest)
+        .expect("the structure is sent as a sachem query literal");
+    let body = literal
+        .strip_prefix("'''")
+        .and_then(|rest| rest.split_once("''';"))
+        .map(|(body, _)| body)
+        .expect("a molfile literal is triple-quoted and terminated by `''';`");
+    assert!(
+        !body.contains("'''"),
+        "a `'''` inside the payload must be escaped, not close the literal:\n{query}"
+    );
+    // The clause text surviving in the body is fine -- it is data now, inside the
+    // literal. What must not happen is a *second* `'''`, which would be a real
+    // terminator, and the assertion above is what rules that out.
+    assert!(
+        body.contains(r"\'\'\'"),
+        "the apostrophes must be backslash-escaped in place:\n{query}"
+    );
+}
+
+#[test]
 fn a_single_line_smiles_substructure_search_uses_the_cheap_service() {
     // The `Substructure if is_multiline` arm exists because a molfile has to go
     // through the scored search, which understands atom mapping, while a SMILES

@@ -1599,6 +1599,11 @@ pub fn escape_sparql_string(value: &str) -> String {
 
 /// Escape a structure for a SPARQL literal: triple-quoted if it spans lines
 /// (a molfile), double-quoted otherwise.
+///
+/// Both delimiters are escaped for whichever one is used. A `'''` inside a
+/// triple-quoted payload closes the literal early and turns the rest of an
+/// uploaded molfile into query text, which is a silent wrong answer rather than
+/// an error -- SPARQL's escape for a quote inside a long literal is a backslash.
 #[must_use]
 pub fn escape_structure_literal(structure: &str) -> String {
     let normalized = structure.replace("\r\n", "\n").replace('\r', "\n");
@@ -1611,7 +1616,8 @@ pub fn escape_structure_literal(structure: &str) -> String {
 
     let escaped = body.replace('\\', r"\\");
     if is_molfile || body.contains('\n') {
-        format!("'''{escaped}'''")
+        // `'''` is the terminator, so an apostrophe has to be escaped as well.
+        format!("'''{}'''", escaped.replace('\'', r"\'"))
     } else {
         let quoted = escaped.replace('"', "\\\"");
         format!("\"{quoted}\"")
