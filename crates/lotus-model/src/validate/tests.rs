@@ -251,3 +251,72 @@ fn an_empty_structure_is_valid_however_long_the_whitespace() {
     c.structure = "   \t  ".into();
     assert!(validate_criteria(&c, 2026).is_ok(), "nothing was typed");
 }
+
+/// The reference is checked here because this is the one gate every surface
+/// passes through, and because the value it accepts is spliced into a `wd:` IRI.
+///
+/// A QID or a DOI is the contract: the two surfaces that run a search resolve a
+/// DOI to its QID before the query is built, and a QID is the resolved form. The
+/// third shape -- prose, or a string carrying SPARQL syntax -- is what this
+/// refuses, because it is neither and would otherwise be printed into the query.
+#[test]
+fn a_reference_that_is_neither_a_qid_nor_a_doi_is_rejected() {
+    for payload in [
+        "Q1 } } . ?s ?p <http://evil.example/x> . #",
+        "Q1 } UNION { ?s ?p ?o } #",
+        "Q",
+        "q",
+        "23118",
+        "Q 23118",
+        "Q23118x",
+        "a reference",
+        "10.1000/xyz } } . ?s ?p ?o",
+    ] {
+        let c = SearchCriteria {
+            reference: payload.into(),
+            ..criteria()
+        };
+        assert_eq!(
+            validate_criteria(&c, 2026),
+            Err(ValidationError::ReferenceNotAIdentifier),
+            "{payload:?} is neither a QID nor a DOI"
+        );
+    }
+}
+
+#[test]
+fn a_qid_or_a_doi_reference_validates() {
+    for qid in ["Q23118", "q23118", "  Q23118  "] {
+        let c = SearchCriteria {
+            reference: qid.into(),
+            ..criteria()
+        };
+        assert_eq!(validate_criteria(&c, 2026), Ok(()), "{qid:?} is a QID");
+    }
+    // The DOI shapes are the ones the resolvers strip a prefix from, and
+    // rejecting one of them would refuse a correct reference.
+    for doi in [
+        "10.1000/xyz",
+        "doi:10.1000/xyz",
+        "https://doi.org/10.1000/xyz",
+    ] {
+        let c = SearchCriteria {
+            reference: doi.into(),
+            ..criteria()
+        };
+        assert_eq!(validate_criteria(&c, 2026), Ok(()), "{doi:?} is a DOI");
+    }
+}
+
+/// Blank is not bad. Blank is how every criteria that names no reference says so,
+/// and it is the default, so rejecting it would reject the common case.
+#[test]
+fn an_absent_reference_validates() {
+    for reference in ["", "   "] {
+        let c = SearchCriteria {
+            reference: reference.into(),
+            ..criteria()
+        };
+        assert_eq!(validate_criteria(&c, 2026), Ok(()));
+    }
+}

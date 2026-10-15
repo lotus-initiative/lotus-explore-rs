@@ -32,8 +32,13 @@ cargo build --release -p lotus-cli
 lotus search --taxon Q21754
 lotus search --structure c1ccccc1 --structure-search similarity --threshold 0.9
 lotus search --taxon Q21754 --carbon 10..20 --bromine excluded
-lotus search --taxon Q21754 --reference 10.1021/JF60160A010
+lotus search --taxon Q21754 --reference Q34460861
 ```
+
+`--reference` also takes a DOI --- `--reference 10.1021/JF60160A010` --- which is
+looked up and resolved to the QID it names before the query is built. A DOI needs
+that round trip, so it is refused by `--explain`, which resolves nothing: pass a QID
+there, or drop `--explain`.
 
 `--taxon` also takes a scientific name --- `--taxon "Gentiana lutea"` is looked
 up through Wikidata's `P225` and the best match used, reporting when the name was

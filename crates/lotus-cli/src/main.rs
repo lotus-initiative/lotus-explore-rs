@@ -400,6 +400,23 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
                  --explain to run the search that resolves it."
             );
         };
+        // The reference has the same shape problem and a worse failure mode, so it
+        // refuses for the same reason the taxon does: a DOI has to be resolved to
+        // its QID to be usable, and that is a network call this flag avoids.
+        //
+        // It is a refusal rather than a warning, which the structure below is not,
+        // because an un-resolved reference does not change the spelling of the
+        // query -- it removes the constraint. `with_filters` only emits a QID, so
+        // printing the query would print a search for every reported compound and
+        // present it as the query for the reference that was typed.
+        let reference = criteria.reference.trim();
+        if !reference.is_empty() && !lotus_search::is_qid(reference) {
+            anyhow::bail!(
+                "--explain does not resolve a DOI to its QID, because that needs \
+                 the network. Pass a Wikidata QID (--reference Q23118), or drop \
+                 --explain to run the search that resolves it."
+            );
+        }
         // An exact structure search resolves the structure to a compound first, and
         // that resolution needs the network this flag avoids, so the printed query is
         // the pre-resolution one. It prints anyway and warns on stderr rather than

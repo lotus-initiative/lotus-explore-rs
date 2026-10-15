@@ -18,6 +18,8 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
         ..SearchCriteria::up_to_year(crate::clock::current_year())
     };
 
+    check_reference(&c.reference)?;
+
     // Absent leaves the model default alone, so a caller that omits the
     // toggles gets the same answer as the UI's default checkboxes.
     if let Some(v) = req.taxon_accepted_synonyms {
@@ -120,6 +122,38 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
     apply_opt!(req.i_state.map(Into::into)  => c.i_state);
 
     Ok(c)
+}
+
+/// Refuse a reference this endpoint cannot use, rather than dropping it.
+///
+/// The taxon is resolved on this path and the reference is not, so the field
+/// reaches the query builder as typed. The builder gates on a QID's shape now --
+/// it has to, because it splices the value into a `wd:` IRI -- but a dropped
+/// constraint is the failure commit ff0a5d2 exists to end: the caller gets every
+/// compound matching the rest of the search, with nothing saying the reference
+/// was ignored. So the gate that knows what a caller asked for is here.
+///
+/// A DOI is refused rather than accepted, and that is a change from the
+/// field's own documentation, which promised a DOI. This endpoint has never
+/// resolved one: the browser resolves a DOI to a QID before the query is built
+/// (`features::explore::service::resolve_reference`), and this path builds the
+/// query without doing that. A DOI here became `wd:10.1000/xyz`, which is not a
+/// valid SPARQL local name, so the caller's search failed at the endpoint with a
+/// parse error it could not connect to anything it had sent. A 400 naming the one
+/// form that works is the honest version of the same failure.
+///
+/// # Errors
+/// [`ApiError::BadRequest`] naming the accepted form, for a non-blank reference
+/// that is not a QID.
+fn check_reference(reference: &str) -> Result<(), ApiError> {
+    let trimmed = reference.trim();
+    if trimmed.is_empty() || lotus_model::looks_like_reference_qid(trimmed) {
+        return Ok(());
+    }
+    Err(ApiError::bad_request(
+        "reference must be a Wikidata QID such as Q23118; \
+         resolve a DOI to its QID before searching",
+    ))
 }
 
 /// The query the API sends, which is the query the browser sends.

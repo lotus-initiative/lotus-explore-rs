@@ -46,6 +46,12 @@ pub enum ValidationError {
 
     #[error("similarity search needs a threshold above 0")]
     SimilarityThresholdInvalid,
+
+    #[error(
+        "reference must be a Wikidata QID such as Q23118 or a DOI such as \
+         10.1000/xyz"
+    )]
+    ReferenceNotAIdentifier,
 }
 
 /// Whether a criteria can be turned into a query, given the year it is bounded
@@ -65,6 +71,24 @@ pub fn validate_criteria(criteria: &SearchCriteria, year_max: u16) -> Result<(),
     }
 
     validate_structure(&criteria.structure)?;
+
+    // A QID or a DOI: the two shapes every surface accepts. The field reaches the
+    // query builder verbatim, and the builder splices it into a `wd:` IRI, so
+    // this is the surface where "a reference that is neither" stops being a
+    // convenience problem and becomes a query the endpoint did not get asked
+    // for. Anything else is refused here, and a DOI is resolved to a QID before
+    // the query is built on the two paths that do that -- `lotus_search::search`
+    // and the browser's pipeline.
+    //
+    // The `--explain` path resolves nothing by design, so a DOI printed into
+    // that query becomes an IRI no endpoint can answer. That path guards itself
+    // and refuses, the same way it refuses an unresolvable taxon name.
+    if !criteria.reference.trim().is_empty()
+        && !super::looks_like_reference_qid(criteria.reference.trim())
+        && !super::looks_like_doi(criteria.reference.trim())
+    {
+        return Err(ValidationError::ReferenceNotAIdentifier);
+    }
 
     if !(0.0..=MASS_MAX).contains(&criteria.mass_min)
         || !(0.0..=MASS_MAX).contains(&criteria.mass_max)

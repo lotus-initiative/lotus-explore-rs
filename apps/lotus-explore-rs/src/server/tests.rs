@@ -994,3 +994,70 @@ fn a_wildcard_taxon_still_requires_an_occurrence() {
         "`*` asks for what has been reported, so it keeps requiring P703:\n{query}"
     );
 }
+
+/// A reference carrying SPARQL syntax must be refused at the boundary.
+///
+/// `apply_request` copies `reference` into the criteria and this path does not
+/// resolve it -- the taxon is resolved above it, the reference is not -- so the
+/// field reaches `with_filters` exactly as typed. That splices it into a `wd:`
+/// IRI, where `{ } . #` are syntax rather than text, and the string-literal
+/// escaper it used to be routed through escapes none of them: a caller could
+/// close the `VALUES`, append triples and comment out the rest of the query.
+///
+/// The builder now gates on a QID's shape as well, so this cannot inject from
+/// any caller. What this pins is the half the builder cannot do: the API tells
+/// the caller its reference was unusable, rather than searching without the
+/// constraint and saying nothing.
+#[test]
+fn a_reference_carrying_sparql_syntax_is_refused() {
+    for payload in [
+        "Q1 } } . ?s ?p <http://evil.example/x> . #",
+        "Q1 } UNION { ?s ?p ?o } #",
+        "Q1\n}\n.\n?s ?p ?o",
+        "not a reference at all",
+        "10.1000/xyz",
+    ] {
+        let req: SearchRequest = serde_json::from_str(&format!(
+            r#"{{"taxon":"Gentiana","reference":{}}}"#,
+            serde_json::to_string(payload).expect("a json string")
+        ))
+        .expect("a deserialisable request");
+
+        assert!(
+            apply_request(&req).is_err(),
+            "{payload:?} is not a QID, so it cannot name a reference and must be \
+             refused rather than dropped"
+        );
+    }
+}
+
+/// The form that does work, still accepted, in either case.
+#[test]
+fn a_qid_reference_is_accepted_in_either_case() {
+    for qid in ["Q23118", "q23118", "  Q23118  "] {
+        let req: SearchRequest = serde_json::from_str(&format!(
+            r#"{{"taxon":"Gentiana","reference":{}}}"#,
+            serde_json::to_string(qid).expect("a json string")
+        ))
+        .expect("a deserialisable request");
+
+        let criteria = apply_request(&req).expect("a QID is the accepted form");
+        assert_eq!(criteria.reference.trim(), qid.trim());
+    }
+}
+
+/// A blank reference is not an error: it is how the caller says "no constraint".
+#[test]
+fn an_absent_or_blank_reference_is_accepted() {
+    for body in [
+        r#"{"taxon":"Gentiana"}"#,
+        r#"{"taxon":"Gentiana","reference":null}"#,
+        r#"{"taxon":"Gentiana","reference":"   "}"#,
+    ] {
+        let req: SearchRequest = serde_json::from_str(body).expect("a deserialisable request");
+        assert!(
+            apply_request(&req).is_ok(),
+            "{body} names no reference, which is not the same as naming a bad one"
+        );
+    }
+}
