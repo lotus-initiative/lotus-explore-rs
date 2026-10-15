@@ -31,3 +31,21 @@ mutants.out/
 AGENTS.md
 graphify-out/
 .code-review-graph/
+
+# --- local agent tooling (not for publication) ---
+.kb/
+graphify-out/
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.claude/
+.cursor/
+.opencode/
+.codex/
+.aider*
+.mcp.json
+.claudeignore
+.agentignore
+.obsidian/
+*.agent-scratch*
+.ignore
