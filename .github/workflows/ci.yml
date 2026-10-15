@@ -132,7 +132,7 @@ jobs:
       # contributor formatting with one tombi and having CI lint with another.
       - uses: tombi-toml/setup-tombi@6a484780a454f9973b13c65729c14e7afb696ae8 # v1.7.0
         with:
-          version: "1.7.2"
+          version: "1.8.2"
 
       - name: ./mk ci
         run: ./mk ci
