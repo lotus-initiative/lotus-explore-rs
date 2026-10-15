@@ -122,17 +122,49 @@ fn a_resolved_reference_replaces_the_doi_the_user_typed() {
         "the DOI the user typed must not also be in the query: {query}"
     );
 
-    // With nothing resolved, the typed value stands -- the reference lookup did
-    // not answer, and dropping the filter entirely would widen the search
-    // without saying so.
-    let unresolved = ResolvedInputs {
+    // An un-resolved QID still stands: it is already the resolved form, so there
+    // is nothing to look up and no reason to lose the constraint.
+    let unresolved_qid = ResolvedInputs {
         compounds: Vec::new(),
         reference_qid: None,
     };
-    let query = build_execution_query_with(&request(criteria), None, &unresolved);
+    let query = build_execution_query_with(
+        &request(SearchCriteria {
+            reference: "Q100000001".to_string(),
+            ..criteria.clone()
+        }),
+        None,
+        &unresolved_qid,
+    );
     assert!(
-        query.contains("10.1000/xyz"),
-        "an unresolved reference must keep the user's own value: {query}"
+        query.contains("VALUES ?r { wd:Q100000001 }"),
+        "an un-resolved QID is the resolved form and must keep the constraint: {query}"
+    );
+
+    // An un-resolved DOI is *dropped*, and that is the change of behaviour here.
+    // It used to be printed into the query verbatim, which put it in a `wd:` IRI
+    // where `/` is not legal SPARQL, so the query could not be parsed -- and, with
+    // a string carrying `{ } . #`, it was a live injection: `with_filters` routed
+    // it through a string-literal escaper it never needed to escape. The builder
+    // now gates on a QID's shape.
+    //
+    // A dropped constraint is not a good outcome either, which is why every
+    // surface that can refuses instead of relying on the drop: the API's
+    // `check_reference` returns a 400, and `--explain` bails. This builder only
+    // builds queries and cannot report, so all it can guarantee is that no
+    // reference becomes query syntax. `lotus-query`'s contract tests pin that.
+    let unresolved_doi = ResolvedInputs {
+        compounds: Vec::new(),
+        reference_qid: None,
+    };
+    let query = build_execution_query_with(&request(criteria), None, &unresolved_doi);
+    assert!(
+        !query.contains("10.1000/xyz"),
+        "an un-resolved DOI may not be printed into the query: {query}"
+    );
+    assert!(
+        !query.contains("VALUES ?r"),
+        "with no reference that can name one, no constraint may be emitted: {query}"
     );
 }
 

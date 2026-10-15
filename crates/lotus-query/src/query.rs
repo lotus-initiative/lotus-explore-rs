@@ -1239,6 +1239,23 @@ pub fn limit_query(base: &str, limit: usize) -> String {
     format!("{}\nLIMIT {limit}", base.trim_end())
 }
 
+/// The Wikidata local name a reference field names, and `None` when it names
+/// none.
+///
+/// The single gate between that field and every `wd:` interpolation in this
+/// module. `None` for a blank field (no constraint, which is what blank means)
+/// and for anything that is not `Q` followed by at least one ASCII digit --
+/// a DOI, prose, or a string carrying SPARQL syntax.
+///
+/// Callers that want a bad reference *refused* rather than ignored ask the model
+/// crate instead: [`lotus_model::looks_like_reference_qid`] to accept, and their
+/// own message to reject. This one exists because a query builder cannot report
+/// an error, so it has to be safe on its own.
+fn reference_qid(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    lotus_model::looks_like_reference_qid(trimmed).then(|| trimmed.to_ascii_uppercase())
+}
+
 /// Apply the active filters to a base query.
 ///
 /// The fragments go after the base query's closing brace, not inside the
@@ -1292,12 +1309,27 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
     // indexed form, and because an unbound `?r` -- a compound with no occurrence,
     // which a structure search exists to find -- simply fails to join rather than
     // comparing against an error.
-    if !criteria.reference.trim().is_empty() {
-        let _ = writeln!(
-            required,
-            "VALUES ?r {{ wd:{} }}",
-            escape_sparql_string(criteria.reference.trim())
-        );
+    //
+    // Only a QID is emitted, and only after [`looks_like_reference_qid`] has said
+    // the field is one. `wd:` takes an IRI local name, so `{ } . # ;` are syntax
+    // there, not text -- and `escape_sparql_string` escapes none of them,
+    // because none of them are syntax inside `"…"`. Splicing the field through
+    // that escaper let a caller close the `VALUES`, append triples of its own and
+    // comment out the rest of the query: an injected query run against a public
+    // endpoint, and echoed back in `SearchResponse.query`.
+    //
+    // Refusing is the caller's job and stays there, because only the caller can
+    // tell the reader why: the API turns a bad reference into a 400, the browser
+    // into a form error, and this crate builds queries rather than running them.
+    // What this guarantees is the half a caller cannot repair afterwards -- no
+    // reference, from any caller, becomes query syntax. A reference this drops is
+    // an ignored constraint, which is the smaller failure.
+    //
+    // Uppercased here for the same reason the taxon field is: a QID's local name
+    // is case-sensitive in SPARQL, so `wd:q23118` is a different item from
+    // `wd:Q23118`, and every gate that admits a reference admits a lowercase one.
+    if let Some(qid) = reference_qid(&criteria.reference) {
+        let _ = writeln!(required, "VALUES ?r {{ wd:{qid} }}");
     }
 
     formula_filter(criteria, &mut required, &mut filters);

@@ -510,3 +510,88 @@ fn a_taxon_on_the_exact_route_is_not_optional() {
         "the compound seed must survive alongside the taxon\n{some}"
     );
 }
+
+/// The reference field is spliced into a `wd:` IRI, not into a string literal.
+///
+/// `escape_sparql_string` escapes the metacharacters of `"…"` and none of the
+/// metacharacters of an IRI local name, so routing a reference through it left
+/// `{ } . # ;` as live syntax: a caller could close the `VALUES`, append
+/// triples, and comment out the remainder of the query. A query the reader
+/// did not ask for, executed against somebody else's public endpoint.
+///
+/// Whether an unusable reference is *refused* is the caller's decision -- the
+/// API turns it into a 400, the browser into a form error. What this test
+/// pins is the part the caller cannot fix afterwards: no reference can become
+/// query syntax.
+#[test]
+fn a_reference_cannot_become_query_syntax() {
+    let taxon_query = compounds_by_taxon_query("Q16521");
+    let base = base_body(&taxon_query);
+    // `base_body` strips the outer brace, so `with_filters` output is short one
+    // `}` by construction. Balance is therefore a *difference* against the same
+    // query built with no reference at all, not an absolute count.
+    let unbalanced_by_design = |query: &str| {
+        query.matches('{').count().cast_signed() - query.matches('}').count().cast_signed()
+    };
+    let baseline = unbalanced_by_design(&with_filters(base, &criteria(), NOW));
+
+    for payload in [
+        "Q1 } } . ?s ?p <http://evil.example/x> . #",
+        "Q1\n}\n.\n?s ?p ?o",
+        "Q1 } UNION { ?s ?p ?o } #",
+        "Q1 . ?s ?p ?o . #",
+    ] {
+        let criteria = SearchCriteria {
+            reference: payload.to_string(),
+            ..criteria()
+        };
+        let query = with_filters(base, &criteria, NOW);
+
+        // Every payload tries to close the outer `WHERE` and open a triple of
+        // its own. An unbalanced query is a leak in whichever direction the
+        // payload pushed, and an endpoint that cannot parse it is a 502 the
+        // caller has no way to explain.
+        assert_eq!(
+            unbalanced_by_design(&query),
+            baseline,
+            "the reference changed the query's brace balance, so it escaped its \
+             VALUES block\n{payload}\n{query}"
+        );
+        assert!(
+            !query.contains("<http://evil.example/x>"),
+            "an injected IRI reached the query\n{payload}\n{query}"
+        );
+        assert!(
+            !query.contains("UNION"),
+            "a reference may not widen the query with a set operation\n{payload}\n{query}"
+        );
+        // `#` would comment out whatever follows it, silently truncating the
+        // query rather than breaking it.
+        assert!(
+            !query
+                .split_whitespace()
+                .any(|t| t == "#" || t.starts_with("#}")),
+            "a reference opened a comment\n{payload}\n{query}"
+        );
+    }
+}
+
+/// The positive case still works: a QID reaches the query as a QID.
+#[test]
+fn a_qid_reference_still_becomes_a_values_block() {
+    for qid in ["Q23118", " q23118 ", "Q23118"] {
+        let criteria = SearchCriteria {
+            reference: qid.to_string(),
+            ..criteria()
+        };
+        let query = with_filters(
+            base_body(&compounds_by_taxon_query("Q16521")),
+            &criteria,
+            NOW,
+        );
+        assert!(
+            query.contains("VALUES ?r { wd:Q23118 }"),
+            "{qid:?} is a QID and must reach the query\n{query}"
+        );
+    }
+}
