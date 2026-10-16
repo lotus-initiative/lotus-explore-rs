@@ -6,7 +6,11 @@
   "scope": "./",
   "id": "lotus-explore-rs",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
   "orientation": "any",
   "background_color": "#f6f8fb",
   "theme_color": "#0b5cab",
@@ -62,7 +66,11 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["science", "education", "research"],
+  "categories": [
+    "science",
+    "education",
+    "research"
+  ],
   "prefer_related_applications": false,
   "shortcuts": [
     {

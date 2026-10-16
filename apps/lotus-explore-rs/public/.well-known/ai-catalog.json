@@ -49,7 +49,12 @@
         "Curate natural products for a taxon into Wikidata",
         "Generate QuickStatements for a list of DOIs"
       ],
-      "tags": ["wikidata", "curation", "quickstatements", "rdkit"],
+      "tags": [
+        "wikidata",
+        "curation",
+        "quickstatements",
+        "rdkit"
+      ],
       "type": "application/agent-card+json",
       "url": "https://lotus-initiative.github.io/lotus-explore-rs/curation"
     }
