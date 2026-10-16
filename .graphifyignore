@@ -1,10 +1,4 @@
-# Paths excluded from the graphify knowledge graph at graphify-out/.
-
-mutants.out/
-mutants.out.old/
-target/
+# Project-specific patterns not covered by global .agentignore
 .code-review-graph/
 .ignore
-# .kb/notes and .kb/decisions are deliberately ingested: they become graph nodes
-# linked to code. .kb/graph is not, or the graph would feed on itself.
 .kb/graph/

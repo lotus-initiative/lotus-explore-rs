@@ -35,8 +35,7 @@ the output the way the deploy does, see
 | `apps/lotus-explore-rs` | the app: WASM client, optional native server, optional desktop window |
 
 Each library crate has a README that is compiled as its documentation, so the example in it is
-checked as a doctest. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) says why the boundaries
-are where they are, and is the one place the crate table above is explained.
+checked as a doctest. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) says why the boundaries are where they are, and is the one place the crate table above is explained.
 
 ## Prerequisites
 
