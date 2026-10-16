@@ -1,5 +1,8 @@
 [files]
 extend-exclude = [
+  # Build output. Not source, and cargo's hashed filenames are not words:
+  # a restored `rust-cache` made the gate fail on `libdunce-...afe73a.rlib`.
+  "target/",
   "**/public/assets/",
   "**/i18n/**",
 ]

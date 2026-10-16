@@ -65,7 +65,7 @@ mod tests {
         Ok(())
     }
 
-    /// The tombi version is written down once, in `prek.toml`, and read from there.
+    /// `prek.toml` holds the tombi version and CI reads it from there.
     ///
     /// `prek.toml` claims to be the single source for it, and `./mk setup` already
     /// reads it from that line rather than repeating the number. CI does not: its
@@ -74,23 +74,17 @@ mod tests {
     /// catch everywhere else -- the hook formats with one tombi and the gate checks
     /// with another.
     ///
-    /// This reads the version out of each and compares, rather than asserting one
-    /// literal, so bumping `prek.toml` and forgetting CI fails here instead of
-    /// silently linting with a different tool than the one that formatted the code.
+    /// This used to read the version out of each and compare, which turned every
+    /// tombi bump into two edits plus a red test until both were made. The `version:`
+    /// input is now `${{ steps.tombi.outputs.version }}`, fed by a step that `sed`s
+    /// the rev out of `prek.toml`, so there is one number and nothing to compare.
+    ///
+    /// What is left to assert is the indirection itself: that the version CI
+    /// installs still comes from `prek.toml` rather than from a literal that has
+    /// crept back in, and that the extraction reads the line it claims to.
     #[test]
     fn ci_installs_the_tombi_version_the_hook_uses() -> Result<()> {
-        let hooks = read("prek.toml")?;
         let ci = read(".github/workflows/ci.yml")?;
-
-        // The `rev` on the tombi-pre-commit repo, as a bare version.
-        let hook_version = hooks
-            .lines()
-            .zip(hooks.lines().skip(1))
-            .find(|(repo, _)| repo.contains("tombi-toml/tombi-pre-commit"))
-            .and_then(|(_, next)| next.trim().strip_prefix("rev = \"v"))
-            .and_then(|quoted| quoted.strip_suffix('"'))
-            .map(str::to_string)
-            .ok_or("prek.toml has no tombi-pre-commit rev")?;
 
         // The `version:` input on the setup-tombi step.
         let ci_version = ci
@@ -98,17 +92,25 @@ mod tests {
             .skip_while(|line| !line.contains("setup-tombi"))
             .find_map(|line| {
                 line.trim()
-                    .strip_prefix("version: \"")
-                    .and_then(|quoted| quoted.strip_suffix('"'))
-                    .map(str::to_string)
+                    .strip_prefix("version: ")
+                    .map(|rest| rest.trim().trim_matches('"').to_string())
             })
             .ok_or("ci.yml has no setup-tombi step with a version")?;
 
         assert_eq!(
-            hook_version, ci_version,
-            "the hook runs tombi {hook_version} and CI runs {ci_version}: the gate \
-         lints with a different tool than the one that formatted the code. \
-         `prek.toml` is the single source -- change it and `ci.yml`, not just one."
+            ci_version, "${{ steps.tombi.outputs.version }}",
+            "ci.yml pins tombi to {ci_version:?} inline. `prek.toml` is the single \
+             source for that version -- read it in the step above like the \
+             `steps.tombi.outputs.version` this assert expects -- so a bump is one \
+             edit rather than two, and cannot half-happen."
+        );
+
+        // The step that reads it has to read *that* line: the `rev` under the
+        // tombi-pre-commit repo, not some other `rev` in the file.
+        assert!(
+            ci.contains("tombi-pre-commit") && ci.contains("steps.tombi.outputs.version"),
+            "the step above setup-tombi must extract the rev under `tombi-pre-commit` \
+             in prek.toml and pass it on as steps.tombi.outputs.version"
         );
 
         // The pinned action SHA must be the tag's own commit, or the action and the
