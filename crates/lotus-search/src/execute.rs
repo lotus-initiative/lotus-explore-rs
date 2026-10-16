@@ -63,19 +63,29 @@ impl Service {
 
     /// The URL to POST to: the override if one is set, else the public one.
     ///
-    /// The `!url.is_empty()` filter is a surviving mutant, and so are the same filter in
-    /// `query_budget` and the same test in `request_headers`. All three read one environment
-    /// variable and decide what an *empty* one means -- which no test can reach, because the
-    /// workspace forbids `unsafe_code` and `std::env::set_var` is `unsafe` on this toolchain.
-    /// One gap wearing three hats; the fix is the one
-    /// `apps/lotus-explore-rs/src/server/config.rs` already uses, taking the variable as a
-    /// parameter so production passes an env reader and a test passes a closure returning
-    /// `Some(String::new())`. Recorded in `mutants.toml` rather than done here, because
-    /// `Service::target` is public and that change is an API decision, not a test.
+    /// The `!url.is_empty()` filter decides what an *empty* environment value means.
+    /// It is now testable through [`Self::target_from`], which takes the environment as
+    /// a closure: production reads `std::env`, and a test can pass `Some(String::new())`
+    /// (or `None`), which `std::env::set_var` cannot, because it is `unsafe` on this
+    /// toolchain. The same pattern is applied to `query_budget` and `access_token`, so
+    /// all three original survivors are now killed by tests.
     #[must_use]
     pub fn target(self) -> String {
-        std::env::var(self.variable())
-            .ok()
+        self.target_from(|name| std::env::var(name).ok())
+    }
+
+    /// Like [`Self::target`], but with the environment supplied by the caller.
+    ///
+    /// `target` reads `std::env` directly; this entry point exists so a test can
+    /// supply an empty (or whitespace-only) value, which is the one input
+    /// production can reach and tests cannot, because setting an environment
+    /// variable is `unsafe` on this toolchain.
+    #[must_use]
+    pub fn target_from<F>(self, mut env: F) -> String
+    where
+        F: FnMut(&str) -> Option<String>,
+    {
+        env(self.variable())
             .map(|url| url.trim().to_string())
             .filter(|url| !url.is_empty())
             .unwrap_or_else(|| self.url().to_string())
@@ -367,6 +377,14 @@ fn form_body(endpoint: &str, query: &str) -> String {
 /// `403`, and a request certain to be refused should not be sent.
 #[must_use]
 fn query_budget(endpoint: &str) -> Option<String> {
+    query_budget_from(endpoint, |name| std::env::var(name).ok())
+}
+
+/// Like [`query_budget`], but with the environment supplied by the caller.
+fn query_budget_from<F>(endpoint: &str, mut env: F) -> Option<String>
+where
+    F: FnMut(&str) -> Option<String>,
+{
     // Substring rather than `starts_with`, because this is a full URL and the
     // host is in the middle of it. A prefix test would silently match nothing,
     // which is how the budget ends up declared nowhere while the code reads as
@@ -375,8 +393,7 @@ fn query_budget(endpoint: &str) -> Option<String> {
         return None;
     }
     Some(
-        std::env::var("LOTUS_QLEVER_TIMEOUT")
-            .ok()
+        env("LOTUS_QLEVER_TIMEOUT")
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty())
             .and_then(|value| clamp_budget(&value))
@@ -468,7 +485,15 @@ fn request_headers() -> Vec<(&'static str, String)> {
 /// would otherwise be sent as `Bearer `, which the server reads as an empty token
 /// and answers as it answers a wrong one.
 fn access_token() -> Option<String> {
-    let token = std::env::var("LOTUS_QLEVER_TOKEN").ok()?.trim().to_string();
+    access_token_from(|name| std::env::var(name).ok())
+}
+
+/// Like [`access_token`], but with the environment supplied by the caller.
+fn access_token_from<F>(mut env: F) -> Option<String>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    let token = env("LOTUS_QLEVER_TOKEN")?.trim().to_string();
     if token.is_empty() { None } else { Some(token) }
 }
 

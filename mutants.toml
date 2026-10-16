@@ -22,14 +22,13 @@
 #
 # The eight survivors, none of which a test can fix as the code stands:
 #
-#   Service::target / query_budget / request_headers: delete ! in each
+#   (Removed) `Service::target` / `query_budget` / `access_token`: delete ! in each
 #
-# Three survivors that are one gap. Each reads one environment variable and each
-# decides what an *empty* value means, and no test can supply one: the workspace
-# forbids `unsafe_code` and `std::env::set_var` is `unsafe` on Rust 1.97+. The
-# fix is the one `apps/lotus-explore-rs/src/server/config.rs` already uses --
-# take the variable as a parameter and pass an env reader -- but `Service::target`
-# is public, so that is an API decision and not a test to be written here.
+# Closed: each function now takes the environment as a closure (`target_from`,
+# `query_budget_from`, `access_token_from`), with the original public
+# `Service::target` unchanged. A test supplies `Some(String::new())`, which
+# `std::env::set_var` cannot on this toolchain. Killing mutants for these three
+# filters is now covered by tests in `execute::tests`.
 #
 #   execute.rs: replace < with <= in `execute` and in `execute_streaming`
 #
