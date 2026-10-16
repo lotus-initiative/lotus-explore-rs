@@ -25,10 +25,10 @@ request-rate refusal. From QLever's own source (`src/engine/Server.cpp`):
 
 Measured against `https://qlever.dev/api/wikidata` on 2026-10-04:
 
-| Request                                     | Answer                                                     |
-| ------------------------------------------- | ---------------------------------------------------------- |
-| `timeout=3s`                                | **429** `{"exception": "Operation timed out. Last operation: Sort (internal order) on ?r"}` |
-| `timeout=60s`                               | **403** `"User submitted timeout was higher than what is currently allowed by this instance (30s). Please use a valid-access token to override this server configuration."` |
+| Request       | Answer                                                                                                                                                                      |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `timeout=3s`  | **429** `{"exception": "Operation timed out. Last operation: Sort (internal order) on ?r"}`                                                                                 |
+| `timeout=60s` | **403** `"User submitted timeout was higher than what is currently allowed by this instance (30s). Please use a valid-access token to override this server configuration."` |
 
 So a 429 is a measurement that **one query was too expensive**, and the only
 thing that answers it is a smaller query.
@@ -40,12 +40,12 @@ pipeline retry. One broad search could therefore spend the endpoint's entire
 of client an operator blocks. `429` is now out of the retryable set, and it
 carries as [`FetchError::TimedOut`] rather than as a status:
 
-| Layer                                    | Was                                    | Now                                    |
-| ---------------------------------------- | -------------------------------------- | -------------------------------------- |
-| `execute` immediate retry (`MAX_ATTEMPTS`) | retried a 429, immediately on wasm     | **not retried**                        |
-| WDQS fallback (`is_endpoint_unavailable`)  | did not fire                            | still does not fire                    |
-| pipeline retry (`error_recovery_coordinator`) | one whole-pipeline retry, 1 s backoff | **no retry**                           |
-| UI hint                                                       | "wait about a minute and retry"        | "narrow it with a taxon, mass range, year or formula" |
+| Layer                                         | Was                                   | Now                                                   |
+| --------------------------------------------- | ------------------------------------- | ----------------------------------------------------- |
+| `execute` immediate retry (`MAX_ATTEMPTS`)    | retried a 429, immediately on wasm    | **not retried**                                       |
+| WDQS fallback (`is_endpoint_unavailable`)     | did not fire                          | still does not fire                                   |
+| pipeline retry (`error_recovery_coordinator`) | one whole-pipeline retry, 1 s backoff | **no retry**                                          |
+| UI hint                                       | "wait about a minute and retry"       | "narrow it with a taxon, mass range, year or formula" |
 
 A `WDQS` fallback is refused for this class on purpose. `WDQS` will run the same
 expensive query; falling back would answer the same question twice, on two
@@ -69,8 +69,8 @@ This is why the truncation check exists rather than a shorter budget. A refused
 query says so in the status; a truncated one does not.
 
 Note the spelling: a duration at this precision must be given in milliseconds.
-`29.9s` is answered with a `500` — *"Failed to convert string to duration type.
-Examples for valid strings: '100ms', '3s'"* — so a fractional second is not a
+`29.9s` is answered with a `500` — _"Failed to convert string to duration type.
+Examples for valid strings: '100ms', '3s'"_ — so a fractional second is not a
 smaller budget but a malformed one.
 
 `LOTUS_QLEVER_TIMEOUT` overrides the budget in QLever's own duration syntax
@@ -85,7 +85,7 @@ Two headers go out with every request:
 - **`api-user-agent`** — `lotus-explore-rs/<version> (+https://github.com/lotusnprod/lotus-explore-rs)`.
   It is the header QLever names in its own CORS allow-list. The point is not
   politeness theatre: a deployment running this app heavily should be something
-  an operator can *contact and raise a limit for*, rather than an anonymous
+  an operator can _contact and raise a limit for_, rather than an anonymous
   address that eventually gets blocked.
 - **`Authorization: Bearer <token>`**, when `LOTUS_QLEVER_TOKEN` is set. This is
   how to be given more than the anonymous budget, and it is the answer to "this
@@ -122,10 +122,10 @@ makes a transfer-bound query fail sooner without making it faster.
 `taxon="*"` and an empty taxon box both ask for the whole dataset. Measured
 against `qlever.dev`, uncached:
 
-| Query                                   | Bytes      | Rows     | Wall   |
-| --------------------------------------- | ---------- | -------- | ------ |
-| `Gentiana lutea` (`Q21754`)             | 16 MB      | 32,161   | 5.1 s  |
-| everything (`*`)                        | **110 MB** | **265,266** | **~30 s** |
+| Query                       | Bytes      | Rows        | Wall      |
+| --------------------------- | ---------- | ----------- | --------- |
+| `Gentiana lutea` (`Q21754`) | 16 MB      | 32,161      | 5.1 s     |
+| everything (`*`)            | **110 MB** | **265,266** | **~30 s** |
 
 The second one is the whole problem: it finishes at about the endpoint's
 ceiling, so whether it is answered or cancelled depends on cache state. That is
@@ -151,13 +151,13 @@ POSTs**, and the second pass over dependency rows repeated every one of them.
 All four questions are per row and all four have a batched form, so
 `services/prefetch.rs` asks each of them once, before the rows are walked:
 
-| Question                    | Was            | Now                                                     |
-| --------------------------- | -------------- | ------------------------------------------------------- |
-| compounds by `InChIKey`     | 1 per row      | 1 per run, `VALUES ?key` with `MIN(?compound)` for ties  |
-| taxon names                 | 1 per row miss | 1 per run, both spellings of each name                   |
-| DOIs                        | 1 per row miss | 1 per run                                                |
-| "is this occurrence recorded" | 1 `ASK` per row | 1 query for the pairs that *exist*; a miss is the answer |
-| "...by this paper"          | 1 `ASK` per row | 1 query, same trick                                       |
+| Question                      | Was             | Now                                                      |
+| ----------------------------- | --------------- | -------------------------------------------------------- |
+| compounds by `InChIKey`       | 1 per row       | 1 per run, `VALUES ?key` with `MIN(?compound)` for ties  |
+| taxon names                   | 1 per row miss  | 1 per run, both spellings of each name                   |
+| DOIs                          | 1 per row miss  | 1 per run                                                |
+| "is this occurrence recorded" | 1 `ASK` per row | 1 query for the pairs that _exist_; a miss is the answer |
+| "...by this paper"            | 1 `ASK` per row | 1 query, same trick                                      |
 
 **Five queries per run, whatever the row count.** The test that says so is
 `a_prefetch_costs_the_same_however_many_rows_there_are`: it runs the same
@@ -168,7 +168,7 @@ Two details that are load-bearing:
 - **Misses are cached, not just hits.** A batch answers "which of these pairs
   exist", so the pairs that did not come back are the `false`s. A cache that
   stored only hits would send the row loop to the network for every pair
-  Wikidata does *not* have — which is most of a curation run, since a run is
+  Wikidata does _not_ have — which is most of a curation run, since a run is
   mostly work still to do.
 - **The taxon batch asks for both spellings.** The single-row lookup has always
   tried the canonicalised label as well as the raw one; a batch that only tried
@@ -185,11 +185,11 @@ Two details that are load-bearing:
 - **A row whose taxon the batch cannot resolve still costs one query**, in
   `resolve_or_create_taxon`. That is the honest case: the batch asked, and the
   answer was "no such item", and the row loop needs to know that individually
-  because it may have to *create* the taxon.
+  because it may have to _create_ the taxon.
 - **Rows are still curated one at a time**, deliberately. The endpoint is the
   shared resource, not this browser's main thread.
 
-## What is deliberately *not* here
+## What is deliberately _not_ here
 
 - **No rate limiter.** There is nothing to rate-limit against: the 429 we were
   getting was not about how many requests arrived. A token bucket would have been

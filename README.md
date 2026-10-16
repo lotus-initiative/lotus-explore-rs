@@ -23,16 +23,16 @@ the output the way the deploy does, see
 
 ## The crates
 
-| crate | what it is |
-| --- | --- |
-| `lotus-model` | the vocabulary: a filter set, a result row, what makes a filter active |
-| `lotus-query` | SPARQL construction and CSV parsing. Pure. |
-| `lotus-search` | the search use case: which endpoint, when to fall back, taxon resolution |
-| `lotus-curation` | the curation vocabulary and the statements it produces |
-| `lotus-jsonld` | Bioschemas JSON-LD, CodeMeta, `CITATION.cff` |
-| `lotus-cli` | the `lotus` binary |
-| `lotus-web-assets` | host-only fetcher for the third-party frontend assets |
-| `apps/lotus-explore-rs` | the app: WASM client, optional native server, optional desktop window |
+| crate                   | what it is                                                               |
+| ----------------------- | ------------------------------------------------------------------------ |
+| `lotus-model`           | the vocabulary: a filter set, a result row, what makes a filter active   |
+| `lotus-query`           | SPARQL construction and CSV parsing. Pure.                               |
+| `lotus-search`          | the search use case: which endpoint, when to fall back, taxon resolution |
+| `lotus-curation`        | the curation vocabulary and the statements it produces                   |
+| `lotus-jsonld`          | Bioschemas JSON-LD, CodeMeta, `CITATION.cff`                             |
+| `lotus-cli`             | the `lotus` binary                                                       |
+| `lotus-web-assets`      | host-only fetcher for the third-party frontend assets                    |
+| `apps/lotus-explore-rs` | the app: WASM client, optional native server, optional desktop window    |
 
 Each library crate has a README that is compiled as its documentation, so the example in it is
 checked as a doctest. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) says why the boundaries are where they are, and is the one place the crate table above is explained.

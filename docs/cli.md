@@ -49,27 +49,27 @@ for the test that runs every example in this file.
 
 ### Filters
 
-  | Flag                                                                           | Meaning                                                          |
-  | ---                                                                            | ---                                                              |
-  | `--taxon`                                                                      | Scientific name, Wikidata QID, or `*` for every compound with an occurrence |
-  | `--no-accepted-synonyms`                                                       | Ignore the accepted name's synonyms (`P1420`)                      |
-  | `--no-basionyms`                                                               | Ignore the basionym, the name first described under (`P566`)      |
-  | `--no-protonyms`                                                               | Ignore the original combination, as first published (`P1403`)     |
-  | `--no-replacements`                                                            | Ignore replacement names and what they replaced (`P694`)          |
-  | `--structure`                                                                  | SMILES, or an MDL molfile (V2000/V3000)                          |
-  | `--structure-search`                                                           | `exact` (default), `substructure` or `similarity`               |
-  | `--threshold`                                                                  | Tanimoto cutoff for a similarity search, 0 to 1                  |
-  | `--mass-min`, `--mass-max`                                                     | Molecular mass range, in daltons                                 |
-  | `--year-min`, `--year-max`                                                     | Publication year range                                           |
-  | `--formula`                                                                    | Exact molecular formula; subscripts are accepted                 |
-  | `--limit`                                                                      | How many rows to return. The counts still describe the whole set |
-  | `--format`                                                                     | How to write the rows; see below                                 |
-  | `--log`                                                                        | Verbosity on stderr: `error`, `warn`, `info`, `debug`            |
-  | `--explain`                                                                    | Print the SPARQL and send nothing                                |
-  | `--carbon`, `--hydrogen`, `--nitrogen`, `--oxygen`, `--phosphorus`, `--sulfur` | Atom-count range, e.g. `10..20`                                  |
-  | `--fluorine`, `--chlorine`, `--bromine`, `--iodine`                            | Halogen presence: `allowed`, `required`, `excluded`              |
+| Flag                                                                           | Meaning                                                                     |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `--taxon`                                                                      | Scientific name, Wikidata QID, or `*` for every compound with an occurrence |
+| `--no-accepted-synonyms`                                                       | Ignore the accepted name's synonyms (`P1420`)                               |
+| `--no-basionyms`                                                               | Ignore the basionym, the name first described under (`P566`)                |
+| `--no-protonyms`                                                               | Ignore the original combination, as first published (`P1403`)               |
+| `--no-replacements`                                                            | Ignore replacement names and what they replaced (`P694`)                    |
+| `--structure`                                                                  | SMILES, or an MDL molfile (V2000/V3000)                                     |
+| `--structure-search`                                                           | `exact` (default), `substructure` or `similarity`                           |
+| `--threshold`                                                                  | Tanimoto cutoff for a similarity search, 0 to 1                             |
+| `--mass-min`, `--mass-max`                                                     | Molecular mass range, in daltons                                            |
+| `--year-min`, `--year-max`                                                     | Publication year range                                                      |
+| `--formula`                                                                    | Exact molecular formula; subscripts are accepted                            |
+| `--limit`                                                                      | How many rows to return. The counts still describe the whole set            |
+| `--format`                                                                     | How to write the rows; see below                                            |
+| `--log`                                                                        | Verbosity on stderr: `error`, `warn`, `info`, `debug`                       |
+| `--explain`                                                                    | Print the SPARQL and send nothing                                           |
+| `--carbon`, `--hydrogen`, `--nitrogen`, `--oxygen`, `--phosphorus`, `--sulfur` | Atom-count range, e.g. `10..20`                                             |
+| `--fluorine`, `--chlorine`, `--bromine`, `--iodine`                            | Halogen presence: `allowed`, `required`, `excluded`                         |
 
-A taxon search follows the taxon's *nomenclatural closure* by default: the name
+A taxon search follows the taxon's _nomenclatural closure_ by default: the name
 you gave, plus the other names Wikidata links to it, plus the descendants of all
 of them. That is four independent relationships, each with its own `--no-…` flag
 to switch it off: accepted name and synonyms (`P1420`), basionym and new
@@ -125,7 +125,7 @@ lotus search --taxon Q21754 --format jsonl | jq -r .name
   syntax. Each occurrence is emitted as the reified chain the endpoint produces --
   `compound p:P703 statement`, `statement ps:P703 taxon`,
   `statement prov:wasDerivedFrom reference-node`, `reference-node pr:P248
-  publication` -- so a consumer that parses an endpoint export parses this one.
+publication` -- so a consumer that parses an endpoint export parses this one.
   A triple whose value is absent is omitted rather than emitted as `[]`.
 - `query` prints the SPARQL and no rows.
 
@@ -144,7 +144,7 @@ The printed query is the query for the request you made, taxonomy filter and all
 A bare QID needs no lookup, so `--taxon Q21754` prints a query carrying the
 `P171` ancestry filter for that taxon.
 
-A taxon *name* is the one thing `--explain` cannot do, because turning a name
+A taxon _name_ is the one thing `--explain` cannot do, because turning a name
 into a QID is the request it exists to avoid making. Rather than print the query
 for the un-resolved request, it refuses:
 
@@ -196,14 +196,14 @@ command tells you when it cannot reach either.
 
 A row is reported as one of:
 
-  | Status                 | Meaning                                                   |
-  | -------------------    | --------------------------------------------------------- |
-  | `existing_complete`    | Wikidata has the compound and the occurrence              |
-  | `existing_updates`     | The compound is there; the occurrence is missing          |
-  | `new_compound`         | No such item, and statements to create one                |
-  | `pending_dependencies` | A taxon or reference the row needs is not there yet       |
-  | `not_checked`          | Not looked up, so nothing is known                        |
-  | `error`                | The lookup failed; this is not the same as "absent"       |
+| Status                 | Meaning                                             |
+| ---------------------- | --------------------------------------------------- |
+| `existing_complete`    | Wikidata has the compound and the occurrence        |
+| `existing_updates`     | The compound is there; the occurrence is missing    |
+| `new_compound`         | No such item, and statements to create one          |
+| `pending_dependencies` | A taxon or reference the row needs is not there yet |
+| `not_checked`          | Not looked up, so nothing is known                  |
+| `error`                | The lookup failed; this is not the same as "absent" |
 
 `not_checked` and `error` are the two that matter. A row reported as
 `new_compound` has been shown to be absent; a row reported as `not_checked` has
@@ -270,16 +270,16 @@ lotus man | man -l -
 
 ## Exit codes
 
-  | Code | Meaning                                       |
-  | ---- | --------------------------------------------- |
-  | 0    | Success                                       |
-  | 1    | The search or curation could not be completed |
-  | 2    | The arguments were not valid                  |
+| Code | Meaning                                       |
+| ---- | --------------------------------------------- |
+| 0    | Success                                       |
+| 1    | The search or curation could not be completed |
+| 2    | The arguments were not valid                  |
 
 ## Endpoints
 
 Queries go to QLever's Wikidata endpoint, and fall back to the Wikidata Query
-Service when QLever is unreachable. A query that is *rejected* is not retried
+Service when QLever is unreachable. A query that is _rejected_ is not retried
 elsewhere: WDQS would reject it too, and trying would only double the load.
 
 To point the CLI at a different endpoint, set `LOTUS_QLEVER_ENDPOINT`; the

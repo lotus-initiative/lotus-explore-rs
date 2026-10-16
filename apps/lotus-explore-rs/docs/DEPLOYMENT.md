@@ -8,7 +8,7 @@ they name `lotus.nprod.net`, that is history.
 
 ## The canonical host is `lotus-initiative.github.io`
 
-There is no custom domain. The `github.io` name *is* the site, published from
+There is no custom domain. The `github.io` name _is_ the site, published from
 the `lotus-initiative` organisation, and the path segment is the repository name.
 That is the reverse of the previous arrangement, where `lotus.nprod.net` was a
 CNAME and GitHub Pages 301'd `lotusnprod.github.io` to it -- which made the
@@ -17,12 +17,12 @@ artefacts were once pinned to the custom domain.
 
 Measured against the current host:
 
-  | Request                                                     | Result                        |
-  | ----------------------------------------------------------- | ----------------------------- |
-  | `https://lotus-initiative.github.io/lotus-explore-rs/`       | 200                           |
-  | `https://lotus-initiative.github.io/lotus-explore-rs/search`  | 301 -> `.../search/`          |
-  | `https://lotus-initiative.github.io/lotus-explore-rs/search/` | 200, byte-identical to root   |
-  | `https://lotus-initiative.github.io/lotus-explore-rs/llms.txt`| 200 `text/plain`              |
+| Request                                                        | Result                      |
+| -------------------------------------------------------------- | --------------------------- |
+| `https://lotus-initiative.github.io/lotus-explore-rs/`         | 200                         |
+| `https://lotus-initiative.github.io/lotus-explore-rs/search`   | 301 -> `.../search/`        |
+| `https://lotus-initiative.github.io/lotus-explore-rs/search/`  | 200, byte-identical to root |
+| `https://lotus-initiative.github.io/lotus-explore-rs/llms.txt` | 200 `text/plain`            |
 
 That trailing-slash 301 is worth knowing about: GitHub Pages serves a directory
 only when the request has the slash, and the client-side routes are directories
@@ -55,12 +55,12 @@ either is missed.
 Use `rg --hidden` for the full count: `.well-known/` is a dotfile directory, so
 ripgrep skips it by default and the census looks smaller than it is.
 
-  | File                          | Kind          | On a CNAME change                                                     |
-  | ----------------------------- | ------------- | --------------------------------------------------------------------- |
-  | `metadata/site-metadata.json` | **source**    | **Edit `base_url`. This is the change.**                              |
-  | `index.html`                  | hand-written  | **Edit 2 URLs**: `og:url`, JSON-LD `url`. A test fails if you do not. |
-  | `build.rs`                    | test fixtures | No action. Pinned to the real host on purpose.                        |
-  | `docs/DEPLOYMENT.md`          | prose         | No action. A measurement of the old host is history.                  |
+| File                          | Kind          | On a CNAME change                                                     |
+| ----------------------------- | ------------- | --------------------------------------------------------------------- |
+| `metadata/site-metadata.json` | **source**    | **Edit `base_url`. This is the change.**                              |
+| `index.html`                  | hand-written  | **Edit 2 URLs**: `og:url`, JSON-LD `url`. A test fails if you do not. |
+| `build.rs`                    | test fixtures | No action. Pinned to the real host on purpose.                        |
+| `docs/DEPLOYMENT.md`          | prose         | No action. A measurement of the old host is history.                  |
 
 So a CNAME change is: edit `base_url`, edit the two `index.html` URLs, rebuild.
 Nothing else in the tree names the host as a value.
@@ -119,10 +119,10 @@ file should be a Markdown file containing at least one H1 header", unscored. The
 description is generic; the actual failure is that **Lighthouse fetches
 `/llms.txt` at the origin root, and this app is served from a subpath.**
 
-  | Request                                             | Result                       |
-  | --------------------------------------------------- | ---------------------------- |
-  | `https://lotus.nprod.net/llms.txt`                  | **404** `text/html`, 14390 B |
-  | `https://lotus.nprod.net/lotus-explore-rs/llms.txt` | 200 `text/plain`, 3501 B     |
+| Request                                             | Result                       |
+| --------------------------------------------------- | ---------------------------- |
+| `https://lotus.nprod.net/llms.txt`                  | **404** `text/html`, 14390 B |
+| `https://lotus.nprod.net/lotus-explore-rs/llms.txt` | 200 `text/plain`, 3501 B     |
 
 The origin root is the **LOTUS home site**, a different deployment that this
 repository does not publish to, so the 404 body is that site's HTML. The file
@@ -160,11 +160,11 @@ There are two ways an audit can find the file, and the second is now correct:
 
 The three WebMCP audits come back empty or not applicable:
 
-  | Audit                        | Result against the live host                       |
-  | ---------------------------- | -------------------------------------------------- |
-  | `webmcp-registered-tools`    | informative, empty list                             |
-  | `webmcp-form-coverage`       | not applicable                                      |
-  | `webmcp-schema-validity`     | not applicable                                      |
+| Audit                     | Result against the live host |
+| ------------------------- | ---------------------------- |
+| `webmcp-registered-tools` | informative, empty list      |
+| `webmcp-form-coverage`    | not applicable               |
+| `webmcp-schema-validity`  | not applicable               |
 
 Measured with Lighthouse 13.5.0 against `https://lotus.nprod.net/lotus-explore-rs/`.
 Every form in the client did carry `toolname` and `tooldescription`
@@ -196,19 +196,19 @@ HTTPS". The finding is correct and it is **not fixable from this repository**.
 
 Measured on the live host:
 
-  | Request                                     | Result                     |
-  | ------------------------------------------- | -------------------------- |
-  | `http://lotus.nprod.net/lotus-explore-rs/`  | **200 OK** over plain HTTP |
-  | `https://lotus.nprod.net/lotus-explore-rs/` | 200                        |
+| Request                                     | Result                     |
+| ------------------------------------------- | -------------------------- |
+| `http://lotus.nprod.net/lotus-explore-rs/`  | **200 OK** over plain HTTP |
+| `https://lotus.nprod.net/lotus-explore-rs/` | 200                        |
 
 `lotus.nprod.net` is a CNAME to `lotusnprod.github.io`, so the site is served by
 GitHub Pages, and GitHub Pages does not implement `_redirects`. Two independent
 measurements confirm the file is inert there:
 
-  | Probe                                                        | Expected if honoured | Actual  |
-  | ------------------------------------------------------------ | -------------------- | ------- |
-  | `/lotus-explore-rs/no-such-route` (the `/* 200` SPA rewrite) | 200                  | **404** |
-  | `Strict-Transport-Security` from `_headers`                  | present              | absent  |
+| Probe                                                        | Expected if honoured | Actual  |
+| ------------------------------------------------------------ | -------------------- | ------- |
+| `/lotus-explore-rs/no-such-route` (the `/* 200` SPA rewrite) | 200                  | **404** |
+| `Strict-Transport-Security` from `_headers`                  | present              | absent  |
 
 The redirect is a repository setting, not a file: **Settings → Pages → Enforce
 HTTPS**. It is off, which is why HTTP is answered with `200` instead of `301`.
@@ -238,11 +238,11 @@ What is worth recording is that turning COOP on is **safe for this app**, since
 that is the usual reason it stays off. The three things that break under
 `same-origin` were each checked:
 
-  | Risk under COOP                                                                | This app                                                                                                                                            |
-  | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | A popup that writes back through `window.opener`                               | No read of `window.opener` anywhere. The two `open_with_url*` call sites are download triggers, where severing the opener is the desired behaviour. |
-  | `target="_blank"` links losing their opener                                    | Every one already carries `rel="noopener noreferrer"`, so the protection COOP adds is already in place per-link.                                    |
-  | COOP+COEP together setting `crossOriginIsolated`, which some apps then require | No `SharedArrayBuffer`, no `Atomics`, no `crossOriginIsolated` check. The wasm module needs neither.                                                |
+| Risk under COOP                                                                | This app                                                                                                                                            |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A popup that writes back through `window.opener`                               | No read of `window.opener` anywhere. The two `open_with_url*` call sites are download triggers, where severing the opener is the desired behaviour. |
+| `target="_blank"` links losing their opener                                    | Every one already carries `rel="noopener noreferrer"`, so the protection COOP adds is already in place per-link.                                    |
+| COOP+COEP together setting `crossOriginIsolated`, which some apps then require | No `SharedArrayBuffer`, no `Atomics`, no `crossOriginIsolated` check. The wasm module needs neither.                                                |
 
 The Ketcher iframe at `assets/ketcher/index.html` is same-origin, so it is
 unaffected by COEP `credentialless`, and COOP does not gate iframes at all.
@@ -261,12 +261,12 @@ Pages / Netlify syntax. GitHub Pages has no equivalent and ignores it.
 
 Measured on the live host:
 
-  | Header                      | In `_headers`  | Actually sent               |
-  | --------------------------- | -------------- | --------------------------- |
-  | `Content-Security-Policy`   | yes            | absent                      |
-  | `X-Frame-Options`           | yes            | absent                      |
-  | `Strict-Transport-Security` | yes            | absent                      |
-  | `Cache-Control`             | per-path rules | `max-age=600` on everything |
+| Header                      | In `_headers`  | Actually sent               |
+| --------------------------- | -------------- | --------------------------- |
+| `Content-Security-Policy`   | yes            | absent                      |
+| `X-Frame-Options`           | yes            | absent                      |
+| `Strict-Transport-Security` | yes            | absent                      |
+| `Cache-Control`             | per-path rules | `max-age=600` on everything |
 
 So the security headers and the cache policy in `_headers` are documentation of
 intent for a future CDN, not a description of the current host. `_headers` is
@@ -280,13 +280,13 @@ Turning `_headers` on is not a no-op for the page. Lighthouse 13.5.0 against the
 release bundle behind a static server that applies this file, mobile, before and
 after the three fixes below:
 
-  | Category                     | Before | After |
-| ----------------------------- | ------ | ----- |
-| accessibility                 | 95     | 100   |
-| best-practices                | 92     | 100   |
-| seo                           | 91     | 100   |
-| agentic-browsing              | 100    | 100   |
-| what the browser showed       | an unstyled "Loading the explorer…" forever |
+| Category                | Before                                      | After |
+| ----------------------- | ------------------------------------------- | ----- |
+| accessibility           | 95                                          | 100   |
+| best-practices          | 92                                          | 100   |
+| seo                     | 91                                          | 100   |
+| agentic-browsing        | 100                                         | 100   |
+| what the browser showed | an unstyled "Loading the explorer…" forever |
 
 Three separate faults, all of them invisible on GitHub Pages precisely because
 it sends no CSP:
@@ -313,10 +313,10 @@ it sends no CSP:
    the theme effect, the RDKit bridge, the example buttons. Measured without it,
    the theme effect threw an `EvalError`, an effect in the same flush panicked
    (`RuntimeError: unreachable`), and the boot shell was never removed --- the
-   page rendered *behind* "Loading the explorer…" forever.
+   page rendered _behind_ "Loading the explorer…" forever.
 
    `'unsafe-eval'` is now in the policy, and `require-trusted-types-for
-   'script'` is out of it, which is not a preference: `eval` is a Trusted Types
+'script'` is out of it, which is not a preference: `eval` is a Trusted Types
    sink, and a policy written in JavaScript cannot return a `TrustedScript`, so
    the two directives cannot both stand with a Dioxus client. The default policy
    `index.html` creates is still there --- first in its inline script, ahead of
@@ -342,10 +342,10 @@ The cache rule is still the largest host-level performance win, because the
 content-hashed glue and the 1.4 MB module are immutable by construction while
 every returning visitor revalidates both after 600 s:
 
-  | Asset                                       | `_headers` asks for           | Actually sent |
-  | ------------------------------------------- | ----------------------------- | ------------- |
-  | `assets/lotus-explore-rs-dxh<hash>.js`      | `max-age=31536000, immutable` | `max-age=600` |
-  | `assets/lotus-explore-rs_bg-dxh<hash>.wasm` | `max-age=31536000, immutable` | `max-age=600` |
+| Asset                                       | `_headers` asks for           | Actually sent |
+| ------------------------------------------- | ----------------------------- | ------------- |
+| `assets/lotus-explore-rs-dxh<hash>.js`      | `max-age=31536000, immutable` | `max-age=600` |
+| `assets/lotus-explore-rs_bg-dxh<hash>.wasm` | `max-age=31536000, immutable` | `max-age=600` |
 
 Until this moves to a CDN host, that part is a deployment decision (move off
 GitHub Pages or front it), not something a change to this repository can fix.
@@ -356,19 +356,19 @@ GitHub Pages or front it), not something a change to this repository can fix.
 everything under `assets/`. Those siblings are uploaded and are individually
 fetchable:
 
-  | Request                       | Result                                  |
-  | ----------------------------- | --------------------------------------- |
-  | `assets/lotus-explore.css`    | 200, `content-encoding: gzip`, 9852 B   |
-  | `assets/lotus-explore.css.br` | 200, `application/octet-stream`, 8360 B |
+| Request                       | Result                                  |
+| ----------------------------- | --------------------------------------- |
+| `assets/lotus-explore.css`    | 200, `content-encoding: gzip`, 9852 B   |
+| `assets/lotus-explore.css.br` | 200, `application/octet-stream`, 8360 B |
 
 The host gzips on the fly and never negotiates the precompressed brotli. The
 consequence is measurable on the critical path, measured 2026-10-05 against the
 live host with `curl`:
 
-  | Encoding | wasm transfer | how it is reached                    |
-  | -------- | ------------- | ------------------------------------ |
-  | brotli   | 526 KiB       | requested directly; nothing links it |
-  | gzip     | 690 KiB       | what `Accept-Encoding: br` still gets |
+| Encoding | wasm transfer | how it is reached                     |
+| -------- | ------------- | ------------------------------------- |
+| brotli   | 526 KiB       | requested directly; nothing links it  |
+| gzip     | 690 KiB       | what `Accept-Encoding: br` still gets |
 
 164 KiB, worth roughly 0.8 s at mobile throttling --- a larger LCP lever than
 every optimisation in [`PERFORMANCE.md`](PERFORMANCE.md) combined. The `.br`

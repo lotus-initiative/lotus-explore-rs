@@ -6,16 +6,16 @@ query from being written three times, and it is checkable.
 
 ## The crates
 
-  | Crate                   | Contains                                                                              | Depends on                   |
-  | ---                     | ---                                                                                   | ---                          |
-  | `lotus-model`           | Domain types, filter semantics, structure classification, validation                  | `serde`, `thiserror`         |
-  | `lotus-query`           | SPARQL construction, CSV parsing, export formats                                      | `lotus-model`                |
-  | `lotus-search`          | The search use case: taxon resolution, retries, QLever→WDQS fallback, result assembly | `lotus-model`, `lotus-query` |
-  | `lotus-curation`        | The curation vocabulary, the TSV reader, QuickStatements bundling                     | `serde`, `thiserror`         |
-  | `lotus-jsonld`          | Bioschemas JSON-LD, CodeMeta, `CITATION.cff`                                          | `lotus-model`                |
-  | `lotus-cli`             | The `lotus` binary                                                                    | all of the above             |
-  | `lotus-web-assets`      | Vendors Ketcher and RDKit into `public/assets`, preloads the built wasm               | —                            |
-  | `apps/lotus-explore-rs` | The web client and its optional native server                                         | the five above               |
+| Crate                   | Contains                                                                              | Depends on                   |
+| ----------------------- | ------------------------------------------------------------------------------------- | ---------------------------- |
+| `lotus-model`           | Domain types, filter semantics, structure classification, validation                  | `serde`, `thiserror`         |
+| `lotus-query`           | SPARQL construction, CSV parsing, export formats                                      | `lotus-model`                |
+| `lotus-search`          | The search use case: taxon resolution, retries, QLever→WDQS fallback, result assembly | `lotus-model`, `lotus-query` |
+| `lotus-curation`        | The curation vocabulary, the TSV reader, QuickStatements bundling                     | `serde`, `thiserror`         |
+| `lotus-jsonld`          | Bioschemas JSON-LD, CodeMeta, `CITATION.cff`                                          | `lotus-model`                |
+| `lotus-cli`             | The `lotus` binary                                                                    | all of the above             |
+| `lotus-web-assets`      | Vendors Ketcher and RDKit into `public/assets`, preloads the built wasm               | —                            |
+| `apps/lotus-explore-rs` | The web client and its optional native server                                         | the five above               |
 
 The arrows all point inward. `lotus-model` and `lotus-curation` depend on no
 other crate in the workspace, which is why they can hold the vocabulary that
@@ -50,7 +50,7 @@ inward now. [`FRONTENDS.md`](FRONTENDS.md) has the later instance of the same
 failure and why a duplicated dispatch is invisible to tests.
 
 Two things came out of that refactor and look odd without knowing it:
-`SearchCriteria` has no `Default`, because "no filters" is a value *plus a year*
+`SearchCriteria` has no `Default`, because "no filters" is a value _plus a year_
 and the old `default()` supplied the year by reading a clock; and
 `has_year_filter`, `has_effective_filters` and `with_filters` take the year as an
 argument, because the application has the clock.

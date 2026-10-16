@@ -6,12 +6,12 @@ implementations of the search: `lotus-model`, `lotus-query`, `lotus-search`,
 a thin shell over them. This document is about what differs between them, and
 why.
 
-  | Front end | Crate                                      | Built by                                | Talks to                 |
-  | ---       | ---                                        | ---                                     | ---                      |
-  | Web       | `apps/lotus-explore-rs` (`dioxus/web`)     | `dx build --platform web`               | QLever / WDQS over HTTPS |
-  | Desktop   | `apps/lotus-explore-rs` (`dioxus/desktop`) | `dx serve --desktop --features desktop` | QLever / WDQS over HTTPS |
-  | CLI       | `crates/lotus-cli`                         | `cargo build`                           | QLever / WDQS over HTTPS |
-  | HTTP API  | `apps/lotus-explore-rs` (`server` feature) | `cargo run --features server`           | QLever / WDQS over HTTPS |
+| Front end | Crate                                      | Built by                                | Talks to                 |
+| --------- | ------------------------------------------ | --------------------------------------- | ------------------------ |
+| Web       | `apps/lotus-explore-rs` (`dioxus/web`)     | `dx build --platform web`               | QLever / WDQS over HTTPS |
+| Desktop   | `apps/lotus-explore-rs` (`dioxus/desktop`) | `dx serve --desktop --features desktop` | QLever / WDQS over HTTPS |
+| CLI       | `crates/lotus-cli`                         | `cargo build`                           | QLever / WDQS over HTTPS |
+| HTTP API  | `apps/lotus-explore-rs` (`server` feature) | `cargo run --features server`           | QLever / WDQS over HTTPS |
 
 All four hit the same public endpoints, so a query that works in one works in
 all four. The API is the fourth, not a variation on the web client: it exists so
@@ -143,7 +143,7 @@ along with three more helpers copied from `lotus-search`: the structure
 normaliser, the taxon-name standardiser and the `is_qid` test. It then drifted.
 The library resolves the `*` wildcard to no QID, because a wildcard names no
 Wikidata entity; the server resolved it to `Some("*")` and so had to treat "no
-QID" as a wildcard --- which is also what an *empty* taxon box produces. The
+QID" as a wildcard --- which is also what an _empty_ taxon box produces. The
 result was that the API answered "what has been reported, and where" for a blank
 box while the browser answered "what exists".
 

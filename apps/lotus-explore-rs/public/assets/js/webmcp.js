@@ -47,7 +47,9 @@
           return;
         }
         if (Date.now() > deadline) {
-          reject(new Error(selector + " did not appear; is this the right route?"));
+          reject(
+            new Error(selector + " did not appear; is this the right route?"),
+          );
           return;
         }
         setTimeout(poll, POLL_INTERVAL_MS);
@@ -62,9 +64,10 @@
   }
 
   function writeValue(element, value) {
-    var prototype = element instanceof HTMLTextAreaElement
-      ? HTMLTextAreaElement.prototype
-      : HTMLInputElement.prototype;
+    var prototype =
+      element instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement.prototype
+        : HTMLInputElement.prototype;
     var setter = Object.getOwnPropertyDescriptor(prototype, "value").set;
     setter.call(element, value == null ? "" : String(value));
     fire(element, ["input", "change"]);
@@ -131,7 +134,10 @@
     // requestSubmit, not submit: it fires the submit event, so the framework's
     // own handler runs. A bare `form.submit()` would be a silent no-op here.
     if (typeof form.requestSubmit === "function") form.requestSubmit();
-    else form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    else
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
     return message;
   }
 
@@ -153,43 +159,50 @@
     properties: {
       taxon: {
         type: "string",
-        description: "Taxon scientific name, common name, Wikidata QID, or * for all taxa."
+        description:
+          "Taxon scientific name, common name, Wikidata QID, or * for all taxa.",
       },
       reference: {
         type: "string",
-        description: "Reference as a Wikidata QID or a DOI."
+        description: "Reference as a Wikidata QID or a DOI.",
       },
       smiles: {
         type: "string",
         description:
-          "Structure, compound name or InChIKey. A name or InChIKey is resolved to its Wikidata compound; anything else is sent to the structure service as written."
+          "Structure, compound name or InChIKey. A name or InChIKey is resolved to its Wikidata compound; anything else is sent to the structure service as written.",
       },
-      mass_min: { type: "number", description: "Minimum molecular mass in Da." },
-      mass_max: { type: "number", description: "Maximum molecular mass in Da." },
+      mass_min: {
+        type: "number",
+        description: "Minimum molecular mass in Da.",
+      },
+      mass_max: {
+        type: "number",
+        description: "Maximum molecular mass in Da.",
+      },
       year_min: { type: "integer", description: "Minimum publication year." },
       year_max: { type: "integer", description: "Maximum publication year." },
       formula_exact: {
         type: "string",
-        description: "Exact molecular formula filter, e.g. C7H5O5N."
+        description: "Exact molecular formula filter, e.g. C7H5O5N.",
       },
       formula_enabled: {
         type: "boolean",
-        description: "Whether the formula filter is applied."
+        description: "Whether the formula filter is applied.",
       },
       stype: {
         type: "string",
         enum: ["exact", "substructure", "similarity"],
         description:
-          "How the resolved compound is searched: that compound only, or every compound containing / similar to it."
-      }
+          "How the resolved compound is searched: that compound only, or every compound containing / similar to it.",
+      },
     },
-    additionalProperties: true
+    additionalProperties: true,
   };
 
   register({
     name: "search_lotus",
     description:
-      "Search LOTUS natural-product occurrences by taxon, structure or compound name, reference, mass range, publication year and formula, and show the resulting triples. Use this for any question of the form \"which compounds were reported for X\".",
+      'Search LOTUS natural-product occurrences by taxon, structure or compound name, reference, mass range, publication year and formula, and show the resulting triples. Use this for any question of the form "which compounds were reported for X".',
     inputSchema: SEARCH_SCHEMA,
     annotations: {
       // It runs a read query, but it does change what the page shows, so this is
@@ -198,7 +211,7 @@
       // which is what untrustedContentHint is for.
       readOnlyHint: false,
       consequentialHint: false,
-      untrustedContentHint: true
+      untrustedContentHint: true,
     },
     execute: function (input) {
       return whenReady("#lotus-search-form").then(function (form) {
@@ -225,22 +238,32 @@
               return;
             }
             if (Date.now() > deadline) {
-              resolve("The search was submitted but no result rows appeared within 30s.");
+              resolve(
+                "The search was submitted but no result rows appeared within 30s.",
+              );
               return;
             }
             setTimeout(poll, 250);
           })();
         });
       });
-    }
+    },
   });
 
   register({
     name: "get_lotus_search_state",
     description:
       "Read the search form's current criteria without running a search. Use it to check what a previous search_lotus call actually applied.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
-    annotations: { readOnlyHint: true, consequentialHint: false, untrustedContentHint: false },
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+    annotations: {
+      readOnlyHint: true,
+      consequentialHint: false,
+      untrustedContentHint: false,
+    },
     execute: function () {
       return whenReady("#lotus-search-form").then(function (form) {
         var read = function (selector) {
@@ -255,9 +278,10 @@
           mass_max: read("#mass-max"),
           year_min: read("#year-min"),
           year_max: read("#year-max"),
-          formula_enabled: (form.querySelector("#formula-enabled") || {}).checked,
+          formula_enabled: (form.querySelector("#formula-enabled") || {})
+            .checked,
           formula_exact: read("#formula-exact"),
-          stype: null
+          stype: null,
         };
         var radios = form.querySelectorAll('input[name="stype"]');
         for (var i = 0; i < radios.length; i += 1) {
@@ -265,7 +289,7 @@
         }
         return JSON.stringify(state, null, 2);
       });
-    }
+    },
   });
 
   // The curation tools change the curation queue, so they are registered only on
@@ -280,17 +304,23 @@
         type: "object",
         properties: {
           name: { type: "string", description: "Compound name." },
-          smiles: { type: "string", description: "SMILES representation of the structure." },
+          smiles: {
+            type: "string",
+            description: "SMILES representation of the structure.",
+          },
           taxon: { type: "string", description: "Taxon name or identifier." },
-          doi: { type: "string", description: "Optional DOI of the source publication." }
+          doi: {
+            type: "string",
+            description: "Optional DOI of the source publication.",
+          },
         },
         required: ["name", "smiles"],
-        additionalProperties: true
+        additionalProperties: true,
       },
       annotations: {
         readOnlyHint: false,
         consequentialHint: false,
-        untrustedContentHint: true
+        untrustedContentHint: true,
       },
       execute: function (input) {
         return whenReady("#lotus-curation-add-row-form").then(function (form) {
@@ -300,7 +330,7 @@
           setField("#curation-doi-input", input.doi);
           return submitAndSummarise(form, "Row added to the curation queue.");
         });
-      }
+      },
     });
 
     register({
@@ -312,23 +342,26 @@
         properties: {
           tsv: {
             type: "string",
-            description: "TSV rows with name, SMILES, taxon and DOI columns."
-          }
+            description: "TSV rows with name, SMILES, taxon and DOI columns.",
+          },
         },
         required: ["tsv"],
-        additionalProperties: true
+        additionalProperties: true,
       },
       annotations: {
         readOnlyHint: false,
         consequentialHint: false,
-        untrustedContentHint: true
+        untrustedContentHint: true,
       },
       execute: function (input) {
         return whenReady("#lotus-curation-tsv-form").then(function (form) {
           setField("#curation-tsv-input", input.tsv);
-          return submitAndSummarise(form, "TSV parsed into the curation queue.");
+          return submitAndSummarise(
+            form,
+            "TSV parsed into the curation queue.",
+          );
         });
-      }
+      },
     });
   }
 })();

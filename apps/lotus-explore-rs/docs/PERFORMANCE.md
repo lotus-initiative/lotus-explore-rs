@@ -17,12 +17,12 @@ unknown paths to `index.html`. The production host does **none** of those four,
 because it is GitHub Pages, which implements none of them. Measured on
 2026-10-05 against the then-live host `lotus.nprod.net`:
 
-| what the harness does | the live host actually does |
-| --------------------- | --------------------------- |
-| serves the 527 KiB `.br` | serves 679 KiB of gzip, `.br` deployed but never requested |
-| sends a validator | sends `ETag` |
-| applies `_headers` | ignored: no CSP, no `immutable`, no HSTS, no `Link:` |
-| rewrites paths to `index.html` | ignored: `/faq` 301s to `/faq/` |
+| what the harness does          | the live host actually does                                |
+| ------------------------------ | ---------------------------------------------------------- |
+| serves the 527 KiB `.br`       | serves 679 KiB of gzip, `.br` deployed but never requested |
+| sends a validator              | sends `ETag`                                               |
+| applies `_headers`             | ignored: no CSP, no `immutable`, no HSTS, no `Link:`       |
+| rewrites paths to `index.html` | ignored: `/faq` 301s to `/faq/`                            |
 
 So a PageSpeed run against the live host measures a **larger** module than any
 figure in this file, and a **shorter** cache lifetime, and will not match them.
@@ -43,12 +43,12 @@ Two more differences that catch people out:
 
 Four things that harness has to do, and what each one costs when it does not:
 
-| what the server does                                      | what goes wrong without it                                             |
-| -------------------------------------------------------- | ---------------------------------------------------------------------- |
-| serves the `.br` sibling for `Accept-Encoding: br`         | 679 KiB of on-the-fly gzip instead of 527 KiB, \~\ 0.74 s at mobile     |
-| sends an `ETag` or `Last-Modified`                         | Chrome re-fetches every repeated URL and invents a 7 % regression       |
-| applies `_headers`                                         | it carries the CSP, and the app does not boot without it               |
-| rewrites unknown paths to `index.html`, as `_redirects` does | `/search` 404s and the audit measures an error page                     |
+| what the server does                                         | what goes wrong without it                                          |
+| ------------------------------------------------------------ | ------------------------------------------------------------------- |
+| serves the `.br` sibling for `Accept-Encoding: br`           | 679 KiB of on-the-fly gzip instead of 527 KiB, \~\ 0.74 s at mobile |
+| sends an `ETag` or `Last-Modified`                           | Chrome re-fetches every repeated URL and invents a 7 % regression   |
+| applies `_headers`                                           | it carries the CSP, and the app does not boot without it            |
+| rewrites unknown paths to `index.html`, as `_redirects` does | `/search` 404s and the audit measures an error page                 |
 
 ## Where the time goes
 
@@ -67,14 +67,14 @@ total scripting is \~430 ms and total blocking time is 20--45 ms.
 Measured again on 2026-10-05 with Lighthouse 13.5.0 against a release bundle
 behind a server doing all four of the above, on a page that renders:
 
-  | Metric                  | mobile  | desktop |
-  | ----------------------- | ------- | ------- |
-  | LCP                     | 3930 ms | 804 ms  |
-  | FCP                     | 754 ms  | 215 ms  |
-  | LCP render delay        | 87 ms   | 80 ms   |
-  | total blocking time     | 2 ms    | 0 ms    |
-  | cumulative layout shift | 0       | 0       |
-  | performance score       | 88      | 100     |
+| Metric                  | mobile  | desktop |
+| ----------------------- | ------- | ------- |
+| LCP                     | 3930 ms | 804 ms  |
+| FCP                     | 754 ms  | 215 ms  |
+| LCP render delay        | 87 ms   | 80 ms   |
+| total blocking time     | 2 ms    | 0 ms    |
+| cumulative layout shift | 0       | 0       |
+| performance score       | 88      | 100     |
 
 Total transfer is 594 KB, of which the module is 542 KB, and the module request
 starts 19 ms after the document as a link preload, so the mobile number is still
@@ -89,23 +89,23 @@ not a fast page.
 
 ## What shipped
 
-  | Change               | wasm raw | wasm br | wasm gzip | transfer |
-  | -------------------- | -------- | ------- | --------- | -------- |
-  | `codegen-units = 16` | 1533738  | 485247  | 627861    | 518.4 KB |
-  | `codegen-units = 1`  | 1468720  | 467094  | 599227    | 499.5 KB |
-  |                      | −4.24 %  | −3.74 % | −4.56 %   | −3.6 %   |
+| Change               | wasm raw | wasm br | wasm gzip | transfer |
+| -------------------- | -------- | ------- | --------- | -------- |
+| `codegen-units = 16` | 1533738  | 485247  | 627861    | 518.4 KB |
+| `codegen-units = 1`  | 1468720  | 467094  | 599227    | 499.5 KB |
+|                      | −4.24 %  | −3.74 % | −4.56 %   | −3.6 %   |
 
 Cost: `dx build` goes from 103 s to 128 s.
 
 Lighthouse, mobile and desktop, light and dark, 3 rounds each, median:
 
-  | Metric       | `cgu=16` | `cgu=1`  |
-  | ------------ | -------- | -------- |
-  | perf mobile  | 89       | 89       |
-  | perf desktop | 100      | 100      |
-  | LCP mobile   | 3752 ms  | 3752 ms  |
-  | LCP desktop  | 722 ms   | 722 ms   |
-  | TBT mobile   | 45/54 ms | 42/21 ms |
+| Metric       | `cgu=16` | `cgu=1`  |
+| ------------ | -------- | -------- |
+| perf mobile  | 89       | 89       |
+| perf desktop | 100      | 100      |
+| LCP mobile   | 3752 ms  | 3752 ms  |
+| LCP desktop  | 722 ms   | 722 ms   |
+| TBT mobile   | 45/54 ms | 42/21 ms |
 
 The performance score does not move, and this document does not pretend
 otherwise. 3.7 % off the payload is \~80 ms of transfer, which is inside the
@@ -116,13 +116,13 @@ run-to-run spread of a metric whose dominant term is a 2.3 s download.
 Each of these was built and measured rather than reasoned about. Sizes are
 `./mk web-bytes` output for a release `dx build`.
 
-  | Experiment                        | raw     | br     | gz     | verdict                  |
-  | --------------------------------- | ------- | ------ | ------ | ------------------------ |
-  | baseline: `opt-level=z`, `cgu=16` | 1529038 | 484149 | 624171 | reference                |
-  | `opt-level=s`, `cgu=16`           | 1684551 | 504455 | 665153 | **worse**, +4.2 % brotli |
-  | `opt-level=z`, `cgu=1`            | 1463410 | 465858 | 597064 | **kept**                 |
-  | `+ panic = "abort"`               | 1465621 | 466744 | 598085 | **no-op**, +13 B raw     |
-  | `dioxus/devtools` off             | 1463423 | 465709 | 597095 | **no-op**, ±0.03 %       |
+| Experiment                        | raw     | br     | gz     | verdict                  |
+| --------------------------------- | ------- | ------ | ------ | ------------------------ |
+| baseline: `opt-level=z`, `cgu=16` | 1529038 | 484149 | 624171 | reference                |
+| `opt-level=s`, `cgu=16`           | 1684551 | 504455 | 665153 | **worse**, +4.2 % brotli |
+| `opt-level=z`, `cgu=1`            | 1463410 | 465858 | 597064 | **kept**                 |
+| `+ panic = "abort"`               | 1465621 | 466744 | 598085 | **no-op**, +13 B raw     |
+| `dioxus/devtools` off             | 1463423 | 465709 | 597095 | **no-op**, ±0.03 %       |
 
 All of the above were taken with a bare `dx build`. The release build --- the
 path the Dockerfile runs --- was compiling at `opt-level=s` for part of this
@@ -169,7 +169,7 @@ mod devtools;
 ```
 
 The runtime hook is gated on `debug_assertions`, which a release build sets to
-false. The `devtools` *feature* only adds `dioxus-core/serialize` (serde derives
+false. The `devtools` _feature_ only adds `dioxus-core/serialize` (serde derives
 that are never monomorphised, because nothing serialises a `VirtualDom`) and two
 unused `web-sys` bindings. Confirmed three ways on a build with the feature off:
 
@@ -226,13 +226,13 @@ a different cache slot and the module is fetched twice.
 Measured from the real request timings, Lighthouse `devtools` throttling at 1.6
 Mbit/s / 150 ms:
 
-  |                         | before                       | after                        |
-  | ----------------------- | ---------------------------- | ---------------------------- |
-  | module request starts   | 520252 ms after the document | 220055 ms after the document |
-  | observed LCP            | 3114 ms                      | 2940 ms                      |
-  | simulated LCP, 5 rounds | 3752 ms                      | 3606 ms light / 3624 ms dark |
-  | perf mobile, 5 rounds   | 89                           | 90 light / 90 dark           |
-  | TBT mobile              | 37 / 17 ms                   | 11 / 0 ms                    |
+|                         | before                       | after                        |
+| ----------------------- | ---------------------------- | ---------------------------- |
+| module request starts   | 520252 ms after the document | 220055 ms after the document |
+| observed LCP            | 3114 ms                      | 2940 ms                      |
+| simulated LCP, 5 rounds | 3752 ms                      | 3606 ms light / 3624 ms dark |
+| perf mobile, 5 rounds   | 89                           | 90 light / 90 dark           |
+| TBT mobile              | 37 / 17 ms                   | 11 / 0 ms                    |
 
 The module now starts in the same \~9 ms window as the CSS and the glue instead
 of 300 s behind them. This is the only LCP win in this document that came from
@@ -273,12 +273,12 @@ the Dioxus JS interpreter snippets.
 
 Measured on this workspace, dev wasm from identical source:
 
-  | dev rustc args                    | dev wasm    | build   |
-  | --------------------------------- | ----------- | ------- |
-  | default                           | 63.6 MiB    | 42 s    |
-  | `-Copt-level=1`                   | 60.1 MiB    | 14 s    |
-  | `-Cdebuginfo=0`                   | 37.5 MiB    | 12 s    |
-  | `-Cdebuginfo=0 -Cstrip=debuginfo` | **6.4 MiB** | **6 s** |
+| dev rustc args                    | dev wasm    | build   |
+| --------------------------------- | ----------- | ------- |
+| default                           | 63.6 MiB    | 42 s    |
+| `-Copt-level=1`                   | 60.1 MiB    | 14 s    |
+| `-Cdebuginfo=0`                   | 37.5 MiB    | 12 s    |
+| `-Cdebuginfo=0 -Cstrip=debuginfo` | **6.4 MiB** | **6 s** |
 
 Optimising barely moves it; the debug sections are the entire cost, and writing
 them is most of the build time. The dev server now strips them, which is a 10x
@@ -302,7 +302,7 @@ ETag the repeats become 304s and the same page measures 499 KB.
 Any harness that serves the bundle must send a validator, or it will report a
 phantom cost. The other thing to know is that `build.rs` runs
 `clean_dx_output()`, which deletes `target/dx/<app>/<profile>/web/public` on
-*any* wasm compile of the app. `./mk ci` runs
+_any_ wasm compile of the app. `./mk ci` runs
 `cargo check --target wasm32-unknown-unknown`, so the CI gate silently destroys
 the last `dx` bundle. Always run `dx build` after `./mk ci` if you intend to
 measure afterwards. It can also strike mid-build: a `web-build` failed on
@@ -327,7 +327,7 @@ noticed.
 
 It also failed to run at all on macOS. The portable `size()` fell through to
 GNU `stat -c%s` when BSD `stat` rejected the macOS form, and the usage error from
-the *fallback* — not anything about the measurement — was what surfaced.
+the _fallback_ — not anything about the measurement — was what surfaced.
 
 The script is now non-destructive, and refuses rather than repairs:
 
@@ -366,13 +366,13 @@ then attributed by parsing the name section against the code section. The
 shipped 1.4 MB module is 74.5 % code and 23.8 % data across \~6,500 functions.
 Split by area:
 
-  | Area                              | Bytes     | Share  |
-  | --------------------------------- | --------- | ------ |
-  | Curation page and its services    | 149,130   | 10.9 % |
-  | Results table and viewport        | 116,070   | 8.5 %  |
-  | Search panel and form             | 75,721    | 5.6 %  |
-  | Draw page / Ketcher panel         | 267       | 0.0 %  |
-  | Shared framework, std, i18n, rest | 1,026,281 | 75.3 % |
+| Area                              | Bytes     | Share  |
+| --------------------------------- | --------- | ------ |
+| Curation page and its services    | 149,130   | 10.9 % |
+| Results table and viewport        | 116,070   | 8.5 %  |
+| Search panel and form             | 75,721    | 5.6 %  |
+| Draw page / Ketcher panel         | 267       | 0.0 %  |
+| Shared framework, std, i18n, rest | 1,026,281 | 75.3 % |
 
 Three quarters of the module is the floor under the app: dioxus, web-sys,
 reqwest, serde, std and the four locale tables. The largest single feature, the

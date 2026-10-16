@@ -21,7 +21,11 @@
       "description": "Retrieve publication metadata by DOI",
       "url": "https://doi.org/",
       "protocol": "HTTP",
-      "accepts": ["text/plain", "application/json", "application/vnd.citationstyles.csl+json"],
+      "accepts": [
+        "text/plain",
+        "application/json",
+        "application/vnd.citationstyles.csl+json"
+      ],
       "type": "read-only",
       "documentation": "https://www.doi.org/"
     },

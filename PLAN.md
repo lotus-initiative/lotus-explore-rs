@@ -13,7 +13,7 @@ Living document. Updated as work proceeds so it survives a crash or a lost conte
 1. No `cargo mutants` until the disk question is settled. See BLOCKER-1.
 2. Run `./mk fmt` before committing; it rewrites files in place.
 3. Verify with `cargo test --workspace --all-features`, `cargo clippy --workspace
-   --all-targets --all-features` and the wasm clippy, not a subset.
+--all-targets --all-features` and the wasm clippy, not a subset.
 4. Never edit `apps/lotus-explore-rs/src/services/error_presenter.rs` — it is
    rustfmt-dirty on a clean tree and is not ours.
 
@@ -94,7 +94,7 @@ Living document. Updated as work proceeds so it survives a crash or a lost conte
   formats** (`ExportUrlResponse` has csv/json/rdf plus gz variants), so no backend
   change was needed.
 - **Evaluated, and the change made:** a download was routed by
-  `is_wdqs_fallback_used()`, i.e. by which transport served the *search*. So any search
+  `is_wdqs_fallback_used()`, i.e. by which transport served the _search_. So any search
   answered by QLever produced a QLever download even when the API could export fine.
   The API is now tried first, unconditionally; QLever is demoted to the fallback it
   should have been, and still runs if the API yields no URL.
@@ -102,12 +102,12 @@ Living document. Updated as work proceeds so it survives a crash or a lost conte
   export re-runs the query server-side and so cannot see client-side column filters.
   But the WDQS route exports the same server-side `query` and does not apply them
   either. Both routes export the result set, not the filtered view, so switching
-  changes the *host*, not the contents. `filters-vs-query` in the FAQ says this.
+  changes the _host_, not the contents. `filters-vs-query` in the FAQ says this.
 - **`select_export_url` -> `api_export_url`, now `Option`:** an empty URL field used to
   be handed to the browser, which would download the current page under the name of the
   results.
 - **Verification:** still not done. `api_export_url` is `#[cfg(target_arch =
-  "wasm32")]` and has no caller outside `download/wasm.rs:250`, so a test for it has to
+"wasm32")]` and has no caller outside `download/wasm.rs:250`, so a test for it has to
   live in a `wasm32` test module. That is now possible — see KNOWN GAP below, which is
   closed — but the test has not been written. This is the one piece of the session with
   no test on it.
@@ -131,11 +131,11 @@ Living document. Updated as work proceeds so it survives a crash or a lost conte
 
 - **Status:** open, pre-existing, not introduced this session
 - The wasm test target now compiles: `cargo clippy --target wasm32-unknown-unknown -p
-  lotus-explore-rs --all-targets` is clean. `RouteQuery::from_encoded`,
+lotus-explore-rs --all-targets` is clean. `RouteQuery::from_encoded`,
   `build_search_cache_key`, `build_export_cache_key` and `SearchMetrics::add_parse`
   were each gated out of wasm and reached by the tests below them; all four are now
   `#[cfg(any(not(target_arch = "wasm32"), test))]`, which is the fix this gap called for.
-- **What is still open:** CI lints the wasm *build*, not its test target, so a test in
+- **What is still open:** CI lints the wasm _build_, not its test target, so a test in
   a `#[cfg(target_arch = "wasm32")]` module can look green in review without ever having
   run. `api_export_url` (TASK-3) is the one such helper with no test at all.
 - **Fix:** either run the wasm test target in CI, or move the pure parts of the wasm

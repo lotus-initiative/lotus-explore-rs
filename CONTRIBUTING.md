@@ -77,16 +77,16 @@ follow them.
 
 ## Where a change goes
 
-  | You are changing | It belongs in |
-  | --- | --- |
-  | A domain type, a filter rule, validation | `lotus-model` |
-  | A SPARQL string, a CSV column, an export format | `lotus-query` |
-  | Which endpoint, when to retry, taxon resolution | `lotus-search` |
-  | A curation row, a statement, the TSV reader | `lotus-curation` |
-  | JSON-LD, CodeMeta, CITATION | `lotus-jsonld` |
-  | A flag, an output format, an exit code | `lotus-cli` |
-  | How many rows this machine renders, the clock, cache keys | the app |
-  | Anything a person sees | the app |
+| You are changing                                          | It belongs in    |
+| --------------------------------------------------------- | ---------------- |
+| A domain type, a filter rule, validation                  | `lotus-model`    |
+| A SPARQL string, a CSV column, an export format           | `lotus-query`    |
+| Which endpoint, when to retry, taxon resolution           | `lotus-search`   |
+| A curation row, a statement, the TSV reader               | `lotus-curation` |
+| JSON-LD, CodeMeta, CITATION                               | `lotus-jsonld`   |
+| A flag, an output format, an exit code                    | `lotus-cli`      |
+| How many rows this machine renders, the clock, cache keys | the app          |
+| Anything a person sees                                    | the app          |
 
 The rule behind the table is **a crate that can be pure is pure**: no HTTP, no
 clock, no async runtime in the four library crates, checked in CI by building
@@ -97,7 +97,7 @@ year is meant to be an argument. The reasoning is in
 ## Two things that will bite you
 
 **`SearchCriteria` has no `Default`.** "No filters" is not a value, it is a
-value *plus a year*, so the constructor is `SearchCriteria::up_to_year(year)`.
+value _plus a year_, so the constructor is `SearchCriteria::up_to_year(year)`.
 Use the year your caller has.
 
 **Name the crate, not a shim.** There are no `models.rs` or `queries.rs`

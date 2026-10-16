@@ -15,20 +15,21 @@ literals are removed so the dots in `https://…` are not counted. Neither is a
 cost measurement: a longer query is not a slower query, and the endpoint's time
 is dominated by the patterns it has to resolve, not by the text.
 
-| cell | bytes | triples | occurrence |
-|---|---|---|---|
-| taxon=absent structure=absent reference=absent | 2454 | 13 | optional |
-| taxon=absent structure=absent reference=present | 2478 | 13 | optional |
-| taxon=absent structure=present reference=absent | 2390 | 14 | optional |
-| taxon=absent structure=present reference=present | 2414 | 14 | optional |
-| taxon=specific structure=absent reference=absent | 2842 | 15 | required |
-| taxon=specific structure=absent reference=present | 2866 | 15 | required |
-| taxon=specific structure=present reference=absent | 2774 | 16 | required |
-| taxon=specific structure=present reference=present | 2798 | 16 | required |
-| taxon="*" structure=absent reference=absent | 2473 | 13 | required |
-| taxon="*" structure=absent reference=present | 2497 | 13 | required |
-| taxon="*" structure=present reference=absent | 2390 | 14 | optional |
-| taxon="*" structure=present reference=present | 2414 | 14 | optional |
+| cell                                               | bytes | triples | occurrence |
+| -------------------------------------------------- | ----- | ------- | ---------- |
+| taxon=absent structure=absent reference=absent     | 2454  | 13      | optional   |
+| taxon=absent structure=absent reference=present    | 2478  | 13      | optional   |
+| taxon=absent structure=present reference=absent    | 2390  | 14      | optional   |
+| taxon=absent structure=present reference=present   | 2414  | 14      | optional   |
+| taxon=specific structure=absent reference=absent   | 2842  | 15      | required   |
+| taxon=specific structure=absent reference=present  | 2866  | 15      | required   |
+| taxon=specific structure=present reference=absent  | 2774  | 16      | required   |
+| taxon=specific structure=present reference=present | 2798  | 16      | required   |
+| taxon="*" structure=absent reference=absent        | 2473  | 13      | required   |
+| taxon="*" structure=absent reference=present       | 2497  | 13      | required   |
+| taxon="*" structure=present reference=absent       | 2390  | 14      | optional   |
+| taxon="*" structure=present reference=present      | 2414  | 14      | optional   |
+
 ## How to read it
 
 **`occurrence` is the column that matters.** `required` means `P703` is a plain
@@ -111,13 +112,13 @@ payload, which belongs to the server rather than to the query.
 
 Two things follow that are worth a human's attention rather than a change here:
 
-- The **CLI** goes through `lotus-search::search`, which *does* cap at
+- The **CLI** goes through `lotus-search::search`, which _does_ cap at
   `DEFAULT_ROW_LIMIT` (500) and sets a `truncated` flag, because it is a library
   default rather than the interactive path. The two front ends therefore have
   genuinely different limits, which is defensible but should be known.
 - An empty taxon therefore really does ask the endpoint for the entire
   projection — measured elsewhere in this repo at 2,990,730 rows and ~873 MB of
-  CSV. Nothing caps it below that on the web path. The reader *is* told, in the
+  CSV. Nothing caps it below that on the web path. The reader _is_ told, in the
   FAQ entry `empty-taxon-box`. What remains open is whether to cap it, or make an
   empty box mean the narrower question; both are product calls.
 
@@ -140,21 +141,21 @@ The twelve cells are not twelve queries. They collapse into **six base shapes**
 plus **orthogonal filter layers**, and the layers compose with any shape. Measured
 from `lotus search --explain`, not asserted:
 
-| Base shape | bytes | taxon closure | occurrence | structure service |
-|---|---|---|---|---|
-| nothing given | 2,195 | none | **optional** | no |
-| `*` | 2,247 | none | required | no |
-| named taxon, nomenclature on | 2,616 | nomenclatural subquery, then `P171*` | required | no |
-| named taxon, nomenclature off | 2,284 | bare `P171*` | required | no |
-| structure only | 2,169 | none | **optional** | yes |
-| structure + named taxon | 2,553 | nomenclatural subquery, then `P171*` | required | yes |
+| Base shape                    | bytes | taxon closure                        | occurrence   | structure service |
+| ----------------------------- | ----- | ------------------------------------ | ------------ | ----------------- |
+| nothing given                 | 2,195 | none                                 | **optional** | no                |
+| `*`                           | 2,247 | none                                 | required     | no                |
+| named taxon, nomenclature on  | 2,616 | nomenclatural subquery, then `P171*` | required     | no                |
+| named taxon, nomenclature off | 2,284 | bare `P171*`                         | required     | no                |
+| structure only                | 2,169 | none                                 | **optional** | yes               |
+| structure + named taxon       | 2,553 | nomenclatural subquery, then `P171*` | required     | yes               |
 
-| Filter layer | What it adds | Composes with |
-|---|---|---|
-| reference | `VALUES ?r { wd:… }` in the outer `WHERE` | every shape |
-| mass | `?c wdt:P2067` + a `FILTER` on the projected mass | every shape |
-| year | `FILTER(BOUND(?ref_year) && YEAR(?ref_year) …)` — no triple of its own | every shape |
-| formula | element-count binds + a `FILTER` | every shape |
+| Filter layer | What it adds                                                           | Composes with |
+| ------------ | ---------------------------------------------------------------------- | ------------- |
+| reference    | `VALUES ?r { wd:… }` in the outer `WHERE`                              | every shape   |
+| mass         | `?c wdt:P2067` + a `FILTER` on the projected mass                      | every shape   |
+| year         | `FILTER(BOUND(?ref_year) && YEAR(?ref_year) …)` — no triple of its own | every shape   |
+| formula      | element-count binds + a `FILTER`                                       | every shape   |
 
 So the answer to "is it one query with filters bolted on" is **no, and it is not
 close to no**: the taxon argument alone selects between three different closure
@@ -179,7 +180,7 @@ audit properly.
 
 An earlier version of this section reported a bug: for `taxon=Q16521` the
 generated query returned zero rows while a hand-written reconstruction returned
-one distinct compound. **There was no bug.** `Q16521` is Wikidata's *taxon rank*
+one distinct compound. **There was no bug.** `Q16521` is Wikidata's _taxon rank_
 item, not a taxon, so zero rows is the correct answer and the reconstruction was
 wrong.
 

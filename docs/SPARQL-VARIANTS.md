@@ -11,19 +11,19 @@ code: the harness reads what the application would actually send.
 
 ## The measurements
 
-Taxon `Q21754` (*Gentianales*), nomenclature all on. Completeness is measured
+Taxon `Q21754` (_Gentianales_), nomenclature all on. Completeness is measured
 first and separately from speed, because a variant that is faster because it
 joins less is not an optimisation. 2026-10-04.
 
 ### Step 1 — completeness, via `COUNT` (cheap, not subject to result truncation)
 
-| Form | distinct compounds | total rows |
-|---|---|---|
-| two subqueries (current) | **11,087** | not stable — see below |
-| interleaved single path | 11,008 | 27,831 |
+| Form                     | distinct compounds | total rows             |
+| ------------------------ | ------------------ | ---------------------- |
+| two subqueries (current) | **11,087**         | not stable — see below |
+| interleaved single path  | 11,008             | 27,831                 |
 
 **The row counts in this document are not reproducible, and never were.** Two
-tables below recorded the *same* query as 27,952 and as 32,160. Running it three
+tables below recorded the _same_ query as 27,952 and as 32,160. Running it three
 times on one day gives 31,519, then 0, then a hard failure:
 
 ```
@@ -61,11 +61,11 @@ The closure for this taxon is **two taxa** — `Q21754` and one synonym,
 `Q2102991` — which is what `nomenclature_path` predicts ("a handful of items, not
 a subtree; measured at 1 to 2 hops on every taxon tested").
 
-| Form | distinct compounds | **server ms** | wall |
-|---|---|---|---|
-| two subqueries (current) | 11,087 | 9,716 | 61.85 s |
-| interleaved | 11,008 — lossy | — | — |
-| **inlined `VALUES`** | **11,087** | **4,860** | **41.90 s** |
+| Form                     | distinct compounds | **server ms** | wall        |
+| ------------------------ | ------------------ | ------------- | ----------- |
+| two subqueries (current) | 11,087             | 9,716         | 61.85 s     |
+| interleaved              | 11,008 — lossy     | —             | —           |
+| **inlined `VALUES`**     | **11,087**         | **4,860**     | **41.90 s** |
 
 The `total rows` column is gone from this table on purpose. It read 32,160 for both
 surviving forms, which is what made the inlined form look byte-identical; the rows
@@ -78,7 +78,7 @@ counts and runs in half the time.** 50% off the endpoint's compute, 32% off wall
 clock including result transfer.
 
 The saving is far larger on the full query (4,856 ms) than on the bare `COUNT`
-(528 ms), which is the interesting part. Removing a join *early* in a query that
+(528 ms), which is the interesting part. Removing a join _early_ in a query that
 then computes `DISTINCT` over fourteen projected columns saves a great deal of
 duplicate intermediate work — the `COUNT` never pays that cost, so a count-based
 comparison would have understated this by an order of magnitude. **Compare on the
@@ -94,7 +94,7 @@ It does not have to be. The closure is a function of `(taxon, nomenclature)` alo
 and does not depend on any user filter, so it is cacheable per taxon. Amortised,
 the cost is ~0 and the saving is the full 4.9 s per search.
 
-**Why this is not simply committed:** it changes what the query *is*. The query
+**Why this is not simply committed:** it changes what the query _is_. The query
 text stops being a pure function of the form input and becomes a function of
 `(taxon, nomenclature, closure-at-time-T)`. Consequences, all of which a caller
 has to agree to:
@@ -133,7 +133,7 @@ opened to settle, and it is an uncomfortable one:
 - The cost is not hypothetical: the app's own documentation measures a
   2,990,730-row, ~873 MB export as the widest search, and
   `crates/lotus-query/tests/bench.rs` measures 5.5 s to parse it from CSV.
-- On the *library* path there is a cap (`DEFAULT_ROW_LIMIT`, 500) that puts a
+- On the _library_ path there is a cap (`DEFAULT_ROW_LIMIT`, 500) that puts a
   `LIMIT` in the query. The two front ends differ here, and only the library one
   is bounded.
 
@@ -145,7 +145,7 @@ they are open rather than fixed here.
 
 Also not measured: the trimmed form (dropping the `rdfs:label` `OPTIONAL`s and
 their `FILTER(LANG(…))`), and `counts_query` against the full select. Both are
-cheap to measure on a *bounded* taxon and would be the next thing to run; neither
+cheap to measure on a _bounded_ taxon and would be the next thing to run; neither
 was attempted because the rate limiting below had already used the budget.
 
 ## Limits, and hitting them
@@ -199,8 +199,8 @@ computed by QLever, serialised, and sent on all 723,990 rows.
 
 Measured on `Q21754`, both against the live endpoint with `Accept-Encoding: gzip`:
 
-| Form | rows | raw | wire | wall |
-|---|---|---|---|---|
+| Form              | rows   | raw        | wire      | wall   |
+| ----------------- | ------ | ---------- | --------- | ------ |
 | projecting `?ref` | 32,160 | 18,385,046 | 4,215,824 | 4.95 s |
 | not projecting it | 32,160 | 15,973,042 | 3,522,695 | 3.31 s |
 
@@ -214,7 +214,7 @@ projection is free for the Turtle export, because `construct_from_select` replac
 everything from the first `SELECT` to the first `WHERE` with a hardcoded
 `CONSTRUCT` template -- so the projection is discarded and `?ref` stays bound by
 the innermost `?ref pr:P248 ?r` regardless. That is true, and it is true only of
-the *endpoint* path. There is a second Turtle exporter, `RowExporter`, which
+the _endpoint_ path. There is a second Turtle exporter, `RowExporter`, which
 builds triples from the parsed `ColumnarResultSet` rather than from a CONSTRUCT.
 That one had no `?ref` at all, so it emitted
 
@@ -226,7 +226,7 @@ through two references produced two identical triples and the occurrences were
 indistinguishable. Two exporters, two code paths, one of which the measurement
 never exercised.
 
-**It cannot be cast to an integer.** `?ref` is a reference *node*:
+**It cannot be cast to an integer.** `?ref` is a reference _node_:
 
     http://www.wikidata.org/reference/9642f33c41767b8a0f7cb06de523c17dda0b921d
 
@@ -249,16 +249,16 @@ them:
     (SUBSTR(STR(?ref_date), 1, 4)            AS ?ref_year)
 
 They need new names because QLever refuses an `AS` clause whose target already
-appears in the body -- and `?ref_date` *is* in the body whenever the year filter is
+appears in the body -- and `?ref_date` _is_ in the body whenever the year filter is
 on. `RowExporter` puts the namespaces back when it writes Turtle, which is where the
 URI is actually wanted.
 
 Measured on `Q21754`, cumulatively:
 
-| step | raw | wire |
-|---|---|---|
-| both URIs, whole | 18,385,046 | 4,217,812 |
-| identities instead of URIs | 15,973,054 | 4,089,281 |
+| step                           | raw        | wire      |
+| ------------------------------ | ---------- | --------- |
+| both URIs, whole               | 18,385,046 | 4,217,812 |
+| identities instead of URIs     | 15,973,054 | 4,089,281 |
 | year instead of `xsd:dateTime` | 15,143,494 | 4,007,601 |
 
 **17.6% off the raw payload and 5.0% off the wire.** The gap between those two
@@ -295,12 +295,12 @@ Measured on the unnarrowed query: 0 rows carry only the isomeric SMILES, 484,788
 carry both, and 239,202 carry only the connection-table one. So 67% of rows send
 a `compound_smiles_conn` that is thrown away -- and the projection is what
 `DISTINCT` distinguishes on. Sending one coalesced column merges rows that were
-distinct *only* in `compound_smiles_conn`:
+distinct _only_ in `compound_smiles_conn`:
 
-| Form | rows |
-|---|---|
-| both columns projected | 32,160 |
-| one coalesced column | **31,024** |
+| Form                   | rows       |
+| ---------------------- | ---------- |
+| both columns projected | 32,160     |
+| one coalesced column   | **31,024** |
 
 1,136 rows fewer, and they are not duplicates in any sense the table can show. An
 example, differing in nothing else:
@@ -312,7 +312,7 @@ compound_smiles_conn c1cc(c(cc1C(=O)O)O)O   vs   C1=CC(=C(C=C1C(=O)O)O)O
 ```
 
 Two spellings of the same structure, aromatic and kekulised, on one Wikidata
-item. Because the isomeric column is empty here, the parser was *displaying* the
+item. Because the isomeric column is empty here, the parser was _displaying_ the
 connection-table value -- so the table showed two rows for one occurrence with two
 different SMILES strings, and coalescing deletes one of them.
 
@@ -335,22 +335,22 @@ each row's dictionary value once, then compare `u32`s.
 Implemented and measured on this machine, release build, seven samples, medians,
 using this file's own payload generator so the data is the recorded data:
 
-| rows | by value | by rank | |
-|---|---|---|---|
-| 500,000 | 5.0 ms | 222.3 ms | 44x slower |
-| 1,000,000 | 10.2 ms | 463.1 ms | 45x slower |
-| 2,000,000 | 50.1 ms | 962.3 ms | 19x slower |
+| rows      | by value | by rank  |            |
+| --------- | -------- | -------- | ---------- |
+| 500,000   | 5.0 ms   | 222.3 ms | 44x slower |
+| 1,000,000 | 10.2 ms  | 463.1 ms | 45x slower |
+| 2,000,000 | 50.1 ms  | 962.3 ms | 19x slower |
 
 The orders were identical, so the ranking was correct. It is also worthless, for a
 reason worth writing down: **ranking has to compare the values too.** Grouping
-them into a `BTreeSet` to assign ranks is `O(distinct log distinct)` *string*
+them into a `BTreeSet` to assign ranks is `O(distinct log distinct)` _string_
 comparisons, and filling the rank lookup is the same again. The sort it was meant
 to accelerate then does `O(n log n)` integer comparisons instead of `O(n log n)`
 string comparisons -- so the string work is paid twice rather than once. The
 premise that ranking removes the comparisons is simply false; it only changes
 which loop pays for them.
 
-The one shape where it would pay is grouping by *dictionary slot* rather than by
+The one shape where it would pay is grouping by _dictionary slot_ rather than by
 value, which makes the grouping integer-keyed. That was written first, and it is
 wrong: absence is a property of the resolved value, not of the slot. A row can
 name a taxon slot that holds no name, and it compares equal to a row with no taxon

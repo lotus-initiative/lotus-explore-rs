@@ -7,7 +7,14 @@
     },
     "graphify": {
       "command": "uvx",
-      "args": ["--from", "graphifyy", "python", "-m", "graphify.serve", "graphify-out/graph.json"],
+      "args": [
+        "--from",
+        "graphifyy",
+        "python",
+        "-m",
+        "graphify.serve",
+        "graphify-out/graph.json"
+      ],
       "type": "stdio"
     }
   }

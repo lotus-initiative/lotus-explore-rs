@@ -1,15 +1,15 @@
 # Taxon search and nomenclatural names
 
 > **Reader-facing answer lives on the FAQ.** What a search does and what each switch
-> changes is now on `/faq`, translated. This file keeps the *engineering rationale*:
+> changes is now on `/faq`, translated. This file keeps the _engineering rationale_:
 > why the query is shaped this way, what was measured, and which failure each decision
 > avoids.
 
-A taxon search in LOTUS does not ask one question. It asks *"which compounds
-were reported from this organism?"*, and the organism a paper names is rarely
+A taxon search in LOTUS does not ask one question. It asks _"which compounds
+were reported from this organism?"_, and the organism a paper names is rarely
 the organism Wikidata files the compound under. Taxonomy is revised; the
-publications are not. *Leontopodium nivale* was found to be the same species as
-the long-known *Leontopodium alpinum*, and every compound ever reported from
+publications are not. _Leontopodium nivale_ was found to be the same species as
+the long-known _Leontopodium alpinum_, and every compound ever reported from
 either name is a compound from that plant.
 
 So a taxon search follows the taxon's **nomenclatural closure**: the name you
@@ -23,10 +23,10 @@ The closure starts from a QID, so something has to turn the text in the box into
 one first. Two properties are consulted, in this order, and which one answered is
 carried through to the notice bar:
 
-| Order | Property | What it is | Advice |
-| --- | --- | --- | --- |
-| first | [`P225`](https://www.wikidata.org/wiki/Property:P225) *taxon name* | the scientific name | **type this one** |
-| fallback | [`P1843`](https://www.wikidata.org/wiki/Property:P1843) *taxon common name* | what prose calls the organism | resolves, with a notice saying so |
+| Order    | Property                                                                    | What it is                    | Advice                            |
+| -------- | --------------------------------------------------------------------------- | ----------------------------- | --------------------------------- |
+| first    | [`P225`](https://www.wikidata.org/wiki/Property:P225) _taxon name_          | the scientific name           | **type this one**                 |
+| fallback | [`P1843`](https://www.wikidata.org/wiki/Property:P1843) _taxon common name_ | what prose calls the organism | resolves, with a notice saying so |
 
 The fallback exists because refusing it is a worse answer than a labelled one.
 Someone who typed `bitterwort` and got "not found" would go to Wikidata to perform
@@ -36,7 +36,7 @@ by the common name — a name that is not what publications file compounds under
 and the same word can name unrelated organisms in different languages.
 
 The four nomenclatural switches below are about a different axis entirely. Those
-expand *one* taxon into *its other names*. This is about finding the taxon at all,
+expand _one_ taxon into _its other names_. This is about finding the taxon at all,
 from text. They compose: a common name gets you the QID, and then the closure
 does its usual work from there.
 
@@ -48,14 +48,14 @@ separate facts about how Wikidata stores these two properties. Each was found by
 a name that returned nothing when it should not have.
 
 **`P1843` has to be read as statements, not as truthy values.** `wdt:P1843`
-collapses a taxon to its *preferred rank* value. *Gentiana lutea*
+collapses a taxon to its _preferred rank_ value. _Gentiana lutea_
 ([Q158572](https://www.wikidata.org/wiki/Q158572)) carries **65** common names; `wdt:P1843` returns exactly one of
 them. Everything else — including `bitterwort` and `yellow gentian` — is unreachable
 through it. `p:P1843/ps:P1843` returns all 65.
 
 Wikidata is a live graph, so that number is a snapshot and drifts as curation proceeds.
 It was **72** here at one point, which is worth recording as the reason the tests assert
-the *behaviour* ("the statement path returns every common name the truthy path hides")
+the _behaviour_ ("the statement path returns every common name the truthy path hides")
 rather than the figure.
 
 The same collapse applies to `P225`, at a scale worth writing down rather than
@@ -69,10 +69,10 @@ have to become a scan.
 `bitterwort` with an `@en` tag, and a bare literal is not equal to a tagged one in
 SPARQL. So `VALUES ?name { "bitterwort" } ?taxon wdt:P1843 ?name` matches nothing
 — at any capitalisation, for any input. The scientific query works precisely
-because `Gentiana lutea` is an *untagged* literal, which is why the difference
+because `Gentiana lutea` is an _untagged_ literal, which is why the difference
 looks like missing data rather than a broken query. Matching `STR()` against the
 lexical form drops the tag, and the tag has to go: a common name is the word a
-reader reaches for in *their* language, so pinning the match to `@en` would break
+reader reaches for in _their_ language, so pinning the match to `@en` would break
 the feature for most of the people who would use it.
 
 **Case is not consistent.** `P1843` stores whatever a curator typed. Q158572
@@ -98,11 +98,11 @@ a slower way to learn the same thing.
 
 ### What each lookup costs, measured
 
-| Lookup | Shape | Rows scanned | Time (QLever) |
-| --- | --- | --- | --- |
-| scientific name | `VALUES` + `wdt:P225` | indexed | ~0.3s |
-| common name | `p:P1843/ps:P1843` + `LCASE(STR())` | 818,120 | ~2.5s |
-| either, once resolved | cached in process | — | ~0s |
+| Lookup                | Shape                               | Rows scanned | Time (QLever) |
+| --------------------- | ----------------------------------- | ------------ | ------------- |
+| scientific name       | `VALUES` + `wdt:P225`               | indexed      | ~0.3s         |
+| common name           | `p:P1843/ps:P1843` + `LCASE(STR())` | 818,120      | ~2.5s         |
+| either, once resolved | cached in process                   | —            | ~0s           |
 
 The cache holds the QID, the chosen label, **and which property it came from**, so
 a repeat search reproduces the same notice rather than silently losing the
@@ -122,33 +122,33 @@ relationships below.
 Each is stored twice in Wikidata, once from each end, and the four are
 independent of each other.
 
-| Relationship | Wikidata pair | Chronological? |
-| --- | --- | --- |
-| **accepted name ↔ its synonyms** | [`P1420`](https://www.wikidata.org/wiki/Property:P1420) *taxon synonym* / [`P12763`](https://www.wikidata.org/wiki/Property:P12763) *taxon synonym of* | **no** |
-| **new combination ↔ its basionym** | [`P566`](https://www.wikidata.org/wiki/Property:P566) *basionym* / [`P12766`](https://www.wikidata.org/wiki/Property:P12766) *basionym of* | yes |
-| **current name ↔ its original combination** | [`P1403`](https://www.wikidata.org/wiki/Property:P1403) *original combination* / [`P12765`](https://www.wikidata.org/wiki/Property:P12765) *protonym of* | yes |
-| **replacement name ↔ what it replaced** | [`P694`](https://www.wikidata.org/wiki/Property:P694) *replaced synonym (for nom. nov.)* / [`P12764`](https://www.wikidata.org/wiki/Property:P12764) *replaced synonym of* | yes |
+| Relationship                                | Wikidata pair                                                                                                                                                              | Chronological? |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| **accepted name ↔ its synonyms**            | [`P1420`](https://www.wikidata.org/wiki/Property:P1420) _taxon synonym_ / [`P12763`](https://www.wikidata.org/wiki/Property:P12763) _taxon synonym of_                     | **no**         |
+| **new combination ↔ its basionym**          | [`P566`](https://www.wikidata.org/wiki/Property:P566) _basionym_ / [`P12766`](https://www.wikidata.org/wiki/Property:P12766) _basionym of_                                 | yes            |
+| **current name ↔ its original combination** | [`P1403`](https://www.wikidata.org/wiki/Property:P1403) _original combination_ / [`P12765`](https://www.wikidata.org/wiki/Property:P12765) _protonym of_                   | yes            |
+| **replacement name ↔ what it replaced**     | [`P694`](https://www.wikidata.org/wiki/Property:P694) _replaced synonym (for nom. nov.)_ / [`P12764`](https://www.wikidata.org/wiki/Property:P12764) _replaced synonym of_ | yes            |
 
 ### The vocabulary
 
-**A basionym** is the name under which a taxon was *first* described, and which
+**A basionym** is the name under which a taxon was _first_ described, and which
 therefore fixes the type specimen. When the genus is later reassigned, the
 specific epithet is carried across and a **new combination** is published — the
-basionym is retired, though it stays valid as a synonym. *Houpoea officinalis*
-is a new combination; *Magnolia officinalis* is its basionym, the name the
+basionym is retired, though it stays valid as a synonym. _Houpoea officinalis_
+is a new combination; _Magnolia officinalis_ is its basionym, the name the
 species was originally described under. All 226 LOTUS compounds for that plant
 are filed under the basionym.
 
 **An original combination** is the binomial exactly as first published, before
 any later reclassification. Its zoological mirror image is a **protonym** —
-*original combination* and *protonym* are the botanical and zoological words for
-the same idea, and Wikidata keeps a property for each. *Gonyaulax tamarensis*
-is the original combination of *Alexandrium tamarense*, a dinoflagellate that
+_original combination_ and _protonym_ are the botanical and zoological words for
+the same idea, and Wikidata keeps a property for each. _Gonyaulax tamarensis_
+is the original combination of _Alexandrium tamarense_, a dinoflagellate that
 was moved between genera.
 
-**A replacement name** — a ***nomen novum*** — exists because the old name
+**A replacement name** — a _**nomen novum**_ — exists because the old name
 cannot be used at all. Usually the old name is a **homonym**, already taken by
-a different taxon. *Salvia rosmarinus* replaced *Rosmarinus officinalis*, which
+a different taxon. _Salvia rosmarinus_ replaced _Rosmarinus officinalis_, which
 had turned out to be illegitimate.
 
 **An accepted name** is the one a taxonomic authority currently endorses, and
@@ -158,14 +158,14 @@ relationship with **no chronology**.
 ### Why accepted/synonym is not "old/new"
 
 `P1420` links an accepted name to another name for the same taxon, and which of
-the two is older is neither recorded nor implied. A synonym is *often* the older
+the two is older is neither recorded nor implied. A synonym is _often_ the older
 name — that is usually why it stopped being used — but it can equally be a name
 coined later and then found to be superfluous.
 
-*Leontopodium nivale* and *Leontopodium alpinum* are joined by `P1420` in
-Wikidata, and *nivale* is the **junior** name. Labelling that edge "old → new"
-would be exactly backwards. So this pair is called *accepted / synonym* and the
-other three are called *old / new*: they are different questions, and a single
+_Leontopodium nivale_ and _Leontopodium alpinum_ are joined by `P1420` in
+Wikidata, and _nivale_ is the **junior** name. Labelling that edge "old → new"
+would be exactly backwards. So this pair is called _accepted / synonym_ and the
+other three are called _old / new_: they are different questions, and a single
 "include synonyms" switch over all four cannot tell you which one you just
 turned off.
 
@@ -175,13 +175,13 @@ The two axes are deliberately kept apart. A basionym is usually a synonym now,
 but under a different taxonomic opinion that very basionym may be the accepted
 name again. And a new combination is sometimes itself a rejected synonym. So:
 
-* **accepted vs. synonym** is a *taxonomic* judgement, and it can change;
-* **old vs. new** is a *nomenclatural* fact, and it does not.
+- **accepted vs. synonym** is a _taxonomic_ judgement, and it can change;
+- **old vs. new** is a _nomenclatural_ fact, and it does not.
 
 Neither determines the other, which is why Wikidata stores them under four
 separate property pairs and why this tool offers four separate switches.
 
-### Why `P1531` (*hybrid of*) is excluded
+### Why `P1531` (_hybrid of_) is excluded
 
 [`P1531`](https://www.wikidata.org/wiki/Property:P1531) looks like it belongs
 here and deliberately does not. A hybrid is a **different organism with a
@@ -189,9 +189,9 @@ parent of its own** in the taxonomic tree; `P1531` records which parent it was
 bred from — provenance, not identity. Every relationship above asserts that
 two names denote the same taxon, which is the one thing that makes a compound
 filed under one of them a compound from the other. Searching for
-*Nepeta x catariensis* and receiving everything reported from *Nepeta cataria*
+_Nepeta x catariensis_ and receiving everything reported from _Nepeta cataria_
 would answer a different question, and one no botanist would ask for by
-accident. It is also *asymmetric in the wrong direction*: the hybrid is the
+accident. It is also _asymmetric in the wrong direction_: the hybrid is the
 subject, so following it from a parent would pull in every garden hybrid ever
 bred from that parent, compounding at every generation.
 
@@ -207,46 +207,46 @@ holds every row in a columnar set and takes the counts from that set, so the num
 the UI cannot disagree with the rows on screen. A test asserts no count query is issued
 on that path.
 
-| Taxon | accepted/synonym off | basionym off | original comb. off | replacement off | all four on |
-| --- | --- | --- | --- | --- | --- |
-| [Q178265](https://www.wikidata.org/wiki/Q178265) *Leontopodium nivale* | **0** | 33 | 33 | 33 | 33 |
-| [Q92823857](https://www.wikidata.org/wiki/Q92823857) *Houpoea officinalis* | 226 | **0** | 226 | 226 | 226 |
-| [Q104396170](https://www.wikidata.org/wiki/Q104396170) *Gonyaulax tamarensis* | 10 | 10 | **8** | 10 | 10 |
-| [Q102240169](https://www.wikidata.org/wiki/Q102240169) *Salvia rosmarinus* | 304 | 304 | 304 | **25** | 304 |
-| [Q122679](https://www.wikidata.org/wiki/Q122679) *Rosmarinus officinalis* | 304 | 304 | 304 | **302** | 304 |
+| Taxon                                                                         | accepted/synonym off | basionym off | original comb. off | replacement off | all four on |
+| ----------------------------------------------------------------------------- | -------------------- | ------------ | ------------------ | --------------- | ----------- |
+| [Q178265](https://www.wikidata.org/wiki/Q178265) _Leontopodium nivale_        | **0**                | 33           | 33                 | 33              | 33          |
+| [Q92823857](https://www.wikidata.org/wiki/Q92823857) _Houpoea officinalis_    | 226                  | **0**        | 226                | 226             | 226         |
+| [Q104396170](https://www.wikidata.org/wiki/Q104396170) _Gonyaulax tamarensis_ | 10                   | 10           | **8**              | 10              | 10          |
+| [Q102240169](https://www.wikidata.org/wiki/Q102240169) _Salvia rosmarinus_    | 304                  | 304          | 304                | **25**          | 304         |
+| [Q122679](https://www.wikidata.org/wiki/Q122679) _Rosmarinus officinalis_     | 304                  | 304          | 304                | **302**         | 304         |
 
 Read across and each row is a different relationship doing the work:
 
-* ***Leontopodium nivale*** has no compounds of its own and no `P171` path to
-  any that do. It carries `P1420` to its accepted name *Leontopodium alpinum*,
+- _**Leontopodium nivale**_ has no compounds of its own and no `P171` path to
+  any that do. It carries `P1420` to its accepted name _Leontopodium alpinum_,
   which has 33. Only the accepted/synonym switch finds them.
-* ***Houpoea officinalis*** is a recent new combination for what was
-  *Magnolia officinalis*, and every one of the 226 compounds is filed under the
+- _**Houpoea officinalis**_ is a recent new combination for what was
+  _Magnolia officinalis_, and every one of the 226 compounds is filed under the
   basionym. Only the basionym switch finds them — and with it off the search
   returns **nothing at all**, which is the same failure mode as the
-  *Leontopodium* case, arrived at from a different direction.
-* ***Gonyaulax tamarensis*** was moved to *Alexandrium tamarense*. Two of the
+  _Leontopodium_ case, arrived at from a different direction.
+- _**Gonyaulax tamarensis**_ was moved to _Alexandrium tamarense_. Two of the
   ten compounds are filed under the new genus and the original combination adds
   them. The smallest effect of the four, and the reason to have a switch for it
   anyway: a user comparing two names of the same organism should not have to
   know that this particular reclassification is recorded as a protonym rather
   than a basionym.
-* ***Salvia rosmarinus*** and ***Rosmarinus officinalis*** are the same plant,
+- _**Salvia rosmarinus**_ and _**Rosmarinus officinalis**_ are the same plant,
   joined by both replacement properties. Off, they return 25 and 302 — disjoint
   halves of one organism. On, both return 304.
 
 ## The two names that were returning half a plant
 
-*Salvia rosmarinus* (`Q102240169`) replaced *Rosmarinus officinalis*
+_Salvia rosmarinus_ (`Q102240169`) replaced _Rosmarinus officinalis_
 (`Q122679`), and the LOTUS data is split along the seam: 31 compounds under the
 new name, 595 under the old.
 
-| | rows | taxa matched |
-| --- | --- | --- |
-| `Q122679` *Rosmarinus officinalis* — replacement off | 595 | *Rosmarinus officinalis* (595) |
-| `Q122679` *Rosmarinus officinalis* — on | 626 | both, 595 + 31 |
-| `Q102240169` *Salvia rosmarinus* — off | 31 | *Salvia rosmarinus* (31) |
-| `Q102240169` *Salvia rosmarinus* — on | 626 | both, 595 + 31 |
+|                                                      | rows | taxa matched                   |
+| ---------------------------------------------------- | ---- | ------------------------------ |
+| `Q122679` _Rosmarinus officinalis_ — replacement off | 595  | _Rosmarinus officinalis_ (595) |
+| `Q122679` _Rosmarinus officinalis_ — on              | 626  | both, 595 + 31                 |
+| `Q102240169` _Salvia rosmarinus_ — off               | 31   | _Salvia rosmarinus_ (31)       |
+| `Q102240169` _Salvia rosmarinus_ — on                | 626  | both, 595 + 31                 |
 
 With the switch on, **both searches return the same 626 rows over the same two
 taxa** and both report 304 distinct compounds. Two spellings, one organism, one
@@ -255,25 +255,25 @@ answer.
 The genus-level version of this is larger. `Rosmarinus` is nested inside
 `Salvia` in the accepted classification, but `P171` alone does not connect them
 — Wikidata carries it as a nomenclatural synonym (`P1420`/`P12763`) with a
-subgenus node (`Q90595061`, *Salvia subg. Rosmarinus*) in between:
+subgenus node (`Q90595061`, _Salvia subg. Rosmarinus_) in between:
 
-| | rows | compounds | taxa |
-| --- | --- | --- | --- |
-| *Salvia* — off | 7297 | 2131 | 216 |
-| *Salvia* — on | 9440 | 2536 | 246 |
-| *Rosmarinus* — off | 649 | 302 | 3 |
-| *Rosmarinus* — on | 9440 | 2536 | 246 |
+|                    | rows | compounds | taxa |
+| ------------------ | ---- | --------- | ---- |
+| _Salvia_ — off     | 7297 | 2131      | 216  |
+| _Salvia_ — on      | 9440 | 2536      | 246  |
+| _Rosmarinus_ — off | 649  | 302       | 3    |
+| _Rosmarinus_ — on  | 9440 | 2536      | 246  |
 
 Off, `Rosmarinus` returns 3 taxa and `Salvia` returns 216, for a search that
 looks identical in the input box. On, they return identical result sets, because
 both closures reach the same 28 names. Stated plainly: with the accepted/synonym
-switch on, *Salvia* and *Rosmarinus* are the same query, because in the current
+switch on, _Salvia_ and _Rosmarinus_ are the same query, because in the current
 taxonomy they are the same genus.
 
 ## The traversal, and why it is shaped this way
 
 The query expands the seed in its own subquery, then descends from the result.
-Only the *enabled* relationships contribute properties to the path:
+Only the _enabled_ relationships contribute properties to the path:
 
 ```sparql
 {
@@ -293,10 +293,10 @@ Three decisions are load-bearing.
 obvious one-line spelling is to let the two closures interleave as
 `?t (wdt:P171*|SYN*) wd:Q`. It is wrong for two reasons, and both cost time
 rather than correctness. The endpoint evaluates a path from its endpoints, so
-that form walks the entire `P171` tree *and* re-walks the nomenclatural closure
+that form walks the entire `P171` tree _and_ re-walks the nomenclatural closure
 at every node it passes, instead of expanding one seed list and descending it
 once. And semantically it makes the result a fixpoint of two relations applied
-together, so a synonym of a *descendant* silently joins the result — whether
+together, so a synonym of a _descendant_ silently joins the result — whether
 that is right is arguable, but that it was never chosen is not. Expanding the
 seed first is both faster and a decision somebody made.
 
@@ -304,15 +304,15 @@ It is also **incomplete**, which settles the question. Measured on the broad
 case the design has to survive (`Gentianales`, Q21754, 1457 taxa in the `P171`
 closure):
 
-| Form | Compounds |
-| --- | --- |
-| Interleaved `(P171*\|SYN*)` | 11009 |
-| Seed subquery, then `P171*` | 11088 |
+| Form                        | Compounds |
+| --------------------------- | --------- |
+| Interleaved `(P171*\|SYN*)` | 11009     |
+| Seed subquery, then `P171*` | 11088     |
 
 **The expansion is bounded.** `*` is transitive closure, which sounds alarming
 on a graph where `P566` has 184775 triples. It is not: these properties connect
-a taxon to *the other names of that same taxon*, not to a neighbour. Measured
-across every taxon tested, the closure is 1–2 hops; *Salvia* is the largest at
+a taxon to _the other names of that same taxon_, not to a neighbour. Measured
+across every taxon tested, the closure is 1–2 hops; _Salvia_ is the largest at
 28 names. It is deliberately not the same closure as `P171*`: crossing a name
 link is a rename, crossing a parent link is descent into a different organism.
 
@@ -327,58 +327,58 @@ and backward.
 
 Wikidata stores each relationship from both ends, but a curator enters
 whichever end they are looking at, and both are in active use.
-*Rosmarinus officinalis* carries `P12764` toward *Salvia rosmarinus* while
-*Salvia rosmarinus* carries `P694` back. A one-way read finds the newer name
+_Rosmarinus officinalis_ carries `P12764` toward _Salvia rosmarinus_ while
+_Salvia rosmarinus_ carries `P694` back. A one-way read finds the newer name
 from the older one and not the reverse.
 
 `P12764` and `P694` are also not redundant with each other: there are 1583
 `P12764` triples against 1313 `P694` ones, and some replacements carry only
-`P12764` (*Clerodendrum* → *Siphonanthus*, *Nostocophycideae* →
-*Nostocophycidae*, *Ceratium* → *Cylindrolobus*). A search reading only `P694`
+`P12764` (_Clerodendrum_ → _Siphonanthus_, _Nostocophycideae_ →
+_Nostocophycidae_, _Ceratium_ → _Cylindrolobus_). A search reading only `P694`
 would miss all of those, silently. Both travel together under one switch.
 
 ## One over-reach worth knowing about
 
-*Salvia*'s closure also reaches *Mentha* (`Q47859`), which contributes 566 rows
-via *Mentha spicata* and *Mentha piperita*. That is a data artefact rather than
+_Salvia_'s closure also reaches _Mentha_ (`Q47859`), which contributes 566 rows
+via _Mentha spicata_ and _Mentha piperita_. That is a data artefact rather than
 a taxonomic claim: Wikidata records `Mentha` `P1420` `Audibertia`, and
-separately records `Audibertia` `P12763` `Salvia`, so *Mentha* enters at closure
+separately records `Audibertia` `P12763` `Salvia`, so _Mentha_ enters at closure
 depth 2 through a genus that is a synonym of both. Each of the two statements is
-individually defensible — *Audibertia* really has been treated as both — but
+individually defensible — _Audibertia_ really has been treated as both — but
 their composition is not.
 
 It is left in rather than special-cased. Capping the closure at depth 1 does not
-remove *Mentha* (it arrives by a different route at depth 1, via *Preslia* and
-*Pulegium*), and a hand-maintained blocklist of genera that some curator once
+remove _Mentha_ (it arrives by a different route at depth 1, via _Preslia_ and
+_Pulegium_), and a hand-maintained blocklist of genera that some curator once
 cross-linked would be worse than the honest result: a silent exclusion nobody
 could audit. It is documented here instead.
 
 ## Where each switch lives
 
-| Surface | How |
-| --- | --- |
-| Model | `SearchCriteria::taxon_names`, a `TaxonNomenclature { accepted_synonyms, basionyms, protonyms, replacements }` — all `true` in `up_to_year` |
-| Query | `compounds_by_taxon_query_with(qid, &Nomenclature)`, `structure_search_query_with(.., &Nomenclature)` |
-| Search | `build_base_query` converts the criteria into a `Nomenclature` |
-| Server | `taxon_accepted_synonyms`, `taxon_basionyms`, `taxon_protonyms`, `taxon_replacements` in the `SearchRequest` body; each absent means the default |
-| URL | `?taxon_basionyms=false` and friends; each written only when off |
-| CLI | `--no-accepted-synonyms`, `--no-basionyms`, `--no-protonyms`, `--no-replacements` |
-| UI | four checkboxes grouped under the taxon field, all on |
+| Surface | How                                                                                                                                              |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Model   | `SearchCriteria::taxon_names`, a `TaxonNomenclature { accepted_synonyms, basionyms, protonyms, replacements }` — all `true` in `up_to_year`      |
+| Query   | `compounds_by_taxon_query_with(qid, &Nomenclature)`, `structure_search_query_with(.., &Nomenclature)`                                            |
+| Search  | `build_base_query` converts the criteria into a `Nomenclature`                                                                                   |
+| Server  | `taxon_accepted_synonyms`, `taxon_basionyms`, `taxon_protonyms`, `taxon_replacements` in the `SearchRequest` body; each absent means the default |
+| URL     | `?taxon_basionyms=false` and friends; each written only when off                                                                                 |
+| CLI     | `--no-accepted-synonyms`, `--no-basionyms`, `--no-protonyms`, `--no-replacements`                                                                |
+| UI      | four checkboxes grouped under the taxon field, all on                                                                                            |
 
 ## Where the name lookup lives
 
-The four switches above are not name *resolution*. Where that lives:
+The four switches above are not name _resolution_. Where that lives:
 
-| Surface | How |
-| --- | --- |
-| Model | `TaxonMatch { qid, name, source }`, `TaxonNameSource { Scientific, Common }` |
-| Query | `taxon_lookup_query(name)` — `VALUES` + `wdt:P225`; `taxon_common_name_lookup_query(name)` — `p:P1843/ps:P1843` + `LCASE(STR())` |
-| Parse | `parse_taxon_csv` reads the `?matched_by` column and defaults to `Scientific` when it is absent |
-| Search | `resolve_taxon::resolve` runs the first, and only if it came back empty runs the second |
-| Cache | `taxon_cache::CachedTaxon` carries the QID, the label, **the source** and the candidate list |
-| Notice | `LookupNotice::CommonName`, formatted by `warn_taxon_common_name` in all four locales |
-| Field label | `TaxonField` reads *Taxon scientific or common name*; the group heading stays `Taxon` |
-| UI | the field label is `TaxonField` ("Taxon scientific or common name"); the group heading stays `Taxon` |
+| Surface     | How                                                                                                                              |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Model       | `TaxonMatch { qid, name, source }`, `TaxonNameSource { Scientific, Common }`                                                     |
+| Query       | `taxon_lookup_query(name)` — `VALUES` + `wdt:P225`; `taxon_common_name_lookup_query(name)` — `p:P1843/ps:P1843` + `LCASE(STR())` |
+| Parse       | `parse_taxon_csv` reads the `?matched_by` column and defaults to `Scientific` when it is absent                                  |
+| Search      | `resolve_taxon::resolve` runs the first, and only if it came back empty runs the second                                          |
+| Cache       | `taxon_cache::CachedTaxon` carries the QID, the label, **the source** and the candidate list                                     |
+| Notice      | `LookupNotice::CommonName`, formatted by `warn_taxon_common_name` in all four locales                                            |
+| Field label | `TaxonField` reads _Taxon scientific or common name_; the group heading stays `Taxon`                                            |
+| UI          | the field label is `TaxonField` ("Taxon scientific or common name"); the group heading stays `Taxon`                             |
 
 The cache carrying the source is the load-bearing row. Without it a repeat search
 answers from the cache, has no idea which property answered, and reports only the
@@ -402,5 +402,5 @@ endpoint, with one relation disabled at a time. The pair to compare is the third
 and fourth columns: `n_compounds` and `n_taxa`.
 
 Wikidata is a live graph, so these numbers drift as curation proceeds. The
-*durable* part is the shape of the table: that for each of these four taxa a
+_durable_ part is the shape of the table: that for each of these four taxa a
 different switch is the one that matters. The absolute counts are a snapshot.

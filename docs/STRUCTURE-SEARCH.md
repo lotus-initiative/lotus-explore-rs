@@ -1,7 +1,7 @@
 # Structure search and compound identity
 
 > **Reader-facing answer lives on the FAQ.** What a search does and what each switch
-> changes is now on `/faq`, translated. This file keeps the *engineering rationale*:
+> changes is now on `/faq`, translated. This file keeps the _engineering rationale_:
 > why the query is shaped this way, what was measured, and which failure each decision
 > avoids.
 
@@ -9,12 +9,12 @@ The structure field is the second free-text field in LOTUS Explore. It takes fou
 kinds of thing in one box, resolves all four to a Wikidata compound, and then
 searches that compound in one of three ways:
 
-| Input | Example | Resolved by |
-| --- | --- | --- |
-| a Wikidata QID | `Q23118` | `compound_by_qid_query` |
-| an `InChIKey` | `DBOVHQOUSDWAPQ-WTONXPSSSA-N` | `compound_inchikey_query` (`P235`) |
-| a compound name | `amarogentina` | `compound_label_query`, then `compound_alias_query` |
-| a structure | `C[C@H](O)CO` | `structure_compound_lookup_query` — the structure service |
+| Input           | Example                       | Resolved by                                               |
+| --------------- | ----------------------------- | --------------------------------------------------------- |
+| a Wikidata QID  | `Q23118`                      | `compound_by_qid_query`                                   |
+| an `InChIKey`   | `DBOVHQOUSDWAPQ-WTONXPSSSA-N` | `compound_inchikey_query` (`P235`)                        |
+| a compound name | `amarogentina`                | `compound_label_query`, then `compound_alias_query`       |
+| a structure     | `C[C@H](O)CO`                 | `structure_compound_lookup_query` — the structure service |
 
 ## Resolution first, then the mode
 
@@ -22,11 +22,11 @@ The order is the whole design. **Every** input is resolved to a compound before
 anything is searched, a structure included, because the default mode needs a QID
 and a structure is not one. Only then does the mode decide what happens:
 
-| Mode | Question | Route |
-| --- | --- | --- |
-| **exact** (default) | this compound, and nothing else | `VALUES ?c { wd:Q… }` — no structure service |
-| substructure | every compound containing it | the structure service |
-| similarity | every compound at least *n* similar | the structure service, at the reader's cutoff |
+| Mode                | Question                            | Route                                         |
+| ------------------- | ----------------------------------- | --------------------------------------------- |
+| **exact** (default) | this compound, and nothing else     | `VALUES ?c { wd:Q… }` — no structure service  |
+| substructure        | every compound containing it        | the structure service                         |
+| similarity          | every compound at least _n_ similar | the structure service, at the reader's cutoff |
 
 Two consequences follow, and both are deliberate.
 
@@ -36,7 +36,7 @@ which compound it named does not answer it. Reserving the two narrower modes for
 SMILES would have made them unreachable from the input people actually use.
 
 **The mode never touches the resolution query.** Resolution asks its own question
-— *is this a compound you have?* — and asks it at a cutoff of 1.0 whatever the
+— _is this a compound you have?_ — and asks it at a cutoff of 1.0 whatever the
 reader set. `structure_compound_lookup_query` has no threshold parameter to borrow.
 If it borrowed the reader's, a lenient search would resolve a structure to a
 near-neighbour and the exact route would then report that near-neighbour as the
@@ -50,13 +50,13 @@ an identical fingerprint, which is a similarity search at a cutoff of 1.
 
 ## The four lookups
 
-| Route | Property | Recognised by | Lookup |
-| --- | --- | --- | --- |
-| QID | — | `Q` + digits | `compound_by_qid_query` — a `VALUES`, and nothing to match |
-| identifier | [`P235`](https://www.wikidata.org/wiki/Property:P235) *InChIKey* | the standard's fixed 14-10-1 shape | `compound_inchikey_query` |
-| name | `rdfs:label` | `could_be_a_compound_name` | `compound_label_query` |
-| alias | `skos:altLabel` | could be a name, and no label matched | `compound_alias_query` |
-| structure | — | anything else, incl. molfiles | `structure_compound_lookup_query` — the service, at a cutoff of 1 |
+| Route      | Property                                                         | Recognised by                         | Lookup                                                            |
+| ---------- | ---------------------------------------------------------------- | ------------------------------------- | ----------------------------------------------------------------- |
+| QID        | —                                                                | `Q` + digits                          | `compound_by_qid_query` — a `VALUES`, and nothing to match        |
+| identifier | [`P235`](https://www.wikidata.org/wiki/Property:P235) _InChIKey_ | the standard's fixed 14-10-1 shape    | `compound_inchikey_query`                                         |
+| name       | `rdfs:label`                                                     | `could_be_a_compound_name`            | `compound_label_query`                                            |
+| alias      | `skos:altLabel`                                                  | could be a name, and no label matched | `compound_alias_query`                                            |
+| structure  | —                                                                | anything else, incl. molfiles         | `structure_compound_lookup_query` — the service, at a cutoff of 1 |
 
 All four return the same four columns — QID, label, canonical SMILES, and which
 route answered — and one parser reads them all. The canonical SMILES is there
@@ -69,7 +69,7 @@ to an item.
 
 A QID still costs one query, and it is worth being honest about why. `Q18216` is
 already Wikidata's own name for a compound, so the lookup learns nothing about
-*which* compound is meant. What it does is confirm the item exists: without it a
+_which_ compound is meant. What it does is confirm the item exists: without it a
 mistyped QID builds an identity query that matches nothing and returns an empty
 table, which reads as "this compound has no results" rather than "that is not a
 compound". One `VALUES` turns the second into the first, with the input quoted back.
@@ -114,19 +114,19 @@ Measured, not stylistic. QLever will not push a `VALUES` down into both arms of 
 `UNION`, so it falls back to scanning each property — and scanning `rdfs:label` means
 17.9M rows.
 
-| Query | Result on QLever |
-| --- | --- |
-| `compound_by_qid_query` | instant — one `VALUES` |
-| `compound_inchikey_query` | ~0.2s |
-| `compound_label_query` | ~0.15s |
-| `compound_alias_query` | ~0.14s |
-| `structure_compound_lookup_query` | one service call, capped at `LIMIT 5` |
-| label `UNION` alias | **times out** |
-| `FILTER(LCASE(STR(?label)) = …)` over `rdfs:label` | **times out** |
-| `?label ql:contains-word "…"` | returns nothing — index not loaded |
+| Query                                              | Result on QLever                      |
+| -------------------------------------------------- | ------------------------------------- |
+| `compound_by_qid_query`                            | instant — one `VALUES`                |
+| `compound_inchikey_query`                          | ~0.2s                                 |
+| `compound_label_query`                             | ~0.15s                                |
+| `compound_alias_query`                             | ~0.14s                                |
+| `structure_compound_lookup_query`                  | one service call, capped at `LIMIT 5` |
+| label `UNION` alias                                | **times out**                         |
+| `FILTER(LCASE(STR(?label)) = …)` over `rdfs:label` | **times out**                         |
+| `?label ql:contains-word "…"`                      | returns nothing — index not loaded    |
 
 So the two are separate requests, and the label query is a `VALUES` over
-language-tagged literals rather than a filter on lexical forms. A label *is*
+language-tagged literals rather than a filter on lexical forms. A label _is_
 language-tagged, so the tag has to be part of the match rather than discarded from
 it. `COMPOUND_NAME_LANGUAGES` is the resulting list of fifteen tags.
 
@@ -168,31 +168,31 @@ it has to be deliberate.
 
 An input that resolves reports what it became — the label that was typed and the
 compound it named — because that is the actionable part: the search is now running
-against a *different compound* than the one in the box, and in the two broader
+against a _different compound_ than the one in the box, and in the two broader
 modes against a different structure as well. Several matching compounds
 add an ambiguity notice on top, and the resolution is cached with its candidate list
 so a repeat search says the same thing.
 
 ## Where the structure lookup lives
 
-| Surface | How |
-| --- | --- |
-| Model | `names_a_compound` (the one gate the panel and the resolver share), `could_be_a_compound_name`, `looks_like_inchikey`, `looks_like_a_compound_qid`, `STRUCTURE_INPUT_EXAMPLES`, `SmilesSearchType` |
-| Query | `compound_by_qid_query`, `compound_inchikey_query`, `compound_label_query`, `compound_alias_query`, `structure_compound_lookup_query`, `COMPOUND_NAME_LANGUAGES`, `exact_compound_query` |
-| Parse | `parse_compound_lookup_csv` |
-| Search | `resolve_structure::resolve`, called in `build_execution_plan` before the query is built; it returns `ResolvedStructure { compound, structure }`, and `build_sparql_query` picks the route from the mode |
-| Cache | `structure_cache::CachedCompound`; `Cached::Unresolved` records a remembered miss, and a remembered miss still refuses |
-| Notice | `LookupNotice::CompoundResolved`, formatted by `warn_compound_resolved` in all four locales |
+| Surface | How                                                                                                                                                                                                      |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Model   | `names_a_compound` (the one gate the panel and the resolver share), `could_be_a_compound_name`, `looks_like_inchikey`, `looks_like_a_compound_qid`, `STRUCTURE_INPUT_EXAMPLES`, `SmilesSearchType`       |
+| Query   | `compound_by_qid_query`, `compound_inchikey_query`, `compound_label_query`, `compound_alias_query`, `structure_compound_lookup_query`, `COMPOUND_NAME_LANGUAGES`, `exact_compound_query`                 |
+| Parse   | `parse_compound_lookup_csv`                                                                                                                                                                              |
+| Search  | `resolve_structure::resolve`, called in `build_execution_plan` before the query is built; it returns `ResolvedStructure { compound, structure }`, and `build_sparql_query` picks the route from the mode |
+| Cache   | `structure_cache::CachedCompound`; `Cached::Unresolved` records a remembered miss, and a remembered miss still refuses                                                                                   |
+| Notice  | `LookupNotice::CompoundResolved`, formatted by `warn_compound_resolved` in all four locales                                                                                                              |
 
 And where the mode itself is carried:
 
-| Surface | How |
-| --- | --- |
-| Model | `SmilesSearchType::{Exact, Substructure, Similarity}`, `Exact` is `Default` |
-| URL | `structure_search_type=exact\|substructure\|similarity`, and `similarity_threshold` for the third |
-| API | `SearchRequest.structure_search`, plus `similarity_threshold`; the old `smiles_threshold` is still accepted |
-| CLI | `--structure-search exact\|substructure\|similarity`, `--threshold` |
-| UI | three radios under the structure field; the cutoff appears only for similarity |
+| Surface | How                                                                                                         |
+| ------- | ----------------------------------------------------------------------------------------------------------- |
+| Model   | `SmilesSearchType::{Exact, Substructure, Similarity}`, `Exact` is `Default`                                 |
+| URL     | `structure_search_type=exact\|substructure\|similarity`, and `similarity_threshold` for the third           |
+| API     | `SearchRequest.structure_search`, plus `similarity_threshold`; the old `smiles_threshold` is still accepted |
+| CLI     | `--structure-search exact\|substructure\|similarity`, `--threshold`                                         |
+| UI      | three radios under the structure field; the cutoff appears only for similarity                              |
 
 The CLI is the one surface that does **not** resolve. It shares the query builders
 with the app but not the resolver, so `--structure` takes a structure — which is
@@ -206,14 +206,14 @@ buttons read that constant rather than keeping their own list. The test that che
 each one is classified correctly therefore checks the same strings a reader can
 click, so the two cannot drift apart.
 
-| Example | Kind | Route |
-| --- | --- | --- |
-| `amarogentina` | name | label, then alias |
-| `DBOVHQOUSDWAPQ-WTONXPSSSA-N` | `InChIKey` | `P235` |
-| `Q23118` | QID | a `VALUES`, and nothing to match |
-| `C[C@H](O)CO` | SMILES | the service, at a cutoff of 1 |
+| Example                       | Kind       | Route                            |
+| ----------------------------- | ---------- | -------------------------------- |
+| `amarogentina`                | name       | label, then alias                |
+| `DBOVHQOUSDWAPQ-WTONXPSSSA-N` | `InChIKey` | `P235`                           |
+| `Q23118`                      | QID        | a `VALUES`, and nothing to match |
+| `C[C@H](O)CO`                 | SMILES     | the service, at a cutoff of 1    |
 
 The first two are the same compound — [Q3613679](https://www.wikidata.org/wiki/Q3613679),
-*amarogentin* — reached by an alias and by its `InChIKey`. That is the point of
+_amarogentin_ — reached by an alias and by its `InChIKey`. That is the point of
 having both: they exercise the alias fallback and the identifier route, and a
 reader can see that the two agree.

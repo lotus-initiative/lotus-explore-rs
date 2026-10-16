@@ -8,7 +8,7 @@ Pure: no IO, no async, no clock, no platform, so it builds for
 current year passes it in.
 
 A filter is a value, not a query. It holds no SPARQL and no endpoint, and whether
-a filter is *active* is decided against the defaults rather than by a flag, so a
+a filter is _active_ is decided against the defaults rather than by a flag, so a
 criteria set survives a round trip through a URL or a JSON body.
 
 ```rust

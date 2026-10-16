@@ -90,7 +90,6 @@ jobs:
             pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev \
             libayatana-appindicator3-dev librsvg2-dev libxdo-dev
 
-
       # The tools the gate calls. `./mk ci` fails on a missing one rather than skipping
       # it, which is deliberate: a supply-chain check silently absent on a machine
       # where it is not installed is a check that reports nothing about the code.

@@ -48,14 +48,14 @@ docker run -p 8080:8787 lotus-explore-rs
 
 Environment variables:
 
-  | Variable               | Default       | Description                                                          |
-  | ---------------------- | ------------- | -------------------------------------------------------------------- |
-  | `HOST`                 | `0.0.0.0`     | Bind address                                                         |
-  | `PORT`                 | `8787`        | Listen port                                                          |
-  | `PUBLIC_DIR`           | `/app/public` | Static files directory                                               |
-  | `LOTUS_API_BASE`       | *(none)*      | Upstream SPARQL/API base URL                                         |
-  | `APP_ENV`              | `development` | Use `production` with `CORS_ALLOWED_ORIGINS`                         |
-  | `CORS_ALLOWED_ORIGINS` | *(none)*      | Comma-separated allowed origins (required when `APP_ENV=production`) |
+| Variable               | Default       | Description                                                          |
+| ---------------------- | ------------- | -------------------------------------------------------------------- |
+| `HOST`                 | `0.0.0.0`     | Bind address                                                         |
+| `PORT`                 | `8787`        | Listen port                                                          |
+| `PUBLIC_DIR`           | `/app/public` | Static files directory                                               |
+| `LOTUS_API_BASE`       | _(none)_      | Upstream SPARQL/API base URL                                         |
+| `APP_ENV`              | `development` | Use `production` with `CORS_ALLOWED_ORIGINS`                         |
+| `CORS_ALLOWED_ORIGINS` | _(none)_      | Comma-separated allowed origins (required when `APP_ENV=production`) |
 
 ## Architecture
 
@@ -133,12 +133,12 @@ and npm are not required.
 
 ## Explorer ⇄ API integration
 
-  | Scenario                | `api_base` source                     | API used            |
-  | ----------------------- | ------------------------------------- | ------------------- |
-  | Codeberg Pages (public) | none                                  | ✗ direct SPARQL     |
-  | Local dev               | auto-detected `http://127.0.0.1:8787` | ✓ if server running |
-  | Build-time              | `LOTUS_API_BASE` env var              | ✓                   |
-  | Runtime override        | `?api_base=…` query param             | ✓                   |
+| Scenario                | `api_base` source                     | API used            |
+| ----------------------- | ------------------------------------- | ------------------- |
+| Codeberg Pages (public) | none                                  | ✗ direct SPARQL     |
+| Local dev               | auto-detected `http://127.0.0.1:8787` | ✓ if server running |
+| Build-time              | `LOTUS_API_BASE` env var              | ✓                   |
+| Runtime override        | `?api_base=…` query param             | ✓                   |
 
 `api_base` must identify the LOTUS REST API; QLever/Wikidata SPARQL URLs are
 ignored and the explorer uses its direct SPARQL path instead.

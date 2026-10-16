@@ -1,73 +1,130 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LOTUS Explorer</title>
-  <meta name="description" content="Explore LOTUS with taxon filters, structure search, and Wikidata curation workflows.">
-  <meta property="og:title" content="LOTUS Explorer">
-  <meta property="og:description" content="Explore LOTUS with taxon filters, structure search, and Wikidata curation workflows.">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://lotus-initiative.github.io/lotus-explore-rs/">
-  <meta name="theme-color" content="#f6f8fb" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#10141b" media="(prefers-color-scheme: dark)">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"LOTUS Explorer","description":"Explore LOTUS with taxon filters, structure search, and Wikidata curation workflows.","url":"https://lotus-initiative.github.io/lotus-explore-rs/","applicationCategory":"ScienceApplication","operatingSystem":"Web","inLanguage":["en","fr","de","it"]}</script>
-  <link rel="canonical" href="">
-  <link rel="alternate" hreflang="en" href="">
-  <link rel="alternate" hreflang="fr" href="">
-  <link rel="alternate" hreflang="de" href="">
-  <link rel="alternate" hreflang="it" href="">
-  <link rel="alternate" hreflang="x-default" href="">
-  <!-- Relative hrefs below resolve correctly at parse time for a root deploy and
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LOTUS Explorer</title>
+    <meta
+      name="description"
+      content="Explore LOTUS with taxon filters, structure search, and Wikidata curation workflows."
+    />
+    <meta property="og:title" content="LOTUS Explorer" />
+    <meta
+      property="og:description"
+      content="Explore LOTUS with taxon filters, structure search, and Wikidata curation workflows."
+    />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:url"
+      content="https://lotus-initiative.github.io/lotus-explore-rs/"
+    />
+    <meta
+      name="theme-color"
+      content="#f6f8fb"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#10141b"
+      media="(prefers-color-scheme: dark)"
+    />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "LOTUS Explorer",
+        "description": "Explore LOTUS with taxon filters, structure search, and Wikidata curation workflows.",
+        "url": "https://lotus-initiative.github.io/lotus-explore-rs/",
+        "applicationCategory": "ScienceApplication",
+        "operatingSystem": "Web",
+        "inLanguage": ["en", "fr", "de", "it"]
+      }
+    </script>
+    <link rel="canonical" href="" />
+    <link rel="alternate" hreflang="en" href="" />
+    <link rel="alternate" hreflang="fr" href="" />
+    <link rel="alternate" hreflang="de" href="" />
+    <link rel="alternate" hreflang="it" href="" />
+    <link rel="alternate" hreflang="x-default" href="" />
+    <!-- Relative hrefs below resolve correctly at parse time for a root deploy and
        for the /lotus-explore-rs/ subpath. setAssetBase rewrites them to absolute
        basePath URLs; these values only close the window where a link is empty or
        root-relative. The manifest and the stylesheet are created by the script
        instead, for the reason given there. -->
-  <link id="ai-catalog" rel="ai-catalog" href=".well-known/ai-catalog.json" type="application/json">
-  <link id="llms-txt" rel="alternate" type="text/plain" href="llms.txt" title="Agent guide">
-  <link id="api-catalog" rel="api-catalog" href=".well-known/api-catalog.json" type="application/json">
-  <link id="agent-skills" rel="agent-skills" href=".well-known/agent-skills.json" type="application/json">
-  <meta name="webmcp-tools" content="search; curation">
-  <link rel="icon" href="favicon.ico" sizes="any">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="LOTUS-explore-rs">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="dns-prefetch" href="https://qlever.dev">
-  <link rel="dns-prefetch" href="https://query.wikidata.org">
-  <link rel="dns-prefetch" href="https://query-scholarly.wikidata.org">
-  <link rel="dns-prefetch" href="https://doi.org">
-  <link rel="dns-prefetch" href="https://www.simolecule.com">
-  <link rel="dns-prefetch" href="https://idsm.elixir-czech.cz">
-  <link rel="dns-prefetch" href="https://scripts.simpleanalyticscdn.com">
-  <script>
-    (function () {
-      // First, before anything below touches a sink.
-      //
-      // The policy is not consulted while the CSP omits
-      // `require-trusted-types-for 'script'`, which is the shipped setting (see
-      // docs/DEPLOYMENT.md: this client evaluates strings, and a policy written
-      // in JavaScript cannot return a TrustedScript). It stays, and it stays
-      // first, because the moment that directive comes back a `script.src`
-      // assignment is a sink: with no policy it throws, and an exception here
-      // ends this function before the rest of it runs. That is what this block
-      // used to get wrong by sitting at the bottom -- `setAssetBase` always
-      // threw first, so the policy never existed, the WASM client's `innerHTML`
-      // sinks threw as well, and the page stayed on the boot shell.
-      if (window.trustedTypes) {
-        try {
-          trustedTypes.createPolicy("default", {
-            createHTML: function (value) { return String(value); },
-            createScript: function (value) { return String(value); },
-            createScriptURL: function (value) { return String(value); },
-            createURL: function (value) { return String(value); }
-          });
-        } catch (error) {}
-      }
-       var path = window.location.pathname;
+    <link
+      id="ai-catalog"
+      rel="ai-catalog"
+      href=".well-known/ai-catalog.json"
+      type="application/json"
+    />
+    <link
+      id="llms-txt"
+      rel="alternate"
+      type="text/plain"
+      href="llms.txt"
+      title="Agent guide"
+    />
+    <link
+      id="api-catalog"
+      rel="api-catalog"
+      href=".well-known/api-catalog.json"
+      type="application/json"
+    />
+    <link
+      id="agent-skills"
+      rel="agent-skills"
+      href=".well-known/agent-skills.json"
+      type="application/json"
+    />
+    <meta name="webmcp-tools" content="search; curation" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="LOTUS-explore-rs" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="dns-prefetch" href="https://qlever.dev" />
+    <link rel="dns-prefetch" href="https://query.wikidata.org" />
+    <link rel="dns-prefetch" href="https://query-scholarly.wikidata.org" />
+    <link rel="dns-prefetch" href="https://doi.org" />
+    <link rel="dns-prefetch" href="https://www.simolecule.com" />
+    <link rel="dns-prefetch" href="https://idsm.elixir-czech.cz" />
+    <link rel="dns-prefetch" href="https://scripts.simpleanalyticscdn.com" />
+    <script>
+      (function () {
+        // First, before anything below touches a sink.
+        //
+        // The policy is not consulted while the CSP omits
+        // `require-trusted-types-for 'script'`, which is the shipped setting (see
+        // docs/DEPLOYMENT.md: this client evaluates strings, and a policy written
+        // in JavaScript cannot return a TrustedScript). It stays, and it stays
+        // first, because the moment that directive comes back a `script.src`
+        // assignment is a sink: with no policy it throws, and an exception here
+        // ends this function before the rest of it runs. That is what this block
+        // used to get wrong by sitting at the bottom -- `setAssetBase` always
+        // threw first, so the policy never existed, the WASM client's `innerHTML`
+        // sinks threw as well, and the page stayed on the boot shell.
+        if (window.trustedTypes) {
+          try {
+            trustedTypes.createPolicy("default", {
+              createHTML: function (value) {
+                return String(value);
+              },
+              createScript: function (value) {
+                return String(value);
+              },
+              createScriptURL: function (value) {
+                return String(value);
+              },
+              createURL: function (value) {
+                return String(value);
+              },
+            });
+          } catch (error) {}
+        }
+        var path = window.location.pathname;
         var cleanPath = path.length > 1 ? path.replace(/\/+$/, "") : path;
         var basePath = cleanPath;
         var routeSuffixes = ["/search", "/curation", "/draw", "/faq"];
@@ -80,19 +137,32 @@
         });
         var canonical = window.location.origin + cleanPath;
 
-       var languages = { en: "", fr: "fr", de: "de", it: "it", "x-default": "" };
-       Object.keys(languages).forEach(function (language) {
-         var link = document.querySelector('link[rel="alternate"][hreflang="' + language + '"]');
-         if (link) {
-           link.href = canonical + (languages[language] ? "?lang=" + languages[language] : "");
-         }
-       });
-       var canonicalLink = document.querySelector('link[rel="canonical"]');
-       if (canonicalLink) canonicalLink.href = canonical;
-       var openGraphUrl = document.querySelector('meta[property="og:url"]');
-       if (openGraphUrl) openGraphUrl.content = canonical;
+        var languages = {
+          en: "",
+          fr: "fr",
+          de: "de",
+          it: "it",
+          "x-default": "",
+        };
+        Object.keys(languages).forEach(function (language) {
+          var link = document.querySelector(
+            'link[rel="alternate"][hreflang="' + language + '"]',
+          );
+          if (link) {
+            link.href =
+              canonical +
+              (languages[language] ? "?lang=" + languages[language] : "");
+          }
+        });
+        var canonicalLink = document.querySelector('link[rel="canonical"]');
+        if (canonicalLink) canonicalLink.href = canonical;
+        var openGraphUrl = document.querySelector('meta[property="og:url"]');
+        if (openGraphUrl) openGraphUrl.content = canonical;
         var setAssetBase = function (basePath) {
-          document.documentElement.setAttribute("data-lotus-base-path", basePath);
+          document.documentElement.setAttribute(
+            "data-lotus-base-path",
+            basePath,
+          );
           // Created here, not declared above: a relative href resolves against
           // the document URL, so on a trailing-slash route it asked for
           // /curation/site.webmanifest, which 404s to the SPA index.html, and
@@ -101,28 +171,32 @@
           manifest.rel = "manifest";
           manifest.href = basePath + "site.webmanifest";
           document.head.appendChild(manifest);
-         var aiCatalog = document.getElementById("ai-catalog");
-         if (aiCatalog) aiCatalog.href = basePath + ".well-known/ai-catalog.json";
-         var machineReadable = [
-           ["llms-txt", "llms.txt"],
-           ["api-catalog", ".well-known/api-catalog.json"],
-           ["agent-skills", ".well-known/agent-skills.json"]
-         ];
-         machineReadable.forEach(function (entry) {
-           var link = document.getElementById(entry[0]);
-           if (link) link.href = basePath + entry[1];
-         });
-         // Two rel="icon" links exist (.ico fallback, then .svg), so this has to
-         // target the svg one specifically: a bare querySelector would return the
-         // .ico first and overwrite it with the svg href.
-         var iconBase = function (selector, file) {
-           var icons = document.querySelectorAll(selector);
-           for (var i = 0; i < icons.length; i += 1) icons[i].href = basePath + file;
-         };
-         iconBase('link[rel="icon"][type="image/svg+xml"]', "favicon.svg");
-         iconBase('link[rel="icon"][sizes="any"]', "favicon.ico");
-         var appleTouch = document.querySelector('link[rel="apple-touch-icon"]');
-         if (appleTouch) appleTouch.href = basePath + "apple-touch-icon.png";
+          var aiCatalog = document.getElementById("ai-catalog");
+          if (aiCatalog)
+            aiCatalog.href = basePath + ".well-known/ai-catalog.json";
+          var machineReadable = [
+            ["llms-txt", "llms.txt"],
+            ["api-catalog", ".well-known/api-catalog.json"],
+            ["agent-skills", ".well-known/agent-skills.json"],
+          ];
+          machineReadable.forEach(function (entry) {
+            var link = document.getElementById(entry[0]);
+            if (link) link.href = basePath + entry[1];
+          });
+          // Two rel="icon" links exist (.ico fallback, then .svg), so this has to
+          // target the svg one specifically: a bare querySelector would return the
+          // .ico first and overwrite it with the svg href.
+          var iconBase = function (selector, file) {
+            var icons = document.querySelectorAll(selector);
+            for (var i = 0; i < icons.length; i += 1)
+              icons[i].href = basePath + file;
+          };
+          iconBase('link[rel="icon"][type="image/svg+xml"]', "favicon.svg");
+          iconBase('link[rel="icon"][sizes="any"]', "favicon.ico");
+          var appleTouch = document.querySelector(
+            'link[rel="apple-touch-icon"]',
+          );
+          if (appleTouch) appleTouch.href = basePath + "apple-touch-icon.png";
           // Created here, not declared above, for the same reason as the
           // manifest: a relative href resolves against the document URL, so on
           // a trailing-slash route the browser asked for
@@ -133,11 +207,13 @@
           css.id = "app-css";
           css.rel = "stylesheet";
           css.media = "print";
-          css.addEventListener("load", function () { css.media = "all"; });
+          css.addEventListener("load", function () {
+            css.media = "all";
+          });
           css.href = basePath + "assets/lotus-explore.css";
           document.head.appendChild(css);
 
-var bootstrap = document.createElement("script");
+          var bootstrap = document.createElement("script");
           bootstrap.src = basePath + "assets/js/bootstrap.js";
           bootstrap.defer = true;
           document.head.appendChild(bootstrap);
@@ -152,52 +228,86 @@ var bootstrap = document.createElement("script");
           webmcp.src = basePath + "assets/js/webmcp.js";
           webmcp.defer = true;
           document.head.appendChild(webmcp);
-       };
+        };
         if (knownRoute) {
           setAssetBase(basePath.endsWith("/") ? basePath : basePath + "/");
-
-       } else {
-         window.addEventListener("DOMContentLoaded", function () {
-           var loader = document.querySelector('script[src*="/assets/"]');
-           if (!loader) return;
-           var source = loader.getAttribute("src") || "";
-           var marker = source.indexOf("assets/");
-           if (marker >= 0) setAssetBase(source.slice(0, marker));
-         }, { once: true });
-       }
+        } else {
+          window.addEventListener(
+            "DOMContentLoaded",
+            function () {
+              var loader = document.querySelector('script[src*="/assets/"]');
+              if (!loader) return;
+              var source = loader.getAttribute("src") || "";
+              var marker = source.indexOf("assets/");
+              if (marker >= 0) setAssetBase(source.slice(0, marker));
+            },
+            { once: true },
+          );
+        }
         var params = new URLSearchParams(window.location.search);
-        document.documentElement.setAttribute("data-lotus-query", window.location.search);
+        document.documentElement.setAttribute(
+          "data-lotus-query",
+          window.location.search,
+        );
 
-       document.documentElement.lang = params.get("lang") || params.get("locale") || "en";
-    })();
-  </script>
-  <style>
-    html, body, #main { margin: 0; min-height: 100%; }
-    body { background: var(--shell-page-bg, #f2f5f8); color: var(--text, #111827); font-family: var(--font-sans, system-ui, sans-serif); }
-    /* The custom properties above are defined in lotus-explore.css, which is
+        document.documentElement.lang =
+          params.get("lang") || params.get("locale") || "en";
+      })();
+    </script>
+    <style>
+      html,
+      body,
+      #main {
+        margin: 0;
+        min-height: 100%;
+      }
+      body {
+        background: var(--shell-page-bg, #f2f5f8);
+        color: var(--text, #111827);
+        font-family: var(--font-sans, system-ui, sans-serif);
+      }
+      /* The custom properties above are defined in lotus-explore.css, which is
        fetched and applied after this block. Without this the fallback is always
        the light page colour, so a dark-mode visitor gets a light page with
        near-black text until the stylesheet lands — measured at a light
        rgb(242, 245, 248) background surviving a 2500 ms stylesheet delay, while
        the app itself is still booting for seconds on a slow link. The values
        here must track --shell-page-bg and --text in tailwind/styles.css. */
-    @media (prefers-color-scheme: dark) {
-      body { background: #0a0f19; color: #eef4fb; }
-    }
-    .boot-shell { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 2rem; box-sizing: border-box; }
-    .boot-shell__inner { max-width: 32rem; text-align: center; }
-    .boot-shell h1 { margin: 0 0 .75rem; font-size: clamp(1.25rem, 4vw, 2rem); }
-    .boot-shell p { margin: 0; }
-  </style>
-</head>
-<body>
-  <div id="main">
-    <div class="boot-shell" data-boot-shell aria-hidden="true">
-      <div class="boot-shell__inner">
-        <h1>LOTUS Explorer</h1>
-        <p>Loading the explorer…</p>
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #0a0f19;
+          color: #eef4fb;
+        }
+      }
+      .boot-shell {
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 2rem;
+        box-sizing: border-box;
+      }
+      .boot-shell__inner {
+        max-width: 32rem;
+        text-align: center;
+      }
+      .boot-shell h1 {
+        margin: 0 0 0.75rem;
+        font-size: clamp(1.25rem, 4vw, 2rem);
+      }
+      .boot-shell p {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="main">
+      <div class="boot-shell" data-boot-shell aria-hidden="true">
+        <div class="boot-shell__inner">
+          <h1>LOTUS Explorer</h1>
+          <p>Loading the explorer…</p>
+        </div>
       </div>
     </div>
-  </div>
-</body>
+  </body>
 </html>

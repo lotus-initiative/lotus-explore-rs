@@ -3,7 +3,6 @@
 /* Scan Dioxus/Rust class strings for utilities. */
 @source "../src/**/*.rs";
 
-
 /* App theme uses data-theme on <html>, not the .dark class. */
 @custom-variant dark (&:where([data-theme="dark"] *, :root:not([data-theme="light"]) *));
 
@@ -14,23 +13,23 @@
 *,
 *::before,
 *::after {
-    box-sizing: border-box;
+  box-sizing: border-box;
 }
 
 html,
 body {
-    text-size-adjust: 100%;
-    height: 100%;
-    margin: 0;
-    padding: 0;
+  text-size-adjust: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 html,
 body,
 #main {
-    width: 100%;
-    max-width: 100%;
-    overflow-x: clip;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 /* Reserve viewport height before the WASM bundle mounts so the rendered
@@ -38,296 +37,328 @@ body,
    svh stays fixed while mobile browser chrome collapses/expands; dvh is
    the fallback for browsers without svh (Safari < 15.4). */
 #main {
-    min-height: 100dvh;
-    min-height: 100svh;
+  min-height: 100dvh;
+  min-height: 100svh;
 }
 
 img,
 svg,
 canvas,
 video {
-    max-width: 100%;
-    height: auto;
+  max-width: 100%;
+  height: auto;
 }
 
 :root {
-    color-scheme: light dark;
-    /* Core colors - aligned with Wikidata brand */
-    --bg: #f7fafc;
-    --bg2: #f7fafc;
-    --surface: #ffffff;
-    --surface2: #ffffff;
-    /* --border outlines interactive controls, so it clears 3:1 against every
+  color-scheme: light dark;
+  /* Core colors - aligned with Wikidata brand */
+  --bg: #f7fafc;
+  --bg2: #f7fafc;
+  --surface: #ffffff;
+  --surface2: #ffffff;
+  /* --border outlines interactive controls, so it clears 3:1 against every
        shell surface; --border-soft keeps purely decorative hairlines quiet. */
-    --border: #75849a;
-    --border-soft: #c3cfdd;
-    --text: #111827;
-    --text2: #233548;
-    --text3: #4a5a6d;
-    --accent: #0b5cab;
-    --accent2: #084b8a;
-    --btn-primary-bg: #0b5cab;
-    --btn-primary-hover-bg: #084b8a;
-    --green: #1f7a4d;
-    --red: #b42318;
-    --yellow: #8a4b0f;
-    --purple: #6941c6;
+  --border: #75849a;
+  --border-soft: #c3cfdd;
+  --text: #111827;
+  --text2: #233548;
+  --text3: #4a5a6d;
+  --accent: #0b5cab;
+  --accent2: #084b8a;
+  --btn-primary-bg: #0b5cab;
+  --btn-primary-hover-bg: #084b8a;
+  --green: #1f7a4d;
+  --red: #b42318;
+  --yellow: #8a4b0f;
+  --purple: #6941c6;
 
-    /* Wikidata organism colors */
-    --wd-compound: #990000;
-    --wd-taxon: #339966;
-    --wd-reference: #006699;
-    --wd-entries: #484848;
-    --wd-structure: var(--wd-entries);
+  /* Wikidata organism colors */
+  --wd-compound: #990000;
+  --wd-taxon: #339966;
+  --wd-reference: #006699;
+  --wd-entries: #484848;
+  --wd-structure: var(--wd-entries);
 
-    /* Radii - consistent 7-step scale */
-    --radius-xs: 4px;
-    --radius-sm: 6px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
-    --radius-xl: 16px;
-    --radius-2xl: 20px;
-    --radius-3xl: 24px;
-    --radius-full: 30px;
+  /* Radii - consistent 7-step scale */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-full: 30px;
 
-    /* Spacing - consistent scale */
-    --space-1: 4px;
-    --space-2: 8px;
-    --space-3: 12px;
-    --space-4: 16px;
-    --space-5: 20px;
-    --space-6: 24px;
-    --space-8: 32px;
+  /* Spacing - consistent scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
 
-    /* Effects */
-    --glass: rgb(255 255 255 / 82%);
-    --ring: 0 0 0 3px rgb(11 92 171 / 22%);
-    --focus-ring: 0 0 0 3px rgb(11 92 171 / 28%);
-    --focus-ring-offset: 2px;
-    --shadow-xs: 0 1px 2px rgb(15 23 42 / 4%);
-    --shadow-sm: 0 1px 3px rgb(15 23 42 / 6%);
-    --shadow-md: 0 4px 8px rgb(15 23 42 / 8%);
+  /* Effects */
+  --glass: rgb(255 255 255 / 82%);
+  --ring: 0 0 0 3px rgb(11 92 171 / 22%);
+  --focus-ring: 0 0 0 3px rgb(11 92 171 / 28%);
+  --focus-ring-offset: 2px;
+  --shadow-xs: 0 1px 2px rgb(15 23 42 / 4%);
+  --shadow-sm: 0 1px 3px rgb(15 23 42 / 6%);
+  --shadow-md: 0 4px 8px rgb(15 23 42 / 8%);
 
-    /* Critical text */
-    --critical-text: #172535;
-    --critical-muted: #33475c;
+  /* Critical text */
+  --critical-text: #172535;
+  --critical-muted: #33475c;
 
-    /* Shell surfaces: three distinct planes so the chrome never reads as the
+  /* Shell surfaces: three distinct planes so the chrome never reads as the
        page. The canvas sits 1.09:1 from pure white with a +6 blue cast, which
        is the same tint strength as Apple's grouped background. A pure white
        canvas would collapse the card into it (1.00:1) and force every
        elevation cue onto borders and shadows. */
-    --shell-page-bg: #f2f5f8;
-    --shell-chrome-bg: #e7ecf1;
-    --shell-raised-bg: #ffffff;
-    --shell-border: var(--border);
-    --panel-bg: #ffffff;
-    --panel-bg-soft: #eef1f5;
-    --panel-border: var(--border-soft);
-    --shell-radius: 12px;
-    --shell-control-radius: 8px;
+  --shell-page-bg: #f2f5f8;
+  --shell-chrome-bg: #e7ecf1;
+  --shell-raised-bg: #ffffff;
+  --shell-border: var(--border);
+  --panel-bg: #ffffff;
+  --panel-bg-soft: #eef1f5;
+  --panel-border: var(--border-soft);
+  --shell-radius: 12px;
+  --shell-control-radius: 8px;
 
-    /* Footer organism colors. The badge text sits on a 14% tint of itself, so
+  /* Footer organism colors. The badge text sits on a 14% tint of itself, so
        each mix is set for 4.8:1+ against both the chrome and the stat card. */
-    --footer-wd-taxon: color-mix(in srgb, var(--wd-taxon) 65%, #000);
-    --footer-wd-compound: var(--wd-compound);
-    --footer-wd-reference: color-mix(in srgb, var(--wd-reference) 90%, #000);
-    --footer-wd-entries: color-mix(in srgb, var(--wd-entries) 77%, #000);
-    --footer-wd-structure: var(--footer-wd-entries);
+  --footer-wd-taxon: color-mix(in srgb, var(--wd-taxon) 65%, #000);
+  --footer-wd-compound: var(--wd-compound);
+  --footer-wd-reference: color-mix(in srgb, var(--wd-reference) 90%, #000);
+  --footer-wd-entries: color-mix(in srgb, var(--wd-entries) 77%, #000);
+  --footer-wd-structure: var(--footer-wd-entries);
 
-    /* Stat badge stripes */
-    --stat-compound-bg: color-mix(in srgb, var(--footer-wd-compound) 12%, var(--surface));
-    --stat-compound-border: color-mix(in srgb, var(--footer-wd-compound) 34%, var(--border));
-    --stat-taxon-bg: color-mix(in srgb, var(--footer-wd-taxon) 12%, var(--surface));
-    --stat-taxon-border: color-mix(in srgb, var(--footer-wd-taxon) 34%, var(--border));
-    --stat-reference-bg: color-mix(in srgb, var(--footer-wd-reference) 12%, var(--surface));
-    --stat-reference-border: color-mix(in srgb, var(--footer-wd-reference) 34%, var(--border));
-    --stat-total-bg: color-mix(in srgb, var(--footer-wd-entries) 12%, var(--surface));
-    --stat-total-border: color-mix(in srgb, var(--footer-wd-entries) 34%, var(--border));
+  /* Stat badge stripes */
+  --stat-compound-bg: color-mix(
+    in srgb,
+    var(--footer-wd-compound) 12%,
+    var(--surface)
+  );
+  --stat-compound-border: color-mix(
+    in srgb,
+    var(--footer-wd-compound) 34%,
+    var(--border)
+  );
+  --stat-taxon-bg: color-mix(
+    in srgb,
+    var(--footer-wd-taxon) 12%,
+    var(--surface)
+  );
+  --stat-taxon-border: color-mix(
+    in srgb,
+    var(--footer-wd-taxon) 34%,
+    var(--border)
+  );
+  --stat-reference-bg: color-mix(
+    in srgb,
+    var(--footer-wd-reference) 12%,
+    var(--surface)
+  );
+  --stat-reference-border: color-mix(
+    in srgb,
+    var(--footer-wd-reference) 34%,
+    var(--border)
+  );
+  --stat-total-bg: color-mix(
+    in srgb,
+    var(--footer-wd-entries) 12%,
+    var(--surface)
+  );
+  --stat-total-border: color-mix(
+    in srgb,
+    var(--footer-wd-entries) 34%,
+    var(--border)
+  );
 }
 
 /* Dark mode theme */
 :is([data-theme="dark"], :root:not([data-theme="light"])) {
-    color-scheme: dark;
-    --bg: #0a0f19;
-    --bg2: #0a0f19;
-    --surface: #131b29;
-    --surface2: #131b29;
-    --border: #76869e;
-    --border-soft: #38475a;
-    --text: #eef4fb;
-    --text2: #d5deea;
-    --text3: #b8c5d6;
-    --accent: #8cbcff;
-    --accent2: #5e98f3;
-    --btn-primary-bg: #0b5cab;
-    --btn-primary-hover-bg: #285fcc;
-    --green: #4cc38a;
-    --red: #ff8a80;
-    --yellow: #f0b35e;
-    --purple: #c3a0ff;
-    --glass: rgb(22 27 34 / 78%);
-    --ring: 0 0 0 3px rgb(140 188 255 / 28%);
-    --focus-ring: 0 0 0 3px rgb(140 188 255 / 35%);
-    --shadow-xs: 0 1px 2px rgb(0 0 0 / 30%);
-    --shadow-sm: 0 1px 3px rgb(0 0 0 / 40%);
-    --shadow-md: 0 4px 8px rgb(0 0 0 / 50%);
-    --critical-text: #e8edf5;
-    --critical-muted: #d0d9e5;
+  color-scheme: dark;
+  --bg: #0a0f19;
+  --bg2: #0a0f19;
+  --surface: #131b29;
+  --surface2: #131b29;
+  --border: #76869e;
+  --border-soft: #38475a;
+  --text: #eef4fb;
+  --text2: #d5deea;
+  --text3: #b8c5d6;
+  --accent: #8cbcff;
+  --accent2: #5e98f3;
+  --btn-primary-bg: #0b5cab;
+  --btn-primary-hover-bg: #285fcc;
+  --green: #4cc38a;
+  --red: #ff8a80;
+  --yellow: #f0b35e;
+  --purple: #c3a0ff;
+  --glass: rgb(22 27 34 / 78%);
+  --ring: 0 0 0 3px rgb(140 188 255 / 28%);
+  --focus-ring: 0 0 0 3px rgb(140 188 255 / 35%);
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 30%);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 40%);
+  --shadow-md: 0 4px 8px rgb(0 0 0 / 50%);
+  --critical-text: #e8edf5;
+  --critical-muted: #d0d9e5;
 
-    /* Same three-plane hierarchy as light, inverted for the dark canvas. */
-    --shell-page-bg: #0a0f19;
-    --shell-chrome-bg: #1c2637;
-    --shell-raised-bg: #131b29;
-    --panel-bg: #131b29;
-    --panel-bg-soft: #18212f;
-    --panel-border: var(--border-soft);
+  /* Same three-plane hierarchy as light, inverted for the dark canvas. */
+  --shell-page-bg: #0a0f19;
+  --shell-chrome-bg: #1c2637;
+  --shell-raised-bg: #131b29;
+  --panel-bg: #131b29;
+  --panel-bg-soft: #18212f;
+  --panel-border: var(--border-soft);
 
-    /* On the dark canvas these need far more white than the light theme needs
+  /* On the dark canvas these need far more white than the light theme needs
        black, or the badge text lands under 4.5:1 on its own tint. */
-    --footer-wd-compound: color-mix(in srgb, var(--wd-compound) 40%, white);
-    --footer-wd-taxon: color-mix(in srgb, var(--wd-taxon) 65%, white);
-    --footer-wd-reference: color-mix(in srgb, var(--wd-reference) 50%, white);
-    --footer-wd-entries: color-mix(in srgb, var(--wd-entries) 45%, white);
-    --footer-wd-structure: var(--footer-wd-entries);
+  --footer-wd-compound: color-mix(in srgb, var(--wd-compound) 40%, white);
+  --footer-wd-taxon: color-mix(in srgb, var(--wd-taxon) 65%, white);
+  --footer-wd-reference: color-mix(in srgb, var(--wd-reference) 50%, white);
+  --footer-wd-entries: color-mix(in srgb, var(--wd-entries) 45%, white);
+  --footer-wd-structure: var(--footer-wd-entries);
 }
 
 [data-theme="light"] {
-    color-scheme: light;
+  color-scheme: light;
 }
 
 /* Map Lotus tokens → Tailwind utilities (bg-accent, text-muted, …).
    Colors track data-theme via the CSS variables above — prefer these
    over slate/sky/dark: pairs so light/dark stay in sync automatically. */
 @theme {
-    --color-bg: var(--bg);
-    --color-bg2: var(--bg2);
-    --color-surface: var(--surface);
-    --color-surface2: var(--surface2);
-    --color-border: var(--border);
-    --color-text: var(--text);
-    --color-muted: var(--text2);
-    --color-subtle: var(--text3);
-    --color-accent: var(--accent);
-    --color-accent-2: var(--accent2);
-    --color-primary: var(--btn-primary-bg);
-    --color-primary-hover: var(--btn-primary-hover-bg);
-    --color-danger: var(--red);
-    --color-success: var(--green);
-    --color-warning: var(--yellow);
-    --color-purple: var(--purple);
-    --color-shell-page: var(--shell-page-bg);
-    --color-shell-raised: var(--shell-raised-bg);
-    --color-shell-chrome: var(--shell-chrome-bg);
-     --color-shell-border: var(--shell-border);
-     --color-panel: var(--panel-bg);
-     --color-panel-soft: var(--panel-bg-soft);
-     --color-panel-border: var(--panel-border);
-     --color-glass: var(--glass);
+  --color-bg: var(--bg);
+  --color-bg2: var(--bg2);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--text2);
+  --color-subtle: var(--text3);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent2);
+  --color-primary: var(--btn-primary-bg);
+  --color-primary-hover: var(--btn-primary-hover-bg);
+  --color-danger: var(--red);
+  --color-success: var(--green);
+  --color-warning: var(--yellow);
+  --color-purple: var(--purple);
+  --color-shell-page: var(--shell-page-bg);
+  --color-shell-raised: var(--shell-raised-bg);
+  --color-shell-chrome: var(--shell-chrome-bg);
+  --color-shell-border: var(--shell-border);
+  --color-panel: var(--panel-bg);
+  --color-panel-soft: var(--panel-bg-soft);
+  --color-panel-border: var(--panel-border);
+  --color-glass: var(--glass);
 
-    --color-critical: var(--critical-text);
-    --color-critical-muted: var(--critical-muted);
-    --color-wd-compound: var(--footer-wd-compound);
-    --color-wd-taxon: var(--footer-wd-taxon);
-    --color-wd-reference: var(--footer-wd-reference);
-    --color-wd-entries: var(--footer-wd-entries);
-    --color-wd-structure: var(--footer-wd-structure);
-    --color-stat-compound: var(--stat-compound-bg);
-    --color-stat-compound-border: var(--stat-compound-border);
-    --color-stat-taxon: var(--stat-taxon-bg);
-    --color-stat-taxon-border: var(--stat-taxon-border);
-    --color-stat-reference: var(--stat-reference-bg);
-    --color-stat-reference-border: var(--stat-reference-border);
-    --color-stat-total: var(--stat-total-bg);
-    --color-stat-total-border: var(--stat-total-border);
+  --color-critical: var(--critical-text);
+  --color-critical-muted: var(--critical-muted);
+  --color-wd-compound: var(--footer-wd-compound);
+  --color-wd-taxon: var(--footer-wd-taxon);
+  --color-wd-reference: var(--footer-wd-reference);
+  --color-wd-entries: var(--footer-wd-entries);
+  --color-wd-structure: var(--footer-wd-structure);
+  --color-stat-compound: var(--stat-compound-bg);
+  --color-stat-compound-border: var(--stat-compound-border);
+  --color-stat-taxon: var(--stat-taxon-bg);
+  --color-stat-taxon-border: var(--stat-taxon-border);
+  --color-stat-reference: var(--stat-reference-bg);
+  --color-stat-reference-border: var(--stat-reference-border);
+  --color-stat-total: var(--stat-total-bg);
+  --color-stat-total-border: var(--stat-total-border);
 
-    /* Explicit text color utilities for Wikidata organism colors.
+  /* Explicit text color utilities for Wikidata organism colors.
        Tailwind v4 doesn't auto-generate text-* variants from raw --color-* vars. */
-    --color-text-wd-compound: var(--footer-wd-compound);
-    --color-text-wd-taxon: var(--footer-wd-taxon);
-    --color-text-wd-reference: var(--footer-wd-reference);
-    --color-text-wd-entries: var(--footer-wd-entries);
-    --color-text-wd-structure: var(--footer-wd-structure);
+  --color-text-wd-compound: var(--footer-wd-compound);
+  --color-text-wd-taxon: var(--footer-wd-taxon);
+  --color-text-wd-reference: var(--footer-wd-reference);
+  --color-text-wd-entries: var(--footer-wd-entries);
+  --color-text-wd-structure: var(--footer-wd-structure);
 
-    --font-sans: "Segoe UI", "Helvetica Neue", sans-serif;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-    --text-micro: var(--fs-micro);
-    --text-ui: var(--fs-ui);
-    --text-body: var(--fs-body);
-    --text-title: var(--fs-2);
-    --text-display: var(--fs-3);
-    --text-hero: var(--fs-4);
-    --text-stat: var(--fs-stat);
+  --text-micro: var(--fs-micro);
+  --text-ui: var(--fs-ui);
+  --text-body: var(--fs-body);
+  --text-title: var(--fs-2);
+  --text-display: var(--fs-3);
+  --text-hero: var(--fs-4);
+  --text-stat: var(--fs-stat);
 
-    /* Spacing scale */
-    --spacing-1: var(--space-1);
-    --spacing-2: var(--space-2);
-    --spacing-3: var(--space-3);
-    --spacing-4: var(--space-4);
-    --spacing-5: var(--space-5);
-    --spacing-6: var(--space-6);
-    --spacing-8: var(--space-8);
+  /* Spacing scale */
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-8: var(--space-8);
 
-    /* Radius scale - 7 step */
-    --radius-xs: var(--radius-xs);
-    --radius-sm: var(--radius-sm);
-    --radius-md: var(--radius-md);
-    --radius-lg: var(--radius-lg);
-    --radius-xl: var(--radius-xl);
-    --radius-2xl: var(--radius-2xl);
-    --radius-3xl: var(--radius-3xl);
+  /* Radius scale - 7 step */
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+  --radius-3xl: var(--radius-3xl);
 }
 
 /* Typography scale — fluid sizes consumed by the --text-* utilities above and by
    component CSS (var(--fs-body), var(--fs-ui), ...). */
 :root {
-    --fs-ui:    clamp(0.70rem, 0.68rem + 0.11vw, 0.76rem);
-    --fs-micro: var(--fs-ui);
-     --fs-body:  clamp(0.875rem, 0.85rem + 0.15vw, 1rem);
-     --fs-2:     clamp(1rem, 0.95rem + 0.2vw, 1.125rem);
-    --fs-3:     clamp(1.125rem, 1rem + 0.4vw, 1.375rem);
-    --fs-4:     clamp(1.375rem, 1.15rem + 0.6vw, 1.625rem);
-    --fs-stat:  clamp(1rem, 0.95rem + 0.36vw, 1.15rem);
+  --fs-ui: clamp(0.7rem, 0.68rem + 0.11vw, 0.76rem);
+  --fs-micro: var(--fs-ui);
+  --fs-body: clamp(0.875rem, 0.85rem + 0.15vw, 1rem);
+  --fs-2: clamp(1rem, 0.95rem + 0.2vw, 1.125rem);
+  --fs-3: clamp(1.125rem, 1rem + 0.4vw, 1.375rem);
+  --fs-4: clamp(1.375rem, 1.15rem + 0.6vw, 1.625rem);
+  --fs-stat: clamp(1rem, 0.95rem + 0.36vw, 1.15rem);
 }
 
 /* Base styles */
 body {
-    background: var(--shell-page-bg);
-    color: var(--text);
-    font-family: var(--font-sans, sans-serif);
-    font-size: var(--fs-body);
-    line-height: 1.6;
-    min-height: 100vh;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    font-optical-sizing: auto;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  background: var(--shell-page-bg);
+  color: var(--text);
+  font-family: var(--font-sans, sans-serif);
+  font-size: var(--fs-body);
+  line-height: 1.6;
+  min-height: 100vh;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 fieldset {
-    background: transparent;
-    border: none;
-    padding: 0;
-    margin: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
 }
 
 legend {
-    background: transparent;
-    color: var(--text);
-    padding: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 0;
 }
 
 @layer base {
-    a {
-        color: var(--accent);
-        text-decoration: none;
-    }
+  a {
+    color: var(--accent);
+    text-decoration: none;
+  }
 
-    a:hover {
-        text-decoration: underline;
-    }
+  a:hover {
+    text-decoration: underline;
+  }
 }
 
 /* ========================================
@@ -336,68 +367,72 @@ legend {
 
 /* Virtualized table spacer rows - use CSS custom properties for stable heights */
 .virtual-spacer {
-    content-visibility: auto;
-    contain-intrinsic-size: 0 100px;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 100px;
 }
 
 /* The shell's height, kept constant when mobile browser chrome collapses.
    `svh` is the value and `dvh` the fallback for browsers without it
    (Safari < 15.4), so the order of the two declarations is the point and
    cannot be written as a pair of utilities. */
-.app-shell { display: flex; flex-direction: column; min-height: 100dvh; min-height: 100svh; }
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  min-height: 100svh;
+}
 
 /* Desktop layout: main content side by side */
 .app-layout {
-    display: flex;
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: visible;
-    gap: 10px;
-    padding: 8px;
-    /* Same 12px air under the content as the `pt-3` the page sections put
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: visible;
+  gap: 10px;
+  padding: 8px;
+  /* Same 12px air under the content as the `pt-3` the page sections put
        above it, so the card floats between the header band and the footer at
        every width. */
-    padding-bottom: 12px;
-    align-items: stretch;
+  padding-bottom: 12px;
+  align-items: stretch;
 }
 
 /* Mobile layout: stacked main content */
 @media (max-width: 768px) {
-    .app-shell {
-        padding-bottom: env(safe-area-inset-bottom, 20px);
-    }
+  .app-shell {
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+  }
 
-    .app-layout {
-        flex-direction: column;
-        gap: 0;
-        padding: 0 0 12px;
-        overflow: visible;
-    }
+  .app-layout {
+    flex-direction: column;
+    gap: 0;
+    padding: 0 0 12px;
+    overflow: visible;
+  }
 
-    .main-content {
-        min-height: auto;
-        overflow: visible;
-        border-radius: 0;
-        border-left: 0;
-        border-right: 0;
-    }
-
+  .main-content {
+    min-height: auto;
+    overflow: visible;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+  }
 }
 
 /* Very small screens: full-width view/lang switches */
 @media (max-width: 480px) {
-    .view-switch,
-    .lang-switch {
-        width: 100%;
-    }
-    .view-switch [role="group"],
-    .lang-switch [role="group"] {
-        width: 100%;
-        justify-content: center;
-    }
-    .view-switch button,
-    .lang-switch button {
-        /* `flex: 1 0 auto` rather than `1 1 0`, and `min-width: max-content` rather
+  .view-switch,
+  .lang-switch {
+    width: 100%;
+  }
+  .view-switch [role="group"],
+  .lang-switch [role="group"] {
+    width: 100%;
+    justify-content: center;
+  }
+  .view-switch button,
+  .lang-switch button {
+    /* `flex: 1 0 auto` rather than `1 1 0`, and `min-width: max-content` rather
            than `0`.
            The intent here is for the buttons to share the row evenly on a phone. Both
            of the old values defeated that in the other direction: `flex-shrink: 1` with
@@ -410,43 +445,41 @@ legend {
            Growing from a content basis with a content minimum keeps the even
            distribution when there is space and wraps onto a second row when there is
            not, which is what the `flex-wrap` on the group is already there to do. */
-        flex: 1 0 auto;
-        min-width: max-content;
-        padding: 6px 8px;
-        font-size: var(--fs-micro);
-        line-height: 1.2;
-    }
+    flex: 1 0 auto;
+    min-width: max-content;
+    padding: 6px 8px;
+    font-size: var(--fs-micro);
+    line-height: 1.2;
+  }
 }
-
-
 
 /* Skip link for keyboard navigation */
 .skip-link {
-    position: absolute;
-    left: 0.5rem;
-    top: -100%;
-    z-index: 9999;
-    padding: 0.5rem 1rem;
-    background: var(--surface);
-    color: var(--text);
-    font-size: var(--fs-ui);
-    font-weight: 600;
-    border-radius: 0 0 var(--radius-xs) var(--radius-xs);
-    text-decoration: none;
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
-    transition: top 0.1s ease;
+  position: absolute;
+  left: 0.5rem;
+  top: -100%;
+  z-index: 9999;
+  padding: 0.5rem 1rem;
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-ui);
+  font-weight: 600;
+  border-radius: 0 0 var(--radius-xs) var(--radius-xs);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: top 0.1s ease;
 }
 
 .skip-link:focus {
-    top: 0;
-    outline: 2px solid var(--accent);
-    outline-offset: var(--focus-ring-offset);
+  top: 0;
+  outline: 2px solid var(--accent);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .skip-link:hover {
-    text-decoration: underline;
-    background: var(--bg);
+  text-decoration: underline;
+  background: var(--bg);
 }
 
 /* ========================================
@@ -454,12 +487,20 @@ legend {
    ======================================== */
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ========================================
@@ -467,65 +508,65 @@ legend {
    ======================================== */
 
 ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    background: transparent;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 3px;
+  background: var(--border);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--text3);
+  background: var(--text3);
 }
 
 @utility brand-logo {
-    /* The mark is injected as inline SVG with only a viewBox, so the height
+  /* The mark is injected as inline SVG with only a viewBox, so the height
        has to be derived from it. Pinning the ratio to the viewBox that
        public/logo-mark.svg declares (see the test that keeps them in sync)
        stops any engine from rounding the box onto the artwork's edge. */
-    & > svg {
-        display: block;
-        width: 100%;
-        height: auto;
-        aspect-ratio: 1213.7 / 1148.69;
+  & > svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1213.7 / 1148.69;
 
-        /* The LOTUS text follows the page: dark ink on the light canvas, and
+    /* The LOTUS text follows the page: dark ink on the light canvas, and
            the page's own light text on the dark one. The drawing ships the ink
            on the element, because the browser tab is the same file and a
            favicon cannot see this page's theme -- a presentation attribute is
            the lowest-priority thing CSS can address, so this rule wins there
            and nowhere else. */
-        .lotus-wordmark {
-            fill: currentColor;
-        }
+    .lotus-wordmark {
+      fill: currentColor;
     }
+  }
 }
 
 @utility results-table-scroll {
-    min-height: 0;
-    /* dvh tracks the mobile browser chrome, so collapsing the address bar
+  min-height: 0;
+  /* dvh tracks the mobile browser chrome, so collapsing the address bar
        resized this scroller (and re-rendered the virtualized rows) mid-scroll.
        svh is constant across chrome transitions; dvh stays as the fallback
        for browsers without svh (Safari < 15.4). */
-    height: min(78dvh, 1120px);
-    max-height: min(78dvh, 1120px);
-    height: min(78svh, 1120px);
-    max-height: min(78svh, 1120px);
-    overflow: auto;
-    contain: layout paint;
+  height: min(78dvh, 1120px);
+  max-height: min(78dvh, 1120px);
+  height: min(78svh, 1120px);
+  max-height: min(78svh, 1120px);
+  overflow: auto;
+  contain: layout paint;
 }
 
 @utility scrollbar-hidden-x {
-    &::-webkit-scrollbar {
-        width: 6px;
-        height: 0;
-    }
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 0;
+  }
 }
 
 /* A number field in the results table's filter row, without its spin buttons.
@@ -544,15 +585,15 @@ legend {
    keypad on a phone, which is what `inputmode` is for. */
 
 @utility filter-field {
-    appearance: none;
-    -moz-appearance: textfield;
+  appearance: none;
+  -moz-appearance: textfield;
 
-    &::-webkit-outer-spin-button,
-    &::-webkit-inner-spin-button {
-        appearance: none;
-        -webkit-appearance: none;
-        margin: 0;
-    }
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+  }
 }
 
 /* A field in the search panel, resizable like the Molfile box is.
@@ -566,7 +607,7 @@ legend {
    input at its intrinsic height has no overflow to grab. It does nothing to a
    field left at its default size. */
 @utility resize-field {
-    resize: vertical;
+  resize: vertical;
 }
 
 /* ========================================
@@ -575,16 +616,24 @@ legend {
 
 /* Global focus-visible safety net for elements without their own ring.
    Uses :where() so it has 0 specificity — only fills gaps, never overrides. */
-:where(a, button, [role="button"], input, select, textarea, [tabindex]):focus-visible {
-    outline: none;
-    box-shadow: var(--focus-ring);
-    border-radius: var(--radius-xs);
+:where(
+  a,
+  button,
+  [role="button"],
+  input,
+  select,
+  textarea,
+  [tabindex]
+):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-xs);
 }
 
 /* Consistent active/pressed state for interactive elements */
 :where(a, button, [role="button"]):not(:disabled):active {
-    transform: scale(var(--active-scale, 0.98));
-    transition: transform 50ms ease;
+  transform: scale(var(--active-scale, 0.98));
+  transition: transform 50ms ease;
 }
 
 /* Focus-visible for UI crate components (SegmentedControl, NoticeBar) that use inline styles */
@@ -593,9 +642,9 @@ legend {
 .notice-bar [role="button"]:focus-visible,
 .notice-bar input:focus-visible,
 .notice-bar button:focus-visible {
-    outline: none;
-    box-shadow: var(--focus-ring);
-    border-radius: var(--radius-xs);
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-xs);
 }
 
 /* ========================================
@@ -603,57 +652,62 @@ legend {
    ======================================== */
 
 @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        scroll-behavior: auto !important;
-        transition-duration: 0.01ms !important;
-    }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @media (prefers-contrast: more) {
-    :root {
-        --border: #7a879a;
-        --text3: #334155;
-    }
+  :root {
+    --border: #7a879a;
+    --text3: #334155;
+  }
 }
-
 
 /* Links in hovered/focused table rows inherit row text color for consistency */
 @layer base {
-    .data-row:hover a,
-    .data-row:focus-within a,
-    .curation-results-table tbody tr:hover a,
-    .curation-results-table tbody tr:focus-within a {
-        color: inherit;
-    }
+  .data-row:hover a,
+  .data-row:focus-within a,
+  .curation-results-table tbody tr:hover a,
+  .curation-results-table tbody tr:focus-within a {
+    color: inherit;
+  }
 }
 
 /* Ensure organism-color links show underline on hover */
 .data-row a:hover,
 .curation-results-table tbody tr a:hover {
-    text-decoration: underline;
+  text-decoration: underline;
 }
 
 /* Curation table */
 .curation-results-table th,
-.curation-results-table td { white-space: nowrap; }
-.curation-results-table td:last-child { white-space: normal; }
+.curation-results-table td {
+  white-space: nowrap;
+}
+.curation-results-table td:last-child {
+  white-space: normal;
+}
 .curation-results-table tbody tr:last-child td,
-.curation-queued-table tbody tr:last-child td { border-bottom: 0; }
+.curation-queued-table tbody tr:last-child td {
+  border-bottom: 0;
+}
 
 /* Content wrappers - consistent max-width and padding */
 .results-wrap {
-    width: 100%;
-    max-width: 1600px;
-    margin-inline: auto;
+  width: 100%;
+  max-width: 1600px;
+  margin-inline: auto;
 }
 
 @media (min-width: 1024px) {
-    .results-wrap {
-        padding-left: 32px;
-        padding-right: 32px;
-    }
+  .results-wrap {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
 }
