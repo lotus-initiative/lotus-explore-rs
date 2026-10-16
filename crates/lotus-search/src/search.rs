@@ -245,9 +245,17 @@ pub fn is_qid(value: &str) -> bool {
     let mut chars = value.chars();
     // At least one digit, so a lone `Q` is treated as a search term: a query
     // for `wd:Q` is one the endpoint cannot answer.
-    matches!(chars.next(), Some('Q' | 'q'))
-        && chars.clone().count() > 0
-        && chars.all(|c| c.is_ascii_digit())
+    if !matches!(chars.next(), Some('Q' | 'q')) {
+        return false;
+    }
+    let mut has_tail = false;
+    for c in chars {
+        if !c.is_ascii_digit() {
+            return false;
+        }
+        has_tail = true;
+    }
+    has_tail
 }
 
 /// The name to look up: underscores become spaces, and the genus is

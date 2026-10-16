@@ -501,3 +501,45 @@ fn an_endpoint_unavailable_is_exactly_network_or_502() {
         );
     }
 }
+
+#[test]
+fn an_empty_override_url_falls_back_to_the_public_url() {
+    assert_eq!(
+        Service::Qlever.target_from(|_| Some(String::new())),
+        Service::Qlever.url()
+    );
+    assert_eq!(
+        Service::Qlever.target_from(|_| Some("   ".to_string())),
+        Service::Qlever.url()
+    );
+    assert_eq!(Service::Qlever.target_from(|_| None), Service::Qlever.url());
+}
+
+#[test]
+fn a_set_override_url_is_trimmed_and_used() {
+    assert_eq!(
+        Service::Qlever.target_from(|_| Some("  https://example.invalid/sparql  ".to_string())),
+        "https://example.invalid/sparql"
+    );
+}
+
+#[test]
+fn query_budget_falls_back_when_the_override_is_empty() {
+    // The empty-value input is what production cannot reach; here the fallback
+    // default must win rather than a clamped `None`.
+    let budget = query_budget_from("https://qlever.dev/api/wikidata", |_| Some(String::new()));
+    assert_eq!(budget.as_deref(), Some("30s"));
+    let budget = query_budget_from("https://qlever.dev/api/wikidata", |_| None);
+    assert_eq!(budget.as_deref(), Some("30s"));
+}
+
+#[test]
+fn an_empty_or_whitespace_token_is_not_a_token() {
+    assert!(access_token_from(|_| Some(String::new())).is_none());
+    assert!(access_token_from(|_| Some("   ".to_string())).is_none());
+    assert!(access_token_from(|_| None).is_none());
+    assert_eq!(
+        access_token_from(|_| Some("  secret  ".to_string())).as_deref(),
+        Some("secret")
+    );
+}
