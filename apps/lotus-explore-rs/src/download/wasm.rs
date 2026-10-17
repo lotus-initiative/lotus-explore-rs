@@ -477,9 +477,21 @@ async fn execute_download_wasm_browser_post(
 /// handing one to the browser would produce a download of the current page.
 fn api_export_url(format: DownloadFormat, urls: &api::ExportUrlResponse) -> Option<&str> {
     let url = match format {
-        DownloadFormat::Csv => urls.csv_gz_url.as_deref().unwrap_or(&urls.csv_url),
-        DownloadFormat::Json => urls.json_gz_url.as_deref().unwrap_or(&urls.json_url),
-        DownloadFormat::Rdf => urls.rdf_gz_url.as_deref().unwrap_or(&urls.rdf_url),
+        DownloadFormat::Csv => urls
+            .csv_gz_url
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or(&urls.csv_url),
+        DownloadFormat::Json => urls
+            .json_gz_url
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or(&urls.json_url),
+        DownloadFormat::Rdf => urls
+            .rdf_gz_url
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or(&urls.rdf_url),
     };
     (!url.trim().is_empty()).then_some(url)
 }

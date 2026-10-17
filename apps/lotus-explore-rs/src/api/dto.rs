@@ -79,7 +79,7 @@ pub struct SearchRequest {
 impl SearchRequest {
     pub fn from_criteria(criteria: &SearchCriteria, limit: usize, include_counts: bool) -> Self {
         let taxon = criteria.taxon.trim();
-        let smiles = normalize_structure_for_api(&criteria.structure);
+        let smiles = lotus_search::normalize_structure(&criteria.structure);
         let has_smiles = !smiles.is_empty();
         let formula_exact = criteria.formula_exact.trim();
 
@@ -122,21 +122,6 @@ impl SearchRequest {
             limit: Some(limit),
             include_counts: Some(include_counts),
         }
-    }
-}
-
-fn normalize_structure_for_api(value: &str) -> String {
-    // Normalize CRLF → LF first, then bare CR → LF, to avoid double-converting.
-    let normalized = if value.contains('\r') {
-        value.replace("\r\n", "\n").replace('\r', "\n")
-    } else {
-        value.to_string()
-    };
-    match lotus_model::classify_structure(&normalized) {
-        lotus_model::StructureKind::MolfileV2000 | lotus_model::StructureKind::MolfileV3000 => {
-            normalized
-        }
-        _ => normalized.trim().to_string(),
     }
 }
 

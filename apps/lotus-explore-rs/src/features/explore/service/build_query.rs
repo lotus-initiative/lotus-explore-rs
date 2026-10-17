@@ -8,21 +8,7 @@ use lotus_model::{SearchCriteria, SmilesSearchType};
 /// Normalize a raw SMILES/Molfile string from the criteria.
 /// * Line endings are unified to `\n`.
 pub fn normalize_smiles(raw: &str) -> String {
-    // Fast path: skip allocation when no carriage returns are present (common case).
-    let normalized = if raw.contains('\r') {
-        raw.replace("\r\n", "\n").replace('\r', "\n")
-    } else {
-        raw.to_owned()
-    };
-    let kind = lotus_model::classify_structure(&normalized);
-    if matches!(
-        kind,
-        lotus_model::StructureKind::MolfileV2000 | lotus_model::StructureKind::MolfileV3000
-    ) {
-        normalized
-    } else {
-        normalized.trim().to_string()
-    }
+    lotus_search::normalize_structure(raw)
 }
 
 /// What the structure field resolved to.
