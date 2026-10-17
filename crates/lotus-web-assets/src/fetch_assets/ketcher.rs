@@ -163,21 +163,30 @@ fn extract(
     archive: &mut ZipArchive<Cursor<Vec<u8>>>,
     dest: &Path,
 ) -> Result<Tally, Box<dyn std::error::Error>> {
+    // `ZipFile::name()` now surfaces name-decoding errors as a `Result`, so every
+    // read of an entry's name is `?`-ed. Collecting names first keeps the
+    // common-prefix pass separate from the write pass (zip 8 did the same two
+    // passes; zip 9 only changes the name accessor's signature).
     let names: Result<Vec<String>, _> = (0..archive.len())
-        .map(|index| archive.by_index(index).map(|file| file.name().to_owned()))
+        .map(|index| {
+            archive
+                .by_index(index)
+                .and_then(|file| file.name().map(|name| name.to_string()))
+        })
         .collect();
     let strip_prefix = common_prefix(names?.iter().map(String::as_str));
     let mut tally = Tally::default();
 
     for index in 0..archive.len() {
         let mut file = archive.by_index(index)?;
-        if is_macos_junk(file.name()) || is_unused_entry(file.name()) {
-            if is_unused_entry(file.name()) {
+        let name = file.name()?;
+        if is_macos_junk(&name) || is_unused_entry(&name) {
+            if is_unused_entry(&name) {
                 tally.record_skipped(file.size());
             }
             continue;
         }
-        let Some(relative) = destination_for(file.name(), strip_prefix.as_deref()) else {
+        let Some(relative) = destination_for(&name, strip_prefix.as_deref()) else {
             continue;
         };
 

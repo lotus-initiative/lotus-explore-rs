@@ -147,7 +147,7 @@ pub fn commit_id(seed: char) -> String {
 /// filesystem and off the network at the same time.
 pub fn zip_of(entries: &[(&str, &str)]) -> Vec<u8> {
     let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
-    let options: zip::write::FileOptions<'_, ()> =
+    let options: zip::write::FileOptions<'_, '_, ()> =
         zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
     for (name, contents) in entries {
         writer

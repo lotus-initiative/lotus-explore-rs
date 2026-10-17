@@ -351,7 +351,7 @@ fn an_escaping_entry_is_not_written_outside_the_destination() {
 fn a_directory_entry_is_created_but_not_counted_as_a_file() {
     let dir = temp_dir("ketcher-dirs");
     let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
-    let options: zip::write::FileOptions<'_, ()> =
+    let options: zip::write::FileOptions<'_, '_, ()> =
         zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
     writer
         .add_directory("standalone/static", options)
