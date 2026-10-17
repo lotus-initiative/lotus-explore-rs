@@ -18,3 +18,28 @@ fn parse_download_format_supports_documented_aliases() {
     assert_eq!(DownloadFormat::parse("rdf"), Some(DownloadFormat::Rdf));
     assert_eq!(DownloadFormat::parse("turtle"), None);
 }
+
+#[test]
+fn gz_or_plain_url_prefers_non_empty_gz() {
+    assert_eq!(
+        super::gz_or_plain_url(Some("https://x/file.csv.gz"), "https://x/file.csv"),
+        "https://x/file.csv.gz"
+    );
+}
+
+#[test]
+fn gz_or_plain_url_falls_back_to_plain_when_gz_empty() {
+    assert_eq!(
+        super::gz_or_plain_url(Some(""), "https://x/file.csv"),
+        "https://x/file.csv"
+    );
+    assert_eq!(
+        super::gz_or_plain_url(Some("   "), "https://x/file.csv"),
+        "https://x/file.csv"
+    );
+    assert_eq!(
+        super::gz_or_plain_url(None, "https://x/file.csv"),
+        "https://x/file.csv"
+    );
+    assert_eq!(super::gz_or_plain_url(None, ""), "");
+}
