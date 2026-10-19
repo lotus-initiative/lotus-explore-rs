@@ -9,7 +9,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "graphifyy",
+        "graphify",
         "python",
         "-m",
         "graphify.serve",

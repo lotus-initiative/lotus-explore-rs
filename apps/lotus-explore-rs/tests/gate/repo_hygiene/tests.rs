@@ -3,7 +3,7 @@
 //! The hygiene checks, in their own file.
 
 use super::*;
-use crate::gate::scrapers::repo_root;
+use crate::gate::scrapers::{read, repo_root};
 
 #[test]
 fn the_fetched_asset_trees_are_not_tracked() -> Result<()> {
@@ -153,8 +153,68 @@ fn test_modules_live_in_their_own_files() -> Result<()> {
          `build.rs` or `mod.rs`, because Rust looks for the children of `foo.rs` \
          under `foo/`. The new file needs the two AGPL SPDX lines, its own `//!` \
          doc comment, and `use super::*;` -- and the `//!` and any `#![...]` must \
-         come *before* the first item, or the build fails on an inner attribute.",
+          come *before* the first item, or the build fails on an inner attribute.",
         offenders.join("\n  ")
+    );
+    Ok(())
+}
+
+/// The root `AGENTS.md` is the canonical instruction file every agent looks for.
+///
+/// It was accidentally removed and gitignored at one point (commit `96010a0`),
+/// leaving only a broken `GEMINI.md → AGENTS.md` symlink and a graphify-only
+/// `.github/ai/AGENTS.md`. Without a root `AGENTS.md`, an agent cannot discover
+/// the build/test/lint commands or the project conventions without first reading
+/// README.md and CONTRIBUTING.md. This test fails if that file is removed again.
+#[test]
+fn the_root_instruction_file_exists() {
+    let root = repo_root();
+    let candidates = ["AGENTS.md", "CLAUDE.md", "GEMINI.md"];
+    let found = candidates
+        .iter()
+        .any(|name| root.join(name).exists() && root.join(name).metadata().is_ok());
+    assert!(
+        found,
+        "no root instruction file found. Every agent (Claude Code, OpenCode, Gemini \
+         CLI, etc.) looks for {} at the repository root, and the project has none. \
+         Create AGENTS.md with build/test/lint commands and key conventions. A \
+         GEMINI.md symlink is not enough if it is broken.",
+        candidates.join(", "),
+    );
+}
+
+/// The root `AGENTS.md` mentions the key build/test/lint commands.
+///
+/// An AGENTS.md that exists but does not name `./mk ci` or `./mk gate` is a
+/// file that will be read and then ignored, because the agent has to go hunting
+/// elsewhere for the actual commands. This test reads the file and asserts the
+/// four commands every contributor needs are named.
+#[test]
+fn the_root_instruction_file_names_the_key_commands() -> Result<()> {
+    let content = read("AGENTS.md")?;
+    for cmd in ["./mk ci", "./mk gate", "./mk setup", "./mk test"] {
+        assert!(
+            content.contains(cmd),
+            "AGENTS.md does not mention `{cmd}`. Add it so an agent does not \
+             have to learn the build system by reading Makefile.toml."
+        );
+    }
+    Ok(())
+}
+
+/// The MCP config must not reference nonexistent packages.
+///
+/// `.github/ai/.mcp.json` is tracked in git and used by any MCP-capable agent.
+/// A typo in a package name (`graphifyy` instead of `graphify`) makes the MCP
+/// server silently unavailable, and nothing else catches it.
+#[test]
+fn the_mcp_config_has_no_typo_in_package_names() -> Result<()> {
+    let content = read(".github/ai/.mcp.json")?;
+    assert!(
+        !content.contains("graphifyy"),
+        ".github/ai/.mcp.json contains `graphifyy`, which is a typo for `graphify`. \
+         `uvx --from graphifyy` cannot resolve the package and the MCP server \
+         will not start."
     );
     Ok(())
 }

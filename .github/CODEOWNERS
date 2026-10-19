@@ -1,0 +1,37 @@
+# AGENTS.md and tool configs are owned by the project maintainers so that
+# instruction drift is caught in review.
+
+# The canonical root instruction file.
+AGENTS.md                @adafede
+.github/ai/AGENTS.md     @adafede
+
+# MCP configs — the graphifyy typo fix must not regress.
+.github/ai/.mcp.json     @adafede
+.mcp.json                @adafede
+
+# Gate consistency and verification.
+apps/lotus-explore-rs/tests/gate_consistency.rs  @adafede
+prek.toml              @adafede
+Makefile.toml          @adafede
+make/*.toml            @adafede
+make/scripts/*.sh      @adafede
+.github/workflows/ci.yml  @adafede
+.github/workflows/deploy.yml  @adafede
+
+# Cargo workspace.
+Cargo.toml             @adafede
+Cargo.lock             @adafede
+rust-toolchain.toml    @adafede
+deny.toml              @adafede
+.tombi.toml            @adafede
+.typos.toml            @adafede
+
+# Crates.
+crates/lotus-model/    @adafede
+crates/lotus-query/    @adafede
+crates/lotus-search/   @adafede
+crates/lotus-curation/ @adafede
+crates/lotus-jsonld/   @adafede
+crates/lotus-web-assets/ @adafede
+crates/lotus-cli/      @adafede
+apps/lotus-explore-rs/ @adafede
