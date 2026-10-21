@@ -66,6 +66,28 @@ in `apps/lotus-explore-rs/docs/`.
 - **Doctests matter:** each library crate's `README.md` is its crate documentation
   via `#![doc = include_str!("../README.md")]`. `./mk test` runs nextest and then
   `cargo test --workspace --doc` because nextest does not run doctests.
+- **No duplicates — `./mk dejadoc` is a gate, not a report.** The task runs
+  `cargo dejadoc --functions --context-blocks` and exits 1 on any group. Both
+  flags are opt-in since 0.6.0, so dropping either makes the task check less while
+  staying green; `dejadoc` is pinned to 0.6.0 in `ci.yml` and `make/scripts/setup.sh`
+  because the version is what decides whether the gate checks anything.
+  - Copy kinds: a **doctest** group (shared code examples — cosmetic edits such as
+    comments, whitespace, hidden `# ` lines and local names never separate two
+    bodies) and a **function** group (one body, two sites).
+  - Fix a doctest group by keeping the site whose item the body calls and deleting
+    the others, linking the kept one with ``See [`crate::parse`]``, or rewriting the
+    copy to assert something else. A copy that must stay opens with ` ```rust,dejadoc `.
+  - Fix a function group by sharing the body: `delete` (point the callers at the
+    kept one), `helper-or-macro`, or `generic-or-macro`. A deliberate copy needs
+    `// dejadoc: allow` on the line right above it — there are two, in
+    `apps/lotus-explore-rs/src/features/curation/services/occurrence_cache/tests.rs`.
+  - Fix a **context** group (a fragment inside two functions) by moving the shared
+    code into one helper every site calls. Never reorder or respell a copy to hide
+    it from the check: the matching is approximate, so a rename does not help and
+    the two copies drift anyway.
+  - There is no `.dejadoc.toml`: nothing is filtered by a token threshold. A
+    recurring trivial body is cheaper to share than to filter, which is what the
+    `find_ascii_ci` copies taught this repo.
 
 ## Verification
 
@@ -100,5 +122,12 @@ and the compiler instead — do not install it.
 - **Tests:** cargo-nextest 0.9.146 (parallel, per-test-process), plus
   `cargo test --doc` for doctests.
 - **TOML:** tombi (version read from `prek.toml`)
+- **Duplicate detection:** cargo-dejadoc 0.6.0 (`dejadoc` is the crate and
+  `cargo-dejadoc` the binary; `install-action` takes crate names, which is why
+  `ci.yml` says `dejadoc@0.6.0`). Debug a group with `cargo dejadoc -v` (sites and
+  code) or `cargo dejadoc --json`. `--organization <org>` compares functions
+  across every repository the token can see and needs `--config`, because a
+  downloaded `.dejadoc.toml` is ignored; exit 2 with
+  `dejadoc: incomplete organization analysis` means a repository was skipped.
 - **Mutation testing:** cargo-mutants (run `./mk mutants` on library crates only)
 - **All tools:** installed at pinned versions by `./mk setup`
