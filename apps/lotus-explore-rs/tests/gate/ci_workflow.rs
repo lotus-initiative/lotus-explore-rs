@@ -410,10 +410,11 @@ mod installed_tools {
     ///
     /// Every other tool is installed unpinned by CI on purpose, and the test
     /// above says so. `dejadoc` is the exception and the reason is not a
-    /// preference: 0.3.1 compares doctests only, and 0.4.0 added functions. With
-    /// `setup.sh` on 0.3.1 and CI resolving 0.4.0, four duplicated functions were
-    /// reported in CI and `./mk dejadoc` was green at home. That is the failure
-    /// this whole module exists to prevent -- a gate that says something different
+    /// preference: 0.3.1 compares doctests only, 0.4.0 added functions, and
+    /// 0.6.0 made those functions opt-in behind `--functions`. With `setup.sh`
+    /// on 0.3.1 and CI resolving 0.4.0, four duplicated functions were reported
+    /// in CI and `./mk dejadoc` was green at home. That is the failure this
+    /// whole module exists to prevent -- a gate that says something different
     /// depending on where it runs -- so the version is part of what is pinned.
     #[test]
     fn the_duplicate_doctest_tool_is_the_same_version_in_ci_and_locally() -> Result<()> {
@@ -435,6 +436,26 @@ mod installed_tools {
              change which checks run rather than only how they are reported -- \
              0.3.1 checks doctests, 0.4.0 checks functions too -- so a drift \
              here means the gate is green in one place and red in the other."
+        );
+        Ok(())
+    }
+
+    /// 0.6.0 made both `--functions` and `--context-blocks` opt-in, so the task
+    /// has to ask for both.
+    ///
+    /// Without them dejadoc 0.6 reports doctests only and exits 0: the gate
+    /// stays green while no longer checking the function bodies 0.4 checked by
+    /// default, nor the context blocks 0.6 added. The version pin cannot catch
+    /// this, because both sides would be on the same version and the flags
+    /// would still be missing.
+    #[test]
+    fn the_dejadoc_task_checks_functions_and_context_blocks() -> Result<()> {
+        let task = read("make/test.toml")?;
+        assert!(
+            task.contains("cargo dejadoc --functions --context-blocks"),
+            "the dejadoc task must pass both `--functions` and `--context-blocks`: \
+             0.6 checks doctests only unless asked, so the gate would silently \
+             stop checking duplicated functions and context blocks"
         );
         Ok(())
     }
