@@ -142,17 +142,27 @@ pub(super) fn covered_by_a_hook(hooks: &str) -> BTreeSet<String> {
     covered
 }
 
+/// The task name in a fragment that follows `./mk `: the leading run of name
+/// characters, or nothing when there are none.
+///
+/// One parser for both readers -- the hook's entries and a CI job's `run:`
+/// lines -- because a name spelled differently by the two is a task the gate
+/// believes it checked and did not.
+fn task_name_after(rest: &str) -> Option<String> {
+    let name: String = rest
+        .chars()
+        .take_while(|c| c.is_ascii_alphanumeric() || *c == '-')
+        .collect();
+    (!name.is_empty()).then_some(name)
+}
+
 pub(super) fn hooked_entry_tasks(hooks: &str) -> BTreeSet<String> {
     let mut tasks = BTreeSet::new();
     for line in hooks.lines() {
-        if let Some((_, rest)) = line.split_once("entry = \"./mk ") {
-            let name: String = rest
-                .chars()
-                .take_while(|c| c.is_ascii_alphanumeric() || *c == '-')
-                .collect();
-            if !name.is_empty() {
-                tasks.insert(name);
-            }
+        if let Some((_, rest)) = line.split_once("entry = \"./mk ")
+            && let Some(name) = task_name_after(rest)
+        {
+            tasks.insert(name);
         }
     }
     tasks
@@ -199,14 +209,10 @@ pub(super) fn tasks_a_job_runs(yaml: &str, job: &str) -> BTreeSet<String> {
             continue;
         }
         // Both `run: ./mk x` and `- run: ./mk x` appear.
-        if let Some((_, rest)) = line.split_once("./mk ") {
-            let name: String = rest
-                .chars()
-                .take_while(|c| c.is_ascii_alphanumeric() || *c == '-')
-                .collect();
-            if !name.is_empty() {
-                tasks.insert(name);
-            }
+        if let Some((_, rest)) = line.split_once("./mk ")
+            && let Some(name) = task_name_after(rest)
+        {
+            tasks.insert(name);
         }
     }
     tasks

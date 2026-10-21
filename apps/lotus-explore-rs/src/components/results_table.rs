@@ -33,6 +33,24 @@ const VIRTUAL_OVERSCAN_ROWS: usize = 4;
 const ROW_HEIGHT_PX_COMFORTABLE: usize = 138;
 const TABLE_VIEWPORT_FALLBACK_PX: usize = 760;
 
+/// A deterministic Wikidata QID for a test's label.
+///
+/// The store only keeps a cell it recognises as a QID -- `Q-Alpha` is not one,
+/// and a row keyed by nothing is dropped rather than shown with a broken link --
+/// so a fixture has to use numeric ids. Derived from the label so a test states
+/// one thing per row instead of inventing an id to go with it.
+///
+/// Lives at the parent module because both `sort_model`'s and
+/// `table_view_model`'s tests spell it, and did spell it twice.
+#[cfg(test)]
+fn qid_for(prefix: &str, label: &str) -> std::sync::Arc<str> {
+    let mut n: u32 = 2_166_136_261;
+    for byte in label.bytes() {
+        n = n.wrapping_mul(16_777_619).wrapping_add(u32::from(byte));
+    }
+    std::sync::Arc::<str>::from(format!("{prefix}{}", n % 1_000_000 + 1))
+}
+
 /// Renders the full results section.
 #[component]
 pub fn ResultsTable() -> Element {
