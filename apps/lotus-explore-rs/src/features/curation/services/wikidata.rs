@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-use super::helpers::{
-    binding_value, escape_qs_string, escape_sparql_string, extract_qid_from_uri, normalize_doi,
-};
+use super::helpers::{binding_value, escape_qs_string, escape_sparql_string, extract_qid_from_uri};
 use super::{
     CURATION_SPARQL_PREFIXES, CurationError, WD_OCCURS_IN_TAXON_PROP, WD_TAXON_QID,
-    WikidataCompound,
+    WikidataCompound, normalize_doi,
 };
 use crate::sparql::{FetchError, ResponseFormat};
 use serde_json::Value;

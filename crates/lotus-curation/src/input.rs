@@ -135,7 +135,13 @@ fn normalize_header(value: &str) -> String {
     value.trim().to_ascii_lowercase().replace(' ', "_")
 }
 
-fn normalize_doi(value: &str) -> Option<String> {
+/// A DOI as Wikidata will store it: the prefix stripped, the value
+/// upper-cased, `None` when there is nothing left.
+///
+/// Public because the curation UI does exactly this to a DOI before it asks
+/// Wikidata about it, and a second copy is how the two disagree.
+#[must_use]
+pub fn normalize_doi(value: &str) -> Option<String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
         return None;
