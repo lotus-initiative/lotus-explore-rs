@@ -17,8 +17,10 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 # The benchmark reads `dictionary_costs`, which is behind the `diagnostics`
-# feature so that it is not in the default build. Only the tests need it.
-lotus-model = { workspace = true, features = ["diagnostics"] }
+# feature so that it is not in the default build; `testing` turns on the shared
+# row fixtures in `lotus-model`, which the export tests and
+# `tests/export_fidelity.rs` build their sets from. Only the tests need either.
+lotus-model = { workspace = true, features = ["diagnostics", "testing"] }
 # Only the export tests, which parse what the exporter wrote rather than
 # string-matching it: a string match would pass on output that is not valid JSON.
 serde_json = { workspace = true }

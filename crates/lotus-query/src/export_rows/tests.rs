@@ -9,6 +9,7 @@ use super::{
     render_qid,
 };
 use csv::StringRecord;
+use lotus_model::testing::{empty_row, full_row};
 use lotus_model::{ColumnarResultSet, CompoundEntry};
 use std::sync::Arc;
 
@@ -18,25 +19,6 @@ fn set_of(rows: &[CompoundEntry]) -> ColumnarResultSet {
 
 fn arc(text: &str) -> Arc<str> {
     Arc::from(text)
-}
-
-fn full_row() -> CompoundEntry {
-    CompoundEntry {
-        compound_qid: arc("Q3613679"),
-        name: arc("quercetin"),
-        inchikey: Some(arc("ABCDEF-GHIJKL-M")),
-        smiles: Some(arc("O=c1cc(-c2ccccc2)oc2cc(O)cc(O)c12")),
-        mass: Some(302.24),
-        formula: Some(arc("C15H10O7")),
-        taxon_qid: arc("Q128267"),
-        taxon_name: arc("Rosa"),
-        reference_qid: arc("Q100000001"),
-        reference_node: arc("6eff7d028afee42232e3963a2c0f9d3b7e5a41c8d2f60b9e3a7d5c1f8b2e6049a"),
-        ref_title: Some(arc("Flavonoid isolation, 1971")),
-        ref_doi: Some(arc("10.1000/a, b")),
-        pub_year: Some(1971),
-        statement: Some(arc("Q200000002")),
-    }
 }
 
 /// The Turtle must carry the provenance chain the endpoint's CONSTRUCT emits.
@@ -124,25 +106,6 @@ fn turtle_carries_the_reified_statement_and_the_reference_node() {
         ttl.contains("wdt:P577"),
         "the publication year is lost: {ttl}"
     );
-}
-
-fn empty_row() -> CompoundEntry {
-    CompoundEntry {
-        compound_qid: arc("Q42"),
-        name: arc(""),
-        inchikey: None,
-        smiles: None,
-        mass: None,
-        formula: None,
-        taxon_qid: arc(""),
-        taxon_name: arc(""),
-        reference_qid: arc(""),
-        reference_node: arc(""),
-        ref_title: None,
-        ref_doi: None,
-        pub_year: None,
-        statement: None,
-    }
 }
 
 fn render(format: ExportFormat, set: &ColumnarResultSet) -> String {

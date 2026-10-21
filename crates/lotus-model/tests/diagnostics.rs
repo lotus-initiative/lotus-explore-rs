@@ -17,31 +17,12 @@
 #![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
 #![cfg(feature = "diagnostics")]
 
+use lotus_model::testing::full_row;
 use lotus_model::{ColumnarBuilder, CompoundEntry, RawRow};
 use std::sync::Arc;
 
 fn arc(text: &str) -> Arc<str> {
     Arc::from(text)
-}
-
-/// One row with every optional column populated, so no dictionary is empty.
-fn full_row() -> CompoundEntry {
-    CompoundEntry {
-        compound_qid: arc("Q3613679"),
-        name: arc("quercetin"),
-        inchikey: Some(arc("ABCDEF-GHIJKL-M")),
-        smiles: Some(arc("O=c1cc(-c2ccccc2)oc2cc(O)cc(O)c12")),
-        mass: Some(302.24),
-        formula: Some(arc("C15H10O7")),
-        taxon_qid: arc("Q128267"),
-        taxon_name: arc("Rosa"),
-        reference_qid: arc("Q100000001"),
-        reference_node: arc("6eff7d028afee42232e3963a2c0f9d3b7e5a41c8d2f60b9e3a7d5c1f8b2e6049a"),
-        ref_title: Some(arc("Flavonoid isolation, 1971")),
-        ref_doi: Some(arc("10.1000/a, b")),
-        pub_year: Some(1971),
-        statement: Some(arc("Q200000002")),
-    }
 }
 
 /// A set built from `rows`, through the builder so every dictionary is filled.

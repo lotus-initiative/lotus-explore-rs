@@ -22,6 +22,15 @@ rustc-hash = "2.1"
 serde = { workspace = true }
 thiserror = { workspace = true }
 
+[dev-dependencies]
+# This crate, on itself, to turn on `testing` for its own tests: the fixtures in
+# `src/testing.rs` are behind that feature so they stay out of every consumer's
+# build, and this crate's own integration tests (`tests/diagnostics.rs`) are
+# consumers like any other. A dev-dependency on self is the supported way to say
+# "my tests need this feature" without turning it on for consumers -- the same
+# arrangement `lotus-search` makes for its `testing` feature.
+lotus-model = { workspace = true, features = ["testing"] }
+
 [features]
 # Storage reporting, read by `lotus-query/tests/bench.rs` and nothing else.
 #
@@ -34,6 +43,11 @@ thiserror = { workspace = true }
 # compiled would add ~78 mutants that cannot be killed by construction, which is most
 # of a package's survivors and enough to bury a real one.
 diagnostics = []
+
+# The shared test fixtures in `src/testing.rs`, for this crate's integration
+# tests and for `lotus-query`'s. Off by default: a fixture is not part of a
+# consumer's API, and it costs mutants to ship one.
+testing = []
 
 [lints]
 workspace = true

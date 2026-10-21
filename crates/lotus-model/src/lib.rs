@@ -2,6 +2,14 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 #![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
+// This crate dev-depends on itself to turn on `testing` for its own integration
+// tests; see the comment on that line in `Cargo.toml`. Cargo cannot express a
+// dev-dependency that applies only to this crate's tests, so the lib target
+// links the self-dependency without naming it and `unused_crate_dependencies`
+// reports it -- in the lib-test build only, which is why the allow is here and
+// not in the workspace table. The same trade `lotus-search` makes for the same
+// reason.
+#![allow(unused_crate_dependencies)]
 
 mod columnar;
 mod criteria;
@@ -27,6 +35,13 @@ pub use structure::{
     looks_like_a_compound_qid, looks_like_inchikey, names_a_compound,
 };
 pub use validate::{ValidationError, validate_criteria};
+
+// The shared test fixtures. Off by default: a fixture is not part of a
+// consumer's API, and the crates that use it turn it on through a
+// dev-dependency.
+#[cfg(feature = "testing")]
+#[cfg_attr(docsrs, doc(cfg(feature = "testing")))]
+pub mod testing;
 
 /// Base URI for Wikidata entities (`Q123` → `<BASE>Q123`).
 pub const WIKIDATA_ENTITY_BASE: &str = "http://www.wikidata.org/entity/";

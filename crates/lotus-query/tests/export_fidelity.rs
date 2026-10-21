@@ -21,6 +21,7 @@
 
 #![allow(unused_crate_dependencies, clippy::expect_used, clippy::panic)]
 
+use lotus_model::testing::empty_row;
 use lotus_model::{ColumnarResultSet, CompoundEntry};
 use lotus_query::{CsvColumnarReader, ExportFormat, RowExporter, SELECT_COLUMNS};
 use std::sync::Arc;
@@ -87,29 +88,10 @@ fn other_row() -> CompoundEntry {
     }
 }
 
-/// A row with everything optional absent, which is a different CSV shape from a
-/// full one -- short cells, empty strings, an absent year.
-fn sparse_row() -> CompoundEntry {
-    CompoundEntry {
-        compound_qid: arc("Q42"),
-        name: arc(""),
-        inchikey: None,
-        smiles: None,
-        mass: None,
-        formula: None,
-        taxon_qid: arc(""),
-        taxon_name: arc(""),
-        reference_qid: arc(""),
-        reference_node: arc(""),
-        ref_title: None,
-        ref_doi: None,
-        pub_year: None,
-        statement: None,
-    }
-}
-
+/// The four rows the comparison runs on, one of which has every optional column
+/// absent -- a different CSV shape from a full one.
 fn rows() -> Vec<CompoundEntry> {
-    vec![full_row(), second_occurrence(), other_row(), sparse_row()]
+    vec![full_row(), second_occurrence(), other_row(), empty_row()]
 }
 
 /// Render the set the way the app does, through the real exporter.
