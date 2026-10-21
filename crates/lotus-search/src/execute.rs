@@ -12,6 +12,7 @@ use crate::{QLEVER_WIKIDATA, WDQS_SCHOLARLY, WDQS_WIKIDATA};
 use js_sys::Promise;
 use lotus_query::FallbackService;
 use std::fmt::Write as _;
+use std::ops::AsyncFn;
 use std::time::Duration;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsValue;
@@ -190,12 +191,38 @@ pub async fn execute<H: Http>(
     query: &str,
     format: ResponseFormat,
 ) -> Result<Answer, FetchError> {
+    let target = endpoint.url().to_string();
+    let body = with_retry(http, &target, query, format, send).await?;
+    Ok(Answer { endpoint, body })
+}
+
+/// Run one request through the retry policy both transports share.
+///
+/// `run` is the transport: [`send`] reads the whole body, [`send_response`]
+/// hands the response back so a caller can stream it. The policy around either
+/// is the same, and used to be written twice -- which is how a comment about the
+/// last attempt came to be maintained in two places, and a change to one of the
+/// two loops able to miss the other.
+///
+/// # Errors
+/// Whatever `run` returns that a retry cannot fix. Such a failure is returned on
+/// the first attempt; a retryable one after the backoff, once.
+async fn with_retry<H, T, Run>(
+    http: &H,
+    target: &str,
+    query: &str,
+    format: ResponseFormat,
+    run: Run,
+) -> Result<T, FetchError>
+where
+    H: Http,
+    Run: AsyncFn(&H, &str, &str, ResponseFormat) -> Result<T, FetchError>,
+{
     let mut last = None;
 
-    let target = endpoint.url().to_string();
     for attempt in 1..=MAX_ATTEMPTS {
-        match send(http, &target, query, format).await {
-            Ok(body) => return Ok(Answer { endpoint, body }),
+        match run(http, target, query, format).await {
+            Ok(value) => return Ok(value),
             Err(err) => {
                 // `<` rather than `<=` is an equivalent surviving mutant, recorded so it
                 // need not be rediscovered. `attempt <= MAX_ATTEMPTS` is true on the last
@@ -231,17 +258,50 @@ pub async fn execute_with_fallback<H: Http>(
     query: &str,
     format: ResponseFormat,
 ) -> Result<Answer, FetchError> {
-    match execute(http, Endpoint::new(Service::Qlever), query, format).await {
+    with_fallback(http, query, format, execute).await
+}
+
+/// What to try when the primary endpoint is unreachable: the WDQS endpoint the
+/// query maps to, with the query rewritten for it.
+///
+/// `None` when the failure is not one a fallback fixes.
+///
+/// One copy of this choice for both transports, because whether a body is read
+/// whole or in chunks has no bearing on which endpoint could answer instead.
+fn fallback_endpoint(err: &FetchError, query: &str) -> Option<(Endpoint, String)> {
+    if !err.is_endpoint_unavailable() {
+        return None;
+    }
+    let (service, rewritten) = lotus_query::wdqs_fallback(query);
+    let service = match service {
+        FallbackService::Scholarly => Service::Scholarly,
+        FallbackService::Main => Service::Wdqs,
+    };
+    Some((Endpoint::new(service), rewritten))
+}
+
+/// Run `query` against `QLever`, falling back to WDQS when the endpoint is
+/// unreachable, through whichever transport `run` is.
+///
+/// # Errors
+/// Returns [`FetchError`] from either endpoint, and the WDQS failure if
+/// `QLever` was unreachable and WDQS then failed too.
+async fn with_fallback<H, T, Run>(
+    http: &H,
+    query: &str,
+    format: ResponseFormat,
+    run: Run,
+) -> Result<T, FetchError>
+where
+    H: Http,
+    Run: AsyncFn(&H, Endpoint, &str, ResponseFormat) -> Result<T, FetchError>,
+{
+    match run(http, Endpoint::new(Service::Qlever), query, format).await {
         Ok(answer) => Ok(answer),
-        Err(err) if err.is_endpoint_unavailable() => {
-            let (service, rewritten) = lotus_query::wdqs_fallback(query);
-            let service = match service {
-                FallbackService::Scholarly => Service::Scholarly,
-                FallbackService::Main => Service::Wdqs,
-            };
-            execute(http, Endpoint::new(service), &rewritten, format).await
-        }
-        Err(err) => Err(err),
+        Err(err) => match fallback_endpoint(&err, query) {
+            Some((endpoint, rewritten)) => run(http, endpoint, &rewritten, format).await,
+            None => Err(err),
+        },
     }
 }
 
@@ -555,34 +615,13 @@ pub async fn execute_streaming<H: Http>(
     query: &str,
     format: ResponseFormat,
 ) -> Result<StreamAnswer, FetchError> {
-    let mut last = None;
-
     let target = endpoint.url().to_string();
-    for attempt in 1..=MAX_ATTEMPTS {
-        match send_response(http, &target, query, format).await {
-            Ok(response) => {
-                let chunks = response.into_chunks()?;
-                return Ok(StreamAnswer { endpoint, chunks });
-            }
-            Err(err) => {
-                // `<` rather than `<=` is an equivalent surviving mutant, recorded so it
-                // need not be rediscovered. `attempt <= MAX_ATTEMPTS` is true on the last
-                // iteration too, so the body takes one more branch: store the error, sleep
-                // out the backoff, let the `for` run out, then return `last` -- the error
-                // from that same last attempt, identical to the value the line below
-                // returns. Same error, same request count, one wasted 400 ms. `<` is meant:
-                // the last attempt's failure is the answer.
-                let worth_retrying = err.is_retryable() && attempt < MAX_ATTEMPTS;
-                if !worth_retrying {
-                    return Err(err);
-                }
-                last = Some(err);
-                backoff(RETRY_BACKOFF).await;
-            }
-        }
-    }
-
-    Err(last.unwrap_or(FetchError::Empty))
+    let response = with_retry(http, &target, query, format, send_response).await?;
+    // Outside the retry on purpose: a transport that refuses to stream has not
+    // failed in a way another attempt could fix, so it is reported now rather
+    // than after the backoff.
+    let chunks = response.into_chunks()?;
+    Ok(StreamAnswer { endpoint, chunks })
 }
 
 /// Run `query` against `QLever` and stream the body, falling back to WDQS when
@@ -596,18 +635,7 @@ pub async fn execute_streaming_with_fallback<H: Http>(
     query: &str,
     format: ResponseFormat,
 ) -> Result<StreamAnswer, FetchError> {
-    match execute_streaming(http, Endpoint::new(Service::Qlever), query, format).await {
-        Ok(answer) => Ok(answer),
-        Err(err) if err.is_endpoint_unavailable() => {
-            let (service, rewritten) = lotus_query::wdqs_fallback(query);
-            let service = match service {
-                FallbackService::Scholarly => Service::Scholarly,
-                FallbackService::Main => Service::Wdqs,
-            };
-            execute_streaming(http, Endpoint::new(service), &rewritten, format).await
-        }
-        Err(err) => Err(err),
-    }
+    with_fallback(http, query, format, execute_streaming).await
 }
 
 const fn is_success(status: u16) -> bool {

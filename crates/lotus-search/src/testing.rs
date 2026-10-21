@@ -144,6 +144,28 @@ impl Scripted {
             .push(format!("{endpoint}|{}", decode(body)));
     }
 
+    /// The scripted response to one call, having recorded what was asked.
+    ///
+    /// The one place a status of 0 becomes the error a real transport produces:
+    /// a request that never arrived is a connection failure whatever method was
+    /// about to send it, and three methods said so in three copies.
+    ///
+    /// # Panics
+    /// If a test panicked while holding the script, which means that test has
+    /// already failed and this one only reports the same problem again.
+    fn answer(&self, target: &str, detail: &str) -> Result<ScriptedResponse, FetchError> {
+        self.record(target, detail);
+
+        let reply = self.reply();
+        if reply.status == 0 {
+            return Err(FetchError::Network("connection refused".into()));
+        }
+        Ok(ScriptedResponse {
+            fake: reply,
+            chunk_size: self.chunk_size,
+        })
+    }
+
     /// Every request body exactly as it was sent, in order.
     ///
     /// [`Scripted::queries`] decodes the form and shows the `query` field, which
@@ -203,22 +225,13 @@ impl Http for Scripted {
         _accept: &str,
         body: String,
     ) -> Result<Self::Response, FetchError> {
-        self.record(endpoint, &body);
-
-        let reply = self.reply();
-        if reply.status == 0 {
-            return Err(FetchError::Network("connection refused".into()));
-        }
-        Ok(ScriptedResponse {
-            fake: reply,
-            chunk_size: self.chunk_size,
-        })
+        self.answer(endpoint, &body)
     }
 
     async fn post_form(
         &self,
         endpoint: &str,
-        accept: &str,
+        _accept: &str,
         body: String,
         headers: &[(&str, String)],
     ) -> Result<Self::Response, FetchError> {
@@ -228,33 +241,15 @@ impl Http for Scripted {
                 .map(|(name, _)| (*name).to_string())
                 .collect(),
         );
-        self.post(endpoint, accept, body).await
+        self.answer(endpoint, &body)
     }
 
     async fn post_json(&self, url: &str, body: String) -> Result<Self::Response, FetchError> {
-        self.record(url, &body);
-
-        let reply = self.reply();
-        if reply.status == 0 {
-            return Err(FetchError::Network("connection refused".into()));
-        }
-        Ok(ScriptedResponse {
-            fake: reply,
-            chunk_size: self.chunk_size,
-        })
+        self.answer(url, &body)
     }
 
     async fn get(&self, url: &str, accept: &str) -> Result<Self::Response, FetchError> {
-        self.record(url, accept);
-
-        let reply = self.reply();
-        if reply.status == 0 {
-            return Err(FetchError::Network("connection refused".into()));
-        }
-        Ok(ScriptedResponse {
-            fake: reply,
-            chunk_size: self.chunk_size,
-        })
+        self.answer(url, accept)
     }
 }
 
