@@ -68,8 +68,8 @@ in `apps/lotus-explore-rs/docs/`.
 - **Doctests matter:** each library crate's `README.md` is its crate documentation
   via `#![doc = include_str!("../README.md")]`. `./mk test` runs nextest and then
   `cargo test --workspace --doc` because nextest does not run doctests.
-- **No duplicates — `./mk echoes` is a gate, not a report.** The task runs
-  `cargo echoes --functions --context-blocks` and exits 1 on any group. Both
+- **No duplicates — `./mk dejadoc` is a gate, not a report.** The task runs
+  `cargo dejadoc --functions --context-blocks` and exits 1 on any group. Both
   flags are opt-in since 0.6.0, so dropping either makes the task check less while
   staying green; `dejadoc` is pinned to 0.6.0 in `ci.yml` and `make/scripts/setup.sh`
   because the version is what decides whether the gate checks anything.
@@ -124,10 +124,10 @@ and the compiler instead — do not install it.
 - **Tests:** cargo-nextest 0.9.146 (parallel, per-test-process), plus
   `cargo test --doc` for doctests.
 - **TOML:** tombi (version read from `prek.toml`)
-- **Duplicate detection:** cargo-echoes 0.6.0 (`dejadoc` is the crate and
-  `cargo-echoes` the binary; `install-action` takes crate names, which is why
-  `ci.yml` says `cargo-echoes@0.6.0`). Debug a group with `cargo echoes -v` (sites and
-  code) or `cargo echoes --json`. `--organization <org>` compares functions
+- **Duplicate detection:** cargo-dejadoc 0.6.0 (`dejadoc` is the crate and
+  `cargo-dejadoc` the binary; `install-action` takes crate names, which is why
+  `ci.yml` says `cargo-dejadoc@0.6.0`). Debug a group with `cargo dejadoc -v` (sites and
+  code) or `cargo dejadoc --json`. `--organization <org>` compares functions
   across every repository the token can see and needs `--config`, because a
   downloaded `.dejadoc.toml` is ignored; exit 2 with
   `dejadoc: incomplete organization analysis` means a repository was skipped.

@@ -100,7 +100,7 @@ impl ExportFormat {
     ///
     /// Deliberately [`Self::extension`] rather than a second copy of the same
     /// match. The two were written out separately and had drifted into being
-    /// character-for-character identical, which is what `cargo echoes` reports.
+    /// character-for-character identical, which is what `cargo dejadoc` reports.
     /// If a format is ever added whose log name is *not* its extension --
     /// `ndjson` and `json` being the obvious candidate -- this becomes a real
     /// function again, and the gate that flagged the copy is what should prompt

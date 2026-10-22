@@ -418,7 +418,7 @@ where
 /// whichever one it is asked for. Without this the two call sites each wanted a
 /// function returning `(min, max)` and a three-line `map` onto their own type --
 /// and those two three-line wrappers were themselves identical, which is what the
-/// second round of `cargo echoes` reported. Removing them is the fix; a second
+/// second round of `cargo dejadoc` reported. Removing them is the fix; a second
 /// helper to deduplicate them would have been the third function for the job.
 trait RangeDto<T> {
     /// This DTO over `T`.
