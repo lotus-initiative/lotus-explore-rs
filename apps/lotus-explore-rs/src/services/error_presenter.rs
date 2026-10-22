@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! User-facing formatting for domain errors and warnings.
 
-use crate::features::explore::truncation::{Reason, truncation_reason};
-use crate::features::explore::{
+use lotus_explore_core::explore::truncation::{Reason, truncation_reason};
+use lotus_explore_core::explore::{
     DomainError, ErrorKind, LookupNotice, ParseFault, QueryStage, ValidationFault,
 };
 #[cfg(target_arch = "wasm32")]

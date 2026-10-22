@@ -9,6 +9,13 @@ use lotus_model::{ColumnarResultSet, CompoundEntry};
 use lotus_search::SearchCriteria;
 use std::sync::Arc;
 
+/// The year the tests pin, so "is this year bound in the future?" has one
+/// answer rather than the answer the day the suite runs.
+const YEAR: u16 = 2026;
+
+/// The instant the tests pin, so the document they assert is the whole one.
+const NOW: &str = "2026-03-04T05:06:07Z";
+
 /// The value of `key` in the metadata JSON, or `None` if it is absent.
 ///
 /// The document is pretty-printed, so a substring test for `"k": v` would have to
@@ -34,13 +41,15 @@ fn set_of(n: usize) -> Arc<ColumnarResultSet> {
 
 #[test]
 fn download_only_suppresses_stats_and_matches() {
-    let crit = SearchCriteria::up_to_year(crate::clock::current_year());
+    let crit = SearchCriteria::up_to_year(YEAR);
     let m = finalize(
         &crit,
         None,
         &set_of(3),
         true,
-        export::SparqlEndpoint::Qlever,
+        SparqlEndpoint::Qlever,
+        YEAR,
+        NOW,
     );
     assert_eq!(
         record_count(&m),
@@ -54,9 +63,9 @@ fn download_only_suppresses_stats_and_matches() {
 fn the_counts_come_from_the_set_and_never_disagree_with_it() {
     // There is no count argument, which is the point: a field that could say 7 while
     // the set held 3 is the bug the endpoint's `COUNT` query used to produce.
-    let crit = SearchCriteria::up_to_year(crate::clock::current_year());
+    let crit = SearchCriteria::up_to_year(YEAR);
     let set = set_of(3);
-    let m = finalize(&crit, None, &set, false, export::SparqlEndpoint::Qlever);
+    let m = finalize(&crit, None, &set, false, SparqlEndpoint::Qlever, YEAR, NOW);
 
     assert_eq!(
         record_count(&m),
@@ -67,13 +76,15 @@ fn the_counts_come_from_the_set_and_never_disagree_with_it() {
 
 #[test]
 fn an_empty_search_reports_zero_rather_than_no_answer() {
-    let crit = SearchCriteria::up_to_year(crate::clock::current_year());
+    let crit = SearchCriteria::up_to_year(YEAR);
     let m = finalize(
         &crit,
         None,
         &set_of(0),
         false,
-        export::SparqlEndpoint::Qlever,
+        SparqlEndpoint::Qlever,
+        YEAR,
+        NOW,
     );
 
     assert_eq!(

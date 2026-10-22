@@ -3484,6 +3484,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "lotus-explore-core"
+version = "0.1.0"
+dependencies = [
+ "lotus-model",
+ "lotus-query",
+ "lotus-search",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+ "thiserror 2.0.21",
+ "urlencoding",
+]
+
+[[package]]
 name = "lotus-explore-rs"
 version = "0.1.0"
 dependencies = [
@@ -3501,6 +3516,7 @@ dependencies = [
  "js-sys",
  "log",
  "lotus-curation",
+ "lotus-explore-core",
  "lotus-model",
  "lotus-query",
  "lotus-search",

@@ -4,7 +4,7 @@
 
 use crate::components::copy_button::CopyButton;
 use crate::components::ui::Card;
-use crate::features::explore::absolute_current_url_with_query;
+use lotus_explore_core::explore::absolute_current_url_with_query;
 use crate::i18n::{TextKey, t};
 use dioxus::prelude::*;
 use std::sync::Arc;

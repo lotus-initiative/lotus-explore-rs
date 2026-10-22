@@ -6,7 +6,7 @@
 //! a name, a numeric range for a mass or a year. The columns come from the same
 //! list the sort buttons come from, so a control cannot drift out from under its
 //! header. These filter the rows already fetched; nothing here re-runs the query —
-//! see [`crate::filters`] for why.
+//! see [`lotus_explore_core::filters`] for why.
 //!
 //! - **A leading empty cell.** Seven columns, six filterable: structure is a
 //!   rendered molecule with nothing to type. Without the spacer the filters sit one
@@ -17,11 +17,11 @@
 //!   buttons under the word "Mass".
 
 use super::header_model::SORTABLE_COLUMNS;
-use crate::features::explore::interactions::use_explore_interactions;
-use crate::features::explore::selectors::use_result_selector;
-use crate::filters::{Bound, ColumnFilters, FilterKind};
+use lotus_explore_core::explore::interactions::use_explore_interactions;
+use lotus_explore_core::explore::selectors::use_result_selector;
+use lotus_explore_core::filters::{Bound, ColumnFilters, FilterKind};
 use crate::i18n::{Locale, TextKey, t};
-use crate::sort::SortColumn;
+use lotus_explore_core::sort::SortColumn;
 use crate::state::use_results_context;
 use dioxus::prelude::*;
 

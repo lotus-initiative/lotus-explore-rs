@@ -61,6 +61,7 @@ dependencies = [
   "lint-native-builds",
   "test",
   "dejadoc",
+  "boundary",
   "doc",
   "check-wasm",
   "lint-wasm",
@@ -124,6 +125,7 @@ dependencies = [
   "lint",
   "lint-native-builds",
   "test",
+  "boundary",
   "doc",
   "check-wasm",
   "lint-wasm",
@@ -160,3 +162,16 @@ echo "removing target/nextest, the coverage report and the build output"
 rm -rf target/nextest target/llvm-cov-report target/llvm-cov-target
 cargo clean
 """
+
+[tasks."boundary"]
+cwd = "${REPO_ROOT}"
+description = "Enforce core crates have no dioxus dependencies (boundary between core and UI)."
+script = '''
+#!/usr/bin/env bash
+set -euo pipefail
+if grep -R "dioxus" crates/lotus-explore-core crates/lotus-model crates/lotus-query crates/lotus-search crates/lotus-jsonld crates/lotus-curation crates/lotus-web-assets 2>/dev/null | grep -v ".toml:" | grep -v "README" | grep -v "target/" | grep -q "dioxus"; then
+  echo "dioxus found in core crates" >&2
+  exit 1
+fi
+echo "boundary: ok"
+'''

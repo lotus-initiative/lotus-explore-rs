@@ -13,8 +13,8 @@ use std::sync::Arc;
 
 #[component]
 pub fn ResultsViewport() -> Element {
-    use crate::features::explore::ExploreUiState;
-    use crate::features::explore::selectors::use_result_selector;
+    use lotus_explore_core::explore::ExploreUiState;
+    use lotus_explore_core::explore::selectors::use_result_selector;
 
     let state = use_results_context();
     let explore = state.explore;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::sort::{SortColumn, SortDir, SortState};
+use lotus_explore_core::sort::{SortColumn, SortDir, SortState};
 
 /// ARIA `aria-sort` value for a column header.
 pub(super) fn aria_sort_for(state: SortState, col: SortColumn) -> &'static str {

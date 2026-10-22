@@ -13,9 +13,9 @@
 use super::fetch_results;
 mod plan;
 
-use crate::features::explore::request::SearchRequest;
-use crate::features::explore::search_metrics::SearchMetrics;
-use crate::features::explore::types::{DomainError, LookupNotice, QueryPhase};
+use lotus_explore_core::explore::request::SearchRequest;
+use lotus_explore_core::explore::search_metrics::SearchMetrics;
+use lotus_explore_core::explore::types::{DomainError, LookupNotice, QueryPhase};
 use crate::repositories::LotusRepository;
 
 #[derive(Debug)]
@@ -25,7 +25,7 @@ pub struct ResultsPipelineOutcome {
     pub warnings: Vec<LookupNotice>,
     pub query: String,
     pub display_capped_rows: bool,
-    pub endpoint: crate::export::SparqlEndpoint,
+    pub endpoint: lotus_explore_core::export::metadata::SparqlEndpoint,
 }
 
 pub async fn execute<R: LotusRepository>(

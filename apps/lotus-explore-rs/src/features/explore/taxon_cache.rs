@@ -10,7 +10,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use crate::features::explore::types::LookupNotice;
+use lotus_explore_core::explore::types::LookupNotice;
 use lotus_model::TaxonNameSource;
 
 /// A resolved taxon name, together with the candidates that made it ambiguous.

@@ -18,6 +18,62 @@
 //! rather than one behind a runtime check: a runtime check would still compile
 //! the branch that panics.
 
+/// The current instant, as an ISO-8601 stamp in UTC.
+///
+/// The export name and the metadata document both date themselves, and both
+/// take the stamp from here rather than reading a clock of their own — the
+/// domain crates cannot see one.
+#[cfg(not(target_arch = "wasm32"))]
+#[must_use]
+pub fn now_iso8601() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs().cast_signed());
+    let (y, m, d, hh, mm, ss) = epoch_to_ymdhms(secs);
+    format!("{y:04}-{m:02}-{d:02}T{hh:02}:{mm:02}:{ss:02}Z")
+}
+
+/// The current instant, from the browser's clock.
+#[cfg(target_arch = "wasm32")]
+#[must_use]
+pub fn now_iso8601() -> String {
+    js_sys::Date::new_0().to_iso_string().into()
+}
+
+// Every cast below narrows within a value already bounded by the caller: a
+// time-of-day is under 86_400, a day count is four figures, and a signed
+// offset becomes a `u64` count of days only after the era shift has made it
+// non-negative. Widening the types to prove it would cost more than it says.
+#[cfg(not(target_arch = "wasm32"))]
+#[allow(clippy::cast_possible_wrap)]
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_sign_loss)]
+const fn epoch_to_ymdhms(secs: i64) -> (i32, u32, u32, u32, u32, u32) {
+    // Dependency-free date conversion (Howard Hinnant, public domain).
+    let days = secs.div_euclid(86_400);
+    let rem = secs.rem_euclid(86_400);
+    let hh = (rem / 3600) as u32;
+    let mm = ((rem % 3600) / 60) as u32;
+    let ss = (rem % 60) as u32;
+    let z = days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 {
+        (mp + 3) as u32
+    } else {
+        (mp - 9) as u32
+    };
+    let y = if m <= 2 { y + 1 } else { y };
+    (y as i32, m, d, hh, mm, ss)
+}
+
 /// The current calendar year.
 ///
 /// Used for the default upper year bound on a publication date, so a reference

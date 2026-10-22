@@ -5,7 +5,7 @@
 #![allow(clippy::panic)]
 
 use super::*;
-use crate::features::explore::types::{QueryStage, ValidationFault};
+use lotus_explore_core::explore::types::{QueryStage, ValidationFault};
 use crate::repositories::RepositoryError;
 
 #[test]

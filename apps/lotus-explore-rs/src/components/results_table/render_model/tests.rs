@@ -4,7 +4,7 @@
 
 use super::*;
 use crate::hooks::use_virtualization::VirtualizationState;
-use crate::sort::{SortColumn, SortDir, SortState};
+use lotus_explore_core::sort::{SortColumn, SortDir, SortState};
 use lotus_model::ColumnarResultSet;
 
 /// A set of three rows with the given names.

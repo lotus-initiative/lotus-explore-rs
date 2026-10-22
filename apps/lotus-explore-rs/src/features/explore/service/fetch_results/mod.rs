@@ -11,10 +11,10 @@
 //! This module is **Dioxus-free**: the phase-change callback (`on_fetching`)
 //! is a plain `Fn()` closure so that tests can supply a no-op.
 
-use crate::features::explore::search_metrics::SearchMetrics;
-use crate::features::explore::types::DomainError;
+use lotus_explore_core::explore::search_metrics::SearchMetrics;
+use lotus_explore_core::explore::types::DomainError;
 #[cfg(target_arch = "wasm32")]
-use crate::features::explore::types::QueryStage;
+use lotus_explore_core::explore::types::QueryStage;
 use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
 use lotus_model::ColumnarResultSet;

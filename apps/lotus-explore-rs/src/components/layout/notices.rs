@@ -4,11 +4,11 @@
 
 use crate::components::copy_button::CopyButton;
 use crate::components::ui::Button;
-use crate::features::explore::interactions::use_explore_interactions;
-use crate::features::explore::recovery;
-use crate::features::explore::selectors::{use_lifecycle_selector, use_result_selector};
-use crate::features::explore::types::ErrorKind;
-use crate::features::explore::url_state::absolute_share_url;
+use lotus_explore_core::explore::interactions::use_explore_interactions;
+use lotus_explore_core::explore::recovery;
+use lotus_explore_core::explore::selectors::{use_lifecycle_selector, use_result_selector};
+use lotus_explore_core::explore::types::ErrorKind;
+use lotus_explore_core::explore::url_state::absolute_share_url;
 use crate::i18n::{TextKey, t};
 use crate::services::error_presenter::{
     error_hint_text, format_domain_error, format_taxon_warnings,

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::features::explore::form_actions::FormAction;
-use crate::features::explore::selectors::use_criteria_selector;
+use lotus_explore_core::explore::form_actions::FormAction;
+use lotus_explore_core::explore::selectors::use_criteria_selector;
 use crate::i18n::{TextKey, t};
 use crate::state::use_form_criteria_context;
 use dioxus::prelude::*;

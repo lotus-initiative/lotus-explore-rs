@@ -9,15 +9,15 @@
 )]
 
 use super::controller::SearchTaskController;
-use crate::features::explore::actions::ExploreAction;
-use crate::features::explore::command::SearchCommand;
-use crate::features::explore::executor::do_search;
-use crate::features::explore::lifecycle::{ErrorHandlingOutcome, SearchLifecycleCoordinator};
-use crate::features::explore::outcome::SearchOutcome;
-use crate::features::explore::request::SearchRequest;
-use crate::features::explore::search_state::{ExploreState, dispatch_explore_action};
-use crate::features::explore::service::finalize;
-use crate::features::explore::types::DomainError;
+use lotus_explore_core::explore::actions::ExploreAction;
+use lotus_explore_core::explore::command::SearchCommand;
+use lotus_explore_core::explore::executor::do_search;
+use lotus_explore_core::explore::lifecycle::{ErrorHandlingOutcome, SearchLifecycleCoordinator};
+use lotus_explore_core::explore::outcome::SearchOutcome;
+use lotus_explore_core::explore::request::SearchRequest;
+use lotus_explore_core::explore::search_state::{ExploreState, dispatch_explore_action};
+use lotus_explore_core::explore::service::finalize;
+use lotus_explore_core::explore::types::DomainError;
 use crate::repositories::{LotusRepository, reset_wdqs_fallback_flag};
 use crate::services::search_telemetry as telemetry;
 use dioxus::prelude::*;
@@ -133,7 +133,7 @@ async fn handle_search_error(
 }
 
 fn validate_search_criteria(criteria: &SearchCriteria) -> Result<(), DomainError> {
-    crate::features::explore::form_validation::validate_dispatch_criteria(criteria)
+    lotus_explore_core::explore::form_validation::validate_dispatch_criteria(criteria)
         .map_err(DomainError::Validation)
 }
 
@@ -153,6 +153,8 @@ fn build_search_succeeded_action(request: &SearchRequest, outcome: SearchOutcome
         &set,
         request.direct_download(),
         endpoint,
+        crate::clock::current_year(),
+        &crate::clock::now_iso8601(),
     );
 
     ExploreAction::SearchSucceeded {

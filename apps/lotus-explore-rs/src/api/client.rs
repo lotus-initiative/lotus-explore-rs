@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use crate::api::config::api_base_url;
-use crate::api::dto::{SearchRequest, SearchResponse};
-use crate::api::error::ApiClientError;
+use lotus_explore_core::api::dto::{SearchRequest, SearchResponse};
+use lotus_explore_core::api::error::ApiClientError;
 use lotus_search::SearchCriteria;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
@@ -16,14 +16,16 @@ pub async fn search(
     include_counts: bool,
 ) -> Result<SearchResponse, ApiClientError> {
     let base = api_base_url().unwrap_or_default();
-    let request = SearchRequest::from_criteria(criteria, limit, include_counts);
+    let request =
+        SearchRequest::from_criteria(criteria, limit, include_counts, crate::clock::current_year());
     match post_json(&base, "/v1/search", &request).await {
         Ok(response) => Ok(response),
         Err(ApiClientError::Http(status, _))
             if include_counts && (status == 502 || status == 504) =>
         {
             log::warn!("event=search phase=api state=retry_without_counts status={status}");
-            let retry_request = SearchRequest::from_criteria(criteria, limit, false);
+            let retry_request =
+                SearchRequest::from_criteria(criteria, limit, false, crate::clock::current_year());
             post_json(&base, "/v1/search", &retry_request).await
         }
         Err(err) => Err(err),
@@ -33,10 +35,10 @@ pub async fn search(
 #[cfg(target_arch = "wasm32")]
 pub async fn export_urls(
     criteria: &SearchCriteria,
-) -> Result<crate::api::dto::ExportUrlResponse, ApiClientError> {
+) -> Result<lotus_explore_core::api::dto::ExportUrlResponse, ApiClientError> {
     let base = api_base_url().unwrap_or_default();
-    let request = SearchRequest::from_criteria(criteria, 1, false);
-    let response: crate::api::dto::ExportUrlResponse =
+    let request = SearchRequest::from_criteria(criteria, 1, false, crate::clock::current_year());
+    let response: lotus_explore_core::api::dto::ExportUrlResponse =
         post_json(&base, "/v1/export-url", &request).await?;
     Ok(normalize_export_urls(&base, response))
 }
@@ -75,8 +77,8 @@ fn build_http_client() -> Result<reqwest::Client, String> {
 #[cfg(target_arch = "wasm32")]
 fn normalize_export_urls(
     base: &str,
-    mut response: crate::api::dto::ExportUrlResponse,
-) -> crate::api::dto::ExportUrlResponse {
+    mut response: lotus_explore_core::api::dto::ExportUrlResponse,
+) -> lotus_explore_core::api::dto::ExportUrlResponse {
     response.csv_url = resolve_api_url(base, &response.csv_url);
     response.json_url = resolve_api_url(base, &response.json_url);
     response.rdf_url = resolve_api_url(base, &response.rdf_url);

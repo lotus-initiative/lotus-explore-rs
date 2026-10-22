@@ -5,7 +5,7 @@
 use super::row_cells::PreparedRow;
 use super::table_view_model::TableViewModel;
 use crate::hooks::use_virtualization::VirtualizationState;
-use crate::sort::SortState;
+use lotus_explore_core::sort::SortState;
 use lotus_model::CompoundEntry;
 use std::sync::Arc;
 

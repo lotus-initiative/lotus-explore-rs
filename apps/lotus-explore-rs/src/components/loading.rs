@@ -3,9 +3,9 @@
 //! Loading and download-dispatching overlay components.
 
 use crate::components::ui::Button;
-use crate::features::explore::interactions::use_explore_interactions;
-use crate::features::explore::selectors::use_lifecycle_selector;
-use crate::features::explore::types::QueryPhase;
+use lotus_explore_core::explore::interactions::use_explore_interactions;
+use lotus_explore_core::explore::selectors::use_lifecycle_selector;
+use lotus_explore_core::explore::types::QueryPhase;
 use crate::i18n::{CountNoun, Locale, TextKey, t};
 use crate::i18n::{count_label, format_count};
 use crate::state::use_results_context;

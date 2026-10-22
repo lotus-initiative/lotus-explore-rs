@@ -4,7 +4,7 @@
 pub mod form_context;
 
 use crate::app_state::AppState;
-use crate::features::explore::ExploreState;
+use lotus_explore_core::explore::ExploreState;
 use dioxus::prelude::*;
 
 pub use form_context::{FormCriteriaContext, use_form_criteria_context};

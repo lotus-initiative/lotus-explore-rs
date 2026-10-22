@@ -8,9 +8,9 @@
 #![allow(clippy::expect_used, clippy::panic)]
 
 use super::*;
-use crate::features::explore::ExploreInteractions;
-use crate::features::explore::orchestrator::SearchTaskController;
-use crate::features::explore::search_state::ExploreState;
+use lotus_explore_core::explore::ExploreInteractions;
+use lotus_explore_core::explore::orchestrator::SearchTaskController;
+use lotus_explore_core::explore::search_state::ExploreState;
 use crate::i18n::Locale;
 use crate::repositories::HybridRepository;
 use crate::state::{FormCriteriaContext, ResultsContext};

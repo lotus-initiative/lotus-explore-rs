@@ -2,13 +2,13 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Typed interaction boundary for the Explore feature.
 
-use crate::features::explore::actions::ExploreAction;
-use crate::features::explore::command::SearchCommand;
-use crate::features::explore::orchestrator::{SearchTaskController, start_search};
-use crate::features::explore::search_state::{ExploreState, dispatch_explore_action};
-use crate::filters::ColumnFilters;
+use lotus_explore_core::explore::actions::ExploreAction;
+use lotus_explore_core::explore::command::SearchCommand;
+use lotus_explore_core::explore::orchestrator::{SearchTaskController, start_search};
+use lotus_explore_core::explore::search_state::{ExploreState, dispatch_explore_action};
+use lotus_explore_core::filters::ColumnFilters;
 use crate::repositories::HybridRepository;
-use crate::sort::SortColumn;
+use lotus_explore_core::sort::SortColumn;
 use crate::state::FormCriteriaContext;
 use dioxus::prelude::*;
 use lotus_model::SearchCriteria;

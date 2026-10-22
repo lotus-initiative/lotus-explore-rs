@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::features::explore::search_state::ExploreState;
+use lotus_explore_core::explore::search_state::ExploreState;
 use lotus_query::ExportFormat as DownloadFormat;
 use lotus_search::SearchCriteria;
 use std::sync::Arc;
@@ -37,6 +37,8 @@ pub enum DispatchPhase {
 pub fn classify_dispatch_phase(
     pending_format: Option<DownloadFormat>,
     explore: &ExploreState,
+    year: u16,
+    now: &str,
 ) -> DispatchPhase {
     let Some(format) = pending_format else {
         return DispatchPhase::Inactive;
@@ -50,8 +52,12 @@ pub fn classify_dispatch_phase(
         return DispatchPhase::WaitingForQuery { format };
     };
 
-    let filename =
-        crate::export::generate_filename(&explore.ui.executed_criteria, format.extension());
+    let filename = lotus_explore_core::export::filename::generate_filename(
+        &explore.ui.executed_criteria,
+        format.extension(),
+        year,
+        now,
+    );
 
     DispatchPhase::Ready {
         criteria: Arc::new(explore.ui.executed_criteria.clone()),

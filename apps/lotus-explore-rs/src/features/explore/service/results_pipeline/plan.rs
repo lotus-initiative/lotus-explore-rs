@@ -9,17 +9,17 @@
 )]
 
 use super::ResultsPipelineOutcome;
-use crate::export::SparqlEndpoint;
-use crate::features::explore::request::SearchRequest;
-use crate::features::explore::search_metrics::SearchMetrics;
-use crate::features::explore::service::{
+use lotus_explore_core::export::metadata::SparqlEndpoint;
+use lotus_explore_core::explore::request::SearchRequest;
+use lotus_explore_core::explore::search_metrics::SearchMetrics;
+use lotus_explore_core::explore::service::{
     build_query::{ResolvedStructure, apply_server_filters, build_sparql_query},
     fetch_results::FetchResult,
     resolve_reference,
     resolve_structure::{self, StructureResolution},
     resolve_taxon::{self, TaxonResolution},
 };
-use crate::features::explore::types::{DomainError, QueryPhase};
+use lotus_explore_core::explore::types::{DomainError, QueryPhase};
 use crate::repositories::{LotusRepository, is_wdqs_fallback_used};
 
 pub(super) struct ResultsExecutionPlan {
@@ -59,7 +59,7 @@ impl ResultsExecutionPlan {
         let mut warnings = self.taxon_resolution.warnings;
         warnings.extend(self.structure_resolution.notices.clone());
         if is_wdqs_fallback_used() {
-            warnings.push(crate::features::explore::types::LookupNotice::WdqsFallback);
+            warnings.push(lotus_explore_core::explore::types::LookupNotice::WdqsFallback);
         }
         let query = crate::repositories::get_wdqs_transformed_query()
             .unwrap_or_else(|| self.execution_query.clone());

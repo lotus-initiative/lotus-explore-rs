@@ -3,7 +3,7 @@
 //! The tests for `bootstrap`, in their own file.
 
 use super::*;
-use crate::features::explore::InitialDownloadState;
+use lotus_explore_core::explore::InitialDownloadState;
 use lotus_query::ExportFormat as DownloadFormat;
 
 #[test]

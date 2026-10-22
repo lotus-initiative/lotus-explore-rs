@@ -5,7 +5,7 @@
 #![allow(clippy::panic)]
 
 use super::SearchRequest;
-use crate::features::explore::command::SearchCommand;
+use lotus_explore_core::explore::command::SearchCommand;
 use lotus_search::SearchCriteria;
 
 #[test]
@@ -20,7 +20,7 @@ fn action_preserves_criteria_and_command() {
 
     let action = request.as_action();
     match action {
-        crate::features::explore::actions::ExploreAction::SearchRequested {
+        lotus_explore_core::explore::actions::ExploreAction::SearchRequested {
             criteria_snapshot,
             command,
         } => {

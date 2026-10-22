@@ -27,8 +27,8 @@
 //! [`reference_by_qid_query`]: lotus_query::reference_by_qid_query
 //! [`reference_by_doi_query`]: lotus_query::reference_by_doi_query
 
-use crate::features::explore::search_metrics::SearchMetrics;
-use crate::features::explore::types::{DomainError, LookupNotice, QueryStage, ValidationFault};
+use lotus_explore_core::explore::search_metrics::SearchMetrics;
+use lotus_explore_core::explore::types::{DomainError, LookupNotice, QueryStage, ValidationFault};
 use crate::repositories::LotusRepository;
 use lotus_model::{looks_like_doi, looks_like_reference_qid};
 use lotus_query::ReferenceMatch;
@@ -120,7 +120,7 @@ async fn run<R: LotusRepository>(
         source,
     })?;
     let parsed = lotus_query::parse_reference_lookup_csv(&csv).map_err(|error| {
-        DomainError::Parse(crate::features::explore::types::ParseFault::ResultsCsv {
+        DomainError::Parse(lotus_explore_core::explore::types::ParseFault::ResultsCsv {
             details: error.to_string(),
         })
     })?;

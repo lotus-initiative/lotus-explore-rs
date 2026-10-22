@@ -11,11 +11,11 @@
 
 mod match_selection;
 
-use crate::features::explore::search_metrics::SearchMetrics;
-use crate::features::explore::types::{
+use lotus_explore_core::explore::search_metrics::SearchMetrics;
+use lotus_explore_core::explore::types::{
     DomainError, LookupNotice, ParseFault, QueryStage, ValidationFault,
 };
-use crate::features::explore::{search_utils::sanitize_taxon_input, taxon_cache};
+use lotus_explore_core::explore::{search_utils::sanitize_taxon_input, taxon_cache};
 use crate::perf;
 use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;

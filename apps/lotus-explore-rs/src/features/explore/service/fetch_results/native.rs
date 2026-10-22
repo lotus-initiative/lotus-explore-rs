@@ -9,8 +9,8 @@
 )]
 
 use super::{FetchResult, PlannedResultsFetch};
-use crate::features::explore::search_metrics::SearchMetrics;
-use crate::features::explore::types::{DomainError, ParseFault, QueryStage};
+use lotus_explore_core::explore::search_metrics::SearchMetrics;
+use lotus_explore_core::explore::types::{DomainError, ParseFault, QueryStage};
 use crate::perf;
 use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;

@@ -83,3 +83,31 @@ conventions and what to run.
   query each one builds
 - [`SPARQL-VARIANTS.md`](SPARQL-VARIANTS.md) --- query forms measured against the
   live endpoint, and which were kept
+
+## How to port to framework X
+
+The app domain is split into `crates/lotus-explore-core` (framework-free) and `apps/lotus-explore-rs` (Dioxus adapter).
+
+### Core (no Dioxus)
+- State: `lotus_explore_core::explore::search_state/*` — plain structs and pure `reduce`/reducer functions
+- Actions/outcomes/types: `lotus_explore_core::explore::{actions,outcome,types,request,retry,...}`
+- URL/state encoding: `lotus_explore_core::explore::url_codec/*`
+- Domain services/logic: `lotus_explore_core::explore::service/*`, `form_validation`, `form_actions`, `search_utils`, etc.
+- Shared domain: `lotus_explore_core::{api,dto,error,export,filters,sort,table_budget,ports}`
+- Clock/time: pass `year: u16`/ISO strings as parameters (no `now()` in core)
+
+### Adapter (Dioxus-specific)
+- Components/RSX: `apps/lotus-explore-rs/src/components/*`, pages, layout
+- State wiring: Dioxus `Signal`, hooks, effects, context providers
+- Routing/navigation: Dioxus router
+- Server functions/HTTP: `apps/lotus-explore-rs/src/repositories/*`, `services/*`, server-only code
+- Platform integration: browser APIs, assets, download handling
+- Orchestrator/dispatch/executor: `apps/lotus-explore-rs/src/features/explore/{orchestrator,executor,interactions,...}` bridge core actions to side effects
+
+### Port checklist
+1. Replace adapter with target framework (components/state/routing)
+2. Implement ports/traits from `lotus_explore_core::ports` against target runtime
+3. Thread `year`/time from target clock into core calls
+4. Translate core actions to framework state updates via pure reducers where possible
+5. Reimplement side effects (HTTP, storage, downloads) in new adapter
+6. Keep core unchanged; enforce boundary with `./mk boundary`

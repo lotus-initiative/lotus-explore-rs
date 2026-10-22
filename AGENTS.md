@@ -28,6 +28,8 @@ which the web app, the `lotus` CLI and the tests all share.
 | A CLI flag, output format, exit code | `crates/lotus-cli/` |
 | A rendered row, the clock, cache keys | `apps/lotus-explore-rs/` |
 
+Framework-free core lives in `crates/lotus-explore-core` (domain logic, state reducers, URL/filters/sort/export/API DTOs) with zero Dioxus deps; the app is a thin Dioxus adapter.
+
 ## Architecture
 
 8 crates in a workspace: `lotus-model`, `lotus-query`, `lotus-search`,

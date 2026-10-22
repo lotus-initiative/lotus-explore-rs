@@ -21,8 +21,8 @@
 //! string comparison per row. See `ColumnarResultSet::plan_filter`.
 
 use super::sort_model::{SortIndexCache, build_sort_index_cache, indices_for_sort};
-use crate::filters::ColumnFilters;
-use crate::sort::SortState;
+use lotus_explore_core::filters::ColumnFilters;
+use lotus_explore_core::sort::SortState;
 use lotus_model::{ColumnarResultSet, FilterPlan};
 use std::sync::Arc;
 

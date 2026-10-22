@@ -7,11 +7,11 @@
 use super::runtime::test_exports::{
     build_search_succeeded_action_for_tests, validate_search_criteria_for_tests,
 };
-use crate::features::explore::actions::ExploreAction;
-use crate::features::explore::command::SearchCommand;
-use crate::features::explore::outcome::SearchOutcome;
-use crate::features::explore::request::SearchRequest;
-use crate::features::explore::types::{DomainError, ValidationFault};
+use lotus_explore_core::explore::actions::ExploreAction;
+use lotus_explore_core::explore::command::SearchCommand;
+use lotus_explore_core::explore::outcome::SearchOutcome;
+use lotus_explore_core::explore::request::SearchRequest;
+use lotus_explore_core::explore::types::{DomainError, ValidationFault};
 use lotus_search::SearchCriteria;
 
 #[test]
@@ -26,7 +26,7 @@ fn build_search_succeeded_action_applies_finalized_counts() {
         warnings: Vec::new(),
         query: "SELECT * WHERE {}".to_string(),
         display_capped_rows: true,
-        endpoint: crate::export::SparqlEndpoint::Qlever,
+        endpoint: lotus_explore_core::export::metadata::SparqlEndpoint::Qlever,
     };
 
     let action = build_search_succeeded_action_for_tests(&request, outcome);

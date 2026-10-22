@@ -9,7 +9,7 @@ use super::super::download_model::{
 };
 use crate::components::ui::Button;
 use crate::download::{BrowserDownload, execute_download, trigger_download};
-use crate::features::explore::use_toolbar_result_snapshot;
+use lotus_explore_core::explore::use_toolbar_result_snapshot;
 use crate::i18n::{TextKey, t};
 use crate::perf;
 use crate::state::use_results_context;
@@ -227,7 +227,7 @@ fn DownloadQueryButton(
     /// whether the toolbar should re-render. Pointer equality is correct -- a new set
     /// is a new pointer -- and free.
     rows: ReadSignal<
-        crate::features::explore::selectors::ArcPtrEq<lotus_model::ColumnarResultSet>,
+        lotus_explore_core::explore::selectors::ArcPtrEq<lotus_model::ColumnarResultSet>,
     >,
     filename: String,
 ) -> Element {
@@ -329,23 +329,26 @@ pub fn DownloadActionsGroup() -> Element {
 
     // Each selector subscribes to exactly one field, so the component re-renders
     // only when one of these fields changes.
-    let criteria = crate::features::explore::selectors::use_ui_selector(explore, |ui| {
+    let criteria = lotus_explore_core::explore::selectors::use_ui_selector(explore, |ui| {
         ui.executed_criteria.clone()
     });
     // Separate from `criteria` so the toolbar re-renders when the rows change.
-    let rows = crate::features::explore::selectors::use_result_arc_selector(explore, |result| {
+    let rows = lotus_explore_core::explore::selectors::use_result_arc_selector(explore, |result| {
         result.set.clone()
     });
     let toolbar_snapshot = use_toolbar_result_snapshot(explore);
 
     let snapshot = toolbar_snapshot.read();
     let toolbar_model = use_signal(|| {
+        let now = crate::clock::now_iso8601();
         build_download_toolbar_model_with_endpoint(
             &criteria.read(),
             snapshot.sparql_query.as_deref(),
             snapshot.metadata_json.as_deref(),
             snapshot.query_hash.as_deref(),
             snapshot.result_hash.as_deref(),
+            crate::clock::current_year(),
+            &now,
             snapshot.endpoint.into(),
         )
     });

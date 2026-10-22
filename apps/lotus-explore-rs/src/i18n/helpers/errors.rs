@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use super::Locale;
-use crate::features::explore::truncation::Reason;
+use lotus_explore_core::explore::truncation::Reason;
 
 mod de;
 mod en;

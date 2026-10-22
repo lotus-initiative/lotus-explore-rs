@@ -4,7 +4,7 @@
 
 use crate::app::routes::Route;
 #[cfg(target_arch = "wasm32")]
-use crate::features::explore::url_state::deployment_href;
+use lotus_explore_core::explore::url_state::deployment_href;
 use crate::hooks::use_locale;
 use crate::i18n::{TextKey, t};
 use crate::state::use_app_state_context;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::features::explore::truncation::Reason;
+use lotus_explore_core::explore::truncation::Reason;
 
 pub fn err_invalid_search_input() -> String {
     "Inserisci un nome di taxon / QID oppure una struttura SMILES.".to_string()

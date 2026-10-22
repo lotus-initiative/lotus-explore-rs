@@ -12,7 +12,7 @@ use crate::components::layout::structured_data::StructuredDataHead;
 use crate::components::results_viewport::ResultsViewport;
 use crate::components::welcome::SearchExamples;
 use crate::document_head::AppStylesheet;
-use crate::features::explore::{
+use lotus_explore_core::explore::{
     ExploreInteractions, ExploreState, SearchTaskController, build_shareable_url,
     initial_url_state, is_true_flag, use_download_dispatch_effect, use_startup_effect,
 };
@@ -31,7 +31,7 @@ use std::sync::Arc;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 
-fn resolve_startup_dark_mode(startup: &crate::features::explore::InitialUrlState) -> bool {
+fn resolve_startup_dark_mode(startup: &lotus_explore_core::explore::InitialUrlState) -> bool {
     if startup.dark_mode {
         return true;
     }
@@ -55,9 +55,9 @@ fn resolve_startup_dark_mode(startup: &crate::features::explore::InitialUrlState
             startup_dark_mode = value_str == "true";
         }
 
-        let params = crate::features::explore::url_state::read_url_query_params();
+        let params = lotus_explore_core::explore::url_state::read_url_query_params();
         if let Some(raw) = params.get("dark_mode") {
-            return crate::features::explore::url_state::is_true_flag(raw);
+            return lotus_explore_core::explore::url_state::is_true_flag(raw);
         }
 
         if let Some(win) = web_sys::window()
@@ -180,8 +180,8 @@ fn AppRuntimeEffects() -> Element {
         let lang = locale.read().lang_code();
         let dark_mode = app_state.read().dark_mode;
         let theme = if dark_mode { "dark" } else { "light" };
-        let icon = crate::features::explore::url_state::theme_icon_href(dark_mode);
-        let chrome = crate::features::explore::url_state::theme_chrome_color(dark_mode);
+        let icon = lotus_explore_core::explore::url_state::theme_icon_href(dark_mode);
+        let chrome = lotus_explore_core::explore::url_state::theme_chrome_color(dark_mode);
         document::eval(&format!(
             "var el = document.documentElement; \
              el.setAttribute('lang', '{lang}'); \

@@ -4,7 +4,7 @@
 
 use super::header_model::{SortableHeaderModel, build_sortable_header_models};
 use crate::i18n::{TextKey, aria_sort_toggle, t};
-use crate::sort::{SortColumn, SortState};
+use lotus_explore_core::sort::{SortColumn, SortState};
 use dioxus::prelude::*;
 
 #[component]

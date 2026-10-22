@@ -8,9 +8,15 @@ use super::dispatch::{DispatchPhase, classify_dispatch_phase};
 use super::metrics::{metrics_for_waiting_loading_phase, metrics_for_waiting_query_phase};
 use super::startup::{StartupTriggerMode, should_trigger_startup_search};
 use crate::app_state::MetricsState;
-use crate::features::explore::search_state::ExploreState;
+use lotus_explore_core::explore::search_state::ExploreState;
 use lotus_query::ExportFormat as DownloadFormat;
 use lotus_search::SearchCriteria;
+
+/// The year the tests pin, so the filename they assert is the whole filename.
+const YEAR: u16 = 2026;
+
+/// The instant the tests pin, so the filename they assert is the whole filename.
+const NOW: &str = "2026-03-04T05:06:07Z";
 
 #[test]
 fn should_trigger_startup_search_requires_all_conditions() {
@@ -37,7 +43,7 @@ fn should_trigger_startup_search_requires_all_conditions() {
 
 #[test]
 fn dispatch_phase_inactive_when_no_pending_format() {
-    let phase = classify_dispatch_phase(None, &ExploreState::default());
+    let phase = classify_dispatch_phase(None, &ExploreState::default(), YEAR, NOW);
     assert_eq!(phase, DispatchPhase::Inactive);
 }
 
@@ -45,7 +51,7 @@ fn dispatch_phase_inactive_when_no_pending_format() {
 fn dispatch_phase_waiting_for_loading_when_loading() {
     let mut explore = ExploreState::default();
     explore.lifecycle.loading = true;
-    let phase = classify_dispatch_phase(Some(DownloadFormat::Csv), &explore);
+    let phase = classify_dispatch_phase(Some(DownloadFormat::Csv), &explore, YEAR, NOW);
     assert_eq!(
         phase,
         DispatchPhase::WaitingForLoading {
@@ -57,7 +63,7 @@ fn dispatch_phase_waiting_for_loading_when_loading() {
 #[test]
 fn dispatch_phase_waiting_for_query_when_query_absent() {
     let explore = ExploreState::default();
-    let phase = classify_dispatch_phase(Some(DownloadFormat::Csv), &explore);
+    let phase = classify_dispatch_phase(Some(DownloadFormat::Csv), &explore, YEAR, NOW);
     assert_eq!(
         phase,
         DispatchPhase::WaitingForQuery {
@@ -72,10 +78,10 @@ fn dispatch_phase_ready_when_all_preconditions_met() {
     explore.result.sparql_query = Some(std::sync::Arc::from("SELECT * WHERE {}"));
     explore.ui.executed_criteria = SearchCriteria {
         taxon: "Rosa".into(),
-        ..SearchCriteria::up_to_year(crate::clock::current_year())
+        ..SearchCriteria::up_to_year(YEAR)
     };
 
-    let phase = classify_dispatch_phase(Some(DownloadFormat::Json), &explore);
+    let phase = classify_dispatch_phase(Some(DownloadFormat::Json), &explore, YEAR, NOW);
 
     if let DispatchPhase::Ready {
         #[cfg(target_arch = "wasm32")]

@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Pure model helpers for results-toolbar download actions.
 
-use crate::export;
 use crate::i18n::TextKey;
 use lotus_query::ExportFormat as DownloadFormat;
 use lotus_search::SearchCriteria;
@@ -19,11 +18,11 @@ pub(super) enum SparqlEndpointUI {
     Wdqs,
 }
 
-impl From<export::SparqlEndpoint> for SparqlEndpointUI {
-    fn from(value: export::SparqlEndpoint) -> Self {
+impl From<lotus_explore_core::export::metadata::SparqlEndpoint> for SparqlEndpointUI {
+    fn from(value: lotus_explore_core::export::metadata::SparqlEndpoint) -> Self {
         match value {
-            export::SparqlEndpoint::Qlever => Self::Qlever,
-            export::SparqlEndpoint::Wdqs => Self::Wdqs,
+            lotus_explore_core::export::metadata::SparqlEndpoint::Qlever => Self::Qlever,
+            lotus_explore_core::export::metadata::SparqlEndpoint::Wdqs => Self::Wdqs,
         }
     }
 }
@@ -98,6 +97,8 @@ pub(super) fn build_download_toolbar_model(
     metadata_json: Option<&str>,
     query_hash: Option<&str>,
     result_hash: Option<&str>,
+    year: u16,
+    now: &str,
 ) -> DownloadToolbarModel {
     build_download_toolbar_model_with_endpoint(
         criteria,
@@ -105,6 +106,8 @@ pub(super) fn build_download_toolbar_model(
         metadata_json,
         query_hash,
         result_hash,
+        year,
+        now,
         SparqlEndpointUI::default(),
     )
 }
@@ -116,14 +119,31 @@ pub(super) fn build_download_toolbar_model_with_endpoint(
     metadata_json: Option<&str>,
     query_hash: Option<&str>,
     result_hash: Option<&str>,
+    year: u16,
+    now: &str,
     endpoint: SparqlEndpointUI,
 ) -> DownloadToolbarModel {
     DownloadToolbarModel {
         export_available: sparql_query.is_some() || metadata_json.is_some(),
-        csv_filename: export::generate_filename(criteria, DownloadFormat::Csv.extension()),
-        json_filename: export::generate_filename(criteria, DownloadFormat::Json.extension()),
-        rdf_filename: export::generate_filename(criteria, DownloadFormat::Rdf.extension()),
-        metadata_filename: build_metadata_filename(criteria, query_hash, result_hash),
+        csv_filename: lotus_explore_core::export::filename::generate_filename(
+            criteria,
+            DownloadFormat::Csv.extension(),
+            year,
+            now,
+        ),
+        json_filename: lotus_explore_core::export::filename::generate_filename(
+            criteria,
+            DownloadFormat::Json.extension(),
+            year,
+            now,
+        ),
+        rdf_filename: lotus_explore_core::export::filename::generate_filename(
+            criteria,
+            DownloadFormat::Rdf.extension(),
+            year,
+            now,
+        ),
+        metadata_filename: build_metadata_filename(criteria, query_hash, result_hash, year, now),
         sparql_endpoint_ui: endpoint,
         ui_url: build_sparql_ui_url(sparql_query, endpoint),
     }
@@ -134,12 +154,19 @@ fn build_metadata_filename(
     criteria: &SearchCriteria,
     query_hash: Option<&str>,
     result_hash: Option<&str>,
+    year: u16,
+    now: &str,
 ) -> String {
     match (query_hash, result_hash) {
         (Some(query_hash), Some(result_hash)) => {
             format!("{query_hash}_{result_hash}_metadata.json")
         }
-        _ => export::generate_filename(criteria, "metadata.json"),
+        _ => lotus_explore_core::export::filename::generate_filename(
+            criteria,
+            "metadata.json",
+            year,
+            now,
+        ),
     }
 }
 

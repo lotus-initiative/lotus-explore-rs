@@ -1,0 +1,37 @@
+[package]
+name = "lotus-explore-core"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+description = "The LOTUS Explorer's domain logic: state, validation, query building, export. No UI framework, no IO."
+repository.workspace = true
+license = "AGPL-3.0-only"
+keywords = ["lotus", "natural-products", "sparql", "state-machine"]
+categories = ["science"]
+publish = false
+
+[dependencies]
+# The library crates this half of the application is built on. `lotus-model`
+# holds the vocabulary, `lotus-query` builds the SPARQL, `lotus-search` owns the
+# search use case, `lotus-curation` owns the TSV reader and the curation
+# vocabulary, `lotus-jsonld` builds the metadata document.
+#
+# No `dioxus`. This crate is the half of the application that does not know
+# which UI framework is drawing it, and the boundary is checked mechanically --
+# see `./mk boundary`.
+lotus-model = { workspace = true }
+lotus-query = { workspace = true }
+lotus-search = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+urlencoding = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# The native transport spools a body to a temporary file rather than holding it
+# in memory. Native-only, so the wasm build does not carry it.
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

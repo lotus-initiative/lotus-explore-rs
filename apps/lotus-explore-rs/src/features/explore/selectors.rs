@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! `use_memo`-based derived selectors for [`ExploreState`].
 
-use crate::features::explore::search_state::{
+use lotus_explore_core::explore::search_state::{
     ExploreState, ResultDataState, SearchLifecycleState, UiChromeState,
 };
 use dioxus::prelude::*;
@@ -122,7 +122,7 @@ pub struct ToolbarResultSnapshot {
     pub total_stats: Option<DatasetStats>,
     pub total_matches: Option<usize>,
     pub display_capped_rows: bool,
-    pub endpoint: crate::export::SparqlEndpoint,
+    pub endpoint: lotus_explore_core::export::metadata::SparqlEndpoint,
 }
 
 pub fn toolbar_snapshot_from_result(result: &ResultDataState) -> ToolbarResultSnapshot {

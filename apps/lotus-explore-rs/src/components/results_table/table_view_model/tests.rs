@@ -8,8 +8,8 @@
 
 use super::*;
 use crate::components::results_table::qid_for;
-use crate::filters::ColumnFilters;
-use crate::sort::{SortColumn, SortDir, SortState};
+use lotus_explore_core::filters::ColumnFilters;
+use lotus_explore_core::sort::{SortColumn, SortDir, SortState};
 use lotus_model::CompoundEntry;
 use std::sync::Arc;
 

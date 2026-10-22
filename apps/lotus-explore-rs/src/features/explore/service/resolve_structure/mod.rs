@@ -56,10 +56,10 @@
 //! [`compound_alias_query`]: lotus_query::compound_alias_query
 //! [`structure_compound_lookup_query`]: lotus_query::structure_compound_lookup_query
 
-use crate::features::explore::search_metrics::SearchMetrics;
-use crate::features::explore::service::build_query::ResolvedStructure;
-use crate::features::explore::structure_cache::{self, CachedCompound};
-use crate::features::explore::types::{
+use lotus_explore_core::explore::search_metrics::SearchMetrics;
+use lotus_explore_core::explore::service::build_query::ResolvedStructure;
+use lotus_explore_core::explore::structure_cache::{self, CachedCompound};
+use lotus_explore_core::explore::types::{
     DomainError, LookupNotice, ParseFault, QueryStage, ValidationFault,
 };
 use crate::perf;

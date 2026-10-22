@@ -4,7 +4,7 @@
 
 use super::sort_helpers::{aria_sort_for, sort_icon_for};
 use crate::i18n::TextKey;
-use crate::sort::{SortColumn, SortDir, SortState};
+use lotus_explore_core::sort::{SortColumn, SortDir, SortState};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct SortableHeaderModel {

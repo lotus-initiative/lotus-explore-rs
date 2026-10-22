@@ -5,9 +5,9 @@
 #![allow(clippy::expect_used)]
 
 use super::*;
-use crate::features::explore::ValidationFault;
-use crate::features::explore::command::SearchCommand;
-use crate::features::explore::request::SearchRequest;
+use lotus_explore_core::explore::ValidationFault;
+use lotus_explore_core::explore::command::SearchCommand;
+use lotus_explore_core::explore::request::SearchRequest;
 use crate::repositories::mock::MockRepository;
 use lotus_search::SearchCriteria;
 

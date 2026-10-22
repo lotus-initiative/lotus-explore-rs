@@ -12,7 +12,7 @@
 
 use dioxus::prelude::*;
 
-use crate::features::explore::selectors::use_header_meta_snapshot;
+use lotus_explore_core::explore::selectors::use_header_meta_snapshot;
 use crate::state::use_results_context;
 
 /// Make a JSON string safe to sit inside a `<script>` element.

@@ -11,6 +11,12 @@ use super::{
 use lotus_query::ExportFormat as DownloadFormat;
 use lotus_search::SearchCriteria;
 
+/// The year the tests pin, so the filename they assert is the whole filename.
+const YEAR: u16 = 2026;
+
+/// The instant the tests pin, so the filename they assert is the whole filename.
+const NOW: &str = "2026-03-04T05:06:07Z";
+
 #[test]
 fn download_specs_keep_expected_formats() {
     assert_eq!(DOWNLOAD_QUERY_CSV_SPEC.format, DownloadFormat::Csv);
@@ -29,13 +35,15 @@ fn download_specs_keep_expected_formats() {
 /// renames the toolbar with it and there is nothing left here to keep in step.
 #[test]
 fn the_toolbar_filenames_follow_the_formats_own_extension() {
-    let criteria = SearchCriteria::up_to_year(crate::clock::current_year());
+    let criteria = SearchCriteria::up_to_year(YEAR);
     let model = build_download_toolbar_model(
         &criteria,
         Some("SELECT * WHERE { ?s ?p ?o }"),
         None,
         None,
         None,
+        YEAR,
+        NOW,
     );
 
     for (name, format) in [
@@ -62,7 +70,7 @@ fn the_toolbar_filenames_follow_the_formats_own_extension() {
 
 #[test]
 fn toolbar_model_uses_hashes_for_metadata_filename_when_both_are_present() {
-    let criteria = SearchCriteria::up_to_year(crate::clock::current_year());
+    let criteria = SearchCriteria::up_to_year(YEAR);
 
     let model = build_download_toolbar_model(
         &criteria,
@@ -70,6 +78,8 @@ fn toolbar_model_uses_hashes_for_metadata_filename_when_both_are_present() {
         Some("{\"meta\":true}"),
         Some("query123"),
         Some("result456"),
+        YEAR,
+        NOW,
     );
 
     assert!(model.export_available);
@@ -78,9 +88,17 @@ fn toolbar_model_uses_hashes_for_metadata_filename_when_both_are_present() {
 
 #[test]
 fn toolbar_model_falls_back_to_generated_metadata_filename_without_both_hashes() {
-    let criteria = SearchCriteria::up_to_year(crate::clock::current_year());
+    let criteria = SearchCriteria::up_to_year(YEAR);
 
-    let model = build_download_toolbar_model(&criteria, None, Some("{}"), Some("query123"), None);
+    let model = build_download_toolbar_model(
+        &criteria,
+        None,
+        Some("{}"),
+        Some("query123"),
+        None,
+        YEAR,
+        NOW,
+    );
 
     assert!(model.export_available);
     assert!(model.metadata_filename.ends_with("metadata.json"));
@@ -89,9 +107,9 @@ fn toolbar_model_falls_back_to_generated_metadata_filename_without_both_hashes()
 
 #[test]
 fn toolbar_model_leaves_exports_hidden_when_no_query_or_metadata_exist() {
-    let criteria = SearchCriteria::up_to_year(crate::clock::current_year());
+    let criteria = SearchCriteria::up_to_year(YEAR);
 
-    let model = build_download_toolbar_model(&criteria, None, None, None, None);
+    let model = build_download_toolbar_model(&criteria, None, None, None, None, YEAR, NOW);
 
     assert!(!model.export_available);
     assert!(model.ui_url.is_none());
@@ -99,10 +117,10 @@ fn toolbar_model_leaves_exports_hidden_when_no_query_or_metadata_exist() {
 
 #[test]
 fn toolbar_model_encodes_query_for_qlever_ui_link() {
-    let criteria = SearchCriteria::up_to_year(crate::clock::current_year());
+    let criteria = SearchCriteria::up_to_year(YEAR);
     let query = "SELECT * WHERE { ?compound wdt:P31 \"natural product\" }";
 
-    let model = build_download_toolbar_model(&criteria, Some(query), None, None, None);
+    let model = build_download_toolbar_model(&criteria, Some(query), None, None, None, YEAR, NOW);
 
     let url = model.ui_url.expect("query link should be present");
     let encoded = urlencoding::encode(query);
@@ -112,7 +130,7 @@ fn toolbar_model_encodes_query_for_qlever_ui_link() {
 
 #[test]
 fn toolbar_model_encodes_query_for_wdqs_ui_link_when_endpoint_is_wdqs() {
-    let criteria = SearchCriteria::up_to_year(crate::clock::current_year());
+    let criteria = SearchCriteria::up_to_year(YEAR);
     let query = "SELECT * WHERE { ?compound wdt:P31 \"natural product\" }";
 
     let model = build_download_toolbar_model_with_endpoint(
@@ -121,6 +139,8 @@ fn toolbar_model_encodes_query_for_wdqs_ui_link_when_endpoint_is_wdqs() {
         None,
         None,
         None,
+        YEAR,
+        NOW,
         SparqlEndpointUI::Wdqs,
     );
 
@@ -132,7 +152,7 @@ fn toolbar_model_encodes_query_for_wdqs_ui_link_when_endpoint_is_wdqs() {
 
 #[test]
 fn toolbar_model_shows_correct_endpoint_name() {
-    let criteria = SearchCriteria::up_to_year(crate::clock::current_year());
+    let criteria = SearchCriteria::up_to_year(YEAR);
 
     let qlever_model = build_download_toolbar_model(
         &criteria,
@@ -140,6 +160,8 @@ fn toolbar_model_shows_correct_endpoint_name() {
         None,
         None,
         None,
+        YEAR,
+        NOW,
     );
     assert_eq!(qlever_model.sparql_endpoint_ui.to_string(), "QLever SPARQL");
 
@@ -149,6 +171,8 @@ fn toolbar_model_shows_correct_endpoint_name() {
         None,
         None,
         None,
+        YEAR,
+        NOW,
         SparqlEndpointUI::Wdqs,
     );
     assert_eq!(

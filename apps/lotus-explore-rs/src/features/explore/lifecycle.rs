@@ -2,11 +2,11 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Lifecycle coordination for explore search execution.
 
-use crate::features::explore::actions::ExploreAction;
-use crate::features::explore::request::SearchRequest;
-use crate::features::explore::retryable_orchestrator::{RetryEligibility, plan_retry};
-use crate::features::explore::search_state::{ExploreState, dispatch_explore_action};
-use crate::features::explore::types::{DomainError, QueryPhase};
+use lotus_explore_core::explore::actions::ExploreAction;
+use lotus_explore_core::explore::request::SearchRequest;
+use lotus_explore_core::explore::retryable_orchestrator::{RetryEligibility, plan_retry};
+use lotus_explore_core::explore::search_state::{ExploreState, dispatch_explore_action};
+use lotus_explore_core::explore::types::{DomainError, QueryPhase};
 use crate::services::search_telemetry as telemetry;
 use dioxus::prelude::*;
 use std::time::Duration;
@@ -105,7 +105,7 @@ impl SearchLifecycleCoordinator {
 }
 
 fn dispatch_error(explore: Signal<ExploreState>, error: DomainError, request: &SearchRequest) {
-    use crate::features::explore::service::build_query::{
+    use lotus_explore_core::explore::service::build_query::{
         ResolvedStructure, build_sparql_query, normalize_smiles,
     };
 

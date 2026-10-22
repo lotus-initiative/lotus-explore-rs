@@ -6,12 +6,12 @@
 
 use crate::app_state::{AppState, MetricsState};
 use crate::download::{BrowserDownload, execute_download};
-use crate::features::explore::actions::ExploreAction;
-use crate::features::explore::command::SearchCommand;
-use crate::features::explore::download_effects::{self, DispatchPhase, StartupTriggerMode};
-use crate::features::explore::orchestrator::{SearchTaskController, start_search};
-use crate::features::explore::search_state::{ExploreState, dispatch_explore_action};
-use crate::features::explore::types::{DomainError, ValidationFault};
+use lotus_explore_core::explore::actions::ExploreAction;
+use lotus_explore_core::explore::command::SearchCommand;
+use lotus_explore_core::explore::download_effects::{self, DispatchPhase, StartupTriggerMode};
+use lotus_explore_core::explore::orchestrator::{SearchTaskController, start_search};
+use lotus_explore_core::explore::search_state::{ExploreState, dispatch_explore_action};
+use lotus_explore_core::explore::types::{DomainError, ValidationFault};
 use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
 use dioxus::prelude::*;
@@ -106,7 +106,12 @@ pub fn use_download_dispatch_effect(
         // Compute within a scoped read to avoid cloning the entire ExploreState.
         let phase = {
             let state = explore.read();
-            download_effects::classify_dispatch_phase(pending, &state)
+            download_effects::classify_dispatch_phase(
+                pending,
+                &state,
+                crate::clock::current_year(),
+                &crate::clock::now_iso8601(),
+            )
         };
 
         match phase {
