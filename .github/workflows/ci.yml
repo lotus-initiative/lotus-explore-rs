@@ -93,7 +93,7 @@ jobs:
       # The tools the gate calls. `./mk ci` fails on a missing one rather than skipping
       # it, which is deliberate: a supply-chain check silently absent on a machine
       # where it is not installed is a check that reports nothing about the code.
-      # `dejadoc` is the crate; `cargo-echoes` is the binary it installs.
+      # `dejadoc` is the crate; `cargo-dejadoc` is the binary it installs.
       # `install-action` takes crate names, so naming the binary 404s here.
       # Deliberately outside the `tool:` block below: install-action reads a `#`
       # line inside one as a tool name, which is the third bug this file records.
@@ -115,7 +115,7 @@ jobs:
             cargo-deny
             cargo-audit
             cargo-machete
-            dejadoc@0.6.0
+            cargo-dejadoc@0.6.0
 
       # tombi is not installable through `install-action`. `tombi-cli` is a
       # 0.0.1 placeholder on crates.io with no binary in it, so install-action

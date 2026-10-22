@@ -126,7 +126,7 @@ and the compiler instead — do not install it.
 - **TOML:** tombi (version read from `prek.toml`)
 - **Duplicate detection:** cargo-echoes 0.6.0 (`dejadoc` is the crate and
   `cargo-echoes` the binary; `install-action` takes crate names, which is why
-  `ci.yml` says `dejadoc@0.6.0`). Debug a group with `cargo echoes -v` (sites and
+  `ci.yml` says `cargo-echoes@0.6.0`). Debug a group with `cargo echoes -v` (sites and
   code) or `cargo echoes --json`. `--organization <org>` compares functions
   across every repository the token can see and needs `--config`, because a
   downloaded `.dejadoc.toml` is ignored; exit 2 with
