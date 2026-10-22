@@ -7,7 +7,7 @@ use std::collections::HashSet;
 /// `Display` for an enum whose printed form is its [`as_str`](Self::as_str).
 ///
 /// Every enum here with an `as_str` wants this, and the two that had one written
-/// it out by hand -- which `cargo dejadoc` reports: the second copy is where the
+/// it out by hand -- which `cargo echoes` reports: the second copy is where the
 /// next edit lands without the first being looked at.
 ///
 /// Must be a macro: no single function can implement `Display` for somebody

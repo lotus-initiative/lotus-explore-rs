@@ -6,7 +6,7 @@
 //! `full_row` and `empty_row` used to be spelled out as identical struct
 //! literals in `lotus-model`'s own integration tests, in `lotus-query`'s unit
 //! tests and in `lotus-query`'s export-fidelity test. Two spellings of one row
-//! is the thing `cargo dejadoc --context-blocks` reports: a reader editing one
+//! is the thing `cargo echoes --context-blocks` reports: a reader editing one
 //! has no way to know the other exists, and nothing stops the two drifting into
 //! fixtures that no longer test the same thing.
 //!

@@ -253,7 +253,7 @@ fn every_toolchain_pin_agrees_with_rust_toolchain_toml() -> Result<()> {
 /// this file exists to hold that one claim.
 ///
 /// What this cannot catch, having tried: whether a name is a real crate.
-/// `cargo-dejadoc` was in both lists for a commit, and both were wrong in the
+/// `cargo-echoes` was in both lists for a commit, and both were wrong in the
 /// same way, because the crate is `dejadoc` and that is the binary it installs.
 /// There is no structural difference between that and `cargo-deny`, which is a
 /// real crate with a `cargo-` prefixed name -- a rule rejecting `cargo-` names
@@ -376,29 +376,29 @@ mod installed_tools {
     /// The duplicate-doctest tool, named the way each consumer needs it.
     ///
     /// Written down because the two spellings differ and both had to be right:
-    /// the installers take `dejadoc`, and the task runs `cargo-dejadoc`. Getting
-    /// this backwards fails in CI with "cargo-dejadoc is not found", which names
+    /// the installers take `dejadoc`, and the task runs `cargo-echoes`. Getting
+    /// this backwards fails in CI with "cargo-echoes is not found", which names
     /// neither the crate nor the typo.
     #[test]
     fn the_duplicate_doctest_tool_is_named_correctly_in_both_places() -> Result<()> {
         let yaml = read(".github/workflows/ci.yml")?;
         assert!(
-            workflow_tools(&yaml).contains("dejadoc"),
-            "ci.yml installs the crate as `dejadoc`, not as `cargo-dejadoc`: \
-             install-action takes crate names and `cargo-dejadoc` does not exist"
+            workflow_tools(&yaml).contains("echoes"),
+            "ci.yml installs the crate as `dejadoc`, not as `cargo-echoes`: \
+             install-action takes crate names and `cargo-echoes` does not exist"
         );
 
         let script = read("make/scripts/setup.sh")?;
         let versions = setup_tools(&script);
         assert!(
-            versions.contains_key("dejadoc"),
+            versions.contains_key("echoes"),
             "setup.sh installs it as `dejadoc` too, for the same reason"
         );
 
         let task = read("make/test.toml")?;
         assert!(
-            task.contains("command -v cargo-dejadoc") && task.contains("cargo dejadoc"),
-            "the task runs the *binary*, which really is `cargo-dejadoc` -- so the \
+            task.contains("command -v cargo-echoes") && task.contains("cargo echoes"),
+            "the task runs the *binary*, which really is `cargo-echoes` -- so the \
              crate name and the command name are not the same string, and both \
              spellings above have to be right for the gate to run"
         );
@@ -413,7 +413,7 @@ mod installed_tools {
     /// preference: 0.3.1 compares doctests only, 0.4.0 added functions, and
     /// 0.6.0 made those functions opt-in behind `--functions`. With `setup.sh`
     /// on 0.3.1 and CI resolving 0.4.0, four duplicated functions were reported
-    /// in CI and `./mk dejadoc` was green at home. That is the failure this
+    /// in CI and `./mk echoes` was green at home. That is the failure this
     /// whole module exists to prevent -- a gate that says something different
     /// depending on where it runs -- so the version is part of what is pinned.
     #[test]
@@ -426,7 +426,7 @@ mod installed_tools {
 
         let versions = setup_tools(&read("make/scripts/setup.sh")?);
         let local = versions
-            .get("dejadoc")
+            .get("echoes")
             .cloned()
             .ok_or("setup.sh installs it; the test above asserts it")?;
 
@@ -452,7 +452,7 @@ mod installed_tools {
     fn the_dejadoc_task_checks_functions_and_context_blocks() -> Result<()> {
         let task = read("make/test.toml")?;
         assert!(
-            task.contains("cargo dejadoc --functions --context-blocks"),
+            task.contains("cargo echoes --functions --context-blocks"),
             "the dejadoc task must pass both `--functions` and `--context-blocks`: \
              0.6 checks doctests only unless asked, so the gate would silently \
              stop checking duplicated functions and context blocks"
