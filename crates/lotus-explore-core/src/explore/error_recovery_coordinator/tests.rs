@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! The tests for `error_recovery_coordinator`, in their own file.
+//! The tests for `error_recovery`, in their own file.
 
 use super::*;
 use crate::explore::types::ValidationFault;

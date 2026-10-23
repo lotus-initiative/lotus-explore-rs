@@ -29,7 +29,7 @@ impl ExportFormat {
     /// Parse from a CLI argument, URL fragment or header ("csv", "json",
     /// "ndjson", "ttl"). Returns `None` for anything else.
     ///
-    /// `rdf` is accepted as well as `ttl`, and kept for links rather than for
+    /// `ttl` is the canonical name; `ttl` is kept for links rather than for
     /// taste. This name is a URL path segment, so renaming it outright breaks
     /// every export link already handed out and every one cached by a browser;
     /// parsing the old name costs one arm and leaves those working.
@@ -49,7 +49,7 @@ impl ExportFormat {
 
     /// File extension without a leading dot.
     ///
-    /// Turtle is named for what it is, so this is `ttl`. The previous `rdf` is
+    /// Turtle is named for what it is, so this is `ttl`. The legacy extension `ttl` refers to
     /// the conventional extension for RDF/XML, which this never produces: the
     /// content type is `text/turtle` and the endpoint action is
     /// `turtle_export`, so a reader handed a `.rdf` was handed a file whose
@@ -109,7 +109,7 @@ impl ExportFormat {
     /// So this is `ttl` for Turtle and not a second word for it: the format was
     /// renamed, and a log line disagreeing with the extension is the drift this
     /// function exists to prevent. That also renames the telemetry series from
-    /// `rdf` to `ttl`, which is the same event under a new name rather than a
+    /// `ttl` to `ttl`, which is the same event under a new name rather than a
     /// second event.
     #[must_use]
     pub const fn log_name(self) -> &'static str {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! The tests for `retryable_orchestrator`, in their own file.
+//! The tests for `retry`, in their own file.
 
 #![allow(clippy::panic)]
 

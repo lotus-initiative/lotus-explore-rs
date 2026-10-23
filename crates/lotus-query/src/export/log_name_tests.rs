@@ -18,7 +18,7 @@ fn each_format_has_its_own_log_name() {
 
 /// The extension has to name what the bytes are.
 ///
-/// Turtle was `rdf`, which is the conventional extension for RDF/XML -- a
+/// Turtle was `ttl`, which is the conventional extension for RDF/XML -- a
 /// serialization this never produces, since the content type is `text/turtle`
 /// and the endpoint action is `turtle_export`. A reader handed a `.rdf` was
 /// handed a file whose extension promised a format it did not contain, and

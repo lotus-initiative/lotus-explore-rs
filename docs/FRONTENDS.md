@@ -101,7 +101,7 @@ What differs is the document and the asset pipeline, and both bite:
 
 Two consequences that are easy to mistake for unrelated bugs:
 
-- `document_head::asset_url` returns an empty string on native, so the Ketcher
+- asset URL composition fails on native, so the Ketcher
   panel gets an empty iframe `src`.
 - The RDKit bridge composes its own URL from `data-lotus-base-path`, which the
   desktop document never sets.

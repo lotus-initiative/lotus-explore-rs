@@ -155,7 +155,7 @@ fn parse_criteria_clamps_low_positive_similarity_threshold() {
 #[test]
 fn shareable_search_urls_use_the_search_route() {
     // The taxon is set explicitly. It used to be the value baked into
-    // `SearchCriteria::default()`, so this test passed without ever saying what
+    // `SearchCriteria`, so this test passed without ever saying what
     // it was about -- and a default criteria that quietly searches one species
     // is a trap for whoever calls `default()` next.
     let criteria = SearchCriteria {

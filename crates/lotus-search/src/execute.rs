@@ -736,7 +736,7 @@ async fn backoff(duration: Duration) {
 /// control back would block the page. It costs a turn of the loop instead of the
 /// backoff, which is the right trade on a network failure.
 ///
-/// Not `futures_timer::Delay`, which was here first and **panicked in the browser**: on
+/// Not the legacy timer, which was here first and **panicked in the browser**: on
 /// `wasm32-unknown-unknown` it falls back to the unimplemented `std::time::Instant`, so the
 /// failure read `time not implemented on this platform` from inside a retry -- reached only
 /// once a request had already failed, exactly when nobody is watching the console. The

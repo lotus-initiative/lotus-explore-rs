@@ -34,7 +34,7 @@ impl SearchMetrics {
 }
 
 /// Emit a structured summary log line for a completed search.
-/// If `total_elapsed` exceeds `SLOW_QUERY_THRESHOLD_MS` an additional
+/// If `total_elapsed` exceeds the 5-second threshold an additional
 /// `slow_query` warning is emitted so dashboards can alert on regressions.
 pub const fn emit_search_summary(_total_elapsed: std::time::Duration, _metrics: SearchMetrics) {}
 

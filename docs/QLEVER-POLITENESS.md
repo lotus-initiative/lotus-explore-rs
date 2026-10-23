@@ -44,7 +44,7 @@ carries as [`FetchError::TimedOut`] rather than as a status:
 | --------------------------------------------- | ------------------------------------- | ----------------------------------------------------- |
 | `execute` immediate retry (`MAX_ATTEMPTS`)    | retried a 429, immediately on wasm    | **not retried**                                       |
 | WDQS fallback (`is_endpoint_unavailable`)     | did not fire                          | still does not fire                                   |
-| pipeline retry (`error_recovery_coordinator`) | one whole-pipeline retry, 1 s backoff | **no retry**                                          |
+| pipeline retry (`retry`) | one whole-pipeline retry, 1 s backoff | **no retry**                                          |
 | UI hint                                       | "wait about a minute and retry"       | "narrow it with a taxon, mass range, year or formula" |
 
 A `WDQS` fallback is refused for this class on purpose. `WDQS` will run the same

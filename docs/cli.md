@@ -98,8 +98,8 @@ Any of the formula filters turns the formula section on by itself: typing
 
 ### Output
 
-`--format` takes `table`, `tsv`, `csv`, `json`, `jsonl`, `jsonld`, `rdf` or
-`query`. `rdf` is also spelled `ttl` or `turtle`.
+`--format` takes `table`, `tsv`, `csv`, `json`, `jsonl`, `jsonld`, `ttl` (legacy) or
+`query`. `ttl` is also spelled `ttl` or `turtle`.
 
 Data goes to stdout and diagnostics to stderr, so redirection captures the data
 and nothing else:
@@ -119,7 +119,7 @@ lotus search --taxon Q21754 --format jsonl | jq -r .name
 - `jsonld` is Bioschemas JSON-LD: a `Dataset` for the result set, the LOTUS
   source, and a `MolecularEntity` per compound. See
   [`lotus-jsonld`](../crates/lotus-jsonld).
-- `rdf` is RDF Turtle, for ingestion into a triple store. It is written from the
+- `ttl` is RDF Turtle, for ingestion into a triple store. It is written from the
   rows already fetched rather than by asking the endpoint to run the `CONSTRUCT`,
   so an export does not fetch the same result a second time just to change its
   syntax. Each occurrence is emitted as the reified chain the endpoint produces --

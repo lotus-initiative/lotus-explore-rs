@@ -154,7 +154,8 @@ fn runtime_built_labels_go_through_the_shared_helpers() {
                         && !line.contains("end_timer(\"")
                         // `format!` inline at the call site: a label spelled here
                         // can drift from the same label spelled elsewhere.
-                        && !line.contains("timer_label(")
+                        && !line.contains("export_timer_label(")
+                        && !line.contains("export_trigger_timer_label(")
                 })
                 .map(|(index, line)| {
                     format!(

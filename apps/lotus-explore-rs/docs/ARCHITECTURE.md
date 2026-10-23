@@ -53,7 +53,7 @@ made in two places.
 re-export: it is the layer that turns "run this on that endpoint" into a
 request, and it is the only place in the app that names `reqwest`.
 
-`runtime_table_row_limit` reads `navigator.deviceMemory` and sniffs the user
+table budget (previously in app, removed) `navigator.deviceMemory` and sniffs the user
 agent. That is a question about the machine asked by a browser, so it is in the
 app rather than in a crate a query library depends on.
 

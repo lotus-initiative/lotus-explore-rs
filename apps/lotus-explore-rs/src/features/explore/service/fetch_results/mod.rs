@@ -8,7 +8,7 @@
     reason = "`on_phase` captures a Dioxus `Signal`, which is a `RefCell` and not `Sync`"
 )]
 //! Full-results fetch service.
-//! This module is **Dioxus-free**: the phase-change callback (`on_fetching`)
+//! This module is **Dioxus-free**: the phase-change callback (`fetching`)
 //! is a plain `Fn()` closure so that tests can supply a no-op.
 
 use crate::repositories::LotusRepository;
@@ -98,7 +98,7 @@ struct PlannedResultsFetch<'a> {
 
 /// Fetch the whole result set with a single query.
 ///
-/// `on_fetching` is called before the network fetch begins and `on_processing`
+/// `fetching` is called before the network fetch begins and `on_processing`
 /// before the body is folded into the set; in tests pass `|| ()`.
 // `progress` is only called on the wasm path, so only there does it need to be
 // mutable; otherwise the native build warns about a `mut` it cannot use.
