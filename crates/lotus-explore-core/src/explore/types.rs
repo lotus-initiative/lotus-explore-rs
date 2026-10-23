@@ -300,6 +300,7 @@ impl DomainError {
 
     #[cfg(target_arch = "wasm32")]
     /// A memory-limit error for `stage`.
+    #[must_use]
     pub const fn memory_limit(stage: QueryStage) -> Self {
         Self::MemoryLimit { stage }
     }
