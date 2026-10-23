@@ -33,11 +33,6 @@ impl SearchMetrics {
     }
 }
 
-/// Searches taking longer than this threshold are flagged as slow queries in
-/// the telemetry log.
-#[allow(dead_code)]
-pub(crate) const SLOW_QUERY_THRESHOLD_MS: f64 = 5_000.0;
-
 /// Emit a structured summary log line for a completed search.
 /// If `total_elapsed` exceeds `SLOW_QUERY_THRESHOLD_MS` an additional
 /// `slow_query` warning is emitted so dashboards can alert on regressions.
