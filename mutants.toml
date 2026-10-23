@@ -1,6 +1,6 @@
 # Mutation testing. `./mk mutants` covers every library crate in the workspace
-# and nothing else; this file says why `apps/lotus-explore-rs` is the one
-# omission, so the gap is a decision rather than an oversight.
+# and the CLI/web-assets binaries; this file says why `apps/lotus-explore-rs` is
+# the one omission, so the gap is a decision rather than an oversight.
 # `apps/lotus-explore-rs/tests/gate_consistency.rs` checks the exclusion is
 # still the one stated here.
 #

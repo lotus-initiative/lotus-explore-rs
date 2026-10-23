@@ -99,16 +99,16 @@ cwd = "${REPO_ROOT}"
 description = "Run the #[ignore]d network tests. Needs a network and an endpoint."
 script = "cargo nextest run --workspace --profile live --run-ignored only --locked --no-fail-fast"
 
-# Scoped to the library crates for the same reason mutation testing is: the app
-# is mostly Dioxus rendering and IO plumbing, where an executed line is not a
-# tested line. There the number is high and says nothing.
+# Scoped to the library crates, the CLI and web-assets binaries for the same reason
+# mutation testing is: the app is mostly Dioxus rendering and IO plumbing, where an
+# executed line is not a tested line. There the number is high and says nothing.
 # `cargo llvm-cov nextest` rather than `cargo llvm-cov test`: it runs the suite
 # under nextest, so the report is of the same run CI performs and the parallel
 # overhead is not paid twice. `llvm-tools-preview` is in `rust-toolchain.toml`
 # because this needs it.
 [tasks."cov"]
 cwd = "${REPO_ROOT}"
-description = "Coverage report for the library crates, via nextest."
+description = "Coverage report for the library crates, CLI and web-assets binaries, via nextest."
 # Three things here are load-bearing, and all three were wrong at once. That is
 # why the report said 17% for a workspace that is really at 93%: the job stayed
 # green throughout and the numbers were not measuring anything.
@@ -141,6 +141,7 @@ description = "Coverage report for the library crates, via nextest."
 script = """
 cargo llvm-cov nextest --locked \\
   -p lotus-model -p lotus-query -p lotus-curation -p lotus-jsonld -p lotus-search \\
+  -p lotus-cli -p lotus-web-assets -p lotus-explore-core \\
   --profile ci --no-fail-fast
 cargo llvm-cov report --html --output-dir "${REPO_ROOT}/target/llvm-cov-report"
 cargo llvm-cov report --lcov --output-path "${REPO_ROOT}/target/llvm-cov-report/lcov.info"
@@ -178,13 +179,13 @@ script = "cargo llvm-cov nextest --locked --summary-only --workspace"
 # `MUTANTS_JOBS=1`, one package at a time, is the form that has a chance.
 [tasks."mutants"]
 cwd = "${REPO_ROOT}"
-description = "Mutation testing over the library crates, using nextest."
+description = "Mutation testing over the library crates and CLI/web-assets binaries, using nextest."
 script = """
 ./make/scripts/mutants-preflight.sh && \\
 cargo mutants --test-tool nextest --jobs "${MUTANTS_JOBS:-4}" --timeout 300 \\
   --package lotus-model --package lotus-search --package lotus-query \\
   --package lotus-curation --package lotus-jsonld \\
-  --package lotus-cli --package lotus-web-assets
+  --package lotus-cli --package lotus-web-assets --package lotus-explore-core
 """
 
 # The excluded UI crate, run on request. ~2,700 mutants of Dioxus rendering --
