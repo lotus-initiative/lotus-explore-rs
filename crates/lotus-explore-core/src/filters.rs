@@ -11,7 +11,7 @@
 //! **The whole result set is in memory.** The fetch asks the endpoint for every
 //! row rather than for one screen's worth, so a filter answers a question about
 //! the result set rather than about the first 500 rows of it. See
-//! [`ColumnFilters::to_spec`] for how the filters are handed to the columnar
+//! `ColumnFilters::to_spec` for how the filters are handed to the columnar
 //! store.
 //!
 //! Each column gets the kind of control its data is:
@@ -57,7 +57,7 @@ impl FilterKind {
 /// Kept as the raw strings and numbers the inputs hold, not as a compiled
 /// predicate, because this is also what the inputs are rendered from — a control
 /// whose value is not readable back out of state is a control that cannot be
-/// cleared. [`to_spec`](ColumnFilters::to_spec) is the derived form the columnar
+/// cleared. `ColumnFilters::to_spec` is the derived form the columnar
 /// store compiles.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ColumnFilters {

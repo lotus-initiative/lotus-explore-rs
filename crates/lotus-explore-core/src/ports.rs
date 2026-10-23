@@ -3,8 +3,8 @@
 //! The transport boundary: what the domain asks a host to do, and how it is
 //! told when that fails.
 //!
-//! The domain never performs I/O. It asks a [`LotusRepository`] for a body and
-//! receives either one or a [`RepositoryError`]; deciding what a failure means
+//! The domain never performs I/O. It asks a `LotusRepository` for a body and
+//! receives either one or a `RepositoryError`; deciding what a failure means
 //! — transient, permanent, or "the endpoint gave up on the query" — is done
 //! once, here and in `explore::transport_classification`, so the retry policy,
 //! the notice strip and the telemetry cannot disagree about the same error.
