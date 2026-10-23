@@ -11,15 +11,16 @@
 
 mod match_selection;
 
-use lotus_explore_core::explore::search_metrics::SearchMetrics;
-use lotus_explore_core::explore::types::{
-    DomainError, LookupNotice, ParseFault, QueryStage, ValidationFault,
-};
-use lotus_explore_core::explore::{search_utils::sanitize_taxon_input, taxon_cache};
+use crate::features::explore::taxon_cache;
 use crate::perf;
 use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
 use crate::sparql;
+use lotus_explore_core::explore::search_metrics::SearchMetrics;
+use lotus_explore_core::explore::search_utils::sanitize_taxon_input;
+use lotus_explore_core::explore::types::{
+    DomainError, LookupNotice, ParseFault, QueryStage, ValidationFault,
+};
 use lotus_model::TaxonMatch;
 
 /// Output of a successful taxon resolution.

@@ -2,15 +2,38 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use crate::i18n::Locale;
+use lotus_explore_core::explore::url_codec::{QueryParams, parse_startup_action_from_params};
+use lotus_model::SearchCriteria;
 use std::collections::BTreeMap;
 
-pub use super::url_codec::{
-    InitialUrlState, build_shareable_url, is_true_flag, parse_criteria_from_params,
-    parse_startup_action_from_params,
+pub use lotus_explore_core::explore::url_codec::{
+    InitialDownloadState, is_true_flag,
+    parse_criteria_from_params as parse_criteria_from_params_with_year,
 };
 
-#[cfg(test)]
-pub use super::url_codec::InitialDownloadState;
+/// The app-facing startup state: the core's pure parse result plus the locale
+/// the adapter detected from the browser.
+#[derive(Clone, Debug, PartialEq)]
+pub struct InitialUrlState {
+    pub criteria: SearchCriteria,
+    pub locale: Locale,
+    pub download: InitialDownloadState,
+    pub dark_mode: bool,
+}
+
+/// Parse the URL with the clock the adapter owns, keeping the app-facing
+/// signature free of the year argument the core requires.
+pub fn parse_criteria_from_params(params: &QueryParams) -> SearchCriteria {
+    parse_criteria_from_params_with_year(params, crate::clock::current_year())
+}
+
+/// Build a shareable URL with the year the adapter owns.
+pub fn build_shareable_url(criteria: &SearchCriteria) -> Option<String> {
+    lotus_explore_core::explore::url_codec::build_shareable_url(
+        criteria,
+        crate::clock::current_year(),
+    )
+}
 
 pub fn initial_url_state() -> InitialUrlState {
     let params = read_url_query_params();

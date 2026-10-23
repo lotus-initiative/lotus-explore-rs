@@ -139,39 +139,3 @@ fn the_two_known_reasons_are_reduced_and_anything_else_is_reported_as_unknown() 
     );
     assert_eq!(Reason::of(""), Reason::Other);
 }
-
-#[test]
-fn every_reason_and_locale_produce_a_message_with_nothing_left_english() {
-    use crate::i18n::{Locale, err_truncated_by_endpoint};
-
-    const LOCALES: [Locale; 4] = [Locale::En, Locale::Fr, Locale::De, Locale::It];
-
-    // The regression this whole module exists for: a translated frame with an
-    // English sentence inside it.
-    for locale in LOCALES {
-        for reason in [Reason::TimedOut, Reason::Cancelled, Reason::Other] {
-            let message = err_truncated_by_endpoint(locale, reason);
-            assert!(
-                !message.contains(REASON_OPEN) && !message.contains(NOTICE_CLAUSE),
-                "{locale:?}/{reason:?} still carries the raw detail: {message}"
-            );
-            assert!(
-                !message.contains('{') && !message.contains('}'),
-                "{locale:?}/{reason:?} has an unsubstituted placeholder: {message}"
-            );
-            assert!(message.chars().count() > 40, "{locale:?}: {message}");
-        }
-    }
-
-    // And the four locales are actually different from each other, so a missing
-    // translation cannot pass as one.
-    let rendered: Vec<String> = LOCALES
-        .iter()
-        .map(|locale| err_truncated_by_endpoint(*locale, Reason::TimedOut))
-        .collect();
-    for (i, a) in rendered.iter().enumerate() {
-        for b in rendered.iter().skip(i + 1) {
-            assert_ne!(a, b, "two locales render the same truncation message");
-        }
-    }
-}

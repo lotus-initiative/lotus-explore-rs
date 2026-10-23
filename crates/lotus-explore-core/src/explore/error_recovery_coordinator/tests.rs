@@ -3,7 +3,7 @@
 //! The tests for `error_recovery_coordinator`, in their own file.
 
 use super::*;
-use lotus_explore_core::explore::types::ValidationFault;
+use crate::explore::types::ValidationFault;
 
 #[test]
 fn validation_error_does_not_retry() {

@@ -3,7 +3,7 @@
 //! The tests for `bootstrap`, in their own file.
 
 use super::*;
-use lotus_explore_core::explore::InitialDownloadState;
+use crate::features::explore::InitialDownloadState;
 use lotus_query::ExportFormat as DownloadFormat;
 
 #[test]
@@ -50,5 +50,5 @@ fn bootstrap_app_uses_initial_criteria_as_dirty_tracking_baseline() {
 
     let bootstrap = bootstrap_app(startup);
     assert_eq!(bootstrap.criteria, bootstrap.criteria_baseline);
-    assert!(bootstrap.explore == ExploreState::default());
+    assert_eq!(bootstrap.explore, ExploreState::default());
 }

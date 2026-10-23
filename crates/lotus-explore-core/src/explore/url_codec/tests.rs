@@ -21,7 +21,7 @@ fn parse_criteria_supports_formula_and_halogens() {
     params.insert("br_state".into(), "excluded".into());
     params.insert("i_state".into(), "excluded".into());
 
-    let crit = parse_criteria_from_params(&params);
+    let crit = parse_criteria_from_params(&params, 2026);
     assert!(crit.formula_enabled);
     assert_eq!(crit.c_min, 15);
     assert_eq!(crit.c_max, 25);
@@ -38,7 +38,7 @@ fn parse_criteria_structure_without_explicit_taxon_clears_default_taxon() {
     let mut params = QueryParams::new();
     params.insert("structure".into(), "CCO".into());
 
-    let crit = parse_criteria_from_params(&params);
+    let crit = parse_criteria_from_params(&params, 2026);
     assert_eq!(crit.structure, "CCO");
     assert_eq!(crit.taxon.len(), 0, "expected no entries");
 }
@@ -57,7 +57,7 @@ fn startup_action_execute_only() {
 fn share_params_roundtrip_for_advanced_filters() {
     let mut crit = SearchCriteria {
         taxon: "*".into(),
-        ..SearchCriteria::up_to_year(year)
+        ..SearchCriteria::up_to_year(2026)
     };
     crit.formula_enabled = true;
     crit.c_min = 15;
@@ -69,8 +69,8 @@ fn share_params_roundtrip_for_advanced_filters() {
     crit.br_state = ElementState::Excluded;
     crit.i_state = ElementState::Excluded;
 
-    let params = super::criteria_query_params(&crit, year);
-    let reparsed = parse_criteria_from_params(&params);
+    let params = super::criteria_query_params(&crit, 2026);
+    let reparsed = parse_criteria_from_params(&params, 2026);
     assert_eq!(reparsed.taxon, crit.taxon);
     assert_eq!(reparsed.c_min, crit.c_min);
     assert_eq!(reparsed.c_max, crit.c_max);
@@ -87,11 +87,11 @@ fn share_params_keep_formula_toggle_but_omit_default_formula_bounds() {
     let crit = SearchCriteria {
         taxon: "Fungi".into(),
         formula_enabled: true,
-        ..SearchCriteria::up_to_year(year)
+        ..SearchCriteria::up_to_year(2026)
     };
 
-    let params = super::criteria_query_params(&crit, year);
-    let reparsed = parse_criteria_from_params(&params);
+    let params = super::criteria_query_params(&crit, 2026);
+    let reparsed = parse_criteria_from_params(&params, 2026);
 
     assert_eq!(params.get("taxon").map(String::as_str), Some("Fungi"));
     assert_eq!(
@@ -102,18 +102,9 @@ fn share_params_keep_formula_toggle_but_omit_default_formula_bounds() {
     assert!(!params.contains_key("c_max"));
     assert!(!params.contains_key("cl_state"));
     assert!(reparsed.formula_enabled);
-    assert_eq!(
-        reparsed.c_min,
-        SearchCriteria::up_to_year(year).c_min
-    );
-    assert_eq!(
-        reparsed.c_max,
-        SearchCriteria::up_to_year(year).c_max
-    );
-    assert_eq!(
-        reparsed.cl_state,
-        SearchCriteria::up_to_year(year).cl_state
-    );
+    assert_eq!(reparsed.c_min, SearchCriteria::up_to_year(2026).c_min);
+    assert_eq!(reparsed.c_max, SearchCriteria::up_to_year(2026).c_max);
+    assert_eq!(reparsed.cl_state, SearchCriteria::up_to_year(2026).cl_state);
 }
 
 #[test]
@@ -145,10 +136,10 @@ fn parse_criteria_rejects_non_positive_similarity_threshold() {
     let mut params = QueryParams::new();
     params.insert("similarity_threshold".into(), "0".into());
 
-    let crit = parse_criteria_from_params(&params);
+    let crit = parse_criteria_from_params(&params, 2026);
     assert_eq!(
         crit.structure_threshold,
-        SearchCriteria::up_to_year(year).structure_threshold
+        SearchCriteria::up_to_year(2026).structure_threshold
     );
 }
 
@@ -157,7 +148,7 @@ fn parse_criteria_clamps_low_positive_similarity_threshold() {
     let mut params = QueryParams::new();
     params.insert("similarity_threshold".into(), "0.01".into());
 
-    let crit = parse_criteria_from_params(&params);
+    let crit = parse_criteria_from_params(&params, 2026);
     assert_eq!(crit.structure_threshold, 0.05);
 }
 
@@ -169,10 +160,10 @@ fn shareable_search_urls_use_the_search_route() {
     // is a trap for whoever calls `default()` next.
     let criteria = SearchCriteria {
         taxon: "Gentiana lutea".into(),
-        ..SearchCriteria::up_to_year(year)
+        ..SearchCriteria::up_to_year(2026)
     };
     assert_eq!(
-        build_shareable_url(&criteria),
+        build_shareable_url(&criteria, 2026),
         Some("/search?taxon=Gentiana%20lutea".to_string())
     );
 }
@@ -183,9 +174,9 @@ fn a_shareable_link_for_a_structure_carries_the_matching_mode() {
         structure: "C[C@H](O)CO".into(),
         structure_search: SmilesSearchType::Similarity,
         structure_threshold: 0.85,
-        ..SearchCriteria::up_to_year(year)
+        ..SearchCriteria::up_to_year(2026)
     };
-    let url = build_shareable_url(&criteria).expect("a structure is a search");
+    let url = build_shareable_url(&criteria, 2026).expect("a structure is a search");
     assert!(url.contains("structure=C%5BC%40H%5D%28O%29CO"), "{url}");
     assert!(url.contains("structure_search_type=similarity"), "{url}");
     assert!(url.contains("similarity_threshold=0.85"), "{url}");
@@ -200,9 +191,9 @@ fn a_named_compound_carries_the_mode_too() {
         structure: "amarogentina".into(),
         structure_search: SmilesSearchType::Similarity,
         structure_threshold: 1.0,
-        ..SearchCriteria::up_to_year(year)
+        ..SearchCriteria::up_to_year(2026)
     };
-    let url = build_shareable_url(&criteria).expect("a name is a search");
+    let url = build_shareable_url(&criteria, 2026).expect("a name is a search");
     assert!(url.contains("structure=amarogentina"), "{url}");
     assert!(url.contains("structure_search_type=similarity"), "{url}");
     assert!(url.contains("similarity_threshold=1.00"), "{url}");
@@ -215,9 +206,9 @@ fn a_shareable_link_records_the_exact_mode_rather_than_omitting_it() {
     let criteria = SearchCriteria {
         structure: "Q23118".into(),
         structure_search: SmilesSearchType::Exact,
-        ..SearchCriteria::up_to_year(year)
+        ..SearchCriteria::up_to_year(2026)
     };
-    let url = build_shareable_url(&criteria).expect("a QID is a search");
+    let url = build_shareable_url(&criteria, 2026).expect("a QID is a search");
     assert!(url.contains("structure=Q23118"), "{url}");
     assert!(url.contains("structure_search_type=exact"), "{url}");
     assert!(
@@ -234,7 +225,7 @@ fn the_matching_mode_survives_a_named_compound_in_the_criteria() {
         structure: "amarogentina".into(),
         structure_search: SmilesSearchType::Substructure,
         structure_threshold: 0.7,
-        ..SearchCriteria::up_to_year(year)
+        ..SearchCriteria::up_to_year(2026)
     };
     assert_eq!(criteria.structure_search, SmilesSearchType::Substructure);
     assert!((criteria.structure_threshold - 0.7).abs() < f64::EPSILON);
@@ -246,9 +237,9 @@ fn a_reference_round_trips_through_a_shareable_link_as_typed() {
     // they typed, and the lookup is the same either way.
     let criteria = SearchCriteria {
         reference: "10.1002/andp.18280880206".to_owned(),
-        ..SearchCriteria::up_to_year(year)
+        ..SearchCriteria::up_to_year(2026)
     };
-    let url = build_shareable_url(&criteria).expect("a reference is a search");
+    let url = build_shareable_url(&criteria, 2026).expect("a reference is a search");
     assert!(
         url.contains("reference=10.1002%2Fandp.18280880206"),
         "{url}"
@@ -264,14 +255,14 @@ fn a_reference_round_trips_through_a_shareable_link_as_typed() {
             urlencoding::decode(v).expect("valid value").into_owned(),
         );
     }
-    let parsed = parse_criteria_from_params(&params);
+    let parsed = parse_criteria_from_params(&params, 2026);
     assert_eq!(parsed.reference, "10.1002/andp.18280880206");
 }
 
 #[test]
 fn no_reference_in_the_link_means_no_reference_constraint() {
     let params = QueryParams::new();
-    let parsed = parse_criteria_from_params(&params);
+    let parsed = parse_criteria_from_params(&params, 2026);
     assert!(
         parsed.reference.is_empty(),
         "a link written before the field existed must not arrive with one"
@@ -282,8 +273,8 @@ fn no_reference_in_the_link_means_no_reference_constraint() {
 fn criteria_with_nothing_set_have_no_shareable_url() {
     // A URL that encodes no search is not a search, and offering one would put
     // an empty query string in someone's address bar.
-    let empty = SearchCriteria::up_to_year(year);
-    assert!(build_shareable_url(&empty).is_none());
+    let empty = SearchCriteria::up_to_year(2026);
+    assert!(build_shareable_url(&empty, 2026).is_none());
 }
 
 #[test]

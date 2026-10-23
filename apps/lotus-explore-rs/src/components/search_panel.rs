@@ -12,10 +12,11 @@ use crate::components::form_sections::{
     EntityFilters, FieldExamples, FilterEntity, FormulaSection, MassRangeInput, TaxonInput,
     TaxonNomenclatureFilters, YearRangeInput,
 };
-use lotus_explore_core::explore::{FormAction, use_criteria_selector};
+use crate::features::explore::use_criteria_selector;
+use lotus_explore_core::explore::FormAction;
 
 use crate::components::form_inputs::{ResetFiltersButton, SearchButton};
-use lotus_explore_core::explore::{use_explore_interactions, use_lifecycle_selector};
+use crate::features::explore::{use_explore_interactions, use_lifecycle_selector};
 use crate::i18n::{TextKey, t, threshold_label};
 use crate::state::{use_form_criteria_context, use_results_context};
 use crate::ui::a11y_contract::SEARCH_PANEL_BODY_ID;

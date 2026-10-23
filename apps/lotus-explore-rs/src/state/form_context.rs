@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Search-form context with dirty tracking and action-based updates.
 
-use lotus_explore_core::explore::form_actions::{FormAction, apply_form_action_mut};
 use dioxus::prelude::*;
+use lotus_explore_core::explore::form_actions::{FormAction, apply_form_action_mut};
 use lotus_search::SearchCriteria;
 
 #[derive(Clone, Copy)]

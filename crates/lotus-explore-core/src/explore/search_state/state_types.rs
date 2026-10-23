@@ -18,12 +18,19 @@ use std::sync::Arc;
 )]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SearchLifecycleState {
+    /// Whether a search is currently running.
     pub loading: bool,
+    /// The last error, if any.
     pub error: Option<DomainError>,
+    /// The phase the current (or last) search is in.
     pub query_phase: QueryPhase,
+    /// Whether a search has ever completed.
     pub searched_once: bool,
+    /// Whether the current search runs only to prepare a download.
     pub download_only_mode: bool,
+    /// Whether a download is currently being dispatched.
     pub download_dispatching: bool,
+    /// Monotonic token identifying the active search request.
     pub search_request_token: u64,
     /// Rows folded into the set so far, while a search is still running.
     ///
@@ -62,14 +69,23 @@ pub struct ResultDataState {
     /// Everything worth telling the user about how the taxon resolved, rendered
     /// as one notice line each.
     pub lookup_notices: Vec<LookupNotice>,
+    /// The QID of the taxon that was resolved, when one was.
     pub resolved_qid: Option<Arc<str>>,
+    /// Hash of the executed query, when available.
     pub query_hash: Option<Arc<str>>,
+    /// Hash of the returned result set, when available.
     pub result_hash: Option<Arc<str>>,
+    /// The SPARQL query that produced this result, when available.
     pub sparql_query: Option<Arc<str>>,
+    /// Export metadata generated for this result, when available.
     pub metadata_json: Option<Arc<str>>,
+    /// Total number of matching records reported by the endpoint.
     pub total_matches: Option<usize>,
+    /// Dataset statistics gathered while fetching.
     pub total_stats: Option<DatasetStats>,
+    /// Whether the displayed rows are a capped subset of the full result.
     pub display_capped_rows: bool,
+    /// The current sort order of the results table.
     pub sort: SortState,
     /// Client-side narrowing of the rows already fetched.
     ///
@@ -106,13 +122,14 @@ impl Default for ResultDataState {
 /// the query toolbar.
 #[derive(Clone, Debug, PartialEq)]
 pub struct UiChromeState {
+    /// The criteria of the search whose results are on screen.
     pub executed_criteria: SearchCriteria,
 }
 
 impl UiChromeState {
     /// Create a new UI chrome state with the given year.
     #[must_use]
-    pub fn new(year: u16) -> Self {
+    pub const fn new(year: u16) -> Self {
         Self {
             executed_criteria: SearchCriteria::up_to_year(year),
         }
@@ -137,9 +154,13 @@ impl ExploreState {
     }
 }
 
+/// The complete Explore feature state: lifecycle, results, and UI chrome.
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct ExploreState {
+    /// Loading, errors, phases, and request bookkeeping.
     pub lifecycle: SearchLifecycleState,
+    /// The result payload and its presentation state.
     pub result: ResultDataState,
+    /// Chrome derived from the last-executed criteria.
     pub ui: UiChromeState,
 }

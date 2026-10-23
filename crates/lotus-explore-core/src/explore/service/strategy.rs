@@ -17,6 +17,7 @@ pub enum ExecutionStrategy {
 impl ExecutionStrategy {
     /// Choose a strategy from the `direct_download` flag and whether the REST
     /// API is explicitly enabled.
+    #[must_use]
     pub const fn resolve(direct_download: bool, api_enabled: bool) -> Self {
         if direct_download {
             Self::DownloadOnly
@@ -27,6 +28,8 @@ impl ExecutionStrategy {
         }
     }
 
+    /// Whether this strategy only builds a query for download.
+    #[must_use]
     pub fn is_download_only(self) -> bool {
         self == Self::DownloadOnly
     }

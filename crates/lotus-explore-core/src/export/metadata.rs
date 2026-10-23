@@ -40,7 +40,7 @@ impl SparqlEndpoint {
     /// The endpoint's URL, name and description, as the metadata document
     /// reports them.
     #[must_use]
-    pub fn info(self) -> (&'static str, &'static str, &'static str) {
+    pub const fn info(self) -> (&'static str, &'static str, &'static str) {
         match self {
             Self::Qlever => (
                 QLEVER_ENDPOINT,

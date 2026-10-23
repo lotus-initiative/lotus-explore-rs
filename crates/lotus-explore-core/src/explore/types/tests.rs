@@ -10,7 +10,7 @@ use super::*;
 fn transport_domain_error_exposes_repository_source() {
     let err = DomainError::transport(
         QueryStage::ResultsQuery,
-        crate::repositories::RepositoryError::network("timeout"),
+        crate::ports::RepositoryError::network("timeout"),
     );
 
     match err {
@@ -25,7 +25,7 @@ fn transport_domain_error_exposes_repository_source() {
 fn transport_http_4xx_is_classified_as_bad_request() {
     let err = DomainError::transport(
         QueryStage::ResultsQuery,
-        crate::repositories::RepositoryError::Http {
+        crate::ports::RepositoryError::Http {
             status: 400,
             body: "invalid query".into(),
         },
@@ -38,7 +38,7 @@ fn transport_http_4xx_is_classified_as_bad_request() {
 fn transport_network_is_classified_as_network() {
     let err = DomainError::transport(
         QueryStage::ResultsQuery,
-        crate::repositories::RepositoryError::network("timeout"),
+        crate::ports::RepositoryError::network("timeout"),
     );
 
     assert_eq!(err.kind(), ErrorKind::Network);
@@ -48,7 +48,7 @@ fn transport_network_is_classified_as_network() {
 fn transport_parse_is_classified_as_parse() {
     let err = DomainError::transport(
         QueryStage::ResultsQuery,
-        crate::repositories::RepositoryError::parse("csv decode failed"),
+        crate::ports::RepositoryError::parse("csv decode failed"),
     );
 
     assert_eq!(err.kind(), ErrorKind::Parse);
@@ -58,7 +58,7 @@ fn transport_parse_is_classified_as_parse() {
 fn transport_not_configured_is_classified_as_configuration() {
     let err = DomainError::transport(
         QueryStage::ResultsQuery,
-        crate::repositories::RepositoryError::NotConfigured,
+        crate::ports::RepositoryError::NotConfigured,
     );
 
     assert_eq!(err.kind(), ErrorKind::Configuration);
@@ -68,7 +68,7 @@ fn transport_not_configured_is_classified_as_configuration() {
 fn transport_http_syntax_error_is_classified_as_bad_request() {
     let err = DomainError::transport(
         QueryStage::ResultsQuery,
-        crate::repositories::RepositoryError::Http {
+        crate::ports::RepositoryError::Http {
             status: 400,
             body: "Invalid SPARQL query: mismatched input 'AS' expecting ','".into(),
         },
@@ -80,7 +80,7 @@ fn transport_http_syntax_error_is_classified_as_bad_request() {
 #[test]
 fn transport_at_closure_maps_repository_error() {
     let mapper = DomainError::transport_at(QueryStage::ResultsQuery);
-    let err = mapper(crate::repositories::RepositoryError::network("timed out"));
+    let err = mapper(crate::ports::RepositoryError::network("timed out"));
     assert!(matches!(
         err,
         DomainError::Transport {

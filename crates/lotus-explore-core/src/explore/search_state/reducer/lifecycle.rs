@@ -42,7 +42,7 @@ pub(super) fn search_finished(state: &mut SearchLifecycleState) {
     state.download_dispatching = false;
 }
 
-pub(super) fn search_failed(state: &mut SearchLifecycleState, error: &DomainError) -> bool {
+pub(super) const fn search_failed(state: &mut SearchLifecycleState, error: &DomainError) -> bool {
     state.loading = false;
     state.rows_so_far = None;
     state.query_phase = QueryPhase::Idle;

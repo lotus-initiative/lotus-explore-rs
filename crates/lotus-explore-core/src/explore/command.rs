@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Typed commands for search entry points.
 
+/// The entry point that asked for a search.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(dead_code)]
 pub enum SearchCommand {
@@ -14,6 +15,7 @@ pub enum SearchCommand {
 }
 
 impl SearchCommand {
+    /// Whether this command prepares a download instead of an interactive search.
     #[must_use]
     #[allow(dead_code)]
     pub const fn direct_download(self) -> bool {

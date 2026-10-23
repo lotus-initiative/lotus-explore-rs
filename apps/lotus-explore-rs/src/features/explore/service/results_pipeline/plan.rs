@@ -9,18 +9,20 @@
 )]
 
 use super::ResultsPipelineOutcome;
-use lotus_explore_core::export::metadata::SparqlEndpoint;
-use lotus_explore_core::explore::request::SearchRequest;
-use lotus_explore_core::explore::search_metrics::SearchMetrics;
-use lotus_explore_core::explore::service::{
-    build_query::{ResolvedStructure, apply_server_filters, build_sparql_query},
+use crate::features::explore::service::{
     fetch_results::FetchResult,
     resolve_reference,
     resolve_structure::{self, StructureResolution},
     resolve_taxon::{self, TaxonResolution},
 };
-use lotus_explore_core::explore::types::{DomainError, QueryPhase};
 use crate::repositories::{LotusRepository, is_wdqs_fallback_used};
+use lotus_explore_core::explore::request::SearchRequest;
+use lotus_explore_core::explore::search_metrics::SearchMetrics;
+use lotus_explore_core::explore::service::build_query::{
+    ResolvedStructure, apply_server_filters, build_sparql_query,
+};
+use lotus_explore_core::explore::types::{DomainError, QueryPhase};
+use lotus_explore_core::export::metadata::SparqlEndpoint;
 
 pub(super) struct ResultsExecutionPlan {
     taxon_resolution: TaxonResolution,
@@ -138,7 +140,8 @@ pub(super) async fn build_execution_plan<R: LotusRepository>(
         &criteria,
         taxon_resolution.qid.as_deref(),
     );
-    let execution_query = apply_server_filters(&sparql_query, &criteria);
+    let execution_query =
+        apply_server_filters(&sparql_query, &criteria, crate::clock::current_year());
 
     Ok(ResultsExecutionPlan {
         taxon_resolution,

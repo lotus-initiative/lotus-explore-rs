@@ -4,8 +4,8 @@
 
 use super::header_model::{SortableHeaderModel, build_sortable_header_models};
 use crate::i18n::{TextKey, aria_sort_toggle, t};
-use lotus_explore_core::sort::{SortColumn, SortState};
 use dioxus::prelude::*;
+use lotus_explore_core::sort::{SortColumn, SortState};
 
 #[component]
 pub fn TableHeader(current_sort: SortState, on_sort_toggle: EventHandler<SortColumn>) -> Element {

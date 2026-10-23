@@ -3,14 +3,14 @@
 //! Loading and download-dispatching overlay components.
 
 use crate::components::ui::Button;
-use lotus_explore_core::explore::interactions::use_explore_interactions;
-use lotus_explore_core::explore::selectors::use_lifecycle_selector;
-use lotus_explore_core::explore::types::QueryPhase;
+use crate::features::explore::interactions::use_explore_interactions;
+use crate::features::explore::selectors::use_lifecycle_selector;
 use crate::i18n::{CountNoun, Locale, TextKey, t};
 use crate::i18n::{count_label, format_count};
 use crate::state::use_results_context;
 use crate::ui::prelude::{NoticeBar, NoticeTone};
 use dioxus::prelude::*;
+use lotus_explore_core::explore::types::QueryPhase;
 
 /// Spinner overlay shown while a query is in-flight.
 /// Subscribes to `query_phase` independently so phase-text updates do not

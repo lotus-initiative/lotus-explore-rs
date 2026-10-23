@@ -8,11 +8,17 @@ use crate::ports::RepositoryError;
 /// and lifecycle telemetry.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TransportFailureKind {
+    /// The endpoint or repository has not been configured.
     Configuration,
+    /// The network could not reach the endpoint.
     Network,
+    /// The endpoint returned a server-side failure.
     Server,
+    /// The request was rejected as invalid.
     BadRequest,
+    /// The endpoint rejected a conflicting cached query.
     CacheConflict,
+    /// The endpoint refused the request because of rate limiting.
     RateLimit,
     /// The endpoint cancelled the query because it outran its time budget.
     ///
@@ -22,12 +28,16 @@ pub enum TransportFailureKind {
     /// Retrying it spends the endpoint's whole budget again to be told the same
     /// thing.
     QueryTooExpensive,
+    /// The SPARQL query is syntactically invalid.
     QuerySyntax,
+    /// A response could not be parsed.
     Parse,
+    /// The result set stopped short of the whole answer.
     Truncated,
 }
 
 impl TransportFailureKind {
+    /// Whether retrying the same request could plausibly succeed.
     #[must_use]
     pub const fn is_retryable(self) -> bool {
         matches!(
@@ -37,6 +47,7 @@ impl TransportFailureKind {
     }
 }
 
+/// Classify a repository error into the transport semantics shared by the app.
 #[must_use]
 pub fn classify_transport_error(error: &RepositoryError) -> TransportFailureKind {
     match error {

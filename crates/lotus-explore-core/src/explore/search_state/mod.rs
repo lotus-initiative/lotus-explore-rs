@@ -10,3 +10,6 @@ mod state_types;
 pub use reducer::reduce;
 pub use reducer::reduce_mut;
 pub use state_types::{ExploreState, ResultDataState, SearchLifecycleState, UiChromeState};
+
+#[cfg(test)]
+mod tests;

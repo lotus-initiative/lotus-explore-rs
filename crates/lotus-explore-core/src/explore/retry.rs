@@ -3,7 +3,7 @@
 //! Retryable search orchestration — integration point for error recovery with the base orchestrator.
 
 #[cfg(test)]
-use crate::explore::error_recovery_coordinator::should_clear_state_on_error;
+use crate::explore::error_recovery::should_clear_state_on_error;
 use crate::explore::error_recovery::{ErrorClass, classify_error_recovery};
 use crate::explore::types::DomainError;
 #[cfg(test)]
@@ -24,15 +24,18 @@ pub fn retry_schedule_delay(
 }
 
 /// Determines whether to preserve partial results when a search fails.
+///
 /// Returns `true` if state should be cleared (bad error at early stage),
 /// `false` if state should be preserved (e.g., we have previous results to show).
 #[cfg(test)]
-pub fn preserve_results_on_error(error: &DomainError) -> bool {
+#[must_use]
+pub const fn preserve_results_on_error(error: &DomainError) -> bool {
     !should_clear_state_on_error(error.query_stage())
 }
 
 /// Utility to summarize retry eligibility for UI feedback.
 #[cfg(test)]
+#[must_use]
 pub fn retry_eligibility_summary(
     error: &DomainError,
     attempt_count: u32,
@@ -45,11 +48,14 @@ pub fn retry_eligibility_summary(
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(dead_code)]
 pub struct RetryPlan {
+    /// The class of error that produced this plan.
     pub error_class: ErrorClass,
+    /// Whether and when the search may be retried.
     pub eligibility: RetryEligibility,
 }
 
 /// Compute a complete retry plan from a domain error and attempt counts.
+#[must_use]
 pub fn plan_retry(error: &DomainError, attempt_count: u32, max_retries: u32) -> RetryPlan {
     let recovery = classify_error_recovery(error, attempt_count);
     // 429s are throttled over a longer window and amplify into a permanent IP
@@ -83,7 +89,9 @@ pub fn plan_retry(error: &DomainError, attempt_count: u32, max_retries: u32) -> 
 pub enum RetryEligibility {
     /// Error is transient and can be retried.
     Retryable {
+        /// How long to wait before retrying, when the policy specifies a delay.
         backoff_ms: Option<u64>,
+        /// The attempt number the retry will be.
         next_attempt_number: u32,
     },
     /// Error is permanent and should not be retried.

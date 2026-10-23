@@ -2,11 +2,11 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use super::*;
-use lotus_explore_core::explore::actions::ExploreAction;
-use lotus_explore_core::explore::command::SearchCommand;
-use lotus_explore_core::explore::types::{DomainError, QueryPhase, QueryStage, ValidationFault};
-use crate::repositories::RepositoryError;
-use lotus_explore_core::sort::{SortColumn, SortDir};
+use crate::explore::actions::ExploreAction;
+use crate::explore::command::SearchCommand;
+use crate::explore::types::{DomainError, QueryPhase, QueryStage, ValidationFault};
+use crate::ports::RepositoryError;
+use crate::sort::{SortColumn, SortDir};
 use lotus_model::SearchCriteria;
 use std::sync::Arc;
 
@@ -20,7 +20,7 @@ fn search_requested_sets_loading_and_clears_result() {
     let next = reduce(
         state,
         ExploreAction::SearchRequested {
-            criteria_snapshot: SearchCriteria::up_to_year(crate::clock::current_year()),
+            criteria_snapshot: SearchCriteria::up_to_year(2026),
             command: SearchCommand::Interactive,
         },
     );
@@ -40,7 +40,7 @@ fn search_requested_direct_download_flag_propagates() {
     let next = reduce(
         state,
         ExploreAction::SearchRequested {
-            criteria_snapshot: SearchCriteria::up_to_year(crate::clock::current_year()),
+            criteria_snapshot: SearchCriteria::up_to_year(2026),
             command: SearchCommand::StartupDownload,
         },
     );
@@ -54,7 +54,7 @@ fn search_requested_increments_request_token() {
         state = reduce(
             state,
             ExploreAction::SearchRequested {
-                criteria_snapshot: SearchCriteria::up_to_year(crate::clock::current_year()),
+                criteria_snapshot: SearchCriteria::up_to_year(2026),
                 command: SearchCommand::Interactive,
             },
         );
@@ -80,7 +80,7 @@ fn search_succeeded_clears_loading_and_stores_result() {
     state.lifecycle.loading = true;
     let set = std::sync::Arc::new(lotus_model::ColumnarResultSet::default());
     let metadata = Arc::<str>::from(r#"{"test":"metadata"}"#);
-    let endpoint = lotus_explore_core::export::metadata::SparqlEndpoint::Qlever;
+    let endpoint = crate::export::metadata::SparqlEndpoint::Qlever;
     let next = reduce(
         state,
         ExploreAction::SearchSucceeded {
@@ -108,7 +108,10 @@ fn search_succeeded_clears_loading_and_stores_result() {
     assert_eq!(next.result.query_hash.as_deref(), Some("qh"));
     assert_eq!(next.result.result_hash.as_deref(), Some("rh"));
     assert_eq!(next.result.metadata_json, Some(metadata));
-    assert_eq!(next.result.endpoint, lotus_explore_core::export::metadata::SparqlEndpoint::Qlever);
+    assert_eq!(
+        next.result.endpoint,
+        crate::export::metadata::SparqlEndpoint::Qlever
+    );
 }
 
 #[test]
@@ -225,7 +228,7 @@ fn search_progress_is_monotonic_within_a_search() {
     state = reduce(
         state,
         ExploreAction::SearchRequested {
-            criteria_snapshot: SearchCriteria::up_to_year(crate::clock::current_year()),
+            criteria_snapshot: SearchCriteria::up_to_year(2026),
             command: SearchCommand::Interactive,
         },
     );
@@ -255,7 +258,7 @@ fn search_progress_is_cleared_when_the_search_ends() {
     state = reduce(
         state,
         ExploreAction::SearchRequested {
-            criteria_snapshot: SearchCriteria::up_to_year(crate::clock::current_year()),
+            criteria_snapshot: SearchCriteria::up_to_year(2026),
             command: SearchCommand::Interactive,
         },
     );
@@ -286,7 +289,7 @@ fn a_new_search_clears_the_previous_progress() {
     state = reduce(
         state,
         ExploreAction::SearchRequested {
-            criteria_snapshot: SearchCriteria::up_to_year(crate::clock::current_year()),
+            criteria_snapshot: SearchCriteria::up_to_year(2026),
             command: SearchCommand::Interactive,
         },
     );
@@ -296,7 +299,7 @@ fn a_new_search_clears_the_previous_progress() {
     state = reduce(
         state,
         ExploreAction::SearchRequested {
-            criteria_snapshot: SearchCriteria::up_to_year(crate::clock::current_year()),
+            criteria_snapshot: SearchCriteria::up_to_year(2026),
             command: SearchCommand::Interactive,
         },
     );

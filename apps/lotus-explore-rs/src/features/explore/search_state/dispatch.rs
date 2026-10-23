@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use lotus_explore_core::explore::actions::ExploreAction;
 use dioxus::prelude::*;
+use lotus_explore_core::explore::actions::ExploreAction;
 
 use super::{ExploreState, reduce_mut};
 

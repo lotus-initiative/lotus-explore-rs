@@ -6,9 +6,12 @@ use super::*;
 use lotus_model::SmilesSearchType;
 use lotus_search::SearchCriteria;
 
+/// The year the tests pin. The core has no clock, so the year is an argument.
+const YEAR: u16 = 2026;
+
 #[test]
 fn empty_smiles_and_no_taxon_returns_all_compounds_query() {
-    let crit = SearchCriteria::up_to_year(crate::clock::current_year());
+    let crit = SearchCriteria::up_to_year(YEAR);
     let q = build_sparql_query(&ResolvedStructure::unresolved(""), &crit, None);
     // All-compounds query should select without a FILTER for a specific taxon.
     assert!(
@@ -22,7 +25,7 @@ fn empty_smiles_and_no_taxon_returns_all_compounds_query() {
 fn taxon_qid_only_generates_by_taxon_query() {
     let crit = SearchCriteria {
         taxon: "Gentiana lutea".into(),
-        ..SearchCriteria::up_to_year(crate::clock::current_year())
+        ..SearchCriteria::up_to_year(YEAR)
     };
     let q = build_sparql_query(&ResolvedStructure::unresolved(""), &crit, Some("Q156598"));
     assert!(q.contains("Q156598"), "query must reference the taxon QID");
@@ -30,7 +33,7 @@ fn taxon_qid_only_generates_by_taxon_query() {
 
 #[test]
 fn wild_star_taxon_qid_generates_all_compounds_query() {
-    let crit = SearchCriteria::up_to_year(crate::clock::current_year());
+    let crit = SearchCriteria::up_to_year(YEAR);
     let q = build_sparql_query(&ResolvedStructure::unresolved(""), &crit, Some("*"));
     assert!(!q.contains("Q156598"), "wildcard must not filter by QID");
 }
@@ -42,7 +45,7 @@ fn a_structure_that_resolved_to_nothing_still_calls_the_service() {
     // structure.
     let crit = SearchCriteria {
         structure: "c1ccccc1".into(),
-        ..SearchCriteria::up_to_year(crate::clock::current_year())
+        ..SearchCriteria::up_to_year(YEAR)
     };
     let q = build_sparql_query(&ResolvedStructure::unresolved("c1ccccc1"), &crit, None);
     assert!(q.contains("SERVICE"), "expected the structure service: {q}");
@@ -56,7 +59,7 @@ fn a_structure_that_resolved_to_nothing_still_calls_the_service() {
 fn an_exact_search_of_a_resolved_compound_never_calls_the_service() {
     let crit = SearchCriteria {
         structure: "amarogentina".into(),
-        ..SearchCriteria::up_to_year(crate::clock::current_year())
+        ..SearchCriteria::up_to_year(YEAR)
     };
     let resolved = ResolvedStructure {
         compounds: vec!["Q3613679".into()],
@@ -79,7 +82,7 @@ fn an_exact_search_of_a_resolved_compound_never_calls_the_service() {
 fn an_exact_search_asks_about_every_compound_the_structure_resolved_to() {
     let crit = SearchCriteria {
         structure: "C[C@H](O)CO".into(),
-        ..SearchCriteria::up_to_year(crate::clock::current_year())
+        ..SearchCriteria::up_to_year(YEAR)
     };
     let resolved = ResolvedStructure {
         compounds: vec!["Q161495".into(), "Q27093218".into(), "Q27095160".into()],
@@ -110,7 +113,7 @@ fn a_substructure_search_of_a_resolved_compound_does_call_the_service() {
     let crit = SearchCriteria {
         structure: "amarogentina".into(),
         structure_search: SmilesSearchType::Substructure,
-        ..SearchCriteria::up_to_year(crate::clock::current_year())
+        ..SearchCriteria::up_to_year(YEAR)
     };
     let resolved = ResolvedStructure {
         compounds: Vec::new(),
@@ -131,7 +134,7 @@ fn a_similarity_search_of_a_resolved_compound_carries_its_cutoff() {
         structure: "Q23118".into(),
         structure_search: SmilesSearchType::Similarity,
         structure_threshold: 0.9,
-        ..SearchCriteria::up_to_year(crate::clock::current_year())
+        ..SearchCriteria::up_to_year(YEAR)
     };
     let resolved = ResolvedStructure {
         compounds: Vec::new(),

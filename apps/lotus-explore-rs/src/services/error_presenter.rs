@@ -2,10 +2,6 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! User-facing formatting for domain errors and warnings.
 
-use lotus_explore_core::explore::truncation::{Reason, truncation_reason};
-use lotus_explore_core::explore::{
-    DomainError, ErrorKind, LookupNotice, ParseFault, QueryStage, ValidationFault,
-};
 #[cfg(target_arch = "wasm32")]
 use crate::i18n::error_hint_memory;
 use crate::i18n::{
@@ -19,6 +15,10 @@ use crate::i18n::{
     warn_wdqs_fallback,
 };
 use crate::repositories::RepositoryError;
+use lotus_explore_core::explore::truncation::{Reason, truncation_reason};
+use lotus_explore_core::explore::{
+    DomainError, ErrorKind, LookupNotice, ParseFault, QueryStage, ValidationFault,
+};
 
 pub fn format_domain_error(locale: Locale, err: &DomainError) -> String {
     match err {

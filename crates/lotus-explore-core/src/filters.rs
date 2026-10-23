@@ -174,7 +174,7 @@ impl ColumnFilters {
 
     /// The low bound on a numeric column's filter.
     #[must_use]
-    pub fn min(&self, column: SortColumn) -> Option<f64> {
+    pub const fn min(&self, column: SortColumn) -> Option<f64> {
         match column {
             SortColumn::Mass => self.mass_min,
             SortColumn::PubYear => self.year_min,
@@ -184,7 +184,7 @@ impl ColumnFilters {
 
     /// The high bound on a numeric column's filter.
     #[must_use]
-    pub fn max(&self, column: SortColumn) -> Option<f64> {
+    pub const fn max(&self, column: SortColumn) -> Option<f64> {
         match column {
             SortColumn::Mass => self.mass_max,
             SortColumn::PubYear => self.year_max,
@@ -193,7 +193,7 @@ impl ColumnFilters {
     }
 
     /// Set one bound on a numeric column's filter.
-    pub fn set_bound(&mut self, column: SortColumn, bound: Bound, value: Option<f64>) {
+    pub const fn set_bound(&mut self, column: SortColumn, bound: Bound, value: Option<f64>) {
         match (column, bound) {
             (SortColumn::Mass, Bound::Min) => self.mass_min = value,
             (SortColumn::Mass, Bound::Max) => self.mass_max = value,

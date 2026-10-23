@@ -8,6 +8,9 @@ use sha2::{Digest, Sha256};
 use std::borrow::Cow;
 use std::fmt::Write as _;
 
+/// Normalize a taxon name: underscores become spaces, the first word is
+/// capitalized, and the remaining words are preserved.
+#[must_use]
 pub fn sanitize_taxon_input(taxon: &str) -> String {
     let replaced: Cow<'_, str> = if taxon.contains('_') {
         Cow::Owned(taxon.replace('_', " "))
@@ -38,6 +41,11 @@ pub fn sanitize_taxon_input(taxon: &str) -> String {
     out
 }
 
+/// Compute the query hash and the result hash for a search.
+///
+/// The query hash covers the resolved QID, the taxon, and every serialized
+/// criterion; the result hash covers the ordered compound QIDs in `set`.
+#[must_use]
 pub fn compute_hashes(
     qid: &str,
     criteria: &SearchCriteria,
@@ -51,10 +59,7 @@ pub fn compute_hashes(
     let _ = write!(query_source, "{normalized_qid}|{normalized_taxon}");
 
     // Build `|key=value&key=value&…` suffix without an intermediate Vec<String>.
-    let params = crate::explore::url_codec::criteria_query_params(
-        criteria,
-        year,
-    );
+    let params = crate::explore::url_codec::criteria_query_params(criteria, year);
     for (i, (k, v)) in params.into_iter().enumerate() {
         if i == 0 {
             query_source.push('|');
@@ -94,6 +99,8 @@ pub fn compute_hashes(
     clippy::indexing_slicing,
     reason = "`HEX` has 16 entries and both nibbles are masked to 4 bits, so neither index exceeds 15"
 )]
+/// Lowercase hexadecimal encoding of `bytes`.
+#[must_use]
 pub fn to_hex_lower(bytes: &[u8]) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut out = String::with_capacity(bytes.len() * 2);

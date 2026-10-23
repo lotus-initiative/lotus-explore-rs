@@ -27,7 +27,7 @@ fn hex_encoder_is_lowercase() {
 fn hashes_depend_on_query_and_rows_only() {
     let crit = SearchCriteria {
         taxon: "*".into(),
-        ..SearchCriteria::up_to_year(crate::clock::current_year())
+        ..SearchCriteria::up_to_year(2026)
     };
     let row = CompoundEntry {
         compound_qid: Arc::from("Q1"),
@@ -49,8 +49,9 @@ fn hashes_depend_on_query_and_rows_only() {
         "QX",
         &crit,
         &ColumnarResultSet::from_entries(std::slice::from_ref(&row)),
+        2026,
     );
-    let (q2, r2) = compute_hashes("QX", &crit, &ColumnarResultSet::from_entries(&[row]));
+    let (q2, r2) = compute_hashes("QX", &crit, &ColumnarResultSet::from_entries(&[row]), 2026);
     assert_eq!(q1, q2);
     assert_eq!(r1, r2);
 }

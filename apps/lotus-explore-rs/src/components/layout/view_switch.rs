@@ -5,7 +5,7 @@
 
 use crate::app::routes::Route;
 #[cfg(target_arch = "wasm32")]
-use lotus_explore_core::explore::url_state::href_with_current_query;
+use crate::features::explore::url_state::href_with_current_query;
 use crate::hooks::use_locale;
 use crate::i18n::faq::faq_nav_label;
 use crate::i18n::{

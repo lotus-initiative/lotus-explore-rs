@@ -8,12 +8,12 @@
 #![allow(clippy::expect_used, clippy::panic)]
 
 use super::*;
-use lotus_explore_core::explore::ExploreInteractions;
-use lotus_explore_core::explore::orchestrator::SearchTaskController;
-use lotus_explore_core::explore::search_state::ExploreState;
+use crate::features::explore::ExploreInteractions;
+use crate::features::explore::orchestrator::SearchTaskController;
 use crate::i18n::Locale;
 use crate::repositories::HybridRepository;
 use crate::state::{FormCriteriaContext, ResultsContext};
+use lotus_explore_core::explore::search_state::ExploreState;
 use lotus_model::SearchCriteria;
 
 /// The panel with the context it reads, and a pristine form.

@@ -3,8 +3,9 @@
 //! Pure app bootstrap state assembly.
 
 use crate::app_state::{AppState, DownloadState};
-use lotus_explore_core::explore::{ExploreState, InitialUrlState};
+use crate::features::explore::InitialUrlState;
 use crate::i18n::Locale;
+use lotus_explore_core::explore::ExploreState;
 use lotus_search::SearchCriteria;
 
 // Name mirrors the Dioxus `App{…}` component it feeds; `AppBootstrap` reads

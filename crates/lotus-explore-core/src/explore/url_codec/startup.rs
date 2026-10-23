@@ -4,13 +4,19 @@
 use super::{QueryParams, is_true_flag};
 use lotus_query::ExportFormat as DownloadFormat;
 
+/// A download or execute action requested by the startup URL.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct InitialDownloadState {
+    /// The format to download in, when a valid format was requested.
     pub pending_format: Option<DownloadFormat>,
+    /// The invalid format string that was requested, if any.
     pub pending_invalid_format: Option<String>,
+    /// Whether the search should execute immediately.
     pub direct_execute: bool,
 }
 
+/// Decode the startup download or execute action from URL parameters.
+#[must_use]
 pub fn parse_startup_action_from_params(params: &QueryParams) -> InitialDownloadState {
     if !params.get("download").is_some_and(|v| is_true_flag(v)) {
         return InitialDownloadState {

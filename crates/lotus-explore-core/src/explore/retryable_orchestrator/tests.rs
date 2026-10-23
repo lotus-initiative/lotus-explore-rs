@@ -5,8 +5,8 @@
 #![allow(clippy::panic)]
 
 use super::*;
-use lotus_explore_core::explore::types::{QueryStage, ValidationFault};
-use crate::repositories::RepositoryError;
+use crate::explore::types::{QueryStage, ValidationFault};
+use crate::ports::RepositoryError;
 
 #[test]
 fn compute_retry_schedule_returns_none_at_max_retries() {

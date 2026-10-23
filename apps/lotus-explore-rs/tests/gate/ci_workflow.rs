@@ -253,8 +253,9 @@ fn every_toolchain_pin_agrees_with_rust_toolchain_toml() -> Result<()> {
 /// this file exists to hold that one claim.
 ///
 /// What this cannot catch, having tried: whether a name is a real crate.
-/// `cargo-dejadoc` was in both lists for a commit, and both were wrong in the
-/// same way, because the crate is `dejadoc` and that is the binary it installs.
+/// `cargo-echoes` was in both lists for a commit, and both were wrong in the
+/// same way, because the crate is `echoes` and `cargo-echoes` is the binary it
+/// installs.
 /// There is no structural difference between that and `cargo-deny`, which is a
 /// real crate with a `cargo-` prefixed name -- a rule rejecting `cargo-` names
 /// fires on seven correct entries here. Only crates.io can tell them apart, and
@@ -373,32 +374,32 @@ mod installed_tools {
         Ok(())
     }
 
-    /// The duplicate-doctest tool, named the way each consumer needs it.
+    /// The duplicate-detection tool, named the way each consumer needs it.
     ///
-    /// Written down because the two spellings differ and both had to be right:
-    /// the installers take `dejadoc`, and the task runs `cargo-dejadoc`. Getting
-    /// this backwards fails in CI with "cargo-dejadoc is not found", which names
+    /// Written down because the two spellings differ and both have to be right:
+    /// the installers take `echoes`, and the task runs `cargo-echoes`. Getting
+    /// this backwards fails in CI with "cargo-echoes is not found", which names
     /// neither the crate nor the typo.
     #[test]
-    fn the_duplicate_doctest_tool_is_named_correctly_in_both_places() -> Result<()> {
+    fn the_duplicate_detection_tool_is_named_correctly_in_both_places() -> Result<()> {
         let yaml = read(".github/workflows/ci.yml")?;
         assert!(
-            workflow_tools(&yaml).contains("dejadoc"),
-            "ci.yml installs the crate as `dejadoc`, not as `cargo-dejadoc`: \
-             install-action takes crate names and `cargo-dejadoc` does not exist"
+            workflow_tools(&yaml).contains("echoes"),
+            "ci.yml installs the crate as `echoes`, not as `cargo-echoes`: \
+             install-action takes crate names and `cargo-echoes` does not exist"
         );
 
         let script = read("make/scripts/setup.sh")?;
         let versions = setup_tools(&script);
         assert!(
-            versions.contains_key("dejadoc"),
-            "setup.sh installs it as `dejadoc` too, for the same reason"
+            versions.contains_key("echoes"),
+            "setup.sh installs it as `echoes` too, for the same reason"
         );
 
         let task = read("make/test.toml")?;
         assert!(
-            task.contains("command -v cargo-dejadoc") && task.contains("cargo dejadoc"),
-            "the task runs the *binary*, which really is `cargo-dejadoc` -- so the \
+            task.contains("command -v cargo-echoes") && task.contains("cargo echoes"),
+            "the task runs the *binary*, which really is `cargo-echoes` -- so the \
              crate name and the command name are not the same string, and both \
              spellings above have to be right for the gate to run"
         );
@@ -409,53 +410,54 @@ mod installed_tools {
     /// the gate reports.
     ///
     /// Every other tool is installed unpinned by CI on purpose, and the test
-    /// above says so. `dejadoc` is the exception and the reason is not a
-    /// preference: 0.3.1 compares doctests only, 0.4.0 added functions, and
-    /// 0.6.0 made those functions opt-in behind `--functions`. With `setup.sh`
-    /// on 0.3.1 and CI resolving 0.4.0, four duplicated functions were reported
-    /// in CI and `./mk dejadoc` was green at home. That is the failure this
-    /// whole module exists to prevent -- a gate that says something different
-    /// depending on where it runs -- so the version is part of what is pinned.
+    /// above says so. `echoes` is the exception and the reason is not a
+    /// preference: the default thresholds and the checks behind `--functions`
+    /// and `--context-blocks` have moved between releases, so a version drift
+    /// means CI and `./mk echoes` are not the same check. That is the failure
+    /// this whole module exists to prevent -- a gate that says something
+    /// different depending on where it runs -- so the version is part of what is
+    /// pinned.
     #[test]
-    fn the_duplicate_doctest_tool_is_the_same_version_in_ci_and_locally() -> Result<()> {
+    fn the_duplicate_detection_tool_is_the_same_version_in_ci_and_locally() -> Result<()> {
         let yaml = read(".github/workflows/ci.yml")?;
         let pinned = workflow_entries(&yaml)
             .iter()
-            .find_map(|entry| entry.strip_prefix("dejadoc@").map(str::to_string))
-            .ok_or("ci.yml installs dejadoc; the test above asserts it")?;
+            .find_map(|entry| entry.strip_prefix("echoes@").map(str::to_string))
+            .ok_or("ci.yml installs echoes; the test above asserts it")?;
 
         let versions = setup_tools(&read("make/scripts/setup.sh")?);
         let local = versions
-            .get("dejadoc")
+            .get("echoes")
             .cloned()
             .ok_or("setup.sh installs it; the test above asserts it")?;
 
         assert_eq!(
             local, pinned,
-            "CI and `./mk setup` pin different dejadoc versions. A version can \
+            "CI and `./mk setup` pin different echoes versions. A version can \
              change which checks run rather than only how they are reported -- \
-             0.3.1 checks doctests, 0.4.0 checks functions too -- so a drift \
-             here means the gate is green in one place and red in the other."
+             `--functions` and `--context-blocks` are opt-in and the default \
+             thresholds move -- so a drift here means the gate is green in one \
+             place and red in the other."
         );
         Ok(())
     }
 
-    /// 0.6.0 made both `--functions` and `--context-blocks` opt-in, so the task
-    /// has to ask for both.
+    /// Both `--functions` and `--context-blocks` are opt-in, so the task has to
+    /// ask for both.
     ///
-    /// Without them dejadoc 0.6 reports doctests only and exits 0: the gate
-    /// stays green while no longer checking the function bodies 0.4 checked by
-    /// default, nor the context blocks 0.6 added. The version pin cannot catch
-    /// this, because both sides would be on the same version and the flags
-    /// would still be missing.
+    /// Without them `cargo echoes` reports doctests only and exits 0: the gate
+    /// stays green while no longer checking duplicated function bodies or the
+    /// context blocks inside them. The version pin cannot catch this, because
+    /// both sides would be on the same version and the flags would still be
+    /// missing.
     #[test]
-    fn the_dejadoc_task_checks_functions_and_context_blocks() -> Result<()> {
+    fn the_echoes_task_checks_functions_and_context_blocks() -> Result<()> {
         let task = read("make/test.toml")?;
         assert!(
-            task.contains("cargo dejadoc --functions --context-blocks"),
-            "the dejadoc task must pass both `--functions` and `--context-blocks`: \
-             0.6 checks doctests only unless asked, so the gate would silently \
-             stop checking duplicated functions and context blocks"
+            task.contains("cargo echoes --functions --context-blocks"),
+            "the echoes task must pass both `--functions` and `--context-blocks`: \
+             doctests are checked unless asked, so the gate would silently stop \
+             checking duplicated functions and context blocks"
         );
         Ok(())
     }

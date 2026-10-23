@@ -7,7 +7,7 @@ use lotus_model::{ElementState, SearchCriteria, SmilesSearchType};
 /// Unified action type for all form field updates.
 #[derive(Clone, Debug, PartialEq)]
 pub enum FormAction {
-    // Taxon + Structure
+    /// Replace the taxon field.
     Taxon(String),
     /// Which nomenclatural relationship the taxon filter follows, and whether
     /// it is followed at all. One variant for all four rather than one each:
@@ -19,40 +19,65 @@ pub enum FormAction {
         /// Whether to follow it.
         on: bool,
     },
+    /// Replace the structure field.
     Smiles(String),
     /// A Wikidata QID or a DOI in the reference field.
     Reference(String),
+    /// Change how the structure field is searched.
     SmilesSearchType(SmilesSearchType),
+    /// Change the similarity threshold for a structure search.
     SimilarityThreshold(f64),
 
     // Mass range
+    /// Set the minimum molecular mass.
     MassMin(f64),
+    /// Set the maximum molecular mass.
     MassMax(f64),
 
     // Year range
+    /// Set the earliest publication year.
     YearMin(u16),
+    /// Set the latest publication year.
     YearMax(u16),
 
     // Molecular weight formula
+    /// Enable or disable the molecular-formula filter.
     FormulaEnabled(bool),
+    /// Set the exact molecular formula.
     FormulaExact(String),
+    /// Set the minimum number of carbon atoms.
     CMin(u16),
+    /// Set the maximum number of carbon atoms.
     CMax(u16),
+    /// Set the minimum number of hydrogen atoms.
     HMin(u16),
+    /// Set the maximum number of hydrogen atoms.
     HMax(u16),
+    /// Set the minimum number of nitrogen atoms.
     NMin(u16),
+    /// Set the maximum number of nitrogen atoms.
     NMax(u16),
+    /// Set the minimum number of oxygen atoms.
     OMin(u16),
+    /// Set the maximum number of oxygen atoms.
     OMax(u16),
+    /// Set the minimum number of phosphorus atoms.
     PMin(u16),
+    /// Set the maximum number of phosphorus atoms.
     PMax(u16),
+    /// Set the minimum number of sulfur atoms.
     SMin(u16),
+    /// Set the maximum number of sulfur atoms.
     SMax(u16),
 
     // Halogen states
+    /// Set the presence filter for fluorine.
     FState(ElementState),
+    /// Set the presence filter for chlorine.
     ClState(ElementState),
+    /// Set the presence filter for bromine.
     BrState(ElementState),
+    /// Set the presence filter for iodine.
     IState(ElementState),
 }
 
@@ -100,7 +125,6 @@ pub fn apply_form_action_mut(criteria: &mut SearchCriteria, action: FormAction) 
 /// Apply a `FormAction` to `SearchCriteria`, returning the updated copy.
 /// Kept as a pure helper for reducer-style tests and functional call sites.
 #[must_use]
-#[cfg(test)]
 pub fn apply_form_action(mut criteria: SearchCriteria, action: FormAction) -> SearchCriteria {
     apply_form_action_mut(&mut criteria, action);
     criteria

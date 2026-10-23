@@ -9,11 +9,11 @@
 )]
 
 use super::{FetchResult, PlannedResultsFetch};
-use lotus_explore_core::explore::search_metrics::SearchMetrics;
-use lotus_explore_core::explore::types::{DomainError, ParseFault, QueryStage};
 use crate::perf;
 use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
+use lotus_explore_core::explore::search_metrics::SearchMetrics;
+use lotus_explore_core::explore::types::{DomainError, ParseFault, QueryStage};
 use lotus_model::ColumnarResultSet;
 // Named here because only the native fetch path streams a file; going through the
 // shared shims made it look unused on the wasm build.

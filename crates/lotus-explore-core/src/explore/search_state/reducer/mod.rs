@@ -9,12 +9,15 @@ use super::ExploreState;
 use crate::explore::actions::ExploreAction;
 use std::sync::Arc;
 
+/// Apply `action` to `state`, returning the updated state.
 #[cfg(test)]
+#[must_use]
 pub fn reduce(mut state: ExploreState, action: ExploreAction) -> ExploreState {
     reduce_mut(&mut state, action);
     state
 }
 
+/// Apply `action` to `state` in place.
 pub fn reduce_mut(state: &mut ExploreState, action: ExploreAction) {
     match action {
         ExploreAction::SearchRequested {

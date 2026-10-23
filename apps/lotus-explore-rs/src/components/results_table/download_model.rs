@@ -112,6 +112,10 @@ pub(super) fn build_download_toolbar_model(
     )
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "every argument is a distinct piece of the export model; grouping them would add a struct with no other use"
+)]
 #[must_use]
 pub(super) fn build_download_toolbar_model_with_endpoint(
     criteria: &SearchCriteria,

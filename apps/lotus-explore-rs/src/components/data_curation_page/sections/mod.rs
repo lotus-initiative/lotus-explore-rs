@@ -21,7 +21,7 @@ use dioxus::prelude::*;
 use std::sync::Arc;
 
 use crate::components::copy_button::CopyButton;
-use lotus_explore_core::explore::absolute_share_url;
+use crate::features::explore::absolute_share_url;
 
 #[component]
 pub fn ShareBar(locale: Locale, share: Arc<str>) -> Element {

@@ -18,16 +18,17 @@
 // rest of the deny is for.
 #![allow(clippy::future_not_send)]
 
+use crate::features::explore::service::{api_pipeline, results_pipeline};
+use crate::perf;
+use crate::repositories::LotusRepository;
+use crate::services::search_telemetry as telemetry;
 use lotus_explore_core::explore::outcome::SearchOutcome;
 use lotus_explore_core::explore::request::SearchRequest;
 use lotus_explore_core::explore::search_metrics::{SearchMetrics, emit_search_summary};
 use lotus_explore_core::explore::service::{
-    api_pipeline, build_query::normalize_smiles, results_pipeline, strategy::ExecutionStrategy,
+    build_query::normalize_smiles, strategy::ExecutionStrategy,
 };
 use lotus_explore_core::explore::types::{DomainError, QueryPhase};
-use crate::perf;
-use crate::repositories::LotusRepository;
-use crate::services::search_telemetry as telemetry;
 
 pub struct SearchExecutor<R, P, G>
 where

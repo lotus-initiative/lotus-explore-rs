@@ -11,15 +11,20 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub struct FinalizedMeta {
+    /// Hash of the query that produced the result.
     pub query_hash: Arc<str>,
+    /// Hash of the result set.
     pub result_hash: Arc<str>,
+    /// Export metadata JSON for the result.
     pub metadata_json: Arc<str>,
 }
 
 /// Assemble [`FinalizedMeta`] from the raw outcome parts.
+///
 /// `direct_download_mode` suppresses stats/counts, which were never fetched. The
 /// `set` carries its own exact counts, so nothing is recomputed: the numbers the
 /// reader sees are the numbers the fetch produced.
+#[must_use]
 pub fn finalize(
     crit: &SearchCriteria,
     qid: Option<&str>,
@@ -34,8 +39,8 @@ pub fn finalize(
     let number_of_records = (!direct_download_mode).then_some(set.stats().n_entries);
 
     let (query_hash, result_hash) = compute_hashes(qid.unwrap_or(""), crit, set, year);
-    let metadata_json = Arc::<str>::from(
-        crate::export::metadata::build_metadata_json(MetadataInputs {
+    let metadata_json = Arc::<str>::from(crate::export::metadata::build_metadata_json(
+        MetadataInputs {
             criteria: crit,
             qid,
             number_of_records_override: number_of_records,
@@ -44,8 +49,8 @@ pub fn finalize(
             endpoint,
             year,
             date_created: now,
-        }),
-    );
+        },
+    ));
 
     FinalizedMeta {
         query_hash: Arc::from(query_hash),

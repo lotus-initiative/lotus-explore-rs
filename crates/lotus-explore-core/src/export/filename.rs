@@ -33,7 +33,7 @@ pub fn today_yyyymmdd(iso_timestamp: &str) -> String {
 /// The taxon's name, reduced to something a filename may hold.
 ///
 /// `*` becomes `all_taxa` rather than `star`, because the file is read by
-/// people and "all_taxa" says what the file is; every other unusable
+/// people and "`all_taxa`" says what the file is; every other unusable
 /// character becomes an underscore or is dropped.
 #[must_use]
 pub fn safe_taxon_slug(taxon: &str) -> String {

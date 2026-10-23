@@ -52,7 +52,7 @@ impl PartialNomenclature {
     }
 
     /// Write the specified toggles onto a criteria, leaving the rest alone.
-    fn apply(self, onto: &mut lotus_model::TaxonNomenclature) {
+    const fn apply(self, onto: &mut lotus_model::TaxonNomenclature) {
         if let Some(v) = self.accepted_synonyms {
             onto.accepted_synonyms = v;
         }
@@ -74,7 +74,9 @@ impl PartialNomenclature {
 /// The parameter names are the model's own field names, so a rename on either
 /// side has to be made on both — see the round-trip test on
 /// [`criteria_query_params`].
-fn nomenclature_query_pairs(names: lotus_model::TaxonNomenclature) -> [(&'static str, bool); 4] {
+const fn nomenclature_query_pairs(
+    names: lotus_model::TaxonNomenclature,
+) -> [(&'static str, bool); 4] {
     [
         ("taxon_accepted_synonyms", names.accepted_synonyms),
         ("taxon_basionyms", names.basionyms),
@@ -116,6 +118,9 @@ struct RangeU16Dto {
     max: Option<u16>,
 }
 
+/// Parse search criteria from URL parameters, using `year` as the current year
+/// when a parameter is absent.
+#[must_use]
 pub fn parse_criteria_from_params(params: &QueryParams, year: u16) -> SearchCriteria {
     CriteriaQueryDto::parse(params).into_criteria(year)
 }
@@ -128,6 +133,7 @@ pub fn parse_criteria_from_params(params: &QueryParams, year: u16) -> SearchCrit
 /// parsing lived here, which meant a rename to either side silently broke
 /// every URL already in a browser's history and in someone's message. There is
 /// a round-trip test below to keep that from happening again.
+#[must_use]
 pub fn criteria_query_params(criteria: &SearchCriteria, year_max: u16) -> QueryParams {
     let mut params = QueryParams::new();
 
@@ -418,7 +424,7 @@ where
 /// whichever one it is asked for. Without this the two call sites each wanted a
 /// function returning `(min, max)` and a three-line `map` onto their own type --
 /// and those two three-line wrappers were themselves identical, which is what the
-/// second round of `cargo dejadoc` reported. Removing them is the fix; a second
+/// second round of `cargo echoes` reported. Removing them is the fix; a second
 /// helper to deduplicate them would have been the third function for the job.
 trait RangeDto<T> {
     /// This DTO over `T`.

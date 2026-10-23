@@ -69,7 +69,7 @@ impl CurationKnowledgeRepository for MockRepo {
     // The marker goes last because it must be the line immediately above the
     // function; prose in between makes the pair get reported anyway, which
     // looks like a broken gate.
-    // dejadoc: allow
+    // echoes: allow
     fn resolve_taxon_qids_batch(
         &self,
         _names: &[String],
@@ -78,7 +78,7 @@ impl CurationKnowledgeRepository for MockRepo {
     }
 
     // The other half of the pair above, allowed for the same reason.
-    // dejadoc: allow
+    // echoes: allow
     fn resolve_reference_qids_batch(
         &self,
         _dois: &[String],

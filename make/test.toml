@@ -63,26 +63,27 @@ script = "cargo test --workspace --doc --locked --quiet"
 # two places, which the same run reports under `--functions`, and of one fragment
 # of code inside two functions, which is what `--context-blocks` is for.
 #
-# Those two flags are the whole check, and are opt-in since 0.6.0: what
-# `cargo dejadoc` compares for unless asked is doctests, so a gate missing either
-# one exits 0 while checking less, which is how a check stops checking anything
-# without going red. There is no `.dejadoc.toml` here, so nothing is filtered by a
-# token threshold either -- a recurring trivial body is easier to share than to
-# filter, which is what the three copies of a `find_ascii_ci` taught us.
+# Doctests are the whole check unless asked otherwise: those two flags are
+# opt-in, so a gate missing either one exits 0 while checking less, which is how a
+# check stops checking anything without going red. There is no `.echoes.toml`
+# here, so the built-in thresholds stand -- 30 weighted tokens for functions and
+# 30 canonical tokens for contexts -- rather than being tuned per repository. A
+# recurring trivial body is easier to share than to filter, which is what the
+# three copies of a `find_ascii_ci` taught us.
 #
 # It exits 1 on any group, so this is a gate rather than a report. It compiles
 # nothing -- it reads the source -- which is why it can sit in the gate for about
 # a second.
-[tasks."dejadoc"]
+[tasks."echoes"]
 cwd = "${REPO_ROOT}"
 description = "Fail if two doctests, functions or context blocks are the same."
 script = """
 set -e
-if ! command -v cargo-dejadoc >/dev/null 2>&1; then
-  echo "cargo-dejadoc is not installed; run './mk setup'" >&2
+if ! command -v cargo-echoes >/dev/null 2>&1; then
+  echo "cargo-echoes is not installed; run './mk setup'" >&2
   exit 1
 fi
-cargo dejadoc --functions --context-blocks
+cargo echoes --functions --context-blocks
 """
 
 # The `#[ignore]`d network tests. There are none today: the search use case is

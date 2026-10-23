@@ -9,12 +9,12 @@
 )]
 //! REST API fast-path execution for Explore searches.
 
-use lotus_explore_core::explore::outcome::SearchOutcome;
-use lotus_explore_core::explore::request::SearchRequest;
-use lotus_explore_core::explore::search_metrics::SearchMetrics;
 use crate::perf;
 use crate::repositories::{LotusRepository, RepositoryError};
 use crate::services::search_telemetry as telemetry;
+use lotus_explore_core::explore::outcome::SearchOutcome;
+use lotus_explore_core::explore::request::SearchRequest;
+use lotus_explore_core::explore::search_metrics::SearchMetrics;
 use lotus_explore_core::table_budget::API_MAX_ROWS;
 
 pub async fn try_execute<R: LotusRepository>(

@@ -5,7 +5,7 @@
 #![allow(clippy::panic)]
 
 use super::SearchRequest;
-use lotus_explore_core::explore::command::SearchCommand;
+use crate::explore::command::SearchCommand;
 use lotus_search::SearchCriteria;
 
 #[test]
@@ -13,14 +13,14 @@ fn action_preserves_criteria_and_command() {
     let request = SearchRequest::new(
         SearchCriteria {
             taxon: "Fungi".to_string(),
-            ..SearchCriteria::up_to_year(crate::clock::current_year())
+            ..SearchCriteria::up_to_year(2026)
         },
         SearchCommand::StartupDownload,
     );
 
     let action = request.as_action();
     match action {
-        lotus_explore_core::explore::actions::ExploreAction::SearchRequested {
+        crate::explore::actions::ExploreAction::SearchRequested {
             criteria_snapshot,
             command,
         } => {

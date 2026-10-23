@@ -2,6 +2,9 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use lotus_search::SearchCriteria;
+/// Build a shareable `/search?...` URL for `criteria`, or `None` when the
+/// criteria are all defaults.
+#[must_use]
 pub fn build_shareable_url(criteria: &SearchCriteria, year: u16) -> Option<String> {
     let params = super::criteria_query_params(criteria, year);
     if params.is_empty() {

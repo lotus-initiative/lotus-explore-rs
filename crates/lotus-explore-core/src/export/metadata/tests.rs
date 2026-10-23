@@ -59,5 +59,8 @@ fn metadata_json_carries_the_creation_stamp_it_was_given() {
         year: YEAR,
         date_created: NOW,
     });
-    assert!(body.contains(&format!("\"dateCreated\": \"{NOW}\"")), "{body}");
+    assert!(
+        body.contains(&format!("\"dateCreated\": \"{NOW}\"")),
+        "{body}"
+    );
 }

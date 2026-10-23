@@ -11,12 +11,17 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub struct ResultsPipelineOutcome {
+    /// The complete result set.
     pub set: Arc<ColumnarResultSet>,
+    /// The SPARQL query that produced the result.
     pub query: String,
+    /// Structured notices gathered while resolving the search.
     pub warnings: Vec<LookupNotice>,
-    pub metadata_json: Arc<str>,
+    /// Whether the displayed rows are a capped subset of the full result.
     pub display_capped_rows: bool,
+    /// The endpoint that served the result.
     pub endpoint: crate::export::metadata::SparqlEndpoint,
+    /// The QID of the resolved taxon, when one was resolved.
     pub qid: Option<String>,
 }
 
@@ -24,14 +29,19 @@ pub struct ResultsPipelineOutcome {
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub struct SearchOutcome {
+    /// The complete result set.
     pub set: std::sync::Arc<ColumnarResultSet>,
+    /// The QID of the resolved taxon, when one was resolved.
     pub qid: Option<String>,
     /// Everything to tell the user about how this search went. Usually nothing;
     /// more than one entry when a taxon name both needed standardizing and was
     /// ambiguous, or when the endpoint had to change.
     pub warnings: Vec<LookupNotice>,
+    /// The SPARQL query that produced the result.
     pub query: String,
+    /// Whether the displayed rows are a capped subset of the full result.
     pub display_capped_rows: bool,
+    /// The endpoint that served the result.
     pub endpoint: crate::export::metadata::SparqlEndpoint,
 }
 
@@ -71,6 +81,7 @@ impl SearchOutcome {
         }
     }
 
+    /// Fold a completed results-pipeline outcome into the shared shape.
     #[must_use]
     pub fn from_results_pipeline(outcome: ResultsPipelineOutcome) -> Self {
         Self {

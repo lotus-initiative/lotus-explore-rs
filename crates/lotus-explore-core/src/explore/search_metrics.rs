@@ -18,7 +18,7 @@ pub struct SearchMetrics {
 
 impl SearchMetrics {
     /// Record a completed sequential network call.
-    pub fn add_network(&mut self, elapsed: std::time::Duration) {
+    pub const fn add_network(&mut self, elapsed: std::time::Duration) {
         self.network_ms = elapsed.as_secs_f64().mul_add(1000.0, self.network_ms);
         self.sparql_calls += 1;
     }
@@ -28,7 +28,7 @@ impl SearchMetrics {
     // and then reads it back, while the browser folds chunks as they arrive and
     // has no separate parse phase to time.
     #[cfg(any(not(target_arch = "wasm32"), test))]
-    pub fn add_parse(&mut self, elapsed: std::time::Duration) {
+    pub const fn add_parse(&mut self, elapsed: std::time::Duration) {
         self.parse_ms = elapsed.as_secs_f64().mul_add(1000.0, self.parse_ms);
     }
 }
@@ -41,7 +41,7 @@ const SLOW_QUERY_THRESHOLD_MS: f64 = 5_000.0;
 /// Emit a structured summary log line for a completed search.
 /// If `total_elapsed` exceeds [`SLOW_QUERY_THRESHOLD_MS`] an additional
 /// `slow_query` warning is emitted so dashboards can alert on regressions.
-pub fn emit_search_summary(_total_elapsed: std::time::Duration, _metrics: SearchMetrics) { }
+pub const fn emit_search_summary(_total_elapsed: std::time::Duration, _metrics: SearchMetrics) {}
 
 #[cfg(test)]
 #[path = "search_metrics/tests.rs"]

@@ -17,13 +17,13 @@
 //!   buttons under the word "Mass".
 
 use super::header_model::SORTABLE_COLUMNS;
-use lotus_explore_core::explore::interactions::use_explore_interactions;
-use lotus_explore_core::explore::selectors::use_result_selector;
-use lotus_explore_core::filters::{Bound, ColumnFilters, FilterKind};
+use crate::features::explore::interactions::use_explore_interactions;
+use crate::features::explore::selectors::use_result_selector;
 use crate::i18n::{Locale, TextKey, t};
-use lotus_explore_core::sort::SortColumn;
 use crate::state::use_results_context;
 use dioxus::prelude::*;
+use lotus_explore_core::filters::{Bound, ColumnFilters, FilterKind};
+use lotus_explore_core::sort::SortColumn;
 
 /// The `id` stem for a column's filter control.
 fn filter_id(column: SortColumn) -> String {

@@ -102,7 +102,7 @@ pub(super) fn validate_year_range(min: u16, max: u16, current_year: u16) -> Vali
 }
 
 /// Validate that an element count is within valid range.
-pub(super) fn validate_element_count(value: u16) -> ValidationResult<()> {
+pub(super) const fn validate_element_count(value: u16) -> ValidationResult<()> {
     if value > MAX_ELEMENT_COUNT {
         return Err(ValidationError::new(
             ValidationField::Formula,

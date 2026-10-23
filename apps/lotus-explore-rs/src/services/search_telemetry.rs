@@ -122,14 +122,6 @@ pub fn search_complete(elapsed: Duration, display_rows: usize, total_matches: us
     );
 }
 
-pub fn search_summary_done(details: &str) {
-    log_info_evt("search", "summary", "done", Some(details));
-}
-
-pub fn search_summary_slow_query(details: &str) {
-    log_warn_evt("search", "summary", "slow_query", Some(details));
-}
-
 pub fn download_startup_unsupported_format(format: &str) {
     log_warn_evt(
         "download",
@@ -206,26 +198,6 @@ pub fn download_dispatch_error(format: &str, reason: &str) {
         "dispatch",
         "error",
         Some(&format!("format={format} reason={reason}")),
-    );
-}
-
-pub fn query_build_sachem_query_created(has_service: bool) {
-    log_debug_evt(
-        "search",
-        "query_build",
-        "sachem_query_created",
-        Some(&format!("has_SERVICE={has_service}")),
-    );
-}
-
-pub fn query_build_after_server_filters(has_service: bool, has_filter: bool) {
-    log_debug_evt(
-        "search",
-        "query_build",
-        "after_server_filters",
-        Some(&format!(
-            "has_SERVICE={has_service} has_FILTER={has_filter}"
-        )),
     );
 }
 

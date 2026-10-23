@@ -5,9 +5,9 @@
 #![allow(clippy::indexing_slicing)]
 
 use crate::features::curation::state::page_controller::rows_to_tsv;
-use lotus_explore_core::explore::search_state::ExploreState;
-use lotus_explore_core::explore::selectors::toolbar_snapshot_from_result;
+use crate::features::explore::selectors::toolbar_snapshot_from_result;
 use crate::ui::{ContentPhase, LifecycleBooleans};
+use lotus_explore_core::explore::search_state::ExploreState;
 use lotus_query::ExportFormat as DownloadFormat;
 
 fn is_supported_download_format(fmt: &str) -> bool {

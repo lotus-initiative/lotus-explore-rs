@@ -122,12 +122,8 @@ impl SearchRequest {
                 .then_some(criteria.structure_threshold),
             mass_min: criteria.has_mass_filter().then_some(criteria.mass_min),
             mass_max: criteria.has_mass_filter().then_some(criteria.mass_max),
-            year_min: criteria
-                .has_year_filter(year)
-                .then_some(criteria.year_min),
-            year_max: criteria
-                .has_year_filter(year)
-                .then_some(criteria.year_max),
+            year_min: criteria.has_year_filter(year).then_some(criteria.year_min),
+            year_max: criteria.has_year_filter(year).then_some(criteria.year_max),
             formula_exact: (!formula_exact.is_empty()).then(|| formula_exact.to_string()),
             c_min: criteria.formula_enabled.then_some(criteria.c_min),
             c_max: criteria.formula_enabled.then_some(criteria.c_max),
@@ -253,7 +249,7 @@ pub struct RowDto {
     pub compound_qid: String,
     /// The compound's name.
     pub name: String,
-    /// The compound's InChIKey, if it has one.
+    /// The compound's `InChIKey`, if it has one.
     pub inchikey: Option<String>,
     /// The compound's SMILES, if it has one.
     pub smiles: Option<String>,

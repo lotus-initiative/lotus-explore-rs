@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use lotus_explore_core::explore::command::SearchCommand;
 use crate::services::search_telemetry as telemetry;
 use dioxus::core::Task;
+use lotus_explore_core::explore::command::SearchCommand;
 use lotus_search::SearchCriteria;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;

@@ -5,10 +5,10 @@
 #![allow(clippy::expect_used)]
 
 use super::*;
+use crate::repositories::mock::MockRepository;
 use lotus_explore_core::explore::ValidationFault;
 use lotus_explore_core::explore::command::SearchCommand;
 use lotus_explore_core::explore::request::SearchRequest;
-use crate::repositories::mock::MockRepository;
 use lotus_search::SearchCriteria;
 
 #[test]

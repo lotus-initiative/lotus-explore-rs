@@ -7,6 +7,7 @@ use lotus_model::{SearchCriteria, SmilesSearchType};
 
 /// Normalize a raw SMILES/Molfile string from the criteria.
 /// * Line endings are unified to `\n`.
+#[must_use]
 pub fn normalize_smiles(raw: &str) -> String {
     lotus_search::normalize_structure(raw)
 }
@@ -53,6 +54,7 @@ impl ResolvedStructure {
 
 /// Build the base SPARQL query for the given criteria, resolved taxon QID, and
 /// what the structure field resolved to.
+#[must_use]
 pub fn build_sparql_query(
     resolved: &ResolvedStructure,
     crit: &SearchCriteria,
@@ -102,6 +104,7 @@ pub fn build_sparql_query(
 }
 
 /// Apply server-side filters.
+#[must_use]
 pub fn apply_server_filters(base_query: &str, crit: &SearchCriteria, year: u16) -> String {
     lotus_query::with_filters(base_query, crit, year)
 }

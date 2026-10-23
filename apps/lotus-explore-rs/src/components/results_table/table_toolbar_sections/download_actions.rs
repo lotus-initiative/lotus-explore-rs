@@ -9,7 +9,7 @@ use super::super::download_model::{
 };
 use crate::components::ui::Button;
 use crate::download::{BrowserDownload, execute_download, trigger_download};
-use lotus_explore_core::explore::use_toolbar_result_snapshot;
+use crate::features::explore::use_toolbar_result_snapshot;
 use crate::i18n::{TextKey, t};
 use crate::perf;
 use crate::state::use_results_context;
@@ -227,7 +227,7 @@ fn DownloadQueryButton(
     /// whether the toolbar should re-render. Pointer equality is correct -- a new set
     /// is a new pointer -- and free.
     rows: ReadSignal<
-        lotus_explore_core::explore::selectors::ArcPtrEq<lotus_model::ColumnarResultSet>,
+        crate::features::explore::selectors::ArcPtrEq<lotus_model::ColumnarResultSet>,
     >,
     filename: String,
 ) -> Element {
@@ -329,11 +329,11 @@ pub fn DownloadActionsGroup() -> Element {
 
     // Each selector subscribes to exactly one field, so the component re-renders
     // only when one of these fields changes.
-    let criteria = lotus_explore_core::explore::selectors::use_ui_selector(explore, |ui| {
+    let criteria = crate::features::explore::selectors::use_ui_selector(explore, |ui| {
         ui.executed_criteria.clone()
     });
     // Separate from `criteria` so the toolbar re-renders when the rows change.
-    let rows = lotus_explore_core::explore::selectors::use_result_arc_selector(explore, |result| {
+    let rows = crate::features::explore::selectors::use_result_arc_selector(explore, |result| {
         result.set.clone()
     });
     let toolbar_snapshot = use_toolbar_result_snapshot(explore);

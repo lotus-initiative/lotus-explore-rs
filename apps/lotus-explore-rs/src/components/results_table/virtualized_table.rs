@@ -8,7 +8,7 @@ use super::table_filter_row::TableFilterRow;
 use super::table_header::TableHeader;
 use super::table_view_model::TableViewModel;
 use super::virtualization_controller::use_results_table_virtualization;
-use lotus_explore_core::explore::interactions::use_explore_interactions;
+use crate::features::explore::interactions::use_explore_interactions;
 use crate::i18n::{TextKey, t};
 use dioxus::prelude::*;
 

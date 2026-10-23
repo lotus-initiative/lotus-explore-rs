@@ -27,9 +27,9 @@
 //! [`reference_by_qid_query`]: lotus_query::reference_by_qid_query
 //! [`reference_by_doi_query`]: lotus_query::reference_by_doi_query
 
+use crate::repositories::LotusRepository;
 use lotus_explore_core::explore::search_metrics::SearchMetrics;
 use lotus_explore_core::explore::types::{DomainError, LookupNotice, QueryStage, ValidationFault};
-use crate::repositories::LotusRepository;
 use lotus_model::{looks_like_doi, looks_like_reference_qid};
 use lotus_query::ReferenceMatch;
 

@@ -10,8 +10,8 @@
 //! The number arrives as a parameter rather than being counted here, so the figure
 //! on screen and the rows on screen cannot disagree.
 
-use lotus_explore_core::explore::interactions::use_explore_interactions;
-use lotus_explore_core::explore::selectors::use_result_selector;
+use crate::features::explore::interactions::use_explore_interactions;
+use crate::features::explore::selectors::use_result_selector;
 use crate::i18n::{TextKey, format_count, t};
 use crate::state::use_results_context;
 use dioxus::prelude::*;

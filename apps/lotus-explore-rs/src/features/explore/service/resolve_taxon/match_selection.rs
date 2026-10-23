@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use lotus_explore_core::explore::taxon_cache::CachedTaxon;
+use crate::features::explore::taxon_cache::CachedTaxon;
 use lotus_explore_core::explore::types::{DomainError, ParseFault};
 use lotus_model::{TaxonMatch, TaxonNameSource};
 

@@ -9,18 +9,19 @@
 )]
 
 use super::controller::SearchTaskController;
-use lotus_explore_core::explore::actions::ExploreAction;
-use lotus_explore_core::explore::command::SearchCommand;
-use lotus_explore_core::explore::executor::do_search;
-use lotus_explore_core::explore::lifecycle::{ErrorHandlingOutcome, SearchLifecycleCoordinator};
-use lotus_explore_core::explore::outcome::SearchOutcome;
-use lotus_explore_core::explore::request::SearchRequest;
-use lotus_explore_core::explore::search_state::{ExploreState, dispatch_explore_action};
-use lotus_explore_core::explore::service::finalize;
-use lotus_explore_core::explore::types::DomainError;
+use crate::features::explore::executor::do_search;
+use crate::features::explore::lifecycle::{ErrorHandlingOutcome, SearchLifecycleCoordinator};
+use crate::features::explore::search_state::dispatch_explore_action;
 use crate::repositories::{LotusRepository, reset_wdqs_fallback_flag};
 use crate::services::search_telemetry as telemetry;
 use dioxus::prelude::*;
+use lotus_explore_core::explore::actions::ExploreAction;
+use lotus_explore_core::explore::command::SearchCommand;
+use lotus_explore_core::explore::outcome::SearchOutcome;
+use lotus_explore_core::explore::request::SearchRequest;
+use lotus_explore_core::explore::search_state::ExploreState;
+use lotus_explore_core::explore::service::finalize;
+use lotus_explore_core::explore::types::DomainError;
 use lotus_search::SearchCriteria;
 use std::time::Duration;
 

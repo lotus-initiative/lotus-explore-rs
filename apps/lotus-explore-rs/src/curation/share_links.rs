@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use super::{CurationInputRow, Locale};
-use lotus_explore_core::explore::url_state::{is_true_flag, read_url_query_params};
+use crate::features::explore::url_state::{is_true_flag, read_url_query_params};
 use std::collections::BTreeMap;
 
 pub const CURATION_ROWS_PARAM: &str = "curation_rows";

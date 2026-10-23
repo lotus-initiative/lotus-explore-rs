@@ -4,7 +4,7 @@
 //! Reads from [`crate::state::ResultsContext`] and `use_locale()` — zero props.
 
 use crate::components::copy_button::CopyButton;
-use lotus_explore_core::explore::use_header_meta_snapshot;
+use crate::features::explore::use_header_meta_snapshot;
 use crate::i18n::{TextKey, t};
 use crate::state::use_form_criteria_context;
 use crate::state::use_results_context;

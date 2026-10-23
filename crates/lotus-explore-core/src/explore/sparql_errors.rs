@@ -3,6 +3,7 @@
 //! SPARQL endpoint error classification and recovery heuristics.
 
 /// Classify a plain SPARQL/QLever error message.
+#[must_use]
 pub fn classify_sparql_error_text(message: &str) -> SparqlErrorClass {
     let normalized = message.trim().to_ascii_lowercase();
 
@@ -30,6 +31,7 @@ pub fn classify_sparql_error_text(message: &str) -> SparqlErrorClass {
     SparqlErrorClass::Unknown
 }
 
+/// The category of a SPARQL endpoint error message.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SparqlErrorClass {
     /// Cache key conflict on upstream endpoint (transient, retry-safe).

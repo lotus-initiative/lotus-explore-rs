@@ -2,10 +2,10 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! `use_memo`-based derived selectors for [`ExploreState`].
 
+use dioxus::prelude::*;
 use lotus_explore_core::explore::search_state::{
     ExploreState, ResultDataState, SearchLifecycleState, UiChromeState,
 };
-use dioxus::prelude::*;
 use lotus_model::{DatasetStats, SearchCriteria};
 use std::sync::Arc;
 

@@ -6,15 +6,16 @@
 
 use crate::app_state::{AppState, MetricsState};
 use crate::download::{BrowserDownload, execute_download};
-use lotus_explore_core::explore::actions::ExploreAction;
-use lotus_explore_core::explore::command::SearchCommand;
-use lotus_explore_core::explore::download_effects::{self, DispatchPhase, StartupTriggerMode};
-use lotus_explore_core::explore::orchestrator::{SearchTaskController, start_search};
-use lotus_explore_core::explore::search_state::{ExploreState, dispatch_explore_action};
-use lotus_explore_core::explore::types::{DomainError, ValidationFault};
+use crate::features::explore::download_effects::{self, DispatchPhase, StartupTriggerMode};
+use crate::features::explore::orchestrator::{SearchTaskController, start_search};
+use crate::features::explore::search_state::dispatch_explore_action;
 use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
 use dioxus::prelude::*;
+use lotus_explore_core::explore::actions::ExploreAction;
+use lotus_explore_core::explore::command::SearchCommand;
+use lotus_explore_core::explore::search_state::ExploreState;
+use lotus_explore_core::explore::types::{DomainError, ValidationFault};
 use lotus_search::SearchCriteria;
 // Only the browser arm hands rows to the in-memory export; a desktop write goes
 // back to the endpoint and never reads them.

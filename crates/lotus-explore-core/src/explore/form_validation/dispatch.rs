@@ -12,6 +12,11 @@ use lotus_search::SearchCriteria;
 /// Validate criteria at the orchestration boundary.
 /// This validator returns domain-native `ValidationFault` so `start_search`
 /// can fail fast without translating from UI-oriented validation error keys.
+///
+/// # Errors
+///
+/// Returns the first [`ValidationFault`] found, or [`ValidationFault::EmptyInput`]
+/// when a rule reports an empty error list.
 pub fn validate_dispatch_criteria(criteria: &SearchCriteria) -> Result<(), ValidationFault> {
     // `validation_errors` only ever fails with at least one error, because each
     // rule is added by `push_error`, which takes an `Option`. That was a comment

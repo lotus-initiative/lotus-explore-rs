@@ -2,9 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Error recovery coordination — intelligent retry decisions based on error classification.
 
-use crate::explore::transport_classification::{
-    TransportFailureKind, classify_transport_error,
-};
+use crate::explore::transport_classification::{TransportFailureKind, classify_transport_error};
 use crate::explore::types::{DomainError, QueryStage};
 use crate::ports::RepositoryError;
 
@@ -19,6 +17,7 @@ pub struct RetryDecision {
     pub error_class: ErrorClass,
 }
 
+/// A coarse class of search failure, used to decide whether to retry.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ErrorClass {
     /// Validation error (user input is wrong, don't retry).
@@ -54,6 +53,7 @@ pub enum ErrorClass {
 }
 
 impl ErrorClass {
+    /// A short, stable key for telemetry and logging.
     #[must_use]
     pub const fn as_key(self) -> &'static str {
         match self {
@@ -75,6 +75,7 @@ impl ErrorClass {
 }
 
 /// Determine retry strategy for a failed search given the error and attempt count.
+#[must_use]
 pub fn classify_error_recovery(error: &DomainError, attempt: u32) -> RetryDecision {
     match error {
         DomainError::Validation(_) => RetryDecision {
@@ -198,6 +199,7 @@ fn rate_limit_backoff_ms(attempt: u32) -> u64 {
 }
 
 /// Determine whether partial results should be cleared after error at given stage.
+#[must_use]
 pub const fn should_clear_state_on_error(error_stage: QueryStage) -> bool {
     match error_stage {
         QueryStage::TaxonSearch => true, // Everything downstream is invalid

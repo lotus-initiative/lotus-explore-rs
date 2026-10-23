@@ -18,12 +18,12 @@
 
 use super::{FetchResult, PlannedResultsFetch};
 use super::{PROGRESS_ROW_STEP, ProgressThrottle};
-use lotus_explore_core::explore::search_metrics::SearchMetrics;
-use lotus_explore_core::explore::types::{DomainError, ParseFault, QueryStage};
 use crate::perf;
 use crate::repositories::LotusRepository;
 use crate::repositories::RepositoryError;
 use crate::services::search_telemetry as telemetry;
+use lotus_explore_core::explore::search_metrics::SearchMetrics;
+use lotus_explore_core::explore::types::{DomainError, ParseFault, QueryStage};
 use std::sync::Arc;
 
 pub(super) async fn fetch_results<R: LotusRepository>(

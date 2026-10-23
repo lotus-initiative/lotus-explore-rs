@@ -13,20 +13,11 @@
 use super::fetch_results;
 mod plan;
 
+use crate::repositories::LotusRepository;
+use lotus_explore_core::explore::outcome::ResultsPipelineOutcome;
 use lotus_explore_core::explore::request::SearchRequest;
 use lotus_explore_core::explore::search_metrics::SearchMetrics;
-use lotus_explore_core::explore::types::{DomainError, LookupNotice, QueryPhase};
-use crate::repositories::LotusRepository;
-
-#[derive(Debug)]
-pub struct ResultsPipelineOutcome {
-    pub set: std::sync::Arc<lotus_model::ColumnarResultSet>,
-    pub qid: Option<String>,
-    pub warnings: Vec<LookupNotice>,
-    pub query: String,
-    pub display_capped_rows: bool,
-    pub endpoint: lotus_explore_core::export::metadata::SparqlEndpoint,
-}
+use lotus_explore_core::explore::types::{DomainError, QueryPhase};
 
 pub async fn execute<R: LotusRepository>(
     request: &SearchRequest,

@@ -16,8 +16,12 @@ pub async fn search(
     include_counts: bool,
 ) -> Result<SearchResponse, ApiClientError> {
     let base = api_base_url().unwrap_or_default();
-    let request =
-        SearchRequest::from_criteria(criteria, limit, include_counts, crate::clock::current_year());
+    let request = SearchRequest::from_criteria(
+        criteria,
+        limit,
+        include_counts,
+        crate::clock::current_year(),
+    );
     match post_json(&base, "/v1/search", &request).await {
         Ok(response) => Ok(response),
         Err(ApiClientError::Http(status, _))
