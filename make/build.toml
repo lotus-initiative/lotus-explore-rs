@@ -112,6 +112,31 @@ RUSTDOCFLAGS="-D warnings -D rustdoc::broken_intra_doc_links" \\
   cargo doc --workspace --no-deps --locked
 """
 
+# Stale references. `cargo refquiem` reads the git history reachable from HEAD
+# and compares it with the working tree, then reports the comments, doc comments,
+# string literals and Markdown that still name an item a commit removed -- a Rust
+# item, a Cargo entry, a feature, a binary or an example. Findings exit 1, so this
+# is a gate rather than a report; a clean tree exits 0.
+#
+# It sits next to the `doc` task because it audits the documentation that task
+# builds: rustdoc denies broken intra-doc links, and refquiem catches the mentions
+# that point at declarations history has already taken away, which rustdoc cannot.
+#
+# The scan reads history, so it needs the history a checkout may not have: a
+# shallow checkout has only its own tip to compare against, and against that
+# nothing is ever "removed". The CI gate checks out at full depth for this task.
+[tasks."refquiem"]
+cwd = "${REPO_ROOT}"
+description = "Fail if the working tree still mentions a Rust item, dependency or example a commit removed."
+script = """
+set -e
+if ! command -v cargo-refquiem >/dev/null 2>&1; then
+  echo "cargo-refquiem is not installed; run './mk setup'" >&2
+  exit 1
+fi
+cargo refquiem
+"""
+
 # Not a GitHub Pages deployment and not an mdbook: the developer docs are three
 # markdown files, and an mdbook is a site generator for a site that does not exist
 # yet. This task is the whole of it -- a local `target/doc`.

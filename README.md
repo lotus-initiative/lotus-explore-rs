@@ -56,7 +56,7 @@ is not needed, because Dioxus builds the Tailwind itself.
 ## Working on it
 
 ```bash
-./mk ci       # formatting, clippy, tests, docs, wasm, supply chain
+./mk ci       # formatting, clippy, tests, docs, stale references, wasm, supply chain
 ./mk mutants  # mutation testing: a passing test run cannot tell you this
 ```
 

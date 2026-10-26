@@ -1,4 +1,7 @@
 [files]
 exclude = [
   "Cargo.lock",
+  # Build output is not source. The refquiem task writes its parse cache into
+  # `target/refquiem`, and tombi must not format or lint the tool's cache.
+  "target/**",
 ]

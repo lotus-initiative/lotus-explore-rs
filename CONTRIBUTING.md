@@ -18,8 +18,9 @@ curation vocabulary precisely so that a query the explorer runs and a query
 `./mk ci` is exactly what the CI workflow runs — the workflow calls this
 one command, so a check that is green locally and red in a pipeline cannot happen
 by drift. It covers formatting (rustfmt and tombi), compilation, clippy with
-warnings denied, tests, docs, SPDX headers, citation metadata, the wasm builds,
-and the supply-chain checks. It needs no network access.
+warnings denied, tests, docs, stale references (`./mk refquiem`), SPDX headers,
+citation metadata, the wasm builds, and the supply-chain checks. It needs no
+network access.
 
 `./mk --list-all-steps` is the list of tasks. It is the authoritative one;
 the summary above is not, because a copied list is a list that goes stale.

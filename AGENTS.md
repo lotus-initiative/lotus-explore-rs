@@ -93,6 +93,12 @@ in `apps/lotus-explore-rs/docs/`.
     tokens for functions and 30 canonical tokens for contexts. A recurring
     trivial body is cheaper to share than to filter, which is what the
     `find_ascii_ci` copies taught this repo.
+- **Stale references — `./mk refquiem` is a gate, not a report.** The task runs
+  `cargo refquiem` and exits 1 on any mention of a Rust item, dependency, feature,
+  binary or example that a commit removed. It sits beside the `doc` task, which
+  denies broken intra-doc links: rustdoc cannot see a link to a declaration
+  history has already taken away, and refquiem can. The scan reads git history,
+  so a shallow checkout cannot run it meaningfully.
 
 ## Verification
 
@@ -136,5 +142,9 @@ and the compiler instead — do not install it.
   named repositories instead. Both need `--config`, because a downloaded
   `.echoes.toml` is ignored; exit 2 with
   `echoes: incomplete organization analysis` means a repository was skipped.
+- **Stale-reference detection:** cargo-refquiem, from
+  [`LucaCappelletti94/cargo-refquiem`](https://github.com/LucaCappelletti94/cargo-refquiem),
+  installed as `refquiem` (binary `cargo-refquiem`) at 0.3.0. Run it with
+  `./mk refquiem`.
 - **Mutation testing:** cargo-mutants (run `./mk mutants` on library crates only)
 - **All tools:** installed at pinned versions by `./mk setup`

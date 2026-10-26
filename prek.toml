@@ -83,6 +83,11 @@ hooks = [
   { id = "check-wasm", name = "check-wasm", language = "system", entry = "./mk check-wasm", pass_filenames = false, always_run = true, stages = ["pre-push"] },
   { id = "lint-wasm", name = "lint-wasm", language = "system", entry = "./mk lint-wasm", pass_filenames = false, always_run = true, stages = ["pre-push"] },
   { id = "cargo-doc", name = "cargo-doc", language = "system", entry = "./mk doc", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  # Stale references: the source-reading checks that catch a rename's leftovers.
+  # Same shape as the doc task -- reads source and history, compiles nothing --
+  # so it sits at pre-push rather than pre-commit, per the section's stated rule
+  # that nothing at pre-commit compiles Rust.
+  { id = "refquiem", name = "refquiem", language = "system", entry = "./mk refquiem", pass_filenames = false, always_run = true, stages = ["pre-push"] },
 
   # Supply chain (pre-push only).
   { id = "cargo-machete", name = "cargo-machete", language = "system", entry = "./mk machete", pass_filenames = false, always_run = true, stages = ["pre-push"] },

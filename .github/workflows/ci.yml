@@ -57,8 +57,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      # `fetch-depth: 0`, not the 1 a bare checkout uses: the `refquiem` task
+      # reads the git history reachable from HEAD and compares it with the
+      # working tree, so a shallow checkout has only its own tip and the scan
+      # has nothing older than its own tip to call "removed".
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-        with: { persist-credentials: false, fetch-depth: 1 }
+        with: { persist-credentials: false, fetch-depth: 0 }
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8
         with:
@@ -103,7 +107,8 @@ jobs:
       # `--functions` and `--context-blocks`, so the set of checks and their
       # default thresholds move between releases. `setup.sh` pins the same
       # version: a check that reads differently depending on where it runs is not
-      # the same check.
+      # the same check. `refquiem` is pinned the same way, because a release that
+      # stopped reporting stale mentions would make this gate lie.
       - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
           tool: |
@@ -115,6 +120,7 @@ jobs:
             cargo-audit
             cargo-machete
             echoes@0.8.1
+            refquiem@0.3.0
 
       # tombi is not installable through `install-action`. `tombi-cli` is a
       # 0.0.1 placeholder on crates.io with no binary in it, so install-action

@@ -63,6 +63,7 @@ dependencies = [
   "echoes",
   "boundary",
   "doc",
+  "refquiem",
   "check-wasm",
   "lint-wasm",
   "metadata",
