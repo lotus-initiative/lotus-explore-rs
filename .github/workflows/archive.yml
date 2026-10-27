@@ -1,0 +1,76 @@
+# Scheduled/manual archive workflow.
+#
+# Default is dry-run: the archive is built and the Zenodo metadata + upload plan
+# is validated without contacting Zenodo. A real publish requires the caller to
+# pass `--no-dry-run` (or omit `--dry-run` when also passing `--publish`) AND
+# for the `ZENODO_TOKEN` (or `ZENODO_SANDBOX_TOKEN`) secret to be present.
+#
+# CI on push or pull_request must never publish: this workflow is workflow_dispatch
+# only, so it can only run on explicit human request. The publish step is gated on
+# the `publish` input, which defaults to false and must be set by hand.
+
+name: Archive
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish to Zenodo (requires ZENODO_TOKEN secret)'
+        type: boolean
+        default: false
+      output_dir:
+        description: 'Directory to write archive files to'
+        type: string
+        default: 'lotus-archive'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+permissions:
+  contents: read
+
+jobs:
+  archive:
+    name: Build archive
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        with:
+          fetch-depth: 0
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8
+        with:
+          shared-key: archive
+
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: 1.99.0
+          components: clippy
+
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: cargo-binstall
+
+      - name: Build the archive CLI
+        run: cargo build --release -p lotus-cli
+
+      - name: Run archive (dry-run, no Zenodo contact)
+        run: |
+          ./target/release/lotus archive --output "${{ inputs.output_dir }}"
+
+      - name: Publish to Zenodo
+        if: ${{ inputs.publish == true }}
+        env:
+          ZENODO_TOKEN: ${{ secrets.ZENODO_TOKEN }}
+          SOURCE_CODE_URL: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+        run: |
+          ./target/release/lotus archive --output "${{ inputs.output_dir }}" --publish --creator "CI"
+
+      - name: Upload archive artifacts
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4
+        with:
+          name: lotus-archive
+          path: ${{ inputs.output_dir }}/
+          retention-days: 30
