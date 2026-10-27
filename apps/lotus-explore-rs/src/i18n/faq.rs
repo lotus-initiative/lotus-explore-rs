@@ -556,7 +556,7 @@ pub const ENTRIES: &[FaqEntry] = &[
             (
                 Locale::En,
                 "What does `lotus archive` do?",
-                "Fetches all LOTUS InChIKey-to-SMILES mappings from Wikidata via QLever, deduplicates by InChIKey (preferring isomeric P2017 over canonical P233), and packages the result as a versioned tar.gz with a manifest and SHA-256 checksums. By default it only writes files to disk; real Zenodo publishing requires `--publish` and `ZENODO_TOKEN`, and `--publish --dry-run` validates the plan without contacting Zenodo. CI never publishes.",
+                "Fetches all LOTUS InChIKey-to-SMILES mappings from Wikidata, deduplicates by InChIKey (preferring isomeric P2017 over canonical P233), and packages the result as a tar.gz with a manifest and SHA-256 checksums. By default it writes files to disk only; real Zenodo publishing requires `--publish` and `ZENODO_TOKEN`, and `--publish --dry-run` validates without contacting Zenodo. CI never publishes.",
             ),
             (
                 Locale::Fr,

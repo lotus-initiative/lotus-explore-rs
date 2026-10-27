@@ -101,7 +101,30 @@ The app domain is split into `crates/lotus-explore-core` (framework-free) and `a
 - State wiring: Dioxus `Signal`, hooks, effects, context providers
 - Routing/navigation: Dioxus router
 - Server functions/HTTP: `apps/lotus-explore-rs/src/repositories/*`, `services/*`, server-only code
-- Platform integration: browser APIs, assets, download handling
+
+## Export, archive, and PubChem tree — where the bulk tools live
+
+Three data-movement tools share the same home in
+`crates/lotus-explore-core/src/export/`:
+
+| Module | What it does | Entry points |
+|--------|-------------|--------------|
+| `pipeline.rs` | The full LOTUS compound–taxon–reference graph as `frozen.csv` + `frozen_metadata.csv` (ports `lotus_exporter.py`) | `lotus export` (CLI), API export endpoint (server) |
+| `pubchem_tree.rs` | Three PubChem-format JSON trees: biological, chemical, NPClassifier — each full or compact (ports `lotus_pubchem_tree.py`) | `lotus export-pubchem-tree` (CLI) |
+| `archive.rs` | All InChIKey-to-SMILES mappings, deduplicated and tar+gzip packed (ports `lotus-wikidata-archive`) | `lotus archive` (CLI) |
+
+All three are target-agnostic: they take an `Http` trait implementor and an
+`Endpoint`, return bytes/strings, and do all file I/O themselves. The CLI
+(`crates/lotus-cli/src/main.rs`) is the thin native-only wrapper that writes
+those bytes to disk and, for `archive`, optionally publishes to Zenodo behind
+the `zenodo-rs` dependency. The web app never calls the archive or pubchem-tree
+paths because those fetch the entire dataset — the browser's export buttons use
+the per-query `pipeline` path instead.
+
+`lotus-query` owns the SPARQL query strings and `ARCHIVE_PAGE_SIZE`.
+`lotus-model` owns the `SearchCriteria` argument matrix that `pipeline` reuses.
+`lotus-search` owns the `Http` trait, `Scripted` test double, and QLever/WDQS
+endpoint resolution. See `docs/SHARING_PLAN.md` for the full plan.- Platform integration: browser APIs, assets, download handling
 - Orchestrator/dispatch/executor: `apps/lotus-explore-rs/src/features/explore/{orchestrator,executor,interactions,...}` bridge core actions to side effects
 
 ### Port checklist
