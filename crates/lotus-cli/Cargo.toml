@@ -17,9 +17,13 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
+chrono = { workspace = true }
 clap = { workspace = true }
 clap_complete = { workspace = true }
 clap_mangen = { workspace = true }
+# `zenodo-rs` is native-only: it pulls in `reqwest` and `rustls`, neither of
+# which compiles to wasm. It is gated to the CLI binary (not the app crate), so
+# the wasm build is unaffected.
 lotus-curation = { workspace = true }
 # The export pipeline: fetch, join, serialize. Native-only, no UI framework.
 lotus-explore-core = { workspace = true }
@@ -30,6 +34,7 @@ lotus-search = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal"] }
+zenodo-rs = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }

@@ -316,10 +316,12 @@ pub fn deduplicate_by_inchi_key(records: Vec<SmilesRecord>) -> Vec<SmilesRecord>
 fn preferred_over(candidate: &SmilesRecord, current: &SmilesRecord) -> bool {
     let candidate_priority = matches!(candidate.smiles_kind, SmilesKind::Isomeric);
     let current_priority = matches!(current.smiles_kind, SmilesKind::Isomeric);
-    (candidate_priority && !current_priority)
-        || (candidate_priority == current_priority
-            && (candidate.smiles.as_str(), candidate.wikidata_id.as_str())
-                < (current.smiles.as_str(), current.wikidata_id.as_str()))
+    if candidate_priority != current_priority {
+        return candidate_priority;
+    }
+    let candidate_key = (candidate.smiles.as_str(), candidate.wikidata_id.as_str());
+    let current_key = (current.smiles.as_str(), current.wikidata_id.as_str());
+    candidate_key < current_key
 }
 
 /// The manifest written into the archive and as a standalone file.

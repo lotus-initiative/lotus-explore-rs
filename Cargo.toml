@@ -31,6 +31,7 @@ clap_complete = "4"
 clap_mangen = "0.2"
 console_log = "1.1"
 csv = "1.4"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
 # No renderer named: `web` and `desktop` each supply a different `main`, so a
 # workspace-fixed one meant a native build had no UI at all -- `dx serve
 # --desktop` compiled, launched, and exited. The app crate picks per target.
@@ -44,6 +45,9 @@ flate2 = { version = "1", default-features = false, features = ["miniz_oxide"] }
 # `tar` creates the gzip-compressed tar archive the `lotus archive` subcommand
 # writes; it is pure Rust and wasm-clean.
 tar = "0.4"
+# zenodo-rs publishes archives to Zenodo; native-only, behind the CLI's `archive
+# --publish` flag. Not used on the web side (the app never publishes).
+zenodo-rs = { version = "0.3", default-features = false, features = ["rustls-ring-tls"] }
 futures = { version = "0.3", default-features = false, features = ["async-await", "std"] }
 gloo-timers = { version = "0.3", features = ["futures"] }
 js-sys = "0.3"

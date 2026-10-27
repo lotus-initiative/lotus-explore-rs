@@ -321,6 +321,52 @@ Writes six files:
 `--output` defaults to the current working directory. `--year` defaults to this
 year. The NPClassifier tree is empty when its cache could not be read.
 
+## archive
+
+Fetch the full set of LOTUS InChIKey-to-SMILES mappings from Wikidata via
+QLever, deduplicate by InChIKey (preferring isomeric P2017 over canonical P233),
+and package the result as a versioned `tar.gz` with a manifest and SHA-256
+checksums. This is the Wikidata SMILES archive, the same data `lotus-wikidata-archive`
+produces.
+
+```bash
+lotus archive --output ./lotus-archive
+lotus archive --output ./lotus-archive --now 2026-01-15T00:00:00Z
+lotus archive --output ./lotus-archive --publish --dry-run
+```
+
+`--output` defaults to the current working directory. `--now` defaults to the
+current UTC time and stamps the archive filename and manifest. The QLever
+endpoint is set with the `LOTUS_QLEVER_ENDPOINT` environment variable, the same
+override the other subcommands use.
+
+### Zenodo publishing
+
+By default, `lotus archive` writes the three files and exits without contacting
+Zenodo. Real publishing requires `--publish` **and** the `ZENODO_TOKEN`
+environment variable; CI never sets either.
+
+`--publish --dry-run` validates the Zenodo metadata and upload plan — checking
+that `SOURCE_CODE_URL` is an `https` URL with a `/commit/<40-hex-SHA>` suffix,
+and that the three archive files exist — without sending anything to Zenodo.
+
+```bash
+lotus archive --output ./lotus-archive --publish --dry-run
+# With ZENODO_ROOT_DEPOSITION_ID set, a new version is drafted from that record.
+# Without it, a fresh record is created.
+```
+
+To publish for real:
+
+```bash
+export ZENODO_TOKEN=your-token-here
+export SOURCE_CODE_URL=https://github.com/lotusnprod/lotus-explore-rs/commit/abc123...
+lotus archive --output ./lotus-archive --publish
+```
+
+The archive tries the Zenodo sandbox first (`ZENODO_SANDBOX_TOKEN`), then falls
+back to production (`ZENODO_TOKEN`).
+
 ## Exit codes
 
 | Code | Meaning                                       |

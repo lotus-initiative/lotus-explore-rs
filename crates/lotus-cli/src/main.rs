@@ -68,6 +68,8 @@ enum Command {
     Export(ExportArgs),
     /// Build `PubChem`-format trees (biological, chemical, `NPClassifier`) as JSON.
     ExportPubchemTree(ExportPubchemTreeArgs),
+    /// Archive LOTUS SMILES from Wikidata as a versioned tar.gz with manifest and checksums.
+    Archive(ArchiveArgs),
 }
 
 #[derive(Debug, clap::Args)]
@@ -105,6 +107,38 @@ pub struct ExportPubchemTreeArgs {
     /// Latest publication year to include. Defaults to this year.
     #[arg(long)]
     pub year: Option<u16>,
+}
+
+/// Archive LOTUS SMILES from Wikidata as a tar.gz with manifest and checksums.
+///
+/// By default the archive is written to disk and validated without contacting
+/// Zenodo (`--dry-run`). Real publishing requires `--publish` **and** the
+/// `ZENODO_TOKEN` environment variable; CI never sets either.
+#[derive(Debug, clap::Args)]
+pub struct ArchiveArgs {
+    /// Directory to write the archive files into. Defaults to the current
+    /// working directory.
+    #[arg(short, long, value_name = "DIR")]
+    pub output: Option<std::path::PathBuf>,
+
+    /// Validate the Zenodo metadata and upload plan without contacting Zenodo.
+    /// This is the default; pass `--publish` without `--dry-run` to push.
+    #[arg(long, requires = "publish")]
+    pub dry_run: bool,
+
+    /// Publish the completed archive to Zenodo using `ZENODO_TOKEN`.
+    /// Requires either `ZENODO_ROOT_DEPOSITION_ID` (new version) or nothing
+    /// (initial record). CI must not set this flag.
+    #[arg(long, default_value_t = false)]
+    pub publish: bool,
+
+    /// Creator name required by Zenodo metadata.
+    #[arg(long, default_value = "The LOTUS Initiative")]
+    pub creator: String,
+
+    /// ISO-8601 timestamp for the archive manifest. Defaults to now.
+    #[arg(long)]
+    pub now: Option<String>,
 }
 
 /// Every filter the web explorer exposes, and the limits a terminal wants.
@@ -353,6 +387,7 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
         }
         Command::Export(args) => export(args).await,
         Command::ExportPubchemTree(args) => export_pubchem_tree(args).await,
+        Command::Archive(args) => Box::pin(archive(args)).await,
     }
 }
 
@@ -582,6 +617,244 @@ async fn export_pubchem_tree(args: ExportPubchemTreeArgs) -> anyhow::Result<Exit
     Ok(ExitCode::SUCCESS)
 }
 
+/// Validate `SOURCE_CODE_URL` for the source-code related identifier Zenodo
+/// expects: an `https` URL with a `/commit/<40-hex-SHA>` suffix.
+///
+/// Returns the canonical string or a clap-style error ready for `anyhow`.
+fn validate_source_code_url(url: &str) -> anyhow::Result<String> {
+    if !url.starts_with("https://") {
+        anyhow::bail!("SOURCE_CODE_URL must be an https URL");
+    }
+    let Some((_, revision)) = url.rsplit_once("/commit/") else {
+        anyhow::bail!("SOURCE_CODE_URL must have a /commit/<sha> suffix");
+    };
+    if revision.len() != 40 || !revision.bytes().all(|b| b.is_ascii_hexdigit()) {
+        anyhow::bail!("SOURCE_CODE_URL revision must be a 40-character commit SHA");
+    }
+    Ok(url.to_string())
+}
+
+/// Build the Zenodo `DepositMetadataUpdate` for a LOTUS archive.
+fn zenodo_metadata(
+    title: &str,
+    creator: &str,
+    publication_date: chrono::NaiveDate,
+    source_code_url: &str,
+) -> anyhow::Result<zenodo_rs::DepositMetadataUpdate> {
+    let metadata = zenodo_rs::DepositMetadataUpdate::builder()
+        .title(title)
+        .upload_type(zenodo_rs::UploadType::Dataset)
+        .publication_date(publication_date)
+        .description_html(
+            "<p>InChIKey-deduplicated Wikidata SMILES for chemical structures with P703 \
+             (found in taxon), fetched from QLever. Isomeric P2017 values take \
+             precedence over canonical P233 values. The archive includes a \
+             smiles-rs parse-error report and query provenance.</p>",
+        )
+        .creator_named(creator)
+        .access_right(zenodo_rs::AccessRight::Open)
+        .license("cc-by-4.0")
+        .keyword("LOTUS")
+        .keyword("Wikidata")
+        .keyword("SMILES")
+        .related_identifier(
+            zenodo_rs::RelatedIdentifier::builder()
+                .identifier(source_code_url)
+                .relation("isDerivedFrom")
+                .scheme("url")
+                .resource_type("software")
+                .build()
+                .map_err(|e| anyhow::anyhow!("build related identifier: {e}"))?,
+        )
+        .community_identifier("the-lotus-initiative")
+        .build()
+        .map_err(|e| anyhow::anyhow!("build Zenodo metadata: {e}"))?;
+    Ok(metadata)
+}
+
+/// Run the Wikidata archive: fetch, deduplicate, package as tar.gz, and
+/// optionally publish to Zenodo. By default only writes files to disk; real
+/// publishing requires `--publish` and `ZENODO_TOKEN`, and `--dry-run`
+/// validates the plan without contacting Zenodo.
+async fn archive(args: ArchiveArgs) -> anyhow::Result<ExitCode> {
+    let now = args.now.unwrap_or_else(now_iso_utc);
+    let fetched_at = parse_iso_utc(&now)?;
+
+    let http = lotus_search::reqwest_client::ReqwestClient::new()?;
+    let endpoint = lotus_search::Endpoint::new(lotus_search::Service::Qlever);
+
+    let (artifacts, summary) = Box::pin(lotus_explore_core::export::archive::run_archive(
+        &http, endpoint, &now,
+    ))
+    .await
+    .map_err(|e| anyhow::anyhow!("archive failed: {e}"))?;
+
+    let (archive_path, manifest_path, checksums_path) =
+        write_archive_files(args.output.as_ref(), fetched_at, &artifacts)?;
+
+    eprintln!(
+        "lotus: wrote archive ({} source, {} deduplicated, {} missing-key, {} parse errors) to {}",
+        summary.source_records,
+        summary.records,
+        summary.missing_inchi_key_records,
+        summary.parse_errors,
+        archive_path.display(),
+    );
+
+    if args.publish {
+        let root_id = root_deposition_id()?;
+        let title = format!("LOTUS Wikidata SMILES — {}", fetched_at.date_naive());
+        if args.dry_run {
+            // Validate the metadata + upload plan without contacting Zenodo.
+            let _metadata = zenodo_metadata(
+                &title,
+                &args.creator,
+                fetched_at.date_naive(),
+                &source_code_url_env()?,
+            )?;
+            dry_run_zenodo(&archive_path, &manifest_path, &checksums_path, root_id);
+        } else {
+            Box::pin(publish_to_zenodo(
+                &title,
+                &args.creator,
+                fetched_at.date_naive(),
+                root_id,
+                &archive_path,
+                &manifest_path,
+                &checksums_path,
+            ))
+            .await?;
+        }
+    }
+
+    Ok(ExitCode::SUCCESS)
+}
+
+/// Write the archive tar.gz, manifest JSON, and SHA256SUMS file to `output_dir`.
+fn write_archive_files(
+    output: Option<&std::path::PathBuf>,
+    fetched_at: chrono::DateTime<chrono::Utc>,
+    artifacts: &lotus_explore_core::export::archive::ArchiveArtifacts,
+) -> anyhow::Result<(std::path::PathBuf, std::path::PathBuf, std::path::PathBuf)> {
+    let output_dir: &std::path::Path =
+        output.map_or_else(|| std::path::Path::new("."), |p| p.as_path());
+    std::fs::create_dir_all(output_dir)?;
+
+    let filename = format!(
+        "lotus-wikidata-smiles-{}.tar.gz",
+        fetched_at.format("%Y%m%dT%H%M%SZ")
+    );
+    let archive_path = output_dir.join(&filename);
+    let manifest_path = output_dir.join("lotus-wikidata-smiles.manifest.json");
+    let checksums_path = output_dir.join("lotus-wikidata-smiles.SHA256SUMS");
+
+    std::fs::write(&archive_path, &artifacts.archive)?;
+    std::fs::write(&manifest_path, &artifacts.manifest)?;
+    std::fs::write(&checksums_path, &artifacts.checksums)?;
+
+    Ok((archive_path, manifest_path, checksums_path))
+}
+
+/// Resolve the root deposition ID from `ZENODO_ROOT_DEPOSITION_ID`, if set.
+fn root_deposition_id() -> anyhow::Result<Option<zenodo_rs::DepositionId>> {
+    match std::env::var("ZENODO_ROOT_DEPOSITION_ID") {
+        Ok(value) => parse_deposition_id(&value),
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(e) => anyhow::bail!("cannot read ZENODO_ROOT_DEPOSITION_ID: {e}"),
+    }
+}
+
+/// Parse a raw string as a Zenodo root deposition ID.
+fn parse_deposition_id(value: &str) -> anyhow::Result<Option<zenodo_rs::DepositionId>> {
+    let id: u64 = value
+        .parse()
+        .map_err(|_| anyhow::anyhow!("ZENODO_ROOT_DEPOSITION_ID is not a valid deposition ID"))?;
+    if id == 0 {
+        anyhow::bail!("ZENODO_ROOT_DEPOSITION_ID must be non-zero");
+    }
+    Ok(Some(zenodo_rs::DepositionId(id)))
+}
+
+/// Validate the Zenodo metadata + upload plan without writing to disk or
+/// contacting Zenodo.
+fn dry_run_zenodo(
+    archive_path: &std::path::Path,
+    manifest_path: &std::path::Path,
+    checksums_path: &std::path::Path,
+    root_id: Option<zenodo_rs::DepositionId>,
+) {
+    let files = match archive_upload_paths(archive_path, manifest_path, checksums_path) {
+        Ok(files) => files,
+        Err(e) => {
+            eprintln!("lotus: Zenodo dry run failed — upload spec: {e}");
+            return;
+        }
+    };
+    let plan = root_id.map_or_else(
+        || "publish the initial Zenodo record".to_string(),
+        |root_id| format!("publish a new version from deposition {}", root_id.0),
+    );
+    eprintln!(
+        "lotus: Zenodo dry run OK — metadata valid, {} files ready, plan: {plan}",
+        files.len()
+    );
+}
+
+/// Actually publish the archive to Zenodo. Tries the sandbox token first, then
+/// falls back to the production token.
+async fn publish_to_zenodo(
+    title: &str,
+    creator: &str,
+    publication_date: chrono::NaiveDate,
+    root_id: Option<zenodo_rs::DepositionId>,
+    archive_path: &std::path::Path,
+    manifest_path: &std::path::Path,
+    checksums_path: &std::path::Path,
+) -> anyhow::Result<()> {
+    let source_code_url = source_code_url_env()?;
+    let metadata = zenodo_metadata(title, creator, publication_date, &source_code_url)?;
+    let upload_specs = archive_upload_paths(archive_path, manifest_path, checksums_path)?;
+
+    let published = if let Ok(client) = zenodo_rs::ZenodoClient::from_sandbox_env() {
+        eprintln!("lotus: publishing to Zenodo sandbox (ZENODO_SANDBOX_TOKEN)");
+        Box::pin(publish_archive(&client, root_id, &metadata, upload_specs)).await
+    } else {
+        let client = zenodo_rs::ZenodoClient::from_env()
+            .map_err(|e| anyhow::anyhow!("read ZENODO_TOKEN: {e}"))?;
+        eprintln!("lotus: publishing to Zenodo production (ZENODO_TOKEN)");
+        Box::pin(publish_archive(&client, root_id, &metadata, upload_specs)).await
+    }?;
+
+    let record_id = published.record.id;
+    eprintln!("lotus: published to Zenodo, record ID: {}", record_id.0);
+    Ok(())
+}
+
+/// Run the publish workflow (ensure draft, upload, publish) for one client and
+/// one set of args, branching on whether a root deposition ID is present.
+async fn publish_archive(
+    client: &zenodo_rs::ZenodoClient,
+    root_id: Option<zenodo_rs::DepositionId>,
+    metadata: &zenodo_rs::DepositMetadataUpdate,
+    upload_specs: Vec<zenodo_rs::UploadSpec>,
+) -> Result<zenodo_rs::PublishedRecord, anyhow::Error> {
+    if let Some(root_id) = root_id {
+        let draft = client
+            .ensure_editable_draft(root_id)
+            .await
+            .map_err(|e| anyhow::anyhow!("ensure editable draft: {e}"))?;
+        client
+            .publish_dataset(draft.id, metadata, upload_specs)
+            .await
+            .map_err(|e| anyhow::anyhow!("publish to Zenodo: {e}"))
+    } else {
+        client
+            .create_and_publish_dataset(metadata, upload_specs)
+            .await
+            .map_err(|e| anyhow::anyhow!("create and publish to Zenodo: {e}"))
+    }
+}
+
 fn apply_ranges(
     criteria: &mut lotus_model::SearchCriteria,
     carbon: Option<Range>,
@@ -747,6 +1020,58 @@ fn flags_ask_for_formula(criteria: &lotus_model::SearchCriteria) -> bool {
         || criteria.i_state != ElementState::Allowed
 }
 
+/// Parse an ISO-8601 UTC timestamp (`YYYY-MM-DDTHH:MM:SSZ`) into a `DateTime`.
+///
+/// The archive needs a `DateTime` for the filename; the existing `now_iso_utc`
+/// produces one without `chrono`, so this closes the loop without a round-trip
+/// through string formatting.
+fn parse_iso_utc(s: &str) -> anyhow::Result<chrono::DateTime<chrono::Utc>> {
+    chrono::DateTime::parse_from_rfc3339(s)
+        .map(|dt| dt.with_timezone(&chrono::Utc))
+        .map_err(|e| anyhow::anyhow!("--now must be an ISO-8601 UTC timestamp: {e}"))
+}
+
+/// Read and validate `SOURCE_CODE_URL` for the source-code related identifier
+/// Zenodo expects: an `https` URL with a `/commit/<40-hex-SHA>` suffix.
+fn source_code_url_env() -> anyhow::Result<String> {
+    let url = std::env::var("SOURCE_CODE_URL")
+        .map_err(|_| anyhow::anyhow!("SOURCE_CODE_URL is not set"))?;
+    validate_source_code_url(&url)
+}
+
+/// Build `UploadSpec`s from three file paths for the Zenodo upload.
+fn archive_upload_paths(
+    archive: &std::path::Path,
+    manifest: &std::path::Path,
+    checksums: &std::path::Path,
+) -> anyhow::Result<Vec<zenodo_rs::UploadSpec>> {
+    let specs = zenodo_rs::UploadSpec::from_named_paths([
+        (
+            archive.file_name().map_or_else(
+                || "lotus-wikidata-smiles.tar.gz".to_string(),
+                |n| n.to_string_lossy().into_owned(),
+            ),
+            archive,
+        ),
+        (
+            manifest.file_name().map_or_else(
+                || "lotus-wikidata-smiles.manifest.json".to_string(),
+                |n| n.to_string_lossy().into_owned(),
+            ),
+            manifest,
+        ),
+        (
+            checksums.file_name().map_or_else(
+                || "lotus-wikidata-smiles.SHA256SUMS".to_string(),
+                |n| n.to_string_lossy().into_owned(),
+            ),
+            checksums,
+        ),
+    ])
+    .map_err(|e| anyhow::anyhow!("prepare Zenodo upload specs: {e}"))?;
+    Ok(specs)
+}
+
 #[cfg(test)]
 #[path = "main/range_tests.rs"]
 mod range_tests;
@@ -758,3 +1083,92 @@ mod civil_year_tests;
 #[cfg(test)]
 #[path = "main/nomenclature_flag_tests.rs"]
 mod nomenclature_flag_tests;
+
+#[cfg(test)]
+mod archive_tests {
+    #![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used)]
+    use super::*;
+
+    const VALID_SHA: &str = "0123456789abcdef0123456789abcdef01234567";
+
+    #[test]
+    fn validate_source_code_url_accepts_https_with_commit_sha() {
+        let url = format!("https://github.com/lotusnprod/lotus-explore-rs/commit/{VALID_SHA}");
+        assert_eq!(validate_source_code_url(&url).unwrap(), url);
+    }
+
+    #[test]
+    fn validate_source_code_url_rejects_http() {
+        let url = format!("http://github.com/lotusnprod/lotus-explore-rs/commit/{VALID_SHA}");
+        assert!(validate_source_code_url(&url).is_err());
+    }
+
+    #[test]
+    fn validate_source_code_url_rejects_missing_commit_suffix() {
+        assert!(
+            validate_source_code_url("https://github.com/lotusnprod/lotus-explore-rs").is_err()
+        );
+    }
+
+    #[test]
+    fn validate_source_code_url_rejects_short_sha() {
+        let url = "https://github.com/lotusnprod/lotus-explore-rs/commit/abc123".to_string();
+        assert!(validate_source_code_url(&url).is_err());
+    }
+
+    #[test]
+    fn validate_source_code_url_rejects_non_hex_sha() {
+        let url = format!(
+            "https://github.com/lotusnprod/lotus-explore-rs/commit/{}",
+            "z".repeat(40)
+        );
+        assert!(validate_source_code_url(&url).is_err());
+    }
+
+    #[test]
+    fn parse_iso_utc_parses_valid_rfc3339() {
+        use chrono::Datelike;
+        let dt = parse_iso_utc("2025-01-15T12:30:00Z").expect("valid RFC3339");
+        assert_eq!(dt.year(), 2025);
+        assert_eq!(dt.month(), 1);
+        assert_eq!(dt.day(), 15);
+    }
+
+    #[test]
+    fn parse_deposition_id_some_when_present() {
+        let result = parse_deposition_id("42").expect("42 is numeric");
+        assert!(result.is_some());
+        assert_eq!(result.expect("42 parsed").0, 42);
+    }
+
+    #[test]
+    fn parse_deposition_id_rejects_non_numeric() {
+        let result = parse_deposition_id("not-a-number");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_deposition_id_rejects_zero() {
+        let result = parse_deposition_id("0");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn zenodo_metadata_builds_with_valid_inputs() {
+        let url = format!("https://github.com/lotusnprod/lotus-explore-rs/commit/{VALID_SHA}");
+        let metadata = zenodo_metadata(
+            "Test Title",
+            "Test Creator",
+            chrono::NaiveDate::from_ymd_opt(2025, 1, 15).expect("valid date"),
+            &url,
+        )
+        .expect("valid metadata");
+        assert_eq!(metadata.title, "Test Title".to_string());
+        assert_eq!(metadata.creators.len(), 1);
+        assert_eq!(metadata.upload_type, zenodo_rs::UploadType::Dataset);
+        assert_eq!(metadata.access_right, zenodo_rs::AccessRight::Open);
+        assert_eq!(metadata.license, Some("cc-by-4.0".to_string()));
+        assert_eq!(metadata.keywords.len(), 3);
+        assert_eq!(metadata.related_identifiers.len(), 1);
+    }
+}
