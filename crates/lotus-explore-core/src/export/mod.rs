@@ -3,6 +3,8 @@
 //! What an export looks like on disk: its name, its filters, and the metadata
 //! document that describes it.
 
+/// The Wikidata archive: fetch, deduplicate, package.
+pub mod archive;
 /// The name an export is written under.
 pub mod filename;
 /// The search's criteria as the metadata document's filter block.
@@ -13,5 +15,3 @@ pub mod metadata;
 pub mod pipeline;
 /// The PubChem tree generator: biological / chemical / NPClassifier trees.
 pub mod pubchem_tree;
-/// The Wikidata archive: fetch, deduplicate, package.
-pub mod archive;
