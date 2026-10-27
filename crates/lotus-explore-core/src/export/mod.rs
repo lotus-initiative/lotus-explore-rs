@@ -9,3 +9,9 @@ pub mod filename;
 pub mod filters;
 /// The Schema.org document that describes an export.
 pub mod metadata;
+/// The LOTUS exporter pipeline: fetch, join, write.
+pub mod pipeline;
+/// The PubChem tree generator: biological / chemical / NPClassifier trees.
+pub mod pubchem_tree;
+/// The Wikidata archive: fetch, deduplicate, package.
+pub mod archive;

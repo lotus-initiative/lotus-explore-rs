@@ -268,6 +268,59 @@ lotus completions fish > ~/.config/fish/completions/lotus.fish
 lotus man | man -l -
 ```
 
+## export
+
+Write the full LOTUS compound–taxon–reference graph as `frozen.csv` and
+`frozen_metadata.csv` into a directory you pick. No filters: this is the bulk
+exporter, the same source as `lotus_exporter.py`, and it writes everything it
+can fetch.
+
+```bash
+lotus export --output ./lotus-export
+lotus export --output ./lotus-export --year 2025 --now 2026-01-15T00:00:00Z
+```
+
+`--output` defaults to the current working directory. `--year` defaults to this
+year, and `--now` to the current UTC time. Both are written into the metadata
+file, so you can reproduce an export exactly by passing the same values.
+
+The two files are:
+
+| File | Contents |
+| ---- | -------- |
+| `frozen.csv` | One row per compound–taxon–reference association |
+| `frozen_metadata.csv` | Export metadata: version, generated timestamp, source endpoint, row counts |
+
+Streaming: each CSV row is written as soon as it is joined from the SPARQL
+results, so a large export never holds the whole graph in memory.
+
+## export-pubchem-tree
+
+Build three PubChem-format trees as JSON: biological (taxa with their
+compounds), chemical (compound classes from Wikidata subclass-of links), and
+NPClassifier (pathway → superclass → class → InChIKey). Each tree is written in
+both full form (documentation + metadata + tree) and PubChem compact form
+(name-as-key).
+
+```bash
+lotus export-pubchem-tree --output ./lotus-trees
+lotus export-pubchem-tree --output ./lotus-trees --year 2025
+```
+
+Writes six files:
+
+| File | Meaning |
+| ---- | ------- |
+| `lotus_biological_tree.json` | Full biological tree |
+| `lotus_chemical_tree.json` | Full chemical tree |
+| `lotus_npclassifier_tree.json` | Full NPClassifier tree |
+| `lotus_biological_tree_pubchem.json` | Biological tree, PubChem compact |
+| `lotus_chemical_tree_pubchem.json` | Chemical tree, PubChem compact |
+| `lotus_npclassifier_tree_pubchem.json` | NPClassifier tree, PubChem compact |
+
+`--output` defaults to the current working directory. `--year` defaults to this
+year. The NPClassifier tree is empty when its cache could not be read.
+
 ## Exit codes
 
 | Code | Meaning                                       |

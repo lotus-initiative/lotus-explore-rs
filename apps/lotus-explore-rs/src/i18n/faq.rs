@@ -497,6 +497,58 @@ pub const ENTRIES: &[FaqEntry] = &[
             ),
         ],
     },
+    FaqEntry {
+        id: "cli-export",
+        category: FaqCategory::Export,
+        translations: &[
+            (
+                Locale::En,
+                "What does `lotus export` do?",
+                "Writes the full LOTUS compound–taxon–reference graph as `frozen.csv` and `frozen_metadata.csv` into a directory you pick. No filters: it exports everything it can fetch. Each CSV row is written as soon as it is joined from the SPARQL results, so a large export never holds the whole graph in memory.",
+            ),
+            (
+                Locale::Fr,
+                "Que fait `lotus export` ?",
+                "Écrit le graphe complet compound–taxon–reference de LOTUS dans `frozen.csv` et `frozen_metadata_csv`, dans un répertoire que vous choisissez. Sans filtres : il exporte tout ce qu'il peut récupérer. Chaque ligne CSV est écrite dès qu'elle est jointe aux résultats SPARQL, de sorte qu'un gros export ne retient jamais tout le graphe en mémoire.",
+            ),
+            (
+                Locale::De,
+                "Was macht `lotus export`?",
+                "Schreibt den vollständigen LOTUS-Verbindungs-Taxon-Referenz-Graphen als `frozen.csv` und `frozen_metadata.csv` in ein Verzeichnis Ihrer Wahl. Ohne Filter: es exportiert alles, was es abrufen kann. Jede CSV-Zeile wird geschrieben, sobald sie aus den SPARQL-Ergebnissen verknüpft ist, sodass ein großer Export niemals den gesamten Graphen im Speicher hält.",
+            ),
+            (
+                Locale::It,
+                "Cosa fa `lotus export`?",
+                "Scrive il grafo completo compound–taxon–reference di LOTUS in `frozen.csv` e `frozen_metadata.csv` in una directory a tua scelta. Senza filtri: esporta tutto ciò che può recuperare. Ogni riga CSV viene scritta non appena viene unita ai risultati SPARQL, quindi un export di grandi dimensioni non tiene mai l'intero grafo in memoria.",
+            ),
+        ],
+    },
+    FaqEntry {
+        id: "cli-export-pubchem-tree",
+        category: FaqCategory::Export,
+        translations: &[
+            (
+                Locale::En,
+                "What does `lotus export-pubchem-tree` do?",
+                "Builds three PubChem-format trees as JSON — biological (taxa with compounds), chemical (compound classes from Wikidata), NPClassifier (pathway → superclass → class → InChIKey) — each in full and PubChem compact form, writing six files to a directory you pick.",
+            ),
+            (
+                Locale::Fr,
+                "Que fait `lotus export-pubchem-tree` ?",
+                "Construit trois arbres au format PubChem en JSON — biologique (taxons avec composés), chimique (classes de composés depuis Wikidata), NPClassifier (voie → superclasse → classe → InChIKey) — chacun en forme complète et forme compacte PubChem, écrivant six fichiers dans un répertoire que vous choisissez.",
+            ),
+            (
+                Locale::De,
+                "Was macht `lotus export-pubchem-tree`?",
+                "Erstellt drei Bäume im PubChem-Format als JSON — biologisch (Taxa mit Verbindungen), chemisch (Verbindungsklassen aus Wikidata), NPClassifier (Pfad → Überklasse → Klasse → InChIKey) — jeweils in voller und kompakter PubChem-Form, und schreibt sechs Dateien in ein Verzeichnis Ihrer Wahl.",
+            ),
+            (
+                Locale::It,
+                "Cosa fa `lotus export-pubchem-tree`?",
+                "Costruisce tre alberi in formato PubChem come JSON — biologico (taxa con composti), chimico (classi di composti da Wikidata), NPClassifier (via → superclasse → classe → InChIKey) — ciascuno in forma completa e forma compatta PubChem, scrivendo sei file in una directory a tua scelta.",
+            ),
+        ],
+    },
 ];
 
 /// The page's own words: the heading, the standfirst, and the two labels the contents

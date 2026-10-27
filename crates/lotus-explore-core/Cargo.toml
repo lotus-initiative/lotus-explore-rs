@@ -11,6 +11,8 @@ categories = ["science"]
 publish = false
 
 [dependencies]
+# Reading SPARQL CSV result payloads into row maps for the export join.
+csv = { workspace = true }
 # The library crates this half of the application is built on. `lotus-model`
 # holds the vocabulary, `lotus-query` builds the SPARQL, `lotus-search` owns the
 # search use case, `lotus-curation` owns the TSV reader and the curation
@@ -25,8 +27,17 @@ lotus-search = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
+# The archive writes a gzip-compressed tar; both are pure Rust and wasm-clean.
+flate2 = { workspace = true }
+tar = { workspace = true }
 thiserror = { workspace = true }
 urlencoding = { workspace = true }
+
+[dev-dependencies]
+# The pipeline is async and its tests run against `lotus_search::testing::Scripted`,
+# which is behind the `testing` feature. `tokio` drives the async tests.
+lotus-search = { workspace = true, features = ["testing"] }
+tokio = { workspace = true, features = ["macros", "rt"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 # The native transport spools a body to a temporary file rather than holding it

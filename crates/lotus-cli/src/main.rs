@@ -27,6 +27,7 @@ use std::io::{self, Write};
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand, ValueEnum};
+use lotus_explore_core::export::pubchem_tree::run_pubchem_tree;
 use lotus_model::SmilesSearchType;
 
 mod curate;
@@ -63,6 +64,10 @@ enum Command {
     Completions(CompletionsArgs),
     /// Write the manual page to stdout.
     Man,
+    /// Export the full LOTUS compound-taxon-reference graph as CSV files.
+    Export(ExportArgs),
+    /// Build `PubChem`-format trees (biological, chemical, `NPClassifier`) as JSON.
+    ExportPubchemTree(ExportPubchemTreeArgs),
 }
 
 #[derive(Debug, clap::Args)]
@@ -70,6 +75,36 @@ struct CompletionsArgs {
     /// The shell to generate for.
     #[arg(value_enum)]
     shell: clap_complete::Shell,
+}
+
+/// Where the export files are written, and the year and timestamp they carry.
+#[derive(Debug, clap::Args)]
+pub struct ExportArgs {
+    /// Directory to write `frozen.csv` and `frozen_metadata.csv` into.
+    /// Defaults to the current working directory.
+    #[arg(short, long, value_name = "DIR")]
+    pub output: Option<std::path::PathBuf>,
+
+    /// Latest publication year to include. Defaults to this year.
+    #[arg(long)]
+    pub year: Option<u16>,
+
+    /// ISO-8601 timestamp for the export metadata. Defaults to now.
+    #[arg(long)]
+    pub now: Option<String>,
+}
+
+/// Where the `PubChem` tree `JSON` files are written, and the year they carry.
+#[derive(Debug, clap::Args)]
+pub struct ExportPubchemTreeArgs {
+    /// Directory to write the six tree JSON files into.
+    /// Defaults to the current working directory.
+    #[arg(short, long, value_name = "DIR")]
+    pub output: Option<std::path::PathBuf>,
+
+    /// Latest publication year to include. Defaults to this year.
+    #[arg(long)]
+    pub year: Option<u16>,
 }
 
 /// Every filter the web explorer exposes, and the limits a terminal wants.
@@ -316,6 +351,8 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                 .render(&mut io::stdout().lock())?;
             Ok(ExitCode::SUCCESS)
         }
+        Command::Export(args) => export(args).await,
+        Command::ExportPubchemTree(args) => export_pubchem_tree(args).await,
     }
 }
 
@@ -468,6 +505,83 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
     Ok(ExitCode::SUCCESS)
 }
 
+/// Export the full LOTUS compound–taxon–reference graph as `frozen.csv` and
+/// `frozen_metadata.csv`, written to a directory the caller picks.
+///
+/// No filters: this is the bulk exporter, the same source as
+/// `lotus_exporter.py`, and it writes everything it can fetch. The year and
+/// timestamp the files carry come from the flags (or the clock), and this
+/// function is where the native file I/O lives — `run_lotus_exporter` itself
+/// performs none, so it stays wasm-clean.
+async fn export(args: ExportArgs) -> anyhow::Result<ExitCode> {
+    let year = args.year.unwrap_or_else(current_year);
+    let now = args.now.unwrap_or_else(now_iso_utc);
+
+    let http = lotus_search::reqwest_client::ReqwestClient::new()?;
+    let endpoint = lotus_search::Endpoint::new(lotus_search::Service::Qlever);
+
+    let (frozen_csv, metadata_csv, summary) =
+        lotus_explore_core::export::pipeline::run_lotus_exporter(&http, endpoint, &now, year)
+            .await?;
+
+    let output_dir = args
+        .output
+        .as_deref()
+        .unwrap_or_else(|| std::path::Path::new("."));
+    std::fs::create_dir_all(output_dir)?;
+
+    let frozen_path = output_dir.join("frozen.csv");
+    let metadata_path = output_dir.join("frozen_metadata.csv");
+    std::fs::write(&frozen_path, frozen_csv)?;
+    std::fs::write(&metadata_path, metadata_csv)?;
+
+    eprintln!(
+        "lotus: wrote {} rows ({} compounds, {} taxa, {} references) to {} and {}",
+        summary.rows_written,
+        summary.compounds,
+        summary.taxa,
+        summary.references,
+        frozen_path.display(),
+        metadata_path.display(),
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
+/// Build `PubChem`-format trees (biological, chemical, `NPClassifier`) as `JSON`,
+/// writing six files to an output directory. No network transport beyond the
+/// SPARQL endpoint and the `NPClassifier` cache fetch.
+async fn export_pubchem_tree(args: ExportPubchemTreeArgs) -> anyhow::Result<ExitCode> {
+    let now = now_iso_utc();
+
+    let http = lotus_search::reqwest_client::ReqwestClient::new()?;
+    let endpoint = lotus_search::Endpoint::new(lotus_search::Service::Qlever);
+
+    let (bio_full, chem_full, npc_full, bio_pc, chem_pc, npc_pc) =
+        run_pubchem_tree(&http, endpoint, &now).await?;
+
+    let output_dir = args
+        .output
+        .as_deref()
+        .unwrap_or_else(|| std::path::Path::new("."));
+    std::fs::create_dir_all(output_dir)?;
+
+    let write = |name: &str, content: &str| -> anyhow::Result<()> {
+        let path = output_dir.join(name);
+        std::fs::write(&path, content)?;
+        eprintln!("lotus: wrote {} to {}", content.len(), path.display());
+        Ok(())
+    };
+
+    write("lotus_biological_tree.json", &bio_full)?;
+    write("lotus_chemical_tree.json", &chem_full)?;
+    write("lotus_npclassifier_tree.json", &npc_full)?;
+    write("lotus_biological_tree_pubchem.json", &bio_pc)?;
+    write("lotus_chemical_tree_pubchem.json", &chem_pc)?;
+    write("lotus_npclassifier_tree_pubchem.json", &npc_pc)?;
+
+    Ok(ExitCode::SUCCESS)
+}
+
 fn apply_ranges(
     criteria: &mut lotus_model::SearchCriteria,
     carbon: Option<Range>,
@@ -525,17 +639,42 @@ fn apply_ranges(
     );
 }
 
-/// The current calendar year, for the default upper year bound.
+/// Days since the Unix epoch to the civil (year, month, day) containing that day.
 ///
-/// `lotus-model` takes the year as an argument rather than reading a clock, so
-/// that it stays pure; a binary is where a clock belongs.
+/// Howard Hinnant's `civil_from_days`, returning the full date. Split from the
+/// clock read so the arithmetic can be checked against dates whose answers are
+/// known, rather than only against "the year is roughly now".
 #[must_use]
-pub fn current_year() -> u16 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let seconds = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |d| d.as_secs().cast_signed());
-    year_from_unix_seconds(seconds)
+pub fn civil_from_days(days: i64) -> (u16, u8, u8) {
+    // Shift the epoch to 0000-03-01, so a leap day lands at the end of the
+    // shifted year and the era is exactly 400 years of whole days.
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097; // [0, 146096]
+    // Day of the era's year, 0..=365. The published form of this line also has
+    // `+ doe / 36_524 - doe / 146_096`, and those two terms are dropped here on
+    // purpose: the truncating divisions that follow cancel them exactly, so
+    // they cannot change the result for any input.
+    let yoe = (doe - doe / 1_460) / 365; // [0, 399]
+    // The year the shifted year starts in, which is the year *after* January and
+    // February belong to: on this calendar a shifted year runs from 1 March.
+    let shifted = yoe + era * 400;
+    // Day of the shifted year, counted from its 1 March.
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
+    // Month within the shifted year, March first and so zero-based. The last two
+    // are January and February of the next civil year.
+    let mp = (5 * doy + 2) / 153; // [0, 11]
+    let day = doy - (153 * mp + 2) / 5 + 1; // [1, 31]
+    let month = if mp < 10 { mp + 3 } else { mp - 9 }; // [1, 12]
+    let year = if mp < 10 { shifted } else { shifted + 1 };
+
+    // The reference types are u16/u8 throughout the CLI, so a clock set before
+    // 1970 saturates rather than wrapping to a plausible-looking recent year.
+    (
+        u16::try_from(year).unwrap_or(u16::MAX),
+        u8::try_from(month).unwrap_or(u8::MAX),
+        u8::try_from(day).unwrap_or(u8::MAX),
+    )
 }
 
 /// Unix seconds to the civil year containing them.
@@ -550,41 +689,45 @@ pub fn year_from_unix_seconds(seconds: i64) -> u16 {
 
 /// Days since the Unix epoch to the civil year containing that day.
 ///
-/// Howard Hinnant's `civil_from_days`, keeping only the year. Split from the
-/// clock read so the arithmetic can be checked against dates whose answers are
-/// known, rather than only against "the year is roughly now" -- which is the one
-/// assertion that would not notice a wrong answer for another eleven months.
+/// Delegates to [`civil_from_days`] and keeps only the year, so the arithmetic
+/// lives in one place and the two functions cannot drift apart.
 #[must_use]
 pub fn civil_year_from_days(days: i64) -> u16 {
-    // Shift the epoch to 0000-03-01, so a leap day lands at the end of the
-    // shifted year and the era is exactly 400 years of whole days.
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z - era * 146_097; // [0, 146096]
-    // Day of the era's year, 0..=365. The published form of this line also has
-    // `+ doe / 36_524 - doe / 146_096`, and those two terms are dropped here on
-    // purpose: the truncating divisions that follow cancel them exactly, so
-    // they cannot change the result for any input. Mutation testing found them
-    // -- it reported both as surviving, which is what an equivalent mutant looks
-    // like -- and keeping them would mean carrying two dead terms forever to
-    // satisfy a formula transcribed from somewhere else.
-    let yoe = (doe - doe / 1_460) / 365; // [0, 399]
-    // The year the shifted year starts in, which is the year *after* January and
-    // February belong to: on this calendar a shifted year runs from 1 March.
-    let shifted = yoe + era * 400;
-    // Day of the shifted year, counted from its 1 March.
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
-    // Month within the shifted year, March first and so zero-based. The last two
-    // are January and February of the next civil year.
-    let month = (5 * doy + 2) / 153;
-    let year = if month < 10 { shifted } else { shifted + 1 };
-
-    // The reference year is a u16 throughout the crate, so a clock set before
-    // 1970 saturates rather than wrapping to a plausible-looking recent year.
-    u16::try_from(year).unwrap_or(u16::MAX)
+    civil_from_days(days).0
 }
 
-/// Whether the command line asked for formula filtering.
+/// The current calendar year, for the default upper year bound.
+///
+/// `lotus-model` takes the year as an argument rather than reading a clock, so
+/// that it stays pure; a binary is where a clock belongs.
+#[must_use]
+pub fn current_year() -> u16 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let seconds = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs().cast_signed());
+    year_from_unix_seconds(seconds)
+}
+
+/// The current UTC time as an ISO-8601 stamp (`YYYY-MM-DDTHH:MM:SSZ`), for the
+/// export metadata document.
+///
+/// No `chrono` dependency: the same civil-calendar arithmetic that
+/// [`civil_from_days`] uses, extended to hour, minute and second.
+#[must_use]
+pub fn now_iso_utc() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let duration = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    let seconds = duration.as_secs().cast_signed();
+    let (year, month, day) = civil_from_days(seconds.div_euclid(86_400));
+    let time_of_day = seconds.rem_euclid(86_400);
+    let hour = time_of_day / 3600;
+    let minute = (time_of_day % 3600) / 60;
+    let second = time_of_day % 60;
+    format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z")
+}
 ///
 /// `--formula` and `--carbon` both filter by formula, and only the first sets
 /// `formula_enabled` on the criteria. This is not

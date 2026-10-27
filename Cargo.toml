@@ -30,6 +30,7 @@ clap = { version = "4", features = ["derive", "env"] }
 clap_complete = "4"
 clap_mangen = "0.2"
 console_log = "1.1"
+csv = "1.4"
 # No renderer named: `web` and `desktop` each supply a different `main`, so a
 # workspace-fixed one meant a native build had no UI at all -- `dx serve
 # --desktop` compiled, launched, and exited. The app crate picks per target.
@@ -40,6 +41,9 @@ dioxus-desktop = { version = "=0.7.10", default-features = false }
 dirs = "6"
 env_logger = "0.11"
 flate2 = { version = "1", default-features = false, features = ["miniz_oxide"] }
+# `tar` creates the gzip-compressed tar archive the `lotus archive` subcommand
+# writes; it is pure Rust and wasm-clean.
+tar = "0.4"
 futures = { version = "0.3", default-features = false, features = ["async-await", "std"] }
 gloo-timers = { version = "0.3", features = ["futures"] }
 js-sys = "0.3"

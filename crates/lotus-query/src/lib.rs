@@ -3,6 +3,7 @@
 #![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
 
+mod bulk_export;
 mod error;
 mod export;
 mod export_rows;
@@ -10,6 +11,18 @@ pub use export_rows::RowExporter;
 mod parse;
 mod query;
 
+pub use bulk_export::{
+    ARCHIVE_PAGE_SIZE, ARCHIVE_SMILES_QUERY, ARCHIVE_SMILES_WITHOUT_INCHIKEY_QUERY,
+    QLEVER_WIKIDATA, WIKIDATA_ENTITY_PREFIX, archive_page, extract_qid,
+    looks_like_archive_inchikey, query_compound_cid, query_compound_cxsmiles,
+    query_compound_inchikey_taxon, query_compound_label, query_compound_parent,
+    query_compound_smarts, query_compound_smiles_can, query_compound_smiles_can_all,
+    query_compound_smiles_iso, query_compound_smiles_iso_all, query_compound_taxon_reference,
+    query_reference_date, query_reference_doi, query_reference_doi_compound_taxon,
+    query_reference_journal, query_reference_pmcid, query_reference_pmid,
+    query_reference_pmid_compound_taxon, query_reference_title, query_taxon_gbif, query_taxon_name,
+    query_taxon_ncbi, query_taxon_ott, query_taxon_parent, query_taxon_rank,
+};
 pub use error::ParseError;
 pub use export::{ExportFormat, sanitize_download_filename};
 pub use parse::CompoundMatch;
