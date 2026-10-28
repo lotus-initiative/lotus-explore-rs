@@ -29,9 +29,10 @@ mod enrichment;
 mod helpers;
 mod http_client;
 mod occurrence;
-// `unreachable_pub`-style narrowing requires `pub(crate)` here (used by
-// `crate::curation`); the nursery `redundant_pub_crate` suggestion (`pub`)
-// would widen it.
+// `pub(crate)` on `occurrence_cache` matches the pattern used by other
+// internal-only children of `services`; it is reachable from sibling tests
+// via the crate path. The nursery `redundant_pub_crate` lint would suggest
+// `pub`, which would widen the module's API surface.
 #[allow(clippy::redundant_pub_crate)]
 pub(crate) mod occurrence_cache;
 mod reference_metadata;
@@ -52,8 +53,8 @@ pub mod prefetch;
 pub mod quickstatements;
 
 #[cfg(test)]
-// `unreachable_pub`-style narrowing requires `pub(crate)` for this test-only
-// re-export; the nursery `redundant_pub_crate` suggestion (`pub`) would widen it.
+// Test-only re-export; `pub(crate)` matches the other test-gated re-exports
+// below. The nursery `redundant_pub_crate` lint would suggest `pub`.
 #[allow(clippy::redundant_pub_crate)]
 pub(crate) use chemical::extract_exact_mass_from_json;
 pub use enrichment::curate_single_row;

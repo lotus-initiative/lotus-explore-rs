@@ -7,7 +7,6 @@
 
 // The panic lints keep library code from panicking on bad input; a test
 // failing on a bad value is reporting, not panicking.
-#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used)]
 
 use super::*;
 

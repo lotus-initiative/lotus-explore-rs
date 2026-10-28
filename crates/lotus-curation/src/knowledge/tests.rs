@@ -54,11 +54,10 @@ mod fixtures {
 }
 
 mod unit {
-    #![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
+    #![allow(clippy::expect_used, clippy::indexing_slicing)]
 
     use super::super::*;
     use crate::parse_tsv;
-
     fn row(name: &str, smiles: &str, taxon: Option<&str>, doi: Option<&str>) -> CurationInputRow {
         CurationInputRow {
             name: name.into(),
@@ -360,7 +359,7 @@ mod unit {
 }
 
 mod networked {
-    #![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
+    #![allow(clippy::expect_used, clippy::indexing_slicing)]
 
     use super::super::*;
     use super::fixtures::*;

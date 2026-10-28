@@ -5,7 +5,7 @@
 //! A query is checked as a string, because a query that builds and is wrong is
 //! indistinguishable from one that does not build until the endpoint answers it.
 
-#![allow(clippy::expect_used, clippy::panic)]
+#![allow(clippy::expect_used)]
 
 use super::*;
 

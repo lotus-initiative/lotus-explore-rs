@@ -19,7 +19,7 @@
 //! nothing to bless: the question is never "is this the right output" but "are
 //! these two the same output", which is the question a refactor is allowed to ask.
 
-#![allow(unused_crate_dependencies, clippy::expect_used, clippy::panic)]
+#![allow(unused_crate_dependencies, clippy::expect_used)]
 
 use lotus_model::testing::empty_row;
 use lotus_model::{ColumnarResultSet, CompoundEntry};

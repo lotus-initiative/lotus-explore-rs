@@ -5,8 +5,6 @@
 //! Each case is a rejection: the point of `validate_criteria` is what it refuses,
 //! because an inverted range reaching the endpoint is a query that cannot answer.
 
-#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used)]
-
 use super::*;
 use crate::SmilesSearchType;
 

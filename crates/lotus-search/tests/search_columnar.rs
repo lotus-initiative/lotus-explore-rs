@@ -9,7 +9,7 @@
 
 // The panic lints keep library code free of panics on external input. A test
 // that fails on a bad fixture is reporting, not panicking.
-#![allow(unused_crate_dependencies, clippy::expect_used, clippy::panic)]
+#![allow(unused_crate_dependencies, clippy::expect_used)]
 
 use lotus_model::SearchCriteria;
 use lotus_search::testing::Scripted;

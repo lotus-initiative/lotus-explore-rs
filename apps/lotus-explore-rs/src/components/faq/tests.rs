@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for `faq`, in their own file.
 
-#![allow(clippy::expect_used, clippy::panic)]
-
 use super::category_anchor;
 use crate::i18n::{ENTRIES, FaqCategory};
 use std::collections::BTreeSet;

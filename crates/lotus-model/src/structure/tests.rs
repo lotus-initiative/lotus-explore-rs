@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for `structure`, in their own file.
 
-#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used)]
-
 use super::*;
 
 const V2000: &str = "\n\n\n  1  0  0  0  0  0  0  0  0  0999 V2000\n    0.0000    0.0000    0.0000 C   0  0  0  0  0  0\nM  END\n";

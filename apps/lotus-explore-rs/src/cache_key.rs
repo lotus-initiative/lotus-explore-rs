@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-// The panic lints keep library code off `expect`; a test that trips one
-// is reporting a failure, not unwinding.
 
 //! Cache keys, shared by the native server and the browser client.
 //!
@@ -16,10 +14,6 @@
 //! text itself, in `crate::cache`. What is hashed here is what the **server**
 //! caches, because the client and the server read each other's maps and the key
 //! is an interface between them.
-
-// The panic lints keep library code off `expect`; a test that trips one is
-// reporting a failure, not unwinding.
-#![allow(clippy::expect_used, clippy::panic)]
 
 // Only the server's two keys hash anything, and both are native-only.
 // `any(not(wasm32), test)`, and not a plain `not(wasm32)`: the browser has its own

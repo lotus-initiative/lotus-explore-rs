@@ -15,7 +15,7 @@
 // The panic lints keep library code free of panics on external input. A test
 // failing on a bad fixture is reporting, not panicking.
 #![allow(unused_crate_dependencies)]
-#![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
+#![allow(clippy::expect_used, clippy::indexing_slicing)]
 
 use lotus_model::WIKIDATA_REFERENCE_BASE;
 use lotus_query::parse_compounds_columnar;

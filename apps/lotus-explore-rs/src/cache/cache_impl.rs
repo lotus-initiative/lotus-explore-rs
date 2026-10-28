@@ -51,15 +51,13 @@ thread_local! {
 /// A hit hands back the same `Arc` the previous render used, which is what
 /// makes back-navigation free: no query, no parse, and no second copy.
 #[cfg(target_arch = "wasm32")]
-#[allow(clippy::redundant_pub_crate)]
-pub(crate) fn take_cached_set(key: &str) -> Option<Arc<ColumnarResultSet>> {
+pub fn take_cached_set(key: &str) -> Option<Arc<ColumnarResultSet>> {
     SETS.with(|c| c.borrow().get(key))
 }
 
 /// Keep the finished set for the next identical navigation.
 #[cfg(target_arch = "wasm32")]
-#[allow(clippy::redundant_pub_crate)]
-pub(crate) fn store_cached_set(key: String, set: Arc<ColumnarResultSet>) {
+pub fn store_cached_set(key: String, set: Arc<ColumnarResultSet>) {
     SETS.with(|c| c.borrow_mut().insert(key, set));
 }
 

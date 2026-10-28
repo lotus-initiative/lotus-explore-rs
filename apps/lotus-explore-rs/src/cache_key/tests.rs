@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for `cache_key`, in their own file.
+#![allow(clippy::expect_used)]
 
 use super::*;
 

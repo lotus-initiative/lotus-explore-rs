@@ -3,7 +3,7 @@
 //! The tests for `desktop_assets`, in their own file.
 
 // A test that fails on a bad fixture is reporting, not panicking on input.
-#![allow(clippy::expect_used, clippy::panic, clippy::unwrap_used)]
+#![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use super::PROBE;
 

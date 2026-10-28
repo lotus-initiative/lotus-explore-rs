@@ -10,7 +10,7 @@
 //! run the search; an unnamed group, leaving two buttons floating with nothing
 //! tying them to the field they fill; buttons named only their value.
 
-#![allow(clippy::expect_used, clippy::panic, clippy::unwrap_used)]
+#![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use super::FieldExamples;
 use crate::i18n::{Locale, TextKey};

@@ -297,8 +297,7 @@ fn wikidata_id(uri: &str) -> Result<String, ArchiveError> {
 pub fn deduplicate_by_inchi_key(records: Vec<SmilesRecord>) -> Vec<SmilesRecord> {
     let mut selected = BTreeMap::new();
     for record in records {
-        let inchi_key = record.inchi_key.clone();
-        match selected.entry(inchi_key) {
+        match selected.entry(record.inchi_key.clone()) {
             std::collections::btree_map::Entry::Vacant(entry) => {
                 entry.insert(record);
             }

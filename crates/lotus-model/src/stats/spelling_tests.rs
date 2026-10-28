@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for `stats`, in their own file.
 
-#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used)]
-
 use super::{ElementState, SmilesSearchType};
 
 // The spellings are the wire format: a form control's value comes back in a

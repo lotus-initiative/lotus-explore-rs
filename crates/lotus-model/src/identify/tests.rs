@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for `identify`, in their own file.
 
-#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used)]
-
 use super::*;
 
 #[test]

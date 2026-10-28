@@ -7,7 +7,7 @@
 //! hides, and the walk from 1970 to 2040 below is here because a `doe / 146_096`
 //! term is non-zero on exactly one day in each 400-year cycle.
 
-#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::expect_used)]
 
 use super::{civil_year_from_days, current_year, year_from_unix_seconds};
 

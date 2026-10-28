@@ -11,7 +11,7 @@
 // The panic lints exist to keep shipped code free of panics on external input.
 // A poisoned lock in a test double means a test panicked while holding it, so
 // the test is already failing and the second panic says nothing new.
-#![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
+#![allow(clippy::expect_used, clippy::indexing_slicing)]
 // `clippy::unused_async_trait_impl` wants a trait-impl method with no `.await` rewritten to
 // return `impl Future`; `clippy::manual_async_fn` then wants that block turned back into an
 // `async fn`. They cannot both be obeyed, which is what this expectation is about. The

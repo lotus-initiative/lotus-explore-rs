@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for the structure conversion, in their own file.
 
-#![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
+#![allow(clippy::expect_used, clippy::indexing_slicing)]
 
 use super::*;
 use lotus_search::testing::Scripted;

@@ -13,7 +13,4 @@
 mod cache_impl;
 
 #[cfg(target_arch = "wasm32")]
-// `unreachable_pub`-style narrowing requires `pub(crate)` for cross-module
-// use; the nursery `redundant_pub_crate` suggestion (`pub`) would widen it.
-#[allow(clippy::redundant_pub_crate)]
 pub(crate) use cache_impl::{store_cached_set, take_cached_set};

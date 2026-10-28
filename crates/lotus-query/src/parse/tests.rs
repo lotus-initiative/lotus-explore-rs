@@ -10,7 +10,7 @@
 // A test asserting on a fixture may panic when the fixture is wrong: that
 // is the failure it is reporting, and the lint exists to keep library code
 // free of panics on external input.
-#![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
+#![allow(clippy::expect_used, clippy::indexing_slicing)]
 #![allow(clippy::format_collect)]
 
 use super::*;

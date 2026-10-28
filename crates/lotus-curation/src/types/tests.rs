@@ -7,8 +7,6 @@
 //! for the same reason must get the same answer, and the reasoning is only in the
 //! doc comments above the two functions.
 
-#![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
-
 use super::{CurationError, CurationErrorKind};
 
 /// Every variant, with a value that is plausible for it.

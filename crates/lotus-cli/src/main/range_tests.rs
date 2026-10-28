@@ -7,7 +7,7 @@
 //! formula filter that turns a search into something much narrower -- so getting
 //! one silently wrong narrows a search without saying so.
 
-#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use super::Range;
 

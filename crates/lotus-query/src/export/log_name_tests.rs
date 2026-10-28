@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for `export`, in their own file.
 
-#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used)]
-
 use super::ExportFormat;
 
 // The log name lands in log lines, metric labels and filenames, so a shared

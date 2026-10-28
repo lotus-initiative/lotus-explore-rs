@@ -2,8 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for `input`, in their own file.
 
-#![allow(clippy::expect_used)]
-#![allow(clippy::indexing_slicing)]
+#![allow(clippy::expect_used, clippy::indexing_slicing)]
 
 use super::*;
 

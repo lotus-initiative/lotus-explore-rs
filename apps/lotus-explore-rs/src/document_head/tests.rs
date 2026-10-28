@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for `document_head`, in their own file.
 
-#![allow(clippy::expect_used, clippy::panic)]
-
 // The panic lints keep shipped code free of panics on external input. A test
 // that fails on a missing or stale file is reporting, not panicking.
 

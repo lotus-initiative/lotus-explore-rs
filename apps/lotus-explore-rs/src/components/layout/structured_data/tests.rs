@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for `structured_data`, in their own file.
 
-#![allow(clippy::expect_used, clippy::panic)]
+#![allow(clippy::expect_used)]
 
 use super::*;
 

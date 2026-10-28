@@ -13,7 +13,7 @@
 // The panic lints exist to keep library code free of panics on external input.
 // A test that fails on a bad argument is reporting, not panicking.
 #![allow(unused_crate_dependencies)]
-#![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
+#![allow(clippy::indexing_slicing)]
 
 use lotus_query::{construct_from_select, counts_query, escape_sparql_string, limit_query};
 
