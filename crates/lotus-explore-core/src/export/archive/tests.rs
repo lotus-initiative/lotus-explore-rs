@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
+#![allow(clippy::expect_used)]
 //! Unit tests for `archive`.
 
 use std::io::Read;
@@ -106,33 +106,66 @@ async fn run_archive_fetches_all_pages_and_deduplicates() {
         members.insert(name, contents);
     }
 
-    assert!(members["lotus-wikidata-smiles.csv"].contains("IK1,Q3,isomeric,OCC"));
-    assert!(members["lotus-wikidata-smiles.csv"].contains("IK2,Q2,isomeric,CC"));
-    assert!(!members["lotus-wikidata-smiles.csv"].contains("Q1")); // Q1 was deduplicated away
+    let smiles_csv = members
+        .get("lotus-wikidata-smiles.csv")
+        .expect("smiles csv");
+    assert!(smiles_csv.contains("IK1,Q3,isomeric,OCC"));
+    assert!(smiles_csv.contains("IK2,Q2,isomeric,CC"));
+    assert!(!smiles_csv.contains("Q1")); // Q1 was deduplicated away
+    let missing_csv = members
+        .get("missing-inchikey.csv")
+        .expect("missing-inchikey csv");
     assert_eq!(
-        members["missing-inchikey.csv"],
+        missing_csv,
         "wikidata_id,smiles_kind,smiles\nQ4,canonical,O\n"
     );
+    let errors_csv = members
+        .get("smiles-parse-errors.csv")
+        .expect("parse errors csv");
     assert_eq!(
-        members["smiles-parse-errors.csv"],
+        errors_csv,
         "inchi_key,wikidata_id,smiles_kind,smiles,error\n"
     );
 
     // Verify standalone manifest and checksums.
     let manifest: serde_json::Value =
         serde_json::from_str(&artifacts.manifest).expect("manifest JSON");
-    assert_eq!(manifest["fetched_at"], "2026-03-04T05:06:07Z");
-    assert_eq!(manifest["source_records"], 3);
-    assert_eq!(manifest["records"], 2);
-    assert_eq!(manifest["missing_inchi_key_records"], 1);
-    assert_eq!(manifest["page_size"], ARCHIVE_PAGE_SIZE);
+    assert_eq!(
+        manifest
+            .get("fetched_at")
+            .and_then(serde_json::Value::as_str),
+        Some("2026-03-04T05:06:07Z")
+    );
+    assert_eq!(
+        manifest
+            .get("source_records")
+            .and_then(serde_json::Value::as_u64),
+        Some(3)
+    );
+    assert_eq!(
+        manifest.get("records").and_then(serde_json::Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        manifest
+            .get("missing_inchi_key_records")
+            .and_then(serde_json::Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        manifest
+            .get("page_size")
+            .and_then(serde_json::Value::as_u64),
+        Some(ARCHIVE_PAGE_SIZE as u64)
+    );
 
     let checksums = &artifacts.checksums;
     assert!(checksums.contains("  lotus-wikidata-smiles.tar.gz\n"));
     assert!(checksums.contains("  lotus-wikidata-smiles.manifest.json\n"));
 
     // Verify the manifest inside the archive matches the standalone one.
-    assert_eq!(members["manifest.json"], artifacts.manifest);
+    let archive_manifest = members.get("manifest.json").expect("manifest in archive");
+    assert_eq!(archive_manifest, &artifacts.manifest);
 }
 
 #[tokio::test]
@@ -152,8 +185,16 @@ async fn run_archive_handles_empty_results() {
 
     let manifest: serde_json::Value =
         serde_json::from_str(&artifacts.manifest).expect("manifest JSON");
-    assert_eq!(manifest["source_records"], 0);
-    assert_eq!(manifest["records"], 0);
+    assert_eq!(
+        manifest
+            .get("source_records")
+            .and_then(serde_json::Value::as_u64),
+        Some(0)
+    );
+    assert_eq!(
+        manifest.get("records").and_then(serde_json::Value::as_u64),
+        Some(0)
+    );
 }
 
 #[test]
@@ -237,16 +278,26 @@ fn write_archive_produces_checksums_and_manifest() {
         members.insert(name, contents);
     }
 
-    assert!(members["lotus-wikidata-smiles.csv"].contains("KEY1,Q1,canonical,CCO"));
+    let smiles_csv = members
+        .get("lotus-wikidata-smiles.csv")
+        .expect("smiles csv");
+    assert!(smiles_csv.contains("KEY1,Q1,canonical,CCO"));
+    let missing_csv = members
+        .get("missing-inchikey.csv")
+        .expect("missing-inchikey csv");
     assert_eq!(
-        members["missing-inchikey.csv"],
+        missing_csv,
         "wikidata_id,smiles_kind,smiles\nQ2,canonical,O\n"
     );
+    let errors_csv = members
+        .get("smiles-parse-errors.csv")
+        .expect("parse errors csv");
     assert_eq!(
-        members["smiles-parse-errors.csv"],
+        errors_csv,
         "inchi_key,wikidata_id,smiles_kind,smiles,error\n"
     );
-    assert_eq!(members["manifest.json"], artifacts.manifest);
+    let archive_manifest = members.get("manifest.json").expect("manifest in archive");
+    assert_eq!(archive_manifest, &artifacts.manifest);
 
     let checksums = &artifacts.checksums;
     assert!(checksums.contains("  lotus-wikidata-smiles.tar.gz\n"));

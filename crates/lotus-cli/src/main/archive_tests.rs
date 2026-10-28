@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Tests for the `archive` subcommand's helper functions.
-#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::expect_used)]
 
 use super::*;
 
@@ -10,7 +10,7 @@ const VALID_SHA: &str = "0123456789abcdef0123456789abcdef01234567";
 #[test]
 fn validate_source_code_url_accepts_https_with_commit_sha() {
     let url = format!("https://github.com/lotusnprod/lotus-explore-rs/commit/{VALID_SHA}");
-    assert_eq!(validate_source_code_url(&url).unwrap(), url);
+    assert_eq!(validate_source_code_url(&url).expect("url is valid"), url);
 }
 
 #[test]

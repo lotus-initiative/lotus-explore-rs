@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-#![allow(
-    clippy::unwrap_used,
-    clippy::expect_used,
-    clippy::indexing_slicing,
-    clippy::redundant_closure,
-    clippy::redundant_closure_for_method_calls
-)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Golden tests for the LOTUS exporter pipeline, driven against a scripted
 //! transport instead of the network.
 
@@ -196,7 +190,7 @@ async fn pipeline_tolerates_missing_optional_tables() {
 
     assert_eq!(summary.rows_written, 2);
     // Q1001 has no inchikey, no taxon name, no reference: empty cells, not a missing row.
-    let rows: HashSet<String> = frozen_csv.lines().skip(1).map(|s| s.to_string()).collect();
+    let rows: HashSet<String> = frozen_csv.lines().skip(1).map(str::to_string).collect();
     assert!(rows.iter().any(|r| r.starts_with("Q1001,,CC,,,")));
 }
 
@@ -224,7 +218,12 @@ async fn pipeline_records_every_query_in_order() {
     let _ = run_lotus_exporter(&http, endpoint(), NOW, YEAR).await;
     let queries = http.queries();
     assert_eq!(queries.len(), 16, "one fetch per table");
-    assert!(queries[0].contains("SELECT DISTINCT ?compound ?compound_inchikey ?taxon ?reference"));
+    assert!(
+        queries
+            .first()
+            .expect("at least one query")
+            .contains("SELECT DISTINCT ?compound ?compound_inchikey ?taxon ?reference")
+    );
     assert!(
         queries
             .last()
