@@ -523,58 +523,9 @@ pub const ENTRIES: &[FaqEntry] = &[
             ),
         ],
     },
-    FaqEntry {
-        id: "cli-export-pubchem-tree",
-        category: FaqCategory::Export,
-        translations: &[
-            (
-                Locale::En,
-                "What does `lotus export-pubchem-tree` do?",
-                "Builds three PubChem-format trees as JSON — biological (taxa with compounds), chemical (compound classes from Wikidata), NPClassifier (pathway → superclass → class → InChIKey) — each in full and PubChem compact form, writing six files to a directory you pick.",
-            ),
-            (
-                Locale::Fr,
-                "Que fait `lotus export-pubchem-tree` ?",
-                "Construit trois arbres au format PubChem en JSON — biologique (taxons avec composés), chimique (classes de composés depuis Wikidata), NPClassifier (voie → superclasse → classe → InChIKey) — chacun en forme complète et forme compacte PubChem, écrivant six fichiers dans un répertoire que vous choisissez.",
-            ),
-            (
-                Locale::De,
-                "Was macht `lotus export-pubchem-tree`?",
-                "Erstellt drei Bäume im PubChem-Format als JSON — biologisch (Taxa mit Verbindungen), chemisch (Verbindungsklassen aus Wikidata), NPClassifier (Pfad → Überklasse → Klasse → InChIKey) — jeweils in voller und kompakter PubChem-Form, und schreibt sechs Dateien in ein Verzeichnis Ihrer Wahl.",
-            ),
-            (
-                Locale::It,
-                "Cosa fa `lotus export-pubchem-tree`?",
-                "Costruisce tre alberi in formato PubChem come JSON — biologico (taxa con composti), chimico (classi di composti da Wikidata), NPClassifier (via → superclasse → classe → InChIKey) — ciascuno in forma completa e forma compatta PubChem, scrivendo sei file in una directory a tua scelta.",
-            ),
-        ],
-    },
-    FaqEntry {
-        id: "cli-archive",
-        category: FaqCategory::Export,
-        translations: &[
-            (
-                Locale::En,
-                "What does `lotus archive` do?",
-                "Fetches all LOTUS InChIKey-to-SMILES mappings from Wikidata, deduplicates by InChIKey (preferring isomeric P2017 over canonical P233), and packages the result as a tar.gz with a manifest and SHA-256 checksums. By default it writes files to disk only; real Zenodo publishing requires `--publish` and `ZENODO_TOKEN`, and `--publish --dry-run` validates without contacting Zenodo. CI never publishes.",
-            ),
-            (
-                Locale::Fr,
-                "Que fait `lotus archive` ?",
-                "Récupère toutes les correspondances InChIKey-to-SMILES de LOTUS depuis Wikidata via QLever, déduplique par InChIKey (en préférant P2017 isomérique à P233 canonique), et emballe le résultat en tant que tar.gz versionné avec un manifeste et des sommes de contrôle SHA-256. Par défaut, il n'écrit que des fichiers sur le disque ; la publication réelle sur Zenodo nécessite `--publish` et `ZENODO_TOKEN`, et `--publish --dry-run` valide le plan sans contacter Zenodo. CI ne publie jamais.",
-            ),
-            (
-                Locale::De,
-                "Was macht `lotus archive`?",
-                "Ruft alle LOTUS InChIKey-zu-SMILES-Zuordnungen von Wikidata über QLever ab, dedupliziert nach InChIKey (isotorische P2017 wird bevorzugt gegenüber kanonicaler P233) und verpackt das Ergebnis als versioniertes tar.gz mit Manifest und SHA-256-Prüfsummen. Standardmäßig schreibt es nur Dateien auf die Festplatte; die tatsächliche Zenodo-Veröffentlichung erfordert `--publish` und `ZENODO_TOKEN`, und `--publish --dry-run` validiert den Plan ohne Zenodo zu kontaktieren. CI veröffentlicht nie.",
-            ),
-            (
-                Locale::It,
-                "Cosa fa `lotus archive`?",
-                "Recupera tutte le corrispondenze InChIKey-to-SMILES di LOTUS da Wikidata tramite QLever, de-duplica per InChIKey (preferendo P2017 isomero a P233 canonico) e impacchetta il risultato come un tar.gz versionato con manifest e checksum SHA-256. Per impostazione predefinita scrive solo file su disco; la pubblicazione reale su Zenodo richiede `--publish` e `ZENODO_TOKEN`, e `--publish --dry-run` valida il piano senza contattare Zenodo. CI non pubblica mai.",
-            ),
-        ],
-    },
+    // NOTE: `lotus export-pubchem-tree` and `lotus archive` are CLI-only tools
+    // that fetch the entire LOTUS dataset — they are documented in docs/cli.md
+    // and never surfaced in the website's FAQ.
 ];
 
 /// The page's own words: the heading, the standfirst, and the two labels the contents

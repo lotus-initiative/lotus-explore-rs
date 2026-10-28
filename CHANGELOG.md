@@ -23,8 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org).
 - CI workflow `.github/workflows/archive.yml` for scheduled/manual archiving,
   `workflow_dispatch` only, dry-run by default. The `publish` input gates
   the Zenodo push step; CI never sets it.
-- FAQ entries (all four locales) for `cli-export`, `cli-export-pubchem-tree`,
-  and `cli-archive`.
+- FAQ entry (all four locales) for `cli-export`.
+  The `cli-export-pubchem-tree` and `cli-archive` FAQ entries were removed
+  from the website — those are CLI-only tools documented in `docs/cli.md`,
+  not web-app features.
 
 ### Architecture
 
