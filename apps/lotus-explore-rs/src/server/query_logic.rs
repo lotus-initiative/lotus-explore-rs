@@ -143,7 +143,7 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
 /// form that works is the honest version of the same failure.
 ///
 /// # Errors
-/// [`ApiError::BadRequest`] naming the accepted form, for a non-blank reference
+/// `ApiError::BadRequest` naming the accepted form, for a non-blank reference
 /// that is not a QID.
 fn check_reference(reference: &str) -> Result<(), ApiError> {
     let trimmed = reference.trim();

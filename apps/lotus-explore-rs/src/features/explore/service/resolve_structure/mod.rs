@@ -26,7 +26,7 @@
 //! | a name | [`compound_label_query`], then [`compound_alias_query`] | 1 or 2 |
 //! | a SMILES or molfile | [`structure_compound_lookup_query`] | 1 — the service, at a cutoff of 1 |
 //!
-//! This module hands back a [`ResolvedStructure`] and stops; [`build_query`](crate::explore::service::build_query)
+//! This module hands back a [`ResolvedStructure`] and stops; `crate::explore::service::build_query`
 //! picks the route from the mode. A compound the reader named is searched by
 //! identity — no service, no index load — and the two broader modes go to the
 //! service with that compound's own canonical SMILES.

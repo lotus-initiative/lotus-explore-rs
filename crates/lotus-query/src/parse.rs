@@ -265,7 +265,7 @@ pub fn parse_taxon_csv(bytes: &[u8]) -> Result<Vec<TaxonMatch>, ParseError> {
     Ok(matches)
 }
 
-/// Read the `?matched_by` token [`taxon_lookup_query`] binds.
+/// Read the `?matched_by` token [`taxon_lookup_query`](crate::query::taxon_lookup_query) binds.
 ///
 /// Anything that is not the one token it uses for a common name is read as a
 /// scientific name, because that is the safe direction: a notice about a common

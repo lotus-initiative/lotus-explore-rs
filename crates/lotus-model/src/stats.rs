@@ -4,7 +4,7 @@
 use super::CompoundEntry;
 use std::collections::HashSet;
 
-/// `Display` for an enum whose printed form is its [`as_str`](Self::as_str).
+/// `Display` for an enum whose printed form is its `as_str`.
 ///
 /// Every enum here with an `as_str` wants this, and the two that had one written
 /// it out by hand -- which `cargo echoes` reports: the second copy is where the

@@ -67,7 +67,7 @@ pub fn blob_path_message(rows: usize, limit: usize) -> String {
 /// How much RAM assembling one row costs in each format.
 ///
 /// **Measured, not guessed.** Produced by `cargo run -p lotus-query --example
-/// measure_export --release`, which drives the real [`RowExporter`] over a
+/// measure_export --release`, which drives the real `lotus_query::RowExporter` over a
 /// 200,000-row set built from the recorded payload shape and counts the bytes it
 /// emits. Reproduce with that command; the example is the provenance for every
 /// number here.
@@ -273,7 +273,7 @@ pub fn export_trigger_timer_label(format: lotus_query::ExportFormat) -> String {
 ///
 /// A present-but-empty gz field is treated as absent: handing the browser an empty
 /// string makes it download the current page under the results filename. Extracted
-/// from [`crate::download::wasm::api_export_url`] so it can be unit-tested outside
+/// from `crate::download::wasm::api_export_url` so it can be unit-tested outside
 /// the `wasm32`-only module, where a test beside it would never run.
 #[must_use]
 pub fn gz_or_plain_url<'a>(gz: Option<&'a str>, plain: &'a str) -> &'a str {

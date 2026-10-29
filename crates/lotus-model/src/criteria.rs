@@ -45,12 +45,12 @@ pub struct SearchCriteria {
     /// Tanimoto cutoff in 0.0..=1.0, used only for similarity search.
     pub structure_threshold: f64,
     /// Inclusive molecular mass range in daltons; the full span is
-    /// 0.0..=[`MASS_MAX`](crate::MASS_MAX).
+    /// 0.0..=[`MASS_MAX`].
     pub mass_min: f64,
     /// See [`mass_min`](Self::mass_min).
     pub mass_max: f64,
     /// Inclusive publication year range; the full span is
-    /// [`YEAR_MIN`](crate::YEAR_MIN)..=`year_max`.
+    /// [`YEAR_MIN`]..=`year_max`.
     pub year_min: u16,
     /// See [`year_min`](Self::year_min).
     pub year_max: u16,

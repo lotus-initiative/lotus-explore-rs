@@ -6,7 +6,7 @@
 //! query to suit a format is query construction, so it lives next to the query
 //! builders rather than in whichever layer happens to be offering a download.
 //!
-//! [`ResponseFormat`] is deliberately absent: mapping an export format onto a
+//! `lotus_search::ResponseFormat` is deliberately absent: mapping an export format onto a
 //! content-negotiated request is the transport's business, and `lotus-search`
 //! does it with [`From`].
 
