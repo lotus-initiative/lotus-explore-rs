@@ -91,6 +91,10 @@ skip = [
   { name = "wasm-streams" },
   { name = "windows-sys" },
   { name = "winnow" },
+  # tao (desktop) pins windows 0.61 while chrono's iana-time-zone moved to 0.62.
+  { name = "windows-core" },
+  { name = "windows-result" },
+  { name = "windows-strings" },
   # Added with the `desktop` feature, which pulls the WebKit and image stacks and
   # their build-time parsers. Re-audited against the current lockfile; the pairs
   # are two major versions of the same crate, not a second copy of a
