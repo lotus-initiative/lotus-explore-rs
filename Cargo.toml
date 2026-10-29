@@ -65,7 +65,7 @@ tempfile = "3.27"
 thiserror = "2.0"
 tokio = { version = "1", features = ["net", "time"] }
 tower = "0.5"
-tower-http = { version = "0.6", features = ["compression-gzip", "cors", "fs", "request-id", "trace"] }
+tower-http = { version = "0.7", features = ["compression-gzip", "cors", "fs", "request-id", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 urlencoding = "2.1"
