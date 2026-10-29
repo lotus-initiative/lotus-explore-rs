@@ -20,6 +20,25 @@ fn json_reply(status: u16, body: &str) -> (u16, &str) {
     (status, body)
 }
 
+/// Decode a `tar.gz` archive into a map of member name → file contents.
+/// Used by every test that needs to inspect archived files.
+fn decode_archive(archive: &[u8]) -> std::collections::BTreeMap<String, String> {
+    let mut tar = tar::Archive::new(GzDecoder::new(archive));
+    let mut members = std::collections::BTreeMap::new();
+    for entry in tar.entries().expect("tar entries") {
+        let mut entry = entry.expect("tar entry");
+        let name = entry
+            .path()
+            .expect("entry path")
+            .to_string_lossy()
+            .into_owned();
+        let mut contents = String::new();
+        entry.read_to_string(&mut contents).expect("read entry");
+        members.insert(name, contents);
+    }
+    members
+}
+
 fn format_compound(qid: &str) -> String {
     format!("http://www.wikidata.org/entity/{qid}")
 }
@@ -92,19 +111,7 @@ async fn run_archive_fetches_all_pages_and_deduplicates() {
     assert_eq!(summary.parse_errors, 0);
 
     // Verify the tar.gz contains the right members.
-    let mut archive = tar::Archive::new(GzDecoder::new(artifacts.archive.as_slice()));
-    let mut members = std::collections::BTreeMap::new();
-    for entry in archive.entries().expect("tar entries") {
-        let mut entry = entry.expect("tar entry");
-        let name = entry
-            .path()
-            .expect("entry path")
-            .to_string_lossy()
-            .into_owned();
-        let mut contents = String::new();
-        entry.read_to_string(&mut contents).expect("read entry");
-        members.insert(name, contents);
-    }
+    let members = decode_archive(&artifacts.archive);
 
     let smiles_csv = members
         .get("lotus-wikidata-smiles.csv")
@@ -264,19 +271,7 @@ fn write_archive_produces_checksums_and_manifest() {
     )
     .expect("write_archive succeeds");
 
-    let mut archive = tar::Archive::new(GzDecoder::new(artifacts.archive.as_slice()));
-    let mut members = std::collections::BTreeMap::new();
-    for entry in archive.entries().expect("tar entries") {
-        let mut entry = entry.expect("tar entry");
-        let name = entry
-            .path()
-            .expect("entry path")
-            .to_string_lossy()
-            .into_owned();
-        let mut contents = String::new();
-        entry.read_to_string(&mut contents).expect("read entry");
-        members.insert(name, contents);
-    }
+    let members = decode_archive(&artifacts.archive);
 
     let smiles_csv = members
         .get("lotus-wikidata-smiles.csv")

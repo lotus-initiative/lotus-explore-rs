@@ -1256,6 +1256,20 @@ fn count_tree_nodes(tree: &[Value]) -> usize {
     total
 }
 
+/// Insert a recursive child conversion result into `node_content` under the
+/// `"children"` key. Shared by `biological_to_pubchem` and `chemical_to_pubchem`,
+/// which differ only in the conversion function they pass.
+fn insert_children_result(
+    child_nodes: &[Value],
+    convert: impl Fn(&[Value]) -> Value,
+    node_content: &mut Map<String, Value>,
+) {
+    let child_result = convert(child_nodes);
+    if let Some(child_children) = child_result.as_object().and_then(|o| o.get("children")) {
+        node_content.insert("children".to_string(), child_children.clone());
+    }
+}
+
 /// Convert the biological tree to `PubChem` compact format (`name`-as-key).
 fn biological_to_pubchem(tree: &[Value]) -> Value {
     if tree.is_empty() {
@@ -1279,10 +1293,7 @@ fn biological_to_pubchem(tree: &[Value]) -> Value {
         }
 
         if let Some(child_nodes) = node.get("Children").and_then(|v| v.as_array()) {
-            let child_result = biological_to_pubchem(child_nodes);
-            if let Some(child_children) = child_result.as_object().and_then(|o| o.get("children")) {
-                node_content.insert("children".to_string(), child_children.clone());
-            }
+            insert_children_result(child_nodes, biological_to_pubchem, &mut node_content);
         }
 
         if let (Some(ncbi), Some(ncbi_entry)) = (
@@ -1425,10 +1436,7 @@ fn chemical_to_pubchem(tree: &[Value]) -> Value {
         }
 
         if let Some(child_nodes) = node.get("Children").and_then(|v| v.as_array()) {
-            let child_result = chemical_to_pubchem(child_nodes);
-            if let Some(child_children) = child_result.as_object().and_then(|o| o.get("children")) {
-                node_content.insert("children".to_string(), child_children.clone());
-            }
+            insert_children_result(child_nodes, chemical_to_pubchem, &mut node_content);
         }
 
         if let Some(ik) = inchikey {

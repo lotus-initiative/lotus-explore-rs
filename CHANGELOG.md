@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org).
   from the website — those are CLI-only tools documented in `docs/cli.md`,
   not web-app features.
 
+### Refactored
+
+- Fixed two `cargo echoes` approximate context groups: extracted
+  `insert_children_result` (shared child-conversion block in
+  `biological_to_pubchem` and `chemical_to_pubchem`) and `decode_archive`
+  (shared tar.gz decoding in archive tests) to eliminate duplicated code.
+
 ### Architecture
 
 - `docs/SHARING_PLAN.md`: documents the code-sharing plan across the three
