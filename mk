@@ -70,8 +70,18 @@ CONVENTIONAL='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\(
 
 # --- pinned tools -----------------------------------------------------------
 
+# A pinned tool is `crate@version`, or `crate@version:binary` when the binary has
+# another name (`dioxus-cli@0.7.10:dx`). Tools are named `crate` or `crate:binary`.
+spec_crate() { echo "${1%%@*}"; }
+spec_ver() { local rest="${1#*@}"; echo "${rest%%:*}"; }
+spec_tool() {
+    local rest="${1#*@}"
+    case "$rest" in *:*) echo "$(spec_crate "$1"):${rest#*:}" ;; *) spec_crate "$1" ;; esac
+}
+
 tool_version() {
     case "$1" in
+        *:*) "${1#*:}" --version ;;
         typos-cli) typos --version ;;
         zizmor) zizmor --version ;;
         echoes | refquiem) cargo "$1" --version ;;
@@ -94,7 +104,7 @@ require() {
         die "$1 $2 (mk.versions) is required, found '$(tool_version "$1" 2>&1 | head -1)'; run ./mk setup"
 }
 
-require_spec() { require "${1%@*}" "${1#*@}"; }
+require_spec() { require "$(spec_tool "$1")" "$(spec_ver "$1")"; }
 
 require_tools() {
     local spec
@@ -104,7 +114,7 @@ require_tools() {
 spec_of() {
     local spec
     for spec in "${CARGO_TOOLS_CI[@]}" "${CARGO_TOOLS_NIGHTLY[@]}" "${CARGO_TOOLS_EXPERIMENTAL[@]}" "${LOCAL_CARGO_TOOLS[@]}"; do
-        if [ "${spec%@*}" = "$1" ]; then echo "$spec"; return; fi
+        if [ "$(spec_crate "$spec")" = "$1" ]; then echo "$spec"; return; fi
     done
     die "$1 is not pinned in mk.versions"
 }
@@ -144,10 +154,10 @@ install_cargo_tools() {
     command -v cargo-binstall >/dev/null || die "cargo-binstall is required: https://github.com/cargo-bins/cargo-binstall"
     local spec
     for spec in "$@"; do
-        if ! has_version "${spec%@*}" "${spec#*@}"; then
+        if ! has_version "$(spec_tool "$spec")" "$(spec_ver "$spec")"; then
             # Prebuilt when the crate publishes binaries; otherwise build it.
-            cargo binstall --no-confirm --locked --force "$spec" ||
-                cargo install --locked --force "${spec%@*}" --version "${spec#*@}"
+            cargo binstall --no-confirm --locked --force "$(spec_crate "$spec")@$(spec_ver "$spec")" ||
+                cargo install --locked --force "$(spec_crate "$spec")" --version "$(spec_ver "$spec")"
         fi
         require_spec "$spec"
     done
