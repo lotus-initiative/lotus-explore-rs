@@ -8,7 +8,7 @@
 //! either a rich "full" form or PubChem's compact name-as-key form.
 //!
 //! No clock: the timestamp comes from the caller. No UI: the CLI writes the
-//! files. Wasm-clean: all I/O goes through the injected [`Http`] transport.
+//! files. Wasm-clean: all I/O goes through the injected [`lotus_search::Http`] transport.
 
 use std::collections::{HashMap, HashSet};
 

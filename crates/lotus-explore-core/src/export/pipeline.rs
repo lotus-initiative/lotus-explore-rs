@@ -4,7 +4,7 @@
 //! export files.
 //!
 //! The pipeline runs the same queries as `lotus_exporter.py`, but through an
-//! injected [`Http`] transport so a test can drive it against a scripted
+//! injected [`lotus_search::Http`] transport so a test can drive it against a scripted
 //! double instead of the network. Every table is fetched once, indexed by QID,
 //! and joined in memory before the output is streamed row by row.
 //!

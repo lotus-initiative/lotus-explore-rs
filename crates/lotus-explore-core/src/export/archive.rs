@@ -4,7 +4,7 @@
 //! deduplicate by `InChIKey`, and package as tar.gz with manifest and checksums.
 //!
 //! The pipeline runs the same queries as `lotus-wikidata-archive`, but through
-//! an injected [`Http`] transport so a test can drive it against a scripted
+//! an injected [`lotus_search::Http`] transport so a test can drive it against a scripted
 //! double instead of the network. Every page is fetched once, records are
 //! joined in memory before the output is written.
 //!
