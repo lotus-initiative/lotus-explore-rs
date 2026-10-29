@@ -666,7 +666,19 @@ fn compact(body: &[u8]) -> String {
 
 /// The `<title>` of an error page, which is where a gateway puts the reason
 /// (`502 Bad Gateway`). The markup around it says nothing.
-fn html_title(text: &str) -> Option<&str> {
+///
+/// Public so other SPARQL clients reuse it rather than copy it.
+///
+/// ```
+/// assert_eq!(
+///     lotus_search::html_title("<html><title> 502 Bad Gateway </title></html>"),
+///     Some("502 Bad Gateway"),
+///     "the trimmed title"
+/// );
+/// assert_eq!(lotus_search::html_title("plain text"), None, "not markup");
+/// ```
+#[must_use]
+pub fn html_title(text: &str) -> Option<&str> {
     if !text.contains('<') {
         return None;
     }

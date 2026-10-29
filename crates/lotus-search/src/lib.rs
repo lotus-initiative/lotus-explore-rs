@@ -27,7 +27,7 @@ pub use client::{BodyChunks, ChunkFuture, ChunkedBody, Http, HttpResponse, Respo
 pub use error::{FetchError, ResponseFormat, TruncationReason, is_retryable_status};
 pub use execute::{
     Answer, Endpoint, Service, StreamAnswer, execute, execute_streaming,
-    execute_streaming_with_fallback, execute_with_fallback, fetch_url,
+    execute_streaming_with_fallback, execute_with_fallback, fetch_url, html_title,
 };
 pub use result::{ColumnarSearchResult, SearchRequest, SearchResult, TaxonNote, TaxonResolution};
 // Re-exported from `lotus-model` rather than from `search`, where it used to be a
