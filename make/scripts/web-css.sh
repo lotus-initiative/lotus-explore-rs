@@ -10,7 +10,7 @@
 # second copy of the compiler is a second answer to which utilities exist.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
-tw=$(ls -d "$HOME"/.dx/tools/tailwindcss-*/tailwindcss 2>/dev/null | sort -V | tail -1 || true)
+tw=$(printf '%s\n' "$HOME"/.dx/tools/tailwindcss-*/tailwindcss | sort -V | tail -1)
 if [ -z "$tw" ] || [ ! -x "$tw" ]; then
   echo "no tailwind binary under ~/.dx/tools; run './mk web-build' once to install it" >&2
   exit 1

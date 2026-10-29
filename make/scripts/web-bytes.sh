@@ -98,7 +98,7 @@ for file in "${files[@]}"; do
   raw=$(size "$file")
   if [ -f "$file.br" ]; then br=$(size "$file.br"); else br=$raw; fi
   gz=$(gzip -c9 "$file" | wc -c | tr -d ' ')
-  printf '%-38s %10s %10s %10s\n' "$(basename "$file")" "$(kb $raw)" "$(kb $br)" "$(kb $gz)"
+  printf '%-38s %10s %10s %10s\n' "$(basename "$file")" "$(kb "$raw")" "$(kb "$br")" "$(kb "$gz")"
   tot_raw=$(( tot_raw + raw )); tot_br=$(( tot_br + br )); tot_gz=$(( tot_gz + gz ))
 done
 printf '%-38s %10s %10s %10s\n' TOTAL "$(kb $tot_raw)" "$(kb $tot_br)" "$(kb $tot_gz)"
