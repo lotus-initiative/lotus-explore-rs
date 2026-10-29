@@ -91,6 +91,12 @@ skip = [
   { name = "wasm-streams" },
   { name = "windows-sys" },
   { name = "winnow" },
+  # Direct dependencies a major ahead of the copy our upstreams still use:
+  # dirs 6 (tray-icon via dioxus-desktop), gloo-timers 0.3 (dioxus-web),
+  # tower-http 0.6 (reqwest). Drop each once its upstream moves.
+  { name = "dirs" },
+  { name = "gloo-timers" },
+  { name = "tower-http" },
   # tao (desktop) pins windows 0.61 while chrono's iana-time-zone moved to 0.62.
   { name = "windows-core" },
   { name = "windows-result" },
