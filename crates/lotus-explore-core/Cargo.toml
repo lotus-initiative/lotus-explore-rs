@@ -13,6 +13,8 @@ publish = false
 [dependencies]
 # Reading SPARQL CSV result payloads into row maps for the export join.
 csv = { workspace = true }
+# The archive writes a gzip-compressed tar; both are pure Rust and wasm-clean.
+flate2 = { workspace = true }
 # The library crates this half of the application is built on. `lotus-model`
 # holds the vocabulary, `lotus-query` builds the SPARQL, `lotus-search` owns the
 # search use case, `lotus-curation` owns the TSV reader and the curation
@@ -27,8 +29,6 @@ lotus-search = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
-# The archive writes a gzip-compressed tar; both are pure Rust and wasm-clean.
-flate2 = { workspace = true }
 tar = { workspace = true }
 thiserror = { workspace = true }
 urlencoding = { workspace = true }
