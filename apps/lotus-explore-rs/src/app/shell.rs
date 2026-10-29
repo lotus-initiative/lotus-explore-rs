@@ -8,6 +8,7 @@ use crate::components::layout::footer::Footer;
 use crate::components::layout::header_meta::HeaderMetaSection;
 use crate::components::layout::notices::{ErrorNotice, LookupNotice, ShareNotice};
 use crate::components::layout::page_header::PageHeader;
+use crate::components::layout::simple_analytics_badge::SimpleAnalyticsBadge;
 use crate::components::layout::structured_data::StructuredDataHead;
 use crate::components::results_viewport::ResultsViewport;
 use crate::components::welcome::SearchExamples;
@@ -243,6 +244,7 @@ pub fn AppShell() -> Element {
                     class: "w-full max-w-[1600px] mx-auto px-5 pt-[3px] pb-[6px] box-border lg:px-8",
                     Footer {}
                 }
+                SimpleAnalyticsBadge { domain: "lotus-initiative.github.io" }
             }
         }
     }
