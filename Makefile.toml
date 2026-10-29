@@ -92,6 +92,7 @@ dependencies = [
 cwd = "${REPO_ROOT}"
 description = "Install the app's dev tools (dx, cargo-edit, ...); ./mk setup installs the gate tools."
 script = """
+#!/usr/bin/env bash
 set -euo pipefail
 exec bash make/scripts/setup.sh
 """
