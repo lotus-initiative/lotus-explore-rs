@@ -35,6 +35,17 @@ and this project adheres to [Semantic Versioning](https://semver.org).
   `biological_to_pubchem` and `chemical_to_pubchem`) and `decode_archive`
   (shared tar.gz decoding in archive tests) to eliminate duplicated code.
 
+### Fixed
+
+- `clippy::future_not_send` on wasm32: added
+  `#![cfg_attr(target_arch = "wasm32", allow(clippy::future_not_send))]`
+  to `lotus-explore-core`, matching the same allow already present in
+  `lotus-search` and `lotus-curation`. On the browser, `lotus_search::Http`
+  implementations use JS promises (`Rc<RefCell>`) that are `!Send`.
+- `clippy::redundant_pub_crate` in `cache.rs`: changed `pub(crate)` to `pub`
+  in a private module re-export. This was masked by the
+  `future_not_send` compilation failure on wasm32.
+
 ### Architecture
 
 - `docs/SHARING_PLAN.md`: documents the code-sharing plan across the three

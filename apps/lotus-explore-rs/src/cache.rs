@@ -13,4 +13,4 @@
 mod cache_impl;
 
 #[cfg(target_arch = "wasm32")]
-pub(crate) use cache_impl::{store_cached_set, take_cached_set};
+pub use cache_impl::{store_cached_set, take_cached_set};

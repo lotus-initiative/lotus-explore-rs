@@ -2,6 +2,11 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 #![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
+// The export modules (archive, pubchem_tree, pipeline) are generic over
+// `lotus_search::Http`. On wasm32 the browser's promise is `!Send` (holds an `Rc`),
+// so every future that awaits an HTTP call is `!Send` there. Native keeps the
+// guarantee; the deny is worth keeping for the native builds that need it.
+#![cfg_attr(target_arch = "wasm32", allow(clippy::future_not_send))]
 
 //! The LOTUS Explorer's domain logic.
 //!
