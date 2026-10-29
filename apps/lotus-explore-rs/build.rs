@@ -119,6 +119,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let raw = fs::read_to_string(&metadata_path)?;
     let mut metadata: Metadata = serde_json::from_str(&raw)?;
 
+    // The live host, for code that must name it (the analytics badge) without
+    // repeating it: a CNAME change then reaches it through this file.
+    println!("cargo:rustc-env=LOTUS_SITE_HOST={}", hostname(&metadata));
+
     // Sync site metadata directly to WebManifest identity
     metadata.manifest.name = metadata.site.name.clone();
     metadata.manifest.short_name = metadata.site.short_name.clone();

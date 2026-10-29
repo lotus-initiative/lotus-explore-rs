@@ -244,7 +244,7 @@ pub fn AppShell() -> Element {
                     class: "w-full max-w-[1600px] mx-auto px-5 pt-[3px] pb-[6px] box-border lg:px-8",
                     Footer {}
                 }
-                SimpleAnalyticsBadge { domain: "lotus-initiative.github.io" }
+                SimpleAnalyticsBadge { domain: env!("LOTUS_SITE_HOST") }
             }
         }
     }
