@@ -1,0 +1,60 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Only the custom regex managers below; Dependabot covers Cargo and GitHub Actions.",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits"
+  ],
+  "enabledManagers": [
+    "custom.regex"
+  ],
+  "minimumReleaseAge": "7 days",
+  "customManagers": [
+    {
+      "description": "Cargo tools pinned in mk.versions (crate@version)",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^mk\\.versions$/"
+      ],
+      "matchStrings": [
+        "(?<depName>[a-z0-9_-]+)@(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "datasourceTemplate": "crate"
+    },
+    {
+      "description": "Binary tools pinned in mk.versions from GitHub releases",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^mk\\.versions$/"
+      ],
+      "matchStrings": [
+        "# renovate: github-releases (?<depName>\\S+)\\n[A-Z_]+=\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v?(?<version>.*)$"
+    },
+    {
+      "description": "Pinned stable toolchain",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^rust-toolchain\\.toml$/"
+      ],
+      "matchStrings": [
+        "channel = \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "depNameTemplate": "rust-lang/rust",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "description": "cargo-binstall pinned in the setup action",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github/actions/setup/action\\.yml$/"
+      ],
+      "matchStrings": [
+        "tool: (?<depName>cargo-binstall)@(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "datasourceTemplate": "crate"
+    }
+  ]
+}

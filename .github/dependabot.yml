@@ -1,0 +1,24 @@
+# Dependabot: Cargo dependencies and GitHub Actions digests.
+# Renovate (renovate.json) only handles what Dependabot cannot: mk.versions,
+# the rust-toolchain.toml pin and cargo-binstall. No ecosystem is covered twice.
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7 # let a compromised release be caught before we take it
+    commit-message:
+      prefix: "chore(deps)" # Conventional Commits, required by ./mk commits
+
+  - package-ecosystem: "github-actions"
+    directories:
+      - "/"
+      - "/.github/actions/setup"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7 # let a compromised release be caught before we take it
+    commit-message:
+      prefix: "chore(deps)"

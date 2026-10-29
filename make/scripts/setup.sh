@@ -52,24 +52,14 @@ install_tool() {
 }
 
 # Test runner. Without this every other task that mentions tests is wrong.
-install_tool cargo-nextest 0.9.146
 # This task runner. Installing it is a chicken-and-egg for `./mk setup`, which is
 # why the first thing to try is a plain `cargo install`.
-install_tool cargo-make 0.37.24
 
 # Lints and manifest hygiene.
-install_tool cargo-hack 0.6.45       # feature combinations
 install_tool cargo-edit 0.13.13     # `cargo upgrade`, `cargo add`, `cargo rm`
 install_tool cargo-msrv 0.19.3       # the real MSRV, rather than the asserted one
-install_tool typos-cli 1.50.3       # spelling
-install_tool echoes 0.8.1                 # duplicate doctests, functions and context blocks
-install_tool refquiem 0.3.0                 # stale references left behind by renames
 
 # Supply chain.
-install_tool cargo-deny 0.20.2
-install_tool cargo-audit 0.22.2
-install_tool cargo-machete 0.9.2
-install_tool cargo-outdated 0.19.0
 # `cargo geiger` for the transitive unsafe audit, `cargo udeps` for unused
 # dependencies the manifest scan cannot see. Both are on the weekly schedule
 # rather than the gate, so a slow or advisory-heavy one cannot turn the gate red.
@@ -78,8 +68,6 @@ install_tool cargo-udeps 0.1.61
 
 # The nextest integration is what makes the coverage report describe the same run
 # the suite performs.
-install_tool cargo-llvm-cov 0.9.1
-install_tool cargo-mutants 27.1.0
 
 # Build time and the wasm bundle. `twiggy` is superseded by `wasm-opt` for size
 # work and `cargo bloat` for the native binaries, and neither is in the gate.
@@ -91,29 +79,6 @@ install_tool cargo-bloat 0.12.1
 # real binary is a GitHub release, and the version is read from `prek.toml` so
 # the hook and this cannot be pinned to different releases -- the same reasoning
 # as `dx` below.
-TOMBI_VERSION=$(sed -n '/tombi-pre-commit/{n;s/rev = "v\([^"]*\)"/\1/p;}' prek.toml | head -1)
-: "${TOMBI_VERSION:?could not read the tombi version from prek.toml}"
-echo "==> tombi ${TOMBI_VERSION}"
-if ! command -v tombi >/dev/null 2>&1 || [ "$(tombi --version 2>/dev/null)" != "tombi ${TOMBI_VERSION} "* ]; then
-  case "$(uname -s)/$(uname -m)" in
-    Darwin/arm64) tombi_asset="tombi-cli-${TOMBI_VERSION}-aarch64-apple-darwin.tar.gz" ;;
-    Darwin/x86_64) tombi_asset="tombi-cli-${TOMBI_VERSION}-x86_64-apple-darwin.tar.gz" ;;
-    Linux/aarch64|Linux/arm64) tombi_asset="tombi-cli-${TOMBI_VERSION}-aarch64-unknown-linux-musl.tar.gz" ;;
-    Linux/x86_64) tombi_asset="tombi-cli-${TOMBI_VERSION}-x86_64-unknown-linux-musl.tar.gz" ;;
-    *) echo "no tombi release asset for $(uname -s)/$(uname -m)" >&2; exit 1 ;;
-  esac
-  tombi_dir=$(mktemp -d)
-  curl -fsSL --retry 3 --retry-all-errors \
-    "https://github.com/tombi-toml/tombi/releases/download/v${TOMBI_VERSION}/${tombi_asset}" \
-    | tar xz -C "$tombi_dir"
-  command install -m 755 "$tombi_dir"/*/tombi "${CARGO_HOME:-$HOME/.cargo}/bin/tombi"
-  rm -rf "$tombi_dir"
-else
-  echo "    tombi is already ${TOMBI_VERSION}"
-fi
-
-# `dioxus-cli` installs the `dx` binary. `dx` itself is not on crates.io, so
-# `dx@$DX_VERSION` does not resolve; this is the same version, same binary.
 echo "==> dioxus-cli@$DX_VERSION"
 if ! command -v dx >/dev/null 2>&1 || [ "$(dx --version 2>/dev/null || true)" != "$DX_VERSION" ]; then
   cargo install dioxus-cli --version "$DX_VERSION" --locked

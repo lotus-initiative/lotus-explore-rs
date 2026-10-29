@@ -1,0 +1,25 @@
+# cargo-echoes, deepest scan. Read by `./mk echoes` (unknown keys are rejected).
+# Keep an intentional copy with a `// echoes: allow` line above it, with a reason.
+
+functions = true
+context-blocks = true
+# Compare every context of the workspace against every other.
+context-search = "workspace"
+context-select = "workspace"
+
+[context-dependencies]
+# Local code that re-implements an API a direct dependency already exports
+# (normal, dev and build dependencies, optional ones, every feature).
+# Depth 1: deeper levels reach crates echoes 0.10 cannot parse yet (objc,
+# rustix, signal-hook-registry), which makes the analysis incomplete and the
+# gate fail on every repository that has them. Raise it once echoes can.
+all-features = true
+all-optional = true
+depth = 1
+fail-on-findings = true
+include-build = true
+include-dev = true
+# Compare against the locked versions only. Checking each dependency's latest
+# release queries crates.io per package: CI then depends on crates.io's state
+# and its rate limit (HTTP 429 with ~1000 dependencies), not on the code.
+check-latest = false

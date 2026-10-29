@@ -1,8 +1,6 @@
-# Mutation testing. `./mk mutants` covers every library crate in the workspace
+# cargo-mutants config (its default location). `./mk mutants` covers every library crate in the workspace
 # and the CLI/web-assets binaries; this file says why `apps/lotus-explore-rs` is
 # the one omission, so the gap is a decision rather than an oversight.
-# `apps/lotus-explore-rs/tests/gate_consistency.rs` checks the exclusion is
-# still the one stated here.
 #
 # Re-run on 2026-10-05 over `crates/lotus-search/src/execute.rs`, 95 mutants: 71
 # caught, 24 unviable, 8 surviving. Seven of the eight were gaps and are now
@@ -69,8 +67,7 @@
 # an `rswap!`, a literal in a `class` attribute. Killing those means a rendering
 # test per component: large work with a poor ratio. It is `./mk mutants-ui`,
 # opt-in.
-[package.lotus-explore-rs]
-exclude = true
+exclude_globs = ["apps/lotus-explore-rs/**"]
 
 # No mutant survives in lotus-web-assets.
 #

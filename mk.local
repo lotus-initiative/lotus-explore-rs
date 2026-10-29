@@ -1,0 +1,31 @@
+# Repository-specific settings for ./mk. Sourced by ./mk after mk.versions.
+# Everything here belongs to this repository; mk and mk.versions are standard
+# and kept in sync by the template's scripts/adopt.sh.
+#
+# LOCAL_CI_GATES=(task ...)       cargo-make tasks added to ./mk ci (shown as local:task)
+# LOCAL_NIGHTLY_GATES=(task ...)  cargo-make tasks added to ./mk ci-nightly
+# LOCAL_OVERRIDES=(gate=task ...) standard gates run as this repository's own cargo-make
+#                                 task (`gate` alone: same name); say why next to each one
+# LOCAL_SETUP=(task ...)          cargo-make tasks ./mk setup runs in every tier, CI included,
+#                                 for installs LOCAL_CARGO_TOOLS cannot express
+# LOCAL_CARGO_TOOLS=(crate@x.y.z) extra tools, installed and version-checked like mk.versions
+# LOCAL_SYSTEM_PACKAGES=(pkg ...) apt packages ./mk setup installs on CI (Linux runners)
+#
+# Any ./mk task name the standard runner does not know runs that cargo-make task.
+
+LOCAL_CARGO_TOOLS=(cargo-make@0.37.24 cargo-nextest@0.9.146)
+# clippy --all-features compiles the desktop WebView, which links WebKitGTK.
+LOCAL_SYSTEM_PACKAGES=(pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev)
+# Dev tools for working on the app (dx, cargo-edit, ...): ./mk setup-extra
+
+# Standard gates this repository runs its own way.
+LOCAL_OVERRIDES=(
+  test             # nextest over three builds (default, server, desktop) plus doctests
+  wasm=check-wasm  # only the wasm-compatible crates; the CLI and server are native-only
+  mutants          # scoped to the library crates, via nextest, after a preflight
+)
+# Repository gates added to ./mk ci.
+LOCAL_CI_GATES=(license-headers check lint-native-builds boundary lint-wasm metadata opt-levels)
+
+# Ratchet: may only go up (./mk ratchet). Set with ./mk coverage-baseline.
+COVERAGE_FAIL_UNDER_LINES="58"

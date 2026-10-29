@@ -1,26 +1,9 @@
-# Configuration file for `prek`, a git hook framework written in Rust.
-# See https://prek.j178.dev for more information.
-#:schema https://www.schemastore.org/prek.json
-#
-# Every Rust check is a task in `Makefile.toml`; these hooks delegate to it via
-# `./mk <task>`, so there is one source of truth for the cargo flags. When the
-# hooks and the task runner each hardcoded the flags, they disagreed and a check
-# was being run in one place and not the other.
-#
-# `./mk` rather than `cargo make`, and the reason is in that script: cargo-make's
-# workspace support re-runs every task once per crate, so a raw `cargo make` here
-# would run each hook eight times over.
-#
-# `apps/lotus-explore-rs/tests/gate_consistency.rs` holds the three lists --
-# these hooks, the `ci` task, and the CI workflow -- to the same set of checks, and
-# fails the build if they drift. A hook pointing at a task that no longer exists is
-# caught there rather than at the next push.
+# prek hooks. The standard ones only call `./mk`, so hooks, local runs and CI
+# are one gate: fast checks on commit, the whole of `./mk ci` on push.
 
+default_install_hook_types = ["pre-commit", "pre-push"]
 default_stages = ["pre-commit"]
 fail_fast = false
-
-# Pre-commit hooks: fast, block every commit. Text and TOML only -- nothing here
-# compiles Rust, because a hook that takes a minute stops being run.
 
 [[repos]]
 repo = "https://github.com/pre-commit/pre-commit-hooks"
@@ -36,72 +19,14 @@ hooks = [{ id = "end-of-file-fixer", exclude = "(apps/lotus-explore-rs/public/as
 #
 # The `rev` here is the single source of the tombi version: `./mk setup` reads it
 # from this line rather than repeating it.
-[[repos]]
-repo = "https://github.com/tombi-toml/tombi-pre-commit"
-rev = "v1.9.7"
-hooks = [{ id = "tombi-format" }, { id = "tombi-lint" }]
-
-[[repos]]
-repo = "https://github.com/crate-ci/typos"
-rev = "v1.51.1"
-hooks = [{ id = "typos" }]
 
 [[repos]]
 repo = "local"
 hooks = [
-  # Pre-commit (pre-commit stage): seconds, no compilation.
-  # Text-only, so it belongs on the fast path: without it a commit lands with a
-  # missing header and CI rejects it, a pointless round trip.
-  { id = "license-headers", name = "license-headers", language = "system", entry = "./mk license-headers", pass_filenames = false, always_run = true, files = "(?!.*public/assets/).*$" },
-
-  # Pre-push: the gate.
-  # The same set as `./mk ci-fast`. A commit that passes these and fails `./mk ci`
-  # needs a network or a fetched asset; a commit that fails these will fail CI,
-  # which is a slower way to find out.
-  #
-  # `files` is `(?!.*public/assets/).*$` on the hooks that read the source tree,
-  # so a change to a fetched asset -- which is gitignored and not ours -- does not
-  # trigger a full workspace check.
-  { id = "cargo-fmt-check", name = "cargo-fmt-check", language = "system", entry = "./mk fmt-check", pass_filenames = false, always_run = true, stages = ["pre-push"], files = "(?!.*public/assets/).*$" },
-  { id = "tombi-check", name = "tombi-check", language = "system", entry = "./mk tombi-check", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  { id = "tombi-lint", name = "tombi-lint", language = "system", entry = "./mk tombi-lint", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  { id = "cargo-check", name = "cargo-check", language = "system", entry = "./mk check", pass_filenames = false, always_run = true, stages = ["pre-push"], files = "(?!.*public/assets/).*$" },
-  { id = "cargo-clippy", name = "cargo-clippy", language = "system", entry = "./mk lint", pass_filenames = false, always_run = true, stages = ["pre-push"], files = "(?!.*public/assets/).*$" },
-  # The cfg-gated code no other build compiles, which is how the desktop-only and
-  # server-only paths rotted unnoticed.
-  { id = "lint-native-builds", name = "lint-native-builds", language = "system", entry = "./mk lint-native-builds", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  { id = "cargo-test", name = "cargo-test", language = "system", entry = "./mk test", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  # Duplicate doctests, function bodies and the context blocks inside them. Fast
-  # enough (about a second) and compiles nothing, so it could sit at pre-commit
-  # where a duplicated example would be caught before the commit is written. It is
-  # here to match the section's stated rule -- nothing at pre-commit compiles Rust
-  # -- and that rule's cost argument is the only thing arguing against moving it.
-  { id = "cargo-echoes", name = "cargo-echoes", language = "system", entry = "./mk echoes", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  { id = "cargo-boundary", name = "cargo-boundary", language = "system", entry = "./mk boundary", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  # Per-app WASM checks (NOT `--workspace --target wasm32`, which flags
-  # wasm-incompatible code paths in non-WASM crates).
-  { id = "check-wasm", name = "check-wasm", language = "system", entry = "./mk check-wasm", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  { id = "lint-wasm", name = "lint-wasm", language = "system", entry = "./mk lint-wasm", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  { id = "cargo-doc", name = "cargo-doc", language = "system", entry = "./mk doc", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  # Stale references: the source-reading checks that catch a rename's leftovers.
-  # Same shape as the doc task -- reads source and history, compiles nothing --
-  # so it sits at pre-push rather than pre-commit, per the section's stated rule
-  # that nothing at pre-commit compiles Rust.
-  { id = "refquiem", name = "refquiem", language = "system", entry = "./mk refquiem", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-
-  # Supply chain (pre-push only).
-  { id = "cargo-machete", name = "cargo-machete", language = "system", entry = "./mk machete", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  { id = "cargo-deny", name = "cargo-deny", language = "system", entry = "./mk deny", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  { id = "cargo-audit", name = "cargo-audit", language = "system", entry = "./mk audit", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-
-  # The opt-level and the repository metadata `cargo package` depends on are each
-  # declared in three places and built in one; drift here is a silently slow
-  # release.
-  #
-  # `outdated` is here and not in the gate: a dependency being behind is not a
-  # defect, and a hook that fails on it teaches people to skip the hook. It is
-  # also on the weekly workflow, where the answer is a list someone reads.
-  { id = "metadata", name = "metadata", language = "system", entry = "./mk metadata", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  { id = "opt-levels", name = "opt-levels", language = "system", entry = "./mk opt-levels", pass_filenames = false, always_run = true, stages = ["pre-push"] },
-  { id = "cargo-outdated", name = "cargo-outdated", language = "system", entry = "./mk outdated", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  { id = "fmt", name = "./mk fmt", language = "system", entry = "./mk fmt", pass_filenames = false, always_run = true },
+  { id = "tombi", name = "./mk tombi", language = "system", entry = "./mk tombi", pass_filenames = false, always_run = true },
+  { id = "typos", name = "./mk typos", language = "system", entry = "./mk typos", pass_filenames = false, always_run = true },
+  { id = "shell", name = "./mk shell", language = "system", entry = "./mk shell", pass_filenames = false, always_run = true },
+  { id = "license-headers", name = "./mk license-headers", language = "system", entry = "./mk license-headers", pass_filenames = false, always_run = true },
+  { id = "ci", name = "./mk ci", language = "system", entry = "./mk ci", pass_filenames = false, always_run = true, stages = ["pre-push"] },
 ]

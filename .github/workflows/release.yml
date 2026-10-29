@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  GITHUB_TOKEN: ${{ github.token }} # binstall rate limits
+
+jobs:
+  release:
+    name: ./mk ci-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # semver compares with the last tag; commits, ratchet and mutants-diff with the base branch
+          persist-credentials: false
+
+      - name: Setup
+        uses: $/.github/actions/setup
+        with:
+          tier: ci
+          cache: "false" # release builds must not consume a cache other runs could have poisoned
+
+      - name: Run release gates
+        run: ./mk ci-release

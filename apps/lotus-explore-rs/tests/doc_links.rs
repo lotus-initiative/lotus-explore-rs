@@ -183,6 +183,24 @@ fn every_documented_task_exists() -> Result<(), String> {
          a check that finds nothing passes everything"
     );
 
+    // And the standard tasks of `mk` itself (`setup`, `ci`, the gates), which
+    // live in the script rather than a makefile. Asked of `mk`, not copied, so
+    // a task renamed upstream cannot leave this list stale.
+    let listed = std::process::Command::new(root.join("mk"))
+        .arg("--list")
+        .output()
+        .map_err(|e| format!("./mk --list: {e}"))?;
+    let listed = String::from_utf8(listed.stdout).map_err(|e| format!("./mk --list: {e}"))?;
+    let standard: Vec<&str> = listed
+        .lines()
+        .filter(|line| !line.starts_with('(') && !line.starts_with("local:"))
+        .collect();
+    assert!(
+        standard.contains(&"ci"),
+        "./mk --list did not list `ci`, so it is not the standard runner: {listed}"
+    );
+    tasks.extend(standard.into_iter().map(str::to_owned));
+
     let mut missing = Vec::new();
     for name in DOCUMENTS {
         let path = root.join(name);

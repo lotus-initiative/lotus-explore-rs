@@ -6,7 +6,7 @@
 # would be a second answer to what "formatted" means, and the one that loses is
 # whichever a contributor happens not to have installed.
 
-[tasks."fmt"]
+[tasks."format"]
 cwd = "${REPO_ROOT}"
 description = "Format Rust and TOML in place."
 dependencies = ["fmt-rust", "tombi-fmt"]

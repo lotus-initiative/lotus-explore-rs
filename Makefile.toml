@@ -44,36 +44,10 @@ REPO_ROOT = "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}"
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = "true"
 
 # ── The gate ─────────────────────────────────────────────────────────────────
-# `./mk ci` is exactly what .github/workflows/ci.yml runs, in the same
-# order. Everything here needs no network access.
+# `./mk ci` is the rusti-graben standard gate (the `mk` script); it also runs
+# this repository's own gates, listed in `mk.local`. CI runs exactly that.
 
-[tasks."ci"]
-cwd = "${REPO_ROOT}"
-description = "Every check CI runs, in CI's order. No network access needed."
-dependencies = [
-  "fmt-check",
-  "tombi-check",
-  "tombi-lint",
-  "typos",
-  "license-headers",
-  "check",
-  "lint",
-  "lint-native-builds",
-  "test",
-  "echoes",
-  "boundary",
-  "doc",
-  "refquiem",
-  "check-wasm",
-  "lint-wasm",
-  "metadata",
-  "opt-levels",
-  "machete",
-  "deny",
-  "audit",
-]
-
-# The inner loop: `ci-fast` minus the four tasks whose cost is paid whether or not
+# The inner loop: `./mk ci` minus its supply-chain checks and the four tasks whose cost is paid whether or not
 # this change touched them. What that leaves out, and why each is not worth a
 # minute of every iteration:
 #
@@ -89,7 +63,8 @@ dependencies = [
 #   checking anything.
 #
 # Everything that catches a mistake in the code you just wrote is here, and with a
-# warm `target/` it is seconds. Run `ci-fast` before you push; CI runs `ci`.
+# warm `target/` it is seconds. Run `./mk ci` before you push (the pre-push hook
+# does); CI runs the same.
 [tasks."gate"]
 cwd = "${REPO_ROOT}"
 description = "The fast inner loop: everything that can break the change you just made."
@@ -107,46 +82,15 @@ dependencies = [
   # plus wasm-bindgen, which measured 137 of this gate's 189 seconds. It earns its
   # place -- it is the only thing that sees a bad wasm strip, which `cargo check`
   # cannot -- but its failure mode is a broken release artefact rather than a mistake
-  # in the code just written, so it stays in `ci-fast` and `ci` and not in the loop.
+  # in the code just written, so it stays in `./mk ci` and not in the loop.
   "check-wasm-pure",
   "check-wasm-search",
   "check-wasm-app",
 ]
 
-[tasks."ci-fast"]
+[tasks."setup-extra"]
 cwd = "${REPO_ROOT}"
-description = "What a pre-push hook runs: the gate minus the supply-chain checks."
-dependencies = [
-  "fmt-check",
-  "tombi-check",
-  "tombi-lint",
-  "typos",
-  "license-headers",
-  "check",
-  "lint",
-  "lint-native-builds",
-  "test",
-  "boundary",
-  "doc",
-  "check-wasm",
-  "lint-wasm",
-  "metadata",
-  "opt-levels",
-]
-
-# The two CI jobs `ci` leaves out, and why.
-#
-# `mutants` is minutes rather than seconds and its survivors are a to-do list
-# rather than a verdict. `desktop` needs the fetched assets and a `dx` build, so
-# it cannot run on a checkout that has not fetched them.
-[tasks."ci-slow"]
-cwd = "${REPO_ROOT}"
-description = "The slow CI jobs: mutation testing and the desktop build."
-dependencies = ["mutants", "desktop"]
-
-[tasks."setup"]
-cwd = "${REPO_ROOT}"
-description = "Install every tool the other tasks call, at a pinned version."
+description = "Install the app's dev tools (dx, cargo-edit, ...); ./mk setup installs the gate tools."
 script = """
 set -euo pipefail
 exec bash make/scripts/setup.sh

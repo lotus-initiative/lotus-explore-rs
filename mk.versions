@@ -1,0 +1,19 @@
+# Single source of truth for every pinned tool and ratchet. Sourced by ./mk.
+# `./mk setup` installs exactly these; every gate refuses a missing or
+# mismatched tool, so local and CI cannot drift. Renovate proposes bumps
+# (see renovate.json), except for RUST_NIGHTLY, which is bumped by hand.
+
+# Nightly is only used for miri (nightly tier).
+RUST_NIGHTLY="nightly-2026-10-28"
+
+# crate@version, installed with cargo-binstall (prebuilt where available).
+CARGO_TOOLS_CI=(typos-cli@1.51.1 cargo-deny@0.20.2 cargo-audit@0.22.2 cargo-machete@0.9.2 cargo-semver-checks@0.51.0 echoes@0.10.1 zizmor@1.31.1 cargo-mutants@27.1.0)
+CARGO_TOOLS_NIGHTLY=(cargo-llvm-cov@0.9.1 cargo-hack@0.6.45 cargo-outdated@0.19.0)
+# Experimental gates, installed by `./mk setup all|experimental`; not enforced.
+CARGO_TOOLS_EXPERIMENTAL=(refquiem@0.3.2)
+
+# Not on crates.io; installed from their GitHub releases.
+# renovate: github-releases tombi-toml/tombi
+TOMBI_VERSION="1.9.7"
+# renovate: github-releases koalaman/shellcheck
+SHELLCHECK_VERSION="0.11.0"

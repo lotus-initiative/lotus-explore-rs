@@ -7,13 +7,14 @@ which the web app, the `lotus` CLI and the tests all share.
 
 ## Quick commands
 
-- `./mk setup` — install all tools at pinned versions (run once)
+- `./mk setup` — install the gate tools at pinned versions (run once; `./mk setup-extra` adds dx and other dev tools)
 - `./mk gate`  — fast inner loop: fmt, tombi, typos, licence-headers, check,
   clippy, nextest, wasm type-checks (seconds, warms `target/`)
-- `./mk ci`    — full gate: everything CI runs, in order, no network access
-- `./mk --list-all-steps` — the authoritative task list
+- `./mk ci`    — full gate: everything CI runs, in order (the rusti-graben
+  standard gates plus this repository's own, listed in `mk.local`)
+- `./mk ci-nightly` — mutation testing, coverage floor, feature powerset, miri, outdated
+- `./mk --list` — the authoritative task list (any other name runs that cargo-make task)
 - `./mk test`  — nextest suite + doctests (`cargo test --doc`)
-- `./mk ci-fast` — the gate minus supply-chain checks
 - `./mk cli`   — run the lotus CLI (pass args after `--`)
 
 ## Where things live

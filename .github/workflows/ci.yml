@@ -1,164 +1,43 @@
-# The CI gate.
-#
-# Every job here runs a task through `./mk`, the same command a contributor runs.
-# The task definitions live in `Makefile.toml` and `make/*.toml`, and the local gate
-# is `./mk ci`, so there is one list of what "green" means and this file is the
-# runner for it. When the workflow and the local command each spelled out the cargo
-# flags, they drifted, and a check that was supposed to run locally did not.
-#
-# `./mk` and not `cargo make` because cargo-make's workspace support re-runs every
-# task once per crate -- eight times here. `mk` holds `--no-workspace`; see the
-# comment in that file.
-#
-# `apps/lotus-explore-rs/tests/gate_consistency.rs` checks that this file, the `ci`
-# task and `prek.toml` name the same set of checks, and fails the build if they do
-# not.
-#
-# Actions are pinned by SHA, not by tag, so a tag that moves cannot change what
-# runs on a pull request from a fork. The comment on each pin is the tag.
-
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
+    branches: [main, master]
 
-# Least privilege. Nothing here writes to the repository, creates a release or
-# reads a secret, so `contents: read` is the whole grant.
 permissions:
   contents: read
 
-# A superseded run on the same ref is cancelled: the older run has nothing left to
-# say once a newer push lands.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
-defaults:
-  run:
-    shell: bash
 
 env:
   CARGO_TERM_COLOR: always
-  # Every warning is an error. The lint task also passes `-D warnings`; this is
-  # what covers rustc's own default-warn group, which that flag does not reach
-  # for build scripts and proc macros.
-  RUSTFLAGS: "-D warnings"
+  GITHUB_TOKEN: ${{ github.token }} # binstall rate limits
 
 jobs:
-  # The gate.
-  # One job that runs `./mk ci`. Deliberately not eleven jobs: the reason the
-  # eleven existed was to report *which* check failed, and a JUnit artifact plus a
-  # named step does that without eleven toolchain installs, eleven cargo caches and
-  # eleven chances for the runner to be the slow part.
   ci:
-    name: Gate
+    name: ./mk ci
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
-      # `fetch-depth: 0`, not the 1 a bare checkout uses: the `refquiem` task
-      # reads the git history reachable from HEAD and compares it with the
-      # working tree, so a shallow checkout has only its own tip and the scan
-      # has nothing older than its own tip to call "removed".
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-        with: { persist-credentials: false, fetch-depth: 0 }
-
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # One key shared by every job on the branch, so the first job to run
-          # pays for compiling the dependency graph and the rest reuse it. The
-          # default is per-job, which shares nothing.
-          shared-key: ci
+          fetch-depth: 0 # semver compares with the last tag; commits, ratchet and mutants-diff with the base branch
+          persist-credentials: false
 
-      # The toolchain is pinned in `rust-toolchain.toml` and rustup reads that
-      # file, so this step does not repeat the version: a job that named it
-      # here as well is a second answer to which compiler is in use.
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+      - name: Setup
+        uses: $/.github/actions/setup
         with:
-          toolchain: 1.99.0
-          components: clippy, rustfmt, llvm-tools-preview
-          targets: wasm32-unknown-unknown
+          tier: ci
 
-      # `./mk ci` runs clippy with `--all-features`, and `desktop` is one of the app's
-      # features, so the gate compiles a WebView. `glib-sys` shells out to
-      # `pkg-config` for `glib-2.0 >= 2.70`, which a plain runner does not have, so
-      # the gate died in `lint` on a system library rather than on the code.
-      #
-      # The desktop job installs these for the same reason; this is that job's list
-      # minus `ripgrep`, which only the desktop job's `verify-bundle` task uses.
-      - name: Install the WebKitGTK build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev \
-            libayatana-appindicator3-dev librsvg2-dev libxdo-dev
-
-      # The tools the gate calls. `./mk ci` fails on a missing one rather than skipping
-      # it, which is deliberate: a supply-chain check silently absent on a machine
-      # where it is not installed is a check that reports nothing about the code.
-      # `echoes` is the crate; `cargo-echoes` is the binary it installs.
-      # `install-action` takes crate names, so naming the binary 404s here.
-      # Deliberately outside the `tool:` block below: install-action reads a `#`
-      # line inside one as a tool name, which is the third bug this file records.
-      #
-      # Pinned, unlike every tool above, because the version decides *whether the
-      # gate checks anything*: the function and context checks are opt-in behind
-      # `--functions` and `--context-blocks`, so the set of checks and their
-      # default thresholds move between releases. `setup.sh` pins the same
-      # version: a check that reads differently depending on where it runs is not
-      # the same check. `refquiem` is pinned the same way, because a release that
-      # stopped reporting stale mentions would make this gate lie.
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
-        with:
-          tool: |
-            cargo-binstall
-            cargo-make
-            cargo-nextest
-            typos-cli
-            cargo-deny
-            cargo-audit
-            cargo-machete
-            echoes@0.8.1
-            refquiem@0.3.0
-
-      # tombi is not installable through `install-action`. `tombi-cli` is a
-      # 0.0.1 placeholder on crates.io with no binary in it, so install-action
-      # falls back to cargo-binstall, which fails the step with "no binaries
-      # specified nor inferred". The real tool ships as a GitHub release.
-      #
-      # `setup-tombi` is the maintained installer for it, and it verifies a
-      # checksum, which a hand-rolled `curl | tar` here would not. Pinned to the
-      # tag rather than a SHA because that is what the project's own tags are
-      # for; `binary-checksum` pins the artifact itself.
-      # The pin above is the *installer* and does not move with the tool: the
-      # `version:` below is the tombi release it fetches. That number used to be
-      # written out here as well, and `ci_installs_the_tombi_version_the_hook_uses`
-      # existed only to catch the two drifting apart -- which meant every tombi bump
-      # was two edits and a gate test red until both were made.
-      #
-      # So it is read, not repeated: `prek.toml` is the single source for the
-      # version, exactly as its own comment claims, and this step extracts the rev
-      # from that line. There is nothing left to keep in sync, and
-      # `ci_installs_the_tombi_version_the_hook_uses` now asserts the indirection
-      # instead of comparing two literals that had to be typed twice.
-      - name: Read the tombi version from prek.toml
-        id: tombi
-        run: |
-          rev=$(sed -n '/tombi-pre-commit/{n;s/^rev = "v//;s/"$//;p;}' prek.toml)
-          test -n "$rev" || { echo "prek.toml has no tombi-pre-commit rev"; exit 1; }
-          echo "version=$rev" >> "$GITHUB_OUTPUT"
-
-      - uses: tombi-toml/setup-tombi@6a484780a454f9973b13c65729c14e7afb696ae8 # v1.7.0
-        with:
-          version: ${{ steps.tombi.outputs.version }}
-
-      - name: ./mk ci
+      - name: Run blocking gates
         run: ./mk ci
 
-      # Without this a failure is a red dot and a scrollback. The path is set in
-      # `.config/nextest.toml` as `junit.path`, so the file lands under a
-      # per-profile store directory next to the build output.
+      # nextest writes a JUnit report (see .config/nextest.toml), so a failure names its test.
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4
         if: always()
         with:
@@ -167,86 +46,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # Coverage.
-  # A separate job because it rebuilds the crate graph under instrumentation and is
-  # therefore minutes, and because coverage on every push is a number nobody reads
-  # until they want it.
-  coverage:
-    name: Coverage
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    needs: ci
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-        with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8
-        with: { shared-key: ci }
-      # `llvm-tools-preview` is in `rust-toolchain.toml`; named again here because
-      # cargo-llvm-cov needs it and a runner that somehow lacks it should say so
-      # here rather than in a coverage report.
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
-        with: { toolchain: 1.99.0, components: llvm-tools-preview }
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
-        with:
-          tool: |
-            cargo-binstall
-            cargo-make
-            cargo-nextest
-            cargo-llvm-cov
-      - run: ./mk cov
-
-      # Codecov, from the `lcov.info` that `./mk cov` now writes beside the HTML.
-      # Pinned by SHA like every other action here, so a tag that moves cannot
-      # change what runs on a pull request.
-      #
-      # `fail_ci_if_error: false` is the default and is set deliberately. This step
-      # needs `secrets.CODECOV_TOKEN`, and until that secret exists the upload finds
-      # no token. A coverage upload is not a correctness gate -- a red X on the
-      # commit because a secret is missing teaches people to ignore red Xs, and the
-      # next thing they ignore is a real failure. So a missing token costs the
-      # badge, not the build.
-      - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
-        with:
-          files: target/llvm-cov-report/lcov.info
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-
-      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4
-        with:
-          name: coverage-report
-          path: target/llvm-cov-report/
-          retention-days: 14
-
-  # MSRV
-  # The `rust-version` in the root manifest is a claim; this is the job that checks
-  # it. It runs the gate on the oldest toolchain the workspace claims to support,
-  # which is the toolchain a downstream consumer is holding.
-  msrv:
-    name: MSRV (1.97)
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-        with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8
-        with: { shared-key: msrv }
-      # Deliberately NOT the pinned toolchain: this job exists to build with the oldest
-      # supported one, and `rust-toolchain.toml` would override it.
-      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
-        with: { toolchain: 1.97 }
-        env:
-          RUSTUP_TOOLCHAIN: 1.97
-      # nextest but *not* cargo-make: `./mk` inherits the pinned toolchain from
-      # `rust-toolchain.toml`, which is exactly what this job must not use, so the
-      # two commands are spelled out rather than delegated.
-      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
-        with:
-          tool: |
-            cargo-binstall
-            cargo-nextest
-      - run: cargo check --workspace --all-targets --locked
-      - run: cargo nextest run --workspace --locked --no-fail-fast
-
+  # Repository jobs beyond the standard gate: they need fetched assets, a `dx`
+  # build or Docker, so they are not part of `./mk ci`.
   # The desktop build: the one target nothing else builds. Every desktop-only bug so
   # far -- an unstyled window, a no-op download, a 404 for the toolkit -- compiled
   # cleanly, because no other job enabled the feature.

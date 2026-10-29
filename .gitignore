@@ -19,3 +19,5 @@ crates/lotus-web-assets/public/
 GEMINI.md
 *.agent-scratch*
 .ignore
+lcov.info
+mutants.out*/

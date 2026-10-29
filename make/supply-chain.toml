@@ -4,18 +4,6 @@
 # a different question: not "is this correct" but "is what this depends on still
 # correct, still licensed compatibly, and still maintained".
 
-[tasks."machete"]
-cwd = "${REPO_ROOT}"
-description = "Find declared dependencies that are never used."
-script = """
-set -e
-if ! command -v cargo-machete >/dev/null 2>&1; then
-  echo "cargo-machete is not installed; run './mk setup'" >&2
-  exit 1
-fi
-cargo machete
-"""
-
 # `cargo udeps` as well as `cargo machete`: machete is fast and reads the
 # manifest, udeps is slow and needs nightly because it looks at what the compiler
 # actually emitted. The second question is the one that catches a dependency used
@@ -32,48 +20,6 @@ if ! command -v cargo-udeps >/dev/null 2>&1; then
   exit 1
 fi
 cargo +nightly udeps --workspace --all-targets
-"""
-
-[tasks."deny"]
-cwd = "${REPO_ROOT}"
-description = "Check advisories, duplicate versions, licenses and sources."
-script = """
-set -e
-if ! command -v cargo-deny >/dev/null 2>&1; then
-  echo "cargo-deny is not installed; run './mk setup'" >&2
-  exit 1
-fi
-cargo deny check advisories bans licenses sources
-"""
-
-[tasks."audit"]
-cwd = "${REPO_ROOT}"
-description = "Check the lockfile against the RustSec advisory database."
-script = """
-set -e
-if ! command -v cargo-audit >/dev/null 2>&1; then
-  echo "cargo-audit is not installed; run './mk setup'" >&2
-  exit 1
-fi
-cargo audit \
-  --ignore RUSTSEC-2026-0367 \
-  --ignore RUSTSEC-2026-0368 \
-  --ignore RUSTSEC-2026-0369
-"""
-
-# Not a gate: a version being behind is not a defect, and a task that fails on it
-# trains people to ignore the task. This is on the weekly schedule, where the
-# answer is a list someone reads.
-[tasks."outdated"]
-cwd = "${REPO_ROOT}"
-description = "List direct dependencies with a newer release available."
-script = """
-set -e
-if ! command -v cargo-outdated >/dev/null 2>&1; then
-  echo "cargo-outdated is not installed; run './mk setup'" >&2
-  exit 1
-fi
-cargo outdated --workspace --root-deps-only
 """
 
 # Applied but not committed. Separate from `outdated` because only one of the two
@@ -95,7 +41,7 @@ script = "cargo upgrade --incompatible --workspace"
 # the root manifest is arrived at, and `msrv-verify` catches a bump that
 # overstates it. `cargo msrv` takes a subcommand in 0.19 -- the bare
 # `--workspace` form older docs show is an error, not a default.
-[tasks."msrv"]
+[tasks."msrv-find"]
 cwd = "${REPO_ROOT}"
 description = "Find the lowest toolchain the workspace actually builds on."
 script = "cargo msrv find"
