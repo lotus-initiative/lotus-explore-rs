@@ -39,6 +39,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8
         with:
@@ -57,16 +58,19 @@ jobs:
         run: cargo build --release -p lotus-cli
 
       - name: Run archive (dry-run, no Zenodo contact)
+        env:
+          OUTPUT_DIR: ${{ inputs.output_dir }}
         run: |
-          ./target/release/lotus archive --output "${{ inputs.output_dir }}"
+          ./target/release/lotus archive --output "$OUTPUT_DIR"
 
       - name: Publish to Zenodo
         if: ${{ inputs.publish == true }}
         env:
           ZENODO_TOKEN: ${{ secrets.ZENODO_TOKEN }}
           SOURCE_CODE_URL: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+          OUTPUT_DIR: ${{ inputs.output_dir }}
         run: |
-          ./target/release/lotus archive --output "${{ inputs.output_dir }}" --publish --creator "CI"
+          ./target/release/lotus archive --output "$OUTPUT_DIR" --publish --creator "CI"
 
       - name: Upload archive artifacts
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4

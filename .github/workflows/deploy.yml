@@ -153,8 +153,10 @@ jobs:
       # amount of inspecting the export can prove. Pages can take a moment to
       # propagate, so retry before failing the deploy.
       - name: Verify the deployed catalog is fetchable
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
-          url="${{ steps.deployment.outputs.page_url }}/.well-known/ai-catalog.json"
+          url="$PAGE_URL/.well-known/ai-catalog.json"
           for attempt in 1 2 3 4 5 6; do
             code=$(curl -sL -o /dev/null -w '%{http_code}' "$url" || true)
             if [ "$code" = "200" ]; then
