@@ -167,7 +167,7 @@ unused_must_use = "deny"
 # how fast they are. Incremental is on, which is the default, and the incremental
 # cache is not shared with `test`.
 [profile.dev]
-debug = 1
+debug = "line-tables-only"
 
 # The shipped wasm bundle and the desktop binary.
 #

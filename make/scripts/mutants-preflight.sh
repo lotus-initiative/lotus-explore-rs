@@ -41,8 +41,14 @@ if [[ -d "$ROOT/target" ]]; then
   target_gb=$((target_kb / 1024 / 1024))
 fi
 
-ram_gb="$(($(sysctl -n hw.memsize) / 1024 / 1024 / 1024))"
-cores="$(sysctl -n hw.ncpu 2>/dev/null || echo '?')"
+# RAM and cores: `sysctl` on macOS, /proc/meminfo and nproc on Linux (CI).
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  ram_gb="$(($(sysctl -n hw.memsize) / 1024 / 1024 / 1024))"
+  cores="$(sysctl -n hw.ncpu 2>/dev/null || echo '?')"
+else
+  ram_gb="$(awk '/^MemTotal:/ { print int($2 / 1024 / 1024) }' /proc/meminfo)"
+  cores="$(nproc 2>/dev/null || echo '?')"
+fi
 
 # Free swap as an integer number of MB, or -1 where it cannot be read. macOS
 # reports it in `vm.swapusage`; Linux needs /proc/meminfo, where "SwapTotal" and

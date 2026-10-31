@@ -34,12 +34,19 @@ fn serve(response: &'static str) -> u16 {
     std::thread::spawn(move || {
         for stream in listener.incoming() {
             let Ok(mut stream) = stream else { break };
-            // Read the request line so the client is not refused mid-write, then
-            // answer. Not reading is what makes a client report a transport error
-            // rather than a status.
+            // Read the whole request header (up to its blank line) before
+            // answering. Closing a socket with unread request bytes sends a TCP
+            // reset, and a slow client (a coverage build) can then see a
+            // transport error instead of the status.
+            let mut reader = BufReader::new(&stream);
             let mut line = String::new();
-            if BufReader::new(&stream).read_line(&mut line).is_err() {
-                break;
+            loop {
+                line.clear();
+                match reader.read_line(&mut line) {
+                    Ok(0) | Err(_) => break,
+                    Ok(_) if line == "\r\n" || line == "\n" => break,
+                    Ok(_) => {}
+                }
             }
             let _ = stream.write_all(response.as_bytes());
             let _ = stream.flush();

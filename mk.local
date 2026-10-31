@@ -31,3 +31,7 @@ LOCAL_CI_GATES=(license-headers check lint-native-builds boundary lint-wasm meta
 
 # Ratchet: may only go up (./mk ratchet). Set with ./mk coverage-baseline.
 COVERAGE_FAIL_UNDER_LINES="58"
+# miri on the crates without I/O in their tests: the app, CLI, search and asset
+# crates spawn processes or open sockets, and lotus-curation's tests drive an async
+# HTTP transport, none of which miri can run.
+MIRI_PACKAGES=(lotus-model lotus-query lotus-jsonld)

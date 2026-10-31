@@ -20,7 +20,10 @@ LOCAL_OVERRIDES=()      # standard gates this repository runs as its own cargo-m
 LOCAL_SETUP=()          # cargo-make tasks ./mk setup runs in every tier (installs mk cannot pin)
 LOCAL_CARGO_TOOLS=()    # extra crate@version tools, pinned like mk.versions
 LOCAL_SYSTEM_PACKAGES=() # apt packages ./mk setup installs on CI (Linux runners)
+MIRI_PACKAGES=()        # crates miri tests (default: the whole workspace)
 COVERAGE_FAIL_UNDER_LINES=100
+ECHOES_MAX_APPROXIMATE=0 # legacy approximate duplicate blocks (ratchet: only down)
+ECHOES_MAX_REUSE=0       # legacy dependency-reuse opportunities (ratchet: only down)
 # shellcheck source=mk.local
 if [ -f mk.local ]; then . ./mk.local; fi
 
@@ -50,7 +53,8 @@ skip() {
 }
 
 has_lib() { cargo metadata --no-deps --format-version 1 --locked | grep -q '"kind":\["lib"\]'; }
-has_wasm() { grep -q 'wasm32' rust-toolchain.toml Cargo.toml 2>/dev/null; }
+# Declared outside comments (the template's toolchain file mentions it in one).
+has_wasm() { grep -Eq '^[^#]*wasm32' rust-toolchain.toml Cargo.toml 2>/dev/null; }
 msrv() { sed -n 's/^rust-version *= *"\([^"]*\)".*/\1/p' Cargo.toml | head -1; }
 
 # Branch this work merges into: MK_BASE, the PR base on CI, origin/HEAD, origin/main, origin/master.
@@ -201,7 +205,7 @@ done
 case "$cmd" in
     --list | --list-all-steps)
         printf '%s\n' setup tools "${CI_GATES[@]}" "${NIGHTLY_GATES[@]}" "${EXPERIMENTAL_GATES[@]}" \
-            ci ci-nightly ci-release ci-experimental coverage-baseline selftest | sort -u
+            ci ci-nightly ci-release ci-experimental coverage-baseline echoes-baseline selftest | sort -u
         for t in "${LOCAL_CI_GATES[@]}" "${LOCAL_NIGHTLY_GATES[@]}"; do echo "local:$t"; done
         if [ -f Makefile.toml ]; then echo "(any other name runs that cargo-make task)"; fi
         ;;
@@ -251,12 +255,22 @@ case "$cmd" in
         shellcheck --external-sources --severity=style "${scripts[@]}"
         ;;
     ratchet)
-        # The coverage floor in mk.local may only go up relative to the base branch.
+        # The ratchets in mk.local may only tighten relative to the base branch:
+        # the coverage floor goes up, the echoes legacy counts go down.
         base="$(base_ref)" || skip "no base branch to compare with (set MK_BASE)"
-        old="$( (git show "$(git merge-base "$base" HEAD):mk.local" 2>/dev/null || true) | sed -n 's/^COVERAGE_FAIL_UNDER_LINES="*\([0-9]*\)"*/\1/p')"
-        [ -n "$old" ] || skip "no ratchet on $base yet"
-        [ "$COVERAGE_FAIL_UNDER_LINES" -ge "$old" ] ||
+        base_local="$(git show "$(git merge-base "$base" HEAD):mk.local" 2>/dev/null || true)"
+        [ -n "$base_local" ] || skip "no mk.local on $base yet"
+        old_value() { sed -n "s/^$1=\"*\([0-9]*\)\"*.*/\1/p" <<<"$base_local"; }
+        old="$(old_value COVERAGE_FAIL_UNDER_LINES)"
+        if [ -n "$old" ] && [ "$COVERAGE_FAIL_UNDER_LINES" -lt "$old" ]; then
             die "COVERAGE_FAIL_UNDER_LINES went down from $old to $COVERAGE_FAIL_UNDER_LINES"
+        fi
+        for key in ECHOES_MAX_APPROXIMATE ECHOES_MAX_REUSE; do
+            old="$(old_value "$key")"
+            if [ -n "$old" ] && [ "${!key}" -gt "$old" ]; then
+                die "$key went up from $old to ${!key}"
+            fi
+        done
         ;;
     commits)
         base="$(base_ref)" || skip "no base branch to compare with (set MK_BASE)"
@@ -311,7 +325,41 @@ case "$cmd" in
         done
         grep -Eq '^depth = [1-9]' .echoes.toml || die ".echoes.toml must set [context-dependencies] depth > 0"
         if [ "${GITHUB_ACTIONS:-}" = true ]; then set -- --github; fi
-        cargo echoes --all-targets --config .echoes.toml "$@"
+        # --no-fail: the counts are judged here, against the ratchet in mk.local.
+        # An incomplete analysis still exits non-zero and fails the gate.
+        rc=0
+        out="$(cargo echoes --all-targets --config .echoes.toml --no-fail "$@" 2>&1)" || rc=$?
+        printf '%s\n' "$out"
+        [ "$rc" = 0 ] || die "echoes could not complete its analysis (exit $rc)"
+        count() { grep -oE "[0-9]+ $1" <<<"$out" | head -1 | cut -d' ' -f1; }
+        exact="$(count 'duplicated groups')"
+        approximate="$(count 'approximate groups')"
+        reuse="$(count 'dependency reuse')"
+        [ -n "$exact" ] && [ -n "$approximate" ] && [ -n "$reuse" ] || die "could not read the echoes summary"
+        [ "$exact" = 0 ] || die "$exact exact duplicate group(s): delete all but one copy"
+        [ "$approximate" -le "$ECHOES_MAX_APPROXIMATE" ] ||
+            die "$approximate approximate duplicate groups, more than ECHOES_MAX_APPROXIMATE=$ECHOES_MAX_APPROXIMATE in mk.local"
+        [ "$reuse" -le "$ECHOES_MAX_REUSE" ] ||
+            die "$reuse dependency reuse opportunities, more than ECHOES_MAX_REUSE=$ECHOES_MAX_REUSE in mk.local"
+        if [ "$approximate" -lt "$ECHOES_MAX_APPROXIMATE" ] || [ "$reuse" -lt "$ECHOES_MAX_REUSE" ]; then
+            echo "note: lower the echoes ratchet in mk.local to approximate=$approximate reuse=$reuse (./mk echoes-baseline)"
+        fi
+        ;;
+    echoes-baseline)
+        # Adoption: record today's legacy echoes counts as the ratchet (exact duplicates stay 0).
+        out="$(MK_NESTED=0 "$0" echoes 2>&1 || true)"
+        approximate="$(grep -oE '[0-9]+ approximate groups' <<<"$out" | head -1 | cut -d' ' -f1)"
+        reuse="$(grep -oE '[0-9]+ dependency reuse' <<<"$out" | head -1 | cut -d' ' -f1)"
+        [ -n "$approximate" ] && [ -n "$reuse" ] || die "could not read the echoes summary"
+        for kv in "ECHOES_MAX_APPROXIMATE=$approximate" "ECHOES_MAX_REUSE=$reuse"; do
+            key="${kv%%=*}"
+            if grep -q "^$key=" mk.local 2>/dev/null; then
+                sed -i.bak "s/^$key=.*/$kv/" mk.local && rm mk.local.bak
+            else
+                printf '%s\n' "$kv" >>mk.local
+            fi
+        done
+        echo "echoes ratchet: approximate=$approximate reuse=$reuse (mk.local)"
         ;;
     refquiem)
         # Experimental: not in any tier until refquiem matures (see EXPERIMENTAL_GATES).
@@ -368,7 +416,17 @@ case "$cmd" in
         echo "COVERAGE_FAIL_UNDER_LINES: $COVERAGE_FAIL_UNDER_LINES -> $pct (the ratchet gate rejects a decrease against the base branch)"
         ;;
     powerset) need cargo-hack; cargo hack --workspace --feature-powerset --no-dev-deps check ;;
-    miri) cargo "+$RUST_NIGHTLY" miri test --workspace --all-features --locked ;;
+    miri)
+        # Undefined behaviour, not sandboxing: tests may read the clock and the
+        # environment. MIRI_PACKAGES in mk.local limits it to the crates where
+        # it means something (miri cannot spawn processes or open sockets).
+        export MIRIFLAGS="${MIRIFLAGS:--Zmiri-disable-isolation}"
+        if [ "${#MIRI_PACKAGES[@]}" -gt 0 ]; then
+            cargo "+$RUST_NIGHTLY" miri test --all-features --locked "${MIRI_PACKAGES[@]/#/--package=}"
+        else
+            cargo "+$RUST_NIGHTLY" miri test --workspace --all-features --locked
+        fi
+        ;;
     outdated) need cargo-outdated; cargo outdated --workspace --root-deps-only --exit-code 1 ;;
     ci) run_tier ci "${CI_GATES[@]}" "${LOCAL_CI_GATES[@]/#/local:}" ;;
     ci-nightly) run_tier ci-nightly "${NIGHTLY_GATES[@]}" "${LOCAL_NIGHTLY_GATES[@]/#/local:}" ;;
