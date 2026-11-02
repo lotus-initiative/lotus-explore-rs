@@ -73,7 +73,19 @@ pub trait HttpResponse {
     fn text(self) -> impl Future<Output = Result<String, FetchError>>;
 
     /// Read the next chunk of the body, or `None` at end of input.
-    fn chunk(&mut self) -> impl Future<Output = Result<Option<ResponseBody>, FetchError>>;
+    ///
+    /// The default refuses: a transport whose response has no incremental read
+    /// of its own -- the browser's -- streams through [`Self::into_chunks`]
+    /// instead, and needs no stub to say so.
+    ///
+    /// # Errors
+    /// Returns [`FetchError::Network`] if this transport reads bodies only
+    /// through [`Self::into_chunks`], which the default implementation always does.
+    fn chunk(&mut self) -> impl Future<Output = Result<Option<ResponseBody>, FetchError>> {
+        std::future::ready(Err(FetchError::Network(
+            "incremental reads go through `into_chunks` here".into(),
+        )))
+    }
 
     /// Take the response apart so its body can be read in chunks.
     ///

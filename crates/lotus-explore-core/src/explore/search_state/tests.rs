@@ -308,3 +308,47 @@ fn a_new_search_clears_the_previous_progress() {
         "the previous search's count would otherwise read as this one's"
     );
 }
+
+#[test]
+fn a_new_search_forgets_the_previous_result_and_records_its_criteria() {
+    let mut state = default_state();
+    state.result.sparql_query = Some(Arc::from("SELECT 1"));
+    state.result.total_matches = Some(7);
+    state.result.filters.taxon = "lutea".to_owned();
+    let snapshot = SearchCriteria {
+        taxon: "Fungi".into(),
+        ..SearchCriteria::up_to_year(2026)
+    };
+
+    let next = reduce(
+        state,
+        ExploreAction::SearchRequested {
+            criteria_snapshot: snapshot.clone(),
+            command: SearchCommand::Interactive,
+        },
+    );
+
+    assert_eq!(next.result, ResultDataState::default());
+    assert_eq!(next.ui.executed_criteria, snapshot);
+}
+
+#[test]
+fn column_filters_are_replaced_and_then_cleared() {
+    let filters = crate::filters::ColumnFilters {
+        compound: "gentian".to_owned(),
+        mass_min: Some(100.0),
+        ..crate::filters::ColumnFilters::empty()
+    };
+
+    let changed = reduce(
+        default_state(),
+        ExploreAction::FiltersChanged(filters.clone()),
+    );
+    assert_eq!(changed.result.filters, filters);
+
+    let cleared = reduce(changed, ExploreAction::FiltersCleared);
+    assert_eq!(
+        cleared.result.filters,
+        crate::filters::ColumnFilters::empty()
+    );
+}

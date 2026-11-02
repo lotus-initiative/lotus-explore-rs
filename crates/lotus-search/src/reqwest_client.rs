@@ -132,31 +132,15 @@ impl HttpResponse for reqwest::Response {
             .map_err(|e| FetchError::Network(e.to_string()))
     }
 
-    // The wasm `Response` has no inherent `chunk`, so this exists to satisfy the
-    // trait and is never called: the streaming path goes through `into_chunks`.
-    //
-    // `HttpResponse` is an async-fn-in-trait, so `async fn` is the spelling the
-    // trait requires; there is nothing to await because nothing runs.
-    #[cfg(target_arch = "wasm32")]
-    #[expect(
-        clippy::unused_async_trait_impl,
-        reason = "HttpResponse is an AFIT, and this wasm stub is never called"
-    )]
-    async fn chunk(&mut self) -> Result<Option<ResponseBody>, FetchError> {
-        Err(FetchError::Network(
-            "incremental reads go through `into_chunks` here".into(),
-        ))
-    }
-
     fn into_chunks(self) -> Result<ChunkedBody, FetchError> {
         #[cfg(target_arch = "wasm32")]
         {
             // `bytes_stream` is the browser's `ReadableStream` underneath, so the
             // body arrives already decompressed and in pieces. That is exactly
             // what is wanted: the decompressed payload is never in one piece.
-            Ok(Box::new(WasmChunks {
+            Ok(Box::new(wasm::WasmChunks {
                 inner: Box::pin(self.bytes_stream()),
-                bytes_read: 0,
+                progress: ReadProgress::default(),
             }))
         }
 
@@ -164,7 +148,7 @@ impl HttpResponse for reqwest::Response {
         {
             Ok(Box::new(NativeChunks {
                 response: self,
-                bytes_read: 0,
+                progress: ReadProgress::default(),
             }))
         }
     }
@@ -182,21 +166,50 @@ impl HttpResponse for reqwest::Response {
 /// think for a while before the first byte of a wide answer.
 pub const STREAM_STALL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(45);
 
-/// Why a transport error is not being reported as one.
+/// How far a streamed body has got, and what a failure at that point means.
 ///
-/// A read that fails before a single byte arrived is a connection problem, and
-/// repeating the request is free. The same error after a megabyte has arrived is
-/// a body that died mid-transfer, and repeating the request re-sends all of it
-/// to reach the same point. The caller can only act differently if the two are
-/// distinguishable, which is the whole reason this is a function.
-fn classify_read_failure(bytes_read: u64, message: String) -> FetchError {
-    if bytes_read > 0 {
-        FetchError::Truncated {
-            bytes_read,
-            reason: TruncationReason::ClosedEarly,
+/// The one piece of logic both platforms' readers share. It lives here rather
+/// than in each reader because the wasm reader is not compiled into a native
+/// test binary: kept there, a mistake in the count could only be found in a
+/// browser, while here the native suite reaches it.
+#[derive(Debug, Default)]
+struct ReadProgress {
+    bytes_read: u64,
+}
+
+impl ReadProgress {
+    /// Count a chunk that arrived, and hand it on.
+    const fn arrived(&mut self, chunk: Option<ResponseBody>) -> Option<ResponseBody> {
+        if let Some(bytes) = &chunk {
+            self.bytes_read += bytes.len() as u64;
         }
-    } else {
-        FetchError::Network(message)
+        chunk
+    }
+
+    /// A body that went quiet for longer than [`STREAM_STALL_TIMEOUT`].
+    const fn stalled(&self) -> FetchError {
+        FetchError::Truncated {
+            bytes_read: self.bytes_read,
+            reason: TruncationReason::Stalled,
+        }
+    }
+
+    /// Why a transport error is not being reported as one.
+    ///
+    /// A read that fails before a single byte arrived is a connection problem, and
+    /// repeating the request is free. The same error after a megabyte has arrived is
+    /// a body that died mid-transfer, and repeating the request re-sends all of it
+    /// to reach the same point. The caller can only act differently if the two are
+    /// distinguishable, which is the whole reason this is a function.
+    fn failed(&self, message: String) -> FetchError {
+        if self.bytes_read > 0 {
+            FetchError::Truncated {
+                bytes_read: self.bytes_read,
+                reason: TruncationReason::ClosedEarly,
+            }
+        } else {
+            FetchError::Network(message)
+        }
     }
 }
 
@@ -205,7 +218,7 @@ fn classify_read_failure(bytes_read: u64, message: String) -> FetchError {
 #[cfg(not(target_arch = "wasm32"))]
 struct NativeChunks {
     response: reqwest::Response,
-    bytes_read: u64,
+    progress: ReadProgress,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -214,63 +227,19 @@ impl BodyChunks for NativeChunks {
         Box::pin(async {
             let chunk = tokio::time::timeout(STREAM_STALL_TIMEOUT, self.response.chunk())
                 .await
-                .map_err(|_| FetchError::Truncated {
-                    bytes_read: self.bytes_read,
-                    reason: TruncationReason::Stalled,
-                })?
-                .map_err(|e| classify_read_failure(self.bytes_read, e.to_string()))?;
-            if let Some(bytes) = &chunk {
-                self.bytes_read += bytes.len() as u64;
-            }
-            Ok(chunk)
+                .map_err(|_| self.progress.stalled())?
+                .map_err(|e| self.progress.failed(e.to_string()))?;
+            Ok(self.progress.arrived(chunk))
         })
     }
 }
 
-/// Wasm streaming: `reqwest`'s `ReadableStream` as a `Stream` of `Bytes`.
+// The browser's half lives in its own file because it is never compiled into a
+// native test binary, so `.cargo/mutants.toml` can exclude it by path instead of
+// by line number.
 #[cfg(target_arch = "wasm32")]
-struct WasmChunks {
-    inner: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseBody, reqwest::Error>>>>,
-    bytes_read: u64,
-}
-
-#[cfg(target_arch = "wasm32")]
-impl BodyChunks for WasmChunks {
-    fn next_chunk(&mut self) -> ChunkFuture<'_> {
-        Box::pin(async {
-            use futures::StreamExt as _;
-            // Read the counter before `next` borrows the stream, so the error
-            // can say how far the body got.
-            let bytes_read = self.bytes_read;
-            let next = self.inner.next();
-            // `gloo-timers` counts whole milliseconds in a `u32`, where `tokio`
-            // takes a `Duration`. Saturating rather than `as`, so a value past
-            // the ceiling would wrap to a near-instant timeout rather than a
-            // near-infinite one.
-            let millis = u32::try_from(STREAM_STALL_TIMEOUT.as_millis()).unwrap_or(u32::MAX);
-            let idle = gloo_timers::future::TimeoutFuture::new(millis);
-            futures::pin_mut!(next);
-            // `select` is biased to its first argument, so a chunk that lands in
-            // the same tick as the deadline wins. That ordering is the whole
-            // point: the deadline must not eat data that has already arrived.
-            match futures::future::select(next, idle).await {
-                futures::future::Either::Left((chunk, _idle)) => {
-                    let chunk = chunk
-                        .transpose()
-                        .map_err(|e| classify_read_failure(bytes_read, e.to_string()))?;
-                    if let Some(bytes) = &chunk {
-                        self.bytes_read += bytes.len() as u64;
-                    }
-                    Ok(chunk)
-                }
-                futures::future::Either::Right((_elapsed, _next)) => Err(FetchError::Truncated {
-                    bytes_read,
-                    reason: TruncationReason::Stalled,
-                }),
-            }
-        })
-    }
-}
+#[path = "reqwest_client/wasm.rs"]
+mod wasm;
 
 fn build() -> Result<reqwest::Client, String> {
     #[cfg(target_arch = "wasm32")]

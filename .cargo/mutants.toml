@@ -28,19 +28,17 @@
 # `std::env::set_var` cannot on this toolchain. Killing mutants for these three
 # filters is now covered by tests in `execute::tests`.
 #
-#   execute.rs: replace < with <= in `execute` and in `execute_streaming`
+#   (Removed) execute.rs: replace < with <= in `execute` and in `execute_streaming`
 #
-# Equivalent. On the last iteration `<=` is also true, so the body stores the
-# error, sleeps out the backoff, lets the loop end and returns `last`, the error
-# from that same last attempt. Identical error, identical request count, one
-# wasted 400 ms.
+# Was equivalent: on the last iteration `<=` stored the error, slept out the
+# backoff and returned that same error. Closed on 2026-11-02 by `with_retry`
+# retrying all but the last attempt in a loop and making the last one outside it,
+# which leaves no comparison to mutate and no unreachable fallback error.
 #
-#   execute.rs: replace backoff with () in the `#[cfg(target_arch = "wasm32")]`
-#   backoff
+#   (Moved) execute.rs: replace backoff with () in the wasm `backoff`
 #
-# Not observable from a native run: the `cfg` means none of that function is
-# compiled into the test binary. The same edit to the native twin *is* caught, by
-# `a_retry_waits_before_it_happens`. Killing this one needs a browser test.
+# Not observable from a native run: none of it is compiled into the test binary.
+# It now lives in `execute/wasm.rs`, excluded by path below.
 #
 # Recorded on 2026-09-30: 947 mutants, 645 caught, 297 unviable, 5 surviving --
 # all five introduced by splitting fetch-assets, all five since killed.
@@ -67,7 +65,55 @@
 # an `rswap!`, a literal in a `class` attribute. Killing those means a rendering
 # test per component: large work with a poor ratio. It is `./mk mutants-ui`,
 # opt-in.
-exclude_globs = ["apps/lotus-explore-rs/**"]
+#
+# lotus-search keeps its browser-only code in files named `wasm.rs`
+# (`execute/wasm.rs`, `reqwest_client/wasm.rs`): `#[cfg(target_arch = "wasm32")]`
+# keeps all of it out of a native test binary, so no mutant there is observable
+# from a cargo-mutants run. A file rather than a line-numbered regex, because the
+# native twins share their names and must stay mutated.
+exclude_globs = ["apps/lotus-explore-rs/**", "crates/lotus-search/src/**/wasm.rs"]
+
+# Mutants no test can kill, kept out of every run. Each one says why.
+#
+#   lotus-explore-core explore/types.rs: `DomainError::memory_limit` and the
+#   `MemoryLimit` arms
+#
+# `#[cfg(target_arch = "wasm32")]`: cargo-mutants builds and tests natively, so
+# the mutated code is never compiled into the test binary -- the same reason the
+# wasm `backoff` in lotus-search could not be killed. Needs a browser test.
+#
+#   lotus-explore-core export/archive.rs: replace < with <= in `preferred_over`
+#
+# Equivalent. `<=` differs only when the candidate's (smiles, wikidata_id)
+# equals the current record's; the kind check above it makes the kind equal too,
+# and the InChIKey is the map key, so the two records are identical and keeping
+# either changes nothing.
+#
+#   lotus-model columnar.rs: replace == with != in `ColumnarBuilder::grow_references`
+#
+# With the `NO_VALUE` guard inverted, a row without a reference grows the
+# reference columns to `u32::MAX` slots: tens of gigabytes, allocated until the
+# test timeout or the machine gives out. No test can fail on it sooner, because
+# the allocation is the failure; it surfaced as a TIMEOUT on 2026-11-02, and a
+# memory bomb is not something a mutation run should be asked to set off.
+#
+#   lotus-search reqwest_client.rs: replace `build` with Ok(Default::default())
+#
+# The native client differs from `reqwest::Client::default()` only in timeouts,
+# pool sizes and keepalive. Observing any of them takes a test that waits out an
+# 8 s connect timeout or a 2 min request timeout, or that leans on reqwest's
+# internal timers under a paused tokio clock -- slow or fragile either way.
+exclude_re = [
+  "DomainError::memory_limit",
+  "MemoryLimit",
+  "replace < with <= in preferred_over",
+  "replace == with != in ColumnarBuilder::grow_references",
+  "replace build -> Result<reqwest::Client, String> with Ok",
+]
+
+# nextest is what the suite runs under elsewhere, and a mutant evaluated against
+# a different harness is evaluated against a different suite.
+test_tool = "nextest"
 
 # No mutant survives in lotus-web-assets.
 #

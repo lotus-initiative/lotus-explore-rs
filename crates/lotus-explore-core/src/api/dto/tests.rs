@@ -67,3 +67,77 @@ fn normalize_statement_strips_wikidata_prefix() {
     );
     assert_eq!(normalize_statement(Some("   ".to_string())), None);
 }
+
+#[test]
+fn request_builder_sends_trimmed_text_fields_and_omits_blank_ones() {
+    let filled = SearchCriteria {
+        taxon: "  Gentiana lutea ".into(),
+        reference: " 10.1000/xyz ".into(),
+        formula_exact: " C15H10O5 ".into(),
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    let request = SearchRequest::from_criteria(&filled, 10, false, YEAR);
+    assert_eq!(request.taxon.as_deref(), Some("Gentiana lutea"));
+    assert_eq!(request.reference.as_deref(), Some("10.1000/xyz"));
+    assert_eq!(request.formula_exact.as_deref(), Some("C15H10O5"));
+
+    let blank = SearchCriteria {
+        taxon: "   ".into(),
+        reference: " ".into(),
+        formula_exact: "  ".into(),
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    let request = SearchRequest::from_criteria(&blank, 10, false, YEAR);
+    assert_eq!(request.taxon, None);
+    assert_eq!(request.reference, None);
+    assert_eq!(request.formula_exact, None);
+}
+
+#[test]
+fn request_builder_sends_a_threshold_only_for_a_similarity_search_with_a_structure() {
+    let request_for = |structure: &str, structure_search| {
+        let criteria = SearchCriteria {
+            taxon: "*".into(),
+            structure: structure.into(),
+            structure_search,
+            structure_threshold: 0.85,
+            ..SearchCriteria::up_to_year(YEAR)
+        };
+        SearchRequest::from_criteria(&criteria, 10, false, YEAR).structure_threshold
+    };
+
+    assert_eq!(request_for("CCO", SmilesSearchType::Similarity), Some(0.85));
+    assert_eq!(request_for("CCO", SmilesSearchType::Exact), None);
+    assert_eq!(request_for("CCO", SmilesSearchType::Substructure), None);
+    assert_eq!(request_for("  ", SmilesSearchType::Similarity), None);
+}
+
+#[test]
+fn server_stats_become_dataset_stats_counter_for_counter() {
+    let counted = SearchStats {
+        n_compounds: 3,
+        n_taxa: 4,
+        n_references: 5,
+        n_entries: Some(12),
+        n_entries_unique: Some(9),
+    };
+    assert_eq!(
+        DatasetStats::from(counted),
+        DatasetStats {
+            n_compounds: 3,
+            n_taxa: 4,
+            n_references: 5,
+            n_entries: 12,
+            n_entries_unique: 9,
+        }
+    );
+
+    let uncounted = SearchStats {
+        n_compounds: 1,
+        n_taxa: 1,
+        n_references: 1,
+        n_entries: Some(7),
+        n_entries_unique: None,
+    };
+    assert_eq!(DatasetStats::from(uncounted).n_entries_unique, 7);
+}

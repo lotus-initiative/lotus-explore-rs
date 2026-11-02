@@ -622,29 +622,16 @@ pub async fn resolve_structure<H: Http>(
     if is_qid(trimmed) {
         compounds.push(trimmed.to_ascii_uppercase());
     } else if looks_like_inchikey(trimmed) {
-        compounds.extend(
-            lookup_compounds(http, &compound_inchikey_query(trimmed))
-                .await?
-                .into_iter()
-                .map(|c| c.qid),
-        );
         // The lookup projects the canonical SMILES, so a name or InChIKey that
-        // resolves hands back the structure to search with for free.
-        if let Some(first) = canonical_smiles_of(http, &compound_inchikey_query(trimmed)).await? {
-            canonical = Some(first);
-        }
+        // resolves hands back the structure to search with for free. This used
+        // to send the same query a second time to read it.
+        let by_key = lookup_compounds(http, &compound_inchikey_query(trimmed)).await?;
+        canonical = first_canonical_smiles(&by_key);
+        compounds.extend(by_key.into_iter().map(|c| c.qid));
     } else if lotus_model::could_be_a_compound_name(trimmed) {
         let by_label = lookup_compounds(http, &compound_label_query(trimmed)).await?;
-        compounds.extend(by_label.iter().map(|c| c.qid.clone()));
-        if let Some(first) = by_label.iter().find_map(|c| {
-            if c.canonical_smiles.is_empty() {
-                None
-            } else {
-                Some(c.canonical_smiles.clone())
-            }
-        }) {
-            canonical = Some(first);
-        }
+        canonical = first_canonical_smiles(&by_label);
+        compounds.extend(by_label.into_iter().map(|c| c.qid));
         if compounds.is_empty() {
             compounds.extend(
                 lookup_compounds(http, &compound_alias_query(trimmed))
@@ -669,16 +656,17 @@ pub async fn resolve_structure<H: Http>(
     })
 }
 
-/// The canonical SMILES from a compound lookup, which projects one per row.
+/// The first canonical SMILES a compound lookup found, skipping rows without one.
 ///
-/// # Errors
-/// Returns [`FetchError`] if the lookup cannot be run or read.
-async fn canonical_smiles_of<H: Http>(http: &H, query: &str) -> Result<Option<String>, FetchError> {
-    Ok(lookup_compounds(http, query)
-        .await?
-        .into_iter()
-        .map(|c| c.canonical_smiles)
-        .find(|s| !s.is_empty()))
+/// Several stereoisomers can share a label, and the first may have no structure
+/// recorded: handing its empty SMILES on would ask the structure service for
+/// nothing.
+fn first_canonical_smiles(found: &[lotus_query::CompoundMatch]) -> Option<String> {
+    found
+        .iter()
+        .map(|c| &c.canonical_smiles)
+        .find(|s| !s.is_empty())
+        .cloned()
 }
 
 /// Run a compound-lookup query and parse its rows.

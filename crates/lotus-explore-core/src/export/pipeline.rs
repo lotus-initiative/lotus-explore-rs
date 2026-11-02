@@ -16,11 +16,11 @@ use std::collections::HashMap;
 use std::io::Write;
 
 use lotus_query::{
-    QLEVER_WIKIDATA, extract_qid, query_compound_cid, query_compound_smiles_can,
-    query_compound_smiles_iso, query_compound_taxon_reference, query_reference_date,
-    query_reference_doi, query_reference_journal, query_reference_pmcid, query_reference_pmid,
-    query_reference_title, query_taxon_gbif, query_taxon_name, query_taxon_ncbi, query_taxon_ott,
-    query_taxon_parent, query_taxon_rank,
+    COMPOUND_CID_QUERY, COMPOUND_SMILES_CAN_QUERY, COMPOUND_SMILES_ISO_QUERY,
+    COMPOUND_TAXON_REFERENCE_QUERY, QLEVER_WIKIDATA, REFERENCE_DATE_QUERY, REFERENCE_DOI_QUERY,
+    REFERENCE_JOURNAL_QUERY, REFERENCE_PMCID_QUERY, REFERENCE_PMID_QUERY, REFERENCE_TITLE_QUERY,
+    TAXON_GBIF_QUERY, TAXON_NAME_QUERY, TAXON_NCBI_QUERY, TAXON_OTT_QUERY, TAXON_PARENT_QUERY,
+    TAXON_RANK_QUERY, extract_qid,
 };
 use lotus_search::{Endpoint, FetchError, Http, ResponseFormat, execute_streaming};
 use thiserror::Error;
@@ -437,7 +437,7 @@ pub async fn run_lotus_exporter<H: Http>(
     let triplets = fetch_csv_rows(
         http,
         &endpoint,
-        &query_compound_taxon_reference(),
+        COMPOUND_TAXON_REFERENCE_QUERY,
         "compound_taxon_reference",
     )
     .await?;
@@ -447,41 +447,39 @@ pub async fn run_lotus_exporter<H: Http>(
     let smiles_can = fetch_csv_rows(
         http,
         &endpoint,
-        &query_compound_smiles_can(),
+        COMPOUND_SMILES_CAN_QUERY,
         "compound_smiles_can",
     )
     .await?;
     let smiles_iso = fetch_csv_rows(
         http,
         &endpoint,
-        &query_compound_smiles_iso(),
+        COMPOUND_SMILES_ISO_QUERY,
         "compound_smiles_iso",
     )
     .await?;
-    let cids = fetch_csv_rows(http, &endpoint, &query_compound_cid(), "compound_cid").await?;
+    let cids = fetch_csv_rows(http, &endpoint, COMPOUND_CID_QUERY, "compound_cid").await?;
     let compounds = build_compound_index(&smiles_can, &smiles_iso, &cids);
 
     // 3. Taxon properties.
-    let names = fetch_csv_rows(http, &endpoint, &query_taxon_name(), "taxon_name").await?;
-    let ncbis = fetch_csv_rows(http, &endpoint, &query_taxon_ncbi(), "taxon_ncbi").await?;
-    let otts = fetch_csv_rows(http, &endpoint, &query_taxon_ott(), "taxon_ott").await?;
-    let gbifs = fetch_csv_rows(http, &endpoint, &query_taxon_gbif(), "taxon_gbif").await?;
-    let parents = fetch_csv_rows(http, &endpoint, &query_taxon_parent(), "taxon_parent").await?;
-    let ranks = fetch_csv_rows(http, &endpoint, &query_taxon_rank(), "taxon_rank").await?;
+    let names = fetch_csv_rows(http, &endpoint, TAXON_NAME_QUERY, "taxon_name").await?;
+    let ncbis = fetch_csv_rows(http, &endpoint, TAXON_NCBI_QUERY, "taxon_ncbi").await?;
+    let otts = fetch_csv_rows(http, &endpoint, TAXON_OTT_QUERY, "taxon_ott").await?;
+    let gbifs = fetch_csv_rows(http, &endpoint, TAXON_GBIF_QUERY, "taxon_gbif").await?;
+    let parents = fetch_csv_rows(http, &endpoint, TAXON_PARENT_QUERY, "taxon_parent").await?;
+    let ranks = fetch_csv_rows(http, &endpoint, TAXON_RANK_QUERY, "taxon_rank").await?;
     let taxa = build_taxon_index(&names, &ncbis, &otts, &gbifs, &parents, &ranks);
 
     // 4. Reference properties.
-    let dois = fetch_csv_rows(http, &endpoint, &query_reference_doi(), "reference_doi").await?;
-    let pmids = fetch_csv_rows(http, &endpoint, &query_reference_pmid(), "reference_pmid").await?;
-    let pmc_ids =
-        fetch_csv_rows(http, &endpoint, &query_reference_pmcid(), "reference_pmcid").await?;
-    let titles =
-        fetch_csv_rows(http, &endpoint, &query_reference_title(), "reference_title").await?;
-    let dates = fetch_csv_rows(http, &endpoint, &query_reference_date(), "reference_date").await?;
+    let dois = fetch_csv_rows(http, &endpoint, REFERENCE_DOI_QUERY, "reference_doi").await?;
+    let pmids = fetch_csv_rows(http, &endpoint, REFERENCE_PMID_QUERY, "reference_pmid").await?;
+    let pmc_ids = fetch_csv_rows(http, &endpoint, REFERENCE_PMCID_QUERY, "reference_pmcid").await?;
+    let titles = fetch_csv_rows(http, &endpoint, REFERENCE_TITLE_QUERY, "reference_title").await?;
+    let dates = fetch_csv_rows(http, &endpoint, REFERENCE_DATE_QUERY, "reference_date").await?;
     let journals = fetch_csv_rows(
         http,
         &endpoint,
-        &query_reference_journal(),
+        REFERENCE_JOURNAL_QUERY,
         "reference_journal",
     )
     .await?;

@@ -30,3 +30,20 @@ fn action_preserves_criteria_and_command() {
         _ => panic!("expected SearchRequested action"),
     }
 }
+
+#[test]
+fn direct_download_follows_the_command_and_the_token_is_the_one_attached() {
+    let request = |command| SearchRequest::new(SearchCriteria::up_to_year(2026), command);
+
+    assert!(request(SearchCommand::StartupDownload).direct_download());
+    assert!(!request(SearchCommand::Interactive).direct_download());
+    assert!(!request(SearchCommand::StartupExecute).direct_download());
+
+    assert_eq!(request(SearchCommand::Interactive).request_token(), 0);
+    assert_eq!(
+        request(SearchCommand::Interactive)
+            .with_request_token(42)
+            .request_token(),
+        42
+    );
+}

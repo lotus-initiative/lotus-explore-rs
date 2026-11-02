@@ -8,16 +8,10 @@
 use crate::client::{ChunkedBody, Http, HttpResponse};
 use crate::error::{FetchError, ResponseFormat};
 use crate::{QLEVER_WIKIDATA, WDQS_SCHOLARLY, WDQS_WIKIDATA};
-#[cfg(target_arch = "wasm32")]
-use js_sys::Promise;
 use lotus_query::FallbackService;
 use std::fmt::Write as _;
 use std::ops::AsyncFn;
 use std::time::Duration;
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::JsValue;
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen_futures::JsFuture;
 
 /// How many times a request is sent before giving up. One retry covers a
 /// dropped connection; more would just multiply load on an endpoint that is
@@ -218,30 +212,17 @@ where
     H: Http,
     Run: AsyncFn(&H, &str, &str, ResponseFormat) -> Result<T, FetchError>,
 {
-    let mut last = None;
-
-    for attempt in 1..=MAX_ATTEMPTS {
+    // Every attempt but the last may be retried; the last one's result is the
+    // answer, whatever it is. Written this way rather than as one loop with an
+    // `attempt < MAX_ATTEMPTS` test, which left an equivalent `<=` mutant and an
+    // error value for a case that could not happen.
+    for _ in 1..MAX_ATTEMPTS {
         match run(http, target, query, format).await {
-            Ok(value) => return Ok(value),
-            Err(err) => {
-                // `<` rather than `<=` is an equivalent surviving mutant, recorded so it
-                // need not be rediscovered. `attempt <= MAX_ATTEMPTS` is true on the last
-                // iteration too, so the body takes one more branch: store the error, sleep
-                // out the backoff, let the `for` run out, then return `last` -- the error
-                // from that same last attempt, identical to the value the line below
-                // returns. Same error, same request count, one wasted 400 ms. `<` is meant:
-                // the last attempt's failure is the answer.
-                let worth_retrying = err.is_retryable() && attempt < MAX_ATTEMPTS;
-                if !worth_retrying {
-                    return Err(err);
-                }
-                last = Some(err);
-                backoff(RETRY_BACKOFF).await;
-            }
+            Err(err) if err.is_retryable() => backoff(RETRY_BACKOFF).await,
+            result => return result,
         }
     }
-
-    Err(last.unwrap_or(FetchError::Empty))
+    run(http, target, query, format).await
 }
 
 /// Run `query` against `QLever`, falling back to WDQS when the endpoint is
@@ -740,35 +721,13 @@ async fn backoff(duration: Duration) {
     tokio::time::sleep(duration).await;
 }
 
-/// The wasm counterpart, which yields instead of waiting.
-///
-/// Awaiting a resolved promise is the platform's own "resume on the next turn of
-/// the event loop", and a retry loop driven from a single-threaded browser
-/// runtime needs it: a chain of requests that resolve without ever handing
-/// control back would block the page. It costs a turn of the loop instead of the
-/// backoff, which is the right trade on a network failure.
-///
-/// Not the legacy timer, which was here first and **panicked in the browser**: on
-/// `wasm32-unknown-unknown` it falls back to the unimplemented `std::time::Instant`, so the
-/// failure read `time not implemented on this platform` from inside a retry -- reached only
-/// once a request had already failed, exactly when nobody is watching the console. The
-/// build was green and the app died on its first network error.
+// The wasm counterpart lives in its own file: it is never compiled into a native
+// test binary, so `.cargo/mutants.toml` excludes it by path rather than by line.
 #[cfg(target_arch = "wasm32")]
-async fn backoff(_duration: Duration) {
-    // A client that cannot reach the endpoint will not reach it in a millisecond either, and
-    // blocking the browser's only thread to find that out is worse than retrying at once.
-    // A resolved promise is the platform's own "run this on the next turn of the event
-    // loop", and awaiting one is how a future yields on a single-threaded browser runtime.
-    // The `Result` cannot be awaited usefully: an already-resolved promise does not reject,
-    // and there is nothing here for a failure to abort.
-    //
-    // Mutating *this* body survives a native run, and that is not a gap in the tests:
-    // `cfg(target_arch = "wasm32")` keeps none of it in the test binary, so no mutation of it
-    // is observable from one. The same edit to the `#[cfg(not(target_arch = "wasm32"))]`
-    // twin above *is* caught, by `a_retry_waits_before_it_happens`. Killing this one takes a
-    // browser test, which is what `wasm-bindgen-test` is for.
-    let _ = JsFuture::from(Promise::resolve(&JsValue::UNDEFINED)).await;
-}
+#[path = "execute/wasm.rs"]
+mod wasm;
+#[cfg(target_arch = "wasm32")]
+use wasm::backoff;
 
 impl From<lotus_query::ExportFormat> for ResponseFormat {
     /// An export format names the shape the caller wants; the transport names

@@ -115,3 +115,7 @@ pub fn criteria_to_filters_value(criteria: &SearchCriteria, year: u16) -> Value 
 
     Value::Object(filters)
 }
+
+#[cfg(test)]
+#[path = "filters/tests.rs"]
+mod tests;

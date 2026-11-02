@@ -13,15 +13,15 @@ mod query;
 
 pub use bulk_export::{
     ARCHIVE_PAGE_SIZE, ARCHIVE_SMILES_QUERY, ARCHIVE_SMILES_WITHOUT_INCHIKEY_QUERY,
-    QLEVER_WIKIDATA, WIKIDATA_ENTITY_PREFIX, archive_page, extract_qid,
-    looks_like_archive_inchikey, query_compound_cid, query_compound_cxsmiles,
-    query_compound_inchikey_taxon, query_compound_label, query_compound_parent,
-    query_compound_smarts, query_compound_smiles_can, query_compound_smiles_can_all,
-    query_compound_smiles_iso, query_compound_smiles_iso_all, query_compound_taxon_reference,
-    query_reference_date, query_reference_doi, query_reference_doi_compound_taxon,
-    query_reference_journal, query_reference_pmcid, query_reference_pmid,
-    query_reference_pmid_compound_taxon, query_reference_title, query_taxon_gbif, query_taxon_name,
-    query_taxon_ncbi, query_taxon_ott, query_taxon_parent, query_taxon_rank,
+    COMPOUND_CID_QUERY, COMPOUND_CXSMILES_QUERY, COMPOUND_INCHIKEY_TAXON_QUERY,
+    COMPOUND_LABEL_QUERY, COMPOUND_PARENT_QUERY, COMPOUND_SMARTS_QUERY,
+    COMPOUND_SMILES_CAN_ALL_QUERY, COMPOUND_SMILES_CAN_QUERY, COMPOUND_SMILES_ISO_ALL_QUERY,
+    COMPOUND_SMILES_ISO_QUERY, COMPOUND_TAXON_REFERENCE_QUERY, QLEVER_WIKIDATA,
+    REFERENCE_DATE_QUERY, REFERENCE_DOI_COMPOUND_TAXON_QUERY, REFERENCE_DOI_QUERY,
+    REFERENCE_JOURNAL_QUERY, REFERENCE_PMCID_QUERY, REFERENCE_PMID_COMPOUND_TAXON_QUERY,
+    REFERENCE_PMID_QUERY, REFERENCE_TITLE_QUERY, TAXON_GBIF_QUERY, TAXON_NAME_QUERY,
+    TAXON_NCBI_QUERY, TAXON_OTT_QUERY, TAXON_PARENT_QUERY, TAXON_RANK_QUERY,
+    WIKIDATA_ENTITY_PREFIX, archive_page, extract_qid, looks_like_archive_inchikey,
 };
 pub use error::ParseError;
 pub use export::{ExportFormat, sanitize_download_filename};

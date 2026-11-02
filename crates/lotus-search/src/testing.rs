@@ -11,7 +11,7 @@
 // The panic lints exist to keep shipped code free of panics on external input.
 // A poisoned lock in a test double means a test panicked while holding it, so
 // the test is already failing and the second panic says nothing new.
-#![allow(clippy::expect_used, clippy::indexing_slicing)]
+#![allow(clippy::expect_used)]
 // `clippy::unused_async_trait_impl` wants a trait-impl method with no `.await` rewritten to
 // return `impl Future`; `clippy::manual_async_fn` then wants that block turned back into an
 // `async fn`. They cannot both be obeyed, which is what this expectation is about. The
@@ -23,6 +23,7 @@
 )]
 
 use std::collections::VecDeque;
+use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
@@ -49,7 +50,9 @@ pub struct Scripted {
     replies: Arc<Mutex<VecDeque<Fake>>>,
     seen: Arc<Mutex<Vec<String>>>,
     /// Header names seen per call, so a test can assert that identification
-    /// actually reaches the wire rather than being built and dropped.
+    /// actually reaches the wire rather than being built and dropped. A call
+    /// made with a method that takes no headers records an empty list, so the
+    /// entries line up with [`Scripted::queries`].
     headers: Arc<Mutex<Vec<Vec<String>>>>,
     /// The body exactly as it was sent, before [`Scripted::queries`] decodes it.
     raw: Arc<Mutex<Vec<String>>>,
@@ -153,7 +156,18 @@ impl Scripted {
     /// # Panics
     /// If a test panicked while holding the script, which means that test has
     /// already failed and this one only reports the same problem again.
-    fn answer(&self, target: &str, detail: &str) -> Result<ScriptedResponse, FetchError> {
+    fn answer(
+        &self,
+        target: &str,
+        detail: &str,
+        headers: &[(&str, String)],
+    ) -> Result<ScriptedResponse, FetchError> {
+        self.headers.lock().expect("not poisoned").push(
+            headers
+                .iter()
+                .map(|(name, _)| (*name).to_string())
+                .collect(),
+        );
         self.record(target, detail);
 
         let reply = self.reply();
@@ -161,8 +175,8 @@ impl Scripted {
             return Err(FetchError::Network("connection refused".into()));
         }
         Ok(ScriptedResponse {
-            fake: reply,
-            chunk_size: self.chunk_size,
+            status: reply.status,
+            body: ScriptedChunks::new(&reply.body, self.chunk_size),
         })
     }
 
@@ -195,7 +209,8 @@ impl Scripted {
         self.seen.lock().expect("not poisoned").len()
     }
 
-    /// The header names each call carried, in order, one `Vec` per call.
+    /// The header names each call carried, in order, one `Vec` per call --
+    /// empty for a call whose method sends no headers of its own.
     ///
     /// Names only, not values: a test asserts *that* the client identifies
     /// itself, and asserting on a token's value would put a secret in a test.
@@ -225,7 +240,7 @@ impl Http for Scripted {
         _accept: &str,
         body: String,
     ) -> Result<Self::Response, FetchError> {
-        self.answer(endpoint, &body)
+        self.answer(endpoint, &body, &[])
     }
 
     async fn post_form(
@@ -235,62 +250,55 @@ impl Http for Scripted {
         body: String,
         headers: &[(&str, String)],
     ) -> Result<Self::Response, FetchError> {
-        self.headers.lock().expect("not poisoned").push(
-            headers
-                .iter()
-                .map(|(name, _)| (*name).to_string())
-                .collect(),
-        );
-        self.answer(endpoint, &body)
+        self.answer(endpoint, &body, headers)
     }
 
     async fn post_json(&self, url: &str, body: String) -> Result<Self::Response, FetchError> {
-        self.answer(url, &body)
+        self.answer(url, &body, &[])
     }
 
     async fn get(&self, url: &str, accept: &str) -> Result<Self::Response, FetchError> {
-        self.answer(url, accept)
+        self.answer(url, accept, &[])
     }
 }
 
 /// The reply [`Scripted`] hands back.
 #[derive(Debug)]
 pub struct ScriptedResponse {
-    /// The scripted reply.
-    fake: Fake,
-    /// The largest piece the body is handed over in.
-    chunk_size: usize,
+    /// The scripted status.
+    status: u16,
+    /// The scripted body, and how far [`HttpResponse::chunk`] has read it.
+    body: ScriptedChunks,
 }
 
 impl HttpResponse for ScriptedResponse {
     fn status(&self) -> u16 {
-        self.fake.status
+        self.status
     }
 
+    /// The whole body, however much of it `chunk` has already handed over: a
+    /// test that mixes the two is asking about the script, not about a socket.
     async fn bytes(self) -> Result<ResponseBody, FetchError> {
-        Ok(Bytes::from(self.fake.body.as_bytes().to_vec()))
+        Ok(self.body.body)
     }
 
     async fn text(self) -> Result<String, FetchError> {
-        Ok(self.fake.body.to_string())
+        Ok(String::from_utf8_lossy(&self.body.body).into_owned())
     }
 
+    /// The same pieces [`HttpResponse::into_chunks`] hands over, so a caller
+    /// that reads a response in place sees the body a real transport would.
     async fn chunk(&mut self) -> Result<Option<ResponseBody>, FetchError> {
-        Ok(None)
+        Ok(self.body.next_piece())
     }
 
     fn into_chunks(self) -> Result<ChunkedBody, FetchError> {
-        let body = Bytes::from(self.fake.body.as_bytes().to_vec());
-        let size = if self.chunk_size == 0 {
-            body.len().max(1)
-        } else {
-            self.chunk_size
-        };
-        Ok(Box::new(ScriptedChunks { body, size, at: 0 }))
+        Ok(Box::new(self.body))
     }
 }
 
 /// A scripted body, handed over in pieces of `size` bytes.
+#[derive(Debug)]
 struct ScriptedChunks {
     /// The whole body.
     body: Bytes,
@@ -300,17 +308,32 @@ struct ScriptedChunks {
     at: usize,
 }
 
+impl ScriptedChunks {
+    /// `body` in pieces of at most `size` bytes, where zero means one piece.
+    ///
+    /// Zero becomes the body's length rather than a step of zero, because a step
+    /// of zero never reaches the end: every reader of the body would spin.
+    fn new(body: &str, size: usize) -> Self {
+        let body = Bytes::copy_from_slice(body.as_bytes());
+        let size = NonZeroUsize::new(size).map_or(body.len(), NonZeroUsize::get);
+        Self { body, size, at: 0 }
+    }
+
+    /// The next piece, or `None` once the body has all been handed over.
+    fn next_piece(&mut self) -> Option<Bytes> {
+        if self.at >= self.body.len() {
+            return None;
+        }
+        let end = self.at.saturating_add(self.size).min(self.body.len());
+        let piece = self.body.slice(self.at..end);
+        self.at = end;
+        Some(piece)
+    }
+}
+
 impl crate::BodyChunks for ScriptedChunks {
     fn next_chunk(&mut self) -> ChunkFuture<'_> {
-        Box::pin(async move {
-            if self.at >= self.body.len() {
-                return Ok(None);
-            }
-            let end = self.at.saturating_add(self.size).min(self.body.len());
-            let piece = self.body.slice(self.at..end);
-            self.at = end;
-            Ok(Some(piece))
-        })
+        Box::pin(async move { Ok(self.next_piece()) })
     }
 }
 
@@ -318,27 +341,37 @@ impl crate::BodyChunks for ScriptedChunks {
 ///
 /// A hand-rolled decoder, because the alternative is a URL-decoding dependency
 /// in the test tree to save six lines here.
+///
+/// Written as "take one decoded byte off the front" rather than as an index
+/// stepped by hand, because a step written wrong -- backwards, or by nothing --
+/// does not fail, it loops forever, and a test double that hangs takes the test
+/// using it down as a timeout rather than a failure.
 fn decode(body: &str) -> String {
-    let encoded = body.strip_prefix("query=").unwrap_or(body).as_bytes();
-    let mut out = Vec::with_capacity(encoded.len());
-    let mut i = 0;
-    while i < encoded.len() {
-        let hex = match encoded.get(i..i + 3) {
-            Some([b'%', hi, lo]) => char::from(*hi)
-                .to_digit(16)
-                .zip(char::from(*lo).to_digit(16))
-                .map(|(hi, lo)| u8::try_from(hi * 16 + lo).expect("two hex digits fit a byte")),
-            _ => None,
-        };
-        if let Some(byte) = hex {
-            out.push(byte);
-            i += 3;
-        } else {
-            out.push(if encoded[i] == b'+' { b' ' } else { encoded[i] });
-            i += 1;
-        }
+    let mut rest = body.strip_prefix("query=").unwrap_or(body).as_bytes();
+    let mut out = Vec::with_capacity(rest.len());
+    while let Some((byte, tail)) = split_decoded(rest) {
+        out.push(byte);
+        rest = tail;
     }
-    String::from_utf8_lossy(&out).to_string()
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// The first decoded byte of `encoded`, and what follows it.
+fn split_decoded(encoded: &[u8]) -> Option<(u8, &[u8])> {
+    if let [b'%', hi, lo, tail @ ..] = encoded
+        && let Some(byte) = hex_byte(*hi, *lo)
+    {
+        return Some((byte, tail));
+    }
+    let (&first, tail) = encoded.split_first()?;
+    Some((if first == b'+' { b' ' } else { first }, tail))
+}
+
+/// The byte two hex digits spell, or `None` if either is not one.
+fn hex_byte(hi: u8, lo: u8) -> Option<u8> {
+    let hi = char::from(hi).to_digit(16)?;
+    let lo = char::from(lo).to_digit(16)?;
+    u8::try_from(hi * 16 + lo).ok()
 }
 
 #[cfg(test)]

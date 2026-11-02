@@ -3,7 +3,7 @@
 /// Pure SPARQL queries for bulk export: the LOTUS exporter, the `PubChem` tree
 /// generator, and the Wikidata archive.
 ///
-/// Every builder here returns a query string and nothing else: no HTTP, no
+/// Every query here is a `const` string and nothing else: no HTTP, no
 /// runtime, no clock. The transport is injected by the caller (see
 /// [`lotus_explore_core::export::pipeline`]), so the same queries are tested
 /// against a mock and run against `QLever` in production.
@@ -30,14 +30,73 @@ pub fn extract_qid(value: &str) -> &str {
 }
 
 /// Base prefixes shared by every Wikidata query.
-const PREFIXES: &str = "\
+///
+/// A macro rather than a `const` because `concat!` only accepts literals, and
+/// `concat!` is what lets every query below be a `const`: a query that is data
+/// has no function body for a mutation to replace, so its exact text is pinned
+/// by one table-driven test instead of one test per builder.
+macro_rules! prefixes {
+    () => {
+        "\
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX p: <http://www.wikidata.org/prop/>
 PREFIX ps: <http://www.wikidata.org/prop/statement/>
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX pr: <http://www.wikidata.org/prop/reference/>
 PREFIX wd: <http://www.wikidata.org/entity/>
-";
+"
+    };
+}
+
+/// `SELECT DISTINCT <vars> WHERE { <lines> }` under the base prefixes, one
+/// pattern line per argument.
+macro_rules! select_distinct {
+    ($vars:expr, $($line:expr),+ $(,)?) => {
+        concat!(
+            prefixes!(),
+            "\nSELECT DISTINCT ", $vars, " WHERE {\n",
+            $($line, "\n",)+
+            "}"
+        )
+    };
+}
+
+/// One direct property of every subject that has it: `?<subject> wdt:<P> ?<column>`.
+macro_rules! direct_property {
+    ($subject:literal, $property:literal, $column:literal) => {
+        select_distinct!(
+            concat!("?", $subject, " ?", $column),
+            concat!("  ?", $subject, " wdt:", $property, " ?", $column, " .")
+        )
+    };
+}
+
+/// One direct property of compounds that carry an `InChIKey` and an occurrence.
+macro_rules! occurring_compound_property {
+    ($property:literal, $column:literal) => {
+        select_distinct!(
+            concat!("?compound ?", $column),
+            "  ?compound wdt:P235 ?inchikey ;",
+            "           wdt:P703 ?taxon ;",
+            concat!("           wdt:", $property, " ?", $column, " ."),
+        )
+    };
+}
+
+/// Properties of the references cited by occurrence statements (compound with
+/// an `InChIKey`, found in a taxon, stated in a reference).
+macro_rules! occurrence_reference {
+    ($vars:expr, $($line:expr),+ $(,)?) => {
+        select_distinct!(
+            $vars,
+            "  ?compound wdt:P235 ?inchikey .",
+            "  ?compound p:P703 ?statement .",
+            "  ?statement ps:P703 ?taxon .",
+            "  ?statement prov:wasDerivedFrom/pr:P248 ?reference .",
+            $($line,)+
+        )
+    };
+}
 
 // ============================================================================
 // LOTUS EXPORTER QUERIES (lotus_exporter.py)
@@ -47,335 +106,140 @@ PREFIX wd: <http://www.wikidata.org/entity/>
 ///
 /// Every compound that has an occurrence statement and an `InChIKey`, with the
 /// taxon, reference, and reference metadata (title, DOI, date).
-#[must_use]
-pub fn query_compound_taxon_reference() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?compound ?compound_inchikey ?taxon ?reference WHERE {{
-  ?compound wdt:P235 ?compound_inchikey .
-  ?compound p:P703 ?statement .
-  ?statement ps:P703 ?taxon .
-  ?statement prov:wasDerivedFrom/pr:P248 ?reference .
-}}"
-    )
-}
+pub const COMPOUND_TAXON_REFERENCE_QUERY: &str = select_distinct!(
+    "?compound ?compound_inchikey ?taxon ?reference",
+    "  ?compound wdt:P235 ?compound_inchikey .",
+    "  ?compound p:P703 ?statement .",
+    "  ?statement ps:P703 ?taxon .",
+    "  ?statement prov:wasDerivedFrom/pr:P248 ?reference .",
+);
 
 /// Canonical SMILES (P233) for compounds that have an occurrence and `InChIKey`.
-#[must_use]
-pub fn query_compound_smiles_can() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?compound ?compound_smiles_can WHERE {{
-  ?compound wdt:P235 ?inchikey ;
-           wdt:P703 ?taxon ;
-           wdt:P233 ?compound_smiles_can .
-}}"
-    )
-}
+pub const COMPOUND_SMILES_CAN_QUERY: &str =
+    occurring_compound_property!("P233", "compound_smiles_can");
 
 /// Isomeric SMILES (P2017) for compounds that have an occurrence and `InChIKey`.
-#[must_use]
-pub fn query_compound_smiles_iso() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?compound ?compound_smiles_iso WHERE {{
-  ?compound wdt:P235 ?inchikey ;
-           wdt:P703 ?taxon ;
-           wdt:P2017 ?compound_smiles_iso .
-}}"
-    )
-}
+pub const COMPOUND_SMILES_ISO_QUERY: &str =
+    occurring_compound_property!("P2017", "compound_smiles_iso");
 
 /// `PubChem` CID (P662) for compounds that have an occurrence and `InChIKey`.
-#[must_use]
-pub fn query_compound_cid() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?compound ?compound_cid WHERE {{
-  ?compound wdt:P235 ?inchikey ;
-           wdt:P703 ?taxon ;
-           wdt:P662 ?compound_cid .
-}}"
-    )
-}
+pub const COMPOUND_CID_QUERY: &str = occurring_compound_property!("P662", "compound_cid");
 
 /// Taxon scientific name (P225).
-#[must_use]
-pub fn query_taxon_name() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?taxon ?taxon_name WHERE {{
-  ?taxon wdt:P225 ?taxon_name .
-}}"
-    )
-}
+pub const TAXON_NAME_QUERY: &str = direct_property!("taxon", "P225", "taxon_name");
 
 /// Taxon NCBI taxonomy ID (P685).
-#[must_use]
-pub fn query_taxon_ncbi() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?taxon ?taxon_ncbi WHERE {{
-  ?taxon wdt:P685 ?taxon_ncbi .
-}}"
-    )
-}
+pub const TAXON_NCBI_QUERY: &str = direct_property!("taxon", "P685", "taxon_ncbi");
 
 /// Taxon OTT ID (P9157).
-#[must_use]
-pub fn query_taxon_ott() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?taxon ?taxon_ott WHERE {{
-  ?taxon wdt:P9157 ?taxon_ott .
-}}"
-    )
-}
+pub const TAXON_OTT_QUERY: &str = direct_property!("taxon", "P9157", "taxon_ott");
 
 /// Taxon GBIF ID (P846).
-#[must_use]
-pub fn query_taxon_gbif() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?taxon ?taxon_gbif WHERE {{
-  ?taxon wdt:P846 ?taxon_gbif .
-}}"
-    )
-}
+pub const TAXON_GBIF_QUERY: &str = direct_property!("taxon", "P846", "taxon_gbif");
 
 /// Taxon parent (P171), constrained to taxa under Biota (Q2382443).
-#[must_use]
-pub fn query_taxon_parent() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?taxon ?taxon_parent WHERE {{
-  ?taxon wdt:P171 ?taxon_parent .
-  ?taxon_parent wdt:P171* wd:Q2382443 .
-}}"
-    )
-}
+pub const TAXON_PARENT_QUERY: &str = select_distinct!(
+    "?taxon ?taxon_parent",
+    "  ?taxon wdt:P171 ?taxon_parent .",
+    "  ?taxon_parent wdt:P171* wd:Q2382443 .",
+);
 
 /// Taxon rank (P105) with its English label.
-#[must_use]
-pub fn query_taxon_rank() -> String {
-    format!(
-        "{PREFIXES}
+pub const TAXON_RANK_QUERY: &str = concat!(
+    prefixes!(),
+    "
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-SELECT DISTINCT ?taxon ?taxon_rank ?taxon_rank_label WHERE {{
+SELECT DISTINCT ?taxon ?taxon_rank ?taxon_rank_label WHERE {
   ?taxon wdt:P105 ?taxon_rank .
   ?taxon_rank rdfs:label ?taxon_rank_label .
   FILTER(LANG(?taxon_rank_label) = \"en\")
-}}"
-    )
-}
+}"
+);
 
 /// Reference DOI (P356) for references cited by occurrence statements.
-#[must_use]
-pub fn query_reference_doi() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?reference ?doi WHERE {{
-  ?compound wdt:P235 ?inchikey .
-  ?compound p:P703 ?statement .
-  ?statement ps:P703 ?taxon .
-  ?statement prov:wasDerivedFrom/pr:P248 ?reference .
-  ?reference wdt:P356 ?doi .
-}}"
-    )
-}
+pub const REFERENCE_DOI_QUERY: &str =
+    occurrence_reference!("?reference ?doi", "  ?reference wdt:P356 ?doi .");
 
 /// Reference PMID (P698) for references cited by occurrence statements.
-#[must_use]
-pub fn query_reference_pmid() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?reference ?pmid WHERE {{
-  ?compound wdt:P235 ?inchikey .
-  ?compound p:P703 ?statement .
-  ?statement ps:P703 ?taxon .
-  ?statement prov:wasDerivedFrom/pr:P248 ?reference .
-  ?reference wdt:P698 ?pmid .
-}}"
-    )
-}
+pub const REFERENCE_PMID_QUERY: &str =
+    occurrence_reference!("?reference ?pmid", "  ?reference wdt:P698 ?pmid .");
 
 /// Reference PMCID (P932) for references cited by occurrence statements.
-#[must_use]
-pub fn query_reference_pmcid() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?reference ?pmcid WHERE {{
-  ?compound wdt:P235 ?inchikey .
-  ?compound p:P703 ?statement .
-  ?statement ps:P703 ?taxon .
-  ?statement prov:wasDerivedFrom/pr:P248 ?reference .
-  ?reference wdt:P932 ?pmcid .
-}}"
-    )
-}
+pub const REFERENCE_PMCID_QUERY: &str =
+    occurrence_reference!("?reference ?pmcid", "  ?reference wdt:P932 ?pmcid .");
 
 /// Reference title (P1476) for references cited by occurrence statements.
-#[must_use]
-pub fn query_reference_title() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?reference ?title WHERE {{
-  ?compound wdt:P235 ?inchikey .
-  ?compound p:P703 ?statement .
-  ?statement ps:P703 ?taxon .
-  ?statement prov:wasDerivedFrom/pr:P248 ?reference .
-  ?reference wdt:P1476 ?title .
-}}"
-    )
-}
+pub const REFERENCE_TITLE_QUERY: &str =
+    occurrence_reference!("?reference ?title", "  ?reference wdt:P1476 ?title .");
 
 /// Reference publication date (P577) for references cited by occurrence statements.
-#[must_use]
-pub fn query_reference_date() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?reference ?date WHERE {{
-  ?compound wdt:P235 ?inchikey .
-  ?compound p:P703 ?statement .
-  ?statement ps:P703 ?taxon .
-  ?statement prov:wasDerivedFrom/pr:P248 ?reference .
-  ?reference wdt:P577 ?date .
-}}"
-    )
-}
+pub const REFERENCE_DATE_QUERY: &str =
+    occurrence_reference!("?reference ?date", "  ?reference wdt:P577 ?date .");
 
 /// Reference journal (P1433) with its label for references cited by occurrence statements.
-#[must_use]
-pub fn query_reference_journal() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?reference ?journal ?journal_label WHERE {{
-  ?compound wdt:P235 ?inchikey .
-  ?compound p:P703 ?statement .
-  ?statement ps:P703 ?taxon .
-  ?statement prov:wasDerivedFrom/pr:P248 ?reference .
-  ?reference wdt:P1433 ?journal .
-  ?journal wdt:P1476 ?journal_label .
-}}"
-    )
-}
+pub const REFERENCE_JOURNAL_QUERY: &str = occurrence_reference!(
+    "?reference ?journal ?journal_label",
+    "  ?reference wdt:P1433 ?journal .",
+    "  ?journal wdt:P1476 ?journal_label .",
+);
 
 // ============================================================================
 // PUBChem TREE QUERIES (lotus_pubchem_tree.py)
 // ============================================================================
 
 /// Compound-InChIKey-taxon triplets, the leaf compounds of the biological tree.
-#[must_use]
-pub fn query_compound_inchikey_taxon() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?compound ?compound_inchikey ?taxon WHERE {{
-  ?compound wdt:P235 ?compound_inchikey ;
-        wdt:P703 ?taxon .
-}}"
-    )
-}
+pub const COMPOUND_INCHIKEY_TAXON_QUERY: &str = select_distinct!(
+    "?compound ?compound_inchikey ?taxon",
+    "  ?compound wdt:P235 ?compound_inchikey ;",
+    "        wdt:P703 ?taxon .",
+);
 
 /// Compound-parent (P279) pairs, constrained to compounds under chemical compound (Q11173).
-#[must_use]
-pub fn query_compound_parent() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?compound ?compound_parent WHERE {{
-  ?compound wdt:P279 ?compound_parent .
-  ?compound_parent wdt:P279* wd:Q11173 .
-}}"
-    )
-}
+pub const COMPOUND_PARENT_QUERY: &str = select_distinct!(
+    "?compound ?compound_parent",
+    "  ?compound wdt:P279 ?compound_parent .",
+    "  ?compound_parent wdt:P279* wd:Q11173 .",
+);
 
 /// Compound canonical SMILES (P233).
-#[must_use]
-pub fn query_compound_smiles_can_all() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?compound ?compound_smiles_can WHERE {{
-  ?compound wdt:P233 ?compound_smiles_can .
-}}"
-    )
-}
+pub const COMPOUND_SMILES_CAN_ALL_QUERY: &str =
+    direct_property!("compound", "P233", "compound_smiles_can");
 
 /// Compound isomeric SMILES (P2017).
-#[must_use]
-pub fn query_compound_smiles_iso_all() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?compound ?compound_smiles_iso WHERE {{
-  ?compound wdt:P2017 ?compound_smiles_iso .
-}}"
-    )
-}
+pub const COMPOUND_SMILES_ISO_ALL_QUERY: &str =
+    direct_property!("compound", "P2017", "compound_smiles_iso");
 
 /// Compound SMARTS (P8533).
-#[must_use]
-pub fn query_compound_smarts() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?compound ?compound_smarts WHERE {{
-  ?compound wdt:P8533 ?compound_smarts .
-}}"
-    )
-}
+pub const COMPOUND_SMARTS_QUERY: &str = direct_property!("compound", "P8533", "compound_smarts");
 
 /// Compound CXSMILES (P10718).
-#[must_use]
-pub fn query_compound_cxsmiles() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?compound ?compound_cxsmiles WHERE {{
-  ?compound wdt:P10718 ?compound_cxsmiles .
-}}"
-    )
-}
+pub const COMPOUND_CXSMILES_QUERY: &str =
+    direct_property!("compound", "P10718", "compound_cxsmiles");
 
 /// Compound labels (rdfs:label), English or mul.
-#[must_use]
-pub fn query_compound_label() -> String {
-    format!(
-        "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-{PREFIXES}
-SELECT DISTINCT ?compound ?compound_label ?lang WHERE {{
+pub const COMPOUND_LABEL_QUERY: &str = concat!(
+    "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n",
+    prefixes!(),
+    "
+SELECT DISTINCT ?compound ?compound_label ?lang WHERE {
   ?compound wdt:P279* wd:Q11173 .
   ?compound rdfs:label ?compound_label .
   BIND(LANG(?compound_label) AS ?lang)
   FILTER (?lang IN (\"en\", \"mul\"))
-}}"
-    )
-}
+}"
+);
 
 /// Reference DOI with compound and taxon, for the biological tree's reference edges.
-#[must_use]
-pub fn query_reference_doi_compound_taxon() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?compound ?taxon ?reference ?doi WHERE {{
-  ?compound wdt:P235 ?inchikey .
-  ?compound p:P703 ?statement .
-  ?statement ps:P703 ?taxon .
-  ?statement prov:wasDerivedFrom/pr:P248 ?reference .
-  ?reference wdt:P356 ?doi .
-}}"
-    )
-}
+pub const REFERENCE_DOI_COMPOUND_TAXON_QUERY: &str = occurrence_reference!(
+    "?compound ?taxon ?reference ?doi",
+    "  ?reference wdt:P356 ?doi .",
+);
 
 /// Reference PMID with compound and taxon, for the biological tree's reference edges.
-#[must_use]
-pub fn query_reference_pmid_compound_taxon() -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT ?compound ?taxon ?reference ?pmid WHERE {{
-  ?compound wdt:P235 ?inchikey .
-  ?compound p:P703 ?statement .
-  ?statement ps:P703 ?taxon .
-  ?statement prov:wasDerivedFrom/pr:P248 ?reference .
-  ?reference wdt:P698 ?pmid .
-}}"
-    )
-}
+pub const REFERENCE_PMID_COMPOUND_TAXON_QUERY: &str = occurrence_reference!(
+    "?compound ?taxon ?reference ?pmid",
+    "  ?reference wdt:P698 ?pmid .",
+);
 
 // ============================================================================
 // WIKIDATA ARCHIVE QUERIES (lotus-wikidata-archive)

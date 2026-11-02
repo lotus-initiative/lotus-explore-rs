@@ -60,3 +60,12 @@ fn export_filename_starts_with_the_date_taken_from_the_stamp() {
 fn today_yyyymmdd_takes_the_stamps_first_eight_digits() {
     assert_eq!(today_yyyymmdd(NOW), "20260304");
 }
+
+#[test]
+fn safe_taxon_slug_spells_out_a_star_and_drops_reserved_characters() {
+    assert_eq!(safe_taxon_slug("Gentiana*"), "Gentianastar");
+    assert_eq!(safe_taxon_slug("a?b\"c<d>e|f"), "abcdef");
+    assert_eq!(safe_taxon_slug("a b/c\\d:e"), "a_b_c_d_e");
+    assert_eq!(safe_taxon_slug("  "), "any_taxon");
+    assert_eq!(safe_taxon_slug(" * "), "all_taxa");
+}

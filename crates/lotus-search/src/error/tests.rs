@@ -249,3 +249,45 @@ fn every_format_names_its_own_accept_header_and_action() {
         "two formats share an Accept header"
     );
 }
+
+/// `is_truncated` and `is_timed_out` each pick out exactly one variant.
+///
+/// The tests above only ask each predicate about the variant it names, which a
+/// predicate answering `true` for everything would also pass. A truncation read
+/// as a timeout, or the reverse, tells the reader the wrong thing about why the
+/// result is incomplete.
+#[test]
+fn each_predicate_picks_out_its_own_variant_and_no_other() {
+    let every_variant = [
+        FetchError::Network("refused".into()),
+        FetchError::TimedOut {
+            budget: Some("30s".into()),
+            message: "cancelled".into(),
+        },
+        FetchError::Http {
+            status: 500,
+            message: String::new(),
+        },
+        FetchError::Parse("bad csv".into()),
+        FetchError::Empty,
+        FetchError::Truncated {
+            bytes_read: 1,
+            reason: TruncationReason::Stalled,
+        },
+    ];
+    let answers: Vec<(bool, bool)> = every_variant
+        .iter()
+        .map(|err| (err.is_truncated(), err.is_timed_out()))
+        .collect();
+    assert_eq!(
+        answers,
+        [
+            (false, false),
+            (false, true),
+            (false, false),
+            (false, false),
+            (false, false),
+            (true, false),
+        ]
+    );
+}

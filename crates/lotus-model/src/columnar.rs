@@ -775,10 +775,8 @@ impl ColumnarResultSet {
     /// What each dictionary costs, so an optimisation can be aimed at the largest
     /// one rather than at the most obvious.
     ///
-    /// Read by `lotus-query/tests/bench.rs`, with no behaviour to assert, so behind
-    /// the `diagnostics` feature -- see the note on it in `Cargo.toml`, which also
-    /// keeps these ~78 unkillable mutants out of `./mk mutants` rather than
-    /// burying a real survivor among them.
+    /// Read by `lotus-query/tests/bench.rs`, so behind the `diagnostics`
+    /// feature -- see the note on it in `Cargo.toml`.
     ///
     /// Returns `(label, entries, bytes)`. `bytes` counts the string data, one fat
     /// pointer per string and one slot per map entry: what the structure holds,
@@ -848,45 +846,30 @@ impl ColumnarResultSet {
                 self.reference_years.len(),
                 self.reference_years.len() * 4,
             ),
+            // Not `len()`: this table is interned by id and never fills the
+            // slot column `len()` counts, so that would always read zero.
             (
                 "statement fallbacks",
-                self.statement_fallbacks.len(),
+                self.statement_fallbacks.distinct_len(),
                 sparse(&self.statement_fallbacks),
             ),
         ]
     }
 
     /// The bytes the dictionaries hold, for a measurement rather than for
-    /// anything the app needs.
+    /// anything the app needs: the sum of [`Self::dictionary_costs`].
     ///
-    /// Behind the `diagnostics` feature, as [`Self::dictionary_costs`] is.
-    ///
-    /// String bytes plus a slot each, which is what a `HashSet` of those strings
-    /// costs. Not a measurement of the allocator: on wasm that reports the
-    /// module's high-water mark rather than what this type holds.
+    /// One table and its sum, rather than a second estimate written over the same
+    /// fields: two estimates drifted apart, and nothing in the build could tell.
+    /// Not a measurement of the allocator: on wasm that reports the module's
+    /// high-water mark rather than what this type holds.
     #[cfg(feature = "diagnostics")]
     #[must_use]
     pub fn total_dictionary_bytes(&self) -> usize {
-        let qids = |d: &QidDictionary| d.len() * std::mem::size_of::<u32>() * 2;
-        let sparse = |s: &SparseStrings| {
-            s.ids.len() * std::mem::size_of::<u32>()
-                + s.values.len() * std::mem::size_of::<Arc<str>>()
-                + s.values.iter().map(|v| v.len()).sum::<usize>()
-        };
-        qids(&self.compounds)
-            + sparse(&self.compound_names)
-            + sparse(&self.compound_inchikeys)
-            + sparse(&self.compound_smiles)
-            + sparse(&self.compound_formulas)
-            + self.compound_masses.len() * std::mem::size_of::<f64>()
-            + qids(&self.taxa)
-            + sparse(&self.taxon_names)
-            + qids(&self.references)
-            + sparse(&self.reference_titles)
-            + sparse(&self.reference_dois)
-            + self.reference_years.len() * std::mem::size_of::<Option<i16>>()
-            + self.statement_fallbacks.distinct_len() * std::mem::size_of::<Arc<str>>()
-            + self.statement_fallbacks.len() * std::mem::size_of::<u32>()
+        self.dictionary_costs()
+            .iter()
+            .map(|(_, _, bytes)| bytes)
+            .sum()
     }
 
     /// Every distinct compound QID the set holds, in first-seen order.
@@ -1413,10 +1396,12 @@ impl ColumnarBuilder {
     ///
     /// Ids are minted in first-seen order, so `slot` is at most one past the end
     /// and the loop runs at most once. It is a loop so that a caller which
-    /// interleaves builders cannot leave the columns ragged.
+    /// interleaves builders cannot leave the columns ragged. A counted loop
+    /// rather than `while`, so that a wrong slot count leaves the columns the
+    /// wrong length instead of never ending.
     fn grow_compounds(&mut self, slot: usize) {
-        while self.compound_slots() <= slot {
-            let next = self.compound_slots();
+        let first = self.compound_slots();
+        for next in first..=slot {
             self.set.compound_names.set(next, None);
             self.set.compound_inchikeys.set(next, None);
             self.set.compound_smiles.set(next, None);
@@ -1677,3 +1662,7 @@ impl FilterPlan {
 fn passes(mask: Option<&Bitmask>, id: u32) -> bool {
     mask.is_none_or(|m| m.contains(id))
 }
+
+#[cfg(test)]
+#[path = "columnar/tests.rs"]
+mod tests;

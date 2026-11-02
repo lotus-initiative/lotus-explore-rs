@@ -226,3 +226,58 @@ fn active_count_counts_columns_not_keys() {
     };
     assert_eq!(filters.active_count(), 2);
 }
+
+#[test]
+fn set_text_writes_the_column_it_names_and_text_reads_it_back() {
+    let mut filters = ColumnFilters::empty();
+    filters.set_text(SortColumn::Name, "gentianine".to_owned());
+    filters.set_text(SortColumn::Formula, "C15".to_owned());
+    filters.set_text(SortColumn::TaxonName, "lutea".to_owned());
+    filters.set_text(SortColumn::RefTitle, "activity".to_owned());
+    filters.set_text(SortColumn::Mass, "ignored".to_owned());
+    filters.set_text(SortColumn::PubYear, "ignored".to_owned());
+
+    assert_eq!(
+        filters,
+        ColumnFilters {
+            compound: "gentianine".to_owned(),
+            formula: "C15".to_owned(),
+            taxon: "lutea".to_owned(),
+            reference: "activity".to_owned(),
+            ..ColumnFilters::empty()
+        }
+    );
+    assert_eq!(filters.text(SortColumn::Name), "gentianine");
+    assert_eq!(filters.text(SortColumn::Formula), "C15");
+    assert_eq!(filters.text(SortColumn::TaxonName), "lutea");
+    assert_eq!(filters.text(SortColumn::RefTitle), "activity");
+    assert_eq!(filters.text(SortColumn::Mass), "");
+    assert_eq!(filters.text(SortColumn::PubYear), "");
+}
+
+#[test]
+fn set_bound_writes_the_bound_it_names_and_min_max_read_it_back() {
+    let mut filters = ColumnFilters::empty();
+    filters.set_bound(SortColumn::Mass, Bound::Min, Some(100.5));
+    filters.set_bound(SortColumn::Mass, Bound::Max, Some(300.25));
+    filters.set_bound(SortColumn::PubYear, Bound::Min, Some(1990.0));
+    filters.set_bound(SortColumn::PubYear, Bound::Max, Some(2020.0));
+    filters.set_bound(SortColumn::Name, Bound::Min, Some(7.0));
+
+    assert_eq!(
+        filters,
+        ColumnFilters {
+            mass_min: Some(100.5),
+            mass_max: Some(300.25),
+            year_min: Some(1990.0),
+            year_max: Some(2020.0),
+            ..ColumnFilters::empty()
+        }
+    );
+    assert_eq!(filters.min(SortColumn::Mass), Some(100.5));
+    assert_eq!(filters.max(SortColumn::Mass), Some(300.25));
+    assert_eq!(filters.min(SortColumn::PubYear), Some(1990.0));
+    assert_eq!(filters.max(SortColumn::PubYear), Some(2020.0));
+    assert_eq!(filters.min(SortColumn::Name), None);
+    assert_eq!(filters.max(SortColumn::Formula), None);
+}

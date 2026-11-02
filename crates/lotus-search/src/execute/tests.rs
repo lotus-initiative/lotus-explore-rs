@@ -534,6 +534,16 @@ fn query_budget_falls_back_when_the_override_is_empty() {
 }
 
 #[test]
+fn query_budget_takes_a_set_override_trimmed() {
+    // The fallback test above cannot tell "read the override" from "ignore it",
+    // because both give the default; only a value that differs from it can.
+    let budget = query_budget_from("https://qlever.dev/api/wikidata", |_| {
+        Some("  5s  ".to_string())
+    });
+    assert_eq!(budget.as_deref(), Some("5000ms"));
+}
+
+#[test]
 fn an_empty_or_whitespace_token_is_not_a_token() {
     assert!(access_token_from(|_| Some(String::new())).is_none());
     assert!(access_token_from(|_| Some("   ".to_string())).is_none());

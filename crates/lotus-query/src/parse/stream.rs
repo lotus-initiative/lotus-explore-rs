@@ -88,45 +88,44 @@ impl CsvSplitter {
     /// run crosses in one `extend_from_slice` and per-byte work happens only at a
     /// delimiter.
     pub fn feed(&mut self, chunk: &[u8], out: &mut Vec<Record>) {
-        let mut at = 0;
-        while at < chunk.len() {
+        // The unread part of the chunk shrinks by destructuring, never by cursor
+        // arithmetic: each pass either consumes at least the byte that stopped
+        // the run or leaves the loop, so no step size can stall it.
+        let mut rest = chunk;
+        while !rest.is_empty() {
             if self.quote_pending {
                 // A `""` inside a quoted field is one literal quote; anything else
                 // means the pending quote closed the field and this byte is outside
                 // it. Deciding needs the lookahead, which is what this flag is for.
-                let byte = chunk.get(at).copied().unwrap_or_default();
                 self.quote_pending = false;
-                if byte == b'"' {
+                if let Some(after) = rest.strip_prefix(b"\"") {
                     self.line.push(b'"');
-                    at += 1;
+                    rest = after;
                     continue;
                 }
                 self.in_quotes = false;
             }
 
-            if self.in_quotes {
-                let rest = chunk.get(at..).unwrap_or_default();
-                if let Some(offset) = find_byte(rest, b'"') {
-                    self.line
-                        .extend_from_slice(rest.get(..offset).unwrap_or_default());
-                    at += offset + 1;
-                    self.quote_pending = true;
-                } else {
-                    self.line.extend_from_slice(rest);
-                    at = chunk.len();
-                }
-                continue;
-            }
-
-            let rest = chunk.get(at..).unwrap_or_default();
-            let Some(offset) = find_delimiter(rest) else {
+            // Split inline rather than in a helper returning the rest: a helper can be
+            // swapped for one whose rest never shrinks, and then this loop never ends.
+            let stop = if self.in_quotes {
+                rest.iter().position(|byte| *byte == b'"')
+            } else {
+                rest.iter().position(|byte| is_delimiter(*byte))
+            };
+            let Some((run, tail)) = stop.and_then(|at| rest.split_at_checked(at)) else {
                 self.line.extend_from_slice(rest);
                 break;
             };
-            self.line
-                .extend_from_slice(rest.get(..offset).unwrap_or_default());
-            let delimiter = rest.get(offset).copied().unwrap_or_default();
-            at += offset + 1;
+            self.line.extend_from_slice(run);
+            let Some((&delimiter, after)) = tail.split_first() else {
+                break;
+            };
+            rest = after;
+            if self.in_quotes {
+                self.quote_pending = true;
+                continue;
+            }
             match delimiter {
                 // A quote only opens a field at its start; one in the middle of a
                 // field is malformed input and is kept as a literal character.
@@ -196,7 +195,7 @@ impl CsvSplitter {
 
 /// Whether a byte is a delimiter, indexed by value.
 ///
-/// A table rather than four comparisons, so the scan in [`find_delimiter`] is one
+/// A table rather than four comparisons, so the scan in [`is_delimiter`] is one
 /// branch per byte. A 256-entry table is 256 bytes of the module's data, which is
 /// worth more than the branch it saves on a 291-megabyte payload.
 #[allow(
@@ -213,16 +212,9 @@ static DELIMITERS: [bool; 256] = {
     table
 };
 
-/// The first `needle` in `haystack`.
-fn find_byte(haystack: &[u8], needle: u8) -> Option<usize> {
-    haystack.iter().position(|byte| *byte == needle)
-}
-
-/// The first byte that ends or escapes a field, outside any quoted run.
-fn find_delimiter(haystack: &[u8]) -> Option<usize> {
-    haystack
-        .iter()
-        .position(|byte| DELIMITERS.get(*byte as usize).copied().unwrap_or(false))
+/// Whether `byte` ends or escapes a field outside any quoted run.
+fn is_delimiter(byte: u8) -> bool {
+    DELIMITERS.get(usize::from(byte)).copied().unwrap_or(false)
 }
 
 /// A record's field, trimmed, as UTF-8, or empty.
@@ -290,10 +282,10 @@ impl CsvColumnarReader {
     /// therefore always correct and never allocates more than that.
     fn keep_tail(&mut self, chunk: &[u8]) {
         self.tail.extend_from_slice(chunk);
+        // Unconditional: draining an empty range is free, and a guard here would
+        // only be a second statement of the same bound.
         let excess = self.tail.len().saturating_sub(TRUNCATION_NOTICE_WINDOW);
-        if excess > 0 {
-            self.tail.drain(..excess);
-        }
+        self.tail.drain(..excess);
     }
 
     /// Fold a batch of finished records into the set.
@@ -455,9 +447,9 @@ pub(super) const INCOMPLETE_BODY: &str = "the response ended in the middle of a 
 
 /// The size of one read from a native reader.
 ///
-/// Small enough that the payload never accumulates in a read buffer, large enough
+/// 64 KiB: small enough that the payload never accumulates in a read buffer, large enough
 /// that a million reads is not a million syscalls.
-const READ_BUFFER: usize = 64 * 1024;
+const READ_BUFFER: usize = 65_536;
 
 /// Read a whole CSV payload into a columnar set, streaming it.
 ///

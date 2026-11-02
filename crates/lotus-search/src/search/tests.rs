@@ -113,6 +113,24 @@ fn a_wildcard_handed_straight_in_is_not_treated_as_a_qid() {
     );
 }
 
+/// The guard on the QID arm, reached the only way it can be: a wildcard QID with
+/// a taxon box that does not itself say `*`.
+///
+/// The test above sets the box to `*` too, so the arm before this one answers it
+/// and the guard is never asked. Here nothing else can: without the guard, `*`
+/// would be spliced into `wd:*` as if it named an entity.
+#[test]
+fn a_wildcard_qid_under_any_other_taxon_still_means_every_taxon() {
+    let criteria = SearchCriteria {
+        taxon: "Gentiana".to_string(),
+        ..SearchCriteria::up_to_year(2026)
+    };
+    assert_eq!(
+        build_base_query(&criteria, Some("*")),
+        lotus_query::all_compounds_query()
+    );
+}
+
 /// An empty box and `*` are different requests, and the difference has to
 /// survive into the query text.
 ///

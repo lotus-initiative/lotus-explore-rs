@@ -39,14 +39,6 @@ impl HttpResponse for Opaque {
     fn text(self) -> impl Future<Output = Result<String, FetchError>> {
         ready(Ok(String::from_utf8_lossy(&self.body).into_owned()))
     }
-
-    fn chunk(&mut self) -> impl Future<Output = Result<Option<ResponseBody>, FetchError>> {
-        ready(Ok(if self.body.is_empty() {
-            None
-        } else {
-            Some(ResponseBody::from(std::mem::take(&mut self.body)))
-        }))
-    }
 }
 
 /// A transport that speaks neither JSON nor chunked bodies.
@@ -98,6 +90,24 @@ async fn a_transport_that_cannot_stream_refuses_and_names_what_is_missing() {
         message.contains("in chunks"),
         "the message must name the missing capability, got {message:?}"
     );
+}
+
+/// A response with no incremental read of its own refuses `chunk` and points at
+/// `into_chunks`, the way the browser's response does.
+#[tokio::test]
+async fn a_response_that_cannot_read_in_pieces_points_at_into_chunks() {
+    let refusal = Opaque {
+        body: b"abc".to_vec(),
+    }
+    .chunk()
+    .await;
+
+    match refusal {
+        Err(FetchError::Network(message)) => {
+            assert_eq!(message, "incremental reads go through `into_chunks` here");
+        }
+        other => panic!("expected a network refusal, got {other:?}"),
+    }
 }
 
 /// A transport that cannot POST JSON refuses rather than sending a form.

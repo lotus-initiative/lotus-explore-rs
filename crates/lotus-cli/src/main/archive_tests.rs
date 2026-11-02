@@ -85,3 +85,106 @@ fn zenodo_metadata_builds_with_valid_inputs() {
     assert_eq!(metadata.keywords.len(), 3);
     assert_eq!(metadata.related_identifiers.len(), 1);
 }
+
+/// A fresh, empty directory under the system temp dir, unique to this test.
+fn scratch_dir(test: &str) -> std::path::PathBuf {
+    let dir = std::env::temp_dir().join(format!("lotus-cli-{test}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    dir
+}
+
+#[test]
+fn write_archive_files_writes_the_three_artifacts_under_their_names() {
+    let dir = scratch_dir("write-archive");
+    let fetched_at = parse_iso_utc("2025-01-15T12:30:05Z").expect("valid RFC3339");
+    let artifacts = lotus_explore_core::export::archive::ArchiveArtifacts {
+        archive: vec![0x1f, 0x8b, 0x08],
+        manifest: "{\"records\":1}".to_string(),
+        checksums: "abc  archive\n".to_string(),
+    };
+
+    let (archive, manifest, checksums) =
+        write_archive_files(Some(&dir), fetched_at, &artifacts).expect("files are written");
+
+    assert_eq!(
+        archive,
+        dir.join("lotus-wikidata-smiles-20250115T123005Z.tar.gz")
+    );
+    assert_eq!(manifest, dir.join("lotus-wikidata-smiles.manifest.json"));
+    assert_eq!(checksums, dir.join("lotus-wikidata-smiles.SHA256SUMS"));
+    assert_eq!(
+        std::fs::read(&archive).expect("archive"),
+        vec![0x1f, 0x8b, 0x08]
+    );
+    assert_eq!(
+        std::fs::read_to_string(&manifest).expect("manifest"),
+        "{\"records\":1}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&checksums).expect("checksums"),
+        "abc  archive\n"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn archive_upload_paths_names_each_upload_after_its_file() {
+    let specs = archive_upload_paths(
+        std::path::Path::new("out/a.tar.gz"),
+        std::path::Path::new("out/m.json"),
+        std::path::Path::new("out/SUMS"),
+    )
+    .expect("three distinct names");
+    let uploaded: Vec<(&str, String)> = specs
+        .iter()
+        .map(|spec| (spec.filename.as_str(), format!("{:?}", spec.source)))
+        .collect();
+    assert_eq!(
+        uploaded,
+        vec![
+            ("a.tar.gz", "Path(\"out/a.tar.gz\")".to_string()),
+            ("m.json", "Path(\"out/m.json\")".to_string()),
+            ("SUMS", "Path(\"out/SUMS\")".to_string()),
+        ]
+    );
+}
+
+#[test]
+fn a_dry_run_states_the_plan_for_a_first_record_and_for_a_new_version() {
+    let (archive, manifest, checksums) = (
+        std::path::Path::new("out/a.tar.gz"),
+        std::path::Path::new("out/m.json"),
+        std::path::Path::new("out/SUMS"),
+    );
+    assert_eq!(
+        dry_run_zenodo(archive, manifest, checksums, None),
+        "lotus: Zenodo dry run OK — metadata valid, 3 files ready, plan: publish the \
+         initial Zenodo record"
+    );
+    assert_eq!(
+        dry_run_zenodo(
+            archive,
+            manifest,
+            checksums,
+            Some(zenodo_rs::DepositionId(42))
+        ),
+        "lotus: Zenodo dry run OK — metadata valid, 3 files ready, plan: publish a new \
+         version from deposition 42"
+    );
+}
+
+#[test]
+fn a_dry_run_reports_an_upload_plan_that_cannot_be_built() {
+    // Two files with the same name would collide in the Zenodo bucket.
+    let report = dry_run_zenodo(
+        std::path::Path::new("one/same"),
+        std::path::Path::new("two/same"),
+        std::path::Path::new("out/SUMS"),
+        None,
+    );
+    assert_eq!(
+        report,
+        "lotus: Zenodo dry run failed — upload spec: prepare Zenodo upload specs: \
+         duplicate upload filename: same"
+    );
+}

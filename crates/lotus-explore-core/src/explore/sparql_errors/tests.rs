@@ -64,3 +64,32 @@ fn retryability_helpers_match_classification_contract() {
     assert!(should_backoff(SparqlErrorClass::RateLimit));
     assert!(!should_backoff(SparqlErrorClass::CacheConflict));
 }
+
+/// Each message carries exactly one of the phrases a class is recognised by,
+/// so every alternative is shown to be enough on its own.
+#[test]
+fn each_recognised_phrase_classifies_on_its_own() {
+    for (message, class) in [
+        ("cache key conflict", SparqlErrorClass::CacheConflict),
+        ("result already present", SparqlErrorClass::CacheConflict),
+        ("Timeout after 30s", SparqlErrorClass::RateLimit),
+        ("too many requests", SparqlErrorClass::RateLimit),
+        ("Rate limit exceeded", SparqlErrorClass::RateLimit),
+        ("the queue is full", SparqlErrorClass::RateLimit),
+        ("syntax error", SparqlErrorClass::QuerySyntax),
+        ("unexpected grammar rule", SparqlErrorClass::QuerySyntax),
+        ("Malformed IRI", SparqlErrorClass::QuerySyntax),
+        (
+            "Invalid SPARQL query: unexpected token",
+            SparqlErrorClass::QuerySyntax,
+        ),
+        (
+            "line 3: mismatched input 'AS'",
+            SparqlErrorClass::QuerySyntax,
+        ),
+        ("No results", SparqlErrorClass::NoResults),
+        ("something else entirely", SparqlErrorClass::Unknown),
+    ] {
+        assert_eq!(classify_sparql_error_text(message), class, "{message}");
+    }
+}

@@ -35,7 +35,9 @@ thiserror = { workspace = true }
 # A dev-dependency on self is the supported way to say "my tests need this
 # feature" without turning it on for consumers.
 lotus-search = { workspace = true, features = ["testing"] }
-tokio = { workspace = true, features = ["macros", "rt"] }
+# `io-util` is for the loopback server in `reqwest_client`'s tests, which has to
+# read a request and write a response a piece at a time.
+tokio = { workspace = true, features = ["io-util", "macros", "rt"] }
 
 # The retry backoff needs a timer. wasm has no reactor, so it blocks instead
 # and does not need tokio at all -- which is what keeps this crate wasm-clean.

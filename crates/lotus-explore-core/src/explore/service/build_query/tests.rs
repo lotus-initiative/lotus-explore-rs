@@ -167,3 +167,49 @@ fn normalize_smiles_preserves_molfile_block() {
     // Molfile content should NOT be stripped.
     assert!(got.contains("V2000"));
 }
+
+#[test]
+fn the_wildcard_taxon_with_no_structure_is_exactly_the_all_compounds_query() {
+    let crit = SearchCriteria::up_to_year(YEAR);
+    assert_eq!(
+        build_sparql_query(&ResolvedStructure::unresolved(""), &crit, Some("*")),
+        lotus_query::all_compounds_query()
+    );
+}
+
+#[test]
+fn an_exact_search_filters_by_a_real_taxon_and_not_by_the_wildcard() {
+    let crit = SearchCriteria {
+        structure: "amarogentina".into(),
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    let compounds = vec!["Q3613679".to_owned()];
+    let resolved = ResolvedStructure {
+        compounds: compounds.clone(),
+        compound: Some("Q3613679".into()),
+        structure: "CCO".into(),
+    };
+    let nomenclature = lotus_query::Nomenclature::from(&crit);
+
+    assert_eq!(
+        build_sparql_query(&resolved, &crit, Some("Q156598")),
+        lotus_query::exact_compounds_query(&compounds, Some(("Q156598", &nomenclature)))
+    );
+    assert_eq!(
+        build_sparql_query(&resolved, &crit, Some("*")),
+        lotus_query::exact_compounds_query(&compounds, None)
+    );
+}
+
+#[test]
+fn server_filters_are_the_query_crates_filters() {
+    let crit = SearchCriteria {
+        mass_min: 100.0,
+        mass_max: 200.0,
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    let base = lotus_query::all_compounds_query();
+    let filtered = apply_server_filters(&base, &crit, YEAR);
+    assert_eq!(filtered, lotus_query::with_filters(&base, &crit, YEAR));
+    assert_ne!(filtered, base, "a mass range adds a constraint");
+}

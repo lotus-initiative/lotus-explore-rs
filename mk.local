@@ -24,7 +24,6 @@ LOCAL_SYSTEM_PACKAGES=(pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-
 LOCAL_OVERRIDES=(
   test             # nextest over three builds (default, server, desktop) plus doctests
   wasm=check-wasm  # only the wasm-compatible crates; the CLI and server are native-only
-  mutants          # scoped to the library crates, via nextest, after a preflight
 )
 # Repository gates added to ./mk ci.
 LOCAL_CI_GATES=(license-headers check lint-native-builds boundary lint-wasm metadata opt-levels)
@@ -35,3 +34,7 @@ COVERAGE_FAIL_UNDER_LINES="58"
 # crates spawn processes or open sockets, and lotus-curation's tests drive an async
 # HTTP transport, none of which miri can run.
 MIRI_PACKAGES=(lotus-model lotus-query lotus-jsonld)
+# Every crate but the app, whose ~2,700 rendering mutants are opt-in
+# (`./mk local:mutants-ui`; the reason is in .cargo/mutants.toml).
+MUTANTS_PACKAGES=(lotus-model lotus-search lotus-query lotus-curation lotus-jsonld
+  lotus-cli lotus-web-assets lotus-explore-core)

@@ -141,6 +141,10 @@ async fn a_qlever_request_declares_a_time_budget_and_names_the_client() {
 
     search(&http, &request).await.expect("the search succeeds");
 
+    // Counted first, because the loops below pass on an empty list: a recorder
+    // that kept nothing would make both of them true of every request.
+    assert_eq!(http.raw_bodies().len(), 3, "lookup, rows, counts");
+    assert_eq!(http.header_names().len(), 3, "one header list per request");
     for body in http.raw_bodies() {
         assert!(
             body.contains("timeout=30s"),
@@ -540,7 +544,7 @@ async fn a_wildcard_and_an_empty_box_both_resolve_to_no_taxon() {
 async fn an_inchikey_in_the_structure_box_is_looked_up_by_inchikey() {
     const INCHIKEY: &str = "DBOVHQOUSDWAPQ-WTONXPSSSA-N";
 
-    let http = Scripted::new(vec![(200, LOOKUP_CSV), (200, LOOKUP_CSV)]);
+    let http = Scripted::new(vec![(200, LOOKUP_CSV)]);
 
     let resolved = lotus_search::resolve_structure(&http, INCHIKEY)
         .await
@@ -551,11 +555,16 @@ async fn an_inchikey_in_the_structure_box_is_looked_up_by_inchikey() {
         vec!["Q7".to_string()],
         "the compound the key identifies is the result"
     );
+    assert_eq!(
+        resolved.smiles, "COc1ccccc1O",
+        "and its structure is what is searched, not the key"
+    );
 
     let queries = http.queries();
-    assert!(
-        !queries.is_empty(),
-        "resolving an InChIKey asks the endpoint about it"
+    assert_eq!(
+        queries.len(),
+        1,
+        "one lookup answers both the compound and its structure"
     );
     for query in &queries {
         assert!(

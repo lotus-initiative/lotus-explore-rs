@@ -288,3 +288,91 @@ fn build_shareable_url_encodes_query_pairs() {
     assert!(query.contains("structure=C%3DC"));
     assert!(query.contains('&'));
 }
+
+#[test]
+fn only_the_recognised_spellings_are_true_flags() {
+    for value in ["1", "true", " TRUE ", "yes", "On"] {
+        assert!(is_true_flag(value), "{value}");
+    }
+    for value in ["0", "false", "no", "off", "", "2"] {
+        assert!(!is_true_flag(value), "{value}");
+    }
+}
+
+/// Every parameter family at once, written out and read back: the exact pairs
+/// a shared link carries, and the criteria it reproduces.
+#[test]
+fn every_parameter_round_trips_through_a_shareable_link() {
+    let crit = SearchCriteria {
+        taxon: "Fungi".into(),
+        reference: "10.1000/xyz".into(),
+        taxon_names: lotus_model::TaxonNomenclature {
+            basionyms: false,
+            protonyms: false,
+            ..lotus_model::TaxonNomenclature::ALL_ON
+        },
+        structure: "CCO".into(),
+        structure_search: SmilesSearchType::Similarity,
+        structure_threshold: 0.75,
+        mass_min: 100.5,
+        mass_max: 200.25,
+        year_min: 2000,
+        year_max: 2020,
+        formula_enabled: true,
+        formula_exact: "C2H6O".into(),
+        n_max: 3,
+        ..SearchCriteria::up_to_year(2026)
+    };
+
+    let params = criteria_query_params(&crit, 2026);
+    let expected: QueryParams = [
+        ("formula_exact", "C2H6O"),
+        ("formula_filter", "true"),
+        ("mass_filter", "true"),
+        ("mass_max", "200.25"),
+        ("mass_min", "100.5"),
+        ("n_max", "3"),
+        ("reference", "10.1000/xyz"),
+        ("similarity_threshold", "0.75"),
+        ("structure", "CCO"),
+        ("structure_search_type", "similarity"),
+        ("taxon", "Fungi"),
+        ("taxon_basionyms", "false"),
+        ("taxon_protonyms", "false"),
+        ("year_end", "2020"),
+        ("year_filter", "true"),
+        ("year_start", "2000"),
+    ]
+    .into_iter()
+    .map(|(k, v)| (k.to_owned(), v.to_owned()))
+    .collect();
+    assert_eq!(params, expected);
+
+    assert_eq!(parse_criteria_from_params(&params, 2026), crit);
+}
+
+#[test]
+fn a_blank_exact_formula_is_left_out_of_the_link() {
+    let crit = SearchCriteria {
+        taxon: "Fungi".into(),
+        formula_enabled: true,
+        formula_exact: "   ".into(),
+        ..SearchCriteria::up_to_year(2026)
+    };
+    assert!(!criteria_query_params(&crit, 2026).contains_key("formula_exact"));
+}
+
+#[test]
+fn each_search_type_spelling_parses_to_its_mode() {
+    for (spelling, mode) in [
+        ("exact", SmilesSearchType::Exact),
+        ("substructure", SmilesSearchType::Substructure),
+        ("similarity", SmilesSearchType::Similarity),
+    ] {
+        let params = QueryParams::from([("structure_search_type".to_owned(), spelling.to_owned())]);
+        assert_eq!(
+            parse_criteria_from_params(&params, 2026).structure_search,
+            mode
+        );
+    }
+}

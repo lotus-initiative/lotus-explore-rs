@@ -85,7 +85,9 @@ const COLUMNS: [&str; 13] = [
 pub struct RowExporter<'a> {
     format: ExportFormat,
     set: &'a ColumnarResultSet,
-    next_row: usize,
+    /// The rows not yet written. A range rather than a counter, so the next row
+    /// comes from `next()` and no hand-written step can repeat or skip one.
+    rows: std::ops::Range<usize>,
     /// `true` once the preamble has been emitted and the body may start.
     in_body: bool,
     chunk: String,
@@ -102,7 +104,7 @@ impl<'a> RowExporter<'a> {
         Self {
             format,
             set,
-            next_row: 0,
+            rows: 0..set.row_count(),
             in_body: false,
             // One allocation of the target size, so the steady state does not reallocate
             // per chunk. A set of zero rows still over-reserves slightly, which is
@@ -130,7 +132,7 @@ impl<'a> RowExporter<'a> {
                 }
             }
 
-            if self.next_row >= self.set.row_count() {
+            let Some(row) = self.rows.next() else {
                 self.push_epilogue();
                 self.done = true;
                 return if self.chunk.is_empty() {
@@ -138,10 +140,9 @@ impl<'a> RowExporter<'a> {
                 } else {
                     Some(self.take())
                 };
-            }
+            };
 
-            self.push_row(self.next_row);
-            self.next_row += 1;
+            self.push_row(row);
 
             if self.chunk.len() >= CHUNK_TARGET {
                 return Some(self.take());

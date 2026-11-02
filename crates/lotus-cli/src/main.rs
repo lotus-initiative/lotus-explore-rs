@@ -524,9 +524,7 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
     // result arrives already capped and the parser sees exactly the rows asked for.
     // Hitting the limit is the only signal the CLI has, and a weak one: there may be
     // more, not that there is.
-    if let Some(limit) = args.limit
-        && (result.truncated || result.rows.len() >= limit)
-    {
+    if hit_limit(args.limit, result.truncated, result.rows.len()) {
         eprintln!(
             "lotus: showing {} rows, which is the limit you set; there may be more. \
              Raise --limit, or drop it for all of them.",
@@ -538,6 +536,14 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
     write_rows(stdout, &result, args.format, args.explain)?;
     let _ = io::stderr().flush();
     Ok(ExitCode::SUCCESS)
+}
+
+/// Whether a search stopped at the `--limit` the user set.
+///
+/// Split out of `search` because the result it reads comes from the network,
+/// and a dropped condition here silently removes the "there may be more" note.
+fn hit_limit(limit: Option<usize>, truncated: bool, rows: usize) -> bool {
+    limit.is_some_and(|limit| truncated || rows >= limit)
 }
 
 /// Export the full LOTUS compound–taxon–reference graph as `frozen.csv` and
@@ -712,7 +718,10 @@ async fn archive(args: ArchiveArgs) -> anyhow::Result<ExitCode> {
                 fetched_at.date_naive(),
                 &source_code_url_env()?,
             )?;
-            dry_run_zenodo(&archive_path, &manifest_path, &checksums_path, root_id);
+            eprintln!(
+                "{}",
+                dry_run_zenodo(&archive_path, &manifest_path, &checksums_path, root_id)
+            );
         } else {
             Box::pin(publish_to_zenodo(
                 &title,
@@ -776,28 +785,28 @@ fn parse_deposition_id(value: &str) -> anyhow::Result<Option<zenodo_rs::Depositi
 }
 
 /// Validate the Zenodo metadata + upload plan without writing to disk or
-/// contacting Zenodo.
+/// contacting Zenodo, and return the line to report.
+///
+/// Returns the report rather than printing it, so the plan it states is
+/// checkable without capturing stderr.
 fn dry_run_zenodo(
     archive_path: &std::path::Path,
     manifest_path: &std::path::Path,
     checksums_path: &std::path::Path,
     root_id: Option<zenodo_rs::DepositionId>,
-) {
+) -> String {
     let files = match archive_upload_paths(archive_path, manifest_path, checksums_path) {
         Ok(files) => files,
-        Err(e) => {
-            eprintln!("lotus: Zenodo dry run failed — upload spec: {e}");
-            return;
-        }
+        Err(e) => return format!("lotus: Zenodo dry run failed — upload spec: {e}"),
     };
     let plan = root_id.map_or_else(
         || "publish the initial Zenodo record".to_string(),
         |root_id| format!("publish a new version from deposition {}", root_id.0),
     );
-    eprintln!(
+    format!(
         "lotus: Zenodo dry run OK — metadata valid, {} files ready, plan: {plan}",
         files.len()
-    );
+    )
 }
 
 /// Actually publish the archive to Zenodo. Tries the sandbox token first, then
@@ -912,94 +921,36 @@ fn apply_ranges(
     );
 }
 
-/// Days since the Unix epoch to the civil (year, month, day) containing that day.
-///
-/// Howard Hinnant's `civil_from_days`, returning the full date. Split from the
-/// clock read so the arithmetic can be checked against dates whose answers are
-/// known, rather than only against "the year is roughly now".
-#[must_use]
-pub fn civil_from_days(days: i64) -> (u16, u8, u8) {
-    // Shift the epoch to 0000-03-01, so a leap day lands at the end of the
-    // shifted year and the era is exactly 400 years of whole days.
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z - era * 146_097; // [0, 146096]
-    // Day of the era's year, 0..=365. The published form of this line also has
-    // `+ doe / 36_524 - doe / 146_096`, and those two terms are dropped here on
-    // purpose: the truncating divisions that follow cancel them exactly, so
-    // they cannot change the result for any input.
-    let yoe = (doe - doe / 1_460) / 365; // [0, 399]
-    // The year the shifted year starts in, which is the year *after* January and
-    // February belong to: on this calendar a shifted year runs from 1 March.
-    let shifted = yoe + era * 400;
-    // Day of the shifted year, counted from its 1 March.
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
-    // Month within the shifted year, March first and so zero-based. The last two
-    // are January and February of the next civil year.
-    let mp = (5 * doy + 2) / 153; // [0, 11]
-    let day = doy - (153 * mp + 2) / 5 + 1; // [1, 31]
-    let month = if mp < 10 { mp + 3 } else { mp - 9 }; // [1, 12]
-    let year = if mp < 10 { shifted } else { shifted + 1 };
-
-    // The reference types are u16/u8 throughout the CLI, so a clock set before
-    // 1970 saturates rather than wrapping to a plausible-looking recent year.
-    (
-        u16::try_from(year).unwrap_or(u16::MAX),
-        u8::try_from(month).unwrap_or(u8::MAX),
-        u8::try_from(day).unwrap_or(u8::MAX),
-    )
-}
-
-/// Unix seconds to the civil year containing them.
-///
-/// Whole days, floored: a second before midnight is still the day it started in,
-/// and the year turns over at the first of January rather than at the first of
-/// the day after.
-#[must_use]
-pub fn year_from_unix_seconds(seconds: i64) -> u16 {
-    civil_year_from_days(seconds.div_euclid(86_400))
-}
-
-/// Days since the Unix epoch to the civil year containing that day.
-///
-/// Delegates to [`civil_from_days`] and keeps only the year, so the arithmetic
-/// lives in one place and the two functions cannot drift apart.
-#[must_use]
-pub fn civil_year_from_days(days: i64) -> u16 {
-    civil_from_days(days).0
-}
-
 /// The current calendar year, for the default upper year bound.
 ///
 /// `lotus-model` takes the year as an argument rather than reading a clock, so
 /// that it stays pure; a binary is where a clock belongs.
 #[must_use]
 pub fn current_year() -> u16 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let seconds = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |d| d.as_secs().cast_signed());
-    year_from_unix_seconds(seconds)
+    use chrono::Datelike;
+    // A clock outside u16's years saturates rather than wrapping to a
+    // plausible-looking year.
+    u16::try_from(utc_now().year()).unwrap_or(u16::MAX)
 }
 
 /// The current UTC time as an ISO-8601 stamp (`YYYY-MM-DDTHH:MM:SSZ`), for the
 /// export metadata document.
-///
-/// No `chrono` dependency: the same civil-calendar arithmetic that
-/// [`civil_from_days`] uses, extended to hour, minute and second.
 #[must_use]
 pub fn now_iso_utc() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let duration = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
-    let seconds = duration.as_secs().cast_signed();
-    let (year, month, day) = civil_from_days(seconds.div_euclid(86_400));
-    let time_of_day = seconds.rem_euclid(86_400);
-    let hour = time_of_day / 3600;
-    let minute = (time_of_day % 3600) / 60;
-    let second = time_of_day % 60;
-    format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z")
+    iso_utc(utc_now())
+}
+
+/// `chrono`'s `clock` feature is off in this workspace, so the system clock is
+/// read through `SystemTime`, which `chrono` converts with `std` alone.
+fn utc_now() -> chrono::DateTime<chrono::Utc> {
+    std::time::SystemTime::now().into()
+}
+
+/// An instant as an ISO-8601 UTC stamp (`YYYY-MM-DDTHH:MM:SSZ`): whole seconds,
+/// and `Z` rather than `+00:00`, which is what the metadata documents carry.
+#[must_use]
+pub fn iso_utc(instant: chrono::DateTime<chrono::Utc>) -> String {
+    instant.format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
 ///
 /// `--formula` and `--carbon` both filter by formula, and only the first sets
@@ -1022,9 +973,7 @@ fn flags_ask_for_formula(criteria: &lotus_model::SearchCriteria) -> bool {
 
 /// Parse an ISO-8601 UTC timestamp (`YYYY-MM-DDTHH:MM:SSZ`) into a `DateTime`.
 ///
-/// The archive needs a `DateTime` for the filename; the existing `now_iso_utc`
-/// produces one without `chrono`, so this closes the loop without a round-trip
-/// through string formatting.
+/// The archive needs a `DateTime` for the filename, and `--now` arrives as text.
 fn parse_iso_utc(s: &str) -> anyhow::Result<chrono::DateTime<chrono::Utc>> {
     chrono::DateTime::parse_from_rfc3339(s)
         .map(|dt| dt.with_timezone(&chrono::Utc))
@@ -1077,8 +1026,8 @@ fn archive_upload_paths(
 mod range_tests;
 
 #[cfg(test)]
-#[path = "main/civil_year_tests.rs"]
-mod civil_year_tests;
+#[path = "main/clock_tests.rs"]
+mod clock_tests;
 
 #[cfg(test)]
 #[path = "main/nomenclature_flag_tests.rs"]
@@ -1087,3 +1036,7 @@ mod nomenclature_flag_tests;
 #[cfg(test)]
 #[path = "main/archive_tests.rs"]
 mod archive_tests;
+
+#[cfg(test)]
+#[path = "main/search_limit_tests.rs"]
+mod search_limit_tests;

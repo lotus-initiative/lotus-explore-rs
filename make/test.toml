@@ -124,52 +124,19 @@ cwd = "${REPO_ROOT}"
 description = "Print the coverage summary table without writing HTML."
 script = "cargo llvm-cov nextest --locked --summary-only --workspace"
 
-# Mutation testing. `cargo mutants` rewrites one expression at a time and
-# re-runs the tests: a mutant that survives is a behaviour the suite does not
-# actually pin down, which a passing test run cannot tell you. Coverage counts
-# executed lines; this checks that they are asserted on.
+# Mutation testing is the standard `./mk mutants` gate: mk's bounded runner,
+# over MUTANTS_PACKAGES (mk.local), with nextest and the exclusions in
+# `.cargo/mutants.toml`. Not a task here, so it cannot bypass the runner's
+# limits and watchdog.
 #
-# `--test-tool nextest` because nextest is what the suite runs under elsewhere,
-# and a mutant evaluated against a different harness is evaluated against a
-# different suite.
-#
-# Every library crate in the workspace. `apps/lotus-explore-rs` is excluded,
-# deliberately, with the reason written down in `.cargo/mutants.toml`.
-#
-# A preflight, because the failure it guards against is a wedged machine rather
-# than a red task. See make/scripts/mutants-preflight.sh: `cargo mutants`
-# rebuilds the workspace once per mutant, which a normal build never does, and
-# two runs of this at `--jobs 8` crashed a 16 GB laptop with a 94%-full volume.
-# It refuses to start below 20 GB free and says how to reclaim it;
-# `MUTANTS_MIN_FREE_GB=0` overrides.
-#
-# `--jobs` defaults to 4 rather than 8, and that is not a fix: the second crash
-# happened at `--jobs 2`, so concurrency is not the cause and no value of this
-# flag is known to be safe. It is reduced because it is the one knob that
-# plausibly moves memory pressure, not because 4 has been shown to work.
-# `MUTANTS_JOBS=1`, one package at a time, is the form that has a chance.
-[tasks."mutants"]
-cwd = "${REPO_ROOT}"
-description = "Mutation testing over the library crates and CLI/web-assets binaries, using nextest."
-script = """
-./make/scripts/mutants-preflight.sh && \\
-cargo mutants --test-tool nextest --jobs "${MUTANTS_JOBS:-4}" --timeout 300 \\
-  --package lotus-model --package lotus-search --package lotus-query \\
-  --package lotus-curation --package lotus-jsonld \\
-  --package lotus-cli --package lotus-web-assets --package lotus-explore-core
-"""
-
-# The excluded UI crate, run on request. ~2,700 mutants of Dioxus rendering --
-# a `match` arm on a `Signal`, an `rswap!`, a literal in a `class` attribute --
-# and killing those means a rendering test for every component.
+# The excluded UI crate, run on request through the same runner. ~2,700 mutants
+# of Dioxus rendering -- a `match` arm on a `Signal`, an `rswap!`, a literal in a
+# `class` attribute -- and killing those means a rendering test for every
+# component. `--no-config` because `.cargo/mutants.toml` excludes this crate.
 [tasks."mutants-ui"]
 cwd = "${REPO_ROOT}"
 description = "Mutation testing over the app crate. Large and mostly unkillable."
-script = """
-./make/scripts/mutants-preflight.sh && \\
-cargo mutants --test-tool nextest --package lotus-explore-rs \\
-  --jobs "${MUTANTS_JOBS:-4}" --timeout 300
-"""
+script = "./mk mutants --no-config --test-tool nextest --package lotus-explore-rs"
 
 # The same packages, listed without running them: what a change added, before
 # paying for the run.

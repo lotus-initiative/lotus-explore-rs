@@ -29,19 +29,22 @@ thiserror = { workspace = true }
 # consumers like any other. A dev-dependency on self is the supported way to say
 # "my tests need this feature" without turning it on for consumers -- the same
 # arrangement `lotus-search` makes for its `testing` feature.
-lotus-model = { workspace = true, features = ["testing"] }
+#
+# `diagnostics` too, for the reason given at the feature below.
+lotus-model = { workspace = true, features = ["diagnostics", "testing"] }
 
 [features]
 # Storage reporting, read by `lotus-query/tests/bench.rs` and nothing else.
 #
-# Behind a feature so that it is absent from the default build rather than
-# excluded from mutation testing by a pattern. Both of these functions exist to be
-# *read*: they report a breakdown of a set's own storage so an optimisation has
-# something to aim at. There is no behaviour to assert -- a mutant that returns the
-# wrong number is caught by a human reading the benchmark and by nothing else, and a
-# test written to catch one would be asserting that a sum is a sum. Leaving them
-# compiled would add ~78 mutants that cannot be killed by construction, which is most
-# of a package's survivors and enough to bury a real one.
+# Behind a feature so that it is absent from the default build: both functions
+# exist to be *read*, reporting a breakdown of a set's own storage so an
+# optimisation has something to aim at.
+#
+# The feature does not keep them out of mutation testing. cargo-mutants mutates
+# the source without evaluating `cfg`, so with the feature off every mutant of
+# them built, passed and was reported missed -- ~78 survivors no test could reach.
+# The dev-dependency above turns it on for this crate's own tests, where
+# `src/columnar/tests.rs` pins both figures to exact bytes.
 diagnostics = []
 
 # The shared test fixtures in `src/testing.rs`, for this crate's integration

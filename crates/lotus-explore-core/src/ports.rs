@@ -162,3 +162,7 @@ pub trait LotusRepository: Clone + 'static {
         Ok(file)
     }
 }
+
+#[cfg(test)]
+#[path = "ports/tests.rs"]
+mod tests;

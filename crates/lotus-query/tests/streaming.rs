@@ -407,3 +407,79 @@ fn a_header_naming_no_known_column_is_refused() {
         "the error should say what was missing: {error}"
     );
 }
+
+/// Each of the three things that make a record unfinished is enough on its own.
+///
+/// One input per disjunct, each with the other two false: a field already closed
+/// (`a,`), bytes of an open field (`a`), and a quote whose meaning waits for the
+/// next byte (`""`, an empty quoted field that may yet turn out to be `"""`).
+#[test]
+fn any_one_unfinished_part_makes_the_splitter_mid_record() {
+    for partial in [&b"a,"[..], b"a", b"\"\""] {
+        let mut splitter = CsvSplitter::new();
+        let mut out = Vec::new();
+        splitter.feed(partial, &mut out);
+        assert!(out.is_empty(), "{partial:?} completes no record");
+        assert!(
+            splitter.is_mid_record(),
+            "{partial:?} leaves a record unfinished"
+        );
+    }
+}
+
+/// A quote that does not open its field is a literal character.
+///
+/// Read as an opening quote, it would swallow the rest of the payload into one
+/// field, and the comma and newline after it would stop being delimiters.
+#[test]
+fn a_quote_in_the_middle_of_a_field_is_kept_as_a_character() {
+    let payload = b"a\"b,c\nd,e\n";
+    assert_eq!(
+        as_strings(&split_in_one_go(payload)),
+        vec![vec!["a\"b", "c"], vec!["d", "e"]]
+    );
+    assert_splits_the_same_way(payload);
+}
+
+/// The notice `QLever` appends to a body it could not finish, as captured from
+/// `qlever.dev`.
+const TRUNCATION_NOTICE: &str = "!!!!>># An error has occurred while exporting the query result. \
+Unfortunately due to limitations in the HTTP 1.1 protocol, there is no better way to report \
+this than to append it to the incomplete result. The error message was:\n\
+Operation timed out.\n";
+
+/// A body ending in the truncation notice is refused, naming the endpoint's reason.
+///
+/// Fed whole and a byte at a time, with enough rows ahead of the notice that the
+/// kept tail has had to drop its oldest bytes: the notice must be found however
+/// the body arrived.
+#[test]
+fn a_body_ending_in_the_truncation_notice_is_refused_with_its_reason() {
+    let rows = "Q1,first,,120.5,C2H6O,Q10,Homo,Q100,\n".repeat(40);
+    let body = format!("{HEADER}{rows}{TRUNCATION_NOTICE}");
+    assert!(body.len() > 1024, "the body outgrows the kept tail");
+    let expected = "the endpoint stopped sending before the result was complete, so these \
+                    rows are only part of the answer and are not being reported as if they \
+                    were all of it (the endpoint said: Operation timed out); re-run the \
+                    search, or narrow it";
+
+    let whole = parse_compounds_columnar(body.as_bytes()).expect_err("the body was cut short");
+    assert_eq!(whole.message(), expected);
+
+    let mut reader = CsvColumnarReader::new();
+    for byte in body.as_bytes() {
+        reader
+            .feed(std::slice::from_ref(byte))
+            .expect("every byte decodes");
+    }
+    let bytewise = reader.finish().expect_err("the body was cut short");
+    assert_eq!(bytewise.message(), expected);
+}
+
+/// The same rows without the notice are a complete answer.
+#[test]
+fn a_body_without_the_truncation_notice_is_accepted() {
+    let body = format!("{HEADER}Q1,first,,120.5,C2H6O,Q10,Homo,Q100,\n");
+    let set = parse_compounds_columnar(body.as_bytes()).expect("the body is complete");
+    assert_eq!(set.row_count(), 1);
+}

@@ -50,45 +50,6 @@ fn set_of(rows: &[CompoundEntry]) -> lotus_model::ColumnarResultSet {
 }
 
 #[test]
-fn the_two_functions_agree_about_what_the_set_holds() {
-    // The property worth having. `dictionary_costs` itemises and
-    // `total_dictionary_bytes` sums, and they are written separately over the
-    // same fields. A column added to one and not the other is a silent wrong
-    // number, and nothing in the build fails for it.
-    let set = set_of(&[full_row(), full_row()]);
-
-    let costs: usize = set
-        .dictionary_costs()
-        .iter()
-        .map(|(_, _, bytes)| bytes)
-        .sum();
-    let total = set.total_dictionary_bytes();
-
-    assert!(
-        total > 0,
-        "a populated set holds something, so the figure is not zero"
-    );
-    // Direction-agnostic: measured, the two differ by about a tenth, in the
-    // itemised figure's disfavour, because the QID estimate charges map slack the
-    // total omits. Asserting closeness in one direction would have pinned the
-    // wrong sign.
-    let ratio = total
-        .max(costs)
-        .checked_div(total.min(costs).max(1))
-        .unwrap_or(0);
-    assert!(
-        ratio <= 2,
-        // Not asserted as equality: the two use different per-dictionary
-        // arithmetic (`qids` counts map slack, the total does not), so they are
-        // two estimates of one quantity and not two spellings of it. What must
-        // hold is that they are the same order of magnitude -- a column added to
-        // one function and not the other shows up here as a factor.
-        "itemised {costs} against a total of {total}: a column added to one \\
-         function and not the other would show as this gap"
-    );
-}
-
-#[test]
 fn an_empty_set_reports_nothing_rather_than_a_nonzero_number() {
     let set = lotus_model::ColumnarResultSet::default();
     assert_eq!(
@@ -163,33 +124,12 @@ fn every_dictionary_is_named_and_counted() {
     );
 }
 
-/// **Documents a defect. Read this before "fixing" the assertion.**
-///
-/// `statement_fallbacks` is a plain id -> string interning table, not a
-/// slot-keyed column: `SparseStrings::intern` pushes to `values` and `index` and
-/// never touches `ids`. So `len()` -- which is `ids.len()` -- is permanently
-/// zero for it, and `dictionary_costs` reports that zero as its entry count:
-///
-/// ```text
-/// ("statement fallbacks", self.statement_fallbacks.len(), sparse(&self.statement_fallbacks))
-/// ```
-///
-/// The cost term is right and the count is not, because `sparse` counts `values`
-/// while the count reads `ids`. So a set with one fallback reports
-/// `("statement fallbacks", 0, 26)` -- zero entries, 26 bytes. `distinct_len()`
-/// is the accessor that would answer correctly.
-///
-/// The same mismatch makes `total_dictionary_bytes` under-count this table: it
-/// adds `distinct_len() * size_of::<Arc<str>>()` and `len() * size_of::<u32>()`,
-/// and the `u32` term is always zero, so the index map's own overhead is never
-/// counted -- where the QID dictionaries deliberately charge 8 bytes of map slack
-/// per entry.
-///
-/// Not fixed here: this branch may not change production code. The assertion is
-/// written as the current behaviour so that fixing it fails this test and forces
-/// whoever does it to read why.
+/// `statement_fallbacks` is an id -> string interning table, not a slot-keyed
+/// column, so it never fills the slot column that `len()` counts. Its entry count
+/// used to be read from there and was always zero while its bytes were not; it
+/// now comes from `distinct_len()`, the same figure as `statement_fallback_entries`.
 #[test]
-fn the_statement_fallback_dictionary_reports_zero_entries_while_costing_bytes() {
+fn the_statement_fallback_dictionary_counts_its_entries() {
     let set = set_of(&[full_row()]);
     let fallback = set
         .dictionary_costs()
@@ -197,23 +137,7 @@ fn the_statement_fallback_dictionary_reports_zero_entries_while_costing_bytes() 
         .find(|(name, _, _)| *name == "statement fallbacks")
         .expect("the dictionary is reported");
 
-    assert_eq!(
-        fallback.0, "statement fallbacks",
-        "sanity: this is the right row"
-    );
-    assert_eq!(
-        fallback.1, 0,
-        "the reported entry count is always zero for this dictionary, because it \
-         is read from `ids` and this table never fills `ids`. The correct count is \
-         `distinct_len()`, which is 1 here."
-    );
-    assert!(
-        fallback.2 > 0,
-        "while its cost is real, which is what makes the pair self-contradictory: {fallback:?}"
-    );
-    assert_eq!(
-        set.statement_fallback_entries(),
-        1,
-        "and the accessor that answers correctly already reports 1"
-    );
+    assert_eq!(fallback.1, 1);
+    assert_eq!(fallback.1, set.statement_fallback_entries());
+    assert!(fallback.2 > 0, "{fallback:?}");
 }

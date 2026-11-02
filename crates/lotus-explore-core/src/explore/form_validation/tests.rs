@@ -203,3 +203,27 @@ fn validate_dispatch_criteria_rejects_malformed_single_letter_structure() {
         Err(ValidationFault::EmptyInput)
     );
 }
+
+#[test]
+fn every_bound_is_inclusive_at_its_limit() {
+    assert_eq!(validate_mass(100.0, 100.0, 100.0), Ok(()));
+    assert_eq!(validate_year_range(2020, 2020, 2026), Ok(()));
+    assert_eq!(validate_element_count(1000), Ok(()));
+    assert_eq!(validate_taxon(&"x".repeat(500)), Ok(()));
+}
+
+#[test]
+fn validate_dispatch_criteria_counts_carbon_and_hydrogen_together() {
+    // 1000 + 1 is over the limit; their difference and their product are not,
+    // so only the sum rejects this.
+    let criteria = SearchCriteria {
+        taxon: "Rosa".into(),
+        c_min: 1000,
+        h_min: 1,
+        ..SearchCriteria::up_to_year(2026)
+    };
+    assert_eq!(
+        validate_dispatch_criteria(&criteria),
+        Err(ValidationFault::ElementCountTooHigh)
+    );
+}

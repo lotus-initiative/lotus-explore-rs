@@ -556,3 +556,90 @@ fn curate_reports_how_many_rows_it_was_not_able_to_check() {
     let stderr = String::from_utf8(output.get_output().stderr.clone()).expect("UTF-8");
     assert!(stderr.contains("not looked up"), "got: {stderr}");
 }
+
+/// The stderr of `lotus search --explain` with the given extra arguments.
+fn explain_stderr(args: &[&str]) -> String {
+    let output = lotus()
+        .args(["search", "--explain"])
+        .args(args)
+        .assert()
+        .success();
+    String::from_utf8(output.get_output().stderr.clone()).expect("UTF-8")
+}
+
+#[test]
+fn explain_warns_that_an_exact_structure_query_is_the_unresolved_one() {
+    assert_eq!(
+        explain_stderr(&["--structure", "c1ccccc1"]),
+        "lotus: this is the query before the structure is resolved. An exact structure \
+         search resolves \"c1ccccc1\" to a compound first and runs a query seeded on that \
+         compound, so this is not the query that will run.\n"
+    );
+}
+
+#[test]
+fn explain_warns_about_nothing_when_no_structure_needs_resolving() {
+    // Exact is the default search type, so the first case is the warning's
+    // condition with only the structure missing, and the second is the
+    // condition with only the search type changed.
+    assert_eq!(explain_stderr(&[]), "");
+    assert_eq!(
+        explain_stderr(&[
+            "--structure",
+            "c1ccccc1",
+            "--structure-search",
+            "substructure"
+        ]),
+        ""
+    );
+}
+
+/// `lotus` with every proxy pointed at a closed loopback port, so a command
+/// that fetches fails at once, and nothing leaves the machine.
+fn lotus_without_a_reachable_endpoint() -> Command {
+    let mut command = lotus();
+    let closed = "http://127.0.0.1:9";
+    for name in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"] {
+        command
+            .env(name, closed)
+            .env(name.to_ascii_lowercase(), closed);
+    }
+    command.env_remove("NO_PROXY").env_remove("no_proxy");
+    command
+}
+
+/// Run an export subcommand that cannot reach its endpoint, and check that it
+/// fails, says why, and writes nothing.
+fn assert_export_fails_without_writing(subcommand: &[&str], test: &str) {
+    let output_dir = std::env::temp_dir().join(format!("lotus-cli-{test}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&output_dir);
+    let output = lotus_without_a_reachable_endpoint()
+        .args(subcommand)
+        .arg("--output")
+        .arg(&output_dir)
+        .assert()
+        .failure();
+    let stderr = String::from_utf8(output.get_output().stderr.clone()).expect("UTF-8");
+    assert!(
+        stderr.starts_with("lotus: ") && stderr.contains("error sending request"),
+        "got: {stderr}"
+    );
+    assert!(
+        !output_dir.exists(),
+        "an unreachable fetch created {}",
+        output_dir.display()
+    );
+}
+
+#[test]
+fn export_fails_when_the_endpoint_cannot_be_reached() {
+    assert_export_fails_without_writing(
+        &["export", "--year", "2025", "--now", "2025-01-01T00:00:00Z"],
+        "export",
+    );
+}
+
+#[test]
+fn export_pubchem_tree_fails_when_the_endpoint_cannot_be_reached() {
+    assert_export_fails_without_writing(&["export-pubchem-tree"], "export-pubchem-tree");
+}

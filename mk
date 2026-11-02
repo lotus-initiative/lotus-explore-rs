@@ -21,6 +21,7 @@ LOCAL_SETUP=()          # cargo-make tasks ./mk setup runs in every tier (instal
 LOCAL_CARGO_TOOLS=()    # extra crate@version tools, pinned like mk.versions
 LOCAL_SYSTEM_PACKAGES=() # apt packages ./mk setup installs on CI (Linux runners)
 MIRI_PACKAGES=()        # crates miri tests (default: the whole workspace)
+MUTANTS_PACKAGES=()     # crates cargo-mutants mutates (default: the whole workspace)
 COVERAGE_FAIL_UNDER_LINES=100
 ECHOES_MAX_APPROXIMATE=0 # legacy approximate duplicate blocks (ratchet: only down)
 ECHOES_MAX_REUSE=0       # legacy dependency-reuse opportunities (ratchet: only down)
@@ -167,6 +168,112 @@ install_cargo_tools() {
     done
 }
 
+# --- mutation testing -------------------------------------------------------
+
+# cargo-mutants rebuilds a crate once per mutant, in scratch copies, for hours.
+# Unbounded, that wedged developer machines (twice, once at --jobs 2) and cost a
+# CI runner its connection to GitHub (lotus-explore-rs, 2026-11-01). So every
+# run is bounded by construction, whatever the caller passes:
+# - concurrency: MUTANTS_JOBS mutants at once (default 1 locally, half the cores
+#   on CI), the cores split between them for cargo and nextest, and locally half
+#   of them left to the rest of the machine;
+# - size: no debuginfo and no incremental cache, most of a test build's memory,
+#   link time and disk, and nothing a mutant needs;
+# - priority: nice 19, so the desktop stays responsive;
+# - a watchdog: it refuses to start, and stops a running mutation run with
+#   SIGINT (so cargo-mutants removes its scratch copies), when available memory
+#   or free disk falls below a floor, rather than let the machine swap itself to
+#   a halt. Floors: MUTANTS_MIN_FREE_MEM_PCT (default 15) and
+#   MUTANTS_MIN_FREE_DISK_GB (default 10), on the repository's and TMPDIR's volumes.
+MUTANTS_MIN_FREE_MEM_PCT="${MUTANTS_MIN_FREE_MEM_PCT:-15}"
+MUTANTS_MIN_FREE_DISK_GB="${MUTANTS_MIN_FREE_DISK_GB:-10}"
+
+cores() { getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2; }
+
+# Available memory as a whole percentage, or nothing where it cannot be read.
+# macOS: the kernel's own availability level, the figure jetsam acts on, read
+# as 0 once the kernel reports critical pressure.
+free_mem_pct() {
+    if [ -r /proc/meminfo ]; then
+        awk '/^MemTotal:/ { t = $2 } /^MemAvailable:/ { a = $2 } END { if (t) print int(a * 100 / t) }' /proc/meminfo
+    elif [ "$(sysctl -n kern.memorystatus_vm_pressure_level 2>/dev/null)" = 4 ]; then
+        echo 0
+    else
+        sysctl -n kern.memorystatus_level 2>/dev/null || true
+    fi
+}
+
+free_disk_gb() { df -Pk "$1" 2>/dev/null | awk 'NR == 2 { print int($4 / 1048576) }'; }
+
+# Why the machine is below a floor, or nothing when it is not.
+mutants_starved() {
+    local mem disk dir
+    mem="$(free_mem_pct)"
+    if [ -n "$mem" ] && [ "$mem" -lt "$MUTANTS_MIN_FREE_MEM_PCT" ]; then
+        echo "available memory ${mem}% < ${MUTANTS_MIN_FREE_MEM_PCT}% (MUTANTS_MIN_FREE_MEM_PCT)"
+        return
+    fi
+    for dir in "$ROOT_DIR" "${TMPDIR:-/tmp}"; do
+        disk="$(free_disk_gb "$dir")"
+        if [ -n "$disk" ] && [ "$disk" -lt "$MUTANTS_MIN_FREE_DISK_GB" ]; then
+            echo "free disk ${disk} GB on $dir < ${MUTANTS_MIN_FREE_DISK_GB} GB (MUTANTS_MIN_FREE_DISK_GB)"
+            return
+        fi
+    done
+}
+
+# run_mutants <cargo-mutants args...>: the only way mk starts cargo-mutants.
+run_mutants() {
+    need cargo-mutants
+    local n jobs threads reason pid rc=0
+    n="$(cores)"
+    if [ -n "${CI:-}" ]; then
+        jobs="${MUTANTS_JOBS:-$((n > 3 ? n / 2 : 1))}"
+        threads=$((n / jobs))
+    else
+        jobs="${MUTANTS_JOBS:-1}"
+        threads=$((n / jobs / 2))
+    fi
+    [ "$threads" -ge 1 ] || threads=1
+    reason="$(mutants_starved)"
+    [ -z "$reason" ] || die "not starting cargo-mutants: $reason"
+    local -a scope=(--workspace)
+    if [ "${#MUTANTS_PACKAGES[@]}" -gt 0 ]; then scope=("${MUTANTS_PACKAGES[@]/#/--package=}"); fi
+    # A caller naming its own packages (`./mk mutants -p crate`) replaces the default.
+    local arg
+    for arg in "$@"; do
+        case "$arg" in -p | --package | --package=* | --workspace) scope=() ;; esac
+    done
+    echo "mutants: $jobs at a time, $threads build/test threads each, $n cores;" \
+        "stops below ${MUTANTS_MIN_FREE_MEM_PCT}% memory or ${MUTANTS_MIN_FREE_DISK_GB} GB disk"
+    # Its own process group, so the watchdog and Ctrl-C reach every rustc and test.
+    set -m
+    CARGO_BUILD_JOBS="$threads" NEXTEST_TEST_THREADS="$threads" CARGO_INCREMENTAL=0 \
+        CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 \
+        nice -n 19 cargo mutants --jobs "$jobs" ${scope[@]+"${scope[@]}"} --all-features "$@" &
+    pid=$!
+    set +m
+    trap 'kill -INT -- "-$pid" 2>/dev/null || true' INT TERM
+    while kill -0 "$pid" 2>/dev/null; do
+        reason="$(mutants_starved)"
+        if [ -n "$reason" ]; then
+            echo "ERROR: stopping cargo-mutants: $reason" >&2
+            kill -INT -- "-$pid" 2>/dev/null || true
+            for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+                kill -0 "$pid" 2>/dev/null || break
+                sleep 2 || true
+            done
+            kill -KILL -- "-$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            exit 1
+        fi
+        sleep 2 || true
+    done
+    wait "$pid" || rc=$?
+    trap - INT TERM
+    return "$rc"
+}
+
 # --- tiers ------------------------------------------------------------------
 
 # Runs every gate as its own process (so `set -e` holds inside each), keeps
@@ -196,6 +303,11 @@ run_tier() {
 
 # A standard gate this repository implements itself: `gate` or `gate=task`.
 for override in "${LOCAL_OVERRIDES[@]}"; do
+    case "${override%%=*}" in
+        # Overriding them would bypass run_mutants' limits and watchdog.
+        mutants | mutants-diff)
+            die "LOCAL_OVERRIDES cannot replace ${override%%=*}: scope it with MUTANTS_PACKAGES, configure it in .cargo/mutants.toml" ;;
+    esac
     if [ "${override%%=*}" = "$cmd" ]; then
         echo "($cmd: this repository's own task '${override#*=}', see LOCAL_OVERRIDES in mk.local)"
         cargo_make "${override#*=}" "$@"
@@ -283,7 +395,9 @@ case "$cmd" in
         done < <(git log --no-merges --format=%s "$(git merge-base "$base" HEAD)..HEAD")
         [ "$bad" = 0 ]
         ;;
-    fmt) cargo fmt --all -- --check ;;
+    # Workspace members only: --all would also check (and `cargo fmt --all` rewrite)
+    # path dependencies that live in other repositories.
+    fmt) cargo fmt -- --check ;;
     tombi)
         require tombi "$TOMBI_VERSION"
         tombi format --check
@@ -384,9 +498,9 @@ case "$cmd" in
         cargo check --workspace --target wasm32-unknown-unknown --all-features --locked
         ;;
     mutants)
-        need cargo-mutants
         # Exit 2 = missed mutants, 3 = timeouts: both fail. Exclusions live in .cargo/mutants.toml.
-        cargo mutants --workspace --all-features
+        # Extra arguments go to cargo-mutants: `./mk mutants -p crate` runs one crate.
+        run_mutants "$@"
         ;;
     mutants-diff)
         # Mutants in code changed against the base branch (and uncommitted changes), on every PR.
@@ -396,7 +510,7 @@ case "$cmd" in
         trap 'rm -f "$diff"' EXIT
         git diff --no-ext-diff --no-color "$(git merge-base "$base" HEAD)" -- '*.rs' >"$diff"
         [ -s "$diff" ] || skip "no Rust changes against $base"
-        cargo mutants --workspace --all-features --in-diff "$diff"
+        run_mutants --in-diff "$diff"
         ;;
     coverage)
         need cargo-llvm-cov

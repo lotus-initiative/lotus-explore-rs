@@ -298,3 +298,57 @@ fn write_archive_produces_checksums_and_manifest() {
     assert!(checksums.contains("  lotus-wikidata-smiles.tar.gz\n"));
     assert!(checksums.contains("  lotus-wikidata-smiles.manifest.json\n"));
 }
+
+/// A page exactly `ARCHIVE_PAGE_SIZE` long may not be the last one, so the
+/// client asks for the next; only a shorter page ends the pull.
+#[tokio::test]
+async fn a_full_page_is_followed_by_a_request_for_the_next() {
+    let full = smiles_page(&vec![("Q1", "IK1", "CCO", "canonical"); ARCHIVE_PAGE_SIZE]);
+    let last = smiles_page(&[("Q2", "IK2", "CC", "canonical")]);
+    let http = Scripted::new(vec![json_reply(200, &full), json_reply(200, &last)]);
+
+    let bindings = QleverClient::new(&http, endpoint())
+        .fetch_bindings(ARCHIVE_SMILES_QUERY)
+        .await
+        .expect("both pages are fetched");
+
+    assert_eq!(bindings.len(), ARCHIVE_PAGE_SIZE + 1);
+    assert_eq!(http.call_count(), 2);
+}
+
+fn canonical(wikidata_id: &str, smiles: &str) -> SmilesRecord {
+    SmilesRecord {
+        inchi_key: "KEY1".to_string(),
+        wikidata_id: wikidata_id.to_string(),
+        smiles_kind: SmilesKind::Canonical,
+        smiles: smiles.to_string(),
+    }
+}
+
+#[test]
+fn deduplication_keeps_an_isomeric_record_over_a_later_canonical_one() {
+    let isomeric = SmilesRecord {
+        smiles_kind: SmilesKind::Isomeric,
+        ..canonical("Q9", "OCC")
+    };
+    assert_eq!(
+        deduplicate_by_inchi_key(vec![isomeric.clone(), canonical("Q1", "CCO")]),
+        vec![isomeric]
+    );
+}
+
+#[test]
+fn deduplication_within_one_kind_keeps_the_smallest_smiles_then_id() {
+    assert_eq!(
+        deduplicate_by_inchi_key(vec![canonical("Q2", "CCO"), canonical("Q1", "CCO")]),
+        vec![canonical("Q1", "CCO")]
+    );
+    assert_eq!(
+        deduplicate_by_inchi_key(vec![canonical("Q1", "CCO"), canonical("Q2", "CCO")]),
+        vec![canonical("Q1", "CCO")]
+    );
+    assert_eq!(
+        deduplicate_by_inchi_key(vec![canonical("Q1", "OCC"), canonical("Q2", "CCO")]),
+        vec![canonical("Q2", "CCO")]
+    );
+}
