@@ -15,7 +15,10 @@
 #![allow(unused_crate_dependencies)]
 #![allow(clippy::indexing_slicing)]
 
-use lotus_query::{construct_from_select, counts_query, escape_sparql_string, limit_query};
+use lotus_query::{
+    FallbackService, compounds_by_taxon_query, construct_from_select, counts_query,
+    escape_sparql_string, limit_query, reference_by_doi_query, wdqs_fallback,
+};
 
 /// A minimal well-formed base query: prefixes, a `SELECT`, a `WHERE`, one brace.
 const BASE: &str = "PREFIX wdt: <http://www.wikidata.org/prop/direct/>\n\
@@ -132,4 +135,21 @@ fn an_injected_clause_cannot_leave_the_literal() {
             "a raw line break survives into the query: {escaped:?}"
         );
     }
+}
+
+#[test]
+fn wdqs_fallback_routes_doi_lookups_to_scholarly_and_rewrites_main_reference_metadata() {
+    let doi_query = reference_by_doi_query("10.1000/xyz");
+    let (service, rewritten_doi) = wdqs_fallback(&doi_query);
+    assert_eq!(service, FallbackService::Scholarly);
+    assert_eq!(rewritten_doi, doi_query);
+
+    let taxon_query = compounds_by_taxon_query("Q16521");
+    let (service, rewritten_main) = wdqs_fallback(&taxon_query);
+    assert_eq!(service, FallbackService::Main);
+    assert!(
+        rewritten_main.contains("SERVICE <https://query-scholarly.wikidata.org/sparql>"),
+        "{rewritten_main}"
+    );
+    assert!(!rewritten_main.contains("?_ref_source"), "{rewritten_main}");
 }

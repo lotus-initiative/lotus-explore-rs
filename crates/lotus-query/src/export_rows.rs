@@ -237,25 +237,25 @@ impl<'a> RowExporter<'a> {
     /// `Cow` because four of the thirteen are rendered rather than stored: the QIDs come out of
     /// a numeric dictionary and the statement out of packed bytes, so they need a buffer
     /// before they can be quoted. Borrowing keeps the other nine off the heap.
-    fn cells(set: &ColumnarResultSet, row: usize) -> Vec<Cow<'_, str>> {
-        let mut out: Vec<Cow<'_, str>> = Vec::with_capacity(COLUMNS.len());
-        out.push(render_qid(set.compound_qid_text(row)));
-        out.push(Cow::Borrowed(set.compound_label(row).unwrap_or_default()));
-        out.push(borrowed_or_empty(set.inchikey(row)));
-        out.push(borrowed_or_empty(set.smiles(row)));
-        out.push(Cow::Owned(render_mass(set.mass(row))));
-        out.push(borrowed_or_empty(set.formula(row)));
-        out.push(render_qid(set.taxon_qid_text(row)));
-        out.push(borrowed_or_empty(set.taxon_label(row)));
-        out.push(render_qid(set.reference_qid_text(row)));
-        out.push(borrowed_or_empty(set.reference_title(row)));
-        out.push(borrowed_or_empty(set.reference_doi(row)));
-        out.push(Cow::Owned(
-            set.pub_year(row)
-                .map_or_else(String::new, |year| year.to_string()),
-        ));
-        out.push(Cow::Owned(statement_text(set, row)));
-        out
+    fn cells(set: &ColumnarResultSet, row: usize) -> [Cow<'_, str>; COLUMNS.len()] {
+        [
+            render_qid(set.compound_qid_text(row)),
+            Cow::Borrowed(set.compound_label(row).unwrap_or_default()),
+            borrowed_or_empty(set.inchikey(row)),
+            borrowed_or_empty(set.smiles(row)),
+            Cow::Owned(render_mass(set.mass(row))),
+            borrowed_or_empty(set.formula(row)),
+            render_qid(set.taxon_qid_text(row)),
+            borrowed_or_empty(set.taxon_label(row)),
+            render_qid(set.reference_qid_text(row)),
+            borrowed_or_empty(set.reference_title(row)),
+            borrowed_or_empty(set.reference_doi(row)),
+            Cow::Owned(
+                set.pub_year(row)
+                    .map_or_else(String::new, |year| year.to_string()),
+            ),
+            Cow::Owned(statement_text(set, row)),
+        ]
     }
 
     /// One occurrence as Turtle, mirroring the `CONSTRUCT` the endpoint would run.
@@ -436,12 +436,7 @@ fn number(value: Option<f64>) -> String {
     value
         .filter(|mass| mass.is_finite())
         .map_or_else(String::new, |mass| {
-            let text = if mass.fract() == 0.0 {
-                format!("{mass:.1}")
-            } else {
-                format!("{mass}")
-            };
-            format!("\"{text}\"^^xsd:decimal")
+            format!("\"{}\"^^xsd:decimal", render_mass(Some(mass)))
         })
 }
 

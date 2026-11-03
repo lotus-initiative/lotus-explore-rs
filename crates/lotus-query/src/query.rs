@@ -1577,18 +1577,12 @@ pub fn wdqs_fallback(query: &str) -> (FallbackService, String) {
 ";
 
     if is_reference_lookup(query) {
-        (
-            FallbackService::Scholarly,
-            query.replace("{CURATION_SPARQL_PREFIXES}\n", ""),
-        )
+        (FallbackService::Scholarly, query.to_string())
     } else {
-        let rewritten = query
-            .replace(
-                REFERENCE_METADATA,
-                &REFERENCE_METADATA.replace("?r ", "?ref "),
-            )
-            .replace(REFERENCE_METADATA, SCHOLARLY_REF);
-        (FallbackService::Main, rewritten)
+        (
+            FallbackService::Main,
+            query.replace(REFERENCE_METADATA, SCHOLARLY_REF),
+        )
     }
 }
 
