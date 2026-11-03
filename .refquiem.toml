@@ -1,0 +1,11 @@
+# cargo-refquiem config. Read by `./mk refquiem` (unknown keys are rejected).
+# Suppress an intentional mention with `// refquiem: allow(name)` or
+# `<!-- refquiem: allow(name) -->` (unused markers fail the gate).
+
+scan-commented-code = true
+
+[changed]
+# On a branch, also fail when untouched comments or docs name an item whose
+# signature, fields, variants or const/static value changed on the branch.
+compare = "values"
+level = "deny"

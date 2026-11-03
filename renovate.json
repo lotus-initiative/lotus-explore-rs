@@ -11,10 +11,10 @@
   "minimumReleaseAge": "7 days",
   "customManagers": [
     {
-      "description": "Cargo tools pinned in mk.versions (crate@version)",
+      "description": "Cargo tools pinned in mk.versions and mk.local (crate@version)",
       "customType": "regex",
       "managerFilePatterns": [
-        "/^mk\\.versions$/"
+        "/^mk\\.(versions|local)$/"
       ],
       "matchStrings": [
         "(?<depName>[a-z0-9_-]+)@(?<currentValue>\\d+\\.\\d+\\.\\d+)"

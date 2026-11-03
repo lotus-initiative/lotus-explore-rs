@@ -1,32 +1,19 @@
-# prek hooks. The standard ones only call `./mk`, so hooks, local runs and CI
-# are one gate: fast checks on commit, the whole of `./mk ci` on push.
+# Configuration file for `prek` - git hook framework
+# Hooks must only call `./mk <task>` per rusti-graben conventions.
+# pre-commit and commit-msg stay fast; pre-push runs the full blocking tier, exactly as CI does.
 
-default_install_hook_types = ["pre-commit", "pre-push"]
+default_install_hook_types = ["pre-commit", "commit-msg", "pre-push"]
 default_stages = ["pre-commit"]
 fail_fast = false
 
 [[repos]]
-repo = "https://github.com/pre-commit/pre-commit-hooks"
-rev = "v6.0.0"
-hooks = [{ id = "end-of-file-fixer", exclude = "(apps/lotus-explore-rs/public/assets/)" }, { id = "check-case-conflict" }, { id = "check-merge-conflict" }, { id = "check-symlinks" }, { id = "check-executables-have-shebangs" }, { id = "check-shebang-scripts-are-executable" }, { id = "check-json" }, { id = "check-yaml" }, { id = "mixed-line-ending" }, { id = "trailing-whitespace", exclude = "(apps/lotus-explore-rs/public/assets/)" }]
-
-# TOML formatting and schema linting.
-#
-# `check-toml` is deliberately absent above: tombi covers the same ground and,
-# unlike a parse check, validates a `Cargo.toml` against Cargo's own schema. It is
-# the tool that caught a `[target.'cfg(...)']` table silently owning every key
-# written after it.
-#
-# The `rev` here is the single source of the tombi version: `./mk setup` reads it
-# from this line rather than repeating it.
-
-[[repos]]
 repo = "local"
 hooks = [
-  { id = "fmt", name = "./mk fmt", language = "system", entry = "./mk fmt", pass_filenames = false, always_run = true },
-  { id = "tombi", name = "./mk tombi", language = "system", entry = "./mk tombi", pass_filenames = false, always_run = true },
-  { id = "typos", name = "./mk typos", language = "system", entry = "./mk typos", pass_filenames = false, always_run = true },
-  { id = "shell", name = "./mk shell", language = "system", entry = "./mk shell", pass_filenames = false, always_run = true },
-  { id = "license-headers", name = "./mk license-headers", language = "system", entry = "./mk license-headers", pass_filenames = false, always_run = true },
+  { id = "fmt", name = "./mk fmt", language = "system", entry = "./mk fmt", pass_filenames = false, always_run = true, stages = ["pre-commit"] },
+  { id = "tombi", name = "./mk tombi", language = "system", entry = "./mk tombi", pass_filenames = false, always_run = true, stages = ["pre-commit"] },
+  { id = "shell", name = "./mk shell", language = "system", entry = "./mk shell", pass_filenames = false, always_run = true, stages = ["pre-commit"] },
+  { id = "typos", name = "./mk typos", language = "system", entry = "./mk typos", pass_filenames = false, always_run = true, stages = ["pre-commit"] },
+  { id = "lint", name = "./mk lint", language = "system", entry = "./mk lint", pass_filenames = false, always_run = true, stages = ["pre-commit"] },
+  { id = "commits", name = "./mk commits", language = "system", entry = "./mk commits", stages = ["commit-msg"] },
   { id = "ci", name = "./mk ci", language = "system", entry = "./mk ci", pass_filenames = false, always_run = true, stages = ["pre-push"] },
 ]

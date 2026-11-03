@@ -29,10 +29,8 @@ ECHOES_MAX_REUSE=0       # legacy dependency-reuse opportunities (ratchet: only 
 if [ -f mk.local ]; then . ./mk.local; fi
 
 SKIP_RC=78
-CI_GATES=(tools actions shell commits ratchet fmt tombi typos lint lints-inherit test doc deny audit machete msrv echoes semver wasm mutants-diff)
+CI_GATES=(tools actions shell commits ratchet fmt tombi typos lint lints-inherit test doc deny audit machete msrv echoes refquiem semver wasm mutants-diff)
 NIGHTLY_GATES=(mutants coverage powerset miri outdated)
-# Run on demand only (./mk ci-experimental): not mature enough to block, kept ready to promote.
-EXPERIMENTAL_GATES=(refquiem)
 
 cmd="${1:-ci}"
 shift || true
@@ -40,7 +38,13 @@ shift || true
 die() { echo "ERROR: $*" >&2; exit 1; }
 
 cargo_make() {
-    [ -f Makefile.toml ] || die "no Makefile.toml for cargo-make task '$1'"
+    if declare -F "task_$1" >/dev/null; then
+        local task="task_$1"
+        shift
+        "$task" "$@"
+        return
+    fi
+    [ -f Makefile.toml ] || die "no Makefile.toml or task_$1 function for local task '$1'"
     need cargo-make
     exec cargo make --no-workspace "$@"
 }
@@ -118,7 +122,7 @@ require_tools() {
 
 spec_of() {
     local spec
-    for spec in "${CARGO_TOOLS_CI[@]}" "${CARGO_TOOLS_NIGHTLY[@]}" "${CARGO_TOOLS_EXPERIMENTAL[@]}" "${LOCAL_CARGO_TOOLS[@]}"; do
+    for spec in "${CARGO_TOOLS_CI[@]}" "${CARGO_TOOLS_NIGHTLY[@]}" "${LOCAL_CARGO_TOOLS[@]}"; do
         if [ "$(spec_crate "$spec")" = "$1" ]; then echo "$spec"; return; fi
     done
     die "$1 is not pinned in mk.versions"
@@ -296,7 +300,6 @@ run_tier() {
     done
     echo "=== $tier summary ==="
     printf '%s\n' "${report[@]}"
-    if [ "$tier" = ci ]; then echo "(not enforced: ${EXPERIMENTAL_GATES[*]}; run ./mk ci-experimental)"; fi
     [ "$failed" = 0 ] || die "$tier failed"
     echo "==> $tier passed"
 }
@@ -311,13 +314,14 @@ for override in "${LOCAL_OVERRIDES[@]}"; do
     if [ "${override%%=*}" = "$cmd" ]; then
         echo "($cmd: this repository's own task '${override#*=}', see LOCAL_OVERRIDES in mk.local)"
         cargo_make "${override#*=}" "$@"
+        exit 0
     fi
 done
 
 case "$cmd" in
     --list | --list-all-steps)
-        printf '%s\n' setup tools "${CI_GATES[@]}" "${NIGHTLY_GATES[@]}" "${EXPERIMENTAL_GATES[@]}" \
-            ci ci-nightly ci-release ci-experimental coverage-baseline echoes-baseline selftest | sort -u
+        printf '%s\n' setup tools "${CI_GATES[@]}" "${NIGHTLY_GATES[@]}" \
+            ci ci-nightly ci-release coverage-baseline echoes-baseline selftest | sort -u
         for t in "${LOCAL_CI_GATES[@]}" "${LOCAL_NIGHTLY_GATES[@]}"; do echo "local:$t"; done
         if [ -f Makefile.toml ]; then echo "(any other name runs that cargo-make task)"; fi
         ;;
@@ -332,7 +336,7 @@ case "$cmd" in
             fi
         fi
         install_cargo_tools "${LOCAL_CARGO_TOOLS[@]}"
-        for t in "${LOCAL_SETUP[@]}"; do cargo make --no-workspace "$t"; done
+        for t in "${LOCAL_SETUP[@]}"; do cargo_make "$t"; done
         rustup toolchain install # from rust-toolchain.toml
         rustup toolchain install "$(msrv)" --profile minimal
         install_tombi
@@ -343,16 +347,17 @@ case "$cmd" in
             rustup component add llvm-tools
             install_cargo_tools "${CARGO_TOOLS_NIGHTLY[@]}"
         fi
-        if [ "$tier" = all ] || [ "$tier" = experimental ]; then
-            install_cargo_tools "${CARGO_TOOLS_EXPERIMENTAL[@]}"
-        fi
         ;;
     tools)
         require tombi "$TOMBI_VERSION"
         require shellcheck "$SHELLCHECK_VERSION"
         require_tools "${CARGO_TOOLS_CI[@]}" "${LOCAL_CARGO_TOOLS[@]}"
         ;;
-    actions) need zizmor; zizmor --offline .github ;;
+    actions)
+        [ -d .github ] || skip "no .github directory"
+        need zizmor
+        zizmor --offline .github
+        ;;
     shell)
         require shellcheck "$SHELLCHECK_VERSION"
         # Every tracked shell script, found by extension or shebang.
@@ -367,11 +372,20 @@ case "$cmd" in
         shellcheck --external-sources --severity=style "${scripts[@]}"
         ;;
     ratchet)
-        # The ratchets in mk.local may only tighten relative to the base branch:
-        # the coverage floor goes up, the echoes legacy counts go down.
+        # The ratchets in mk.local and Cargo.toml may only tighten relative to the base branch:
+        # the coverage floor goes up, the echoes legacy counts and Cargo.toml allow lines go down.
         base="$(base_ref)" || skip "no base branch to compare with (set MK_BASE)"
-        base_local="$(git show "$(git merge-base "$base" HEAD):mk.local" 2>/dev/null || true)"
-        [ -n "$base_local" ] || skip "no mk.local on $base yet"
+        mb="$(git merge-base "$base" HEAD)"
+        base_cargo="$(git show "$mb:Cargo.toml" 2>/dev/null || true)"
+        if grep -Eq '^\[(workspace\.)?lints\.' <<<"$base_cargo"; then
+            old_allows="$(grep -c '= *"allow"' <<<"$base_cargo" || true)"
+            new_allows="$(grep -c '= *"allow"' Cargo.toml || true)"
+            if [ "$new_allows" -gt "$old_allows" ]; then
+                die "Cargo.toml lint allow count went up from $old_allows to $new_allows (use #[expect(.., reason)] at the site)"
+            fi
+        fi
+        base_local="$(git show "$mb:mk.local" 2>/dev/null || true)"
+        [ -n "$base_local" ] || exit 0
         old_value() { sed -n "s/^$1=\"*\([0-9]*\)\"*.*/\1/p" <<<"$base_local"; }
         old="$(old_value COVERAGE_FAIL_UNDER_LINES)"
         if [ -n "$old" ] && [ "$COVERAGE_FAIL_UNDER_LINES" -lt "$old" ]; then
@@ -385,6 +399,11 @@ case "$cmd" in
         done
         ;;
     commits)
+        if [ $# -gt 0 ] && [ -f "$1" ]; then
+            subject="$(grep -v '^#' "$1" | head -1)"
+            grep -Eq "$CONVENTIONAL" <<<"$subject" || die "not a conventional commit: $subject"
+            exit 0
+        fi
         base="$(base_ref)" || skip "no base branch to compare with (set MK_BASE)"
         bad=0
         while IFS= read -r subject; do
@@ -409,9 +428,14 @@ case "$cmd" in
     lints-inherit)
         if ! grep -q '^\[workspace\.lints' Cargo.toml; then
             # Single crate: the lints live in its own manifest.
-            grep -q '^\[lints\.' Cargo.toml || die "Cargo.toml has no [lints.*] or [workspace.lints.*] tables"
+            for sec in clippy rust rustdoc; do
+                grep -q "^\[lints\.$sec\]" Cargo.toml || die "Cargo.toml is missing [lints.$sec]"
+            done
             exit 0
         fi
+        for sec in clippy rust rustdoc; do
+            grep -q "^\[workspace\.lints\.$sec\]" Cargo.toml || die "Cargo.toml is missing [workspace.lints.$sec]"
+        done
         # Workspace lints only apply to crates that opt in.
         missing=0
         for manifest in $(cargo metadata --no-deps --format-version 1 --locked | grep -o '"manifest_path":"[^"]*"' | cut -d'"' -f4); do
@@ -476,10 +500,24 @@ case "$cmd" in
         echo "echoes ratchet: approximate=$approximate reuse=$reuse (mk.local)"
         ;;
     refquiem)
-        # Experimental: not in any tier until refquiem matures (see EXPERIMENTAL_GATES).
         need refquiem
         [ "$(git rev-parse --is-shallow-repository)" = false ] || die "refquiem needs full git history (fetch-depth: 0)"
-        if [ "${GITHUB_ACTIONS:-}" = true ]; then cargo refquiem --github; else cargo refquiem; fi
+        for key in 'scan-commented-code = true' 'level = "deny"'; do
+            grep -q "^$key" .refquiem.toml 2>/dev/null || die ".refquiem.toml must set '$key'"
+        done
+        ! grep -Eq '^since *=' .refquiem.toml || die ".refquiem.toml must not truncate history with 'since'"
+        if [ "${GITHUB_ACTIONS:-}" = true ]; then set -- --github "$@"; fi
+        cargo refquiem --config .refquiem.toml "$@"
+        has_range=0
+        for arg in "$@"; do
+            case "$arg" in --base | --base=* | --since | --since=*) has_range=1 ;; esac
+        done
+        if [ "$has_range" = 0 ] && base="$(base_ref)"; then
+            mb="$(git merge-base "$base" HEAD)"
+            if [ "$mb" != "$(git rev-parse HEAD)" ] || ! git diff --quiet HEAD; then
+                cargo refquiem --config .refquiem.toml --base "$mb" "$@"
+            fi
+        fi
         ;;
     semver)
         need cargo-semver-checks
@@ -534,6 +572,7 @@ case "$cmd" in
         # Undefined behaviour, not sandboxing: tests may read the clock and the
         # environment. MIRI_PACKAGES in mk.local limits it to the crates where
         # it means something (miri cannot spawn processes or open sockets).
+        cargo "+$RUST_NIGHTLY" miri --version >/dev/null 2>&1 || die "miri on $RUST_NIGHTLY is not installed; run ./mk setup nightly"
         export MIRIFLAGS="${MIRIFLAGS:--Zmiri-disable-isolation}"
         if [ "${#MIRI_PACKAGES[@]}" -gt 0 ]; then
             cargo "+$RUST_NIGHTLY" miri test --all-features --locked "${MIRI_PACKAGES[@]/#/--package=}"
@@ -545,18 +584,24 @@ case "$cmd" in
     ci) run_tier ci "${CI_GATES[@]}" "${LOCAL_CI_GATES[@]/#/local:}" ;;
     ci-nightly) run_tier ci-nightly "${NIGHTLY_GATES[@]}" "${LOCAL_NIGHTLY_GATES[@]/#/local:}" ;;
     local:*) cargo_make "${cmd#local:}" "$@" ;;
-    ci-experimental) run_tier ci-experimental "${EXPERIMENTAL_GATES[@]}" ;;
     ci-release)
         "$0" ci
-        cargo publish --workspace --dry-run --locked
+        if cargo metadata --no-deps --format-version 1 --locked | grep -q '"publish":null'; then
+            cargo publish --workspace --dry-run --locked
+        else
+            echo "[skip] publish: every crate sets publish = false"
+        fi
         ;;
     selftest)
         [ -x tests/gate_selftest.sh ] || skip "the gate selftest lives in the rusti-graben template only"
         tests/gate_selftest.sh
         ;;
     *)
-        # Anything else is a repository task (cargo-make), when there is a Makefile.toml.
-        if [ -f Makefile.toml ]; then cargo_make "$cmd" "$@"; fi
+        # Anything else is a repository task (task_<name> function in mk.local or cargo-make).
+        if declare -F "task_$cmd" >/dev/null || [ -f Makefile.toml ]; then
+            cargo_make "$cmd" "$@"
+            exit 0
+        fi
         echo "Usage: ./mk {$(./mk --list | grep -v '^(' | paste -sd'|' -)}"
         exit 1
         ;;
