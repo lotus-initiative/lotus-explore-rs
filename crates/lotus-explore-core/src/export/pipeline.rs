@@ -60,30 +60,31 @@ struct ReferenceProps {
     journal_label: Option<String>,
 }
 
-/// The joined export row, in frozen.csv column order.
-#[derive(Clone, Default)]
-struct ExportRow {
-    compound_qid: String,
-    compound_inchikey: Option<String>,
-    compound_smiles_can: Option<String>,
-    compound_smiles_iso: Option<String>,
-    compound_cid: Option<String>,
-    taxon_qid: String,
-    taxon_name: Option<String>,
-    taxon_ncbi: Option<String>,
-    taxon_ott: Option<String>,
-    taxon_gbif: Option<String>,
-    taxon_parent: Option<String>,
-    taxon_rank: Option<String>,
-    taxon_rank_label: Option<String>,
-    reference_qid: String,
-    reference_title: Option<String>,
-    reference_doi: Option<String>,
-    reference_pmid: Option<String>,
-    reference_pmcid: Option<String>,
-    reference_date: Option<String>,
-    reference_journal: Option<String>,
-    reference_journal_label: Option<String>,
+/// The joined export row, in `frozen.csv` column order, borrowing from the
+/// triplet row and the property indexes so joining allocates nothing.
+#[derive(Clone, Copy)]
+struct ExportRow<'a> {
+    compound_qid: &'a str,
+    compound_inchikey: &'a str,
+    compound_smiles_can: &'a str,
+    compound_smiles_iso: &'a str,
+    compound_cid: &'a str,
+    taxon_qid: &'a str,
+    taxon_name: &'a str,
+    taxon_ncbi: &'a str,
+    taxon_ott: &'a str,
+    taxon_gbif: &'a str,
+    taxon_parent: &'a str,
+    taxon_rank: &'a str,
+    taxon_rank_label: &'a str,
+    reference_qid: &'a str,
+    reference_title: &'a str,
+    reference_doi: &'a str,
+    reference_pmid: &'a str,
+    reference_pmcid: &'a str,
+    reference_date: &'a str,
+    reference_journal: &'a str,
+    reference_journal_label: &'a str,
 }
 
 /// The columns of `frozen.csv`, in write order.
@@ -156,7 +157,7 @@ pub enum ExportError {
 }
 
 /// Read one SPARQL CSV payload into row maps.
-fn read_csv_rows(bytes: &[u8]) -> Result<Vec<Row>, csv::Error> {
+pub(crate) fn read_csv_rows(bytes: &[u8]) -> Result<Vec<Row>, csv::Error> {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
         .flexible(true)
@@ -185,29 +186,21 @@ pub(crate) async fn fetch_csv_rows<H: Http>(
     _table: &'static str,
 ) -> Result<Vec<Row>, ExportError> {
     let mut answer = execute_streaming(http, endpoint.clone(), query, ResponseFormat::Csv).await?;
-    let mut body = String::new();
-    loop {
-        let chunk = answer.chunks.next_chunk().await?;
-        match chunk {
-            Some(bytes) => {
-                let text = String::from_utf8_lossy(&bytes[..]);
-                body.push_str(&text);
-            }
-            None => break,
-        }
+    let mut body = Vec::new();
+    while let Some(bytes) = answer.chunks.next_chunk().await? {
+        body.extend_from_slice(&bytes);
     }
-    let rows = read_csv_rows(body.as_bytes()).map_err(ExportError::Csv)?;
-    Ok(rows)
+    read_csv_rows(&body).map_err(ExportError::Csv)
 }
 
 /// The value of one column, empty when absent.
-fn cell(row: &Row, column: &str) -> String {
-    row.get(column).cloned().unwrap_or_default()
+pub(crate) fn cell<'a>(row: &'a Row, column: &str) -> &'a str {
+    row.get(column).map_or("", String::as_str)
 }
 
-/// Strip the Wikidata entity IRI to a bare QID, leaving a bare QID unchanged.
-fn qid_of(value: &str) -> String {
-    extract_qid(value).to_string()
+/// The QID in one entity column, stripped of its Wikidata entity IRI prefix.
+pub(crate) fn qid(row: &Row, column: &str) -> String {
+    extract_qid(cell(row, column)).to_string()
 }
 
 /// Build `compound QID → CompoundProps` from the structure tables.
@@ -218,16 +211,16 @@ fn build_compound_index(
 ) -> HashMap<String, CompoundProps> {
     let mut index: HashMap<String, CompoundProps> = HashMap::new();
     for row in smiles_can {
-        let q = qid_of(&cell(row, "compound"));
-        index.entry(q.clone()).or_default().smiles_can = Some(cell(row, "compound_smiles_can"));
+        index.entry(qid(row, "compound")).or_default().smiles_can =
+            Some(cell(row, "compound_smiles_can").to_string());
     }
     for row in smiles_iso {
-        let q = qid_of(&cell(row, "compound"));
-        index.entry(q.clone()).or_default().smiles_iso = Some(cell(row, "compound_smiles_iso"));
+        index.entry(qid(row, "compound")).or_default().smiles_iso =
+            Some(cell(row, "compound_smiles_iso").to_string());
     }
     for row in cids {
-        let q = qid_of(&cell(row, "compound"));
-        index.entry(q.clone()).or_default().cid = Some(cell(row, "compound_cid"));
+        index.entry(qid(row, "compound")).or_default().cid =
+            Some(cell(row, "compound_cid").to_string());
     }
     index
 }
@@ -243,30 +236,28 @@ fn build_taxon_index(
 ) -> HashMap<String, TaxonProps> {
     let mut index: HashMap<String, TaxonProps> = HashMap::new();
     for row in names {
-        let q = qid_of(&cell(row, "taxon"));
-        index.entry(q.clone()).or_default().name = Some(cell(row, "taxon_name"));
+        index.entry(qid(row, "taxon")).or_default().name =
+            Some(cell(row, "taxon_name").to_string());
     }
     for row in ncbis {
-        let q = qid_of(&cell(row, "taxon"));
-        index.entry(q.clone()).or_default().ncbi = Some(cell(row, "taxon_ncbi"));
+        index.entry(qid(row, "taxon")).or_default().ncbi =
+            Some(cell(row, "taxon_ncbi").to_string());
     }
     for row in otts {
-        let q = qid_of(&cell(row, "taxon"));
-        index.entry(q.clone()).or_default().ott = Some(cell(row, "taxon_ott"));
+        index.entry(qid(row, "taxon")).or_default().ott = Some(cell(row, "taxon_ott").to_string());
     }
     for row in gbifs {
-        let q = qid_of(&cell(row, "taxon"));
-        index.entry(q.clone()).or_default().gbif = Some(cell(row, "taxon_gbif"));
+        index.entry(qid(row, "taxon")).or_default().gbif =
+            Some(cell(row, "taxon_gbif").to_string());
     }
     for row in parents {
-        let q = qid_of(&cell(row, "taxon"));
-        index.entry(q.clone()).or_default().parent = Some(cell(row, "taxon_parent"));
+        index.entry(qid(row, "taxon")).or_default().parent =
+            Some(cell(row, "taxon_parent").to_string());
     }
     for row in ranks {
-        let q = qid_of(&cell(row, "taxon"));
-        let e = index.entry(q.clone()).or_default();
-        e.rank = Some(cell(row, "taxon_rank"));
-        e.rank_label = Some(cell(row, "taxon_rank_label"));
+        let e = index.entry(qid(row, "taxon")).or_default();
+        e.rank = Some(cell(row, "taxon_rank").to_string());
+        e.rank_label = Some(cell(row, "taxon_rank_label").to_string());
     }
     index
 }
@@ -282,73 +273,28 @@ fn build_reference_index(
 ) -> HashMap<String, ReferenceProps> {
     let mut index: HashMap<String, ReferenceProps> = HashMap::new();
     for row in dois {
-        let q = qid_of(&cell(row, "reference"));
-        index.entry(q.clone()).or_default().doi = Some(cell(row, "doi"));
+        index.entry(qid(row, "reference")).or_default().doi = Some(cell(row, "doi").to_string());
     }
     for row in pmid_s {
-        let q = qid_of(&cell(row, "reference"));
-        index.entry(q.clone()).or_default().pmid = Some(cell(row, "pmid"));
+        index.entry(qid(row, "reference")).or_default().pmid = Some(cell(row, "pmid").to_string());
     }
     for row in pmc_ids {
-        let q = qid_of(&cell(row, "reference"));
-        index.entry(q.clone()).or_default().pmcid = Some(cell(row, "pmcid"));
+        index.entry(qid(row, "reference")).or_default().pmcid =
+            Some(cell(row, "pmcid").to_string());
     }
     for row in titles {
-        let q = qid_of(&cell(row, "reference"));
-        index.entry(q.clone()).or_default().title = Some(cell(row, "title"));
+        index.entry(qid(row, "reference")).or_default().title =
+            Some(cell(row, "title").to_string());
     }
     for row in dates {
-        let q = qid_of(&cell(row, "reference"));
-        index.entry(q.clone()).or_default().date = Some(cell(row, "date"));
+        index.entry(qid(row, "reference")).or_default().date = Some(cell(row, "date").to_string());
     }
     for row in journals {
-        let q = qid_of(&cell(row, "reference"));
-        let e = index.entry(q.clone()).or_default();
-        e.journal = Some(cell(row, "journal"));
-        e.journal_label = Some(cell(row, "journal_label"));
+        let e = index.entry(qid(row, "reference")).or_default();
+        e.journal = Some(cell(row, "journal").to_string());
+        e.journal_label = Some(cell(row, "journal_label").to_string());
     }
     index
-}
-
-/// Join one triplet with the indexes into one export row.
-fn join_row(
-    triplet: &Row,
-    compounds: &HashMap<String, CompoundProps>,
-    taxa: &HashMap<String, TaxonProps>,
-    references: &HashMap<String, ReferenceProps>,
-) -> ExportRow {
-    let compound_qid = qid_of(&cell(triplet, "compound"));
-    let taxon_qid = qid_of(&cell(triplet, "taxon"));
-    let reference_qid = qid_of(&cell(triplet, "reference"));
-
-    let compound = compounds.get(&compound_qid).cloned().unwrap_or_default();
-    let taxon = taxa.get(&taxon_qid).cloned().unwrap_or_default();
-    let reference = references.get(&reference_qid).cloned().unwrap_or_default();
-
-    ExportRow {
-        compound_qid,
-        compound_inchikey: (!cell(triplet, "compound_inchikey").is_empty())
-            .then_some(cell(triplet, "compound_inchikey")),
-        compound_smiles_can: compound.smiles_can,
-        compound_smiles_iso: compound.smiles_iso,
-        compound_cid: compound.cid,
-        taxon_qid,
-        taxon_name: taxon.name,
-        taxon_ncbi: taxon.ncbi,
-        taxon_ott: taxon.ott,
-        taxon_gbif: taxon.gbif,
-        taxon_parent: taxon.parent,
-        taxon_rank: taxon.rank,
-        taxon_rank_label: taxon.rank_label,
-        reference_qid,
-        reference_title: reference.title,
-        reference_doi: reference.doi,
-        reference_pmid: reference.pmid,
-        reference_pmcid: reference.pmcid,
-        reference_date: reference.date,
-        reference_journal: reference.journal,
-        reference_journal_label: reference.journal_label,
-    }
 }
 
 /// Join every triplet and stream the resulting rows to `out` as a CSV,
@@ -366,29 +312,61 @@ fn write_joined_rows<W: Write>(
     writer.write_record(FROZEN_COLUMNS)?;
     let mut count = 0;
     for triplet in triplets {
-        let row = join_row(triplet, compounds, taxa, references);
+        let compound_qid = extract_qid(cell(triplet, "compound"));
+        let taxon_qid = extract_qid(cell(triplet, "taxon"));
+        let reference_qid = extract_qid(cell(triplet, "reference"));
+
+        let compound = compounds.get(compound_qid);
+        let taxon = taxa.get(taxon_qid);
+        let reference = references.get(reference_qid);
+
+        let row = ExportRow {
+            compound_qid,
+            compound_inchikey: cell(triplet, "compound_inchikey"),
+            compound_smiles_can: compound.and_then(|c| c.smiles_can.as_deref()).unwrap_or(""),
+            compound_smiles_iso: compound.and_then(|c| c.smiles_iso.as_deref()).unwrap_or(""),
+            compound_cid: compound.and_then(|c| c.cid.as_deref()).unwrap_or(""),
+            taxon_qid,
+            taxon_name: taxon.and_then(|t| t.name.as_deref()).unwrap_or(""),
+            taxon_ncbi: taxon.and_then(|t| t.ncbi.as_deref()).unwrap_or(""),
+            taxon_ott: taxon.and_then(|t| t.ott.as_deref()).unwrap_or(""),
+            taxon_gbif: taxon.and_then(|t| t.gbif.as_deref()).unwrap_or(""),
+            taxon_parent: taxon.and_then(|t| t.parent.as_deref()).unwrap_or(""),
+            taxon_rank: taxon.and_then(|t| t.rank.as_deref()).unwrap_or(""),
+            taxon_rank_label: taxon.and_then(|t| t.rank_label.as_deref()).unwrap_or(""),
+            reference_qid,
+            reference_title: reference.and_then(|r| r.title.as_deref()).unwrap_or(""),
+            reference_doi: reference.and_then(|r| r.doi.as_deref()).unwrap_or(""),
+            reference_pmid: reference.and_then(|r| r.pmid.as_deref()).unwrap_or(""),
+            reference_pmcid: reference.and_then(|r| r.pmcid.as_deref()).unwrap_or(""),
+            reference_date: reference.and_then(|r| r.date.as_deref()).unwrap_or(""),
+            reference_journal: reference.and_then(|r| r.journal.as_deref()).unwrap_or(""),
+            reference_journal_label: reference
+                .and_then(|r| r.journal_label.as_deref())
+                .unwrap_or(""),
+        };
         let record = [
-            row.compound_qid.as_str(),
-            row.compound_inchikey.as_deref().unwrap_or(""),
-            row.compound_smiles_can.as_deref().unwrap_or(""),
-            row.compound_smiles_iso.as_deref().unwrap_or(""),
-            row.compound_cid.as_deref().unwrap_or(""),
-            row.taxon_qid.as_str(),
-            row.taxon_name.as_deref().unwrap_or(""),
-            row.taxon_ncbi.as_deref().unwrap_or(""),
-            row.taxon_ott.as_deref().unwrap_or(""),
-            row.taxon_gbif.as_deref().unwrap_or(""),
-            row.taxon_parent.as_deref().unwrap_or(""),
-            row.taxon_rank.as_deref().unwrap_or(""),
-            row.taxon_rank_label.as_deref().unwrap_or(""),
-            row.reference_qid.as_str(),
-            row.reference_title.as_deref().unwrap_or(""),
-            row.reference_doi.as_deref().unwrap_or(""),
-            row.reference_pmid.as_deref().unwrap_or(""),
-            row.reference_pmcid.as_deref().unwrap_or(""),
-            row.reference_date.as_deref().unwrap_or(""),
-            row.reference_journal.as_deref().unwrap_or(""),
-            row.reference_journal_label.as_deref().unwrap_or(""),
+            row.compound_qid,
+            row.compound_inchikey,
+            row.compound_smiles_can,
+            row.compound_smiles_iso,
+            row.compound_cid,
+            row.taxon_qid,
+            row.taxon_name,
+            row.taxon_ncbi,
+            row.taxon_ott,
+            row.taxon_gbif,
+            row.taxon_parent,
+            row.taxon_rank,
+            row.taxon_rank_label,
+            row.reference_qid,
+            row.reference_title,
+            row.reference_doi,
+            row.reference_pmid,
+            row.reference_pmcid,
+            row.reference_date,
+            row.reference_journal,
+            row.reference_journal_label,
         ];
         writer.write_record(record)?;
         count += 1;

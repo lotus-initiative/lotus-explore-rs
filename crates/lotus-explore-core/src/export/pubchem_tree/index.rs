@@ -8,12 +8,12 @@ use lotus_query::{
     COMPOUND_CXSMILES_QUERY, COMPOUND_INCHIKEY_TAXON_QUERY, COMPOUND_LABEL_QUERY,
     COMPOUND_PARENT_QUERY, COMPOUND_SMARTS_QUERY, COMPOUND_SMILES_CAN_ALL_QUERY,
     COMPOUND_SMILES_ISO_ALL_QUERY, REFERENCE_DOI_QUERY, REFERENCE_PMID_QUERY, TAXON_NAME_QUERY,
-    TAXON_NCBI_QUERY, TAXON_PARENT_QUERY, extract_qid,
+    TAXON_NCBI_QUERY, TAXON_PARENT_QUERY,
 };
 use lotus_search::{Endpoint, Http};
 
 use super::nodes::{CompoundNode, Descriptors, Qid, Reference};
-use crate::export::pipeline::{ExportError, Row, fetch_csv_rows};
+pub(super) use crate::export::pipeline::{ExportError, Row, cell, fetch_csv_rows, qid};
 
 /// All 12 tables fetched from Wikidata, in Python's `LOTUSData` order.
 #[derive(Debug, Clone, Default)]
@@ -54,16 +54,6 @@ pub(super) async fn fetch_all_pubchem_data<H: Http>(
         reference_doi: fetch(REFERENCE_DOI_QUERY, "reference_doi").await?,
         reference_pmid: fetch(REFERENCE_PMID_QUERY, "reference_pmid").await?,
     })
-}
-
-/// The value of one column, empty when absent.
-pub(super) fn cell<'a>(row: &'a Row, column: &str) -> &'a str {
-    row.get(column).map_or("", String::as_str)
-}
-
-/// The QID in one entity column.
-pub(super) fn qid(row: &Row, column: &str) -> String {
-    extract_qid(cell(row, column)).to_string()
 }
 
 /// An empty cell means "no value": the documents leave the key out.

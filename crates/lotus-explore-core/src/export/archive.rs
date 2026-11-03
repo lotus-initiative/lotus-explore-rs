@@ -507,10 +507,11 @@ pub async fn run_archive<H: Http>(
 
     // 1. Fetch every page of both archive queries.
     let source_records = client.fetch_lotus_smiles().await?;
+    let source_records_count = source_records.len();
     let missing_inchi_key_records = client.fetch_missing_inchi_key_smiles().await?;
 
     // 2. Deduplicate by InChIKey (preferring isomeric P2017 over canonical P233).
-    let records = deduplicate_by_inchi_key(source_records.clone());
+    let records = deduplicate_by_inchi_key(source_records);
 
     // SMILES validation is omitted: `smiles-rs` has no wasm32 story. Parse
     // errors are empty; the archive still carries the count for format
@@ -518,7 +519,7 @@ pub async fn run_archive<H: Http>(
     let parse_errors: Vec<ParseErrorRecord> = Vec::new();
 
     let summary = ArchiveSummary {
-        source_records: source_records.len(),
+        source_records: source_records_count,
         missing_inchi_key_records: missing_inchi_key_records.len(),
         records: records.len(),
         parse_errors: parse_errors.len(),
@@ -527,7 +528,7 @@ pub async fn run_archive<H: Http>(
     let artifacts = write_archive(
         fetched_at,
         endpoint.url(),
-        source_records.len(),
+        source_records_count,
         &missing_inchi_key_records,
         &records,
         &parse_errors,

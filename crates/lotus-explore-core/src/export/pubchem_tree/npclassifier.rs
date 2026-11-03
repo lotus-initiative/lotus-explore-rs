@@ -28,33 +28,6 @@ pub(super) struct SuperclassMembers {
 /// pathway → superclass → members, as the cache classifies the SMILES.
 pub(super) type Classified = BTreeMap<String, BTreeMap<String, SuperclassMembers>>;
 
-/// Parse the `NPClassifier` cache CSV into rows (column name → value).
-pub(super) fn parse_csv(text: &str) -> Vec<Row> {
-    let mut reader = csv::ReaderBuilder::new()
-        .has_headers(true)
-        .flexible(true)
-        .from_reader(text.as_bytes());
-    let Ok(headers) = reader.headers().cloned() else {
-        return Vec::new();
-    };
-    reader
-        .records()
-        .filter_map(Result::ok)
-        .map(|record| {
-            headers
-                .iter()
-                .enumerate()
-                .map(|(i, header)| {
-                    (
-                        header.to_string(),
-                        record.get(i).unwrap_or_default().to_string(),
-                    )
-                })
-                .collect()
-        })
-        .collect()
-}
-
 /// Classify every error-free row with a SMILES. The i-th superclass of a row
 /// takes its i-th class; a superclass with no class at that position keeps
 /// the SMILES unclassified.

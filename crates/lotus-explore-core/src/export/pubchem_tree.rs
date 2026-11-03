@@ -25,9 +25,9 @@ use serde::Serialize;
 
 use self::document::{FullDocument, TreeKind};
 use self::index::{Index, fetch_all_pubchem_data};
-use self::npclassifier::{SmilesIndex, classify, npclassifier_tree, parse_csv};
+use self::npclassifier::{SmilesIndex, classify, npclassifier_tree};
 use self::trees::{biological_tree, chemical_tree};
-use super::pipeline::ExportError;
+use super::pipeline::{ExportError, read_csv_rows};
 
 /// The `NPClassifier` cache CSV URL.
 const NPCLASSIFIER_CACHE_URL: &str = "https://media.githubusercontent.com/media/adafede/marimo/main/apps/public/npclassifier/npclassifier_cache.csv";
@@ -79,7 +79,9 @@ pub async fn run_pubchem_tree<H: Http>(
 
     let npclassifier_rows = http_get_text(http, NPCLASSIFIER_CACHE_URL)
         .await
-        .map_or_else(|_| Vec::new(), |text| parse_csv(&text));
+        .ok()
+        .and_then(|text| read_csv_rows(text.as_bytes()).ok())
+        .unwrap_or_default();
     let npclassifier = npclassifier_tree(
         &classify(&npclassifier_rows),
         &SmilesIndex::new(&data, &index),
