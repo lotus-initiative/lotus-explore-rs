@@ -80,7 +80,7 @@
 //!   a lower bound on it.
 
 use super::{CompoundEntry, DatasetStats, WIKIDATA_ENTITY_BASE, WIKIDATA_STATEMENT_BASE};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use std::borrow::Cow;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -374,9 +374,10 @@ impl SparseStrings {
                 (!trimmed.is_empty()).then_some(trimmed)
             })
             .map_or(NO_VALUE, |v| self.intern(v));
-        if slot == self.ids.len() {
-            self.ids.push(id);
-        } else if let Some(existing) = self.ids.get_mut(slot) {
+        if slot >= self.ids.len() {
+            self.ids.resize(slot + 1, NO_VALUE);
+        }
+        if let Some(existing) = self.ids.get_mut(slot) {
             *existing = id;
         }
         id
@@ -493,11 +494,11 @@ impl StatementId {
     /// `raw` must be the cell with the URI prefix already stripped, because that
     /// prefix is the row's compound QID and is not carried here.
     ///
-    /// `compound_qid` is checked rather than assumed, because the 16-byte form
+    /// `compound_numeric` is checked rather than assumed, because the 16-byte form
     /// rebuilds its text from the compound and a disagreeing prefix would come
     /// back pointing at the wrong entity. Measured at 99.97%, so the check almost
     /// never fires; those few keep their own text.
-    fn parse(raw: &str, compound_qid: &str) -> ParsedStatement {
+    fn parse(raw: &str, compound_numeric: u32) -> ParsedStatement {
         let bare = raw.trim();
         if bare.is_empty() {
             return ParsedStatement::Absent;
@@ -507,7 +508,7 @@ impl StatementId {
         // That mistake made every statement take the fallback path and cost 63 MB
         // at a million rows.
         if let Some((prefix, uuid)) = bare.split_once('-')
-            && prefix == compound_qid
+            && prefix.strip_prefix('Q').and_then(parse_numeric_qid) == Some(compound_numeric)
             && let Some(bytes) = parse_uuid(uuid)
         {
             return ParsedStatement::Uuid(bytes);
@@ -1329,14 +1330,7 @@ impl ColumnarBuilder {
         }
         let compound_slot = compound_id as usize;
         self.grow_compounds(compound_slot);
-        // The bare QID, rendered for the statement check below: a statement prefix
-        // is `Q<digits>` and the cell carries the full URI. A stack buffer keeps it
-        // off the heap, and it is rendered once per row, not once per statement.
         let numeric = self.set.compounds.get(compound_id).unwrap_or_default();
-        let mut qid_buffer = [0u8; QID_BUFFER];
-        let qid_len = write_qid(numeric, &mut qid_buffer);
-        let qid_text =
-            std::str::from_utf8(qid_buffer.get(..qid_len).unwrap_or_default()).unwrap_or_default();
         self.set
             .compound_names
             .set(compound_slot, present(row.name));
@@ -1354,21 +1348,27 @@ impl ColumnarBuilder {
         {
             *cell = mass;
         }
-        if let Some(formula) = non_empty(row.formula) {
-            let normalized = super::normalize_formula_subscripts(formula);
-            self.set
-                .compound_formulas
-                .set(compound_slot, Some(&normalized));
+        if self.set.compound_formulas.get(compound_slot).is_none()
+            && let Some(formula) = non_empty(row.formula)
+        {
+            if formula.is_ascii() {
+                self.set.compound_formulas.set(compound_slot, Some(formula));
+            } else {
+                let normalized = super::normalize_formula_subscripts(formula);
+                self.set
+                    .compound_formulas
+                    .set(compound_slot, Some(&normalized));
+            }
         }
 
         let taxon_id = intern_qid(&mut self.set.taxa, row.taxon_qid);
         let reference_id = intern_qid(&mut self.set.references, row.reference_qid);
         self.grow_references(reference_id);
 
-        if taxon_id != NO_VALUE
-            && let Some(name) = present(row.taxon_name)
-        {
-            self.set.taxon_names.set(taxon_id as usize, Some(name));
+        if taxon_id != NO_VALUE {
+            self.set
+                .taxon_names
+                .set(taxon_id as usize, present(row.taxon_name));
         }
         if reference_id != NO_VALUE {
             let slot = reference_id as usize;
@@ -1378,7 +1378,9 @@ impl ColumnarBuilder {
             // Normalised here rather than at parse time, so the `doi.org`
             // prefix is stripped and the case fixed once per *reference* rather
             // than once per row mentioning it.
-            if let Some(doi) = non_empty(row.ref_doi).and_then(super::normalize_doi) {
+            if self.set.reference_dois.get(slot).is_none()
+                && let Some(doi) = non_empty(row.ref_doi).and_then(super::normalize_doi)
+            {
                 self.set.reference_dois.set(slot, Some(&doi));
             }
             if let Some(year) = row.pub_year
@@ -1392,7 +1394,7 @@ impl ColumnarBuilder {
             row.statement
                 .map(strip_statement_prefix)
                 .map_or(StatementId::Absent, |cell| {
-                    match StatementId::parse(cell, qid_text) {
+                    match StatementId::parse(cell, numeric) {
                         ParsedStatement::Absent => StatementId::Absent,
                         ParsedStatement::Uuid(bytes) => StatementId::Uuid(bytes),
                         ParsedStatement::Other => {
@@ -1486,14 +1488,18 @@ impl ColumnarBuilder {
     /// a copy of the id columns is the price of being exact, and the copy is
     /// dropped before [`build`](Self::build) returns.
     fn distinct_triples(&self) -> usize {
-        self.set
+        let mut seen =
+            FxHashSet::with_capacity_and_hasher(self.set.compound_ids.len(), FxBuildHasher);
+        for ((&c, &t), &r) in self
+            .set
             .compound_ids
             .iter()
-            .copied()
-            .zip(self.set.taxon_ids.iter().copied())
-            .zip(self.set.reference_ids.iter().copied())
-            .collect::<FxHashSet<_>>()
-            .len()
+            .zip(&self.set.taxon_ids)
+            .zip(&self.set.reference_ids)
+        {
+            seen.insert((c, t, r));
+        }
+        seen.len()
     }
 }
 
@@ -1526,6 +1532,14 @@ pub fn folded(text: &str) -> Vec<char> {
 pub fn contains_folded(haystack: &str, needle: &[char]) -> bool {
     if needle.is_empty() {
         return true;
+    }
+    if haystack.is_ascii() {
+        return haystack.as_bytes().windows(needle.len()).any(|window| {
+            window
+                .iter()
+                .zip(needle)
+                .all(|(&b, &n)| char::from(b.to_ascii_lowercase()) == n)
+        });
     }
     let mut rest = haystack;
     while !rest.is_empty() {

@@ -191,8 +191,24 @@ fn pushing_a_row_normalizes_subscript_digits_in_the_formula() {
         smiles: None,
         mass: None,
         formula: Some("C₁₅H₁₀O₇"),
-        taxon_qid: "",
+        taxon_qid: "Q10",
         taxon_name: "",
+        reference_qid: "",
+        reference_node: "",
+        ref_title: None,
+        ref_doi: None,
+        pub_year: None,
+        statement: None,
+    });
+    builder.push(RawRow {
+        compound_qid: "Q2",
+        name: "Kaempferol",
+        inchikey: None,
+        smiles: None,
+        mass: None,
+        formula: Some("C15H10O6"),
+        taxon_qid: "Q20",
+        taxon_name: "Quercus robur",
         reference_qid: "",
         reference_node: "",
         ref_title: None,
@@ -202,4 +218,22 @@ fn pushing_a_row_normalizes_subscript_digits_in_the_formula() {
     });
     let set = builder.build();
     assert_eq!(set.formula(0), Some("C15H10O7"));
+    assert_eq!(set.formula(1), Some("C15H10O6"));
+    assert_eq!(set.taxon_label(0), None);
+    assert_eq!(
+        set.taxon_label(1),
+        Some("Quercus robur"),
+        "an earlier taxon without a scientific name must not drop later taxon names"
+    );
+}
+
+#[test]
+fn sparse_strings_set_grows_past_gaps_and_returns_value_ids() {
+    let mut strings = SparseStrings::new();
+    assert_eq!(strings.set(0, Some("first")), 0);
+    assert_eq!(strings.set(2, Some("second")), 1);
+    assert_eq!(strings.len(), 3);
+    assert_eq!(strings.get(0), Some("first"));
+    assert_eq!(strings.get(1), None);
+    assert_eq!(strings.get(2), Some("second"));
 }

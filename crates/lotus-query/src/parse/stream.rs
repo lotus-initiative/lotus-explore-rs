@@ -482,7 +482,7 @@ fn raw_row<'a>(record: &'a [Vec<u8>], columns: &'a Columns) -> RawRow<'a> {
         name: field_bytes(record, columns.label),
         inchikey: optional(field_bytes(record, columns.inchikey)),
         smiles: optional(smiles),
-        mass: field_bytes(record, columns.mass).parse().ok(),
+        mass: optional(field_bytes(record, columns.mass)).and_then(|v| v.parse().ok()),
         formula: optional(field_bytes(record, columns.formula)),
         taxon_qid: field_bytes(record, columns.taxon),
         taxon_name: field_bytes(record, columns.taxon_name),
@@ -494,9 +494,8 @@ fn raw_row<'a>(record: &'a [Vec<u8>], columns: &'a Columns) -> RawRow<'a> {
         .unwrap_or_default(),
         ref_title: optional(field_bytes(record, columns.ref_title)),
         ref_doi: optional(field_bytes(record, columns.ref_doi)),
-        pub_year: field_bytes(record, columns.ref_date)
-            .split(['-', 'T'])
-            .next()
+        pub_year: optional(field_bytes(record, columns.ref_date))
+            .and_then(|v| v.split(['-', 'T']).next())
             .and_then(|year| year.parse().ok()),
         statement: optional(field_bytes(record, columns.statement)),
     }

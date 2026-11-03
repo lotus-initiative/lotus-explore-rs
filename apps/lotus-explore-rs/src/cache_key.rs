@@ -40,7 +40,7 @@ pub fn build_search_cache_key(query: &str, limit: usize, include_counts: bool) -
     hasher.update(limit.to_le_bytes());
     hasher.update([u8::from(include_counts)]);
     hasher.update(query.as_bytes());
-    format!("search:{}", sha256_hex(hasher.finalize()))
+    prefixed_sha256_hex("search:", hasher.finalize())
 }
 
 /// The key for an export.
@@ -56,14 +56,21 @@ pub fn build_export_cache_key(query: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(b"export");
     hasher.update(query.as_bytes());
-    format!("export:{}", sha256_hex(hasher.finalize()))
+    prefixed_sha256_hex("export:", hasher.finalize())
 }
 
 /// Lowercase hex encoding of a finalized digest.
-#[cfg(any(not(target_arch = "wasm32"), test))]
+#[cfg(test)]
 fn sha256_hex(bytes: impl AsRef<[u8]>) -> String {
+    prefixed_sha256_hex("", bytes)
+}
+
+/// Lowercase hex encoding of a finalized digest, preceded by `prefix` in one allocation.
+#[cfg(any(not(target_arch = "wasm32"), test))]
+fn prefixed_sha256_hex(prefix: &str, bytes: impl AsRef<[u8]>) -> String {
     let bytes = bytes.as_ref();
-    let mut out = String::with_capacity(bytes.len() * 2);
+    let mut out = String::with_capacity(prefix.len() + bytes.len() * 2);
+    out.push_str(prefix);
     for &byte in bytes {
         let high = usize::from(byte >> 4);
         let low = usize::from(byte & 0x0f);
