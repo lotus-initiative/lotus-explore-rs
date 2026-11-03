@@ -118,14 +118,14 @@ fn a_missing_recommended_property_is_only_a_warning() {
 
 #[test]
 fn an_empty_value_counts_as_missing() {
-    // A `keywords: []` or an empty `url` satisfies nothing, and a document
-    // that carries them is worse than one that admits the gap.
+    // A `keywords: []`, a `null`, or an empty `url` satisfies nothing, and a
+    // document that carries them is worse than one that admits the gap.
     let document = json!({
         "@type": "Dataset",
         "name": "x",
         "url": "",
         "keywords": [],
-        "description": "d",
+        "description": null,
         "identifier": "i",
         "license": "l",
     });
@@ -135,6 +135,10 @@ fn an_empty_value_counts_as_missing() {
     assert!(
         issues.iter().any(|i| i.property == "keywords"),
         "keywords is empty"
+    );
+    assert!(
+        issues.iter().any(|i| i.property == "description"),
+        "description is null"
     );
 }
 

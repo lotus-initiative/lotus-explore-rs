@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use super::CompoundEntry;
-use std::collections::HashSet;
+use rustc_hash::{FxBuildHasher, FxHashSet};
 
 /// `Display` for an enum whose printed form is its `as_str`.
 ///
@@ -157,10 +157,14 @@ impl DatasetStats {
     /// occurrence is not a taxon.
     #[must_use]
     pub fn from_entries(entries: &[CompoundEntry]) -> Self {
-        let mut compounds: HashSet<&str> = HashSet::with_capacity(entries.len());
-        let mut taxa: HashSet<&str> = HashSet::with_capacity(entries.len());
-        let mut references: HashSet<&str> = HashSet::with_capacity(entries.len());
-        let mut triples: HashSet<(&str, &str, &str)> = HashSet::with_capacity(entries.len());
+        let mut compounds: FxHashSet<&str> =
+            FxHashSet::with_capacity_and_hasher(entries.len(), FxBuildHasher);
+        let mut taxa: FxHashSet<&str> =
+            FxHashSet::with_capacity_and_hasher(entries.len(), FxBuildHasher);
+        let mut references: FxHashSet<&str> =
+            FxHashSet::with_capacity_and_hasher(entries.len(), FxBuildHasher);
+        let mut triples: FxHashSet<(&str, &str, &str)> =
+            FxHashSet::with_capacity_and_hasher(entries.len(), FxBuildHasher);
 
         for entry in entries {
             compounds.insert(entry.compound_qid.as_ref());

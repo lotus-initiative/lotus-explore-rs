@@ -8,8 +8,6 @@
 //! `recommended` is what it should carry, and is reported as a warning rather
 //! than an error so that a partially-populated result set is still publishable.
 
-use std::collections::BTreeSet;
-
 /// A Bioschemas profile.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Profile {
@@ -204,11 +202,8 @@ pub fn check(document: &serde_json::Value, profile: Profile) -> Vec<ValidationIs
         });
     }
 
-    let present = property_names(object);
-
-    // `property_names` deliberately skips `@`-prefixed keys, because they are
-    // JSON-LD syntax rather than schema.org properties. These two are the
-    // exception: they are the document's own metadata and they are checked here.
+    // `@context` and `dct:conformsTo` are the document's own metadata and are
+    // checked explicitly before the profile's required/recommended properties.
     if object.get("@context").is_none() {
         issues.push(ValidationIssue {
             property: "@context".into(),
@@ -238,7 +233,7 @@ pub fn check(document: &serde_json::Value, profile: Profile) -> Vec<ValidationIs
     }
 
     for required in profile.required() {
-        if !present.contains(*required) {
+        if !has_non_empty_property(object, required) {
             issues.push(ValidationIssue {
                 property: (*required).to_string(),
                 severity: "Violation",
@@ -247,7 +242,7 @@ pub fn check(document: &serde_json::Value, profile: Profile) -> Vec<ValidationIs
         }
     }
     for recommended in profile.recommended() {
-        if !present.contains(*recommended) {
+        if !has_non_empty_property(object, recommended) {
             issues.push(ValidationIssue {
                 property: (*recommended).to_string(),
                 severity: "Warning",
@@ -259,20 +254,15 @@ pub fn check(document: &serde_json::Value, profile: Profile) -> Vec<ValidationIs
     issues
 }
 
-/// Every property the document carries, following the aliases in `@context`.
+/// Whether `object` carries a non-empty value for `key`.
 ///
 /// An empty value counts as absent: a `keywords: []` satisfies nothing.
-fn property_names(object: &serde_json::Map<String, serde_json::Value>) -> BTreeSet<String> {
-    object
-        .iter()
-        .filter(|(key, value)| {
-            !key.starts_with('@')
-                && !matches!(value, serde_json::Value::Null)
-                && !value.as_array().is_some_and(Vec::is_empty)
-                && !value.as_str().is_some_and(str::is_empty)
-        })
-        .map(|(key, _)| key.clone())
-        .collect()
+fn has_non_empty_property(object: &serde_json::Map<String, serde_json::Value>, key: &str) -> bool {
+    object.get(key).is_some_and(|value| {
+        !value.is_null()
+            && !value.as_array().is_some_and(Vec::is_empty)
+            && !value.as_str().is_some_and(str::is_empty)
+    })
 }
 
 const fn kind_of(value: &serde_json::Value) -> &'static str {
