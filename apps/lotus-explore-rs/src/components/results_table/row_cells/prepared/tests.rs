@@ -5,43 +5,7 @@
 use super::*;
 
 #[test]
-fn short_inchikey_returns_first_segment() {
-    assert_eq!(short_inchikey_arc("AAAA-BBBB-CCCC").as_ref(), "AAAA");
-    assert_eq!(short_inchikey_arc("NOSPLIT").as_ref(), "NOSPLIT");
-}
-
-#[test]
-fn reference_title_short_keeps_trimmed_full_text() {
-    let entry = CompoundEntry {
-        compound_qid: Arc::<str>::from("Q1"),
-        name: Arc::<str>::from("Alpha"),
-        inchikey: None,
-        smiles: None,
-        mass: None,
-        formula: None,
-        taxon_qid: Arc::<str>::from("T1"),
-        taxon_name: Arc::<str>::from("Taxon"),
-        reference_qid: Arc::<str>::from("R1"),
-        reference_node: Arc::from(""),
-        ref_title: Some(Arc::<str>::from(
-            "  This reference title is intentionally much longer than sixty characters to verify it stays intact.  ",
-        )),
-        ref_doi: None,
-        pub_year: None,
-        statement: None,
-    };
-
-    let prepared = PreparedRow::from_entry(&entry);
-    assert_eq!(
-        prepared.reference_title_short.as_deref(),
-        Some(
-            "This reference title is intentionally much longer than sixty characters to verify it stays intact.",
-        )
-    );
-}
-
-#[test]
-fn display_name_short_keeps_full_trimmed_name() {
+fn display_name_keeps_full_trimmed_name() {
     let entry = CompoundEntry {
         compound_qid: Arc::<str>::from("Q1"),
         name: Arc::<str>::from(
@@ -63,7 +27,7 @@ fn display_name_short_keeps_full_trimmed_name() {
 
     let prepared = PreparedRow::from_entry(&entry);
     assert_eq!(
-        prepared.display_name_short.as_ref(),
+        prepared.display_name.as_ref(),
         "This compound name is intentionally much longer than sixty characters to verify it stays intact.",
     );
 }
@@ -91,8 +55,6 @@ fn prepared_row_caches_trimmed_and_derived_fields() {
 
     let prepared = PreparedRow::from_entry(&entry);
     assert_eq!(prepared.display_name.as_ref(), "Alpha");
-    assert_eq!(prepared.display_name_short.as_ref(), "Alpha");
-    assert_eq!(prepared.short_inchikey.as_deref(), Some("AAAA"));
     assert_eq!(prepared.doi.as_deref(), Some("10.1000/test"));
     assert_eq!(prepared.statement_id.as_deref(), Some("Q1-ABC"));
     assert!(

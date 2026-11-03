@@ -5,40 +5,13 @@
 use lotus_model::CompoundEntry;
 use lotus_model::{ColumnarResultSet, SearchCriteria};
 use sha2::{Digest, Sha256};
-use std::borrow::Cow;
 use std::fmt::Write as _;
 
 /// Normalize a taxon name: underscores become spaces, the first word is
 /// capitalized, and the remaining words are preserved.
 #[must_use]
 pub fn sanitize_taxon_input(taxon: &str) -> String {
-    let replaced: Cow<'_, str> = if taxon.contains('_') {
-        Cow::Owned(taxon.replace('_', " "))
-    } else {
-        Cow::Borrowed(taxon)
-    };
-
-    let mut parts = replaced.split_whitespace();
-    // If there are no tokens (blank or all-underscore input) return the replaced string.
-    let Some(first_word) = parts.next() else {
-        return replaced.into_owned();
-    };
-    // `split_whitespace` never produces empty tokens, so `first_word` is guaranteed
-    // non-empty.  `chars.as_str()` gives the tail after the first char so we can
-    // lowercase the rest without collecting each char individually.
-    let mut chars = first_word.chars();
-    let mut out = String::with_capacity(replaced.len());
-    if let Some(c) = chars.next() {
-        out.extend(c.to_uppercase());
-        for c in chars {
-            out.extend(c.to_lowercase());
-        }
-    }
-    for part in parts {
-        out.push(' ');
-        out.push_str(part);
-    }
-    out
+    lotus_search::standardize_taxon_name(taxon)
 }
 
 /// Compute the query hash and the result hash for a search.

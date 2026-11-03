@@ -37,13 +37,14 @@ pub fn classify_structure(text: &str) -> StructureKind {
     if text.trim().is_empty() {
         return StructureKind::Empty;
     }
-    let upper = text.to_ascii_uppercase();
-    if !upper.contains("M  END") {
+    if super::identify::find_ascii_ci(text, b"M  END").is_none() {
         return StructureKind::Smiles;
     }
-    if upper.contains("V3000") || upper.contains("BEGIN CTAB") {
+    if super::identify::find_ascii_ci(text, b"V3000").is_some()
+        || super::identify::find_ascii_ci(text, b"BEGIN CTAB").is_some()
+    {
         StructureKind::MolfileV3000
-    } else if upper.contains("V2000") {
+    } else if super::identify::find_ascii_ci(text, b"V2000").is_some() {
         StructureKind::MolfileV2000
     } else {
         StructureKind::Smiles
@@ -58,11 +59,10 @@ pub fn classify_structure(text: &str) -> StructureKind {
 /// route unambiguous -- a SMILES can never be mistaken for one, and vice versa.
 #[must_use]
 pub fn looks_like_inchikey(text: &str) -> bool {
-    let blocks = text.split('-').collect::<Vec<_>>();
-    if blocks.len() != 3 {
+    let Some((first, rest)) = text.split_once('-') else {
         return false;
-    }
-    let [first, second, third] = blocks.as_slice() else {
+    };
+    let Some((second, third)) = rest.split_once('-') else {
         return false;
     };
     third.len() == 1
@@ -129,16 +129,9 @@ pub const STRUCTURE_INPUT_EXAMPLES: [&str; 5] = [
 /// taxon field has always done so and a reader who types `q18216` means
 /// Q18216. The digit requirement is what separates it from a structure: no SMILES
 /// starts with `Q`, and `CCC` is not a QID.
-// `bytes[0]` and `bytes[1..]` are read behind a `len() > 1` guard, so neither can
-// be out of bounds; the same shape as the taxon field's check.
-#[allow(
-    clippy::indexing_slicing,
-    reason = "both reads are behind a `len() > 1` guard"
-)]
 #[must_use]
 pub fn looks_like_a_compound_qid(text: &str) -> bool {
-    let bytes = text.trim().as_bytes();
-    bytes.len() > 1 && matches!(bytes[0], b'Q' | b'q') && bytes[1..].iter().all(u8::is_ascii_digit)
+    super::looks_like_reference_qid(text)
 }
 
 /// Whether a string is worth handing to the compound-name lookup.

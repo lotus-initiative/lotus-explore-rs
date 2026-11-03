@@ -242,20 +242,9 @@ pub async fn resolve_taxon<H: Http>(http: &H, input: &str) -> Result<TaxonResolu
 /// term rather than an identifier.
 #[must_use]
 pub fn is_qid(value: &str) -> bool {
-    let mut chars = value.chars();
-    // At least one digit, so a lone `Q` is treated as a search term: a query
-    // for `wd:Q` is one the endpoint cannot answer.
-    if !matches!(chars.next(), Some('Q' | 'q')) {
-        return false;
-    }
-    let mut has_tail = false;
-    for c in chars {
-        if !c.is_ascii_digit() {
-            return false;
-        }
-        has_tail = true;
-    }
-    has_tail
+    !value.is_empty()
+        && value.trim().len() == value.len()
+        && lotus_model::looks_like_reference_qid(value)
 }
 
 /// The name to look up: underscores become spaces, and the genus is
@@ -268,9 +257,13 @@ pub fn standardize_taxon_name(input: &str) -> String {
         return replaced;
     };
     let mut chars = genus.chars();
-    let mut out = chars.next().map_or_else(String::new, |c| {
-        c.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase()
-    });
+    let mut out = String::with_capacity(replaced.len());
+    if let Some(c) = chars.next() {
+        out.extend(c.to_uppercase());
+        for c in chars {
+            out.extend(c.to_lowercase());
+        }
+    }
     for word in words {
         out.push(' ');
         out.push_str(word);

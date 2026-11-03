@@ -176,7 +176,9 @@ pub(super) fn build_sorted_indices(rows: &[CompoundEntry], sort: SortState) -> A
 fn build_sorted_indices_for_column(set: &ColumnarResultSet, column: SortColumn) -> Arc<[u32]> {
     let rows = set.row_count();
     let mut idx: Vec<u32> = (0..u32::try_from(rows).unwrap_or(0)).collect();
-    idx.sort_by(|&a, &b| compare_rows(set, a as usize, b as usize, column).then_with(|| a.cmp(&b)));
+    idx.sort_unstable_by(|&a, &b| {
+        compare_rows(set, a as usize, b as usize, column).then_with(|| a.cmp(&b))
+    });
     Arc::from(idx.into_boxed_slice())
 }
 

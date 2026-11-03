@@ -56,14 +56,14 @@ struct BiologicalTree<'a> {
     taxa: &'a Hierarchy,
     taxon_compounds: &'a HashMap<String, Vec<String>>,
     relevant: &'a HashSet<&'a str>,
-    visited: HashSet<String>,
+    visited: HashSet<&'a str>,
 }
 
-impl BiologicalTree<'_> {
+impl<'a> BiologicalTree<'a> {
     /// The taxon's node, or `None` when it was placed already or has neither
     /// a compound nor a descendant with one.
-    fn node(&mut self, taxon: &str) -> Option<TaxonNode> {
-        if !self.visited.insert(taxon.to_string()) {
+    fn node(&mut self, taxon: &'a str) -> Option<TaxonNode> {
+        if !self.visited.insert(taxon) {
             return None;
         }
         let index = self.index;
@@ -118,13 +118,13 @@ pub(super) fn chemical_tree(data: &PubChemData, index: &Index) -> Vec<ChemicalNo
 
 /// The compound's node, or `None` when it was placed already or neither it
 /// nor anything below it has taxa.
-fn chemical_node(
-    compound: &str,
-    classes: &Hierarchy,
+fn chemical_node<'a>(
+    compound: &'a str,
+    classes: &'a Hierarchy,
     index: &Index,
-    visited: &mut HashSet<String>,
+    visited: &mut HashSet<&'a str>,
 ) -> Option<ChemicalNode> {
-    if !visited.insert(compound.to_string()) {
+    if !visited.insert(compound) {
         return None;
     }
     let children: Vec<ChemicalNode> = classes

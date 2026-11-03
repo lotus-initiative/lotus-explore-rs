@@ -107,8 +107,9 @@ pub fn non_empty(s: &str) -> Option<&str> {
 }
 
 /// Byte-level case-insensitive search. ASCII, because every needle here is an
-/// ASCII literal in a URL or a DOI.
-fn find_ascii_ci(haystack: &str, needle: &[u8]) -> Option<usize> {
+/// ASCII literal in a URL, DOI, or molfile marker.
+#[allow(unreachable_pub)]
+pub fn find_ascii_ci(haystack: &str, needle: &[u8]) -> Option<usize> {
     let hay = haystack.as_bytes();
     if needle.is_empty() || hay.len() < needle.len() {
         return None;

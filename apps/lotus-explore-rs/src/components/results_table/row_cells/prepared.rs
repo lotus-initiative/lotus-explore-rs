@@ -7,12 +7,9 @@ use std::sync::Arc;
 #[derive(Clone, PartialEq, Debug)]
 pub(in crate::components::results_table) struct PreparedRow {
     pub(super) display_name: Arc<str>,
-    pub(super) display_name_short: Arc<str>,
     pub(super) depict_url: Option<Arc<str>>,
     pub(super) doi: Option<Arc<str>>,
     pub(super) statement_id: Option<Arc<str>>,
-    pub(super) reference_title_short: Option<Arc<str>>,
-    pub(super) short_inchikey: Option<Arc<str>>,
 }
 
 impl PreparedRow {
@@ -22,21 +19,13 @@ impl PreparedRow {
     /// for the whole result set, including URL-encoding a SMILES into a CDK depict link
     /// — a hundred-odd bytes per row, for the thirty a viewport holds.
     pub(in crate::components::results_table) fn from_entry(entry: &CompoundEntry) -> Self {
-        let display_name = normalized_display_name(entry);
         Self {
-            display_name_short: display_name.clone(),
+            display_name: normalized_display_name(entry),
             depict_url: depict_url_cached(entry),
-            doi: trimmed_optional_arc(entry.ref_doi.as_deref()),
-            statement_id: trimmed_statement_id_arc(entry.statement.as_deref()),
-            reference_title_short: trimmed_optional_arc(entry.ref_title.as_deref()),
-            short_inchikey: entry.inchikey.as_deref().map(short_inchikey_arc),
-            display_name,
+            doi: trimmed_optional_arc(entry.ref_doi.as_ref()),
+            statement_id: trimmed_statement_id_arc(entry.statement.as_ref()),
         }
     }
-}
-
-fn short_inchikey_arc(ik: &str) -> Arc<str> {
-    Arc::<str>::from(ik.split('-').next().unwrap_or(ik))
 }
 
 fn normalized_display_name(entry: &CompoundEntry) -> Arc<str> {
@@ -67,24 +56,31 @@ fn depict_url_cached(entry: &CompoundEntry) -> Option<Arc<str>> {
     Some(Arc::<str>::from(url))
 }
 
-fn trimmed_optional_arc(value: Option<&str>) -> Option<Arc<str>> {
-    let trimmed = value?.trim();
+fn trimmed_optional_arc(value: Option<&Arc<str>>) -> Option<Arc<str>> {
+    let arc = value?;
+    let trimmed = arc.trim();
     if trimmed.is_empty() {
         None
+    } else if trimmed.len() == arc.len() {
+        Some(Arc::clone(arc))
     } else {
         Some(Arc::<str>::from(trimmed))
     }
 }
 
-fn trimmed_statement_id_arc(value: Option<&str>) -> Option<Arc<str>> {
+fn trimmed_statement_id_arc(value: Option<&Arc<str>>) -> Option<Arc<str>> {
     const STMT_PREFIX: &str = "http://www.wikidata.org/entity/statement/";
-    let trimmed = value?.trim();
+    let arc = value?;
+    let trimmed = arc.trim();
     if trimmed.is_empty() {
         return None;
     }
-    Some(Arc::<str>::from(
-        trimmed.strip_prefix(STMT_PREFIX).unwrap_or(trimmed),
-    ))
+    let stripped = trimmed.strip_prefix(STMT_PREFIX).unwrap_or(trimmed);
+    if stripped.len() == arc.len() {
+        Some(Arc::clone(arc))
+    } else {
+        Some(Arc::<str>::from(stripped))
+    }
 }
 
 #[cfg(test)]

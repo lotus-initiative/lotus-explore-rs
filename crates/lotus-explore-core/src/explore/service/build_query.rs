@@ -92,15 +92,13 @@ pub fn build_sparql_query(
         Some(qid) => Some(qid),
         None => None,
     };
-    let q = lotus_query::structure_search_query_with(
+    lotus_query::structure_search_query_with(
         structure,
         crit.structure_search,
         crit.structure_threshold,
         taxon_for_sachem,
         &nomenclature,
-    );
-    let _ = q.contains("SERVICE");
-    q
+    )
 }
 
 /// Apply server-side filters.
