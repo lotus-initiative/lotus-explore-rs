@@ -17,18 +17,18 @@ is dominated by the patterns it has to resolve, not by the text.
 
 || cell                                               | bytes | triples | occurrence |
 || -------------------------------------------------- | ----- | ------- | ---------- |
-|| taxon=absent structure=absent reference=absent | 2454 | 13 | optional |
-|| taxon=absent structure=absent reference=present | 2478 | 13 | optional |
-|| taxon=absent structure=present reference=absent | 2390 | 14 | optional |
-|| taxon=absent structure=present reference=present | 2414 | 14 | optional |
-|| taxon=specific structure=absent reference=absent | 2842 | 15 | required |
-|| taxon=specific structure=absent reference=present | 2866 | 15 | required |
-|| taxon=specific structure=present reference=absent | 2774 | 16 | required |
-|| taxon=specific structure=present reference=present | 2798 | 16 | required |
-|| taxon="*" structure=absent reference=absent | 2473 | 13 | required |
-|| taxon="*" structure=absent reference=present | 2497 | 13 | required |
-|| taxon="*" structure=present reference=absent | 2390 | 14 | optional |
-|| taxon="*" structure=present reference=present | 2414 | 14 | optional |
+|| taxon=absent structure=absent reference=absent | 2271 | 13 | optional |
+|| taxon=absent structure=absent reference=present | 2295 | 13 | optional |
+|| taxon=absent structure=present reference=absent | 2175 | 14 | optional |
+|| taxon=absent structure=present reference=present | 2199 | 14 | optional |
+|| taxon=specific structure=absent reference=absent | 2627 | 15 | required |
+|| taxon=specific structure=absent reference=present | 2651 | 15 | required |
+|| taxon=specific structure=present reference=absent | 2559 | 16 | required |
+|| taxon=specific structure=present reference=present | 2583 | 16 | required |
+|| taxon="*" structure=absent reference=absent | 2258 | 13 | required |
+|| taxon="*" structure=absent reference=present | 2282 | 13 | required |
+|| taxon="*" structure=present reference=absent | 2175 | 14 | optional |
+|| taxon="*" structure=present reference=present | 2199 | 14 | optional |
 
 ## How to read it
 

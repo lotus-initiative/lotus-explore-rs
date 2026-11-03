@@ -72,6 +72,32 @@ pub fn normalize_doi(value: &str) -> Option<String> {
     }
 }
 
+/// Fold Unicode subscript digits (`₀`–`₉`) to ASCII (`0`–`9`).
+///
+/// Wikidata's `P274` property stores chemical formulas with Unicode subscripts
+/// (`C₁₇H₁₂O₇`). Folding them in Rust once per compound slot during columnar
+/// ingestion avoids running a 10-deep `REPLACE(...)` regex chain on every
+/// result row inside the SPARQL `SELECT DISTINCT` projection.
+#[must_use]
+pub fn normalize_formula_subscripts(value: &str) -> String {
+    value
+        .chars()
+        .map(|c| match c {
+            '₀' => '0',
+            '₁' => '1',
+            '₂' => '2',
+            '₃' => '3',
+            '₄' => '4',
+            '₅' => '5',
+            '₆' => '6',
+            '₇' => '7',
+            '₈' => '8',
+            '₉' => '9',
+            other => other,
+        })
+        .collect()
+}
+
 /// `Some(s)` only when `s` is non-empty after trimming, so that `Option` and
 /// empty-string representations of "absent" do not coexist.
 #[must_use]

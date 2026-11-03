@@ -112,3 +112,12 @@ fn the_search_does_not_match_across_a_multibyte_character() {
     // A needle that is not valid ASCII has no meaningful case folding here.
     assert_eq!(find_ascii_ci("na\u{ef}ve", &[0xef, 0x76]), None);
 }
+
+#[test]
+fn formula_subscripts_fold_all_ten_digits_to_ascii() {
+    assert_eq!(
+        normalize_formula_subscripts("C₀H₁N₂O₃P₄S₅F₆Cl₇Br₈I₉"),
+        "C0H1N2O3P4S5F6Cl7Br8I9"
+    );
+    assert_eq!(normalize_formula_subscripts("C17H12O7"), "C17H12O7");
+}

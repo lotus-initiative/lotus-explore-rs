@@ -1355,7 +1355,10 @@ impl ColumnarBuilder {
             *cell = mass;
         }
         if let Some(formula) = non_empty(row.formula) {
-            self.set.compound_formulas.set(compound_slot, Some(formula));
+            let normalized = super::normalize_formula_subscripts(formula);
+            self.set
+                .compound_formulas
+                .set(compound_slot, Some(&normalized));
         }
 
         let taxon_id = intern_qid(&mut self.set.taxa, row.taxon_qid);

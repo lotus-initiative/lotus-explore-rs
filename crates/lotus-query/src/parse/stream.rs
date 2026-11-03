@@ -49,10 +49,12 @@ type Record = Vec<Vec<u8>>;
 /// ```
 #[derive(Debug, Default)]
 pub struct CsvSplitter {
-    /// Bytes of the record being assembled.
+    /// Bytes of the field being assembled.
     line: Vec<u8>,
-    /// Fields of the record being assembled.
+    /// Reusable field buffers for the record being assembled.
     fields: Vec<Vec<u8>>,
+    /// How many fields of `fields` belong to the current record.
+    field_count: usize,
     /// Whether the cursor is inside a quoted field.
     in_quotes: bool,
     /// Whether a `"` was seen inside a quoted field and not yet resolved.
@@ -74,7 +76,7 @@ impl CsvSplitter {
     /// Whether a record is part-read and so the next chunk continues it.
     #[must_use]
     pub const fn is_mid_record(&self) -> bool {
-        !self.fields.is_empty() || !self.line.is_empty() || self.quote_pending
+        self.field_count != 0 || !self.line.is_empty() || self.quote_pending
     }
 
     /// Split `chunk`, appending every record it completes to `out`.
@@ -88,6 +90,12 @@ impl CsvSplitter {
     /// run crosses in one `extend_from_slice` and per-byte work happens only at a
     /// delimiter.
     pub fn feed(&mut self, chunk: &[u8], out: &mut Vec<Record>) {
+        self.feed_with(chunk, |record| out.push(record.to_vec()));
+    }
+
+    /// Split `chunk`, invoking `on_record` with a borrowed slice of reusable field buffers
+    /// as each record completes.
+    pub fn feed_with(&mut self, chunk: &[u8], mut on_record: impl FnMut(&[Vec<u8>])) {
         // The unread part of the chunk shrinks by destructuring, never by cursor
         // arithmetic: each pass either consumes at least the byte that stopped
         // the run or leaves the loop, so no step size can stall it.
@@ -131,7 +139,7 @@ impl CsvSplitter {
                 // field is malformed input and is kept as a literal character.
                 b'"' if self.line.is_empty() => self.in_quotes = true,
                 b',' => self.end_field(),
-                b'\n' => self.end_record(out),
+                b'\n' => self.end_record(&mut on_record),
                 // A CR is dropped: an endpoint that ends lines with CRLF would
                 // otherwise leave a stray carriage return on the last field.
                 b'\r' => {}
@@ -140,11 +148,6 @@ impl CsvSplitter {
         }
     }
 
-    /// Finish the stream, flushing a record that was still being read.
-    ///
-    /// A payload that ends mid-record -- an unterminated quote, or a transport that cut the body
-    /// short -- yields the record it has rather than dropping the row. A clean end flushes
-    /// nothing.
     /// End the stream, flushing whatever the last bytes left open.
     ///
     /// Returns `true` if the input stopped inside a quoted field, the one truncation that is
@@ -163,6 +166,11 @@ impl CsvSplitter {
     /// Only the unterminated quote is unambiguous, and it is the common shape for a cut
     /// inside a title or SMILES -- the columns most likely mid-field when a response dies.
     pub fn end_of_input(&mut self, out: &mut Vec<Record>) -> bool {
+        self.end_of_input_with(|record| out.push(record.to_vec()))
+    }
+
+    /// End the stream, flushing any unfinished record to `on_record`.
+    pub fn end_of_input_with(&mut self, mut on_record: impl FnMut(&[Vec<u8>])) -> bool {
         // `in_quotes && !quote_pending`, not `in_quotes`. The flag is the difference: a `"`
         // inside a quoted field leaves the decision pending until the next byte says whether
         // it closed the field or escaped a literal quote, so a field closed by the very last
@@ -171,25 +179,30 @@ impl CsvSplitter {
         let truncated = self.in_quotes && !self.quote_pending;
         self.quote_pending = false;
         if self.is_mid_record() {
-            self.end_record(out);
+            self.end_record(&mut on_record);
         }
         truncated
     }
 
-    /// Close the current field.
+    /// Close the current field, reusing the existing slot buffer when present.
     fn end_field(&mut self) {
-        let field = std::mem::take(&mut self.line);
-        self.fields.push(field);
+        if let Some(slot) = self.fields.get_mut(self.field_count) {
+            std::mem::swap(&mut self.line, slot);
+            self.line.clear();
+        } else {
+            self.fields.push(std::mem::take(&mut self.line));
+        }
+        self.field_count += 1;
     }
 
-    /// Close the current record, appending it to `out`.
-    fn end_record(&mut self, out: &mut Vec<Record>) {
-        let last = std::mem::take(&mut self.line);
-        self.fields.push(last);
-        let record = std::mem::take(&mut self.fields);
-        out.push(record);
+    /// Close the current record and hand its active fields to `on_record`.
+    fn end_record(&mut self, on_record: &mut impl FnMut(&[Vec<u8>])) {
+        self.end_field();
+        let count = self.field_count;
+        self.field_count = 0;
         self.in_quotes = false;
         self.quote_pending = false;
+        on_record(self.fields.get(..count).unwrap_or_default());
     }
 }
 
@@ -218,7 +231,7 @@ fn is_delimiter(byte: u8) -> bool {
 }
 
 /// A record's field, trimmed, as UTF-8, or empty.
-fn field_bytes(record: &Record, at: Option<usize>) -> &str {
+fn field_bytes(record: &[Vec<u8>], at: Option<usize>) -> &str {
     at.and_then(|i| record.get(i))
         .and_then(|b| std::str::from_utf8(b).ok())
         .map_or("", str::trim)
@@ -235,7 +248,6 @@ pub struct CsvColumnarReader {
     builder: ColumnarBuilder,
     columns: Option<Columns>,
     header: Option<Vec<String>>,
-    scratch: Vec<Record>,
     rows_read: usize,
     bytes_read: usize,
     /// The last [`TRUNCATION_NOTICE_WINDOW`] bytes of the body, for the notice.
@@ -265,13 +277,13 @@ impl CsvColumnarReader {
     pub fn feed(&mut self, chunk: &[u8]) -> Result<usize, ParseError> {
         self.bytes_read += chunk.len();
         self.keep_tail(chunk);
-        // The scratch buffer is moved out rather than borrowed, because
-        // `read_header` and `push` both need `&mut self`. Its allocation comes
-        // back afterwards, so it is reused for every chunk of the stream.
-        let mut scratch = std::mem::take(&mut self.scratch);
-        scratch.clear();
-        self.splitter.feed(chunk, &mut scratch);
-        self.absorb(scratch)?;
+        let columns = &mut self.columns;
+        let header = &mut self.header;
+        let rows_read = &mut self.rows_read;
+        let builder = &mut self.builder;
+        self.splitter.feed_with(chunk, |record| {
+            Self::absorb_record(columns, header, rows_read, builder, record);
+        });
         Ok(self.rows_read)
     }
 
@@ -288,38 +300,25 @@ impl CsvColumnarReader {
         self.tail.drain(..excess);
     }
 
-    /// Fold a batch of finished records into the set.
-    fn absorb(&mut self, scratch: Vec<Record>) -> Result<(), ParseError> {
-        for record in &scratch {
-            if self.columns.is_none() {
-                self.read_header(record);
-                continue;
-            }
-            let columns = self
-                .columns
-                .as_ref()
-                .ok_or_else(|| ParseError::new("a record arrived before the header row"))?;
-            self.rows_read += 1;
-            self.builder.push(raw_row(record, columns));
-        }
-        self.scratch = scratch;
-        Ok(())
-    }
-
-    /// Take the header row, which names the columns.
-    ///
-    /// A missing header is not an error: every column then reads as absent and
-    /// the set comes back empty, which is the same forgiving outcome the
-    /// row-at-a-time parser reaches.
-    fn read_header(&mut self, record: &Record) {
-        self.header = Some(
-            record
+    /// Fold one finished record into the set, or capture it as the header row.
+    fn absorb_record(
+        columns: &mut Option<Columns>,
+        header: &mut Option<Vec<String>>,
+        rows_read: &mut usize,
+        builder: &mut ColumnarBuilder,
+        record: &[Vec<u8>],
+    ) {
+        if let Some(cols) = columns.as_ref() {
+            *rows_read += 1;
+            builder.push(raw_row(record, cols));
+        } else {
+            let names: Vec<String> = record
                 .iter()
                 .map(|field| String::from_utf8_lossy(field).trim().to_owned())
-                .collect(),
-        );
-        let names = self.header.as_ref().map_or_else(Vec::new, Clone::clone);
-        self.columns = Some(Columns::from_names(&names));
+                .collect();
+            *columns = Some(Columns::from_names(&names));
+            *header = Some(names);
+        }
     }
 
     /// Refuse a payload whose header names no column this reader knows.
@@ -370,12 +369,15 @@ impl CsvColumnarReader {
     /// A truncated body is refused rather than parsed: the rows before the cut are
     /// valid, and returning them would present an incomplete answer as a complete one.
     pub fn finish(mut self) -> Result<ColumnarResultSet, ParseError> {
-        let mut scratch = std::mem::take(&mut self.scratch);
-        scratch.clear();
-        if self.splitter.end_of_input(&mut scratch) {
+        let columns = &mut self.columns;
+        let header = &mut self.header;
+        let rows_read = &mut self.rows_read;
+        let builder = &mut self.builder;
+        if self.splitter.end_of_input_with(|record| {
+            Self::absorb_record(columns, header, rows_read, builder, record);
+        }) {
             return Err(ParseError::new(INCOMPLETE_BODY));
         }
-        self.absorb(scratch)?;
         self.check_header()?;
         if let Some(reason) = truncation_notice(&self.tail) {
             return Err(ParseError::new(truncated_by_endpoint(reason)));
@@ -470,7 +472,7 @@ pub fn parse_compounds_columnar<R: Read>(mut reader: R) -> Result<ColumnarResult
 }
 
 /// One record as a [`RawRow`].
-fn raw_row<'a>(record: &'a Record, columns: &'a Columns) -> RawRow<'a> {
+fn raw_row<'a>(record: &'a [Vec<u8>], columns: &'a Columns) -> RawRow<'a> {
     let iso = field_bytes(record, columns.smiles_iso);
     let conn = field_bytes(record, columns.smiles_conn);
     let smiles = if iso.is_empty() { conn } else { iso };

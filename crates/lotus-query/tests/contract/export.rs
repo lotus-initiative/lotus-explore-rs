@@ -600,8 +600,10 @@ fn the_optional_occurrence_keeps_its_hops_together() {
 
     let block = occurrence_block(&everything);
     assert!(
-        block.contains("ps:P703") && block.contains("pr:P248"),
-        "the taxon and the reference must be inside the same OPTIONAL as the statement"
+        block.contains("ps:P703")
+            && block.contains("pr:P248")
+            && block.contains("wdt:P233 ?compound_smiles_conn"),
+        "the taxon, reference and connectivity SMILES must be inside the same OPTIONAL as the statement"
     );
 }
 

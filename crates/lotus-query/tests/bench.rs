@@ -133,12 +133,11 @@ fn bench(rows: usize) {
     let start = Instant::now();
     let split_records = {
         let mut splitter = lotus_query::CsvSplitter::new();
-        let mut records = Vec::new();
         let mut fields = 0;
         for chunk in csv.as_bytes().chunks(64 * 1024) {
-            records.clear();
-            splitter.feed(chunk, &mut records);
-            fields += records.iter().map(std::vec::Vec::len).sum::<usize>();
+            splitter.feed_with(chunk, |record| {
+                fields += record.len();
+            });
         }
         fields
     };

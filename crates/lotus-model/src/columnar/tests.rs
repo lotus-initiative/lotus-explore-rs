@@ -180,3 +180,26 @@ fn materialising_an_entry_shares_interned_strings_by_arc() {
         "inchikey should be Arc-cloned from SparseStrings without reallocating"
     );
 }
+
+#[test]
+fn pushing_a_row_normalizes_subscript_digits_in_the_formula() {
+    let mut builder = ColumnarBuilder::new();
+    builder.push(RawRow {
+        compound_qid: "Q1",
+        name: "Quercetin",
+        inchikey: None,
+        smiles: None,
+        mass: None,
+        formula: Some("C₁₅H₁₀O₇"),
+        taxon_qid: "",
+        taxon_name: "",
+        reference_qid: "",
+        reference_node: "",
+        ref_title: None,
+        ref_doi: None,
+        pub_year: None,
+        statement: None,
+    });
+    let set = builder.build();
+    assert_eq!(set.formula(0), Some("C15H10O7"));
+}

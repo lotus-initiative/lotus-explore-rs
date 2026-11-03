@@ -233,8 +233,7 @@ pub const SELECT_COLUMNS: [&str; 15] = [
 /// back in is already the bare `Q…` form the parsers expect.
 #[must_use]
 fn select_clause() -> String {
-    format!(
-        r#"
+    r#"
 SELECT DISTINCT
   (xsd:integer(STRAFTER(STR(?c), "Q")) AS ?compound)
   ?compoundLabel
@@ -242,7 +241,7 @@ SELECT DISTINCT
   ?compound_smiles_conn
   ?compound_smiles_iso
   ?compound_mass
-  ({} AS ?compound_formula)
+  (?compound_formula_raw AS ?compound_formula)
   (xsd:integer(STRAFTER(STR(?t), "Q")) AS ?taxon)
   ?taxon_name
   (xsd:integer(STRAFTER(STR(?r), "Q")) AS ?ref_qid)
@@ -251,9 +250,8 @@ SELECT DISTINCT
   ?ref_doi
   (SUBSTR(STR(?ref_date), 1, 4) AS ?ref_year)
   (STRAFTER(STR(?statement), "statement/") AS ?statement_id)
-"#,
-        normalize_digits_expr("?compound_formula_raw")
-    )
+"#
+    .to_string()
 }
 
 /// The innermost projection: only what the occurrence itself asserts.
@@ -521,10 +519,17 @@ fn compounds_query_with_closure(
                 // occurrence -- taxon, reference and all -- or occurrence-less with empty
                 // cells. Per triple would emit rows with a taxon but no reference, a shape
                 // the result store cannot represent.
+                //
+                // `?c wdt:P233 ?compound_smiles_conn` inside the block both supplies the
+                // projected connectivity SMILES column and restricts the `OPTIONAL`'s own
+                // pre-join to the ~546k chemical occurrence statements rather than all
+                // ~2.89M `P703` statements in Wikidata (2.35M of which are genes and
+                // proteins).
                 Occurrence::Optional => format!(
                     "{chemical} \
           OPTIONAL {{ \
-            ?c p:P703 ?statement .\
+            ?c p:P703 ?statement ;\
+               wdt:P233 ?compound_smiles_conn .\
             ?statement ps:P703 ?t ;\
                        prov:wasDerivedFrom ?ref .\
             ?ref pr:P248 ?r .\
@@ -1436,24 +1441,12 @@ fn formula_filter(criteria: &SearchCriteria, required: &mut String, out: &mut St
 /// whitespace removed. The comparison happens against the endpoint's normalised
 /// formula, so a subscript in the input would never match.
 fn normalized_exact_formula(criteria: &SearchCriteria) -> Option<String> {
-    let normalized: String = criteria
+    let without_whitespace: String = criteria
         .formula_exact
         .chars()
         .filter(|c| !c.is_whitespace())
-        .map(|c| match c {
-            '₀' => '0',
-            '₁' => '1',
-            '₂' => '2',
-            '₃' => '3',
-            '₄' => '4',
-            '₅' => '5',
-            '₆' => '6',
-            '₇' => '7',
-            '₈' => '8',
-            '₉' => '9',
-            other => other,
-        })
         .collect();
+    let normalized = lotus_model::normalize_formula_subscripts(&without_whitespace);
     (!normalized.is_empty()).then(|| escape_sparql_string(&normalized))
 }
 
