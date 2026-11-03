@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for `columnar` that need its private fields and functions.
 
+#![allow(clippy::expect_used)]
+
 use super::*;
 
 /// A slot-keyed column holding `cells` in slots `0..cells.len()`.
@@ -154,4 +156,27 @@ fn each_compound_takes_exactly_one_slot_in_every_compound_column() {
         "two distinct compounds, not one per row"
     );
     assert_eq!(set.compound_names.len(), 2);
+}
+
+#[test]
+fn materialising_an_entry_shares_interned_strings_by_arc() {
+    let set =
+        ColumnarResultSet::from_entries(&[crate::testing::full_row(), crate::testing::full_row()]);
+    let first = set.entry(0).expect("row 0");
+    let second = set.entry(1).expect("row 1");
+    assert!(
+        Arc::ptr_eq(&first.name, &second.name),
+        "compound name should be Arc-cloned from SparseStrings without reallocating"
+    );
+    assert!(
+        Arc::ptr_eq(&first.taxon_name, &second.taxon_name),
+        "taxon name should be Arc-cloned from SparseStrings without reallocating"
+    );
+    assert!(
+        Arc::ptr_eq(
+            first.inchikey.as_ref().expect("inchikey"),
+            second.inchikey.as_ref().expect("inchikey")
+        ),
+        "inchikey should be Arc-cloned from SparseStrings without reallocating"
+    );
 }

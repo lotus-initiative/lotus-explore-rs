@@ -80,7 +80,7 @@
 //!   a lower bound on it.
 
 use super::{CompoundEntry, DatasetStats, WIKIDATA_ENTITY_BASE, WIKIDATA_STATEMENT_BASE};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::borrow::Cow;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -435,14 +435,25 @@ impl SparseStrings {
         self.ids.is_empty()
     }
 
-    /// The value recorded for `slot`.
-    #[must_use]
-    pub fn get(&self, slot: usize) -> Option<&str> {
+    fn value_for_slot(&self, slot: usize) -> Option<&Arc<str>> {
         let id = *self.ids.get(slot)?;
         if id == NO_VALUE {
             return None;
         }
-        self.values.get(id as usize).map(AsRef::as_ref)
+        self.values.get(id as usize)
+    }
+
+    /// The value recorded for `slot`.
+    #[must_use]
+    pub fn get(&self, slot: usize) -> Option<&str> {
+        self.value_for_slot(slot).map(AsRef::as_ref)
+    }
+
+    /// The shared value recorded for `slot`, cloned by reference count rather
+    /// than by copying its text.
+    #[must_use]
+    pub fn get_arc(&self, slot: usize) -> Option<Arc<str>> {
+        self.value_for_slot(slot).cloned()
     }
 }
 
@@ -1057,34 +1068,43 @@ impl ColumnarResultSet {
     ///
     /// For the paths that still want one row at a time: the export formats, and
     /// any caller that has to hand a single result to something expecting the
-    /// old shape.
+    /// old shape. Interned strings are cloned by [`Arc`] reference count rather
+    /// than re-allocated per row.
     #[must_use]
     pub fn entry(&self, row: usize) -> Option<CompoundEntry> {
         let compound_id = *self.compound_ids.get(row)?;
         let reference_id = *self.reference_ids.get(row)?;
         let compound_slot = compound_id as usize;
-        let reference_slot = reference_id as usize;
-        let shared = |text: &str| Arc::<str>::from(text);
-        let owned = |text: Option<String>| Arc::<str>::from(text.unwrap_or_default());
-        let optional = |text: Option<&str>| text.map(shared);
+        let taxon_slot = Self::slot(self.taxon_ids.get(row));
+        let reference_slot = Self::slot(self.reference_ids.get(row));
+        let empty = || Arc::<str>::from("");
+        let owned = |text: Option<String>| text.map_or_else(empty, Arc::<str>::from);
         Some(CompoundEntry {
-            compound_qid: shared(&self.compound_qid_text(row)?),
-            name: shared(self.compound_label(row).unwrap_or_default()),
+            compound_qid: Arc::<str>::from(self.compound_qid_text(row)?),
+            name: self
+                .compound_names
+                .get_arc(compound_slot)
+                .unwrap_or_else(empty),
             // The three QID cells keep the `Arc<str>`-and-empty convention rather
             // than the `Option` one, because `n_taxa` and `n_references` are
             // defined in terms of what is empty.
-            inchikey: optional(self.compound_inchikeys.get(compound_slot)),
-            smiles: optional(self.compound_smiles.get(compound_slot)),
+            inchikey: self.compound_inchikeys.get_arc(compound_slot),
+            smiles: self.compound_smiles.get_arc(compound_slot),
             mass: self.compound_mass(compound_id),
-            formula: optional(self.compound_formulas.get(compound_slot)),
+            formula: self.compound_formulas.get_arc(compound_slot),
             taxon_qid: owned(self.taxon_qid_text(row)),
-            taxon_name: shared(self.taxon_label(row).unwrap_or_default()),
+            taxon_name: taxon_slot
+                .and_then(|slot| self.taxon_names.get_arc(slot))
+                .unwrap_or_else(empty),
             reference_qid: owned(self.reference_qid_text(row)),
-            reference_node: owned(self.reference_node_text(row)),
-            ref_title: optional(self.reference_titles.get(reference_slot)),
-            ref_doi: optional(self.reference_dois.get(reference_slot)),
+            reference_node: self
+                .reference_node_hashes
+                .get_arc(row)
+                .unwrap_or_else(empty),
+            ref_title: reference_slot.and_then(|slot| self.reference_titles.get_arc(slot)),
+            ref_doi: reference_slot.and_then(|slot| self.reference_dois.get_arc(slot)),
             pub_year: self.reference_year(reference_id),
-            statement: self.statement_text(row).map(|s| Arc::from(s.as_str())),
+            statement: self.statement_text(row).map(Arc::<str>::from),
         })
     }
 
@@ -1463,17 +1483,14 @@ impl ColumnarBuilder {
     /// a copy of the id columns is the price of being exact, and the copy is
     /// dropped before [`build`](Self::build) returns.
     fn distinct_triples(&self) -> usize {
-        let mut triples = self
-            .set
+        self.set
             .compound_ids
             .iter()
             .copied()
             .zip(self.set.taxon_ids.iter().copied())
             .zip(self.set.reference_ids.iter().copied())
-            .collect::<Vec<_>>();
-        triples.sort_unstable();
-        triples.dedup();
-        triples.len()
+            .collect::<FxHashSet<_>>()
+            .len()
     }
 }
 
