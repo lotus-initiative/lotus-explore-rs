@@ -212,7 +212,7 @@ fn rdf_export_url_uses_construct_query_with_normalized_formula_binding() {
         .nth(1)
         .and_then(|tail| tail.split('&').next())
         .expect("query param");
-    let decoded = urlencoding::decode(query_param)
+    let decoded = lotus_model::percent_decode(query_param)
         .expect("decode query")
         .into_owned();
 

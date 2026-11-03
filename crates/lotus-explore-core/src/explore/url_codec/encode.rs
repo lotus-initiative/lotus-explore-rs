@@ -24,8 +24,8 @@ fn build_query_string_from_pairs<'a>(iter: impl Iterator<Item = (&'a str, &'a st
         if index > 0 {
             query.push('&');
         }
-        let key_encoded = urlencoding::encode(key);
-        let value_encoded = urlencoding::encode(value);
+        let key_encoded = lotus_model::percent_encode(key);
+        let value_encoded = lotus_model::percent_encode(value);
         query.push_str(&key_encoded);
         query.push('=');
         query.push_str(&value_encoded);

@@ -52,6 +52,14 @@ fn the_inchikey_resolves_to_pubchem() {
             .expect("an array")
             .contains(&json!(pubchem_uri("IIYFPWUAQGXNF-FGGY-VCPS-NA-NSA")))
     );
+    assert_eq!(
+        node["identifier"][1]["encodingFormat"],
+        json!(edam::FORMAT_INCHIKEY)
+    );
+    assert_eq!(
+        node["identifier"][1]["additionalType"],
+        json!(edam::DATA_COMPOUND_ID)
+    );
 }
 
 #[test]

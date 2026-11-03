@@ -55,7 +55,7 @@ fn depict_url_cached(entry: &CompoundEntry) -> Option<Arc<str>> {
     if smiles.is_empty() || smiles.contains('\n') {
         return None;
     }
-    let encoded = urlencoding::encode(smiles);
+    let encoded = lotus_model::percent_encode(smiles);
     let mut url = String::with_capacity(
         "https://www.simolecule.com/cdkdepict/depict/cow/svg?smi=".len()
             + encoded.len()

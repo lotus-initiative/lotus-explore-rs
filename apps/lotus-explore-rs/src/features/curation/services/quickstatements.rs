@@ -9,7 +9,7 @@ pub fn build_qs_dev_link(commands: &str) -> String {
     if trimmed.is_empty() {
         return QS_DEV_HOME.into();
     }
-    format!("{QS_DEV_BATCH_NEW}{}", urlencoding::encode(trimmed))
+    format!("{QS_DEV_BATCH_NEW}{}", lotus_model::percent_encode(trimmed))
 }
 
 #[cfg(test)]

@@ -206,10 +206,10 @@ fn parse_query_string(query: &str) -> BTreeMap<String, String> {
             continue;
         }
         let (key, val) = pair.split_once('=').unwrap_or((pair, ""));
-        let key_decoded =
-            urlencoding::decode(key).map_or_else(|_| key.into(), std::borrow::Cow::into_owned);
-        let val_decoded =
-            urlencoding::decode(val).map_or_else(|_| val.into(), std::borrow::Cow::into_owned);
+        let key_decoded = lotus_model::percent_decode(key)
+            .map_or_else(|_| key.into(), std::borrow::Cow::into_owned);
+        let val_decoded = lotus_model::percent_decode(val)
+            .map_or_else(|_| val.into(), std::borrow::Cow::into_owned);
         out.insert(key_decoded, val_decoded);
     }
     out

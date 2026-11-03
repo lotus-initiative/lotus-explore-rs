@@ -15,14 +15,29 @@ use crate::{Profile, SOFTWARE};
 
 #[test]
 fn the_software_conforms_on_the_bioschemas_profile() {
-    let issues = check(
-        &software_jsonld(&crate::SOFTWARE),
-        Profile::SoftwareApplication,
-    );
+    let doc = software_jsonld(&crate::SOFTWARE);
+    let issues = check(&doc, Profile::SoftwareApplication);
     assert!(
-        !issues.iter().any(|i| i.severity == "Violation"),
-        "violations: {issues:?}"
+        issues.is_empty(),
+        "expected zero violations and zero warnings: {issues:?}"
     );
+    let subcategories = doc["applicationSubCategory"]
+        .as_array()
+        .expect("applicationSubCategory array");
+    assert!(
+        subcategories.contains(&json!(edam::TOPIC_CHEMINFORMATICS)),
+        "expected EDAM cheminformatics topic in applicationSubCategory: {subcategories:?}"
+    );
+    let features = doc["featureList"].as_array().expect("featureList array");
+    assert!(
+        features.contains(&json!(edam::OPERATION_STRUCTURE_DATABASE_SEARCH)),
+        "expected EDAM structure database search operation in featureList: {features:?}"
+    );
+    assert_eq!(
+        doc["input"][0]["additionalType"],
+        json!(edam::DATA_SMALL_MOLECULE_STRUCTURE)
+    );
+    assert_eq!(doc["output"][0]["@type"], json!("FormalParameter"));
 }
 
 #[test]

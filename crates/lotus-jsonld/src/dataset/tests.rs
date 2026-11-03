@@ -35,17 +35,26 @@ fn a_result_set_conforms_on_the_dataset_profile() {
     let node = result_set_jsonld(&set(&rows, "SELECT ?s WHERE {}"));
     let issues = check(&node, Profile::Dataset);
     assert!(
-        !issues.iter().any(|i| i.severity == "Violation"),
-        "violations: {issues:?}"
+        issues.is_empty(),
+        "expected zero violations and zero warnings: {issues:?}"
+    );
+    assert_eq!(
+        node["distribution"][0]["encodingFormat"],
+        json!(["text/csv", edam::FORMAT_CSV])
     );
 }
 
 #[test]
 fn the_lotus_source_conforms_on_the_dataset_profile() {
-    let issues = check(&dataset_jsonld(), Profile::Dataset);
+    let node = dataset_jsonld();
+    let issues = check(&node, Profile::Dataset);
     assert!(
-        !issues.iter().any(|i| i.severity == "Violation"),
-        "violations: {issues:?}"
+        issues.is_empty(),
+        "expected zero violations and zero warnings: {issues:?}"
+    );
+    assert_eq!(
+        node["distribution"][0]["encodingFormat"],
+        json!(["application/sparql-query", edam::FORMAT_SPARQL])
     );
 }
 

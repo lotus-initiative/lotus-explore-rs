@@ -251,8 +251,12 @@ fn a_reference_round_trips_through_a_shareable_link_as_typed() {
     for pair in url.trim_start_matches("/search?").split('&') {
         let (k, v) = pair.split_once('=').expect("a pair");
         params.insert(
-            urlencoding::decode(k).expect("valid key").into_owned(),
-            urlencoding::decode(v).expect("valid value").into_owned(),
+            lotus_model::percent_decode(k)
+                .expect("valid key")
+                .into_owned(),
+            lotus_model::percent_decode(v)
+                .expect("valid value")
+                .into_owned(),
         );
     }
     let parsed = parse_criteria_from_params(&params, 2026);

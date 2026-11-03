@@ -6,7 +6,7 @@
 //! and label, and Wikidata knows its QID. That is enough for the profile's four
 //! required properties, which is why this builds from a result row directly.
 
-use crate::{Profile, doi_uri, property_value, pubchem_uri, wikidata_uri};
+use crate::{Profile, doi_uri, edam, property_value, pubchem_uri, wikidata_uri};
 use lotus_model::CompoundEntry;
 use serde_json::{Value, json};
 
@@ -23,7 +23,13 @@ fn identifiers(entry: &CompoundEntry, entity: &str) -> Vec<Value> {
         // a made-up `inchikey` propertyID, typed with an IUPAC vocabulary IRI as a
         // valueType, was also emitted: two identifiers for one value, neither of
         // them named by the profile. It is gone.
-        out.push(json!({"@type": "PropertyValue", "propertyID": "inChIKey", "value": key}));
+        out.push(json!({
+            "@type": "PropertyValue",
+            "propertyID": "inChIKey",
+            "value": key,
+            "additionalType": edam::DATA_COMPOUND_ID,
+            "encodingFormat": edam::FORMAT_INCHIKEY,
+        }));
     }
     out
 }

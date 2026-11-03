@@ -15,6 +15,7 @@ mod columnar;
 mod criteria;
 mod entry;
 mod identify;
+mod percent;
 mod reference;
 mod stats;
 mod structure;
@@ -27,6 +28,7 @@ pub use columnar::{
 pub use criteria::{SearchCriteria, TaxonNomenclature};
 pub use entry::{CompoundEntry, Rows, TaxonMatch, TaxonNameSource};
 pub use identify::{non_empty, normalize_doi, normalize_qid};
+pub use percent::{percent_decode, percent_encode};
 pub use reference::{looks_like_doi, looks_like_reference_qid, strip_doi_prefix};
 pub use stats::{DEFAULT_STRUCTURE_THRESHOLD, DatasetStats, ElementState, SmilesSearchType};
 pub use structure::{

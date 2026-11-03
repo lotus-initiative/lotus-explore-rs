@@ -486,7 +486,10 @@ fn api_export_url(format: DownloadFormat, urls: &api::ExportUrlResponse) -> Opti
 
 fn append_filename_query(url: &str, filename: &str) -> String {
     let sep = if url.contains('?') { '&' } else { '?' };
-    format!("{url}{sep}filename={}", urlencoding::encode(filename))
+    format!(
+        "{url}{sep}filename={}",
+        lotus_model::percent_encode(filename)
+    )
 }
 
 pub(super) fn trigger_download(filename: &str, mime: &str, content_or_url: &str) {

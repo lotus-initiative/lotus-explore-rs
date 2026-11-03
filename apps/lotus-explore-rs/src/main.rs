@@ -193,10 +193,8 @@ fn main() {
     } else {
         log::Level::Info
     };
-    // `log` rather than `env_logger`: the logger is a server-feature
-    // dependency, and a desktop build should not need the API's dependency tree
-    // to print a line. Dioxus installs a `log` bridge, so a backend is still
-    // wanted; `tracing` is already in the tree for the same reason.
+    // Dioxus installs a `log` bridge, so `tracing_subscriber` routes both
+    // `tracing` spans and `log` records to stderr.
     tracing_subscriber_init(level);
 
     // `dioxus_desktop::launch::launch` takes the root component, any root

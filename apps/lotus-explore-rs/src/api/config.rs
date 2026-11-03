@@ -65,9 +65,9 @@ fn runtime_query_param(name: &str) -> Option<String> {
         let mut parts = pair.splitn(2, '=');
         let key = parts.next().unwrap_or_default();
         let value = parts.next().unwrap_or_default();
-        let decoded_key = urlencoding::decode(key).ok()?;
+        let decoded_key = lotus_model::percent_decode(key).ok()?;
         if decoded_key == name {
-            return urlencoding::decode(value)
+            return lotus_model::percent_decode(value)
                 .ok()
                 .map(std::borrow::Cow::into_owned);
         }

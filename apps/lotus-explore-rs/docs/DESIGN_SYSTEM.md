@@ -178,15 +178,15 @@ reports success.
 Declare `vocab="https://schema.org/"` at the domain-content scope. Use canonical
 Wikidata resources for QIDs and established schema.org terms only:
 
-| Entity/data         | RDFa                                                                         |
-| ------------------- | ---------------------------------------------------------------------------- |
-| Result collection   | `typeof="ItemList"`, `property="numberOfItems"` with `content`               |
-| Compound row        | `typeof="ChemicalEntity"`, `about="https://www.wikidata.org/entity/{QID}"`   |
-| Compound attributes | `schema:name`; Wikidata P233 SMILES, P235 InChIKey, P2062 mass, P274 formula |
-| Taxon               | Wikidata P171, `typeof="Taxon"`, Wikidata entity `resource`                  |
-| Source article      | Wikidata P248, `typeof="ScholarlyArticle"`, Wikidata entity `resource`       |
-| DOI                 | `property="identifier"`, `resource="https://doi.org/{DOI}"`                  |
-| Publication year    | `time[property="datePublished"]` with `datetime`                             |
+| Entity/data         | RDFa                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Result collection   | `typeof="ItemList"`, `property="numberOfItems"` with `content`                                                      |
+| Compound row        | `typeof="MolecularEntity"`, `about="https://www.wikidata.org/entity/{QID}"`                                         |
+| Compound attributes | `name`, `smiles wdt:P233`, `inChIKey wdt:P235`, `molecularWeight wdt:P2067` (mass), `molecularFormula wdt:P274`     |
+| Taxon               | `property="wdt:P703"` (found in taxon), `typeof="Taxon"`, `property="name scientificName"`, Wikidata `resource`     |
+| Source article      | `property="wdt:P248"` (stated in), `typeof="ScholarlyArticle"`, `property="name"`, Wikidata `resource`              |
+| DOI                 | `property="identifier"`, `resource="https://doi.org/{DOI}"`                                                         |
+| Publication year    | `time[property="datePublished"]` with `datetime`                                                                    |
 
 Do not annotate decorative controls, labels, or layout wrappers. Do not invent
 vocabulary terms. RDFa custom attributes in Dioxus RSX must use quoted HTML

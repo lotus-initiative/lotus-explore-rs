@@ -345,7 +345,8 @@ fn split_decoded_query(query: &str) -> Vec<&str> {
 // own fetch path, so a wasm build has no caller for it.
 #[cfg(any(not(target_arch = "wasm32"), test))]
 fn decode_component(value: &str) -> String {
-    urlencoding::decode(value).map_or_else(|_| value.to_string(), std::borrow::Cow::into_owned)
+    lotus_model::percent_decode(value)
+        .map_or_else(|_| value.to_string(), std::borrow::Cow::into_owned)
 }
 
 fn encode_query(params: &BTreeMap<String, String>) -> String {
@@ -354,8 +355,8 @@ fn encode_query(params: &BTreeMap<String, String>) -> String {
         .map(|(key, value)| {
             format!(
                 "{}={}",
-                urlencoding::encode(key),
-                urlencoding::encode(value)
+                lotus_model::percent_encode(key),
+                lotus_model::percent_encode(value)
             )
         })
         .collect::<Vec<_>>()

@@ -58,7 +58,7 @@ fn row_view(
     rsx! {
         tr {
             key: "{row_key}",
-            "typeof": "ChemicalEntity",
+            "typeof": "MolecularEntity",
             "about": "https://www.wikidata.org/entity/{compound_qid}",
             "data-lotus-id": "compound:{compound_qid}",
             // No `tabindex`: the row is not a control, so a focusable one is

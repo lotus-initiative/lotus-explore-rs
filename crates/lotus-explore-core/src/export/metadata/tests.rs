@@ -28,6 +28,27 @@ fn metadata_json_contains_schema_dataset() {
     });
     assert!(body.contains("\"@type\": \"Dataset\""));
     assert!(body.contains("\"query_hash\""));
+
+    let parsed: Value = serde_json::from_str(&body).expect("valid JSON");
+    let issues = lotus_jsonld::check(&parsed, lotus_jsonld::Profile::Dataset);
+    assert!(
+        issues.is_empty(),
+        "exported metadata.json must conform to Bioschemas Dataset 1.0-RELEASE with zero violations and zero warnings: {issues:?}"
+    );
+    assert_eq!(
+        at(&parsed, "/distribution/0/encodingFormat"),
+        json!(["text/csv", lotus_jsonld::edam::FORMAT_CSV])
+    );
+    let taxon_node = at(&parsed, "/about/4");
+    let taxon_issues = lotus_jsonld::check(&taxon_node, lotus_jsonld::Profile::Taxon);
+    assert!(
+        !taxon_issues.iter().any(|i| i.severity == "Violation"),
+        "embedded Taxon node in Dataset.about must conform to Bioschemas Taxon 1.0-RELEASE: {taxon_issues:?}"
+    );
+    assert_eq!(
+        at(&taxon_node, "/@id"),
+        json!("http://www.wikidata.org/entity/Q42")
+    );
 }
 
 #[test]
@@ -142,6 +163,11 @@ fn a_structure_search_names_its_mode_and_reports_its_filters() {
     assert_eq!(
         at(&doc, "/name"),
         json!("LOTUS Data — Similarity search in all taxa")
+    );
+    assert_eq!(
+        at(&doc, "/about").as_array().map(Vec::len),
+        Some(4),
+        "wildcard taxon must not append a Taxon node beyond the 4 EDAM DefinedTerms"
     );
     assert_eq!(
         at(&doc, "/search_parameters/structure_query"),

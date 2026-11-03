@@ -22,7 +22,7 @@ pub(in crate::components::results_table::row_cells) fn taxon_cell(
     if taxon_qid.trim().is_empty() {
         return rsx! {
             td {
-                "property": "wdt:P171",
+                "property": "wdt:P703",
                 "typeof": "Taxon",
                 class: "min-w-0 px-3 py-2.5 align-middle text-ui shadow-[inset_3px_0_0_var(--footer-wd-taxon)]",
             }
@@ -30,9 +30,10 @@ pub(in crate::components::results_table::row_cells) fn taxon_cell(
     }
 
     rsx! {
-        td { "property": "wdt:P171", "typeof": "Taxon", "resource": "https://www.wikidata.org/entity/{taxon_qid}", class: "min-w-0 px-3 py-2.5 align-middle text-ui shadow-[inset_3px_0_0_var(--footer-wd-taxon)]",
+        td { "property": "wdt:P703", "typeof": "Taxon", "resource": "https://www.wikidata.org/entity/{taxon_qid}", class: "min-w-0 px-3 py-2.5 align-middle text-ui shadow-[inset_3px_0_0_var(--footer-wd-taxon)]",
             div { class: "flex flex-col gap-1 max-w-[24ch]",
                 a {
+                    "property": "name scientificName",
                     href: "https://www.wikidata.org/entity/{taxon_qid}",
                     target: "_blank",
                     rel: "noopener noreferrer",

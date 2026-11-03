@@ -23,6 +23,7 @@ flate2 = { workspace = true }
 # No `dioxus`. This crate is the half of the application that does not know
 # which UI framework is drawing it, and the boundary is checked mechanically --
 # see `./mk boundary`.
+lotus-jsonld = { workspace = true }
 lotus-model = { workspace = true }
 lotus-query = { workspace = true }
 lotus-search = { workspace = true }
@@ -31,7 +32,6 @@ serde_json = { workspace = true }
 sha2 = { workspace = true }
 tar = { workspace = true }
 thiserror = { workspace = true }
-urlencoding = { workspace = true }
 
 [dev-dependencies]
 # The pipeline is async and its tests run against `lotus_search::testing::Scripted`,

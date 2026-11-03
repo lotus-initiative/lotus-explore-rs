@@ -9,7 +9,7 @@
 //! before — is indexable and useless, so the distribution here is a description
 //! of how to obtain the data rather than a fake file.
 
-use crate::{Profile, SOFTWARE, doi_uri, property_value, result_dataset_url, wikidata_uri};
+use crate::{Profile, SOFTWARE, doi_uri, edam, property_value, result_dataset_url, wikidata_uri};
 use serde_json::{Value, json};
 
 /// What a result set is, and how to describe it.
@@ -77,7 +77,17 @@ pub fn result_set_jsonld(set: &ResultSet<'_>) -> Value {
         ],
         "keywords": [
             "natural products", "biosynthetic", "chemical structure",
-            "taxonomy", "SPARQL", "linked open data"
+            "taxonomy", "SPARQL", "linked open data",
+            edam::TOPIC_SMALL_MOLECULES,
+            edam::TOPIC_CHEMINFORMATICS,
+            edam::TOPIC_METABOLOMICS,
+            edam::TOPIC_TAXONOMY,
+        ],
+        "about": [
+            { "@type": "DefinedTerm", "@id": edam::TOPIC_SMALL_MOLECULES, "name": "Small molecules" },
+            { "@type": "DefinedTerm", "@id": edam::TOPIC_CHEMINFORMATICS, "name": "Cheminformatics" },
+            { "@type": "DefinedTerm", "@id": edam::TOPIC_METABOLOMICS, "name": "Metabolomics" },
+            { "@type": "DefinedTerm", "@id": edam::TOPIC_TAXONOMY, "name": "Taxonomy" },
         ],
         "license": "https://creativecommons.org/publicdomain/zero/1.0/",
         "creator": { "@type": "Organization", "name": "LOTUS Initiative" },
@@ -99,12 +109,12 @@ pub fn result_set_jsonld(set: &ResultSet<'_>) -> Value {
         "distribution": [
             {
                 "@type": "DataDownload",
-                "encodingFormat": "text/csv",
+                "encodingFormat": ["text/csv", edam::FORMAT_CSV],
                 "contentUrl": format!("{url}?format=csv&query={}", set.query_hash),
             },
             {
                 "@type": "DataDownload",
-                "encodingFormat": "application/ld+json",
+                "encodingFormat": ["application/ld+json", edam::FORMAT_JSON_LD],
                 "contentUrl": format!("{url}?format=jsonld&query={}", set.query_hash),
             },
         ],
@@ -152,10 +162,30 @@ pub fn dataset_jsonld() -> Value {
                 "http://wikiba.se/ontology#WikidataItem",
             ),
         ],
-        "keywords": ["natural products", "linked open data", "SPARQL"],
+        "keywords": [
+            "natural products",
+            "linked open data",
+            "SPARQL",
+            edam::TOPIC_SMALL_MOLECULES,
+            edam::TOPIC_CHEMINFORMATICS,
+            edam::TOPIC_METABOLOMICS,
+            edam::TOPIC_TAXONOMY,
+        ],
+        "about": [
+            { "@type": "DefinedTerm", "@id": edam::TOPIC_SMALL_MOLECULES, "name": "Small molecules" },
+            { "@type": "DefinedTerm", "@id": edam::TOPIC_CHEMINFORMATICS, "name": "Cheminformatics" },
+            { "@type": "DefinedTerm", "@id": edam::TOPIC_METABOLOMICS, "name": "Metabolomics" },
+            { "@type": "DefinedTerm", "@id": edam::TOPIC_TAXONOMY, "name": "Taxonomy" },
+        ],
         "license": "https://creativecommons.org/publicdomain/zero/1.0/",
         "version": SOFTWARE.version,
+        "datePublished": SOFTWARE.date_published,
         "creator": { "@type": "Organization", "name": "LOTUS Initiative" },
+        "variableMeasured": [
+            "compound name", "compound SMILES", "InChIKey", "molecular mass",
+            "molecular formula", "taxon name", "reference title", "reference DOI"
+        ],
+        "measurementTechnique": "SPARQL 1.1 over the Wikidata graph",
         // The paper that describes the knowledge base, which is also what a
         // reader of this dataset should be pointed at.
         "citation": {
@@ -168,7 +198,7 @@ pub fn dataset_jsonld() -> Value {
         "distribution": [
             {
                 "@type": "DataDownload",
-                "encodingFormat": "application/sparql-query",
+                "encodingFormat": ["application/sparql-query", edam::FORMAT_SPARQL],
                 "contentUrl": "https://query.wikidata.org/sparql",
             },
         ],

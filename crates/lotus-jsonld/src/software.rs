@@ -3,7 +3,7 @@
 //! The project itself, as a Bioschemas `SoftwareApplication`, plus the two
 //! citation files that say the same thing in the formats registries read.
 
-use crate::{Profile, doi_uri, property_value};
+use crate::{Profile, doi_uri, edam, property_value};
 use serde_json::{Value, json};
 
 /// What the software is called, and how to cite it.
@@ -72,6 +72,10 @@ pub struct Paper {
 
 /// The project as a conforming `SoftwareApplication`.
 #[must_use]
+#[allow(
+    clippy::too_many_lines,
+    reason = "single Bioschemas ComputationalTool document with FormalParameter input/output descriptors"
+)]
 pub fn software_jsonld(software: &Software) -> Value {
     let mut object = serde_json::Map::new();
     object.insert("@type".into(), json!("SoftwareApplication"));
@@ -83,9 +87,26 @@ pub fn software_jsonld(software: &Software) -> Value {
     object.insert("softwareVersion".into(), json!(software.version));
     object.insert(
         "applicationCategory".into(),
-        json!("scientific data analysis"),
+        json!(software.application_category),
     );
-    object.insert("applicationSubCategory".into(), json!("SPARQL client"));
+    object.insert(
+        "applicationSubCategory".into(),
+        json!([
+            software.application_subcategory,
+            edam::TOPIC_CHEMINFORMATICS,
+            edam::TOPIC_SMALL_MOLECULES,
+            edam::TOPIC_METABOLOMICS,
+            edam::TOPIC_TAXONOMY,
+        ]),
+    );
+    object.insert(
+        "author".into(),
+        json!({
+            "@type": "Organization",
+            "name": "LOTUS Initiative",
+            "url": "https://www.wikidata.org/wiki/Q104225190",
+        }),
+    );
     object.insert("codeRepository".into(), json!(software.repository));
     object.insert(
         "programmingLanguage".into(),
@@ -95,7 +116,60 @@ pub fn software_jsonld(software: &Software) -> Value {
             "url": software.language_url,
         }),
     );
-    object.insert("featureList".into(), json!(software.features));
+    let mut features: Vec<&str> = software.features.to_vec();
+    features.extend([
+        edam::OPERATION_DATABASE_SEARCH,
+        edam::OPERATION_STRUCTURE_DATABASE_SEARCH,
+        edam::OPERATION_TAXONOMIC_CLASSIFICATION,
+        edam::OPERATION_DATA_RETRIEVAL,
+    ]);
+    object.insert("featureList".into(), json!(features));
+    object.insert(
+        "input".into(),
+        json!([
+            {
+                "@type": "FormalParameter",
+                "dct:conformsTo": "https://bioschemas.org/profiles/FormalParameter/1.0-RELEASE",
+                "name": "chemical structure query",
+                "additionalType": edam::DATA_SMALL_MOLECULE_STRUCTURE,
+                "encodingFormat": [
+                    edam::FORMAT_SMILES,
+                    edam::FORMAT_INCHI,
+                    edam::FORMAT_INCHIKEY,
+                    edam::FORMAT_MOLFILE,
+                ],
+            },
+            {
+                "@type": "FormalParameter",
+                "dct:conformsTo": "https://bioschemas.org/profiles/FormalParameter/1.0-RELEASE",
+                "name": "taxon filter",
+                "additionalType": edam::DATA_TAXONOMIC_CLASSIFICATION,
+            },
+        ]),
+    );
+    object.insert(
+        "output".into(),
+        json!([
+            {
+                "@type": "FormalParameter",
+                "dct:conformsTo": "https://bioschemas.org/profiles/FormalParameter/1.0-RELEASE",
+                "name": "structure-organism-reference occurrences",
+                "additionalType": [
+                    edam::DATA_SMALL_MOLECULE_STRUCTURE,
+                    edam::DATA_COMPOUND_ID,
+                    edam::DATA_TAXONOMIC_CLASSIFICATION,
+                    edam::DATA_CITATION,
+                ],
+                "encodingFormat": [
+                    edam::FORMAT_CSV,
+                    edam::FORMAT_TSV,
+                    edam::FORMAT_JSON,
+                    edam::FORMAT_JSON_LD,
+                    edam::FORMAT_TURTLE,
+                ],
+            },
+        ]),
+    );
     object.insert(
         "identifier".into(),
         json!([property_value(
@@ -160,7 +234,13 @@ pub fn codemeta(software: &Software) -> Value {
     );
     object.insert(
         "applicationSubCategory".into(),
-        json!(software.application_subcategory),
+        json!([
+            software.application_subcategory,
+            edam::TOPIC_CHEMINFORMATICS,
+            edam::TOPIC_SMALL_MOLECULES,
+            edam::TOPIC_METABOLOMICS,
+            edam::TOPIC_TAXONOMY,
+        ]),
     );
     object.insert(
         "buildInstructions".into(),

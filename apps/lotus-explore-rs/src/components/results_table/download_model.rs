@@ -180,7 +180,7 @@ fn build_sparql_ui_url(sparql_query: Option<&str>, endpoint: SparqlEndpointUI) -
         SparqlEndpointUI::Qlever => QLEVER_UI,
         SparqlEndpointUI::Wdqs => WDQS_UI,
     };
-    sparql_query.map(|query| format!("{base_url}?query={}", urlencoding::encode(query)))
+    sparql_query.map(|query| format!("{base_url}?query={}", lotus_model::percent_encode(query)))
 }
 
 #[cfg(test)]

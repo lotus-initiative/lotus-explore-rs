@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use super::filters::criteria_to_filters_value;
+use lotus_jsonld::{Profile, edam, result_dataset_url};
 use lotus_search::SearchCriteria;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
@@ -83,13 +84,13 @@ struct ScholarlyArticle<'a> {
 }
 
 #[derive(Serialize)]
-struct DataDownload<'a> {
+struct DataDownload {
     #[serde(rename = "@type")]
-    type_: &'a str,
+    type_: &'static str,
     #[serde(rename = "encodingFormat")]
-    encoding_format: &'a str,
+    encoding_format: [&'static str; 2],
     #[serde(rename = "contentUrl")]
-    content_url: &'a str,
+    content_url: String,
 }
 
 #[derive(Serialize)]
@@ -119,26 +120,57 @@ struct HashInfo {
     value: String,
 }
 
+const MEASURED_VARIABLES: &[&str] = &[
+    "compound_name",
+    "compound_smiles",
+    "compound_inchikey",
+    "compound_mass",
+    "molecular_formula",
+    "taxon_name",
+    "reference_title",
+    "reference_doi",
+    "reference_date",
+    "compound_qid",
+    "taxon_qid",
+    "reference_qid",
+];
+
 #[derive(Serialize)]
 struct DatasetMetadata {
     #[serde(rename = "@context")]
     context: &'static str,
     #[serde(rename = "@type")]
     type_: &'static str,
+    #[serde(rename = "@id")]
+    id: String,
+    #[serde(rename = "dct:conformsTo")]
+    conforms_to: &'static str,
     name: String,
     description: String,
+    url: String,
+    identifier: Value,
+    keywords: Vec<&'static str>,
+    about: Value,
     version: &'static str,
     #[serde(rename = "dateCreated")]
     date_created: String,
+    #[serde(rename = "datePublished")]
+    date_published: String,
     license: &'static str,
     creator: Creator<'static>,
     provider: Vec<Organization<'static>>,
     citation: Vec<ScholarlyArticle<'static>>,
-    distribution: Vec<DataDownload<'static>>,
+    distribution: Vec<DataDownload>,
+    #[serde(rename = "includedInDataCatalog")]
+    included_in_data_catalog: Value,
+    #[serde(rename = "measurementTechnique")]
+    measurement_technique: &'static str,
     #[serde(rename = "numberOfRecords", skip_serializing_if = "Option::is_none")]
     number_of_records: Option<usize>,
+    #[serde(rename = "variableMeasured")]
+    variable_measured: &'static [&'static str],
     #[serde(rename = "variablesMeasured")]
-    variables_measured: Vec<&'static str>,
+    variables_measured: &'static [&'static str],
     search_parameters: Value,
     #[serde(
         rename = "chemical_search_service",
@@ -197,9 +229,7 @@ pub fn build_metadata_json(inp: MetadataInputs<'_>) -> String {
         || {
             (
                 format!("LOTUS Data — {effective_taxon}"),
-                format!(
-                    "Chemical compounds from {effective_taxon}. Retrieved via LOTUS  Explorer."
-                ),
+                format!("Chemical compounds from {effective_taxon}. Retrieved via LOTUS Explorer."),
             )
         },
         |c| {
@@ -238,6 +268,24 @@ pub fn build_metadata_json(inp: MetadataInputs<'_>) -> String {
             name: "IDSM",
             url: "https://idsm.elixir-czech.cz/",
         });
+    }
+
+    let dataset_url = result_dataset_url(
+        &lotus_model::percent_encode(&effective_taxon),
+        inp.query_hash,
+    );
+
+    let mut about_terms = vec![
+        json!({ "@type": "DefinedTerm", "@id": edam::TOPIC_SMALL_MOLECULES, "name": "Small molecules" }),
+        json!({ "@type": "DefinedTerm", "@id": edam::TOPIC_CHEMINFORMATICS, "name": "Cheminformatics" }),
+        json!({ "@type": "DefinedTerm", "@id": edam::TOPIC_METABOLOMICS, "name": "Metabolomics" }),
+        json!({ "@type": "DefinedTerm", "@id": edam::TOPIC_TAXONOMY, "name": "Taxonomy" }),
+    ];
+    if let Some(q) = inp.qid
+        && q != "*"
+        && let Ok(Some(taxon_node)) = lotus_jsonld::taxon_jsonld(q, &effective_taxon, None)
+    {
+        about_terms.push(taxon_node);
     }
 
     let mut search_params = Map::new();
@@ -306,12 +354,36 @@ pub fn build_metadata_json(inp: MetadataInputs<'_>) -> String {
     });
 
     let dataset = DatasetMetadata {
-        context: "https://schema.org/",
-        type_: "Dataset",
+        context: lotus_jsonld::CONTEXT,
+        type_: Profile::Dataset.rdf_type(),
+        id: dataset_url.clone(),
+        conforms_to: Profile::Dataset.id(),
         name: dataset_name,
         description,
+        url: dataset_url.clone(),
+        identifier: json!([
+            {
+                "@type": "PropertyValue",
+                "propertyID": "sha256",
+                "value": inp.result_hash,
+                "encodingFormat": "application/sha256",
+            }
+        ]),
+        keywords: vec![
+            "natural products",
+            "chemical structure",
+            "taxonomy",
+            "SPARQL",
+            "linked open data",
+            edam::TOPIC_SMALL_MOLECULES,
+            edam::TOPIC_CHEMINFORMATICS,
+            edam::TOPIC_METABOLOMICS,
+            edam::TOPIC_TAXONOMY,
+        ],
+        about: Value::Array(about_terms),
         version: APP_VERSION,
         date_created: inp.date_created.to_string(),
+        date_published: inp.date_created.to_string(),
         license: "https://creativecommons.org/publicdomain/zero/1.0/",
         creator: Creator {
             type_: "SoftwareApplication",
@@ -329,35 +401,30 @@ pub fn build_metadata_json(inp: MetadataInputs<'_>) -> String {
         distribution: vec![
             DataDownload {
                 type_: "DataDownload",
-                encoding_format: "text/csv",
-                content_url: "data:text/csv",
+                encoding_format: ["text/csv", edam::FORMAT_CSV],
+                content_url: format!("{dataset_url}?format=csv"),
             },
             DataDownload {
                 type_: "DataDownload",
-                encoding_format: "application/sparql-results+json",
-                content_url: "data:application/sparql-results+json",
+                encoding_format: ["application/sparql-results+json", edam::FORMAT_JSON],
+                content_url: format!("{dataset_url}?format=json"),
             },
             DataDownload {
                 type_: "DataDownload",
-                encoding_format: "text/turtle",
-                content_url: "data:text/turtle",
+                encoding_format: ["text/turtle", edam::FORMAT_TURTLE],
+                content_url: format!("{dataset_url}?format=ttl"),
             },
         ],
+        included_in_data_catalog: json!({
+            "@type": "DataCatalog",
+            "@id": "https://lotus-initiative.github.io/lotus-explore-rs",
+            "name": "LOTUS",
+            "url": "https://lotus-initiative.github.io/lotus-explore-rs",
+        }),
+        measurement_technique: "SPARQL 1.1 over the Wikidata graph",
         number_of_records: inp.number_of_records_override,
-        variables_measured: vec![
-            "compound_name",
-            "compound_smiles",
-            "compound_inchikey",
-            "compound_mass",
-            "molecular_formula",
-            "taxon_name",
-            "reference_title",
-            "reference_doi",
-            "reference_date",
-            "compound_qid",
-            "taxon_qid",
-            "reference_qid",
-        ],
+        variable_measured: MEASURED_VARIABLES,
+        variables_measured: MEASURED_VARIABLES,
         search_parameters: Value::Object(search_params),
         chemical_search_service,
         sparql_endpoint: {

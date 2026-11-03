@@ -20,7 +20,7 @@ use lotus_search::QLEVER_WIKIDATA;
 pub fn qlever_export_url(query: &str, format: ExportFormat) -> String {
     format!(
         "{QLEVER_WIKIDATA}?query={}&action={}",
-        urlencoding::encode(&format.prepared_query(query)),
+        lotus_model::percent_encode(&format.prepared_query(query)),
         format.qlever_action()
     )
 }

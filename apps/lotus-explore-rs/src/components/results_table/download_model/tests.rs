@@ -123,7 +123,7 @@ fn toolbar_model_encodes_query_for_qlever_ui_link() {
     let model = build_download_toolbar_model(&criteria, Some(query), None, None, None, YEAR, NOW);
 
     let url = model.ui_url.expect("query link should be present");
-    let encoded = urlencoding::encode(query);
+    let encoded = lotus_model::percent_encode(query);
     assert!(url.starts_with("https://qlever.dev/wikidata?query="));
     assert!(url.contains(encoded.as_ref()));
 }
@@ -145,7 +145,7 @@ fn toolbar_model_encodes_query_for_wdqs_ui_link_when_endpoint_is_wdqs() {
     );
 
     let url = model.ui_url.expect("query link should be present");
-    let encoded = urlencoding::encode(query);
+    let encoded = lotus_model::percent_encode(query);
     assert!(url.starts_with("https://query.wikidata.org?query="));
     assert!(url.contains(encoded.as_ref()));
 }

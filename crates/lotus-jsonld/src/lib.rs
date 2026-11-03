@@ -5,6 +5,7 @@
 
 mod compound;
 mod dataset;
+pub mod edam;
 mod profile;
 mod software;
 mod taxon;

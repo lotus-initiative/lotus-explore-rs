@@ -30,7 +30,7 @@ pub(in crate::components::results_table::row_cells) fn compound_cell(
                     "{prepared.display_name}"
                 }
                 if let Some(smiles) = entry.smiles.as_deref() {
-                    span { "property": "wdt:P233", "content": "{smiles}", class: "sr-only" }
+                    span { "property": "smiles wdt:P233", "content": "{smiles}", class: "sr-only" }
                 }
             }
             div { class: "mt-1 flex flex-wrap items-center gap-1 max-w-[30ch]",
@@ -46,7 +46,8 @@ pub(in crate::components::results_table::row_cells) fn compound_cell(
                 }
                 if let Some(ik) = entry.inchikey.as_deref() {
                     a {
-                        "property": "wdt:P235",
+                        "property": "inChIKey wdt:P235",
+                        "content": "{ik}",
                         "resource": "https://www.wikidata.org/wiki/Special:Search?search={ik}",
                         href: "https://www.wikidata.org/wiki/Special:Search?search={ik}",
                         target: "_blank",

@@ -32,13 +32,40 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "WebApplication",
+        "@type": ["WebApplication", "SoftwareApplication"],
+        "@id": "https://lotus-initiative.github.io/lotus-explore-rs/",
+        "dct:conformsTo": "https://bioschemas.org/profiles/ComputationalTool/1.0-RELEASE",
         "name": "LOTUS Explorer",
         "description": "Explore LOTUS with taxon filters, structure search, and Wikidata curation workflows.",
         "url":"https://lotus-initiative.github.io/lotus-explore-rs/",
+        "softwareVersion": "0.1.0",
+        "license": "https://www.gnu.org/licenses/agpl-3.0.html",
         "applicationCategory": "ScienceApplication",
+        "applicationSubCategory": [
+          "http://edamontology.org/topic_2258",
+          "http://edamontology.org/topic_0154",
+          "http://edamontology.org/topic_3172",
+          "http://edamontology.org/topic_0637"
+        ],
+        "featureList": [
+          "http://edamontology.org/operation_2421",
+          "http://edamontology.org/operation_0339",
+          "http://edamontology.org/operation_3460",
+          "http://edamontology.org/operation_2422"
+        ],
         "operatingSystem": "Web",
-        "inLanguage": ["en", "fr", "de", "it"]
+        "inLanguage": ["en", "fr", "de", "it"],
+        "author": {
+          "@type": "Organization",
+          "name": "LOTUS Initiative",
+          "url": "https://www.wikidata.org/wiki/Q104225190"
+        },
+        "citation": {
+          "@type": "ScholarlyArticle",
+          "name": "The LOTUS initiative for open knowledge management in natural products research",
+          "identifier": "https://doi.org/10.7554/eLife.70780",
+          "url": "https://doi.org/10.7554/eLife.70780"
+        }
       }
     </script>
     <link rel="canonical" href="" />

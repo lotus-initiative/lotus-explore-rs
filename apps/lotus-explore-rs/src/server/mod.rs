@@ -136,9 +136,12 @@ async fn add_security_headers(req: axum::http::Request<Body>, next: Next) -> Res
 
 /// Entry point for the in-package native API server.
 pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-        .format_timestamp_millis()
-        .init();
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_writer(std::io::stderr)
+        .try_init();
 
     let config = config::AppConfig::from_env().map_err(std::io::Error::other)?;
     let state = state::AppState::new(&config);

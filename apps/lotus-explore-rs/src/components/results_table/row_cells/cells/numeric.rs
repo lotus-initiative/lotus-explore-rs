@@ -8,7 +8,7 @@ pub fn mass_cell(mass: Option<f64>) -> Element {
     rsx! {
         td { class: "px-3 py-2.5 align-top text-right",
             if let Some(m) = mass {
-                span { "property": "wdt:P2062", class: "text-ui font-medium tabular-nums text-wd-compound", "{format_mass_value(m)}" }
+                span { "property": "molecularWeight wdt:P2067", class: "text-ui font-medium tabular-nums text-wd-compound", "{format_mass_value(m)}" }
             } else {
                 span { class: "text-subtle", "-" }
             }
@@ -20,7 +20,7 @@ pub fn formula_cell(formula: Option<&str>) -> Element {
     rsx! {
         td { class: "px-3 py-2.5 align-top text-right",
             if let Some(f) = formula {
-                span { "property": "wdt:P274", class: "text-ui font-medium font-mono whitespace-nowrap text-wd-compound", "{f}" }
+                span { "property": "molecularFormula wdt:P274", class: "text-ui font-medium font-mono whitespace-nowrap text-wd-compound", "{f}" }
             } else {
                 span { class: "text-subtle", "-" }
             }

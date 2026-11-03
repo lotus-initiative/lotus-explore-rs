@@ -34,8 +34,8 @@ pub fn build_curation_share_url(
         .map(|(key, value)| {
             format!(
                 "{}={}",
-                urlencoding::encode(&key),
-                urlencoding::encode(&value)
+                lotus_model::percent_encode(&key),
+                lotus_model::percent_encode(&value)
             )
         })
         .collect::<Vec<_>>()
