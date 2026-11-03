@@ -116,9 +116,9 @@ struct ReferenceProps {
 pub(super) struct Index {
     pub(super) compounds: HashMap<String, CompoundProps>,
     pub(super) taxa: HashMap<String, TaxonProps>,
-    /// `(compound, taxon)` → reference QID → identifiers. Ordered by QID so
+    /// `compound` → `taxon` → reference QID → identifiers. Ordered by QID so
     /// references citing the same DOI and PMID always list in the same order.
-    references: HashMap<(String, String), BTreeMap<String, ReferenceProps>>,
+    references: HashMap<String, HashMap<String, BTreeMap<String, ReferenceProps>>>,
 }
 
 impl Index {
@@ -168,14 +168,15 @@ impl Index {
             },
         );
 
-        let mut references: HashMap<(String, String), BTreeMap<String, ReferenceProps>> =
+        let mut references: HashMap<String, HashMap<String, BTreeMap<String, ReferenceProps>>> =
             HashMap::new();
         let mut cite =
             |rows: &[Row], column: &str, set: fn(&mut ReferenceProps, Option<String>)| {
                 for row in rows {
-                    let pair = (qid(row, "compound"), qid(row, "taxon"));
                     let reference = references
-                        .entry(pair)
+                        .entry(qid(row, "compound"))
+                        .or_default()
+                        .entry(qid(row, "taxon"))
                         .or_default()
                         .entry(qid(row, "reference"))
                         .or_default();
@@ -215,10 +216,10 @@ impl Index {
 
     /// The references for one compound-taxon pair, by DOI then PMID.
     pub(super) fn references(&self, compound: &str, taxon: &str) -> Vec<Reference> {
-        let pair = (compound.to_string(), taxon.to_string());
         let mut list: Vec<Reference> = self
             .references
-            .get(&pair)
+            .get(compound)
+            .and_then(|by_taxon| by_taxon.get(taxon))
             .into_iter()
             .flatten()
             .map(|(qid, props)| Reference {

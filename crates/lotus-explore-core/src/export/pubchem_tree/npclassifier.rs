@@ -6,7 +6,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::ops::Bound;
 
-use super::index::{Index, PubChemData, qid};
+use super::index::{Index, PubChemData, cell, qid};
 use super::nodes::{
     ClassMember, Classification, CompoundNode, Descriptors, Level, Pathway, Qid, Superclass,
     sort_by_name,
@@ -34,14 +34,13 @@ pub(super) type Classified = BTreeMap<String, BTreeMap<String, SuperclassMembers
 pub(super) fn classify(rows: &[Row]) -> Classified {
     let mut classified = Classified::new();
     for row in rows {
-        let field = |column: &str| row.get(column).map_or("", String::as_str);
-        let smiles = field("smiles");
-        if !field("error").is_empty() || smiles.is_empty() {
+        let smiles = cell(row, "smiles");
+        if !cell(row, "error").is_empty() || smiles.is_empty() {
             continue;
         }
-        let superclasses = levels(field("superclass"));
-        let classes = levels(field("class"));
-        for pathway in levels(field("pathway")) {
+        let superclasses = levels(cell(row, "superclass"));
+        let classes = levels(cell(row, "class"));
+        for pathway in levels(cell(row, "pathway")) {
             let by_superclass = classified.entry(pathway.to_string()).or_default();
             for (i, superclass) in superclasses.iter().enumerate() {
                 let members = by_superclass.entry((*superclass).to_string()).or_default();

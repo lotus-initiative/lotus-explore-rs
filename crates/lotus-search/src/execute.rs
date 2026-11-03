@@ -166,8 +166,8 @@ impl Answer {
     /// # Errors
     /// Returns [`FetchError::Parse`] if the body is not UTF-8, which a SPARQL
     /// response is always meant to be.
-    pub fn text(&self) -> Result<String, FetchError> {
-        String::from_utf8(self.body.clone())
+    pub fn text(self) -> Result<String, FetchError> {
+        String::from_utf8(self.body)
             .map_err(|e| FetchError::Parse(format!("the response was not UTF-8: {e}")))
     }
 }

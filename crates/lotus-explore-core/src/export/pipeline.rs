@@ -14,6 +14,7 @@
 
 use std::collections::HashMap;
 use std::io::Write;
+use std::sync::Arc;
 
 use lotus_query::{
     COMPOUND_CID_QUERY, COMPOUND_SMILES_CAN_QUERY, COMPOUND_SMILES_ISO_QUERY,
@@ -26,7 +27,7 @@ use lotus_search::{Endpoint, FetchError, Http, ResponseFormat, execute_streaming
 use thiserror::Error;
 
 /// One result row, as column name → cell value.
-pub(crate) type Row = HashMap<String, String>;
+pub(crate) type Row = HashMap<Arc<str>, String>;
 
 /// All of one compound's structure properties, keyed by compound QID.
 #[derive(Clone, Default)]
@@ -162,14 +163,14 @@ pub(crate) fn read_csv_rows(bytes: &[u8]) -> Result<Vec<Row>, csv::Error> {
         .has_headers(true)
         .flexible(true)
         .from_reader(bytes);
-    let headers: Vec<String> = reader.headers()?.iter().map(ToString::to_string).collect();
+    let headers: Vec<Arc<str>> = reader.headers()?.iter().map(Arc::from).collect();
     let mut rows = Vec::new();
     for record in reader.records() {
         let record = record?;
         let mut row = HashMap::with_capacity(headers.len());
         for (i, header) in headers.iter().enumerate() {
             row.insert(
-                header.clone(),
+                Arc::clone(header),
                 record.get(i).map_or_else(String::new, str::to_string),
             );
         }

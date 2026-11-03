@@ -14,18 +14,10 @@
 //! have in it. Only `name` and `smiles` are required: a row with no taxon
 //! and no DOI still has a compound to curate.
 
-use crate::{CurationError, CurationInputRow};
+use lotus_search::non_empty;
+pub use lotus_search::normalize_doi;
 
-/// Case-insensitive search for a byte string, without allocating.
-fn find_ascii_ci(haystack: &str, needle: &[u8]) -> Option<usize> {
-    // Fold the needle once rather than both sides of every comparison, and
-    // compare windows with a slice equality rather than byte by byte.
-    let folded: Vec<u8> = needle.iter().map(u8::to_ascii_lowercase).collect();
-    haystack
-        .as_bytes()
-        .windows(folded.len())
-        .position(|w| w == folded)
-}
+use crate::{CurationError, CurationInputRow};
 
 ///
 /// # Errors
@@ -114,53 +106,27 @@ pub fn row_uniqueness_key(row: &CurationInputRow) -> String {
     // and `cco` are the same molecule, as are `10.1/A` and `10.1/a`. The
     // CLI's own version of this key did all three; the web's did not, so the
     // web treated a re-cased duplicate as two findings.
-    let smiles = row.smiles.trim().to_ascii_uppercase();
-    let taxon = row
-        .taxon
-        .as_deref()
-        .map(str::trim)
-        .filter(|v| !v.is_empty())
-        .map(str::to_ascii_lowercase)
-        .unwrap_or_default();
-    let doi = row
-        .doi
-        .as_deref()
-        .and_then(normalize_doi)
-        .unwrap_or_default()
-        .to_ascii_lowercase();
-    format!("{smiles}\t{taxon}\t{doi}")
+    let smiles = row.smiles.trim();
+    let taxon = row.taxon.as_deref().and_then(non_empty).unwrap_or_default();
+    let doi = row.doi.as_deref().and_then(normalize_doi);
+    let doi_str = doi.as_deref().unwrap_or_default();
+    let mut out = String::with_capacity(smiles.len() + taxon.len() + doi_str.len() + 2);
+    for ch in smiles.chars() {
+        out.push(ch.to_ascii_uppercase());
+    }
+    out.push('\t');
+    for ch in taxon.chars() {
+        out.push(ch.to_ascii_lowercase());
+    }
+    out.push('\t');
+    for ch in doi_str.chars() {
+        out.push(ch.to_ascii_lowercase());
+    }
+    out
 }
 
 fn normalize_header(value: &str) -> String {
     value.trim().to_ascii_lowercase().replace(' ', "_")
-}
-
-/// A DOI as Wikidata will store it: the prefix stripped, the value
-/// upper-cased, `None` when there is nothing left.
-///
-/// Public because the curation UI does exactly this to a DOI before it asks
-/// Wikidata about it, and a second copy is how the two disagree.
-#[must_use]
-pub fn normalize_doi(value: &str) -> Option<String> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    let canonical =
-        find_ascii_ci(trimmed, b"doi.org/").map_or(trimmed, |idx| &trimmed[(idx + 8)..]);
-    if canonical.is_empty() {
-        return None;
-    }
-    Some(canonical.to_ascii_uppercase())
-}
-
-fn non_empty(value: &str) -> Option<&str> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed)
-    }
 }
 
 #[cfg(test)]

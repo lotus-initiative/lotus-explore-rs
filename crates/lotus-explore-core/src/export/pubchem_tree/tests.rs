@@ -23,7 +23,7 @@ const NOW: &str = "2026-03-04T05:06:07Z";
 fn row_map(pairs: &[(&str, &str)]) -> Row {
     pairs
         .iter()
-        .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+        .map(|(k, v)| (std::sync::Arc::from(*k), (*v).to_string()))
         .collect()
 }
 

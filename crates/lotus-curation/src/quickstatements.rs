@@ -32,25 +32,37 @@ use std::collections::HashSet;
 #[must_use]
 pub fn build_quickstatements_bundle(results: &[CurationResultRow]) -> QuickStatementsBundle {
     let mut seen_dependency_blocks = HashSet::<&str>::with_capacity(results.len());
-    let mut dependencies = Vec::with_capacity(results.len());
+    let mut dependencies = String::new();
     for block in results.iter().flat_map(|r| r.dependency_blocks.iter()) {
         let block = block.as_str();
-        if block.trim().is_empty() {
-            continue;
-        }
-        if seen_dependency_blocks.insert(block) {
-            dependencies.push(block);
+        if !block.trim().is_empty() && seen_dependency_blocks.insert(block) {
+            if !dependencies.is_empty() {
+                dependencies.push_str("\n\n");
+            }
+            dependencies.push_str(block);
         }
     }
 
-    let mut main_sections = Vec::with_capacity(results.len());
-    for row in results.iter().filter(|r| !r.quickstatements.is_empty()) {
-        main_sections.push(row.quickstatements.join("\n"));
+    let mut main = String::new();
+    for (row_idx, row) in results
+        .iter()
+        .filter(|r| !r.quickstatements.is_empty())
+        .enumerate()
+    {
+        if row_idx > 0 {
+            main.push_str("\n\n");
+        }
+        for (line_idx, line) in row.quickstatements.iter().enumerate() {
+            if line_idx > 0 {
+                main.push('\n');
+            }
+            main.push_str(line);
+        }
     }
 
     QuickStatementsBundle {
-        dependencies: std::sync::Arc::<str>::from(dependencies.join("\n\n")),
-        main: std::sync::Arc::<str>::from(main_sections.join("\n\n")),
+        dependencies: std::sync::Arc::<str>::from(dependencies),
+        main: std::sync::Arc::<str>::from(main),
     }
 }
 

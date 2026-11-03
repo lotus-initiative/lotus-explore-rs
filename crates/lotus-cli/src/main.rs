@@ -312,8 +312,8 @@ impl std::str::FromStr for Range {
         let bad = || format!("expected MIN..MAX, MIN.. or ..MAX, got {value:?}");
         match value.split_once("..") {
             Some((min, "")) => Ok(Self {
-                min: 0,
-                max: min.parse().map_err(|_| bad())?,
+                min: min.parse().map_err(|_| bad())?,
+                max: u16::MAX,
             }),
             Some(("", max)) => Ok(Self {
                 min: 0,

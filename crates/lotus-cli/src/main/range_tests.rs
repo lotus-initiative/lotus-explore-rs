@@ -35,8 +35,7 @@ fn a_bare_number_is_an_upper_bound() {
 #[test]
 fn an_explicit_empty_lower_bound_means_the_same_as_the_bare_form() {
     // `..5` is "at most 5" with the lower end written out, and it agrees with
-    // the bare form. That arm is correct; its sibling is not -- see
-    // `a_lower_bound_only_spelling_is_still_an_upper_bound_today`.
+    // the bare form.
     assert_eq!(
         parse("..5").expect("parses").max,
         parse("5").expect("parses").max
@@ -44,51 +43,42 @@ fn an_explicit_empty_lower_bound_means_the_same_as_the_bare_form() {
     assert_eq!(parse("..5").expect("parses").min, 0);
 }
 
-/// **Documents a defect rather than the intended behaviour. Read this before
-/// "fixing" the test.**
-///
-/// The two range arms set the same field:
-///
-/// ```text
-/// Some((min, "")) => Ok(Self { min: 0, max: min.parse()? }),   // "20.." -> 0..20
-/// Some(("", max)) => Ok(Self { min: 0, max: max.parse()? }),   // "..5"  -> 0..5
-/// ```
-///
-/// so `20..` and `..20` are the same input meaning "at most 20", and there is no
-/// way to ask for a lower bound alone. The comment eight lines below the match
-/// says the opposite -- "A lower bound alone selects almost nothing, so `20..`
-/// is how you ask for that" -- and the CLI's own help advertises `MIN..`.
-///
-/// A user typing `--carbon 20..` expecting "at least 20 carbons" silently gets
-/// "at most 20", which is a much narrower search pointing the wrong way, and
-/// nothing in the output says so.
-///
-/// Not fixed here: this branch may not change production code, and this test
-/// asserts what the code does rather than what it should. The assertion below is
-/// deliberately written as `0..20`, not `20..MAX`, so that fixing the code makes
-/// this test FAIL and forces whoever does it to read this comment.
 #[test]
-fn a_lower_bound_only_spelling_is_still_an_upper_bound_today() {
+fn a_lower_bound_only_spelling_sets_min_and_leaves_max_open() {
     let bare_upper = parse("20").expect("parses");
     let trailing_dots = parse("20..").expect("parses");
     let leading_dots = parse("..20").expect("parses");
 
     assert_eq!(
         (trailing_dots.min, trailing_dots.max),
-        (0, 20),
-        "`20..` is documented as the lower-bound spelling and currently parses as \
-         an upper bound. When this is fixed this assertion is what must change."
+        (20, u16::MAX),
+        "`20..` sets the lower bound to 20 and leaves the upper bound open"
     );
     assert_eq!(
-        (trailing_dots.min, trailing_dots.max),
         (leading_dots.min, leading_dots.max),
-        "`20..` and `..20` are the same parse; the two spellings of one end are \
-         indistinguishable, which is the shape of the defect"
+        (0, 20),
+        "`..20` sets the upper bound to 20"
     );
     assert_eq!(
         (bare_upper.min, bare_upper.max),
-        (trailing_dots.min, trailing_dots.max),
-        "and so is a bare number, which is correct for a bare number"
+        (leading_dots.min, leading_dots.max),
+        "a bare number agrees with `..MAX`"
+    );
+
+    let mut criteria = lotus_model::SearchCriteria::up_to_year(2026);
+    super::apply_ranges(
+        &mut criteria,
+        Some(trailing_dots),
+        None,
+        None,
+        None,
+        None,
+        None,
+    );
+    assert_eq!(
+        (criteria.c_min, criteria.c_max),
+        (20, lotus_model::element_max::C),
+        "`apply_ranges` resolves an open upper bound to the element's default max"
     );
 }
 
