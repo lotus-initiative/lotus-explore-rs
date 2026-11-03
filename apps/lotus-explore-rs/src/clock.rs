@@ -135,8 +135,8 @@ const FALLBACK_YEAR: u16 = 9999;
 
 /// Days since the Unix epoch to the calendar year that day falls in.
 ///
-/// Howard Hinnant's `civil_from_days`, which is exact for every day in the
-/// proleptic Gregorian calendar and needs no lookup table. The full function is
+/// Howard Hinnant's civil-from-days algorithm, which is exact for every day in
+/// the proleptic Gregorian calendar and needs no lookup table. The full function is
 /// used rather than a year-only variant: the year-only version answers "which
 /// year contains the day *before* this one", which is right for 364 days a year
 /// and wrong on 1 January. That is the kind of bug that reads as correct for a

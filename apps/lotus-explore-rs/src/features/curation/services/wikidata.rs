@@ -2,10 +2,13 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 use super::helpers::{binding_value, escape_qs_string, escape_sparql_string, extract_qid_from_uri};
 use super::{
-    CURATION_SPARQL_PREFIXES, CurationError, WD_OCCURS_IN_TAXON_PROP, WD_TAXON_QID,
-    WikidataCompound, normalize_doi,
+    CURATION_SPARQL_PREFIXES, CurationError, WD_TAXON_QID, WikidataCompound, normalize_doi,
 };
 use crate::sparql::{FetchError, ResponseFormat};
+use lotus_curation::{
+    build_compound_lookup_query, build_occurrence_query, build_occurrence_with_ref_query,
+    build_reference_lookup_query, build_taxon_lookup_query,
+};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 
@@ -54,18 +57,7 @@ fn extract_first_qid_from_json(json: &Value, var_name: &str) -> Option<String> {
 pub async fn fetch_wikidata_compound_by_inchikey(
     inchikey: &str,
 ) -> Result<Option<WikidataCompound>, CurationError> {
-    let query = format!(
-        "{CURATION_SPARQL_PREFIXES}\n\
-         SELECT ?compound ?canonical ?iso ?inchi ?formula ?mass WHERE {{\n  \
-           ?compound wdt:P235 \"{}\" .\n  \
-           OPTIONAL {{ ?compound wdt:P233 ?canonical . }}\n  \
-           OPTIONAL {{ ?compound wdt:P2017 ?iso . }}\n  \
-           OPTIONAL {{ ?compound wdt:P234 ?inchi . }}\n  \
-           OPTIONAL {{ ?compound wdt:P274 ?formula . }}\n  \
-           OPTIONAL {{ ?compound wdt:P2067 ?mass . }}\n\
-         }} LIMIT 1",
-        escape_sparql_string(inchikey)
-    );
+    let query = lotus_curation::compound_by_inchikey_query(inchikey);
     let json = execute_sparql_json(&query).await?;
     let Some(first) = first_json_binding(&json) else {
         return Ok(None);
@@ -90,38 +82,6 @@ pub async fn fetch_wikidata_compound_by_inchikey(
             .and_then(Value::as_str)
             .and_then(|v| v.parse::<f64>().ok()),
     }))
-}
-
-/// Fetch every compound in a run with **one** query, keyed by the `InChIKey` the
-/// caller computed locally, returning a map.
-///
-/// A `SELECT` with `VALUES`, not `N` `ASK`s or a join over every compound: one
-/// index probe per key, same rows the per-key query returns. One POST per row
-/// against a shared public endpoint is what made an import look like an attack.
-/// A row absent from the map is absent from Wikidata.
-///
-/// No `LIMIT`: Wikidata has a handful of items for some structures, and that
-/// ambiguity is per key, so `MIN(?compound)` picks deterministically instead of
-/// letting plan order decide. The aggregate projects as **`?compound_item`** —
-/// an `AS` clause may not target a variable the body already binds, and the
-/// endpoint's refusal ("The target ?compound of an AS clause was already used in
-/// the query body") is a `400` naming neither this function nor the run.
-///
-/// A function so a test can see the string that was sent.
-fn build_compound_lookup_query(keys: &[String]) -> String {
-    let values = inchi_values(keys);
-    format!(
-        "{CURATION_SPARQL_PREFIXES}\n\
-         SELECT ?key (MIN(?compound) AS ?compound_item) ?canonical ?iso ?inchi ?formula ?mass WHERE {{\n  \
-           VALUES ?key {{ {values} }}\n  \
-           ?compound wdt:P235 ?key .\n  \
-           OPTIONAL {{ ?compound wdt:P233 ?canonical . }}\n  \
-           OPTIONAL {{ ?compound wdt:P2017 ?iso . }}\n  \
-           OPTIONAL {{ ?compound wdt:P234 ?inchi . }}\n  \
-           OPTIONAL {{ ?compound wdt:P274 ?formula . }}\n  \
-           OPTIONAL {{ ?compound wdt:P2067 ?mass . }}\n  \
-         }} GROUP BY ?key ?canonical ?iso ?inchi ?formula ?mass"
-    )
 }
 
 pub async fn fetch_compounds_by_inchikeys<'a>(
@@ -181,19 +141,6 @@ pub async fn fetch_compounds_by_inchikeys<'a>(
     Ok(resolved)
 }
 
-fn inchi_values(keys: &[String]) -> String {
-    let mut values = String::with_capacity(keys.len() * 40);
-    for (i, key) in keys.iter().enumerate() {
-        if i > 0 {
-            values.push(' ');
-        }
-        values.push('"');
-        values.push_str(&escape_sparql_string(key));
-        values.push('"');
-    }
-    values
-}
-
 /// Resolve every `(compound, taxon)` occurrence question in a run with **one**
 /// query, returning which pairs Wikidata already records.
 ///
@@ -232,49 +179,6 @@ pub async fn existing_occurrences_with_ref(
 
 /// The batch size used when a caller has no opinion.
 pub const OCCURRENCE_CHUNK: usize = 100;
-
-/// The batched "(compound, taxon) is recorded?" query, as a function so a test
-/// can check it.
-fn build_occurrence_query(pairs: &[(String, String)]) -> String {
-    let values = entity_pair_values(pairs.iter().map(|(compound, taxon)| (compound, taxon)));
-    format!(
-        "{CURATION_SPARQL_PREFIXES}\n\
-         SELECT DISTINCT ?compound ?taxon WHERE {{\n  \
-           VALUES (?compound ?taxon) {{ {values} }}\n  \
-           ?compound wdt:{WD_OCCURS_IN_TAXON_PROP} ?taxon .\n\
-         }}",
-    )
-}
-
-/// The batched "(compound, taxon, reference) is recorded?" query.
-fn build_occurrence_with_ref_query(triples: &[(String, String, String)]) -> String {
-    let values = entity_triple_values(triples);
-    format!(
-        "{CURATION_SPARQL_PREFIXES}\n\
-         SELECT DISTINCT ?compound ?taxon ?ref WHERE {{\n  \
-           VALUES (?compound ?taxon ?ref) {{ {values} }}\n  \
-           ?compound wdt:{WD_OCCURS_IN_TAXON_PROP} ?taxon ;\n        \
-                   wdt:P248 ?ref .\n\
-         }}",
-    )
-}
-
-fn entity_triple_values(triples: &[(String, String, String)]) -> String {
-    let mut values = String::with_capacity(triples.len() * 64);
-    for (i, (compound, taxon, reference)) in triples.iter().enumerate() {
-        if i > 0 {
-            values.push(' ');
-        }
-        values.push_str("(wd:");
-        values.push_str(compound);
-        values.push_str(" wd:");
-        values.push_str(taxon);
-        values.push_str(" wd:");
-        values.push_str(reference);
-        values.push(')');
-    }
-    values
-}
 
 async fn query_existing(
     pairs: &[(String, String)],
@@ -320,21 +224,6 @@ async fn query_existing_with_ref(
 /// this is a function and not an inline `and_then`.
 fn qid_of(value: &str) -> Option<String> {
     extract_qid_from_uri(value).map(str::to_string)
-}
-
-fn entity_pair_values<'a>(pairs: impl Iterator<Item = (&'a String, &'a String)>) -> String {
-    let mut values = String::new();
-    for (i, (first, second)) in pairs.enumerate() {
-        if i > 0 {
-            values.push(' ');
-        }
-        values.push_str("(wd:");
-        values.push_str(first);
-        values.push_str(" wd:");
-        values.push_str(second);
-        values.push(')');
-    }
-    values
 }
 
 /// Returns `(Option<QID>, Vec<creation_QS_lines>)`.
@@ -429,31 +318,6 @@ fn build_single_taxon_lookup_query(name: &str) -> Option<String> {
     ))
 }
 
-fn build_reference_lookup_query(dois: &[String]) -> String {
-    let mut values = String::with_capacity(dois.len() * 48);
-    for (i, doi) in dois.iter().enumerate() {
-        if i > 0 {
-            values.push_str("\n    ");
-        }
-        let escaped = escape_sparql_string(doi);
-        values.push_str("(\"");
-        values.push_str(&escaped);
-        values.push_str("\" \"");
-        values.push_str(&escaped);
-        values.push_str("\")");
-    }
-
-    format!(
-        "{CURATION_SPARQL_PREFIXES}\n\
-         SELECT ?lookup ?ref WHERE {{\n  \
-           VALUES (?lookup ?doi) {{\n    \
-             {values}\n  \
-           }}\n  \
-           ?ref wdt:P356 ?doi .\n\
-         }}"
-    )
-}
-
 pub async fn resolve_reference_qids_batch<'a>(
     dois: impl IntoIterator<Item = &'a str>,
 ) -> Result<HashMap<String, String>, CurationError> {
@@ -494,32 +358,6 @@ pub async fn resolve_reference_qids_batch<'a>(
     }
 
     Ok(resolved)
-}
-
-fn build_taxon_lookup_query(lookups: &[(String, String)]) -> String {
-    let mut values = String::with_capacity(lookups.len() * 64);
-    for (i, (lookup, taxon_name)) in lookups.iter().enumerate() {
-        if i > 0 {
-            values.push_str("\n    ");
-        }
-        values.push('(');
-        values.push('"');
-        values.push_str(&escape_sparql_string(lookup));
-        values.push_str("\" \"");
-        values.push_str(&escape_sparql_string(taxon_name));
-        values.push_str("\")");
-    }
-
-    format!(
-        "{CURATION_SPARQL_PREFIXES}\n\
-         SELECT ?lookup ?taxon WHERE {{\n  \
-           VALUES (?lookup ?taxonName) {{\n    \
-             {values}\n  \
-           }}\n  \
-           ?taxon wdt:P225 ?taxonName ;\n        \
-                  wdt:P31 wd:Q16521 .\n\
-         }}"
-    )
 }
 
 pub async fn resolve_taxon_qids_batch<'a>(
@@ -585,13 +423,7 @@ pub async fn resolve_reference_qid(doi: &str) -> Result<Option<String>, Curation
     // Wikidata stores P356 (DOI) values in uppercase without the prefix.
     let normalized = normalize_doi(doi)
         .ok_or_else(|| CurationError::InvalidInput("invalid or empty DOI".to_string()))?;
-    let query = format!(
-        "{CURATION_SPARQL_PREFIXES}\n\
-         SELECT ?ref WHERE {{\n  \
-           ?ref wdt:P356 \"{}\" .\n         \
-         }} LIMIT 1",
-        escape_sparql_string(&normalized)
-    );
+    let query = lotus_curation::reference_by_doi_query(&normalized);
     let json = execute_sparql_json(&query).await?;
     Ok(extract_first_qid_from_json(&json, "ref"))
 }
@@ -621,10 +453,7 @@ pub async fn compound_has_taxon(
     compound_qid: &str,
     taxon_qid: &str,
 ) -> Result<bool, CurationError> {
-    let query = format!(
-        "{CURATION_SPARQL_PREFIXES}\n\
-         ASK {{ wd:{compound_qid} wdt:{WD_OCCURS_IN_TAXON_PROP} wd:{taxon_qid} . }}"
-    );
+    let query = lotus_curation::has_occurrence_query(compound_qid, taxon_qid);
     let parsed = execute_sparql_json(&query).await?;
     Ok(parsed
         .get("boolean")

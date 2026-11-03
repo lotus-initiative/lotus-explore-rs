@@ -121,15 +121,20 @@ fn test_modules_live_in_their_own_files() -> Result<()> {
                 if line.trim() != "#[cfg(test)]" {
                     continue;
                 }
-                // The next non-blank line decides whether this is a module. A
-                // `mod name;` is the declaration form and is the point; a braced
-                // `mod name {` is the thing being banned.
+                // The next non-attribute, non-comment line decides whether this
+                // is a module. A `mod name;` is the declaration form and is the
+                // point; a braced `mod name {` is the thing being banned, even
+                // when an `#[allow(...)]` sits between `#[cfg(test)]` and `mod`.
                 let next = lines
                     .iter()
                     .skip(number + 1)
-                    .find(|line| !line.trim().is_empty())
-                    .unwrap_or(&"")
-                    .trim();
+                    .map(|line| line.trim())
+                    .find(|trimmed| {
+                        !trimmed.is_empty()
+                            && !trimmed.starts_with('#')
+                            && !trimmed.starts_with("//")
+                    })
+                    .unwrap_or("");
                 if next.starts_with("mod ") && next.contains('{') {
                     offenders.push(format!(
                         "{}:{}",

@@ -200,6 +200,119 @@ pub fn create_compound_statements(
     )
 }
 
+/// Fetch every compound in a run with **one** query, keyed by the `InChIKey` the
+/// caller computed locally.
+///
+/// No `LIMIT`: Wikidata has a handful of items for some structures, and that
+/// ambiguity is per key, so `MIN(?compound)` picks deterministically instead of
+/// letting plan order decide. The aggregate projects as **`?compound_item`** —
+/// an `AS` clause may not target a variable the body already binds.
+#[must_use]
+pub fn build_compound_lookup_query(keys: &[String]) -> String {
+    let values = keys
+        .iter()
+        .map(|key| format!("\"{}\"", escape_sparql_string(key)))
+        .collect::<Vec<_>>()
+        .join(" ");
+    format!(
+        "{CURATION_SPARQL_PREFIXES}\n\
+         SELECT ?key (MIN(?compound) AS ?compound_item) ?canonical ?iso ?inchi ?formula ?mass WHERE {{\n  \
+           VALUES ?key {{ {values} }}\n  \
+           ?compound wdt:P235 ?key .\n  \
+           OPTIONAL {{ ?compound wdt:P233 ?canonical . }}\n  \
+           OPTIONAL {{ ?compound wdt:P2017 ?iso . }}\n  \
+           OPTIONAL {{ ?compound wdt:P234 ?inchi . }}\n  \
+           OPTIONAL {{ ?compound wdt:P274 ?formula . }}\n  \
+           OPTIONAL {{ ?compound wdt:P2067 ?mass . }}\n  \
+         }} GROUP BY ?key ?canonical ?iso ?inchi ?formula ?mass"
+    )
+}
+
+/// The batched `(compound, taxon)` occurrence query.
+#[must_use]
+pub fn build_occurrence_query(pairs: &[(String, String)]) -> String {
+    let values = pairs
+        .iter()
+        .map(|(compound, taxon)| format!("(wd:{compound} wd:{taxon})"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    format!(
+        "{CURATION_SPARQL_PREFIXES}\n\
+         SELECT DISTINCT ?compound ?taxon WHERE {{\n  \
+           VALUES (?compound ?taxon) {{ {values} }}\n  \
+           ?compound wdt:{occurs} ?taxon .\n\
+         }}",
+        occurs = property::OCCURS_IN_TAXON,
+    )
+}
+
+/// The batched `(compound, taxon, reference)` occurrence query.
+#[must_use]
+pub fn build_occurrence_with_ref_query(triples: &[(String, String, String)]) -> String {
+    let values = triples
+        .iter()
+        .map(|(compound, taxon, reference)| format!("(wd:{compound} wd:{taxon} wd:{reference})"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    format!(
+        "{CURATION_SPARQL_PREFIXES}\n\
+         SELECT DISTINCT ?compound ?taxon ?ref WHERE {{\n  \
+           VALUES (?compound ?taxon ?ref) {{ {values} }}\n  \
+           ?compound wdt:{occurs} ?taxon ;\n        \
+                   wdt:P248 ?ref .\n\
+         }}",
+        occurs = property::OCCURS_IN_TAXON,
+    )
+}
+
+/// The batched reference lookup query for normalized DOIs.
+#[must_use]
+pub fn build_reference_lookup_query(dois: &[String]) -> String {
+    let values = dois
+        .iter()
+        .map(|doi| {
+            let escaped = escape_sparql_string(doi);
+            format!("(\"{escaped}\" \"{escaped}\")")
+        })
+        .collect::<Vec<_>>()
+        .join("\n    ");
+    format!(
+        "{CURATION_SPARQL_PREFIXES}\n\
+         SELECT ?lookup ?ref WHERE {{\n  \
+           VALUES (?lookup ?doi) {{\n    \
+             {values}\n  \
+           }}\n  \
+           ?ref wdt:P356 ?doi .\n\
+         }}"
+    )
+}
+
+/// The batched taxon lookup query for `(lookup_key, candidate_name)` pairs.
+#[must_use]
+pub fn build_taxon_lookup_query(lookups: &[(String, String)]) -> String {
+    let values = lookups
+        .iter()
+        .map(|(lookup, taxon_name)| {
+            format!(
+                "(\"{}\" \"{}\")",
+                escape_sparql_string(lookup),
+                escape_sparql_string(taxon_name)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n    ");
+    format!(
+        "{CURATION_SPARQL_PREFIXES}\n\
+         SELECT ?lookup ?taxon WHERE {{\n  \
+           VALUES (?lookup ?taxonName) {{\n    \
+             {values}\n  \
+           }}\n  \
+           ?taxon wdt:P225 ?taxonName ;\n        \
+                  wdt:P31 wd:Q16521 .\n\
+         }}"
+    )
+}
+
 #[cfg(test)]
 #[path = "wikidata_query/tests.rs"]
 mod tests;
