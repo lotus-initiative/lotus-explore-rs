@@ -68,12 +68,7 @@ fn an_ordinary_value_is_left_alone() {
 fn the_csv_header_names_every_column() {
     let out = render(|o, r| write_delimited(o, r, b','), &[entry()]);
     let header = out.lines().next().expect("a header line");
-    for column in COLUMNS {
-        assert!(
-            header.contains(column),
-            "{column:?} missing from {header:?}"
-        );
-    }
+    assert_eq!(header, COLUMNS.join(","));
 }
 
 #[test]
@@ -148,7 +143,7 @@ fn full_entry() -> CompoundEntry {
         ref_title: Some(Arc::from("A paper")),
         ref_doi: Some(Arc::from("10.1000/paper")),
         pub_year: Some(2021),
-        statement: None,
+        statement: Some(Arc::from("Q1234$11111111-1111-1111-1111-111111111111")),
     }
 }
 
@@ -171,6 +166,7 @@ fn every_column_reads_the_field_of_that_name() {
         ("reference_title", "A paper"),
         ("reference_doi", "10.1000/paper"),
         ("pub_year", "2021"),
+        ("statement", "Q1234$11111111-1111-1111-1111-111111111111"),
     ] {
         assert_eq!(cell(&entry, column), expected, "column {column}");
     }
@@ -202,6 +198,7 @@ fn an_absent_optional_value_is_an_empty_cell() {
         "reference_title",
         "reference_doi",
         "pub_year",
+        "statement",
     ] {
         assert_eq!(
             cell(&bare, column),

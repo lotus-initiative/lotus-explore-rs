@@ -5,6 +5,8 @@
 //! Data goes to stdout, diagnostics to stderr, so that `lotus search … > out.csv`
 //! captures the data and nothing else.
 
+use std::borrow::Cow;
+use std::fmt::Write as _;
 use std::io::Write;
 
 use clap::ValueEnum;
@@ -83,32 +85,37 @@ pub fn write_rows<W: Write>(
     Ok(())
 }
 
-fn cell(entry: &CompoundEntry, column: &str) -> String {
+fn cell<'a>(entry: &'a CompoundEntry, column: &str) -> Cow<'a, str> {
     match column {
-        "compound_qid" => entry.compound_qid.to_string(),
-        "compound_name" => entry.name.to_string(),
-        "inchikey" => entry.inchikey.as_deref().unwrap_or_default().to_string(),
-        "smiles" => entry.smiles.as_deref().unwrap_or_default().to_string(),
-        "mass" => entry.mass.map_or_else(String::new, |m| format!("{m}")),
-        "formula" => entry.formula.as_deref().unwrap_or_default().to_string(),
-        "taxon_qid" => entry.taxon_qid.to_string(),
-        "taxon_name" => entry.taxon_name.to_string(),
-        "reference_qid" => entry.reference_qid.to_string(),
-        "reference_title" => entry.ref_title.as_deref().unwrap_or_default().to_string(),
-        "reference_doi" => entry.ref_doi.as_deref().unwrap_or_default().to_string(),
-        "pub_year" => entry.pub_year.map_or_else(String::new, |y| y.to_string()),
-        _ => String::new(),
+        "compound_qid" => Cow::Borrowed(&entry.compound_qid),
+        "compound_name" => Cow::Borrowed(&entry.name),
+        "inchikey" => Cow::Borrowed(entry.inchikey.as_deref().unwrap_or_default()),
+        "smiles" => Cow::Borrowed(entry.smiles.as_deref().unwrap_or_default()),
+        "mass" => entry
+            .mass
+            .map_or(Cow::Borrowed(""), |m| Cow::Owned(format!("{m}"))),
+        "formula" => Cow::Borrowed(entry.formula.as_deref().unwrap_or_default()),
+        "taxon_qid" => Cow::Borrowed(&entry.taxon_qid),
+        "taxon_name" => Cow::Borrowed(&entry.taxon_name),
+        "reference_qid" => Cow::Borrowed(&entry.reference_qid),
+        "reference_title" => Cow::Borrowed(entry.ref_title.as_deref().unwrap_or_default()),
+        "reference_doi" => Cow::Borrowed(entry.ref_doi.as_deref().unwrap_or_default()),
+        "pub_year" => entry
+            .pub_year
+            .map_or(Cow::Borrowed(""), |y| Cow::Owned(y.to_string())),
+        "statement" => Cow::Borrowed(entry.statement.as_deref().unwrap_or_default()),
+        _ => Cow::Borrowed(""),
     }
 }
 
 fn write_delimited<W: Write>(out: &mut W, rows: &[CompoundEntry], sep: u8) -> anyhow::Result<()> {
-    let header: Vec<String> = COLUMNS.iter().map(|c| (*c).to_string()).collect();
-    out.write_all(join(&header, sep).as_bytes())?;
-    out.write_all(b"\n")?;
+    let mut buf = String::new();
+    join_into(&mut buf, COLUMNS.iter().copied(), sep);
+    out.write_all(buf.as_bytes())?;
     for row in rows {
-        let line: Vec<String> = COLUMNS.iter().map(|c| cell(row, c)).collect();
-        out.write_all(join(&line, sep).as_bytes())?;
-        out.write_all(b"\n")?;
+        buf.clear();
+        join_into(&mut buf, COLUMNS.iter().map(|c| cell(row, c)), sep);
+        out.write_all(buf.as_bytes())?;
     }
     Ok(())
 }
@@ -116,23 +123,31 @@ fn write_delimited<W: Write>(out: &mut W, rows: &[CompoundEntry], sep: u8) -> an
 /// Join and quote, so that a value containing the separator cannot break the
 /// file. CSV follows RFC 4180; TSV gets the same treatment because a
 /// `tab`-containing field is just as corrupting.
-fn join(values: &[String], sep: u8) -> String {
-    values
-        .iter()
-        .map(|value| quote(value, sep))
-        .collect::<Vec<_>>()
-        .join(&(sep as char).to_string())
+fn join_into<I, S>(buf: &mut String, values: I, sep: u8)
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let mut iter = values.into_iter();
+    if let Some(first) = iter.next() {
+        buf.push_str(&quote(first.as_ref(), sep));
+        for value in iter {
+            buf.push(sep as char);
+            buf.push_str(&quote(value.as_ref(), sep));
+        }
+    }
+    buf.push('\n');
 }
 
-fn quote(value: &str, sep: u8) -> String {
+fn quote(value: &str, sep: u8) -> Cow<'_, str> {
     let needs_quoting = value.contains(sep as char)
         || value.contains('"')
         || value.contains('\n')
         || value.contains('\r');
     if needs_quoting {
-        format!("\"{}\"", value.replace('"', "\"\""))
+        Cow::Owned(format!("\"{}\"", value.replace('"', "\"\"")))
     } else {
-        value.to_string()
+        Cow::Borrowed(value)
     }
 }
 
@@ -159,13 +174,10 @@ fn write_table<W: Write>(out: &mut W, rows: &[CompoundEntry]) -> anyhow::Result<
         return Ok(());
     }
 
-    let header: Vec<String> = SHOWN.iter().map(|c| (*c).to_string()).collect();
-    let body: Vec<Vec<String>> = rows
-        .iter()
-        .map(|row| SHOWN.iter().map(|c| cell(row, c)).collect())
-        .collect();
+    let body: Vec<[Cow<'_, str>; SHOWN.len()]> =
+        rows.iter().map(|row| SHOWN.map(|c| cell(row, c))).collect();
 
-    let mut widths: Vec<usize> = header.iter().map(String::len).collect();
+    let mut widths: [usize; SHOWN.len()] = SHOWN.map(str::len);
     for line in &body {
         for (width, value) in widths.iter_mut().zip(line) {
             *width = (*width).max(value.chars().count());
@@ -177,24 +189,19 @@ fn write_table<W: Write>(out: &mut W, rows: &[CompoundEntry]) -> anyhow::Result<
     // the last one. Not padding the last value is not enough on its own: the
     // separator before it is still joined in, so an empty last column leaves the
     // line ending in spaces, visible in every diff and in every `cat -A`.
-    let render = |values: &[String]| -> String {
-        values
-            .iter()
-            .enumerate()
-            .map(|(i, value)| {
-                widths
-                    .get(i)
-                    .map_or_else(|| value.clone(), |width| format!("{value:<width$}"))
-            })
-            .collect::<Vec<_>>()
-            .join("  ")
-            .trim_end()
-            .to_owned()
+    let render = |values: &[&str]| -> String {
+        let mut line = String::new();
+        for (value, width) in values.iter().zip(widths) {
+            let _ = write!(line, "{value:<width$}  ");
+        }
+        line.truncate(line.trim_end().len());
+        line
     };
 
-    writeln!(out, "{}", render(&header))?;
+    writeln!(out, "{}", render(&SHOWN))?;
     for line in &body {
-        writeln!(out, "{}", render(line))?;
+        let refs = line.each_ref().map(Cow::as_ref);
+        writeln!(out, "{}", render(&refs))?;
     }
     writeln!(out, "\n{} row(s)", rows.len())?;
     Ok(())

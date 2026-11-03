@@ -247,18 +247,7 @@ fn a_reference_round_trips_through_a_shareable_link_as_typed() {
 
     // Decoded the way the browser hands them over, so this exercises the same
     // round trip a pasted link does rather than comparing raw text.
-    let mut params = QueryParams::new();
-    for pair in url.trim_start_matches("/search?").split('&') {
-        let (k, v) = pair.split_once('=').expect("a pair");
-        params.insert(
-            lotus_model::percent_decode(k)
-                .expect("valid key")
-                .into_owned(),
-            lotus_model::percent_decode(v)
-                .expect("valid value")
-                .into_owned(),
-        );
-    }
+    let params = parse_query_string(url.trim_start_matches("/search"));
     let parsed = parse_criteria_from_params(&params, 2026);
     assert_eq!(parsed.reference, "10.1002/andp.18280880206");
 }
@@ -287,10 +276,18 @@ fn build_shareable_url_encodes_query_pairs() {
     params.insert("taxon name".into(), "Gentiana lutea".into());
     params.insert("structure".into(), "C=C".into());
 
-    let query = encode::build_query_string_for_tests(&params);
+    let query = encode_query_params(&params);
     assert!(query.contains("taxon%20name=Gentiana%20lutea"));
     assert!(query.contains("structure=C%3DC"));
     assert!(query.contains('&'));
+    assert_eq!(parse_query_string(&format!("?{query}&")), params);
+    assert_eq!(
+        parse_query_string("?flag&key=value"),
+        QueryParams::from([
+            ("flag".into(), String::new()),
+            ("key".into(), "value".into()),
+        ])
+    );
 }
 
 #[test]

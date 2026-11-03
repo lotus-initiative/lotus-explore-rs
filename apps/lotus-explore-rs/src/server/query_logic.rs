@@ -222,10 +222,9 @@ async fn resolve_taxon_qid(
         return Err(ApiError::bad_request(format!("Taxon not found: {taxon}")));
     }
 
-    let lower = sanitized.to_lowercase();
     let exact: Vec<&TaxonMatch> = matches
         .iter()
-        .filter(|m| m.name.to_lowercase() == lower)
+        .filter(|m| m.name.eq_ignore_ascii_case(&sanitized))
         .collect();
     let best = exact
         .first()

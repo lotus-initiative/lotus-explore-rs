@@ -191,28 +191,12 @@ pub fn read_url_query_params() -> BTreeMap<String, String> {
         let Ok(search) = window.location().search() else {
             return BTreeMap::new();
         };
-        parse_query_string(&search)
+        lotus_explore_core::explore::url_codec::parse_query_string(&search)
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
         BTreeMap::new()
     }
-}
-
-fn parse_query_string(query: &str) -> BTreeMap<String, String> {
-    let mut out = BTreeMap::new();
-    for pair in query.trim_start_matches('?').split('&') {
-        if pair.is_empty() {
-            continue;
-        }
-        let (key, val) = pair.split_once('=').unwrap_or((pair, ""));
-        let key_decoded = lotus_model::percent_decode(key)
-            .map_or_else(|_| key.into(), std::borrow::Cow::into_owned);
-        let val_decoded = lotus_model::percent_decode(val)
-            .map_or_else(|_| val.into(), std::borrow::Cow::into_owned);
-        out.insert(key_decoded, val_decoded);
-    }
-    out
 }
 
 #[cfg(test)]

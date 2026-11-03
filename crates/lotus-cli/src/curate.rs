@@ -223,10 +223,10 @@ async fn curate_row<H: lotus_search::Http>(
 /// something to read, but the status says the row is unchecked so the bundle is
 /// not mistaken for a finished curation.
 fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
+    let name = escape_quickstatements(finding.name.trim());
     let mut statements = vec![format!(
         "## {name}\nCREATE\nLAST|{PROPERTY_NAME}|\"{name}\"\n\
          LAST|{PROPERTY_CANONICAL_SMILES}|\"{smiles}\"\nLAST|{PROPERTY_ISOMERIC_SMILES}|\"{smiles}\"",
-        name = escape_quickstatements(finding.name.trim()),
         smiles = escape_quickstatements(finding.smiles.trim()),
     )];
     if let Some(taxon) = finding
@@ -237,7 +237,6 @@ fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
     {
         statements.push(format!(
             "\n## {name} — occurrence\nCREATE\nLAST|P703|\"{taxon}\"",
-            name = escape_quickstatements(finding.name.trim()),
             taxon = escape_quickstatements(taxon),
         ));
     }
@@ -249,7 +248,6 @@ fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
     {
         statements.push(format!(
             "\n## {name} — reference\nCREATE\nLAST|P248|\"{doi}\"",
-            name = escape_quickstatements(finding.name.trim()),
             doi = escape_quickstatements(doi),
         ));
     }
@@ -350,15 +348,15 @@ async fn curate_findings(findings: &[Finding], offline: bool) -> anyhow::Result<
     }
 
     let mut statements = Vec::new();
-    let mut seen = std::collections::HashSet::new();
+    let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
     for row in &rows {
         for block in &row.dependency_blocks {
-            if seen.insert(block.clone()) {
+            if seen.insert(block.as_str()) {
                 statements.push(block.clone());
             }
         }
         for block in &row.quickstatements {
-            if seen.insert(block.clone()) {
+            if seen.insert(block.as_str()) {
                 statements.push(block.clone());
             }
         }

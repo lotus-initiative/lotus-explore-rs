@@ -10,7 +10,7 @@ mod encode;
 mod startup;
 
 pub use criteria::{criteria_query_params, parse_criteria_from_params};
-pub use encode::build_shareable_url;
+pub use encode::{build_shareable_url, encode_query_params, parse_query_string};
 pub use startup::{InitialDownloadState, parse_startup_action_from_params};
 
 /// The URL query parameters of a search, keyed by parameter name.

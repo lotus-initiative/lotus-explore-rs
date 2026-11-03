@@ -28,7 +28,7 @@ impl RouteQuery {
     #[cfg(any(not(target_arch = "wasm32"), test))]
     pub fn from_encoded(query: &str) -> Self {
         Self {
-            params: parse_encoded_query(query),
+            params: lotus_explore_core::explore::url_codec::parse_query_string(query),
         }
     }
 
@@ -59,7 +59,7 @@ impl FromQuery for RouteQuery {
 
 impl fmt::Display for RouteQuery {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&encode_query(&self.params))
+        f.write_str(&lotus_explore_core::explore::url_codec::encode_query_params(&self.params))
     }
 }
 
@@ -281,21 +281,6 @@ pub fn NotFound(segments: Vec<String>) -> Element {
     rsx! { NotFoundPage {} }
 }
 
-// Only the native and server paths reach this; the browser client has its
-// own fetch path, so a wasm build has no caller for it.
-#[cfg(any(not(target_arch = "wasm32"), test))]
-fn parse_encoded_query(query: &str) -> BTreeMap<String, String> {
-    query
-        .trim_start_matches('?')
-        .split('&')
-        .filter(|pair| !pair.is_empty())
-        .map(|pair| {
-            let (key, value) = pair.split_once('=').unwrap_or((pair, ""));
-            (decode_component(key), decode_component(value))
-        })
-        .collect()
-}
-
 fn parse_decoded_query(query: &str) -> BTreeMap<String, String> {
     split_decoded_query(query)
         .into_iter()
@@ -339,28 +324,6 @@ fn split_decoded_query(query: &str) -> Vec<&str> {
     }
     parts.push(&query[start..]);
     parts
-}
-
-// Only the native and server paths reach this; the browser client has its
-// own fetch path, so a wasm build has no caller for it.
-#[cfg(any(not(target_arch = "wasm32"), test))]
-fn decode_component(value: &str) -> String {
-    lotus_model::percent_decode(value)
-        .map_or_else(|_| value.to_string(), std::borrow::Cow::into_owned)
-}
-
-fn encode_query(params: &BTreeMap<String, String>) -> String {
-    params
-        .iter()
-        .map(|(key, value)| {
-            format!(
-                "{}={}",
-                lotus_model::percent_encode(key),
-                lotus_model::percent_encode(value)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("&")
 }
 
 #[cfg(test)]

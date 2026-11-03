@@ -327,7 +327,7 @@ fn preferred_over(candidate: &SmilesRecord, current: &SmilesRecord) -> bool {
 #[derive(Serialize)]
 struct Manifest<'a> {
     archive_format: &'static str,
-    fetched_at: String,
+    fetched_at: &'a str,
     qlever_endpoint: &'a str,
     /// SPARQL query selecting source records with `P235`.
     query: &'a str,
@@ -370,12 +370,21 @@ pub fn write_archive(
     records: &[SmilesRecord],
     parse_errors: &[ParseErrorRecord],
 ) -> Result<ArchiveArtifacts, ArchiveError> {
-    let records_csv = records_csv_bytes(records)?;
-    let missing_inchi_key_csv = missing_inchi_key_csv_bytes(missing_inchi_key_records)?;
-    let errors_csv = parse_errors_csv_bytes(parse_errors)?;
+    let records_csv = csv_bytes(
+        &["inchi_key", "wikidata_id", "smiles_kind", "smiles"],
+        records,
+    )?;
+    let missing_inchi_key_csv = csv_bytes(
+        &["wikidata_id", "smiles_kind", "smiles"],
+        missing_inchi_key_records,
+    )?;
+    let errors_csv = csv_bytes(
+        &["inchi_key", "wikidata_id", "smiles_kind", "smiles", "error"],
+        parse_errors,
+    )?;
     let manifest_bytes = serde_json::to_vec_pretty(&Manifest {
         archive_format: "lotus-wikidata-smiles/v1",
-        fetched_at: fetched_at.to_string(),
+        fetched_at,
         qlever_endpoint: endpoint,
         query: ARCHIVE_SMILES_QUERY,
         missing_inchi_key_query: ARCHIVE_SMILES_WITHOUT_INCHIKEY_QUERY,
@@ -432,37 +441,11 @@ fn append_member<W: std::io::Write>(
         .map_err(|e| ArchiveError::Io(std::io::Error::other(e)))
 }
 
-fn records_csv_bytes(records: &[SmilesRecord]) -> Result<Vec<u8>, ArchiveError> {
+fn csv_bytes<T: Serialize>(headers: &[&str], records: &[T]) -> Result<Vec<u8>, ArchiveError> {
     let mut writer = csv::WriterBuilder::new()
         .has_headers(false)
         .from_writer(Vec::new());
-    writer.write_record(["inchi_key", "wikidata_id", "smiles_kind", "smiles"])?;
-    for record in records {
-        writer.serialize(record)?;
-    }
-    Ok(writer
-        .into_inner()
-        .map_err(csv::IntoInnerError::into_error)?)
-}
-
-fn parse_errors_csv_bytes(records: &[ParseErrorRecord]) -> Result<Vec<u8>, ArchiveError> {
-    let mut writer = csv::WriterBuilder::new()
-        .has_headers(false)
-        .from_writer(Vec::new());
-    writer.write_record(["inchi_key", "wikidata_id", "smiles_kind", "smiles", "error"])?;
-    for record in records {
-        writer.serialize(record)?;
-    }
-    Ok(writer
-        .into_inner()
-        .map_err(csv::IntoInnerError::into_error)?)
-}
-
-fn missing_inchi_key_csv_bytes(records: &[MissingInchiKeyRecord]) -> Result<Vec<u8>, ArchiveError> {
-    let mut writer = csv::WriterBuilder::new()
-        .has_headers(false)
-        .from_writer(Vec::new());
-    writer.write_record(["wikidata_id", "smiles_kind", "smiles"])?;
+    writer.write_record(headers)?;
     for record in records {
         writer.serialize(record)?;
     }
