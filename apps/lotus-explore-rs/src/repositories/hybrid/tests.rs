@@ -79,3 +79,59 @@ fn qlever_unavailability_includes_502_and_network_failures() {
     }));
     assert!(!is_qlever_unavailable(&FetchError::Empty));
 }
+
+#[test]
+fn needs_split_occurrences_only_for_unconstrained_and_broad_clades() {
+    assert!(
+        needs_split_occurrences(&lotus_query::all_compounds_query()),
+        "wildcard * query must use split occurrences"
+    );
+    assert!(
+        needs_split_occurrences(&lotus_query::all_compounds_including_untaxonomised_query()),
+        "empty-taxon whole-graph query must use split occurrences"
+    );
+    assert!(
+        needs_split_occurrences(&lotus_query::compounds_by_taxon_query("Q756")),
+        "Plantae (Q756) must use split occurrences"
+    );
+    assert!(
+        !needs_split_occurrences(&lotus_query::compounds_by_taxon_query("Q7560")),
+        "Q7560 must not prefix-match Q756"
+    );
+    assert!(
+        !needs_split_occurrences(&lotus_query::compounds_by_taxon_query("Q158572")),
+        "species/genus/order searches like Gentiana lutea (Q158572) run in a single POST"
+    );
+
+    let mut filtered = SearchCriteria::up_to_year(2025);
+    filtered.taxon = "Q756".to_string();
+    filtered.mass_min = 100.0;
+    filtered.mass_max = 250.0;
+    let with_mass = lotus_query::with_filters(
+        &lotus_query::compounds_by_taxon_query("Q756"),
+        &filtered,
+        2025,
+    );
+    assert!(
+        !needs_split_occurrences(&with_mass),
+        "narrowed Plantae search with mass filter runs in a single POST"
+    );
+}
+
+#[test]
+fn timeout_and_truncation_trigger_split_fallback_but_rate_limit_does_not() {
+    assert!(is_timeout_or_truncation(&RepositoryError::Http {
+        status: 429,
+        body: "the query exceeded the endpoint's time limit (30s): Operation timed out".into(),
+    }));
+    assert!(is_timeout_or_truncation(&RepositoryError::truncated(
+        "cut short"
+    )));
+    assert!(
+        !is_timeout_or_truncation(&RepositoryError::Http {
+            status: 429,
+            body: "429 Too Many Requests".into(),
+        }),
+        "an nginx rate-limit refusal must not immediately fire 3 more requests via split fallback"
+    );
+}

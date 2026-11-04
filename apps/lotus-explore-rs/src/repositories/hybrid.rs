@@ -140,48 +140,16 @@ impl LotusRepository for HybridRepository {
     where
         F: FnMut(lotus_search::StreamProgress) + ?Sized,
     {
-        let occ_query = lotus_query::occurrences_query(query);
-        let mut chunks = match sparql::execute_sparql_chunks(&occ_query).await {
-            Ok(chunks) => chunks,
-            Err(err) if is_qlever_unavailable(&err) => {
-                log::warn!("event=qlever_unavailable action=fallback_wdqs_scholarly");
-                let wdqs_query = prepare_wdqs_fallback_query(query);
-                sparql::execute_sparql_chunks_at(&wdqs_query, WDQS_WIKIDATA, ResponseFormat::Csv)
-                    .await
-                    .map_err(map_fetch_error)?
-            }
-            Err(err) => return Err(map_fetch_error(err)),
-        };
-        let mut reader = lotus_query::CsvColumnarReader::new();
-        lotus_search::feed_chunks_reporting(&mut reader, &mut chunks, on_progress)
-            .await
-            .map_err(map_fetch_error)?;
-        // Emit a boundary report with unchanged `bytes` so the caller can flush
-        // the exact final occurrence count and switch the loading phase before
-        // dictionary enrichment starts.
-        on_progress(lotus_search::StreamProgress {
-            rows: reader.row_count(),
-            bytes: reader.byte_count(),
-        });
-        #[cfg(target_arch = "wasm32")]
-        {
-            gloo_timers::future::TimeoutFuture::new(0).await;
-            if let Some(previous) = crate::cache::peek_any_cached_set() {
-                reader.seed_from(&previous);
+        if !needs_split_occurrences(query) {
+            match sparql_columnar_single(query, on_progress).await {
+                Ok(set) => return Ok(set),
+                Err(err) if is_timeout_or_truncation(&err) => {
+                    log::warn!("event=single_query_truncated action=fallback_split_occurrences");
+                }
+                Err(err) => return Err(err),
             }
         }
-        lotus_search::enrich_columnar_reader(
-            &mut reader,
-            |dict_query| async move { sparql::execute_sparql_chunks(&dict_query).await },
-            &mut |_| {},
-        )
-        .await
-        .map_err(map_fetch_error)?;
-        #[cfg(target_arch = "wasm32")]
-        gloo_timers::future::TimeoutFuture::new(0).await;
-        reader
-            .finish()
-            .map_err(|e| RepositoryError::parse(e.to_string()))
+        sparql_columnar_split(query, on_progress).await
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -200,6 +168,150 @@ impl LotusRepository for HybridRepository {
             result => result.map_err(map_fetch_error),
         }
     }
+}
+
+/// High-level taxonomic clades whose unnarrowed subtrees in LOTUS are large
+/// enough (>50,000 occurrences) that streaming all 15 denormalized columns in
+/// a single response risks hitting `QLever`'s 30-second transfer ceiling.
+const BROAD_TAXON_QIDS: &[&str] = &[
+    "Q2382443",  // Biota
+    "Q19088",    // Eukaryota
+    "Q756",      // Plantae
+    "Q11905549", // Viridiplantae
+    "Q133527",   // Streptophyta
+    "Q133524",   // Streptophytina
+    "Q192154",   // Embryophyta
+    "Q131221",   // Tracheophytes
+    "Q1492103",  // Euphyllophyta
+    "Q25814",    // Spermatophyta
+    "Q25314",    // Magnoliopsida
+    "Q169458",   // Angiosperms
+    "Q148604",   // Mesangiospermae
+    "Q1363010",  // Pentapetalae
+    "Q165468",   // eudicots
+    "Q165479",   // core eudicots
+    "Q165458",   // asterids
+    "Q1363022",  // campanulids
+    "Q1363017",  // lamiids
+    "Q165463",   // rosids
+    "Q2697791",  // fabids
+    "Q2697795",  // malvids
+    "Q134267",   // Liliopsida / monocots
+    "Q28499",    // Asterales
+    "Q25400",    // Asteraceae
+    "Q764",      // Fungi
+    "Q729",      // Animalia
+    "Q10876",    // Bacteria
+];
+
+fn contains_taxon_qid(query: &str, qid: &str) -> bool {
+    let token = format!("wd:{qid}");
+    query.match_indices(&token).any(|(pos, _)| {
+        query
+            .as_bytes()
+            .get(pos + token.len())
+            .is_none_or(|b| !b.is_ascii_alphanumeric())
+    })
+}
+
+/// True when `query` is an unconstrained whole-graph scan or an unnarrowed
+/// broad-clade query that should use normalized occurrence + dictionary streams
+/// rather than a single 15-column query.
+fn needs_split_occurrences(query: &str) -> bool {
+    if query.contains("SERVICE idsm:wikidata")
+        || query.contains("VALUES ?c {")
+        || query.contains("VALUES ?r {")
+        || query.contains("FILTER(BOUND(?compound_formula))")
+        || query.contains("FILTER(?compound_mass")
+        || query.contains("FILTER(BOUND(?ref_date)")
+    {
+        return false;
+    }
+    if !query.contains("wdt:P171*") {
+        return true;
+    }
+    BROAD_TAXON_QIDS
+        .iter()
+        .any(|qid| contains_taxon_qid(query, qid))
+}
+
+fn is_timeout_or_truncation(err: &RepositoryError) -> bool {
+    matches!(
+        lotus_explore_core::explore::transport_classification::classify_transport_error(err),
+        lotus_explore_core::explore::transport_classification::TransportFailureKind::QueryTooExpensive
+            | lotus_explore_core::explore::transport_classification::TransportFailureKind::Truncated
+    )
+}
+
+async fn open_chunks_with_wdqs_fallback(
+    qlever_query: &str,
+    full_query: &str,
+) -> Result<lotus_search::ChunkedBody, RepositoryError> {
+    match sparql::execute_sparql_chunks(qlever_query).await {
+        Ok(chunks) => Ok(chunks),
+        Err(err) if is_qlever_unavailable(&err) => {
+            log::warn!("event=qlever_unavailable action=fallback_wdqs_scholarly");
+            let wdqs_query = prepare_wdqs_fallback_query(full_query);
+            sparql::execute_sparql_chunks_at(&wdqs_query, WDQS_WIKIDATA, ResponseFormat::Csv)
+                .await
+                .map_err(map_fetch_error)
+        }
+        Err(err) => Err(map_fetch_error(err)),
+    }
+}
+
+async fn sparql_columnar_single<F>(
+    query: &str,
+    on_progress: &mut F,
+) -> Result<ColumnarResultSet, RepositoryError>
+where
+    F: FnMut(lotus_search::StreamProgress) + ?Sized,
+{
+    let chunks = open_chunks_with_wdqs_fallback(query, query).await?;
+    lotus_search::columnar_from_chunks_reporting(chunks, on_progress)
+        .await
+        .map_err(map_fetch_error)
+}
+
+async fn sparql_columnar_split<F>(
+    query: &str,
+    on_progress: &mut F,
+) -> Result<ColumnarResultSet, RepositoryError>
+where
+    F: FnMut(lotus_search::StreamProgress) + ?Sized,
+{
+    let occ_query = lotus_query::occurrences_query(query);
+    let mut chunks = open_chunks_with_wdqs_fallback(&occ_query, query).await?;
+    let mut reader = lotus_query::CsvColumnarReader::new();
+    lotus_search::feed_chunks_reporting(&mut reader, &mut chunks, on_progress)
+        .await
+        .map_err(map_fetch_error)?;
+    // Emit a boundary report with unchanged `bytes` so the caller can flush
+    // the exact final occurrence count and switch the loading phase before
+    // dictionary enrichment starts.
+    on_progress(lotus_search::StreamProgress {
+        rows: reader.row_count(),
+        bytes: reader.byte_count(),
+    });
+    #[cfg(target_arch = "wasm32")]
+    {
+        gloo_timers::future::TimeoutFuture::new(0).await;
+        if let Some(previous) = crate::cache::peek_any_cached_set() {
+            reader.seed_from(&previous);
+        }
+    }
+    lotus_search::enrich_columnar_reader(
+        &mut reader,
+        |dict_query| async move { sparql::execute_sparql_chunks(&dict_query).await },
+        &mut |_| {},
+    )
+    .await
+    .map_err(map_fetch_error)?;
+    #[cfg(target_arch = "wasm32")]
+    gloo_timers::future::TimeoutFuture::new(0).await;
+    reader
+        .finish()
+        .map_err(|e| RepositoryError::parse(e.to_string()))
 }
 
 /// True when `QLever` is unavailable and the query should be retried against WDQS.

@@ -13,12 +13,17 @@ pub const MAX_CACHED_SETS: usize = 1;
 /// The finished sets, keyed by the query text that produced them.
 pub struct SetCache {
     sets: HashMap<String, Arc<ColumnarResultSet>>,
+    /// The finished set with the largest entity dictionary seen in this session,
+    /// retained even when a smaller search replaces the most-recent entry in `sets`
+    /// so subsequent searches can still seed their dictionaries without re-querying.
+    richest: Option<Arc<ColumnarResultSet>>,
 }
 
 impl SetCache {
     pub(crate) fn new() -> Self {
         Self {
             sets: HashMap::new(),
+            richest: None,
         }
     }
 
@@ -34,10 +39,22 @@ impl SetCache {
     }
 
     pub(crate) fn any(&self) -> Option<Arc<ColumnarResultSet>> {
-        self.sets.values().next().map(Arc::clone)
+        self.richest
+            .as_ref()
+            .or_else(|| self.sets.values().next())
+            .map(Arc::clone)
     }
 
     pub(crate) fn insert(&mut self, key: String, set: Arc<ColumnarResultSet>) {
+        let stats = set.stats();
+        let weight = stats.n_compounds + stats.n_references;
+        let is_richer = self.richest.as_ref().is_none_or(|prev| {
+            let prev_stats = prev.stats();
+            weight >= prev_stats.n_compounds + prev_stats.n_references
+        });
+        if is_richer && weight > 0 {
+            self.richest = Some(Arc::clone(&set));
+        }
         if self.sets.len() >= MAX_CACHED_SETS {
             self.sets.clear();
         }

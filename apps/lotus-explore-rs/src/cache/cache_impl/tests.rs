@@ -71,3 +71,24 @@ fn an_empty_set_is_still_cached() {
 
     assert_eq!(hit.row_count(), 0);
 }
+
+#[test]
+fn richest_set_is_retained_for_seeding_when_smaller_set_replaces_recent() {
+    let mut cache = SetCache::new();
+    let broad = set_of(&["Alpha", "Beta", "Gamma"]);
+    let narrow = set_of(&["Delta"]);
+
+    cache.insert("broad".to_owned(), Arc::clone(&broad));
+    cache.insert("narrow".to_owned(), Arc::clone(&narrow));
+
+    assert!(
+        cache
+            .get("narrow")
+            .is_some_and(|s| Arc::ptr_eq(&s, &narrow)),
+        "recent key resolves to narrow set"
+    );
+    assert!(
+        cache.any().is_some_and(|s| Arc::ptr_eq(&s, &broad)),
+        "any() retains the richest dictionary set so narrow searches do not evict broad seed dictionaries"
+    );
+}

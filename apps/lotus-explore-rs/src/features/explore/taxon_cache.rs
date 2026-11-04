@@ -60,6 +60,8 @@ type TaxonCache = HashMap<String, CachedTaxon>;
 
 thread_local! {
     static CACHE: RefCell<TaxonCache> = RefCell::new(HashMap::new());
+    static NO_SCIENTIFIC: RefCell<std::collections::HashSet<String>> = RefCell::new(std::collections::HashSet::new());
+    static UNRESOLVED: RefCell<std::collections::HashSet<String>> = RefCell::new(std::collections::HashSet::new());
 }
 
 /// Returns the cached resolution for the given taxon `name`, or `None` if not cached.
@@ -71,12 +73,48 @@ pub fn lookup(name: &str) -> Option<CachedTaxon> {
     CACHE.with(|cache| cache.borrow().get(&key).cloned())
 }
 
+/// Whether `name` was already checked against `P225` and returned no scientific match.
+pub fn has_no_scientific_match(name: &str) -> bool {
+    let key = name.trim().to_lowercase();
+    !key.is_empty() && NO_SCIENTIFIC.with(|set| set.borrow().contains(&key))
+}
+
+/// Record that `name` matched no scientific name (`P225`), so a retry after a
+/// transient failure on the common-name lookup does not re-send the scientific query.
+pub fn record_no_scientific_match(name: &str) {
+    let key = name.trim().to_lowercase();
+    if !key.is_empty() {
+        NO_SCIENTIFIC.with(|set| {
+            set.borrow_mut().insert(key);
+        });
+    }
+}
+
+/// Whether `name` was already checked against both `P225` and `P1843` and matched nothing.
+pub fn is_unresolved(name: &str) -> bool {
+    let key = name.trim().to_lowercase();
+    !key.is_empty() && UNRESOLVED.with(|set| set.borrow().contains(&key))
+}
+
+/// Record that `name` matched neither a scientific nor a common name in Wikidata.
+pub fn record_unresolved(name: &str) {
+    let key = name.trim().to_lowercase();
+    if !key.is_empty() {
+        UNRESOLVED.with(|set| {
+            set.borrow_mut().insert(key);
+        });
+    }
+}
+
 /// Stores `resolution` in the cache under the normalised form of `name`.
 pub fn store(name: &str, resolution: &CachedTaxon) {
     let key = name.trim().to_lowercase();
     if key.is_empty() || resolution.qid.trim().is_empty() {
         return;
     }
+    UNRESOLVED.with(|set| {
+        set.borrow_mut().remove(&key);
+    });
     CACHE.with(|cache| {
         cache.borrow_mut().insert(key, resolution.clone());
     });

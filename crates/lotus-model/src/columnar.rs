@@ -1516,8 +1516,14 @@ impl ColumnarBuilder {
     /// present in `previous`, so dictionary enrichment only queries the
     /// endpoint for entities not yet seen.
     pub fn seed_from(&mut self, previous: &ColumnarResultSet) {
-        self.seeded_compounds = Bitmask::with_len(self.set.compounds.len());
+        if self.seeded_compounds.words.is_empty() {
+            self.seeded_compounds = Bitmask::with_len(self.set.compounds.len());
+        }
         for (slot, numeric) in self.set.compounds.numeric_ids().enumerate() {
+            let slot_id = slot_to_id(slot);
+            if self.seeded_compounds.contains(slot_id) {
+                continue;
+            }
             if let Some(prev_id) = previous.compounds.lookup(numeric) {
                 let prev_slot = prev_id as usize;
                 self.set
@@ -1538,12 +1544,18 @@ impl ColumnarBuilder {
                 {
                     *cell = mass;
                 }
-                self.seeded_compounds.insert(slot_to_id(slot));
+                self.seeded_compounds.insert(slot_id);
             }
         }
 
-        self.seeded_references = Bitmask::with_len(self.set.references.len());
+        if self.seeded_references.words.is_empty() {
+            self.seeded_references = Bitmask::with_len(self.set.references.len());
+        }
         for (slot, numeric) in self.set.references.numeric_ids().enumerate() {
+            let slot_id = slot_to_id(slot);
+            if self.seeded_references.contains(slot_id) {
+                continue;
+            }
             if let Some(prev_id) = previous.references.lookup(numeric) {
                 let prev_slot = prev_id as usize;
                 self.set
@@ -1558,7 +1570,7 @@ impl ColumnarBuilder {
                 {
                     *cell = Some(year);
                 }
-                self.seeded_references.insert(slot_to_id(slot));
+                self.seeded_references.insert(slot_id);
             }
         }
     }

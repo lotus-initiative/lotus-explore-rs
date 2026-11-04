@@ -102,6 +102,11 @@ pub async fn resolve<R: LotusRepository>(
             warnings,
         });
     }
+    if taxon_cache::is_unresolved(&sanitized) {
+        return Err(DomainError::Validation(ValidationFault::TaxonNotFound {
+            input: taxon.into(),
+        }));
+    }
 
     // Slow path: SPARQL, scientific name first.
     //
@@ -112,7 +117,15 @@ pub async fn resolve<R: LotusRepository>(
     // lexical forms is a scan of every statement -- about 2.5s measured). A UNION
     // would make every taxon search pay that 2.5s, including the overwhelming
     // majority that hit a scientific name and never needed it.
-    let mut matches = lookup(repo, metrics, lotus_query::taxon_lookup_query(&sanitized)).await?;
+    let mut matches = if taxon_cache::has_no_scientific_match(&sanitized) {
+        Vec::new()
+    } else {
+        let found = lookup(repo, metrics, lotus_query::taxon_lookup_query(&sanitized)).await?;
+        if found.is_empty() {
+            taxon_cache::record_no_scientific_match(&sanitized);
+        }
+        found
+    };
 
     if matches.is_empty() {
         // No scientific name, so try the common one. Resolving rather than refusing is
@@ -127,6 +140,7 @@ pub async fn resolve<R: LotusRepository>(
     }
 
     if matches.is_empty() {
+        taxon_cache::record_unresolved(&sanitized);
         return Err(DomainError::Validation(ValidationFault::TaxonNotFound {
             input: taxon.into(),
         }));
