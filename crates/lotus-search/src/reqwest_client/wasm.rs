@@ -4,6 +4,7 @@
 //! can observe it; `.cargo/mutants.toml` excludes this file for that reason.
 
 use super::{BodyChunks, ChunkFuture, ReadProgress, ResponseBody, STREAM_STALL_TIMEOUT};
+use futures::StreamExt as _;
 
 /// Decompressed bytes processed between macrotask yields so a fast stream of
 /// buffered `ReadableStream` chunks does not starve the browser's paint loop.
@@ -24,7 +25,6 @@ impl BodyChunks for WasmChunks {
                 self.bytes_since_yield = 0;
                 gloo_timers::future::TimeoutFuture::new(0).await;
             }
-            use futures::StreamExt as _;
             let next = self.inner.next();
             // `gloo-timers` counts whole milliseconds in a `u32`, where `tokio`
             // takes a `Duration`. Saturating rather than `as`, so a value past
