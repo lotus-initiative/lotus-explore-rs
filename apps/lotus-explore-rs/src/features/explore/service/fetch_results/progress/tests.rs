@@ -16,8 +16,8 @@ fn a_wide_search_reports_a_handful_of_times_not_once_per_chunk() {
         }
     }
     assert_eq!(
-        shown, 40,
-        "a million rows should report about once per {PROGRESS_ROW_STEP} rows"
+        shown, 400,
+        "a million rows should report once per {PROGRESS_ROW_STEP} rows"
     );
 }
 
@@ -37,14 +37,14 @@ fn a_count_within_the_step_of_the_last_one_is_not_reported() {
     // chunk, so a burst of small chunks between two reports is silent.
     let mut throttle = ProgressThrottle::new(PROGRESS_ROW_STEP);
     assert_eq!(throttle.offer(10), Some(10));
-    for rows in [11, 500, 24_999, 25_009] {
+    for rows in [11, 500, 2_499, 2_509] {
         assert_eq!(
             throttle.offer(rows),
             None,
             "{rows} is within the step of 10"
         );
     }
-    assert_eq!(throttle.offer(25_010), Some(25_010));
+    assert_eq!(throttle.offer(2_510), Some(2_510));
 }
 
 #[test]
@@ -72,6 +72,7 @@ fn a_report_smaller_than_the_last_one_is_dropped() {
 #[test]
 fn the_last_count_is_always_available_even_when_short_of_the_step() {
     let mut throttle = ProgressThrottle::new(1_000);
-    let _ = throttle.offer(10);
-    assert_eq!(throttle.finish(), Some(10));
+    assert_eq!(throttle.offer(10), Some(10));
+    assert_eq!(throttle.offer(850), None);
+    assert_eq!(throttle.finish(), Some(850));
 }

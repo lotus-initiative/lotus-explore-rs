@@ -156,9 +156,19 @@ impl LotusRepository for HybridRepository {
         lotus_search::feed_chunks_reporting(&mut reader, &mut chunks, on_progress)
             .await
             .map_err(map_fetch_error)?;
+        // Emit a boundary report with unchanged `bytes` so the caller can flush
+        // the exact final occurrence count and switch the loading phase before
+        // dictionary enrichment starts.
+        on_progress(lotus_search::StreamProgress {
+            rows: reader.row_count(),
+            bytes: reader.byte_count(),
+        });
         #[cfg(target_arch = "wasm32")]
-        if let Some(previous) = crate::cache::peek_any_cached_set() {
-            reader.seed_from(&previous);
+        {
+            gloo_timers::future::TimeoutFuture::new(0).await;
+            if let Some(previous) = crate::cache::peek_any_cached_set() {
+                reader.seed_from(&previous);
+            }
         }
         lotus_search::enrich_columnar_reader(
             &mut reader,
@@ -167,6 +177,8 @@ impl LotusRepository for HybridRepository {
         )
         .await
         .map_err(map_fetch_error)?;
+        #[cfg(target_arch = "wasm32")]
+        gloo_timers::future::TimeoutFuture::new(0).await;
         reader
             .finish()
             .map_err(|e| RepositoryError::parse(e.to_string()))

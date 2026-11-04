@@ -31,11 +31,15 @@ pub fn LoadingState() -> Element {
             class: "flex flex-col items-center justify-center gap-3 p-12 text-center text-muted",
             div { class: "spinner-lg", "aria-hidden": "true" }
             p { class: "max-w-[28ch] text-body text-text", "{query_phase_text(locale, query_phase)}" }
-            // Only while the body is arriving, and only once there is a count to
-            // show: a phase label with no number under it is the status quo, and
-            // the number is the part that tells a reader the wait is doing
-            // something.
-            if query_phase == QueryPhase::FetchingResults && rows_so_far.is_some() {
+            // Shown once there is a count to display and kept visible while the
+            // dictionary streams join and the table prepares to render.
+            if matches!(
+                query_phase,
+                QueryPhase::FetchingResults
+                    | QueryPhase::ProcessingResults
+                    | QueryPhase::Rendering
+            ) && rows_so_far.is_some()
+            {
                 p {
                     class: "max-w-[36ch] text-ui text-subtle tabular-nums",
                     "{rows_so_far_text(locale, rows_so_far.unwrap_or(0))}",

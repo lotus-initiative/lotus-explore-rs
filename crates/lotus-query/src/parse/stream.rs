@@ -313,7 +313,13 @@ impl CsvColumnarReader {
     ) {
         if let Some(cols) = columns.as_ref() {
             if enrich_only {
-                builder.enrich(raw_row(record, cols));
+                if builder.contains_entity(
+                    field_bytes(record, cols.compound),
+                    field_bytes(record, cols.taxon),
+                    field_bytes(record, cols.reference),
+                ) {
+                    builder.enrich(raw_row(record, cols));
+                }
             } else {
                 *rows_read += 1;
                 builder.push(raw_row(record, cols));

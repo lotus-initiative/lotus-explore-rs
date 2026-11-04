@@ -141,6 +141,7 @@ impl HttpResponse for reqwest::Response {
             Ok(Box::new(wasm::WasmChunks {
                 inner: Box::pin(self.bytes_stream()),
                 progress: ReadProgress::default(),
+                bytes_since_yield: 0,
             }))
         }
 

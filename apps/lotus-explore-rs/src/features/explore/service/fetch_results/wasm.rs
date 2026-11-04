@@ -39,10 +39,22 @@ pub(super) async fn fetch_results<R: LotusRepository>(
 
     let timer = perf::start_timer("LOTUS:results_columnar_query");
     let (set, fetched_remote) = if let Some(cached) = crate::cache::take_cached_set(&key) {
+        on_processing();
         (cached, false)
     } else {
         let mut throttle = ProgressThrottle::new(PROGRESS_ROW_STEP);
+        let mut last_bytes = 0usize;
+        let mut processing_emitted = false;
         let mut progress = |p: lotus_search::StreamProgress| {
+            if !processing_emitted && last_bytes > 0 && p.bytes == last_bytes {
+                processing_emitted = true;
+                if let Some(rows) = throttle.finish() {
+                    on_progress(rows);
+                }
+                on_processing();
+                return;
+            }
+            last_bytes = p.bytes;
             if let Some(rows) = throttle.offer(p.rows) {
                 on_progress(rows);
             }
@@ -51,9 +63,12 @@ pub(super) async fn fetch_results<R: LotusRepository>(
             .sparql_columnar(plan.execution_query, &mut progress)
             .await
             .map_err(DomainError::transport_at(QueryStage::ResultsQuery))?;
-        // The last chunk is the one that matters, and it can fall short of the step.
-        if let Some(rows) = throttle.finish() {
-            on_progress(rows);
+        if !processing_emitted {
+            // The last chunk is the one that matters, and it can fall short of the step.
+            if let Some(rows) = throttle.finish() {
+                on_progress(rows);
+            }
+            on_processing();
         }
         let set = Arc::new(fetched);
         crate::cache::store_cached_set(key, Arc::clone(&set));
@@ -63,8 +78,6 @@ pub(super) async fn fetch_results<R: LotusRepository>(
     if fetched_remote {
         metrics.add_network(elapsed);
     }
-
-    on_processing();
 
     let stats = set.stats();
     telemetry::results_fetch_done(elapsed, set.row_count(), stats.n_entries);

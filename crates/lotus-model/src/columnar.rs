@@ -1071,6 +1071,66 @@ impl ColumnarResultSet {
             .flatten()
     }
 
+    /// Ascending row indices sorted by compound label (`None` first, ties broken
+    /// by ascending row index), computed via dictionary-rank counting sort in
+    /// `O(D log D + N)`.
+    #[must_use]
+    pub fn sort_by_name(&self) -> Arc<[u32]> {
+        sort_rows_by_dictionary(&self.compound_ids, self.compounds.len(), |slot| {
+            self.compound_names.get(slot).filter(|n| !n.is_empty())
+        })
+    }
+
+    /// Ascending row indices sorted by compound mass (`None` first, ties broken
+    /// by ascending row index), computed via dictionary-rank counting sort in
+    /// `O(D log D + N)`.
+    #[must_use]
+    pub fn sort_by_mass(&self) -> Arc<[u32]> {
+        sort_rows_by_dictionary(&self.compound_ids, self.compounds.len(), |slot| {
+            self.compound_mass(slot_to_id(slot)).map(OrderedMass)
+        })
+    }
+
+    /// Ascending row indices sorted by molecular formula (`None` first, ties
+    /// broken by ascending row index), computed via dictionary-rank counting
+    /// sort in `O(D log D + N)`.
+    #[must_use]
+    pub fn sort_by_formula(&self) -> Arc<[u32]> {
+        sort_rows_by_dictionary(&self.compound_ids, self.compounds.len(), |slot| {
+            self.compound_formulas.get(slot)
+        })
+    }
+
+    /// Ascending row indices sorted by taxon scientific name (`None` first, ties
+    /// broken by ascending row index), computed via dictionary-rank counting
+    /// sort in `O(D log D + N)`.
+    #[must_use]
+    pub fn sort_by_taxon_name(&self) -> Arc<[u32]> {
+        sort_rows_by_dictionary(&self.taxon_ids, self.taxa.len(), |slot| {
+            self.taxon_names.get(slot)
+        })
+    }
+
+    /// Ascending row indices sorted by reference publication year (`None` first,
+    /// ties broken by ascending row index), computed via dictionary-rank
+    /// counting sort in `O(D log D + N)`.
+    #[must_use]
+    pub fn sort_by_pub_year(&self) -> Arc<[u32]> {
+        sort_rows_by_dictionary(&self.reference_ids, self.references.len(), |slot| {
+            self.reference_year(slot_to_id(slot))
+        })
+    }
+
+    /// Ascending row indices sorted by reference title (`None` first, ties
+    /// broken by ascending row index), computed via dictionary-rank counting
+    /// sort in `O(D log D + N)`.
+    #[must_use]
+    pub fn sort_by_ref_title(&self) -> Arc<[u32]> {
+        sort_rows_by_dictionary(&self.reference_ids, self.references.len(), |slot| {
+            self.reference_titles.get(slot)
+        })
+    }
+
     /// Rebuild row `row` as a [`CompoundEntry`].
     ///
     /// For the paths that still want one row at a time: the export formats, and
@@ -1309,6 +1369,101 @@ fn slot_to_id(slot: usize) -> u32 {
     u32::try_from(slot).unwrap_or(NO_VALUE)
 }
 
+#[derive(Clone, Copy)]
+struct OrderedMass(f64);
+
+impl PartialEq for OrderedMass {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == std::cmp::Ordering::Equal
+    }
+}
+
+impl Eq for OrderedMass {}
+
+impl PartialOrd for OrderedMass {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for OrderedMass {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0
+            .partial_cmp(&other.0)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    }
+}
+
+/// Sort `0..row_ids.len()` by a dictionary-keyed value in `O(D log D + N)` using
+/// counting sort over dictionary ranks.
+fn sort_rows_by_dictionary<K: Ord>(
+    row_ids: &[u32],
+    dict_len: usize,
+    slot_key: impl Fn(usize) -> Option<K>,
+) -> Arc<[u32]> {
+    let n = row_ids.len();
+    if n <= 1 {
+        let single: Vec<u32> = (0..u32::try_from(n).unwrap_or(0)).collect();
+        return Arc::from(single.into_boxed_slice());
+    }
+
+    let mut present: Vec<(usize, K)> = (0..dict_len)
+        .filter_map(|slot| slot_key(slot).map(|key| (slot, key)))
+        .collect();
+    present.sort_unstable_by(|a, b| a.1.cmp(&b.1));
+
+    let mut slot_rank = vec![0u32; dict_len];
+    let mut max_rank = 0u32;
+    for (idx, (slot, key)) in present.iter().enumerate() {
+        let same_as_prev = idx > 0
+            && present
+                .get(idx - 1)
+                .is_some_and(|(_, prev_key)| prev_key == key);
+        if !same_as_prev {
+            max_rank = max_rank.saturating_add(1);
+        }
+        if let Some(cell) = slot_rank.get_mut(*slot) {
+            *cell = max_rank;
+        }
+    }
+
+    let num_buckets = (max_rank as usize).saturating_add(1);
+    let mut offsets = vec![0u32; num_buckets.saturating_add(1)];
+    for &id in row_ids {
+        let rank = if id == NO_VALUE {
+            0usize
+        } else {
+            slot_rank.get(id as usize).copied().unwrap_or(0) as usize
+        };
+        if let Some(count) = offsets.get_mut(rank.saturating_add(1)) {
+            *count = count.saturating_add(1);
+        }
+    }
+    for i in 1..offsets.len() {
+        let prev = offsets.get(i - 1).copied().unwrap_or(0);
+        if let Some(curr) = offsets.get_mut(i) {
+            *curr = curr.saturating_add(prev);
+        }
+    }
+
+    let mut out = vec![0u32; n];
+    for (row, &id) in row_ids.iter().enumerate() {
+        let rank = if id == NO_VALUE {
+            0usize
+        } else {
+            slot_rank.get(id as usize).copied().unwrap_or(0) as usize
+        };
+        if let Some(cursor) = offsets.get_mut(rank) {
+            let dest = *cursor as usize;
+            *cursor = cursor.saturating_add(1);
+            if let Some(slot) = out.get_mut(dest) {
+                *slot = u32::try_from(row).unwrap_or(0);
+            }
+        }
+    }
+    Arc::from(out.into_boxed_slice())
+}
+
 /// Assembles a [`ColumnarResultSet`].
 ///
 /// The dictionaries grow as rows arrive, which is what lets the CSV parser hand
@@ -1465,6 +1620,20 @@ impl ColumnarBuilder {
             self.set.statements.resize(row_index, StatementId::Absent);
             self.set.statements.push(statement);
         }
+    }
+
+    /// Whether any of the non-empty entity QIDs on a dictionary row is
+    /// already interned in this builder.
+    #[must_use]
+    pub fn contains_entity(
+        &self,
+        compound_qid: &str,
+        taxon_qid: &str,
+        reference_qid: &str,
+    ) -> bool {
+        lookup_qid(&self.set.compounds, compound_qid) != NO_VALUE
+            || lookup_qid(&self.set.taxa, taxon_qid) != NO_VALUE
+            || lookup_qid(&self.set.references, reference_qid) != NO_VALUE
     }
 
     /// Populate dictionary metadata for already-interned entities without

@@ -502,6 +502,42 @@ where
     Ok(())
 }
 
+enum PendingStream<Fut> {
+    Opening(std::pin::Pin<Box<Fut>>),
+    Ready(Result<crate::ChunkedBody, FetchError>),
+    Taken,
+}
+
+async fn take_next_stream<Fut>(
+    pending: &mut [PendingStream<Fut>],
+    index: usize,
+) -> Result<crate::ChunkedBody, FetchError>
+where
+    Fut: std::future::Future<Output = Result<crate::ChunkedBody, FetchError>>,
+{
+    std::future::poll_fn(|cx| {
+        for item in pending.iter_mut().skip(index) {
+            if let PendingStream::Opening(fut) = item
+                && let std::task::Poll::Ready(res) = fut.as_mut().poll(cx)
+            {
+                *item = PendingStream::Ready(res);
+            }
+        }
+        match pending.get_mut(index) {
+            Some(slot @ PendingStream::Ready(_)) => {
+                let PendingStream::Ready(res) = std::mem::replace(slot, PendingStream::Taken)
+                else {
+                    return std::task::Poll::Ready(Err(FetchError::Empty));
+                };
+                std::task::Poll::Ready(res)
+            }
+            Some(PendingStream::Opening(_)) => std::task::Poll::Pending,
+            Some(PendingStream::Taken) | None => std::task::Poll::Ready(Err(FetchError::Empty)),
+        }
+    })
+    .await
+}
+
 /// Enrich an occurrence-only [`CsvColumnarReader`] with compound and reference
 /// dictionary streams when the initial stream omitted metadata columns.
 ///
@@ -523,19 +559,29 @@ where
 {
     if reader.needs_enrichment() {
         let compound_qids: Vec<u32> = reader.compound_qids().collect();
-        if !compound_qids.is_empty() {
-            reader
-                .next_enrichment_stream()
-                .map_err(|e| FetchError::Parse(e.to_string()))?;
-            let mut body = open_stream(compound_dictionary_query(&compound_qids)).await?;
-            feed_chunks_reporting(reader, &mut body, on_progress).await?;
-        }
         let reference_qids: Vec<u32> = reader.reference_qids().collect();
+
+        let mut queries = Vec::new();
+        if !compound_qids.is_empty() {
+            queries.push(compound_dictionary_query(&compound_qids));
+        }
         for chunk in reference_qids.chunks(lotus_query::DICTIONARY_VALUES_LIMIT) {
+            queries.push(reference_dictionary_query(chunk));
+        }
+
+        // Launch all dictionary requests concurrently so the endpoint computes
+        // and streams reference metadata in parallel while compound metadata is
+        // being read.
+        let mut pending: Vec<PendingStream<Fut>> = queries
+            .into_iter()
+            .map(|q| PendingStream::Opening(Box::pin(open_stream(q))))
+            .collect();
+
+        for index in 0..pending.len() {
             reader
                 .next_enrichment_stream()
                 .map_err(|e| FetchError::Parse(e.to_string()))?;
-            let mut body = open_stream(reference_dictionary_query(chunk)).await?;
+            let mut body = take_next_stream(&mut pending, index).await?;
             feed_chunks_reporting(reader, &mut body, on_progress).await?;
         }
     }

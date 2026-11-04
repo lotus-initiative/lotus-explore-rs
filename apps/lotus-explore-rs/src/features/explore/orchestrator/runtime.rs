@@ -93,6 +93,8 @@ async fn execute_search_with_retries<R: LotusRepository>(
         .await
         {
             Ok(outcome) => {
+                coordinator.on_phase(lotus_explore_core::explore::types::QueryPhase::Rendering);
+                delay_for(Duration::from_millis(1)).await;
                 handle_search_success(&request, outcome, attempt_count, &coordinator);
                 break;
             }

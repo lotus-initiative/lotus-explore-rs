@@ -5,7 +5,6 @@ use lotus_explore_core::sort::{SortColumn, SortDir, SortState};
 use lotus_model::ColumnarResultSet;
 #[cfg(test)]
 use lotus_model::CompoundEntry;
-use std::cmp::Ordering;
 use std::sync::{Arc, Mutex};
 
 /// The cache slot for a column: one per `SortColumn` variant, and the order is
@@ -171,41 +170,21 @@ pub(super) fn build_sorted_indices(rows: &[CompoundEntry], sort: SortState) -> A
     }
 }
 
-#[allow(clippy::cast_possible_truncation)] // `rows.len()` far below `u32::MAX` for any displayable table
-#[allow(clippy::indexing_slicing)] // `a`/`b` drawn from `0..rows.len()`, always in bounds
 fn build_sorted_indices_for_column(set: &ColumnarResultSet, column: SortColumn) -> Arc<[u32]> {
-    let rows = set.row_count();
-    let mut idx: Vec<u32> = (0..u32::try_from(rows).unwrap_or(0)).collect();
-    idx.sort_unstable_by(|&a, &b| {
-        compare_rows(set, a as usize, b as usize, column).then_with(|| a.cmp(&b))
-    });
-    Arc::from(idx.into_boxed_slice())
+    match column {
+        SortColumn::Name => set.sort_by_name(),
+        SortColumn::Mass => set.sort_by_mass(),
+        SortColumn::Formula => set.sort_by_formula(),
+        SortColumn::TaxonName => set.sort_by_taxon_name(),
+        SortColumn::PubYear => set.sort_by_pub_year(),
+        SortColumn::RefTitle => set.sort_by_ref_title(),
+    }
 }
 
 fn reversed_indices(indices: &[u32]) -> Arc<[u32]> {
     let mut reversed = Vec::with_capacity(indices.len());
     reversed.extend(indices.iter().rev().copied());
     Arc::from(reversed.into_boxed_slice())
-}
-
-/// Compare two rows of `set` on one column.
-///
-/// Every field is read straight out of the set. Comparing
-/// [`lotus_model::CompoundEntry`] values would work and would be wrong: one costs
-/// thirteen `Arc<str>`s, so sorting three million rows would allocate thirty-nine
-/// million of them to answer a question about one column.
-fn compare_rows(set: &ColumnarResultSet, a: usize, b: usize, column: SortColumn) -> Ordering {
-    match column {
-        SortColumn::Name => set.compound_label(a).cmp(&set.compound_label(b)),
-        SortColumn::Mass => set
-            .mass(a)
-            .partial_cmp(&set.mass(b))
-            .unwrap_or(Ordering::Equal),
-        SortColumn::Formula => set.formula(a).cmp(&set.formula(b)),
-        SortColumn::TaxonName => set.taxon_label(a).cmp(&set.taxon_label(b)),
-        SortColumn::PubYear => set.pub_year(a).cmp(&set.pub_year(b)),
-        SortColumn::RefTitle => set.reference_title(a).cmp(&set.reference_title(b)),
-    }
 }
 
 #[cfg(test)]

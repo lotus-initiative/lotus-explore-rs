@@ -9,11 +9,10 @@
 
 /// Rows that must arrive between two progress reports.
 ///
-/// The transport reports once per chunk and a wide search is tens of thousands of
-/// chunks, so reporting every one would re-render the overlay more often than a
-/// reader can see it, costing more than the parse it reports on. At ~16 KB a chunk
-/// this is a handful of updates per second.
-pub const PROGRESS_ROW_STEP: usize = 25_000;
+/// Small enough that medium searches tick smoothly several times and wide
+/// searches glide at ~15-30 updates per second rather than jumping in coarse
+/// 25,000-row steps.
+pub const PROGRESS_ROW_STEP: usize = 2_500;
 
 /// Decides which row counts are worth reporting, and remembers the last one.
 ///
@@ -30,6 +29,7 @@ pub const PROGRESS_ROW_STEP: usize = 25_000;
 pub struct ProgressThrottle {
     step: usize,
     reported: Option<usize>,
+    last_seen: Option<usize>,
 }
 
 impl ProgressThrottle {
@@ -39,6 +39,7 @@ impl ProgressThrottle {
         Self {
             step,
             reported: None,
+            last_seen: None,
         }
     }
 
@@ -47,6 +48,7 @@ impl ProgressThrottle {
     /// `rows` is the count so far; there is no total to reach.
     #[must_use]
     pub fn offer(&mut self, rows: usize) -> Option<usize> {
+        self.last_seen = Some(self.last_seen.map_or(rows, |prev| prev.max(rows)));
         let worth_reporting = match self.reported {
             None => true,
             Some(already) => rows >= already.saturating_add(self.step),
@@ -63,8 +65,8 @@ impl ProgressThrottle {
     /// Separate from [`Self::offer`] because the last chunk is as likely to fall short
     /// of the step as any other, and it is the one that matters.
     #[must_use]
-    pub fn finish(&self) -> Option<usize> {
-        self.reported
+    pub const fn finish(&self) -> Option<usize> {
+        self.last_seen
     }
 }
 
