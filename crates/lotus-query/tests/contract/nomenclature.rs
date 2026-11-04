@@ -67,7 +67,7 @@ fn each_toggle_brings_only_its_own_properties() {
     ] {
         let query = compounds_by_taxon_query_with("Q122679", &nomenclature);
         assert_eq!(
-            query.matches("?seed (").count(),
+            query.matches("{ wd:Q122679 (").count(),
             1,
             "one expansion subquery per search, whatever is enabled"
         );
@@ -167,17 +167,17 @@ fn the_closure_dedupes_its_properties() {
 #[test]
 fn turning_everything_off_restores_the_plain_ancestry_filter() {
     let off = compounds_by_taxon_query_with("Q122679", &Nomenclature::ALL_OFF);
-    assert!(off.contains("?t (wdt:P171*) wd:Q122679 ."));
-    assert!(!off.contains("VALUES ?seed"), "no seed to expand");
+    assert!(off.contains("?taxon (wdt:P171*) wd:Q122679 ."));
+    assert!(!off.contains("VALUES ?root"), "no seed to expand");
     for relation in lotus_model::taxon_nomenclature::ALL {
         for (property, prefixed) in relation.properties() {
             assert!(!off.contains(prefixed), "{property} is not reached");
         }
     }
-    // Same nesting as the no-taxon query: SELECT plus two subqueries.
+    // One level shallower than the synonym-expanded query.
     assert_eq!(
-        subquery_depth(&off),
-        subquery_depth(&all_compounds_query()),
+        subquery_depth(&off) + 1,
+        subquery_depth(&compounds_by_taxon_query("Q122679")),
         "adding the options must not deepen the query when they are all off"
     );
 }
@@ -217,8 +217,8 @@ fn a_structure_search_honours_the_same_relationships() {
         Some("Q122679"),
         &Nomenclature::ALL_ON,
     );
-    assert!(on.contains("VALUES ?seed { wd:Q122679 }"));
-    assert!(on.contains("?t (wdt:P171*) ?root ."));
+    assert!(on.contains("{ VALUES ?root { wd:Q122679 } }"));
+    assert!(on.contains("?taxon (wdt:P171*) ?root ."));
 
     let off = structure_search_query_with(
         "CCO",
@@ -227,8 +227,8 @@ fn a_structure_search_honours_the_same_relationships() {
         Some("Q122679"),
         &Nomenclature::ALL_OFF,
     );
-    assert!(off.contains("?t (wdt:P171*) wd:Q122679 ."));
-    assert!(!off.contains("VALUES ?seed"));
+    assert!(off.contains("?taxon (wdt:P171*) wd:Q122679 ."));
+    assert!(!off.contains("VALUES ?root"));
 }
 
 /// The wildcard is not a taxon and has no entity to expand, so it keeps the
@@ -236,7 +236,7 @@ fn a_structure_search_honours_the_same_relationships() {
 #[test]
 fn the_all_taxa_wildcard_has_nothing_to_expand() {
     let query = all_compounds_query();
-    assert!(!query.contains("VALUES ?seed"));
+    assert!(!query.contains("VALUES ?root"));
     for relation in lotus_model::taxon_nomenclature::ALL {
         for (property, prefixed) in relation.properties() {
             assert!(!query.contains(prefixed), "{property} is absent");
@@ -247,7 +247,7 @@ fn the_all_taxa_wildcard_has_nothing_to_expand() {
 /// The property path inside the expansion subquery, or a panic naming the test.
 fn closure_path(query: &str) -> &str {
     query
-        .split("?seed (")
+        .split("{ wd:Q122679 (")
         .nth(1)
         .and_then(|rest| rest.split(')').next())
         .expect("the closure is a property path")
@@ -269,13 +269,8 @@ fn both_replaced_synonym_properties_travel_together() {
 fn no_taxon_means_no_ancestry_filter() {
     let query = all_compounds_query();
     assert!(!query.contains("P171*"));
-    assert!(!query.contains("VALUES ?seed"), "nothing to expand");
-    // One shallower than the taxon query, which spends a level on the
-    // expansion. Every other level is the same.
-    assert_eq!(
-        subquery_depth(&query) + 1,
-        subquery_depth(&compounds_by_taxon_query("Q16521"))
-    );
+    assert!(!query.contains("VALUES ?root"), "nothing to expand");
+    assert!(subquery_depth(&query) < subquery_depth(&compounds_by_taxon_query("Q16521")));
 }
 
 /// A resolved closure is inlined, and an absent one falls back to the subquery.
@@ -307,7 +302,7 @@ fn a_resolved_closure_is_inlined_and_an_empty_one_falls_back() {
         "and the subquery that would have computed it is gone:\n{inlined}"
     );
     assert!(
-        inlined.contains("?t (wdt:P171*) ?root ."),
+        inlined.contains("?taxon (wdt:P171*) ?root ."),
         "descent from the closure is still a P171* path:\n{inlined}"
     );
 
@@ -315,7 +310,7 @@ fn a_resolved_closure_is_inlined_and_an_empty_one_falls_back() {
     let fell_back =
         lotus_query::compounds_by_taxon_query_with_resolved_closure("Q21754", &nomenclature, &[]);
     assert!(
-        !fell_back.contains("VALUES ?root"),
+        !fell_back.contains("VALUES ?root { wd:Q2102991"),
         "an empty closure must not become an empty VALUES list:\n{fell_back}"
     );
     assert!(

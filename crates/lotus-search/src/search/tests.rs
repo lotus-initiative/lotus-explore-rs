@@ -162,14 +162,20 @@ fn an_empty_box_and_a_wildcard_are_not_the_same_request() {
     // join is required. `*` demands an occurrence; the empty box only takes one
     // if the compound happens to have it, which is the whole difference between
     // "every compound with an organism" and "every compound".
-    let flat = |q: &str| q.split_whitespace().collect::<Vec<_>>().join(" ");
+    let optional = |q: &str| {
+        q.find("p:P703").is_some_and(|p703| {
+            q[..p703]
+                .rfind("OPTIONAL")
+                .is_some_and(|at| !q[at..p703].contains('}'))
+        })
+    };
     assert!(
-        !flat(&wildcard).contains("OPTIONAL { ?c p:P703"),
+        !optional(&wildcard),
         "`*` is the explicit request for everything with an occurrence, so the \
          occurrence join is required rather than optional"
     );
     assert!(
-        flat(&blank).contains("OPTIONAL { ?c p:P703"),
+        optional(&blank),
         "an empty box constrains no taxon, which includes having no occurrence to \
          name -- a required join would quietly exclude untaxonomised compounds"
     );

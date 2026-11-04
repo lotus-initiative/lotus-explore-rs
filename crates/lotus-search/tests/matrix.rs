@@ -216,16 +216,13 @@ fn label(cell: &Cell) -> String {
 /// two queries; the block is.
 fn occurrence_is_optional(query: &str) -> bool {
     let p703 = query
-        .find("?c p:P703")
+        .find("p:P703 ?statement_id")
         .expect("every cell binds P703 somewhere");
     let head = &query[..p703];
-    // The opening brace of the block sits between the keyword and the first
-    // pattern, so whitespace alone is not the test.
-    head.rfind("OPTIONAL").is_some_and(|at| {
-        query[at + "OPTIONAL".len()..p703]
-            .chars()
-            .all(|c| c.is_whitespace() || c == '{')
-    })
+    let Some(at) = head.rfind("OPTIONAL {") else {
+        return false;
+    };
+    !query[at..p703].contains('}')
 }
 
 /// Triple patterns in the query: statements, counted after IRIs and literals are
@@ -400,7 +397,7 @@ fn an_absent_taxon_makes_one_optional_block_not_one_per_triple() {
         );
         // Inside the block, the taxon and the reference are bound together. A
         // per-triple spelling has `OPTIONAL` between `P703` and `ps:P703`.
-        let p703 = query.find("?c p:P703").expect("P703 is bound");
+        let p703 = query.find("p:P703 ?statement_id").expect("P703 is bound");
         let reference = query
             .find("prov:wasDerivedFrom")
             .expect("the reference is bound");
@@ -455,25 +452,25 @@ fn a_structure_search_without_a_named_taxon_keeps_the_occurrence_optional() {
     }
 }
 
-/// A reference binds `?r` as a `VALUES`, outside the optional block.
+/// A reference binds `?ref_qid` as a `VALUES`, outside the optional block.
 ///
-/// Two things follow, only the first obvious. A `FILTER(?r = wd:Q…)` is wrong for an
-/// unbound `?r` -- a compound with no occurrence, precisely what a structure search exists
+/// Two things follow, only the first obvious. A `FILTER(?ref_qid = wd:Q…)` is wrong for an
+/// unbound `?ref_qid` -- a compound with no occurrence, precisely what a structure search exists
 /// to find -- because comparing against an error drops it. And because the `VALUES` sits
 /// outside the block, a reference *with* no taxon returns only the compounds that reference
-/// reported, though the block is optional: an unbound `?r` cannot join.
+/// reported, though the block is optional: an unbound `?ref_qid` cannot join.
 #[test]
 fn a_reference_binds_the_reference_item_as_a_values() {
     for cell in MATRIX.iter().filter(|c| c.reference) {
         let query = query_for(cell);
         let label = label(cell);
         assert!(
-            query.contains(&format!("VALUES ?r {{ wd:{REFERENCE_QID} }}")),
+            query.contains(&format!("VALUES ?ref_qid {{ wd:{REFERENCE_QID} }}")),
             "{label}: the reference must be bound as a VALUES\n{query}"
         );
         assert!(
-            !query.contains(&format!("FILTER(?r = wd:{REFERENCE_QID}")),
-            "{label}: a FILTER on an unbound ?r drops occurrence-less compounds\n{query}"
+            !query.contains(&format!("FILTER(?ref_qid = wd:{REFERENCE_QID}")),
+            "{label}: a FILTER on an unbound ?ref_qid drops occurrence-less compounds\n{query}"
         );
         // No other reference constraint, and no title match: a title is prose.
         assert_eq!(
@@ -486,7 +483,7 @@ fn a_reference_binds_the_reference_item_as_a_values() {
     for cell in MATRIX.iter().filter(|c| !c.reference) {
         let query = query_for(cell);
         assert!(
-            !query.contains("VALUES ?r"),
+            !query.contains("VALUES ?ref_qid"),
             "{}: an absent reference must bind nothing\n{query}",
             label(cell)
         );

@@ -29,12 +29,12 @@ use super::common::{NOW, carbon_ranged_filter, criteria, subquery_depth};
 #[test]
 fn the_compound_query_is_three_levels_deep() {
     for query in [all_compounds_query(), compounds_by_taxon_query("Q16521")] {
-        assert!(query.contains("?c wdt:P235 ?compound_inchikey"));
-        assert!(query.contains("?c p:P703 ?statement"));
-        assert!(query.contains("?statement ps:P703 ?t"));
-        assert!(query.contains("prov:wasDerivedFrom ?ref"));
-        assert!(query.contains("?ref pr:P248 ?r"));
-        assert!(query.contains("?t wdt:P225 ?taxon_name"));
+        assert!(query.contains("?compound wdt:P235 ?compound_inchikey"));
+        assert!(query.contains("p:P703 ?statement_id"));
+        assert!(query.contains("?statement_id ps:P703 ?taxon"));
+        assert!(query.contains("prov:wasDerivedFrom ?ref_node"));
+        assert!(query.contains("?ref_node pr:P248 ?ref_qid"));
+        assert!(query.contains("?taxon wdt:P225 ?taxon_name"));
         // The label prefers the `mul` term, so a compound with a Multilingual
         // term is labelled in it.
         assert!(
@@ -48,15 +48,15 @@ fn a_taxon_query_is_one_level_deeper_than_the_all_compounds_query() {
     assert_eq!(subquery_depth(&all_compounds_query()), 3);
     assert_eq!(
         subquery_depth(&compounds_by_taxon_query("Q16521")),
-        4,
-        "three, plus the synonym expansion"
+        5,
+        "staged taxon subquery plus the synonym expansion"
     );
     assert_eq!(
         subquery_depth(&compounds_by_taxon_query_with(
             "Q16521",
             &Nomenclature::ALL_OFF
         )),
-        3,
+        4,
         "the expansion is the only thing that adds a level"
     );
 }
@@ -72,10 +72,10 @@ fn the_expansion_is_its_own_subquery() {
     let query = compounds_by_taxon_query("Q122679");
 
     let expansion = query
-        .find("VALUES ?seed { wd:Q122679 }")
+        .find("{ VALUES ?root { wd:Q122679 } }")
         .expect("the seed is a constant, not a join");
     let root_at = query
-        .find("?t (wdt:P171*) ?root .")
+        .find("?taxon (wdt:P171*) ?root .")
         .expect("the ancestry filter runs off the expanded roots");
     assert!(expansion < root_at, "expansion comes first");
 
@@ -173,21 +173,18 @@ fn the_rdf_export_rewrites_the_outer_select_as_a_construct() {
             < construct.find("SELECT").expect("a nested SELECT survived"),
         "the outer SELECT is the one that was rewritten"
     );
-    assert!(construct.contains("?c wdt:P235 ?compound_inchikey ."));
-    assert!(construct.contains("?statement ps:P703 ?t ;"));
-    assert!(construct.contains("?r wdt:P356 ?ref_doi ."));
-    // `?compound_formula` is bound only by the CONSTRUCT wrapper; the SELECT
-    // projects `?compound_formula_raw`.
-    assert!(construct.contains("AS ?compound_formula)"));
+    assert!(construct.contains("?compound wdt:P235 ?compound_inchikey ."));
+    assert!(construct.contains("?statement_id ps:P703 ?taxon ;"));
+    assert!(construct.contains("?ref_qid wdt:P356 ?ref_doi ."));
+    // `?compound_formula_norm` is bound only by the CONSTRUCT wrapper; the SELECT
+    // projects `?compound_formula`.
+    assert!(construct.contains("AS ?compound_formula_norm)"));
     assert_eq!(
         construct.matches("SELECT").count(),
-        3,
-        "the outer SELECT becomes CONSTRUCT; the inner three stay"
+        4,
+        "the outer SELECT becomes CONSTRUCT; the inner four stay"
     );
-    // Balanced. Four `WHERE`s is right: the CONSTRUCT's own, plus the two the
-    // source query already had as nested subqueries, plus the one the synonym
-    // expansion adds.
-    assert_eq!(construct.matches("WHERE").count(), 4);
+    assert_eq!(construct.matches("WHERE").count(), 5);
     assert_eq!(
         construct.matches('{').count(),
         construct.matches('}').count(),
@@ -562,7 +559,7 @@ fn nothing_provided_includes_compounds_with_no_occurrence_and_star_does_not() {
     // `*` is the explicit request for what has been reported, so it requires the
     // statement that says so.
     assert!(
-        with_occurrence.contains("?c p:P703 ?statement"),
+        with_occurrence.contains("p:P703 ?statement_id"),
         "* means every compound with an occurrence, so P703 is required"
     );
     // Structural, not a count: this base query legitimately contains other
@@ -579,7 +576,7 @@ fn nothing_provided_includes_compounds_with_no_occurrence_and_star_does_not() {
         "an empty taxon box must not silently exclude compounds with no organism"
     );
     assert!(
-        everything.contains("?c p:P703 ?statement"),
+        everything.contains("p:P703 ?statement_id"),
         "the occurrence is optional, not removed: the columns still have to hold one"
     );
     assert_ne!(
@@ -595,8 +592,8 @@ fn the_optional_occurrence_keeps_its_hops_together() {
     // Optional per triple would emit a row with a taxon but no reference, which the
     // result store cannot represent as an occurrence. Both hops have to be inside the
     // same block as the statement that starts it.
-    assert!(everything.contains("?statement ps:P703 ?t"));
-    assert!(everything.contains("?ref pr:P248 ?r"));
+    assert!(everything.contains("?statement_id ps:P703 ?taxon"));
+    assert!(everything.contains("?ref_node pr:P248 ?ref_qid"));
 
     let block = occurrence_block(&everything);
     assert!(
@@ -609,7 +606,7 @@ fn the_optional_occurrence_keeps_its_hops_together() {
 
 /// The `OPTIONAL` block the occurrence statement sits in, or `""` if it is not in one.
 fn occurrence_block(query: &str) -> &str {
-    let occurrence = query.find("?c p:P703 ?statement").unwrap_or(0);
+    let occurrence = query.find("p:P703 ?statement_id").unwrap_or(0);
     let open = query[..occurrence].rfind("OPTIONAL {").unwrap_or(0);
     // An OPTIONAL that opens after the occurrence cannot contain it.
     if open == 0 && !query[..occurrence].contains("OPTIONAL {") {
@@ -627,7 +624,7 @@ fn occurrence_is_optional(query: &str) -> bool {
 ///
 /// Read out of the query text rather than compared against a stored copy of it,
 /// because a stored copy is a second thing to forget. Each projected item is one
-/// line of the `SELECT DISTINCT` block, and the variable is the last `?name` on
+/// line of the `SELECT` block, and the variable is the last `?name` on
 /// it -- which covers both a bare `?compoundLabel` and an aliased
 /// `(xsd:integer(STRAFTER(STR(?c), "Q")) AS ?compound)`.
 fn projected_names(query: &str) -> Vec<String> {
@@ -635,7 +632,7 @@ fn projected_names(query: &str) -> Vec<String> {
     let mut in_projection = false;
     for line in query.lines() {
         let trimmed = line.trim();
-        if trimmed == "SELECT DISTINCT" {
+        if trimmed == "SELECT" || trimmed == "SELECT DISTINCT" {
             in_projection = true;
             continue;
         }
@@ -696,11 +693,7 @@ fn the_turtle_export_does_not_depend_on_what_the_projection_projects() {
 
     // Rewrite the projection three ways -- add a variable, drop one, reorder --
     // and require the same Turtle every time.
-    let with_extra = base.replacen(
-        "SELECT DISTINCT",
-        "SELECT DISTINCT\n  ?compound_formula_raw",
-        1,
-    );
+    let with_extra = base.replacen("SELECT\n", "SELECT\n  ?compound_formula_raw\n", 1);
     let without_one = base.replacen("  ?taxon_name\n", "", 1);
     let reordered = base.replacen(
         "  ?compoundLabel\n  ?compound_inchikey\n",
@@ -727,20 +720,20 @@ fn the_turtle_export_does_not_depend_on_what_the_projection_projects() {
     }
 }
 
-/// `?ref` is in the `CONSTRUCT` template and is bound by the `WHERE`, which is
+/// `?ref_node` is in the `CONSTRUCT` template and is bound by the `WHERE`, which is
 /// why dropping it from the projection is free.
 ///
-/// The template emits `?statement prov:wasDerivedFrom ?ref` and `?ref pr:P248 ?r`.
+/// The template emits `?statement_id prov:wasDerivedFrom ?ref_node` and `?ref_node pr:P248 ?ref_qid`.
 /// A `CONSTRUCT` whose template names a variable the `WHERE` never binds emits
 /// neither triple and says nothing -- `QLever` drops the solutions and the export is
 /// quietly missing the provenance it exists to carry. So both halves are pinned:
-/// the template still names `?ref`, and the spliced body still binds it.
+/// the template still names `?ref_node`, and the spliced body still binds it.
 #[test]
 fn the_turtle_export_still_binds_every_variable_its_template_names() {
     let construct = construct_from_select(&compounds_by_taxon_query("Q16521"));
 
     assert!(
-        construct.contains("prov:wasDerivedFrom ?ref ."),
+        construct.contains("prov:wasDerivedFrom ?ref_node ."),
         "the template's provenance triple is gone"
     );
 
@@ -751,17 +744,17 @@ fn the_turtle_export_still_binds_every_variable_its_template_names() {
         .expect("a CONSTRUCT template and a body")
         .1;
     assert!(
-        body.contains("?ref pr:P248 ?r"),
-        "?ref is named by the template but no longer bound by the body, so both \\
+        body.contains("?ref_node pr:P248 ?ref_qid"),
+        "?ref_node is named by the template but no longer bound by the body, so both \\
          provenance triples would be dropped silently"
     );
 }
 
-/// Every `OPTIONAL` over a reference must be guarded by `BOUND(?ref)`.
+/// Every `OPTIONAL` over a reference must be guarded by `BOUND(?ref_node)`.
 ///
-/// The reference metadata sits *outside* the optional occurrence block, so `?r` can arrive
+/// The reference metadata sits *outside* the optional occurrence block, so `?ref_qid` can arrive
 /// unbound, and an unbound variable entering an `OPTIONAL` is given a fresh binding rather
-/// than staying empty: `OPTIONAL { ?r wdt:P1476 … }` quietly asks for every reference in
+/// than staying empty: `OPTIONAL { ?ref_qid wdt:P1476 … }` quietly asks for every reference in
 /// Wikidata. Measured on one compound with no occurrences, **54,116,026 rows** instead of 1,
 /// and `QLever` answering `Operation timed out. Last operation: Sort (internal order)` with
 /// `resultsize: 0` -- an empty result reading as "no occurrences" and really "this query
@@ -778,25 +771,25 @@ fn the_turtle_export_still_binds_every_variable_its_template_names() {
 fn no_optional_over_a_reference_is_left_unguarded() {
     let select = compounds_by_taxon_query("Q16521");
 
-    // The sentinel is what keeps an unbound `?r` from becoming a fresh variable.
+    // The sentinel is what keeps an unbound `?ref_qid` from becoming a fresh variable.
     assert!(
-        select.contains("BIND(COALESCE(?r, wd:Q0) AS ?_ref_source)"),
-        "the reference sentinel is gone; an unbound ?r becomes a fresh variable \
+        select.contains("BIND(COALESCE(?ref_qid, wd:Q0) AS ?_ref_source)"),
+        "the reference sentinel is gone; an unbound ?ref_qid becomes a fresh variable \
          matching all of Wikidata"
     );
 
     // The three reference columns, each reading through the sentinel rather than
-    // through `?r` directly. Reading `?r` is the bug: inside an OPTIONAL it is
+    // through `?ref_qid` directly. Reading `?ref_qid` is the bug: inside an OPTIONAL it is
     // fresh, and a FILTER there cannot see an outer binding, so the guard silently
     // rejected every row and all three columns came back empty.
     for predicate in ["P1476", "P356", "P577"] {
         assert!(
             select.contains(&format!("?_ref_source wdt:{predicate} ?ref_")),
-            "the {predicate} OPTIONAL must read ?_ref_source, not ?r"
+            "the {predicate} OPTIONAL must read ?_ref_source, not ?ref_qid"
         );
         assert!(
-            !select.contains(&format!("OPTIONAL {{ ?r wdt:{predicate}")),
-            "an OPTIONAL still reads ?r directly for {predicate}"
+            !select.contains(&format!("OPTIONAL {{ ?ref_qid wdt:{predicate}")),
+            "an OPTIONAL still reads ?ref_qid directly for {predicate}"
         );
     }
 

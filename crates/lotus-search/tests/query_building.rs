@@ -137,7 +137,7 @@ fn a_resolved_reference_replaces_the_doi_the_user_typed() {
         &unresolved_qid,
     );
     assert!(
-        query.contains("VALUES ?r { wd:Q100000001 }"),
+        query.contains("VALUES ?ref_qid { wd:Q100000001 }"),
         "an un-resolved QID is the resolved form and must keep the constraint: {query}"
     );
 
@@ -163,7 +163,7 @@ fn a_resolved_reference_replaces_the_doi_the_user_typed() {
         "an un-resolved DOI may not be printed into the query: {query}"
     );
     assert!(
-        !query.contains("VALUES ?r"),
+        !query.contains("VALUES ?ref_qid"),
         "with no reference that can name one, no constraint may be emitted: {query}"
     );
 }

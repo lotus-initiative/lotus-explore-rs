@@ -179,13 +179,13 @@ fn reference_metadata_goes_through_the_sentinel() {
             continue;
         }
         assert!(
-            query.contains("BIND(COALESCE(?r, wd:Q0) AS ?_ref_source)"),
+            query.contains("BIND(COALESCE(?ref_qid, wd:Q0) AS ?_ref_source)"),
             "{label}: reference metadata without the sentinel"
         );
         for predicate in ["P1476", "P356", "P577"] {
             assert!(
-                !query.contains(&format!("OPTIONAL {{ ?r wdt:{predicate}")),
-                "{label}: {predicate} still reads ?r directly, so an unbound ?r is fresh"
+                !query.contains(&format!("OPTIONAL {{ ?ref_qid wdt:{predicate}")),
+                "{label}: {predicate} still reads ?ref_qid directly, so an unbound ?ref_qid is fresh"
             );
         }
     }
@@ -212,19 +212,19 @@ fn the_count_query_carries_no_reference_or_compound_metadata() {
         // `P577` may reappear only as the year filter's binding, never as a fetch.
         assert_eq!(
             counts.contains("wdt:P577"),
-            counts.contains("?ref_date"),
-            "{label}: P577 must be present exactly when a year filter needs ?ref_date \
+            counts.contains("YEAR(?ref_year)"),
+            "{label}: P577 must be present exactly when a year filter needs ?ref_year \
              bound. Without the rebinding the filter references an unbound variable, \
              every solution is filtered out, and every count reads zero."
         );
     }
 }
 
-/// `?ref` must be projected, and must not be shown.
+/// `?ref_node` must be projected, and must not be shown.
 ///
 /// Dropped once on the grounds that nothing read it, wrong on both counts. It is the
 /// reference *node* -- `prov:wasDerivedFrom` -- not the publication `?ref_qid` names via
-/// `pr:P248`; the `CONSTRUCT` template emits `?statement prov:wasDerivedFrom ?ref`, so the
+/// `pr:P248`; the `CONSTRUCT` template emits `?statement_id prov:wasDerivedFrom ?ref_node`, so the
 /// provenance graph needs it. And it belongs in the parsed row even though no reader-facing
 /// column shows it.
 ///
@@ -243,36 +243,35 @@ fn the_reference_node_is_projected_but_not_shown() {
     }
 
     let select = compounds_by_taxon_query("Q21754");
-    // It must NOT go through the STRAFTER/xsd:integer treatment the QID columns
-    // get. A reference node is `http://www.wikidata.org/reference/<64 hex>`, not a
-    // `Q<digits>`, so that cast is a type error on *every* row -- which QLever
-    // reports as an unbound cell rather than a failed query, so the column would
-    // look present and be empty everywhere. Silent, and total.
+    // It must NOT go through the STRAFTER/xsd:integer treatment. A reference
+    // node is `http://www.wikidata.org/reference/<64 hex>`, not a `Q<digits>`,
+    // so that cast is a type error on *every* row -- which QLever reports as an
+    // unbound cell rather than a failed query, so the column would look present
+    // and be empty everywhere. Silent, and total.
     assert!(
-        !select.contains("xsd:integer(STRAFTER(STR(?ref)"),
-        "`?ref` is a reference-node URI, not a QID; casting it empties the column \
+        !select.contains("xsd:integer(STRAFTER(STR(?ref_node)"),
+        "`?ref_node` is a reference-node URI, not a QID; casting it empties the column \
          on every row without failing the query"
     );
-    // Projected as its identity rather than its URI, the way every QID column here
-    // is. The namespace crossed the wire on every row and was stripped off again on
-    // arrival: 35 wasted characters a row.
+    // Projected directly without server-side STRAFTER/SUBSTR string slicing so
+    // QLever does not allocate millions of dynamic LocalVocab strings or copy the
+    // result table across extra BIND columns; the streaming parser strips the
+    // namespace prefixes in O(1) on arrival.
     assert!(
-        select.contains(r#"STRAFTER(STR(?ref), "reference/")"#),
-        "the reference namespace should not cross the wire: {select}"
+        !select.contains("STRAFTER("),
+        "projection must not force server-side STRAFTER string allocations: {select}"
     );
     assert!(
-        select.contains(r#"STRAFTER(STR(?statement), "statement/")"#),
-        "nor should the statement namespace: {select}"
+        !select.contains("SUBSTR("),
+        "projection must not force server-side SUBSTR string allocations: {select}"
     );
-    // It cannot keep the name `?ref`: QLever rejects an AS clause whose target is
-    // already used in the body, which is why these are new names.
     assert!(
         lotus_query::SELECT_COLUMNS.contains(&"ref_node"),
-        "the identity column must be named so it is not the body variable"
+        "the reference node column must be present in SELECT_COLUMNS"
     );
 }
 
-/// Every shape must say what makes `?c` a chemical entity.
+/// Every shape must say what makes `?compound` a chemical entity.
 ///
 /// `P703` is not specific to metabolites: Wikidata uses it for genes and proteins
 /// too. A taxon search with no compound test returned `Q21629845` — a

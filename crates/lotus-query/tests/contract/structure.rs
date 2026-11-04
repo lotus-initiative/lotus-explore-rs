@@ -27,7 +27,7 @@ fn a_structure_search_without_a_taxon_keeps_optional_occurrences() {
     assert!(query.contains("SERVICE idsm:wikidata"));
     assert!(query.contains("sachem:substructureSearch"));
     assert!(query.contains("OPTIONAL {"));
-    assert!(query.contains("?c p:P703 ?statement ."));
+    assert!(query.contains("?compound p:P703 ?statement_id ."));
     assert!(!query.contains("P171*"), "no taxon to filter on");
     // The service must be in the body, or nothing is searched at all.
     assert!(query.contains("WHERE {"), "the query has a WHERE block");
@@ -43,12 +43,12 @@ fn a_structure_search_with_a_taxon_requires_the_occurrence() {
         &Nomenclature::ALL_OFF,
     );
     assert!(
-        query.contains("SELECT DISTINCT ?c"),
+        query.contains("SELECT DISTINCT ?compound"),
         "the service is pre-filtered"
     );
-    assert!(query.contains("?t (wdt:P171*) wd:Q16521 ."));
+    assert!(query.contains("?taxon (wdt:P171*) wd:Q16521 ."));
     assert!(
-        !query.contains("OPTIONAL {\n    ?c p:P703"),
+        !query.contains("OPTIONAL {\n    ?compound p:P703"),
         "a match outside the taxon must not come back"
     );
 }
@@ -187,7 +187,7 @@ fn a_compound_query_never_touches_the_structure_service() {
 #[test]
 fn a_compound_identity_query_seeds_on_the_compound_it_was_given() {
     let query = exact_compound_query("Q18216", None);
-    assert!(query.contains("VALUES ?c { wd:Q18216 }"), "{query}");
+    assert!(query.contains("VALUES ?compound { wd:Q18216 }"), "{query}");
     assert!(
         !query.contains("wdt:P235 ?compound_inchikey ;"),
         "the seed replaces the index scan, it does not join it:\n{query}"
@@ -201,7 +201,7 @@ fn a_compound_identity_query_keeps_occurrences_optional() {
     let query = exact_compound_query("Q18216", None);
     assert!(query.contains("OPTIONAL {"), "{query}");
     assert!(
-        !query.contains("?c p:P703 ?statement .\n          ?statement ps:P703"),
+        !query.contains("?compound p:P703 ?statement_id .\n          ?statement_id ps:P703"),
         "the occurrence triple must not be required:\n{query}"
     );
 }
@@ -216,15 +216,17 @@ fn the_optional_occurrences_are_planned_apart_from_the_seed() {
     // known size.
     //
     // The repeated `VALUES` inside that subquery is what makes it work, and what looks
-    // redundant: without it the subquery inherits `?c` from the enclosing scope, the planner is
+    // redundant: without it the subquery inherits `?compound` from the enclosing scope, the planner is
     // back where it started, and the twenty-fold cost returns -- verified by removing it.
     let query = exact_compound_query("Q18216", None);
-    let occurrences_at = query.find("?c p:P703 ?statement").unwrap_or_else(|| {
-        panic!("the occurrence chain should still be there:\n{query}");
-    });
+    let occurrences_at = query
+        .find("?compound p:P703 ?statement_id")
+        .unwrap_or_else(|| {
+            panic!("the occurrence chain should still be there:\n{query}");
+        });
     let before = &query[..occurrences_at];
     assert!(
-        before.rfind("VALUES ?c { wd:Q18216 }").is_some(),
+        before.rfind("VALUES ?compound { wd:Q18216 }").is_some(),
         "the seed has to be repeated inside the block, or the slow plan returns:\n{query}"
     );
     assert!(
@@ -236,10 +238,10 @@ fn the_optional_occurrences_are_planned_apart_from_the_seed() {
 #[test]
 fn a_compound_identity_query_inside_a_taxon_still_follows_the_nomenclature() {
     let query = exact_compound_query("Q18216", Some(("Q156598", &Nomenclature::ALL_ON)));
-    assert!(query.contains("VALUES ?c { wd:Q18216 }"));
+    assert!(query.contains("VALUES ?compound { wd:Q18216 }"));
     assert!(query.contains("wdt:P225 ?taxon_name"));
     assert!(
-        query.contains("VALUES ?seed { wd:Q156598 }"),
+        query.contains("{ VALUES ?root { wd:Q156598 } }"),
         "the taxon's closure is still expanded:\n{query}"
     );
 }
@@ -249,9 +251,9 @@ fn the_taxon_and_all_compounds_queries_are_unchanged_by_the_exact_seed() {
     // The compound seed is an addition, not a rewrite: with none of them the two
     // queries are byte-for-byte what they were.
     let all = all_compounds_query();
-    assert!(all.contains("?c wdt:P235 ?compound_inchikey ;"));
-    assert!(all.contains("?c p:P703 ?statement ."));
-    assert!(all.contains("?t wdt:P225 ?taxon_name"));
+    assert!(all.contains("?compound wdt:P235 ?compound_inchikey ;"));
+    assert!(all.contains("?compound p:P703 ?statement_id ."));
+    assert!(all.contains("?taxon wdt:P225 ?taxon_name"));
     let by_taxon = compounds_by_taxon_query("Q156598");
-    assert!(by_taxon.contains("VALUES ?seed { wd:Q156598 }"));
+    assert!(by_taxon.contains("{ VALUES ?root { wd:Q156598 } }"));
 }

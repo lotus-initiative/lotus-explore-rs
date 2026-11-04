@@ -133,7 +133,7 @@ fn all_four_off_is_representable_and_reaches_the_query() {
         Some("Q16521"),
     );
     assert!(
-        query.contains("?t (wdt:P171*) wd:Q16521 ."),
+        query.contains("?taxon (wdt:P171*) wd:Q16521 ."),
         "the name as typed, with no closure:\n{query}"
     );
 }

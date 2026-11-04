@@ -229,57 +229,46 @@ pub const SELECT_COLUMNS: [&str; 15] = [
     "statement_id",
 ];
 
-/// The result columns. QIDs are projected as integers so that the CSV they come
-/// back in is already the bare `Q…` form the parsers expect.
+/// The result columns, projected directly without string-slicing or `BIND`
+/// aliases so `QLever` neither materialises millions of `LocalVocab` strings nor
+/// copies the result table across extra `BIND` columns. The streaming parser
+/// strips the Wikidata entity, statement and reference prefixes and extracts the
+/// 4-digit year in `O(1)` on arrival.
 #[must_use]
 fn select_clause() -> String {
-    r#"
-SELECT DISTINCT
-  (xsd:integer(STRAFTER(STR(?c), "Q")) AS ?compound)
+    r"
+SELECT
+  ?compound
   ?compoundLabel
   ?compound_inchikey
   ?compound_smiles_conn
   ?compound_smiles_iso
   ?compound_mass
-  (?compound_formula_raw AS ?compound_formula)
-  (xsd:integer(STRAFTER(STR(?t), "Q")) AS ?taxon)
+  ?compound_formula
+  ?taxon
   ?taxon_name
-  (xsd:integer(STRAFTER(STR(?r), "Q")) AS ?ref_qid)
-  (STRAFTER(STR(?ref), "reference/") AS ?ref_node)
+  ?ref_qid
+  ?ref_node
   ?ref_title
   ?ref_doi
-  (SUBSTR(STR(?ref_date), 1, 4) AS ?ref_year)
-  (STRAFTER(STR(?statement), "statement/") AS ?statement_id)
-"#
+  ?ref_year
+  ?statement_id
+"
     .to_string()
 }
 
-/// The innermost projection: only what the occurrence itself asserts.
-const CORE_VARS: &str =
-    "?c ?compound_inchikey ?compound_smiles_conn ?t ?taxon_name ?r ?ref ?statement";
-
-/// The middle projection: the core plus everything the display rows show.
-const ENRICHED_VARS: &str = "\
-?c ?compound_inchikey ?compound_smiles_conn
-      ?compound_smiles_iso ?compound_mass ?compound_formula_raw
-      ?compoundLabel
-      ?t ?taxon_name
-      ?r ?ref
-      ?ref_title ?ref_doi ?ref_date
-      ?statement";
-
 /// Reference metadata: the title, DOI and date of the citing reference.
 ///
-/// **`BIND(COALESCE(?r, wd:Q0) AS ?_ref_source)` is load-bearing.** `?r` is bound by
+/// **`BIND(COALESCE(?ref_qid, wd:Q0) AS ?_ref_source)` is load-bearing.** `?ref_qid` is bound by
 /// the optional occurrence block, so a compound with no occurrence leaves it unbound, and
-/// an unbound variable entering an `OPTIONAL` gets a fresh binding: `OPTIONAL { ?r
+/// an unbound variable entering an `OPTIONAL` gets a fresh binding: `OPTIONAL { ?ref_qid
 /// wdt:P1476 ?ref_title }` silently becomes *every reference in Wikidata*, and the query
 /// then dies on the sort. Measured on `Q161495`: **54,116,026 rows** unguarded, and
 /// `QLever` answered `Operation timed out. Last operation: Sort (internal order)` with
 /// `resultsize: 0` -- an empty result that looks like "no occurrences" and is really "the
 /// query could not be answered".
 ///
-/// The guard is a sentinel, not `FILTER(BOUND(?ref))` per line: a `FILTER` inside an
+/// The guard is a sentinel, not `FILTER(BOUND(?ref_node))` per line: a `FILTER` inside an
 /// `OPTIONAL` is evaluated against *that `OPTIONAL`'s own solutions* before the join
 /// with the left side, so a variable bound only outside is unbound there and the filter
 /// rejects everything. Measured on `Q153`, 87 rows carried a title before the guard and
@@ -287,27 +276,27 @@ const ENRICHED_VARS: &str = "\
 /// references have no metadata" rather than as a bug. Any variable bound nowhere gives
 /// the same 0.
 ///
-/// `COALESCE` binds `?r` to `wd:Q0`, which is not a Wikidata item, so `wd:Q0 wdt:P1476 ?x`
+/// `COALESCE` binds `?ref_qid` to `wd:Q0`, which is not a Wikidata item, so `wd:Q0 wdt:P1476 ?x`
 /// matches nothing after one lookup instead of enumerating every reference. When there
-/// *is* an occurrence `?r` is bound, `COALESCE` passes it through, and a row whose
+/// *is* an occurrence `?ref_qid` is bound, `COALESCE` passes it through, and a row whose
 /// reference has no title, DOI or date still comes back with those cells empty. Verified:
 /// `Q153` 88 rows with a title (62 ms), `Q161495` 1 row (24 ms).
 ///
 /// The guard lives inside this constant so `counts_query`, which removes this whole block
 /// by string match, still removes all of it.
 const REFERENCE_METADATA: &str = "
-  BIND(COALESCE(?r, wd:Q0) AS ?_ref_source)
+  BIND(COALESCE(?ref_qid, wd:Q0) AS ?_ref_source)
   OPTIONAL { ?_ref_source wdt:P1476 ?ref_title. }
   OPTIONAL { ?_ref_source wdt:P356 ?ref_doi. }
-  OPTIONAL { ?_ref_source wdt:P577 ?ref_date. }
+  OPTIONAL { ?_ref_source wdt:P577 ?ref_year. }
 ";
 
 const COMPOUND_PROPERTIES: &str = r#"
-  OPTIONAL { ?c wdt:P2017 ?compound_smiles_iso. }
-  OPTIONAL { ?c wdt:P2067 ?compound_mass. }
-  OPTIONAL { ?c wdt:P274 ?compound_formula_raw. }
-  OPTIONAL { ?c rdfs:label ?compoundLabelMul. FILTER(LANG(?compoundLabelMul) = "mul") }
-  OPTIONAL { ?c rdfs:label ?compoundLabelEn. FILTER(LANG(?compoundLabelEn) = "en") }
+  OPTIONAL { ?compound wdt:P2017 ?compound_smiles_iso. }
+  OPTIONAL { ?compound wdt:P2067 ?compound_mass. }
+  OPTIONAL { ?compound wdt:P274 ?compound_formula. }
+  OPTIONAL { ?compound rdfs:label ?compoundLabelMul. FILTER(LANG(?compoundLabelMul) = "mul") }
+  OPTIONAL { ?compound rdfs:label ?compoundLabelEn. FILTER(LANG(?compoundLabelEn) = "en") }
   BIND(COALESCE(?compoundLabelMul, ?compoundLabelEn) AS ?compoundLabel)
 "#;
 
@@ -477,7 +466,7 @@ fn compounds_query_with_closure(
         )
     });
 
-    // What makes `?c` a chemical entity rather than anything else with a
+    // What makes `?compound` a chemical entity rather than anything else with a
     // `found in taxon` statement.
     //
     // `P703` is not specific to metabolites: Wikidata uses it for genes and proteins too,
@@ -491,117 +480,36 @@ fn compounds_query_with_closure(
     // `P233` stays optional: requiring both would drop real compounds with a canonical
     // SMILES and no InChIKey, and dropping a metabolite to keep the shape tidy is the
     // wrong trade in the other direction.
-    let chemical = "?c wdt:P235 ?compound_inchikey .";
+    let chemical = "?compound wdt:P235 ?compound_inchikey .";
 
-    let core = compound_seed.map_or_else(
+    if compound_seed.is_none() && occurrence == Occurrence::Required && taxon_qid.is_some() {
+        return taxon_compounds_query_body(&ancestry);
+    }
+
+    if compound_seed.is_none() && occurrence == Occurrence::Optional {
+        return optional_compounds_query_body(chemical, &ancestry);
+    }
+
+    let (core, outer_ref_metadata) = compound_seed.map_or_else(
         || {
             // The `;` spelling is kept on the shared prefix: an existing contract test
             // asserts this exact fragment, and changing it would be a rewrite rather
             // than the addition this is.
-            let compound = "?c wdt:P235 ?compound_inchikey ;\
+            let compound = "?compound wdt:P235 ?compound_inchikey ;\
           wdt:P233 ?compound_smiles_conn .";
-            match occurrence {
-                // Every taxon-less row is an occurrence: this query is about what was
-                // reported where.
-                Occurrence::Required => format!(
+            (
+                format!(
                     "{compound}\
-          ?c p:P703 ?statement .\
-          ?statement ps:P703 ?t ;\
-                     prov:wasDerivedFrom ?ref .\
-          ?ref pr:P248 ?r .\
-          ?t wdt:P225 ?taxon_name .{ancestry}"
+          ?compound p:P703 ?statement_id .\
+          ?statement_id ps:P703 ?taxon ;\
+                        prov:wasDerivedFrom ?ref_node .\
+          ?ref_node pr:P248 ?ref_qid .\
+          ?taxon wdt:P225 ?taxon_name .{ancestry}"
                 ),
-                // Nothing was asked for, so nothing is required: a compound with no
-                // occurrence statement has no recorded organism, and excluding it answers
-                // a narrower question than the one asked.
-                //
-                // Optional as one block, not per triple, so a row is either a complete
-                // occurrence -- taxon, reference and all -- or occurrence-less with empty
-                // cells. Per triple would emit rows with a taxon but no reference, a shape
-                // the result store cannot represent.
-                //
-                // `?c wdt:P233 ?compound_smiles_conn` inside the block both supplies the
-                // projected connectivity SMILES column and restricts the `OPTIONAL`'s own
-                // pre-join to the ~546k chemical occurrence statements rather than all
-                // ~2.89M `P703` statements in Wikidata (2.35M of which are genes and
-                // proteins).
-                Occurrence::Optional => format!(
-                    "{chemical} \
-          OPTIONAL {{ \
-            ?c p:P703 ?statement ;\
-               wdt:P233 ?compound_smiles_conn .\
-            ?statement ps:P703 ?t ;\
-                       prov:wasDerivedFrom ?ref .\
-            ?ref pr:P248 ?r .\
-            ?t wdt:P225 ?taxon_name .\
-          }}{ancestry}"
-                ),
-            }
+                REFERENCE_METADATA,
+            )
         },
-        |qid| {
-            // The occurrence triple becomes optional here because a compound with no
-            // occurrence data is exactly what a name search looks for; see
-            // `exact_compound_query`.
-            //
-            // The block is wrapped in its own subquery with the seed repeated inside,
-            // because `OPTIONAL` costs this endpoint twenty times what the same patterns
-            // cost alone. Measured on Q3613679: 4.3s as a bare `OPTIONAL`, 0.2s as a
-            // seeded subquery, same 20 rows. The block is what makes it slow, not the
-            // patterns -- `?c p:P703 ?statement . ?statement ps:P703 ?t` and the three hops
-            // after run in 0.1s outside an `OPTIONAL` -- so the subquery hands the planner a
-            // left side of its own size instead of one it has to assume. Without the
-            // repeated `VALUES` inside, the subquery inherits the binding and the slow plan
-            // comes back.
-            let seeded: String = qid
-                .iter()
-                .map(|q| escape_sparql_string(q))
-                .map(|q| format!("wd:{q}"))
-                .collect::<Vec<_>>()
-                .join(" ");
-            // A taxon here is a real constraint, so the occurrence block stops being optional.
-            //
-            // Leaving it optional with the taxon ancestry inside constrains nothing:
-            // `VALUES ?c` at the top level is unconditional, and the OPTIONAL only
-            // decides which occurrences are *shown*. `--structure Q23118
-            // --structure-search exact --taxon Gentiana` then returned Q23118 with an
-            // empty taxon cell, and would have returned a compound reported only in some
-            // other taxon while still listing that other taxon. A taxon asked for and not
-            // applied is worse than a taxon not given, because the answer looks filtered.
-            //
-            // Optional stays right for the taxon-less case, hence branching on the taxon
-            // rather than removing the branch. Once a taxon is named the question is
-            // "reported *in* this taxon", and a compound with no such occurrence is not an
-            // answer -- it is nothing, and the empty result says so.
-            let occurrences = format!(
-                "?c p:P703 ?statement .\
-              ?statement ps:P703 ?t ;\
-                         prov:wasDerivedFrom ?ref .\
-              ?ref pr:P248 ?r .\
-              ?t wdt:P225 ?taxon_name .{ancestry}"
-            );
-            if taxon_qid.is_some() {
-                format!(
-                    "VALUES ?c {{ {seeded} }}
-          {chemical} \
-          ?c p:P703 ?statement .\
-          ?statement ps:P703 ?t ;\
-                     prov:wasDerivedFrom ?ref .\
-          ?ref pr:P248 ?r .\
-          ?t wdt:P225 ?taxon_name .{ancestry}"
-                )
-            } else {
-                format!(
-                    "VALUES ?c {{ {seeded} }}
-          {chemical} \
-          OPTIONAL {{
-            {{ SELECT * WHERE {{
-              VALUES ?c {{ {seeded} }}
-              {occurrences}
-            }} }}
-          }}"
-                )
-            }
-        },
+        |qid| seeded_compounds_core(qid, taxon_qid.is_some(), chemical, &ancestry),
     );
 
     format!(
@@ -609,16 +517,15 @@ fn compounds_query_with_closure(
 {}
 WHERE {{
   {{
-    SELECT
-      {ENRICHED_VARS}
+    SELECT *
     WHERE {{
       {{
-        SELECT {CORE_VARS}
+        SELECT *
         WHERE {{
           {core}
         }}
       }}
-      {REFERENCE_METADATA}
+      {outer_ref_metadata}
       {COMPOUND_PROPERTIES}
     }}
   }}
@@ -627,24 +534,179 @@ WHERE {{
     )
 }
 
+fn taxon_compounds_query_body(ancestry: &str) -> String {
+    format!(
+        "{PREFIXES}
+{}
+WHERE {{
+  {{
+    SELECT *
+    WHERE {{
+      {{
+        SELECT *
+        WHERE {{
+          {{
+            SELECT DISTINCT ?taxon ?taxon_name
+            WHERE {{{ancestry}
+              ?taxon wdt:P225 ?taxon_name .
+            }}
+          }}
+          ?compound wdt:P235 ?compound_inchikey ;
+                    wdt:P233 ?compound_smiles_conn ;
+                    p:P703 ?statement_id .
+          ?statement_id ps:P703 ?taxon .
+        }}
+      }}
+      ?statement_id prov:wasDerivedFrom ?ref_node .
+    }}
+  }}
+  ?ref_node pr:P248 ?ref_qid .
+  {REFERENCE_METADATA}
+  {COMPOUND_PROPERTIES}
+}}",
+        select_clause(),
+    )
+}
+
+fn optional_compounds_query_body(chemical: &str, ancestry: &str) -> String {
+    format!(
+        "{PREFIXES}
+{}
+WHERE {{
+  {{
+    SELECT *
+    WHERE {{
+      {{
+        SELECT *
+        WHERE {{
+          {chemical}
+          OPTIONAL {{
+            {{
+              SELECT *
+              WHERE {{
+                {{
+                  SELECT *
+                  WHERE {{
+                    ?compound wdt:P235 ?_ik ;
+                              wdt:P233 ?compound_smiles_conn ;
+                              p:P703 ?statement_id .
+                    ?statement_id ps:P703 ?taxon ;
+                                  prov:wasDerivedFrom ?ref_node .
+                    ?ref_node pr:P248 ?ref_qid .
+                    ?taxon wdt:P225 ?taxon_name .{ancestry}
+                  }}
+                }}
+                {REFERENCE_METADATA}
+              }}
+            }}
+          }}
+        }}
+      }}
+      {COMPOUND_PROPERTIES}
+    }}
+  }}
+}}",
+        select_clause(),
+    )
+}
+
+fn seeded_compounds_core(
+    qid: &[String],
+    has_taxon: bool,
+    chemical: &str,
+    ancestry: &str,
+) -> (String, &'static str) {
+    // The occurrence triple becomes optional here because a compound with no
+    // occurrence data is exactly what a name search looks for; see
+    // `exact_compound_query`.
+    //
+    // The block is wrapped in its own subquery with the seed repeated inside,
+    // because `OPTIONAL` costs this endpoint twenty times what the same patterns
+    // cost alone. Measured on Q3613679: 4.3s as a bare `OPTIONAL`, 0.2s as a
+    // seeded subquery, same 20 rows. The block is what makes it slow, not the
+    // patterns -- `?compound p:P703 ?statement_id . ?statement_id ps:P703 ?taxon` and the three hops
+    // after run in 0.1s outside an `OPTIONAL` -- so the subquery hands the planner a
+    // left side of its own size instead of one it has to assume. Without the
+    // repeated `VALUES` inside, the subquery inherits the binding and the slow plan
+    // comes back.
+    let seeded: String = qid
+        .iter()
+        .map(|q| escape_sparql_string(q))
+        .map(|q| format!("wd:{q}"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    // A taxon here is a real constraint, so the occurrence block stops being optional.
+    //
+    // Leaving it optional with the taxon ancestry inside constrains nothing:
+    // `VALUES ?compound` at the top level is unconditional, and the OPTIONAL only
+    // decides which occurrences are *shown*. `--structure Q23118
+    // --structure-search exact --taxon Gentiana` then returned Q23118 with an
+    // empty taxon cell, and would have returned a compound reported only in some
+    // other taxon while still listing that other taxon. A taxon asked for and not
+    // applied is worse than a taxon not given, because the answer looks filtered.
+    //
+    // Optional stays right for the taxon-less case, hence branching on the taxon
+    // rather than removing the branch. Once a taxon is named the question is
+    // "reported *in* this taxon", and a compound with no such occurrence is not an
+    // answer -- it is nothing, and the empty result says so.
+    let occurrences = format!(
+        "?compound p:P703 ?statement_id .\
+              ?statement_id ps:P703 ?taxon ;\
+                            prov:wasDerivedFrom ?ref_node .\
+              ?ref_node pr:P248 ?ref_qid .\
+              ?taxon wdt:P225 ?taxon_name .{ancestry}"
+    );
+    if has_taxon {
+        (
+            format!(
+                "VALUES ?compound {{ {seeded} }}
+          {chemical} \
+          ?compound p:P703 ?statement_id .\
+          ?statement_id ps:P703 ?taxon ;\
+                        prov:wasDerivedFrom ?ref_node .\
+          ?ref_node pr:P248 ?ref_qid .\
+          ?taxon wdt:P225 ?taxon_name .{ancestry}"
+            ),
+            REFERENCE_METADATA,
+        )
+    } else {
+        (
+            format!(
+                "VALUES ?compound {{ {seeded} }}
+          {chemical} \
+          OPTIONAL {{
+            {{ SELECT * WHERE {{
+              VALUES ?compound {{ {seeded} }}
+              {occurrences}
+              {REFERENCE_METADATA}
+            }} }}
+          }}"
+            ),
+            "",
+        )
+    }
+}
+
 /// The nomenclatural closure of a taxon, as a property path over the
 /// properties of the enabled relationships in [`lotus_model::taxon_nomenclature`].
 ///
-/// Read in **both** directions and closed transitively with `*`.
+/// Read in **both** directions and unioned with the seed itself in
+/// [`taxon_ancestry_pattern_with_roots`].
 ///
 /// The bidirectional read is load-bearing: a curator enters whichever end they are looking
 /// at, and both are in active use -- `Rosmarinus officinalis` carries `P12764` toward
 /// `Salvia rosmarinus`, while `Salvia rosmarinus` carries `P694` back. A one-directional
 /// read finds the newer name from the older one and not the reverse, in all four relations.
 ///
-/// The `*` is bounded by the graph's shape: these properties connect a taxon to the *other
-/// names of that same taxon*, so the closure is a handful of items, measured at 1 to 2 hops
-/// on every taxon tested. Deliberately **not** the `P171*` closure -- a name-to-name
-/// crossing is a rename, a parent link is descent into a different organism.
+/// Evaluated as a 1-hop `UNION` from the constant `wd:Q…` rather than a Kleene `*` path,
+/// because `QLever` evaluates `VALUES ?seed { wd:Q… } ?seed (path)* ?root` by scanning every
+/// triple of all eight predicates across the graph (~4.0s) before filtering to the seed,
+/// whereas `{ VALUES ?root { wd:Q… } } UNION { wd:Q… (path) ?root . }` pushes `wd:Q…` into
+/// all sixteen index lookups (~150 ms).
 ///
 /// # Why a separate subquery and not one big path
 ///
-/// Interleaving as `?t (wdt:P171*|SYN*) wd:Q` costs time twice over:
+/// Interleaving as `?taxon (wdt:P171*|SYN*) wd:Q` costs time twice over:
 ///
 /// 1. The endpoint evaluates a path from its endpoints, so `(P171*|SYN*)` anchored at `wd:Q`
 ///    walks the whole `P171` tree *and* re-walks the nomenclatural closure at every node it
@@ -673,7 +735,7 @@ fn nomenclature_path(nomenclature: Nomenclature) -> Option<String> {
     for (property, _) in nomenclature.properties() {
         alternatives.push(format!("^{property}"));
     }
-    Some(format!("({})*", alternatives.join("|")))
+    Some(format!("({})", alternatives.join("|")))
 }
 
 /// The taxon filter for the innermost subquery: a descendant of any taxon in the
@@ -704,7 +766,7 @@ fn taxon_ancestry_pattern_with_roots(
 ) -> String {
     let escaped = escape_sparql_string(qid);
     let Some(path) = nomenclature_path(nomenclature) else {
-        return format!("?t (wdt:P171*) wd:{escaped} .");
+        return format!("?taxon (wdt:P171*) wd:{escaped} .");
     };
 
     // Resolved, and resolved to something.
@@ -714,10 +776,10 @@ fn taxon_ancestry_pattern_with_roots(
             .map(|root| format!("wd:{}", escape_sparql_string(root)))
             .collect::<Vec<_>>()
             .join(" ");
-        return format!("VALUES ?root {{ {values} }}\n          ?t (wdt:P171*) ?root .");
+        return format!("VALUES ?root {{ {values} }}\n          ?taxon (wdt:P171*) ?root .");
     }
     format!(
-        "{{\n            SELECT DISTINCT ?root\n            WHERE {{\n              VALUES ?seed {{ wd:{escaped} }}\n              ?seed {path} ?root .\n            }}\n          }}\n          ?t (wdt:P171*) ?root ."
+        "{{\n            SELECT DISTINCT ?root\n            WHERE {{\n              {{ VALUES ?root {{ wd:{escaped} }} }}\n              UNION\n              {{ wd:{escaped} {path} ?root . }}\n            }}\n          }}\n          ?taxon (wdt:P171*) ?root ."
     )
 }
 
@@ -1069,7 +1131,7 @@ pub fn structure_search_query_with(
         // fingerprint, which is a similarity search at a cutoff of 1.
         SmilesSearchType::Exact => format!(
             "SERVICE idsm:wikidata {{
-    ?c sachem:similarCompoundSearch [
+    ?compound sachem:similarCompoundSearch [
       sachem:query {literal};
       sachem:cutoff \"1\"^^xsd:double
     ].
@@ -1077,7 +1139,7 @@ pub fn structure_search_query_with(
         ),
         SmilesSearchType::Substructure if is_multiline => format!(
             "SERVICE idsm:wikidata {{
-    [ sachem:compound ?c; sachem:score ?_sachem_score ]
+    [ sachem:compound ?compound; sachem:score ?_sachem_score ]
       sachem:scoredSubstructureSearch [
         sachem:query {literal};
         sachem:searchMode sachem:substructureSearch;
@@ -1094,7 +1156,7 @@ pub fn structure_search_query_with(
         ),
         SmilesSearchType::Similarity => format!(
             "SERVICE idsm:wikidata {{
-    ?c sachem:similarCompoundSearch [
+    ?compound sachem:similarCompoundSearch [
       sachem:query {literal};
       sachem:cutoff \"{threshold}\"^^xsd:double
     ].
@@ -1102,7 +1164,7 @@ pub fn structure_search_query_with(
         ),
         SmilesSearchType::Substructure => format!(
             "SERVICE idsm:wikidata {{
-    ?c sachem:substructureSearch [
+    ?compound sachem:substructureSearch [
       sachem:query {literal}
     ].
   }}"
@@ -1116,25 +1178,28 @@ pub fn structure_search_query_with(
     // Without one, the service joins the body directly and the occurrence
     // triple is `OPTIONAL`: a structure search is how a compound with no
     // occurrence data gets found in the first place, and requiring a taxon
-    // would hide exactly those.
+    // would hide exactly those. Repeating `{service}` inside the `OPTIONAL`
+    // filters the `P703` occurrence scan by the matched compounds before
+    // joining `prov:wasDerivedFrom` and `pr:P248` (~630 ms vs >18s on `c1ccccc1`).
     let body = taxon_qid.map_or_else(
         || {
             format!(
                 "
   {service}
 
-  ?c wdt:P235 ?compound_inchikey ;
-     wdt:P233 ?compound_smiles_conn .
+  ?compound wdt:P235 ?compound_inchikey ;
+            wdt:P233 ?compound_smiles_conn .
 
   OPTIONAL {{
-    ?c p:P703 ?statement .
-    ?statement ps:P703 ?t ;
-               prov:wasDerivedFrom ?ref .
-    ?ref pr:P248 ?r .
-    ?t wdt:P225 ?taxon_name .
-    {REFERENCE_METADATA}
+    ?compound p:P703 ?statement_id .
+    {service}
+    ?statement_id ps:P703 ?taxon ;
+                  prov:wasDerivedFrom ?ref_node .
+    ?ref_node pr:P248 ?ref_qid .
+    ?taxon wdt:P225 ?taxon_name .
   }}
 
+  {REFERENCE_METADATA}
   {COMPOUND_PROPERTIES}
 "
             )
@@ -1143,19 +1208,19 @@ pub fn structure_search_query_with(
             format!(
                 "
   {{
-    SELECT DISTINCT ?c
+    SELECT DISTINCT ?compound
     WHERE {{
       {service}
     }}
   }}
 
-  ?c wdt:P235 ?compound_inchikey ;
-     wdt:P233 ?compound_smiles_conn .
-  ?c p:P703 ?statement .
-  ?statement ps:P703 ?t ;
-             prov:wasDerivedFrom ?ref .
-  ?ref pr:P248 ?r .
-  ?t wdt:P225 ?taxon_name .
+  ?compound wdt:P235 ?compound_inchikey ;
+            wdt:P233 ?compound_smiles_conn .
+  ?compound p:P703 ?statement_id .
+  ?statement_id ps:P703 ?taxon ;
+                prov:wasDerivedFrom ?ref_node .
+  ?ref_node pr:P248 ?ref_qid .
+  ?taxon wdt:P225 ?taxon_name .
   {}
 
   {REFERENCE_METADATA}
@@ -1185,9 +1250,9 @@ WHERE {{
 /// ignore.
 ///
 /// The deletion is by literal text, correct only because nothing a filter needs lives inside
-/// the deleted blocks. [`with_filters`] binds what a filter needs outside them: `?c
-/// wdt:P2067 ?compound_mass .` for mass, `?r wdt:P577 ?ref_date .` for year, `?c wdt:P274
-/// ?compound_formula_raw .` for formula. A filter reading a variable bound only inside a
+/// the deleted blocks. [`with_filters`] binds what a filter needs outside them: `?compound
+/// wdt:P2067 ?compound_mass .` for mass, `?ref_qid wdt:P577 ?ref_year .` for year, `?compound
+/// wdt:P274 ?compound_formula .` for formula. A filter reading a variable bound only inside a
 /// deleted block survives as a `FILTER` over an unbound variable and counts nothing -- which
 /// is what the formula filter did until its binding was added, and every count on the page
 /// read zero for any search using one.
@@ -1201,16 +1266,16 @@ pub fn counts_query(base: &str) -> String {
         .replace(REFERENCE_METADATA, "")
         .replace(COMPOUND_PROPERTIES, "");
 
-    // The year filter constrains `?ref_date`, and the block stripped above is what binds
+    // The year filter constrains `?ref_year`, and the block stripped above is what binds
     // it. Left alone, the filter references an unbound variable, every solution is filtered
     // out, and every count reads zero -- silently, confidently wrong.
     //
     // Rebinding is not a workaround: the metadata OPTIONAL and this triple both supply
-    // `?ref_date` from `?r wdt:P577`, and the filter's own `BOUND()` drops dateless rows
+    // `?ref_year` from `?ref_qid wdt:P577`, and the filter's own `BOUND()` drops dateless rows
     // either way, so both queries count the same set.
-    let year_filtered = stripped.contains("?ref_date");
+    let year_filtered = stripped.contains("YEAR(?ref_year)");
     if year_filtered {
-        stripped.push_str("\n?r wdt:P577 ?ref_date .");
+        stripped.push_str("\n?ref_qid wdt:P577 ?ref_year .");
     }
 
     format!(
@@ -1278,40 +1343,40 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
             "FILTER(?compound_mass >= {:.6} && ?compound_mass <= {:.6})",
             criteria.mass_min, criteria.mass_max
         );
-        let _ = writeln!(required, "?c wdt:P2067 ?compound_mass .");
+        let _ = writeln!(required, "?compound wdt:P2067 ?compound_mass .");
     }
 
-    // The year filter constrains `?ref_date`, which the middle subquery already
+    // The year filter constrains `?ref_year`, which the middle subquery already
     // projects. So it needs no triple of its own and no join: just a FILTER on a
     // variable that is already in scope, guarded by BOUND.
     //
-    // The earlier form reached the date through a required `?r wdt:P577 ?_year_date` at the
-    // outermost level, wrong twice over. `?r` is bound by the occurrence block, optional in
-    // the taxon-free shapes, so a *required* triple on an unbound `?r` goes fresh and asks
+    // The earlier form reached the date through a required `?ref_qid wdt:P577 ?_year_date` at the
+    // outermost level, wrong twice over. `?ref_qid` is bound by the occurrence block, optional in
+    // the taxon-free shapes, so a *required* triple on an unbound `?ref_qid` goes fresh and asks
     // for every dated reference in Wikidata -- 30 s and zero rows, the timeout reading as
     // "nothing matched". And even with a sentinel in front, a narrower range returned
     // nothing while a wider one returned hundreds, which a correct engine cannot do for two
     // queries differing in one digit.
     //
     // BOUND matters as the sentinel did: with no reference the metadata OPTIONAL leaves
-    // `?ref_date` unbound, and `YEAR()` of an unbound value is an error that drops the row.
+    // `?ref_year` unbound, and `YEAR()` of an unbound value is an error that drops the row.
     // Returning nothing for a compound with no reference is the right answer; enumerating
     // Wikidata to find that out is not.
     if criteria.has_year_filter(year_max) {
         let _ = write!(
             filters,
-            "FILTER(BOUND(?ref_date) && YEAR(?ref_date) >= {} && YEAR(?ref_date) <= {})",
+            "FILTER(BOUND(?ref_year) && YEAR(?ref_year) >= {} && YEAR(?ref_year) <= {})",
             criteria.year_min, criteria.year_max
         );
     }
 
     // A reference constrains which *reported* compounds are wanted, so it binds
-    // `?r` rather than filtering a projected value -- the same shape the year
-    // filter above uses, and for the same reason: `?r` is the item the reference
+    // `?ref_qid` rather than filtering a projected value -- the same shape the year
+    // filter above uses, and for the same reason: `?ref_qid` is the item the reference
     // is.
     //
-    // It is a `VALUES` and not a `FILTER(?r = wd:Q…)` because that is the
-    // indexed form, and because an unbound `?r` -- a compound with no occurrence,
+    // It is a `VALUES` and not a `FILTER(?ref_qid = wd:Q…)` because that is the
+    // indexed form, and because an unbound `?ref_qid` -- a compound with no occurrence,
     // which a structure search exists to find -- simply fails to join rather than
     // comparing against an error.
     //
@@ -1334,13 +1399,13 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
     // is case-sensitive in SPARQL, so `wd:q23118` is a different item from
     // `wd:Q23118`, and every gate that admits a reference admits a lowercase one.
     if let Some(qid) = reference_qid(&criteria.reference) {
-        let _ = writeln!(required, "VALUES ?r {{ wd:{qid} }}");
+        let _ = writeln!(required, "VALUES ?ref_qid {{ wd:{qid} }}");
     }
 
     formula_filter(criteria, &mut required, &mut filters);
 
     // A filter that binds nothing of its own is legitimate: the year filter constrains
-    // `?ref_date`, already projected by the middle subquery, and adding a `?r wdt:P577
+    // `?ref_year`, already projected by the middle subquery, and adding a `?ref_qid wdt:P577
     // ?_year_date` triple to satisfy the old rule made the query join against a variable that
     // goes fresh when the occurrence block matched nothing. The invariant is therefore not
     // "every filter binds" but "every filter names a variable the query already binds" --
@@ -1372,23 +1437,23 @@ fn formula_filter(criteria: &SearchCriteria, required: &mut String, out: &mut St
         return;
     }
 
-    // Without the BOUND guard, an unbound `?compound_formula_raw` makes every comparison
+    // Without the BOUND guard, an unbound `?compound_formula` makes every comparison
     // below evaluate against an error rather than a value.
     //
     // The variable names are part of the query text, and a query's bytes are what a cache
     // key and a shared link derive from, so they are not renamed for tidiness.
     //
-    // This triple is why the counts were wrong. `?compound_formula_raw` is bound by an
+    // This triple is why the counts were wrong. `?compound_formula` is bound by an
     // `OPTIONAL` inside `COMPOUND_PROPERTIES`, which `counts_query` deletes as expensive and
     // display-only -- but with a formula filter active it is neither. The counts query kept
-    // `FILTER(BOUND(?compound_formula_raw))` over a variable nothing bound, matched no rows,
+    // `FILTER(BOUND(?compound_formula))` over a variable nothing bound, matched no rows,
     // and every card on the page read zero for any search with a formula filter. Binding it
     // here, outside the deleted block and as the mass and year filters bind their own
     // variables, is what makes it survive.
-    let _ = writeln!(required, "?c wdt:P274 ?compound_formula_raw .");
+    let _ = writeln!(required, "?compound wdt:P274 ?compound_formula .");
 
-    let _ = writeln!(out, "FILTER(BOUND(?compound_formula_raw))");
-    let _ = writeln!(out, "BIND(STR(?compound_formula_raw) AS ?_formula_raw)");
+    let _ = writeln!(out, "FILTER(BOUND(?compound_formula))");
+    let _ = writeln!(out, "BIND(STR(?compound_formula) AS ?_formula_raw)");
     let _ = writeln!(
         out,
         r#"BIND(REPLACE(?_formula_raw, " ", "") AS ?_formula_nospace)"#
@@ -1516,26 +1581,26 @@ pub fn construct_from_select(select: &str) -> String {
     format!(
         "{prefixes}
 CONSTRUCT {{
-  ?c wdt:P235 ?compound_inchikey .
-  ?c wdt:P233 ?compound_smiles_conn .
-  ?c wdt:P2017 ?compound_smiles_iso .
-  ?c wdt:P2067 ?compound_mass .
-  ?c wdt:P274 ?compound_formula .
-  ?c rdfs:label ?compoundLabel .
-  ?c p:P703 ?statement .
-  ?statement ps:P703 ?t ;
-             prov:wasDerivedFrom ?ref .
-  ?ref pr:P248 ?r .
-  ?t wdt:P225 ?taxon_name .
-  ?r wdt:P1476 ?ref_title .
-  ?r wdt:P356 ?ref_doi .
-  ?r wdt:P577 ?ref_date .
+  ?compound wdt:P235 ?compound_inchikey .
+  ?compound wdt:P233 ?compound_smiles_conn .
+  ?compound wdt:P2017 ?compound_smiles_iso .
+  ?compound wdt:P2067 ?compound_mass .
+  ?compound wdt:P274 ?compound_formula_norm .
+  ?compound rdfs:label ?compoundLabel .
+  ?compound p:P703 ?statement_id .
+  ?statement_id ps:P703 ?taxon ;
+                prov:wasDerivedFrom ?ref_node .
+  ?ref_node pr:P248 ?ref_qid .
+  ?taxon wdt:P225 ?taxon_name .
+  ?ref_qid wdt:P1476 ?ref_title .
+  ?ref_qid wdt:P356 ?ref_doi .
+  ?ref_qid wdt:P577 ?ref_year .
 }}
 {where_block}
-  BIND({} AS ?compound_formula)
+  BIND({} AS ?compound_formula_norm)
 }}
 ",
-        normalize_digits_expr("?compound_formula_raw")
+        normalize_digits_expr("?compound_formula")
     )
 }
 
@@ -1563,9 +1628,9 @@ pub enum FallbackService {
 pub fn wdqs_fallback(query: &str) -> (FallbackService, String) {
     const SCHOLARLY_REF: &str = "
   SERVICE <https://query-scholarly.wikidata.org/sparql> {
-    OPTIONAL { ?r wdt:P1476 ?ref_title. }
-    OPTIONAL { ?r wdt:P356 ?ref_doi. }
-    OPTIONAL { ?r wdt:P577 ?ref_date. }
+    OPTIONAL { ?ref_qid wdt:P1476 ?ref_title. }
+    OPTIONAL { ?ref_qid wdt:P356 ?ref_doi. }
+    OPTIONAL { ?ref_qid wdt:P577 ?ref_year. }
   }
 ";
 

@@ -85,7 +85,7 @@ fn explain_prints_a_query_and_asks_for_nothing() {
     let query = String::from_utf8(output.get_output().stdout.clone()).expect("UTF-8");
 
     assert!(query.starts_with("PREFIX"), "got: {query}");
-    assert!(query.contains("SELECT DISTINCT"));
+    assert!(query.contains("SELECT\n  ?compound\n"));
     // The occurrence statement is what makes a row: compound, found-in-taxon,
     // derived-from-reference.
     assert!(query.contains("p:P703"), "got: {query}");
@@ -123,12 +123,10 @@ fn explain_prints_the_query_for_the_taxon_it_was_given() {
     // compounds nobody has tied to an organism are reachable.
     let output = lotus().args(["search", "--explain"]).assert().success();
     let query = String::from_utf8(output.get_output().stdout.clone()).expect("UTF-8");
-    let p703 = query.find("?c p:P703").expect("P703 is bound");
-    let optional = query[..p703].rfind("OPTIONAL").is_some_and(|at| {
-        query[at + "OPTIONAL".len()..p703]
-            .chars()
-            .all(|c| c.is_whitespace() || c == '{')
-    });
+    let p703 = query.find("p:P703").expect("P703 is bound");
+    let optional = query[..p703]
+        .rfind("OPTIONAL")
+        .is_some_and(|at| !query[at..p703].contains('}'));
     assert!(
         optional,
         "an empty taxon box must reach the untaxonomised compounds:\n{query}"
@@ -140,12 +138,10 @@ fn explain_prints_the_query_for_the_taxon_it_was_given() {
         .assert()
         .success();
     let query = String::from_utf8(output.get_output().stdout.clone()).expect("UTF-8");
-    let p703 = query.find("?c p:P703").expect("P703 is bound");
-    let optional = query[..p703].rfind("OPTIONAL").is_some_and(|at| {
-        query[at + "OPTIONAL".len()..p703]
-            .chars()
-            .all(|c| c.is_whitespace() || c == '{')
-    });
+    let p703 = query.find("p:P703").expect("P703 is bound");
+    let optional = query[..p703]
+        .rfind("OPTIONAL")
+        .is_some_and(|at| !query[at..p703].contains('}'));
     assert!(
         !optional,
         "`*` is not an empty box; it requires P703:\n{query}"
@@ -177,7 +173,7 @@ fn every_filter_reaches_the_query() {
         ),
         (
             &["--year-min", "1990", "--year-max", "2010"],
-            &["YEAR(?ref_date) >= 1990"],
+            &["YEAR(?ref_year) >= 1990"],
         ),
         (
             &["--formula", "C17H12O7"],
