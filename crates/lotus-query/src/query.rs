@@ -292,12 +292,12 @@ const REFERENCE_METADATA: &str = "
 ";
 
 const COMPOUND_PROPERTIES: &str = r#"
-  OPTIONAL { ?compound wdt:P2017 ?compound_smiles_iso. }
-  OPTIONAL { ?compound wdt:P2067 ?compound_mass. }
-  OPTIONAL { ?compound wdt:P274 ?compound_formula. }
   OPTIONAL { ?compound rdfs:label ?compoundLabelMul. FILTER(LANG(?compoundLabelMul) = "mul") }
   OPTIONAL { ?compound rdfs:label ?compoundLabelEn. FILTER(LANG(?compoundLabelEn) = "en") }
   BIND(COALESCE(?compoundLabelMul, ?compoundLabelEn) AS ?compoundLabel)
+  OPTIONAL { ?compound wdt:P2017 ?compound_smiles_iso. }
+  OPTIONAL { ?compound wdt:P2067 ?compound_mass. }
+  OPTIONAL { ?compound wdt:P274 ?compound_formula. }
 "#;
 
 /// Subscript digits, so that `C₁₇H₁₂O₇` and `C17H12O7` compare equal.
@@ -482,35 +482,18 @@ fn compounds_query_with_closure(
     // wrong trade in the other direction.
     let chemical = "?compound wdt:P235 ?compound_inchikey .";
 
-    if compound_seed.is_none() && occurrence == Occurrence::Required && taxon_qid.is_some() {
-        return taxon_compounds_query_body(&ancestry);
-    }
+    let Some(qid) = compound_seed else {
+        return match occurrence {
+            Occurrence::Required => taxon_qid
+                .map_or_else(all_required_compounds_query_body, |_| {
+                    taxon_compounds_query_body(&ancestry)
+                }),
+            Occurrence::Optional => optional_compounds_query_body(chemical, &ancestry),
+        };
+    };
 
-    if compound_seed.is_none() && occurrence == Occurrence::Optional {
-        return optional_compounds_query_body(chemical, &ancestry);
-    }
-
-    let (core, outer_ref_metadata) = compound_seed.map_or_else(
-        || {
-            // The `;` spelling is kept on the shared prefix: an existing contract test
-            // asserts this exact fragment, and changing it would be a rewrite rather
-            // than the addition this is.
-            let compound = "?compound wdt:P235 ?compound_inchikey ;\
-          wdt:P233 ?compound_smiles_conn .";
-            (
-                format!(
-                    "{compound}\
-          ?compound p:P703 ?statement_id .\
-          ?statement_id ps:P703 ?taxon ;\
-                        prov:wasDerivedFrom ?ref_node .\
-          ?ref_node pr:P248 ?ref_qid .\
-          ?taxon wdt:P225 ?taxon_name .{ancestry}"
-                ),
-                REFERENCE_METADATA,
-            )
-        },
-        |qid| seeded_compounds_core(qid, taxon_qid.is_some(), chemical, &ancestry),
-    );
+    let (core, outer_ref_metadata) =
+        seeded_compounds_core(qid, taxon_qid.is_some(), chemical, &ancestry);
 
     format!(
         "{PREFIXES}
@@ -534,6 +517,40 @@ WHERE {{
     )
 }
 
+fn all_required_compounds_query_body() -> String {
+    format!(
+        "{PREFIXES}
+{}
+WHERE {{
+  {{
+    SELECT *
+    WHERE {{
+      {{
+        SELECT *
+        WHERE {{
+          {{
+            SELECT *
+            WHERE {{
+              ?compound wdt:P235 ?compound_inchikey ;
+                        wdt:P233 ?compound_smiles_conn .
+              ?compound p:P703 ?statement_id .
+              ?statement_id ps:P703 ?taxon .
+              ?taxon wdt:P225 ?taxon_name .
+            }}
+          }}
+          ?statement_id prov:wasDerivedFrom ?ref_node .
+          ?ref_node pr:P248 ?ref_qid .
+        }}
+      }}
+      {COMPOUND_PROPERTIES}
+    }}
+  }}
+  {REFERENCE_METADATA}
+}}",
+        select_clause(),
+    )
+}
+
 fn taxon_compounds_query_body(ancestry: &str) -> String {
     format!(
         "{PREFIXES}
@@ -546,11 +563,11 @@ WHERE {{
         SELECT *
         WHERE {{
           {{
-            SELECT DISTINCT ?taxon ?taxon_name
+            SELECT DISTINCT ?taxon
             WHERE {{{ancestry}
-              ?taxon wdt:P225 ?taxon_name .
             }}
           }}
+          ?taxon wdt:P225 ?taxon_name .
           ?compound wdt:P235 ?compound_inchikey ;
                     wdt:P233 ?compound_smiles_conn ;
                     p:P703 ?statement_id .
@@ -558,11 +575,11 @@ WHERE {{
         }}
       }}
       ?statement_id prov:wasDerivedFrom ?ref_node .
+      ?ref_node pr:P248 ?ref_qid .
+      {COMPOUND_PROPERTIES}
     }}
   }}
-  ?ref_node pr:P248 ?ref_qid .
   {REFERENCE_METADATA}
-  {COMPOUND_PROPERTIES}
 }}",
         select_clause(),
     )
@@ -576,11 +593,11 @@ WHERE {{
   {{
     SELECT *
     WHERE {{
-      {{
-        SELECT *
-        WHERE {{
-          {chemical}
-          OPTIONAL {{
+      {chemical}
+      OPTIONAL {{
+        {{
+          SELECT *
+          WHERE {{
             {{
               SELECT *
               WHERE {{
@@ -590,21 +607,21 @@ WHERE {{
                     ?compound wdt:P235 ?_ik ;
                               wdt:P233 ?compound_smiles_conn ;
                               p:P703 ?statement_id .
-                    ?statement_id ps:P703 ?taxon ;
-                                  prov:wasDerivedFrom ?ref_node .
-                    ?ref_node pr:P248 ?ref_qid .
+                    ?statement_id ps:P703 ?taxon .
                     ?taxon wdt:P225 ?taxon_name .{ancestry}
                   }}
                 }}
-                {REFERENCE_METADATA}
+                ?statement_id prov:wasDerivedFrom ?ref_node .
+                ?ref_node pr:P248 ?ref_qid .
               }}
             }}
+            {REFERENCE_METADATA}
           }}
         }}
       }}
-      {COMPOUND_PROPERTIES}
     }}
   }}
+  {COMPOUND_PROPERTIES}
 }}",
         select_clause(),
     )

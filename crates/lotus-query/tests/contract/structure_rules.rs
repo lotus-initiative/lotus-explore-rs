@@ -24,6 +24,7 @@
 //! None of that is visible in a row count, so it is checked here instead: lexical properties
 //! of the query text, the only place the rule is observable without an endpoint.
 
+use super::common::group_at;
 use lotus_model::SmilesSearchType;
 use lotus_query::{
     Nomenclature, all_compounds_including_untaxonomised_query, all_compounds_query,
@@ -60,25 +61,6 @@ fn every_shape() -> Vec<(String, String)> {
         ),
         ("exact compound".into(), exact_compound_query("Q153", None)),
     ]
-}
-
-/// Lexically-balanced `{...}` group starting at the `{` at or after `at`.
-fn group_at(query: &str, at: usize) -> Option<&str> {
-    let bytes = query.as_bytes();
-    let mut depth = 0usize;
-    for (i, b) in bytes.iter().enumerate().skip(at) {
-        match b {
-            b'{' => depth += 1,
-            b'}' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(&query[at..=i]);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
 }
 
 /// Every `OPTIONAL { ... }` group in the query.

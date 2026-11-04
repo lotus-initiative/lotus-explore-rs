@@ -33,6 +33,26 @@ pub fn subquery_depth(query: &str) -> usize {
     query.matches("SELECT").count()
 }
 
+/// Lexically-balanced `{...}` group starting at the `{` at or after `at`.
+#[must_use]
+pub fn group_at(query: &str, at: usize) -> Option<&str> {
+    let bytes = query.as_bytes();
+    let mut depth = 0usize;
+    for (i, b) in bytes.iter().enumerate().skip(at) {
+        match b {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(&query[at..=i]);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 /// What the base query looks like with its own closing brace removed, which is
 /// what the filter fragments are spliced onto.
 ///

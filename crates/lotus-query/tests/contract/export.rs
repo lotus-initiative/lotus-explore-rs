@@ -24,7 +24,7 @@ use lotus_query::{
     with_filters,
 };
 
-use super::common::{NOW, carbon_ranged_filter, criteria, subquery_depth};
+use super::common::{NOW, carbon_ranged_filter, criteria, group_at, subquery_depth};
 
 #[test]
 fn the_compound_query_is_three_levels_deep() {
@@ -45,7 +45,7 @@ fn the_compound_query_is_three_levels_deep() {
 
 #[test]
 fn a_taxon_query_is_one_level_deeper_than_the_all_compounds_query() {
-    assert_eq!(subquery_depth(&all_compounds_query()), 3);
+    assert_eq!(subquery_depth(&all_compounds_query()), 4);
     assert_eq!(
         subquery_depth(&compounds_by_taxon_query("Q16521")),
         5,
@@ -612,7 +612,7 @@ fn occurrence_block(query: &str) -> &str {
     if open == 0 && !query[..occurrence].contains("OPTIONAL {") {
         return "";
     }
-    query[open..].split('}').next().unwrap_or("")
+    group_at(query, open + "OPTIONAL ".len()).unwrap_or("")
 }
 
 /// Whether the occurrence statement is inside an `OPTIONAL`.
