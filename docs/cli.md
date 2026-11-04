@@ -1,4 +1,4 @@
-# lotus --- the command line
+# lotus - the command line
 
 Search the LOTUS knowledge graph: chemical compounds, the organisms they occur
 in, and the references that report them. The data is the Wikidata projection of
