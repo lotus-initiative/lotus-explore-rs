@@ -522,20 +522,20 @@ where
     Fut: std::future::Future<Output = Result<crate::ChunkedBody, FetchError>>,
 {
     if reader.needs_enrichment() {
-        if reader.compound_count() > 0 {
+        let compound_qids: Vec<u32> = reader.compound_qids().collect();
+        if !compound_qids.is_empty() {
             reader
                 .next_enrichment_stream()
                 .map_err(|e| FetchError::Parse(e.to_string()))?;
-            let qids: Vec<u32> = reader.compound_qids().collect();
-            let mut body = open_stream(compound_dictionary_query(&qids)).await?;
+            let mut body = open_stream(compound_dictionary_query(&compound_qids)).await?;
             feed_chunks_reporting(reader, &mut body, on_progress).await?;
         }
-        if reader.reference_count() > 0 {
+        let reference_qids: Vec<u32> = reader.reference_qids().collect();
+        for chunk in reference_qids.chunks(lotus_query::DICTIONARY_VALUES_LIMIT) {
             reader
                 .next_enrichment_stream()
                 .map_err(|e| FetchError::Parse(e.to_string()))?;
-            let qids: Vec<u32> = reader.reference_qids().collect();
-            let mut body = open_stream(reference_dictionary_query(&qids)).await?;
+            let mut body = open_stream(reference_dictionary_query(chunk)).await?;
             feed_chunks_reporting(reader, &mut body, on_progress).await?;
         }
     }

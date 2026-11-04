@@ -33,6 +33,10 @@ impl SetCache {
         self.sets.get(key).map(Arc::clone)
     }
 
+    pub(crate) fn any(&self) -> Option<Arc<ColumnarResultSet>> {
+        self.sets.values().next().map(Arc::clone)
+    }
+
     pub(crate) fn insert(&mut self, key: String, set: Arc<ColumnarResultSet>) {
         if self.sets.len() >= MAX_CACHED_SETS {
             self.sets.clear();
@@ -53,6 +57,13 @@ thread_local! {
 #[cfg(target_arch = "wasm32")]
 pub fn take_cached_set(key: &str) -> Option<Arc<ColumnarResultSet>> {
     SETS.with(|c| c.borrow().get(key))
+}
+
+/// Any finished set in the cache, regardless of query key, for seeding entity
+/// dictionaries on a subsequent search.
+#[cfg(target_arch = "wasm32")]
+pub fn peek_any_cached_set() -> Option<Arc<ColumnarResultSet>> {
+    SETS.with(|c| c.borrow().any())
 }
 
 /// Keep the finished set for the next identical navigation.

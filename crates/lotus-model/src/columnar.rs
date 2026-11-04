@@ -1318,6 +1318,8 @@ fn slot_to_id(slot: usize) -> u32 {
 #[derive(Debug, Default)]
 pub struct ColumnarBuilder {
     set: ColumnarResultSet,
+    seeded_compounds: Bitmask,
+    seeded_references: Bitmask,
 }
 
 impl ColumnarBuilder {
@@ -1333,26 +1335,77 @@ impl ColumnarBuilder {
         self.set.compound_ids.len()
     }
 
-    /// How many distinct compounds have been interned so far.
-    #[must_use]
-    pub const fn compound_count(&self) -> usize {
-        self.set.compounds.len()
-    }
-
-    /// Every distinct compound QID interned so far, in first-seen order.
+    /// Every distinct compound QID interned so far that has not yet been
+    /// seeded from a previous set, in first-seen order.
     pub fn compound_qids(&self) -> impl Iterator<Item = u32> + '_ {
-        self.set.compounds.numeric_ids()
+        self.set
+            .compounds
+            .numeric_ids()
+            .enumerate()
+            .filter(|&(slot, _)| !self.seeded_compounds.contains(slot_to_id(slot)))
+            .map(|(_, qid)| qid)
     }
 
-    /// How many distinct references have been interned so far.
-    #[must_use]
-    pub const fn reference_count(&self) -> usize {
-        self.set.references.len()
-    }
-
-    /// Every distinct reference QID interned so far, in first-seen order.
+    /// Every distinct reference QID interned so far that has not yet been
+    /// seeded from a previous set, in first-seen order.
     pub fn reference_qids(&self) -> impl Iterator<Item = u32> + '_ {
-        self.set.references.numeric_ids()
+        self.set
+            .references
+            .numeric_ids()
+            .enumerate()
+            .filter(|&(slot, _)| !self.seeded_references.contains(slot_to_id(slot)))
+            .map(|(_, qid)| qid)
+    }
+
+    /// Pre-populate compound and reference metadata for any entity already
+    /// present in `previous`, so dictionary enrichment only queries the
+    /// endpoint for entities not yet seen.
+    pub fn seed_from(&mut self, previous: &ColumnarResultSet) {
+        self.seeded_compounds = Bitmask::with_len(self.set.compounds.len());
+        for (slot, numeric) in self.set.compounds.numeric_ids().enumerate() {
+            if let Some(prev_id) = previous.compounds.lookup(numeric) {
+                let prev_slot = prev_id as usize;
+                self.set
+                    .compound_names
+                    .set(slot, previous.compound_names.get(prev_slot));
+                self.set
+                    .compound_inchikeys
+                    .set(slot, previous.compound_inchikeys.get(prev_slot));
+                self.set
+                    .compound_smiles
+                    .set(slot, previous.compound_smiles.get(prev_slot));
+                self.set
+                    .compound_formulas
+                    .set(slot, previous.compound_formulas.get(prev_slot));
+                if let Some(mass) = previous.compound_mass(prev_id)
+                    && let Some(cell) = self.set.compound_masses.get_mut(slot)
+                    && cell.is_nan()
+                {
+                    *cell = mass;
+                }
+                self.seeded_compounds.insert(slot_to_id(slot));
+            }
+        }
+
+        self.seeded_references = Bitmask::with_len(self.set.references.len());
+        for (slot, numeric) in self.set.references.numeric_ids().enumerate() {
+            if let Some(prev_id) = previous.references.lookup(numeric) {
+                let prev_slot = prev_id as usize;
+                self.set
+                    .reference_titles
+                    .set(slot, previous.reference_titles.get(prev_slot));
+                self.set
+                    .reference_dois
+                    .set(slot, previous.reference_dois.get(prev_slot));
+                if let Some(year) = previous.reference_year(prev_id)
+                    && let Some(cell) = self.set.reference_years.get_mut(slot)
+                    && cell.is_none()
+                {
+                    *cell = Some(year);
+                }
+                self.seeded_references.insert(slot_to_id(slot));
+            }
+        }
     }
 
     /// Intern one row and record its ids.

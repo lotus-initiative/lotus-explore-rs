@@ -156,10 +156,14 @@ impl LotusRepository for HybridRepository {
         lotus_search::feed_chunks_reporting(&mut reader, &mut chunks, on_progress)
             .await
             .map_err(map_fetch_error)?;
+        #[cfg(target_arch = "wasm32")]
+        if let Some(previous) = crate::cache::peek_any_cached_set() {
+            reader.seed_from(&previous);
+        }
         lotus_search::enrich_columnar_reader(
             &mut reader,
             |dict_query| async move { sparql::execute_sparql_chunks(&dict_query).await },
-            on_progress,
+            &mut |_| {},
         )
         .await
         .map_err(map_fetch_error)?;

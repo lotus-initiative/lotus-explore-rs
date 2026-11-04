@@ -275,17 +275,65 @@ ref_qid,ref_title,ref_doi,ref_year
 
 #[test]
 fn large_dictionary_queries_switch_from_values_to_lotus_subquery() {
-    let qids: Vec<u32> = (1..=10_001).collect();
+    let qids: Vec<u32> = (1..=50_001).collect();
     let compounds = lotus_query::compound_dictionary_query(&qids);
     assert!(
         !compounds.contains("VALUES"),
-        "over 10,000 QIDs must use the parameter-free subquery to stay under HTTP body limits"
+        "over 50,000 QIDs must use the parameter-free subquery to stay under HTTP body limits"
     );
-    assert!(compounds.contains("SELECT DISTINCT ?c"));
+    assert!(
+        compounds.contains("SELECT DISTINCT ?c ?compound_inchikey ?compound_smiles_conn"),
+        "compound dictionary scan must use a single-pass distinct subquery: {compounds}"
+    );
 
     let references = lotus_query::reference_dictionary_query(&qids);
     assert!(!references.contains("VALUES"));
     assert!(references.contains("SELECT DISTINCT ?r"));
+    assert!(
+        references.contains("SELECT ?_s"),
+        "reference dictionary fallback must materialize LOTUS statements before joining prov:wasDerivedFrom: {references}"
+    );
+    assert!(
+        !references.contains("p:P703/prov:wasDerivedFrom/pr:P248"),
+        "unconstrained 3-hop sequence path over 1.33B prov:wasDerivedFrom triples must never be emitted: {references}"
+    );
+}
+
+#[test]
+fn seeded_reader_skips_already_populated_entities_during_enrichment() {
+    let previous = lotus_model::ColumnarResultSet::from_entries(&[lotus_model::CompoundEntry {
+        compound_qid: std::sync::Arc::from("Q1"),
+        name: std::sync::Arc::from("Seeded One"),
+        inchikey: Some(std::sync::Arc::from("SEED-KEY-1")),
+        smiles: Some(std::sync::Arc::from("C")),
+        mass: Some(16.04),
+        formula: Some(std::sync::Arc::from("CH4")),
+        taxon_qid: std::sync::Arc::from("Q10"),
+        taxon_name: std::sync::Arc::from("Homo"),
+        reference_qid: std::sync::Arc::from("Q100"),
+        reference_node: std::sync::Arc::from(""),
+        ref_title: Some(std::sync::Arc::from("Seeded Paper")),
+        ref_doi: Some(std::sync::Arc::from("10.1000/SEED")),
+        pub_year: Some(2021),
+        statement: None,
+    }]);
+
+    let mut reader = lotus_query::CsvColumnarReader::new();
+    reader
+        .feed(b"compound,taxon,taxon_name,ref_qid\n1,10,Homo,100\n2,11,Plant,200\n")
+        .expect("feed occurrences");
+    reader.seed_from(&previous);
+
+    assert_eq!(
+        reader.compound_qids().collect::<Vec<_>>(),
+        vec![2],
+        "Q1 was seeded from previous set, so only Q2 needs enrichment"
+    );
+    assert_eq!(
+        reader.reference_qids().collect::<Vec<_>>(),
+        vec![200],
+        "Q100 was seeded from previous set, so only Q200 needs enrichment"
+    );
 }
 
 #[test]

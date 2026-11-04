@@ -371,24 +371,21 @@ impl CsvColumnarReader {
             .is_some_and(|c| c.label.is_none() && c.ref_title.is_none())
     }
 
-    /// How many distinct compounds have been interned so far.
-    #[must_use]
-    pub const fn compound_count(&self) -> usize {
-        self.builder.compound_count()
+    /// Pre-populate compound and reference metadata for any entity already
+    /// present in `previous`, so dictionary enrichment only queries the
+    /// endpoint for entities not yet seen.
+    pub fn seed_from(&mut self, previous: &ColumnarResultSet) {
+        self.builder.seed_from(previous);
     }
 
-    /// Every distinct compound QID interned so far, in first-seen order.
+    /// Every distinct compound QID interned so far that still needs enrichment,
+    /// in first-seen order.
     pub fn compound_qids(&self) -> impl Iterator<Item = u32> + '_ {
         self.builder.compound_qids()
     }
 
-    /// How many distinct references have been interned so far.
-    #[must_use]
-    pub const fn reference_count(&self) -> usize {
-        self.builder.reference_count()
-    }
-
-    /// Every distinct reference QID interned so far, in first-seen order.
+    /// Every distinct reference QID interned so far that still needs enrichment,
+    /// in first-seen order.
     pub fn reference_qids(&self) -> impl Iterator<Item = u32> + '_ {
         self.builder.reference_qids()
     }

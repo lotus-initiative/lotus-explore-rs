@@ -38,9 +38,14 @@ fn a_stored_set_comes_back_unchanged() {
 #[test]
 fn a_different_query_is_a_miss() {
     let mut cache = SetCache::new();
-    cache.insert("one".to_owned(), set_of(&["Alpha"]));
+    let set = set_of(&["Alpha"]);
+    cache.insert("one".to_owned(), Arc::clone(&set));
 
     assert!(cache.get("two").is_none(), "keys are the whole query");
+    assert!(
+        cache.any().is_some_and(|cached| Arc::ptr_eq(&cached, &set)),
+        "any() still exposes the cached set to seed entity dictionaries across searches"
+    );
 }
 
 #[test]

@@ -1322,9 +1322,10 @@ WHERE {{
 /// The largest `VALUES` list sent in a single dictionary enrichment request.
 ///
 /// Public `QLever` deployments enforce a 1 MB `client_max_body_size` at the reverse
-/// proxy (`10,000` `wd:Q…` tokens is ~150 KB). Above this threshold, the
-/// parameter-free LOTUS entity scan is faster and has a constant-size request body.
-const DICTIONARY_VALUES_LIMIT: usize = 10_000;
+/// proxy (`50,000` `wd:Q…` tokens is ~750 KB URL-encoded). Above this threshold,
+/// compound enrichment switches to a single parameter-free LOTUS compound scan and
+/// reference enrichment chunks `VALUES ?r` slices of at most this size.
+pub const DICTIONARY_VALUES_LIMIT: usize = 50_000;
 
 const OCCURRENCES_SELECT: &str = r#"
 SELECT
@@ -1369,10 +1370,13 @@ fn format_values_clause(var: &str, qids: &[u32]) -> String {
 #[must_use]
 pub fn compound_dictionary_query(qids: &[u32]) -> String {
     let scope = if qids.is_empty() || qids.len() > DICTIONARY_VALUES_LIMIT {
-        "{\n    SELECT DISTINCT ?c\n    WHERE {\n      ?c p:P703 ?_s ;\n         wdt:P235 ?_ik .\n    }\n  }"
+        "{\n    SELECT DISTINCT ?c ?compound_inchikey ?compound_smiles_conn\n    WHERE {\n      ?c wdt:P235 ?compound_inchikey ;\n         wdt:P233 ?compound_smiles_conn ;\n         p:P703 ?_s .\n    }\n  }"
             .to_string()
     } else {
-        format_values_clause("?c", qids)
+        format!(
+            "{}\n  OPTIONAL {{ ?c wdt:P235 ?compound_inchikey . }}\n  OPTIONAL {{ ?c wdt:P233 ?compound_smiles_conn . }}",
+            format_values_clause("?c", qids)
+        )
     };
     format!(
         "{PREFIXES}\n\
@@ -1385,8 +1389,6 @@ SELECT
   ?compound_formula
 WHERE {{
   {scope}
-  ?c wdt:P235 ?compound_inchikey ;
-     wdt:P233 ?compound_smiles_conn .
   OPTIONAL {{ ?c wdt:P2017 ?_smiles_iso . }}
   OPTIONAL {{ ?c wdt:P2067 ?compound_mass . }}
   OPTIONAL {{ ?c wdt:P274 ?compound_formula . }}
@@ -1399,8 +1401,14 @@ WHERE {{
 /// Dictionary enrichment query for the distinct references in an occurrence set.
 #[must_use]
 pub fn reference_dictionary_query(qids: &[u32]) -> String {
+    // An unconstrained `?_c p:P703/prov:wasDerivedFrom/pr:P248 ?r` property path
+    // causes QLever to join all 1.33B `prov:wasDerivedFrom` triples in Wikidata
+    // before intersecting with `p:P703`, timing out on `Sort on ?_QLever_internal_variable_qp_1`.
+    // When `qids` is empty or exceeds the single-request `VALUES` limit, materializing
+    // the LOTUS `p:P703` statements in an inner `SELECT ?_s` subquery forces QLever
+    // to probe `prov:wasDerivedFrom` only for the ~2.99M LOTUS statement nodes.
     let scope = if qids.is_empty() || qids.len() > DICTIONARY_VALUES_LIMIT {
-        "{\n    SELECT DISTINCT ?r\n    WHERE {\n      ?_c p:P703/prov:wasDerivedFrom/pr:P248 ?r .\n    }\n  }"
+        "{\n    SELECT DISTINCT ?r\n    WHERE {\n      {\n        SELECT ?_s\n        WHERE {\n          ?_c wdt:P235 ?_ik ;\n              p:P703 ?_s .\n        }\n      }\n      ?_s prov:wasDerivedFrom ?_rn .\n      ?_rn pr:P248 ?r .\n    }\n  }"
             .to_string()
     } else {
         format_values_clause("?r", qids)
