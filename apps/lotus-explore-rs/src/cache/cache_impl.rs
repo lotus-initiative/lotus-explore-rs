@@ -10,6 +10,9 @@ use std::sync::Arc;
 /// How many finished result sets are kept.
 pub const MAX_CACHED_SETS: usize = 1;
 
+/// How many recent dictionary seed sets are retained across consecutive searches.
+const MAX_SEED_SETS: usize = 4;
+
 /// The finished sets, keyed by the query text that produced them.
 pub struct SetCache {
     sets: HashMap<String, Arc<ColumnarResultSet>>,
@@ -17,6 +20,13 @@ pub struct SetCache {
     /// retained even when a smaller search replaces the most-recent entry in `sets`
     /// so subsequent searches can still seed their dictionaries without re-querying.
     richest: Option<Arc<ColumnarResultSet>>,
+    /// Additional dictionary entities captured during an unconstrained global
+    /// dictionary stream (`>50,000` QIDs) that did not occur in that search's
+    /// own rows. Together with `richest`, this holds the complete LOTUS compound
+    /// and reference dictionary for the session.
+    extra_seed: Option<Arc<ColumnarResultSet>>,
+    /// Recent finished sets retained for seeding across distinct clades.
+    seed_sets: Vec<Arc<ColumnarResultSet>>,
 }
 
 impl SetCache {
@@ -24,6 +34,8 @@ impl SetCache {
         Self {
             sets: HashMap::new(),
             richest: None,
+            extra_seed: None,
+            seed_sets: Vec::new(),
         }
     }
 
@@ -38,11 +50,36 @@ impl SetCache {
         self.sets.get(key).map(Arc::clone)
     }
 
+    #[cfg(test)]
     pub(crate) fn any(&self) -> Option<Arc<ColumnarResultSet>> {
         self.richest
             .as_ref()
             .or_else(|| self.sets.values().next())
             .map(Arc::clone)
+    }
+
+    pub(crate) fn has_broad_seed(&self) -> bool {
+        self.extra_seed.is_some()
+            || self
+                .richest
+                .as_ref()
+                .is_some_and(|set| set.stats().n_compounds >= 50_000)
+    }
+
+    pub(crate) fn store_extra_seed(&mut self, set: Arc<ColumnarResultSet>) {
+        self.extra_seed = Some(set);
+    }
+
+    pub(crate) fn seed_reader(&self, reader: &mut lotus_query::CsvColumnarReader) {
+        if let Some(richest) = &self.richest {
+            reader.seed_from(richest);
+        }
+        if let Some(extra) = &self.extra_seed {
+            reader.seed_from(extra);
+        }
+        for set in &self.seed_sets {
+            reader.seed_from(set);
+        }
     }
 
     pub(crate) fn insert(&mut self, key: String, set: Arc<ColumnarResultSet>) {
@@ -54,6 +91,12 @@ impl SetCache {
         });
         if is_richer && weight > 0 {
             self.richest = Some(Arc::clone(&set));
+        }
+        if weight > 0 && !self.seed_sets.iter().any(|prev| Arc::ptr_eq(prev, &set)) {
+            if self.seed_sets.len() >= MAX_SEED_SETS {
+                self.seed_sets.remove(0);
+            }
+            self.seed_sets.push(Arc::clone(&set));
         }
         if self.sets.len() >= MAX_CACHED_SETS {
             self.sets.clear();
@@ -76,11 +119,23 @@ pub fn take_cached_set(key: &str) -> Option<Arc<ColumnarResultSet>> {
     SETS.with(|c| c.borrow().get(key))
 }
 
-/// Any finished set in the cache, regardless of query key, for seeding entity
-/// dictionaries on a subsequent search.
+/// True when the session cache already holds a global or broad dictionary
+/// (`>=50,000` compounds or an unconstrained dictionary overflow set).
 #[cfg(target_arch = "wasm32")]
-pub fn peek_any_cached_set() -> Option<Arc<ColumnarResultSet>> {
-    SETS.with(|c| c.borrow().any())
+pub fn has_broad_seed_set() -> bool {
+    SETS.with(|c| c.borrow().has_broad_seed())
+}
+
+/// Seed `reader` from all retained dictionaries in the session cache.
+#[cfg(target_arch = "wasm32")]
+pub fn seed_reader_from_cache(reader: &mut lotus_query::CsvColumnarReader) {
+    SETS.with(|c| c.borrow().seed_reader(reader));
+}
+
+/// Retain extra dictionary entities captured during an unconstrained dictionary stream.
+#[cfg(target_arch = "wasm32")]
+pub fn store_extra_seed_set(set: Arc<ColumnarResultSet>) {
+    SETS.with(|c| c.borrow_mut().store_extra_seed(set));
 }
 
 /// Keep the finished set for the next identical navigation.

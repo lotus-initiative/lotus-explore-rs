@@ -182,36 +182,26 @@ compound,taxon,taxon_name,ref_qid
 3,,,
 4,11,Plant,200
 ";
-    let compounds_csv = "\
-compound,compoundLabel,compound_inchikey,compound_smiles_iso,compound_mass,compound_formula
-1,first,KEY1-A-B,CCO,120.5,C2H6O
-2,\"second, compound\",KEY2-C-D,C(C)O,300,C6H12O6
-3,third,,,,
-4,fourth,,,50,
-999,unreferenced_compound,EXTRA-KEY,C,12,CH4
-";
-    let references_csv = "\
-ref_qid,ref_title,ref_doi,ref_year
-100,Paper One,10.1000/one,2020
-200,Paper Two,https://doi.org/10.1000/TWO,2022
-888,Unreferenced Paper,10.1000/ignored,1999
+    let entities_csv = "\
+compound,compoundLabel,compound_inchikey,compound_smiles_iso,compound_mass,compound_formula,ref_qid,ref_title,ref_doi,ref_year
+1,first,KEY1-A-B,CCO,120.5,C2H6O,,,,
+2,\"second, compound\",KEY2-C-D,C(C)O,300,C6H12O6,,,,
+3,third,,,,,,,,
+4,fourth,,,50,,,,,
+999,unreferenced_compound,EXTRA-KEY,C,12,CH4,,,,
+,,,,,,100,Paper One,10.1000/one,2020
+,,,,,,200,Paper Two,https://doi.org/10.1000/TWO,2022
+,,,,,,888,Unreferenced Paper,10.1000/ignored,1999
 ";
 
-    let http = Scripted::with_chunk_size(
-        vec![
-            (200, occurrences_csv),
-            (200, compounds_csv),
-            (200, references_csv),
-        ],
-        19,
-    );
+    let http = Scripted::with_chunk_size(vec![(200, occurrences_csv), (200, entities_csv)], 19);
     let result = block_on(search_columnar(
         &http,
         &SearchRequest::new(SearchCriteria::up_to_year(2025), 2025),
     ))
-    .expect("three-stream normalized pipeline succeeds");
+    .expect("two-stream normalized pipeline succeeds");
 
-    assert_eq!(http.call_count(), 3);
+    assert_eq!(http.call_count(), 2);
     let queries = http.queries();
     assert_eq!(
         queries.get(1).map(String::as_str),
@@ -219,23 +209,11 @@ ref_qid,ref_title,ref_doi,ref_year
             format!(
                 "{}|{}&timeout=30s",
                 lotus_search::QLEVER_WIKIDATA,
-                lotus_query::compound_dictionary_query(&[1, 2, 3, 4])
+                lotus_query::entity_dictionary_query(&[1, 2, 3, 4], &[100, 200])
             )
             .as_str()
         ),
-        "compound dictionary query requests the exact interned compound QIDs in first-seen order"
-    );
-    assert_eq!(
-        queries.get(2).map(String::as_str),
-        Some(
-            format!(
-                "{}|{}&timeout=30s",
-                lotus_search::QLEVER_WIKIDATA,
-                lotus_query::reference_dictionary_query(&[100, 200])
-            )
-            .as_str()
-        ),
-        "reference dictionary query requests the exact interned reference QIDs in first-seen order"
+        "combined dictionary query requests both compound and reference QIDs in one request"
     );
 
     let set = &result.set;
@@ -334,6 +312,44 @@ fn seeded_reader_skips_already_populated_entities_during_enrichment() {
         vec![200],
         "Q100 was seeded from previous set, so only Q200 needs enrichment"
     );
+}
+
+#[test]
+fn extra_entities_from_unconstrained_dictionary_stream_seed_next_search() {
+    let mut first = lotus_query::CsvColumnarReader::new();
+    first
+        .feed(b"compound,taxon,taxon_name,ref_qid\n1,10,Plantae,100\n")
+        .expect("feed first occurrences");
+    first.next_enrichment_stream().expect("switch to enrich");
+    first
+        .feed(
+            b"compound,compoundLabel,compound_inchikey,compound_smiles_iso,compound_mass,compound_formula,ref_qid,ref_title,ref_doi,ref_year\n\
+              1,Plant Compound,KEY-1,C,16,CH4,,,,\n\
+              2,Fungi Compound,KEY-2,CC,30,C2H6,,,,\n\
+              ,,,,,,100,Plant Paper,10.1000/p1,2020\n\
+              ,,,,,,200,Fungi Paper,10.1000/f1,2022\n",
+        )
+        .expect("feed global dictionary");
+    let extra = first
+        .take_extra_entities()
+        .expect("non-occurring Fungi entities captured in extra set");
+    let first_set = first.finish().expect("finish first set");
+    assert_eq!(first_set.stats().n_compounds, 1);
+
+    let mut second = lotus_query::CsvColumnarReader::new();
+    second
+        .feed(b"compound,taxon,taxon_name,ref_qid\n2,20,Fungi,200\n")
+        .expect("feed second occurrences");
+    second.seed_from(&first_set);
+    second.seed_from(&extra);
+
+    assert!(
+        second.compound_qids().next().is_none() && second.reference_qids().next().is_none(),
+        "extra entities captured during first unconstrained dictionary stream must seed 100% of second search"
+    );
+    let second_set = second.finish().expect("finish second set");
+    assert_eq!(second_set.compound_label(0), Some("Fungi Compound"));
+    assert_eq!(second_set.reference_title(0), Some("Fungi Paper"));
 }
 
 #[test]

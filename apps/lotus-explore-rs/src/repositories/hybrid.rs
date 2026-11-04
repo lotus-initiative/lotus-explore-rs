@@ -120,7 +120,7 @@ impl LotusRepository for HybridRepository {
         &self,
         query: &str,
     ) -> Result<lotus_search::ResponseBody, RepositoryError> {
-        match sparql::execute_sparql_body(query).await {
+        match with_rate_limit_backoff(|| sparql::execute_sparql_body(query)).await {
             Err(err) if is_qlever_unavailable(&err) => {
                 log::warn!("event=qlever_unavailable action=fallback_wdqs_scholarly");
                 let wdqs_query = prepare_wdqs_fallback_query(query);
@@ -140,7 +140,7 @@ impl LotusRepository for HybridRepository {
     where
         F: FnMut(lotus_search::StreamProgress) + ?Sized,
     {
-        if !needs_split_occurrences(query) {
+        if !should_use_split_occurrences(query) {
             match sparql_columnar_single(query, on_progress).await {
                 Ok(set) => return Ok(set),
                 Err(err) if is_timeout_or_truncation(&err) => {
@@ -157,7 +157,7 @@ impl LotusRepository for HybridRepository {
         &self,
         query: &str,
     ) -> Result<tempfile::NamedTempFile, RepositoryError> {
-        match sparql::execute_sparql_tempfile(query).await {
+        match with_rate_limit_backoff(|| sparql::execute_sparql_tempfile(query)).await {
             Err(err) if is_qlever_unavailable(&err) => {
                 log::warn!("event=qlever_unavailable action=fallback_wdqs_scholarly");
                 let wdqs_query = prepare_wdqs_fallback_query(query);
@@ -171,8 +171,9 @@ impl LotusRepository for HybridRepository {
 }
 
 /// High-level taxonomic clades whose unnarrowed subtrees in LOTUS are large
-/// enough (>50,000 occurrences) that streaming all 15 denormalized columns in
-/// a single response risks hitting `QLever`'s 30-second transfer ceiling.
+/// enough that streaming all 15 denormalized columns in a single response is
+/// orders of magnitude slower on `QLever` than normalized occurrence +
+/// dictionary streams.
 const BROAD_TAXON_QIDS: &[&str] = &[
     "Q2382443",  // Biota
     "Q19088",    // Eukaryota
@@ -197,11 +198,46 @@ const BROAD_TAXON_QIDS: &[&str] = &[
     "Q2697791",  // fabids
     "Q2697795",  // malvids
     "Q134267",   // Liliopsida / monocots
+    "Q25309",    // Magnoliids
+    "Q132089",   // Pinophyta / Acrogymnospermae
     "Q28499",    // Asterales
     "Q25400",    // Asteraceae
+    "Q21744",    // Gentianales
+    "Q155900",   // Apocynaceae
+    "Q156569",   // Rubiaceae
+    "Q21878",    // Fabales
+    "Q44448",    // Fabaceae
+    "Q21887",    // Lamiales
+    "Q53476",    // Lamiaceae
+    "Q26336",    // Sapindales
+    "Q146039",   // Rutaceae
+    "Q158438",   // Meliaceae
+    "Q27525",    // Malpighiales
+    "Q156584",   // Euphorbiaceae
+    "Q21111",    // Apiales
+    "Q145809",   // Apiaceae
+    "Q21809",    // Solanales
+    "Q134172",   // Solanaceae
+    "Q28505",    // Poales
+    "Q43238",    // Poaceae
+    "Q27207",    // Ranunculales
+    "Q21861",    // Myrtales
+    "Q21897",    // Ericales
+    "Q21856",    // Caryophyllales
+    "Q26229",    // Asparagales
+    "Q21882",    // Rosales
+    "Q27323",    // Brassicales
     "Q764",      // Fungi
+    "Q174645",   // Ascomycota
+    "Q174663",   // Basidiomycota
     "Q729",      // Animalia
+    "Q10915",    // Chordata
+    "Q1360",     // Arthropoda
+    "Q5184",     // Porifera
+    "Q25441",    // Cnidaria
     "Q10876",    // Bacteria
+    "Q131144",   // Actinomycetota
+    "Q93315",    // Cyanobacteria
 ];
 
 fn contains_taxon_qid(query: &str, qid: &str) -> bool {
@@ -214,17 +250,20 @@ fn contains_taxon_qid(query: &str, qid: &str) -> bool {
     })
 }
 
-/// True when `query` is an unconstrained whole-graph scan or an unnarrowed
-/// broad-clade query that should use normalized occurrence + dictionary streams
-/// rather than a single 15-column query.
-fn needs_split_occurrences(query: &str) -> bool {
-    if query.contains("SERVICE idsm:wikidata")
+fn is_unnarrowed_query(query: &str) -> bool {
+    !(query.contains("SERVICE idsm:wikidata")
         || query.contains("VALUES ?c {")
         || query.contains("VALUES ?r {")
         || query.contains("FILTER(BOUND(?compound_formula))")
         || query.contains("FILTER(?compound_mass")
-        || query.contains("FILTER(BOUND(?ref_date)")
-    {
+        || query.contains("FILTER(BOUND(?ref_date)"))
+}
+
+/// True when `query` is an unconstrained whole-graph scan or an unnarrowed
+/// broad-clade query that should use normalized occurrence + dictionary streams
+/// rather than a single 15-column query.
+fn needs_split_occurrences(query: &str) -> bool {
+    if !is_unnarrowed_query(query) {
         return false;
     }
     if !query.contains("wdt:P171*") {
@@ -233,6 +272,60 @@ fn needs_split_occurrences(query: &str) -> bool {
     BROAD_TAXON_QIDS
         .iter()
         .any(|qid| contains_taxon_qid(query, qid))
+}
+
+fn should_use_split_occurrences(query: &str) -> bool {
+    if needs_split_occurrences(query) {
+        return true;
+    }
+    #[cfg(target_arch = "wasm32")]
+    if is_unnarrowed_query(query) && crate::cache::has_broad_seed_set() {
+        return true;
+    }
+    false
+}
+
+/// Backoff delays (in milliseconds) for in-place retries when `qlever.dev`'s
+/// reverse proxy returns `429 Too Many Requests`.
+const RATE_LIMIT_BACKOFFS_MS: &[u32] = &[2_000, 4_000, 6_000];
+
+/// True when a `429` came from reverse-proxy request-rate throttling
+/// (`429 Too Many Requests`) rather than `QLever` cancelling a query that
+/// exceeded its 30s execution budget (`Operation timed out`).
+fn is_rate_limit_refusal(err: &FetchError) -> bool {
+    match err {
+        FetchError::TimedOut { message, .. }
+        | FetchError::Http {
+            status: 429,
+            message,
+        } => !message.contains("timed out"),
+        _ => false,
+    }
+}
+
+#[allow(clippy::unused_async)]
+async fn sleep_ms(ms: u32) {
+    #[cfg(target_arch = "wasm32")]
+    gloo_timers::future::TimeoutFuture::new(ms).await;
+    #[cfg(not(target_arch = "wasm32"))]
+    std::thread::sleep(std::time::Duration::from_millis(u64::from(ms)));
+}
+
+async fn with_rate_limit_backoff<T, F, Fut>(mut op: F) -> Result<T, FetchError>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<T, FetchError>>,
+{
+    for &delay_ms in RATE_LIMIT_BACKOFFS_MS {
+        match op().await {
+            Err(err) if is_rate_limit_refusal(&err) => {
+                log::warn!("event=qlever_rate_limited action=in_place_retry backoff_ms={delay_ms}");
+                sleep_ms(delay_ms).await;
+            }
+            result => return result,
+        }
+    }
+    op().await
 }
 
 fn is_timeout_or_truncation(err: &RepositoryError) -> bool {
@@ -247,7 +340,7 @@ async fn open_chunks_with_wdqs_fallback(
     qlever_query: &str,
     full_query: &str,
 ) -> Result<lotus_search::ChunkedBody, RepositoryError> {
-    match sparql::execute_sparql_chunks(qlever_query).await {
+    match with_rate_limit_backoff(|| sparql::execute_sparql_chunks(qlever_query)).await {
         Ok(chunks) => Ok(chunks),
         Err(err) if is_qlever_unavailable(&err) => {
             log::warn!("event=qlever_unavailable action=fallback_wdqs_scholarly");
@@ -296,19 +389,24 @@ where
     #[cfg(target_arch = "wasm32")]
     {
         gloo_timers::future::TimeoutFuture::new(0).await;
-        if let Some(previous) = crate::cache::peek_any_cached_set() {
-            reader.seed_from(&previous);
-        }
+        crate::cache::seed_reader_from_cache(&mut reader);
     }
     lotus_search::enrich_columnar_reader(
         &mut reader,
-        |dict_query| async move { sparql::execute_sparql_chunks(&dict_query).await },
+        |dict_query| async move {
+            with_rate_limit_backoff(|| sparql::execute_sparql_chunks(&dict_query)).await
+        },
         &mut |_| {},
     )
     .await
     .map_err(map_fetch_error)?;
     #[cfg(target_arch = "wasm32")]
-    gloo_timers::future::TimeoutFuture::new(0).await;
+    {
+        if let Some(extra) = reader.take_extra_entities() {
+            crate::cache::store_extra_seed_set(std::sync::Arc::new(extra));
+        }
+        gloo_timers::future::TimeoutFuture::new(0).await;
+    }
     reader
         .finish()
         .map_err(|e| RepositoryError::parse(e.to_string()))

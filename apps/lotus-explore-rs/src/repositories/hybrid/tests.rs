@@ -135,3 +135,28 @@ fn timeout_and_truncation_trigger_split_fallback_but_rate_limit_does_not() {
         "an nginx rate-limit refusal must not immediately fire 3 more requests via split fallback"
     );
 }
+
+#[test]
+fn rate_limit_refusal_distinguishes_proxy_429_from_query_timeout() {
+    assert!(
+        is_rate_limit_refusal(&FetchError::TimedOut {
+            budget: Some("30s".into()),
+            message: "429 Too Many Requests".into(),
+        }),
+        "nginx 429 Too Many Requests must be retried in-place with backoff"
+    );
+    assert!(
+        !is_rate_limit_refusal(&FetchError::TimedOut {
+            budget: Some("30s".into()),
+            message: "Operation timed out. Last operation: Sort on ?r".into(),
+        }),
+        "QLever 30s query timeout must never be retried as a rate limit"
+    );
+    assert!(
+        !is_rate_limit_refusal(&FetchError::Http {
+            status: 500,
+            message: "Internal Server Error".into(),
+        }),
+        "non-429 status is not a rate-limit refusal"
+    );
+}

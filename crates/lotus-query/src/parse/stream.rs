@@ -246,6 +246,7 @@ fn field_bytes(record: &[Vec<u8>], at: Option<usize>) -> &str {
 pub struct CsvColumnarReader {
     splitter: CsvSplitter,
     builder: ColumnarBuilder,
+    extra_entities: ColumnarBuilder,
     columns: Option<Columns>,
     header: Option<Vec<String>>,
     rows_read: usize,
@@ -282,9 +283,18 @@ impl CsvColumnarReader {
         let header = &mut self.header;
         let rows_read = &mut self.rows_read;
         let builder = &mut self.builder;
+        let extra_entities = &mut self.extra_entities;
         let enrich_only = self.enrich_only;
         self.splitter.feed_with(chunk, |record| {
-            Self::absorb_record(columns, header, rows_read, builder, enrich_only, record);
+            Self::absorb_record(
+                columns,
+                header,
+                rows_read,
+                builder,
+                extra_entities,
+                enrich_only,
+                record,
+            );
         });
         Ok(self.rows_read)
     }
@@ -308,21 +318,21 @@ impl CsvColumnarReader {
         header: &mut Option<Vec<String>>,
         rows_read: &mut usize,
         builder: &mut ColumnarBuilder,
+        extra_entities: &mut ColumnarBuilder,
         enrich_only: bool,
         record: &[Vec<u8>],
     ) {
         if let Some(cols) = columns.as_ref() {
+            let row = raw_row(record, cols);
             if enrich_only {
-                if builder.contains_entity(
-                    field_bytes(record, cols.compound),
-                    field_bytes(record, cols.taxon),
-                    field_bytes(record, cols.reference),
-                ) {
-                    builder.enrich(raw_row(record, cols));
+                if builder.contains_entity(row.compound_qid, row.taxon_qid, row.reference_qid) {
+                    builder.enrich(row);
+                } else {
+                    extra_entities.intern_dictionary_row(row);
                 }
             } else {
                 *rows_read += 1;
-                builder.push(raw_row(record, cols));
+                builder.push(row);
             }
         } else {
             let names: Vec<String> = record
@@ -396,6 +406,15 @@ impl CsvColumnarReader {
         self.builder.reference_qids()
     }
 
+    /// Any dictionary entities that arrived during an unconstrained enrichment
+    /// stream and did not belong to this result set's own occurrences, built
+    /// into a seed-only [`ColumnarResultSet`] for caching across searches.
+    #[must_use]
+    pub fn take_extra_entities(&mut self) -> Option<ColumnarResultSet> {
+        let extra = std::mem::take(&mut self.extra_entities);
+        (!extra.is_empty_dictionaries()).then(|| extra.build())
+    }
+
     /// Finish the current stream and reset the CSV state so the next stream
     /// enriches the dictionaries already interned in `builder`.
     ///
@@ -425,9 +444,18 @@ impl CsvColumnarReader {
         let header = &mut self.header;
         let rows_read = &mut self.rows_read;
         let builder = &mut self.builder;
+        let extra_entities = &mut self.extra_entities;
         let enrich_only = self.enrich_only;
         if self.splitter.end_of_input_with(|record| {
-            Self::absorb_record(columns, header, rows_read, builder, enrich_only, record);
+            Self::absorb_record(
+                columns,
+                header,
+                rows_read,
+                builder,
+                extra_entities,
+                enrich_only,
+                record,
+            );
         }) {
             return Err(ParseError::new(INCOMPLETE_BODY));
         }

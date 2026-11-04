@@ -37,9 +37,9 @@ pub use query::{
     compound_by_qid_query, compound_dictionary_query, compound_inchikey_query,
     compound_label_query, compounds_by_taxon_query, compounds_by_taxon_query_with,
     compounds_by_taxon_query_with_resolved_closure, construct_from_select, counts_query,
-    escape_sparql_string, escape_structure_literal, exact_compound_query, exact_compounds_query,
-    export_query, is_reference_lookup, limit_query, normalize_digits_expr, occurrences_query,
-    reference_by_doi_query, reference_by_qid_query, reference_dictionary_query,
+    entity_dictionary_query, escape_sparql_string, escape_structure_literal, exact_compound_query,
+    exact_compounds_query, export_query, is_reference_lookup, limit_query, normalize_digits_expr,
+    occurrences_query, reference_by_doi_query, reference_by_qid_query, reference_dictionary_query,
     structure_compound_lookup_query, structure_search_query, structure_search_query_with,
     taxon_common_name_lookup_query, taxon_lookup_query, wdqs_fallback, with_filters,
 };

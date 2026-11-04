@@ -13,4 +13,7 @@
 mod cache_impl;
 
 #[cfg(target_arch = "wasm32")]
-pub use cache_impl::{peek_any_cached_set, store_cached_set, take_cached_set};
+pub use cache_impl::{
+    has_broad_seed_set, seed_reader_from_cache, store_cached_set, store_extra_seed_set,
+    take_cached_set,
+};

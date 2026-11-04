@@ -1429,6 +1429,48 @@ WHERE {{
     )
 }
 
+/// Combined dictionary enrichment query fetching both compound and reference
+/// metadata in a single `UNION` request when their combined count fits within
+/// [`DICTIONARY_VALUES_LIMIT`].
+#[must_use]
+pub fn entity_dictionary_query(compound_qids: &[u32], reference_qids: &[u32]) -> String {
+    let compounds = format_values_clause("?c", compound_qids);
+    let references = format_values_clause("?r", reference_qids);
+    format!(
+        "{PREFIXES}\n\
+SELECT
+  (xsd:integer(STRAFTER(STR(?c), \"Q\")) AS ?compound)
+  (COALESCE(?compoundLabelMul, ?compoundLabelEn) AS ?compoundLabel)
+  ?compound_inchikey
+  (COALESCE(?_smiles_iso, ?compound_smiles_conn) AS ?compound_smiles_iso)
+  ?compound_mass
+  ?compound_formula
+  (xsd:integer(STRAFTER(STR(?r), \"Q\")) AS ?ref_qid)
+  ?ref_title
+  ?ref_doi
+  (YEAR(?ref_date) AS ?ref_year)
+WHERE {{
+  {{
+    {compounds}
+    OPTIONAL {{ ?c wdt:P235 ?compound_inchikey . }}
+    OPTIONAL {{ ?c wdt:P233 ?compound_smiles_conn . }}
+    OPTIONAL {{ ?c wdt:P2017 ?_smiles_iso . }}
+    OPTIONAL {{ ?c wdt:P2067 ?compound_mass . }}
+    OPTIONAL {{ ?c wdt:P274 ?compound_formula . }}
+    OPTIONAL {{ ?c rdfs:label ?compoundLabelEn . FILTER(LANG(?compoundLabelEn) = \"en\") }}
+    OPTIONAL {{ ?c rdfs:label ?compoundLabelMul . FILTER(LANG(?compoundLabelMul) = \"mul\") }}
+  }}
+  UNION
+  {{
+    {references}
+    OPTIONAL {{ ?r wdt:P1476 ?ref_title . }}
+    OPTIONAL {{ ?r wdt:P356 ?ref_doi . }}
+    OPTIONAL {{ ?r wdt:P577 ?ref_date . }}
+  }}
+}}"
+    )
+}
+
 /// Append a `LIMIT`.
 #[must_use]
 pub fn limit_query(base: &str, limit: usize) -> String {

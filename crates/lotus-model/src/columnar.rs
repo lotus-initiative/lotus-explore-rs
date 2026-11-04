@@ -1490,6 +1490,12 @@ impl ColumnarBuilder {
         self.set.compound_ids.len()
     }
 
+    /// Whether neither compound nor reference dictionaries hold any entries.
+    #[must_use]
+    pub const fn is_empty_dictionaries(&self) -> bool {
+        self.set.compounds.is_empty() && self.set.references.is_empty()
+    }
+
     /// Every distinct compound QID interned so far that has not yet been
     /// seeded from a previous set, in first-seen order.
     pub fn compound_qids(&self) -> impl Iterator<Item = u32> + '_ {
@@ -1667,6 +1673,24 @@ impl ColumnarBuilder {
         }
         let reference_id = lookup_qid(&self.set.references, row.reference_qid);
         if reference_id != NO_VALUE {
+            self.populate_reference(reference_id as usize, row);
+        }
+    }
+
+    /// Intern and populate compound or reference dictionary metadata without
+    /// appending an occurrence row, so extra entities arriving in an
+    /// unconstrained dictionary stream can be retained for seeding subsequent
+    /// searches.
+    pub fn intern_dictionary_row(&mut self, row: RawRow<'_>) {
+        let compound_id = intern_qid(&mut self.set.compounds, row.compound_qid);
+        if compound_id != NO_VALUE {
+            let compound_slot = compound_id as usize;
+            self.grow_compounds(compound_slot);
+            self.populate_compound(compound_slot, row);
+        }
+        let reference_id = intern_qid(&mut self.set.references, row.reference_qid);
+        if reference_id != NO_VALUE {
+            self.grow_references(reference_id);
             self.populate_reference(reference_id as usize, row);
         }
     }
