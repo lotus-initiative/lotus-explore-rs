@@ -38,9 +38,9 @@ pub use lotus_model::looks_like_inchikey;
 pub use search::{
     DEFAULT_ROW_LIMIT, ResolvedInputs, SearchError, StreamProgress, StructurePlan,
     StructureResolution, build_base_query, build_execution_query, build_execution_query_with,
-    columnar_from_chunks, columnar_from_chunks_reporting, counts, is_qid, normalize_structure,
-    resolve_inputs, resolve_reference, resolve_structure, resolve_taxon, search, search_columnar,
-    standardize_taxon_name,
+    columnar_from_chunks, columnar_from_chunks_reporting, counts, enrich_columnar_reader,
+    feed_chunks_reporting, is_qid, normalize_structure, resolve_inputs, resolve_reference,
+    resolve_structure, resolve_taxon, search, search_columnar, standardize_taxon_name,
 };
 
 #[cfg(feature = "reqwest")]

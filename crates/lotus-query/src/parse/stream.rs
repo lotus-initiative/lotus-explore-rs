@@ -250,6 +250,7 @@ pub struct CsvColumnarReader {
     header: Option<Vec<String>>,
     rows_read: usize,
     bytes_read: usize,
+    enrich_only: bool,
     /// The last [`TRUNCATION_NOTICE_WINDOW`] bytes of the body, for the notice.
     ///
     /// Kept rather than searched for as the stream arrives, because the notice is
@@ -281,8 +282,9 @@ impl CsvColumnarReader {
         let header = &mut self.header;
         let rows_read = &mut self.rows_read;
         let builder = &mut self.builder;
+        let enrich_only = self.enrich_only;
         self.splitter.feed_with(chunk, |record| {
-            Self::absorb_record(columns, header, rows_read, builder, record);
+            Self::absorb_record(columns, header, rows_read, builder, enrich_only, record);
         });
         Ok(self.rows_read)
     }
@@ -306,11 +308,16 @@ impl CsvColumnarReader {
         header: &mut Option<Vec<String>>,
         rows_read: &mut usize,
         builder: &mut ColumnarBuilder,
+        enrich_only: bool,
         record: &[Vec<u8>],
     ) {
         if let Some(cols) = columns.as_ref() {
-            *rows_read += 1;
-            builder.push(raw_row(record, cols));
+            if enrich_only {
+                builder.enrich(raw_row(record, cols));
+            } else {
+                *rows_read += 1;
+                builder.push(raw_row(record, cols));
+            }
         } else {
             let names: Vec<String> = record
                 .iter()
@@ -356,6 +363,74 @@ impl CsvColumnarReader {
         self.header.as_deref()
     }
 
+    /// Whether the occurrence stream omitted compound and reference metadata
+    /// columns, so dictionary enrichment streams are needed.
+    #[must_use]
+    pub fn needs_enrichment(&self) -> bool {
+        self.columns
+            .is_some_and(|c| c.label.is_none() && c.ref_title.is_none())
+    }
+
+    /// How many distinct compounds have been interned so far.
+    #[must_use]
+    pub const fn compound_count(&self) -> usize {
+        self.builder.compound_count()
+    }
+
+    /// Every distinct compound QID interned so far, in first-seen order.
+    pub fn compound_qids(&self) -> impl Iterator<Item = u32> + '_ {
+        self.builder.compound_qids()
+    }
+
+    /// How many distinct references have been interned so far.
+    #[must_use]
+    pub const fn reference_count(&self) -> usize {
+        self.builder.reference_count()
+    }
+
+    /// Every distinct reference QID interned so far, in first-seen order.
+    pub fn reference_qids(&self) -> impl Iterator<Item = u32> + '_ {
+        self.builder.reference_qids()
+    }
+
+    /// Finish the current stream and reset the CSV state so the next stream
+    /// enriches the dictionaries already interned in `builder`.
+    ///
+    /// # Errors
+    /// Returns [`ParseError`] if the current stream ended in a truncation notice,
+    /// an unclosed quote, or without a recognized header.
+    pub fn next_enrichment_stream(&mut self) -> Result<(), ParseError> {
+        self.validate_stream_end()?;
+        self.splitter = CsvSplitter::default();
+        self.columns = None;
+        self.header = None;
+        self.tail.clear();
+        self.enrich_only = true;
+        Ok(())
+    }
+
+    fn validate_stream_end(&mut self) -> Result<(), ParseError> {
+        // Check for the endpoint's inline truncation notice before reporting an
+        // open quoted field: when QLever times out mid-cell inside a quoted
+        // label or title, the unclosed `"` stays open through the appended
+        // `!!!!>># ... Operation timed out.` trailer, and `INCOMPLETE_BODY`
+        // would otherwise mask the endpoint's explicit timeout reason.
+        if let Some(reason) = truncation_notice(&self.tail) {
+            return Err(ParseError::new(truncated_by_endpoint(reason)));
+        }
+        let columns = &mut self.columns;
+        let header = &mut self.header;
+        let rows_read = &mut self.rows_read;
+        let builder = &mut self.builder;
+        let enrich_only = self.enrich_only;
+        if self.splitter.end_of_input_with(|record| {
+            Self::absorb_record(columns, header, rows_read, builder, enrich_only, record);
+        }) {
+            return Err(ParseError::new(INCOMPLETE_BODY));
+        }
+        self.check_header()
+    }
+
     /// Finish the set, computing its exact counts.
     ///
     /// # Errors
@@ -369,24 +444,7 @@ impl CsvColumnarReader {
     /// A truncated body is refused rather than parsed: the rows before the cut are
     /// valid, and returning them would present an incomplete answer as a complete one.
     pub fn finish(mut self) -> Result<ColumnarResultSet, ParseError> {
-        // Check for the endpoint's inline truncation notice before reporting an
-        // open quoted field: when QLever times out mid-cell inside a quoted
-        // label or title, the unclosed `"` stays open through the appended
-        // `!!!!>># ... Operation timed out.` trailer, and `INCOMPLETE_BODY`
-        // would otherwise mask the endpoint's explicit timeout reason.
-        if let Some(reason) = truncation_notice(&self.tail) {
-            return Err(ParseError::new(truncated_by_endpoint(reason)));
-        }
-        let columns = &mut self.columns;
-        let header = &mut self.header;
-        let rows_read = &mut self.rows_read;
-        let builder = &mut self.builder;
-        if self.splitter.end_of_input_with(|record| {
-            Self::absorb_record(columns, header, rows_read, builder, record);
-        }) {
-            return Err(ParseError::new(INCOMPLETE_BODY));
-        }
-        self.check_header()?;
+        self.validate_stream_end()?;
         Ok(self.builder.build())
     }
 }

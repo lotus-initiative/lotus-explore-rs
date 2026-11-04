@@ -172,6 +172,148 @@ fn a_row_with_no_taxon_does_not_count_as_a_taxon() {
     );
 }
 
+#[test]
+fn normalized_occurrence_stream_enriches_compound_and_reference_dictionaries() {
+    let occurrences_csv = "\
+compound,taxon,taxon_name,ref_qid
+1,10,Homo,100
+2,10,Homo,100
+1,10,Homo,100
+3,,,
+4,11,Plant,200
+";
+    let compounds_csv = "\
+compound,compoundLabel,compound_inchikey,compound_smiles_iso,compound_mass,compound_formula
+1,first,KEY1-A-B,CCO,120.5,C2H6O
+2,\"second, compound\",KEY2-C-D,C(C)O,300,C6H12O6
+3,third,,,,
+4,fourth,,,50,
+999,unreferenced_compound,EXTRA-KEY,C,12,CH4
+";
+    let references_csv = "\
+ref_qid,ref_title,ref_doi,ref_year
+100,Paper One,10.1000/one,2020
+200,Paper Two,https://doi.org/10.1000/TWO,2022
+888,Unreferenced Paper,10.1000/ignored,1999
+";
+
+    let http = Scripted::with_chunk_size(
+        vec![
+            (200, occurrences_csv),
+            (200, compounds_csv),
+            (200, references_csv),
+        ],
+        19,
+    );
+    let result = block_on(search_columnar(
+        &http,
+        &SearchRequest::new(SearchCriteria::up_to_year(2025), 2025),
+    ))
+    .expect("three-stream normalized pipeline succeeds");
+
+    assert_eq!(http.call_count(), 3);
+    let queries = http.queries();
+    assert_eq!(
+        queries.get(1).map(String::as_str),
+        Some(
+            format!(
+                "{}|{}&timeout=30s",
+                lotus_search::QLEVER_WIKIDATA,
+                lotus_query::compound_dictionary_query(&[1, 2, 3, 4])
+            )
+            .as_str()
+        ),
+        "compound dictionary query requests the exact interned compound QIDs in first-seen order"
+    );
+    assert_eq!(
+        queries.get(2).map(String::as_str),
+        Some(
+            format!(
+                "{}|{}&timeout=30s",
+                lotus_search::QLEVER_WIKIDATA,
+                lotus_query::reference_dictionary_query(&[100, 200])
+            )
+            .as_str()
+        ),
+        "reference dictionary query requests the exact interned reference QIDs in first-seen order"
+    );
+
+    let set = &result.set;
+    let stats = set.stats();
+    assert_eq!(stats.n_entries, 5);
+    assert_eq!(stats.n_entries_unique, 4);
+    assert_eq!(
+        stats.n_compounds, 4,
+        "extra dictionary rows not present in occurrences must not inflate n_compounds"
+    );
+    assert_eq!(stats.n_taxa, 2);
+    assert_eq!(
+        stats.n_references, 2,
+        "extra dictionary rows not present in occurrences must not inflate n_references"
+    );
+
+    assert_eq!(set.compound_label(0), Some("first"));
+    assert_eq!(set.inchikey(0), Some("KEY1-A-B"));
+    assert_eq!(set.smiles(0), Some("CCO"));
+    assert_eq!(set.mass(0), Some(120.5));
+    assert_eq!(set.formula(0), Some("C2H6O"));
+    assert_eq!(set.taxon_label(0), Some("Homo"));
+    assert_eq!(set.reference_title(0), Some("Paper One"));
+    assert_eq!(set.reference_doi(0), Some("10.1000/ONE"));
+    assert_eq!(set.pub_year(0), Some(2020));
+
+    assert_eq!(set.compound_label(1), Some("second, compound"));
+    assert_eq!(set.reference_doi(4), Some("10.1000/TWO"));
+    assert_eq!(set.pub_year(4), Some(2022));
+
+    let by_ref = set.plan_filter(&lotus_model::FilterSpec {
+        reference: "Paper Two".to_string(),
+        ..Default::default()
+    });
+    assert_eq!(by_ref.surviving_rows(set), vec![4]);
+}
+
+#[test]
+fn large_dictionary_queries_switch_from_values_to_lotus_subquery() {
+    let qids: Vec<u32> = (1..=10_001).collect();
+    let compounds = lotus_query::compound_dictionary_query(&qids);
+    assert!(
+        !compounds.contains("VALUES"),
+        "over 10,000 QIDs must use the parameter-free subquery to stay under HTTP body limits"
+    );
+    assert!(compounds.contains("SELECT DISTINCT ?c"));
+
+    let references = lotus_query::reference_dictionary_query(&qids);
+    assert!(!references.contains("VALUES"));
+    assert!(references.contains("SELECT DISTINCT ?r"));
+}
+
+#[test]
+fn occurrences_query_rebinds_ref_date_when_year_filter_is_active() {
+    let mut criteria = SearchCriteria::up_to_year(2025);
+    criteria.taxon = "Q756".to_string();
+    criteria.year_min = 2015;
+    criteria.year_max = 2020;
+    let full = lotus_query::with_filters(
+        &lotus_query::compounds_by_taxon_query("Q756"),
+        &criteria,
+        2025,
+    );
+    let occ = lotus_query::occurrences_query(&full);
+    assert!(
+        !occ.contains("?compoundLabel"),
+        "display compound properties must be stripped from the occurrence query"
+    );
+    assert!(
+        !occ.contains("?ref_title"),
+        "display reference metadata must be stripped from the occurrence query"
+    );
+    assert!(
+        occ.contains("?r wdt:P577 ?ref_date .\nFILTER(BOUND(?ref_date)"),
+        "stripped ?ref_date must be rebound before the year filter: {occ}"
+    );
+}
+
 /// Drive a future to completion on the current thread.
 ///
 /// The search is a single async fn with no reactor requirement beyond the

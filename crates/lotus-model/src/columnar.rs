@@ -166,6 +166,12 @@ impl QidDictionary {
         self.order.get(id as usize).copied()
     }
 
+    /// The id for `numeric`, if it is already interned.
+    #[must_use]
+    pub fn lookup(&self, numeric: u32) -> Option<u32> {
+        self.index.get(&numeric).copied()
+    }
+
     /// How many distinct QIDs are interned.
     #[must_use]
     pub const fn len(&self) -> usize {
@@ -1253,6 +1259,16 @@ impl ColumnarResultSet {
 /// blank node is distinct, so it would cost a slot per row for a value no column
 /// can display.
 fn intern_qid(dictionary: &mut QidDictionary, raw: &str) -> u32 {
+    parse_qid_number(raw).map_or(NO_VALUE, |n| dictionary.intern(n))
+}
+
+fn lookup_qid(dictionary: &QidDictionary, raw: &str) -> u32 {
+    parse_qid_number(raw)
+        .and_then(|n| dictionary.lookup(n))
+        .unwrap_or(NO_VALUE)
+}
+
+fn parse_qid_number(raw: &str) -> Option<u32> {
     let trimmed = raw.trim();
     // Both schemes, because Wikidata serves `http` and a mirror or a pasted
     // fixture can carry `https`, and dropping the second would turn a row that
@@ -1270,11 +1286,11 @@ fn intern_qid(dictionary: &mut QidDictionary, raw: &str) -> u32 {
         .trim_matches('"');
 
     if let Some(digits) = lexical.strip_prefix('Q') {
-        return parse_numeric_qid(digits).map_or(NO_VALUE, |n| dictionary.intern(n));
+        return parse_numeric_qid(digits);
     }
     // A bare integer is how `xsd:integer(STRAFTER(STR(?c), "Q"))` renders a QID,
     // and how a plain-number projection renders one.
-    parse_numeric_qid(lexical).map_or(NO_VALUE, |n| dictionary.intern(n))
+    parse_numeric_qid(lexical)
 }
 
 /// The number a run of ASCII digits names, or `None` if it is not one.
@@ -1317,6 +1333,28 @@ impl ColumnarBuilder {
         self.set.compound_ids.len()
     }
 
+    /// How many distinct compounds have been interned so far.
+    #[must_use]
+    pub const fn compound_count(&self) -> usize {
+        self.set.compounds.len()
+    }
+
+    /// Every distinct compound QID interned so far, in first-seen order.
+    pub fn compound_qids(&self) -> impl Iterator<Item = u32> + '_ {
+        self.set.compounds.numeric_ids()
+    }
+
+    /// How many distinct references have been interned so far.
+    #[must_use]
+    pub const fn reference_count(&self) -> usize {
+        self.set.references.len()
+    }
+
+    /// Every distinct reference QID interned so far, in first-seen order.
+    pub fn reference_qids(&self) -> impl Iterator<Item = u32> + '_ {
+        self.set.references.numeric_ids()
+    }
+
     /// Intern one row and record its ids.
     ///
     /// A row with no compound QID is dropped: there would be nothing to key it
@@ -1331,9 +1369,78 @@ impl ColumnarBuilder {
         let compound_slot = compound_id as usize;
         self.grow_compounds(compound_slot);
         let numeric = self.set.compounds.get(compound_id).unwrap_or_default();
-        self.set
-            .compound_names
-            .set(compound_slot, present(row.name));
+        self.populate_compound(compound_slot, row);
+
+        let taxon_id = intern_qid(&mut self.set.taxa, row.taxon_qid);
+        let reference_id = intern_qid(&mut self.set.references, row.reference_qid);
+        self.grow_references(reference_id);
+
+        if taxon_id != NO_VALUE {
+            self.set
+                .taxon_names
+                .set(taxon_id as usize, present(row.taxon_name));
+        }
+        if reference_id != NO_VALUE {
+            self.populate_reference(reference_id as usize, row);
+        }
+
+        let statement =
+            row.statement
+                .map(strip_statement_prefix)
+                .map_or(StatementId::Absent, |cell| {
+                    match StatementId::parse(cell, numeric) {
+                        ParsedStatement::Absent => StatementId::Absent,
+                        ParsedStatement::Uuid(bytes) => StatementId::Uuid(bytes),
+                        ParsedStatement::Other => {
+                            StatementId::Other(self.intern_statement_fallback(cell))
+                        }
+                    }
+                });
+
+        let row_index = self.set.compound_ids.len();
+        self.set.compound_ids.push(compound_id);
+        self.set.taxon_ids.push(taxon_id);
+        // The reference node is a `prov:wasDerivedFrom` URI, not a QID, so it
+        // cannot go in `references` -- that is a `QidDictionary` of u32s. A
+        // `SparseStrings` keyed by row keeps the 64-hex hash interned instead of
+        // copied per row, the same way `statement_fallbacks` does.
+        if let Some(node) = present(row.reference_node) {
+            self.set.reference_node_hashes.set(row_index, Some(node));
+        }
+        self.set.reference_ids.push(reference_id);
+        if statement != StatementId::Absent || !self.set.statements.is_empty() {
+            self.set.statements.resize(row_index, StatementId::Absent);
+            self.set.statements.push(statement);
+        }
+    }
+
+    /// Populate dictionary metadata for already-interned entities without
+    /// appending an occurrence row.
+    ///
+    /// Entities absent from the occurrence dictionaries are ignored so a broad
+    /// dictionary stream never inflates `compounds` or `references` with unused
+    /// slots.
+    pub fn enrich(&mut self, row: RawRow<'_>) {
+        let compound_id = lookup_qid(&self.set.compounds, row.compound_qid);
+        if compound_id != NO_VALUE {
+            self.populate_compound(compound_id as usize, row);
+        }
+        let taxon_id = lookup_qid(&self.set.taxa, row.taxon_qid);
+        if taxon_id != NO_VALUE {
+            self.set
+                .taxon_names
+                .set(taxon_id as usize, present(row.taxon_name));
+        }
+        let reference_id = lookup_qid(&self.set.references, row.reference_qid);
+        if reference_id != NO_VALUE {
+            self.populate_reference(reference_id as usize, row);
+        }
+    }
+
+    fn populate_compound(&mut self, compound_slot: usize, row: RawRow<'_>) {
+        if let Some(name) = present(row.name) {
+            self.set.compound_names.set(compound_slot, Some(name));
+        }
         if let Some(key) = non_empty(row.inchikey) {
             self.set.compound_inchikeys.set(compound_slot, Some(key));
         }
@@ -1360,61 +1467,26 @@ impl ColumnarBuilder {
                     .set(compound_slot, Some(&normalized));
             }
         }
+    }
 
-        let taxon_id = intern_qid(&mut self.set.taxa, row.taxon_qid);
-        let reference_id = intern_qid(&mut self.set.references, row.reference_qid);
-        self.grow_references(reference_id);
-
-        if taxon_id != NO_VALUE {
-            self.set
-                .taxon_names
-                .set(taxon_id as usize, present(row.taxon_name));
+    fn populate_reference(&mut self, slot: usize, row: RawRow<'_>) {
+        if let Some(title) = non_empty(row.ref_title) {
+            self.set.reference_titles.set(slot, Some(title));
         }
-        if reference_id != NO_VALUE {
-            let slot = reference_id as usize;
-            if let Some(title) = non_empty(row.ref_title) {
-                self.set.reference_titles.set(slot, Some(title));
-            }
-            // Normalised here rather than at parse time, so the `doi.org`
-            // prefix is stripped and the case fixed once per *reference* rather
-            // than once per row mentioning it.
-            if self.set.reference_dois.get(slot).is_none()
-                && let Some(doi) = non_empty(row.ref_doi).and_then(super::normalize_doi)
-            {
-                self.set.reference_dois.set(slot, Some(&doi));
-            }
-            if let Some(year) = row.pub_year
-                && let Some(cell) = self.set.reference_years.get_mut(slot)
-            {
-                *cell = Some(year);
-            }
+        // Normalised here rather than at parse time, so the `doi.org`
+        // prefix is stripped and the case fixed once per *reference* rather
+        // than once per row mentioning it.
+        if self.set.reference_dois.get(slot).is_none()
+            && let Some(doi) = non_empty(row.ref_doi).and_then(super::normalize_doi)
+        {
+            self.set.reference_dois.set(slot, Some(&doi));
         }
-
-        let statement =
-            row.statement
-                .map(strip_statement_prefix)
-                .map_or(StatementId::Absent, |cell| {
-                    match StatementId::parse(cell, numeric) {
-                        ParsedStatement::Absent => StatementId::Absent,
-                        ParsedStatement::Uuid(bytes) => StatementId::Uuid(bytes),
-                        ParsedStatement::Other => {
-                            StatementId::Other(self.intern_statement_fallback(cell))
-                        }
-                    }
-                });
-
-        self.set.compound_ids.push(compound_id);
-        self.set.taxon_ids.push(taxon_id);
-        // The reference node is a `prov:wasDerivedFrom` URI, not a QID, so it
-        // cannot go in `references` -- that is a `QidDictionary` of u32s. A
-        // `SparseStrings` keyed by row keeps the 64-hex hash interned instead of
-        // copied per row, the same way `statement_fallbacks` does.
-        self.set.reference_node_hashes.set(
-            self.set.reference_ids.len(),
-            Some(row.reference_node).filter(|v| !v.is_empty()),
-        );
-        self.set.reference_ids.push(reference_id);
-        self.set.statements.push(statement);
+        if let Some(year) = row.pub_year
+            && let Some(cell) = self.set.reference_years.get_mut(slot)
+            && cell.is_none()
+        {
+            *cell = Some(year);
+        }
     }
 
     /// Make sure the compound columns cover `slot`.

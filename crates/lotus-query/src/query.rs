@@ -1319,6 +1319,108 @@ WHERE {{
     )
 }
 
+/// The largest `VALUES` list sent in a single dictionary enrichment request.
+///
+/// Public `QLever` deployments enforce a 1 MB `client_max_body_size` at the reverse
+/// proxy (`10,000` `wd:Q…` tokens is ~150 KB). Above this threshold, the
+/// parameter-free LOTUS entity scan is faster and has a constant-size request body.
+const DICTIONARY_VALUES_LIMIT: usize = 10_000;
+
+const OCCURRENCES_SELECT: &str = r#"
+SELECT
+  (xsd:integer(STRAFTER(STR(?c), "Q")) AS ?compound)
+  (xsd:integer(STRAFTER(STR(?t), "Q")) AS ?taxon)
+  ?taxon_name
+  (xsd:integer(STRAFTER(STR(?r), "Q")) AS ?ref_qid)
+"#;
+
+/// Rewrite a full result `SELECT` into the normalized occurrence-edge query.
+///
+/// Strips `REFERENCE_METADATA` and `COMPOUND_PROPERTIES` (re-binding `?ref_date`
+/// when a year filter is active) and projects only the numeric entity QIDs plus
+/// `?taxon_name`. That avoids joining 9 `OPTIONAL` metadata properties across every
+/// occurrence edge and avoids projecting `VocabularyOnDisk` statement and
+/// reference-node URIs.
+#[must_use]
+pub fn occurrences_query(base: &str) -> String {
+    let full_select = select_clause();
+    if !base.contains(&full_select) {
+        return base.to_string();
+    }
+    base.replacen(&full_select, OCCURRENCES_SELECT, 1)
+        .replace(REFERENCE_METADATA, "")
+        .replace(COMPOUND_PROPERTIES, "")
+        .replace(
+            "FILTER(BOUND(?ref_date)",
+            "?r wdt:P577 ?ref_date .\nFILTER(BOUND(?ref_date)",
+        )
+}
+
+fn format_values_clause(var: &str, qids: &[u32]) -> String {
+    let mut out = format!("VALUES {var} {{");
+    for &qid in qids {
+        let _ = write!(out, " wd:Q{qid}");
+    }
+    out.push_str(" }");
+    out
+}
+
+/// Dictionary enrichment query for the distinct compounds in an occurrence set.
+#[must_use]
+pub fn compound_dictionary_query(qids: &[u32]) -> String {
+    let scope = if qids.is_empty() || qids.len() > DICTIONARY_VALUES_LIMIT {
+        "{\n    SELECT DISTINCT ?c\n    WHERE {\n      ?c p:P703 ?_s ;\n         wdt:P235 ?_ik .\n    }\n  }"
+            .to_string()
+    } else {
+        format_values_clause("?c", qids)
+    };
+    format!(
+        "{PREFIXES}\n\
+SELECT
+  (xsd:integer(STRAFTER(STR(?c), \"Q\")) AS ?compound)
+  (COALESCE(?compoundLabelMul, ?compoundLabelEn) AS ?compoundLabel)
+  ?compound_inchikey
+  (COALESCE(?_smiles_iso, ?compound_smiles_conn) AS ?compound_smiles_iso)
+  ?compound_mass
+  ?compound_formula
+WHERE {{
+  {scope}
+  ?c wdt:P235 ?compound_inchikey ;
+     wdt:P233 ?compound_smiles_conn .
+  OPTIONAL {{ ?c wdt:P2017 ?_smiles_iso . }}
+  OPTIONAL {{ ?c wdt:P2067 ?compound_mass . }}
+  OPTIONAL {{ ?c wdt:P274 ?compound_formula . }}
+  OPTIONAL {{ ?c rdfs:label ?compoundLabelEn . FILTER(LANG(?compoundLabelEn) = \"en\") }}
+  OPTIONAL {{ ?c rdfs:label ?compoundLabelMul . FILTER(LANG(?compoundLabelMul) = \"mul\") }}
+}}"
+    )
+}
+
+/// Dictionary enrichment query for the distinct references in an occurrence set.
+#[must_use]
+pub fn reference_dictionary_query(qids: &[u32]) -> String {
+    let scope = if qids.is_empty() || qids.len() > DICTIONARY_VALUES_LIMIT {
+        "{\n    SELECT DISTINCT ?r\n    WHERE {\n      ?_c p:P703/prov:wasDerivedFrom/pr:P248 ?r .\n    }\n  }"
+            .to_string()
+    } else {
+        format_values_clause("?r", qids)
+    };
+    format!(
+        "{PREFIXES}\n\
+SELECT
+  (xsd:integer(STRAFTER(STR(?r), \"Q\")) AS ?ref_qid)
+  ?ref_title
+  ?ref_doi
+  (YEAR(?ref_date) AS ?ref_year)
+WHERE {{
+  {scope}
+  OPTIONAL {{ ?r wdt:P1476 ?ref_title . }}
+  OPTIONAL {{ ?r wdt:P356 ?ref_doi . }}
+  OPTIONAL {{ ?r wdt:P577 ?ref_date . }}
+}}"
+    )
+}
+
 /// Append a `LIMIT`.
 #[must_use]
 pub fn limit_query(base: &str, limit: usize) -> String {

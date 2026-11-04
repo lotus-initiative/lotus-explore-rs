@@ -21,10 +21,10 @@ use lotus_query::{
 };
 use lotus_query::{
     Nomenclature, all_compounds_including_untaxonomised_query, all_compounds_query,
-    compound_alias_query, compound_inchikey_query, compound_label_query,
+    compound_alias_query, compound_dictionary_query, compound_inchikey_query, compound_label_query,
     compounds_by_taxon_query_with, counts_query, exact_compounds_query, limit_query,
-    reference_by_doi_query, structure_compound_lookup_query, structure_search_query_with,
-    taxon_lookup_query, with_filters,
+    occurrences_query, reference_by_doi_query, reference_dictionary_query,
+    structure_compound_lookup_query, structure_search_query_with, taxon_lookup_query, with_filters,
 };
 
 /// How a structure search should be run, once the structure is known.
@@ -397,7 +397,8 @@ pub async fn search_columnar<H: Http>(
             })?;
 
     let query = build_execution_query_with(request, taxon.qid.as_deref(), &resolved);
-    let mut body = crate::execute_streaming_with_fallback(http, &query, ResponseFormat::Csv)
+    let occ_query = occurrences_query(&query);
+    let mut body = crate::execute_streaming_with_fallback(http, &occ_query, ResponseFormat::Csv)
         .await
         .map_err(|e| SearchError::Transport {
             stage: "results",
@@ -406,20 +407,29 @@ pub async fn search_columnar<H: Http>(
         .chunks;
 
     let mut reader = CsvColumnarReader::new();
-    loop {
-        let chunk = body
-            .next_chunk()
-            .await
-            .map_err(|e| SearchError::Transport {
-                stage: "results",
-                source: e,
-            })?;
-        let Some(bytes) = chunk else { break };
-        reader.feed(&bytes).map_err(|e| SearchError::Transport {
+    let mut noop = |_| {};
+    feed_chunks_reporting(&mut reader, &mut body, &mut noop)
+        .await
+        .map_err(|e| SearchError::Transport {
             stage: "results",
-            source: e.into(),
+            source: e,
         })?;
-    }
+    enrich_columnar_reader(
+        &mut reader,
+        |dict_query| async move {
+            Ok(
+                crate::execute_streaming_with_fallback(http, &dict_query, ResponseFormat::Csv)
+                    .await?
+                    .chunks,
+            )
+        },
+        &mut noop,
+    )
+    .await
+    .map_err(|e| SearchError::Transport {
+        stage: "results",
+        source: e,
+    })?;
 
     let set = reader.finish().map_err(|e| SearchError::Transport {
         stage: "results",
@@ -463,6 +473,75 @@ pub struct StreamProgress {
     pub bytes: usize,
 }
 
+/// Feed a chunked response stream into an existing [`CsvColumnarReader`],
+/// reporting progress after each chunk.
+///
+/// # Errors
+/// Propagates any transport failure, and returns [`FetchError::Parse`] if a
+/// chunk cannot be decoded by the reader.
+pub async fn feed_chunks_reporting<F>(
+    reader: &mut CsvColumnarReader,
+    body: &mut crate::ChunkedBody,
+    on_progress: &mut F,
+) -> Result<(), FetchError>
+where
+    F: FnMut(StreamProgress) + ?Sized,
+{
+    loop {
+        let Some(chunk) = body.next_chunk().await? else {
+            break;
+        };
+        reader
+            .feed(&chunk)
+            .map_err(|e| FetchError::Parse(e.to_string()))?;
+        on_progress(StreamProgress {
+            rows: reader.row_count(),
+            bytes: reader.byte_count(),
+        });
+    }
+    Ok(())
+}
+
+/// Enrich an occurrence-only [`CsvColumnarReader`] with compound and reference
+/// dictionary streams when the initial stream omitted metadata columns.
+///
+/// When `reader.needs_enrichment()` is `false` (for example, when a single
+/// 15-column fixture or WDQS fallback stream already supplied metadata), this
+/// returns immediately without issuing additional requests.
+///
+/// # Errors
+/// Propagates any transport or parse error from the dictionary streams.
+pub async fn enrich_columnar_reader<F, S, Fut>(
+    reader: &mut CsvColumnarReader,
+    mut open_stream: S,
+    on_progress: &mut F,
+) -> Result<(), FetchError>
+where
+    F: FnMut(StreamProgress) + ?Sized,
+    S: FnMut(String) -> Fut,
+    Fut: std::future::Future<Output = Result<crate::ChunkedBody, FetchError>>,
+{
+    if reader.needs_enrichment() {
+        if reader.compound_count() > 0 {
+            reader
+                .next_enrichment_stream()
+                .map_err(|e| FetchError::Parse(e.to_string()))?;
+            let qids: Vec<u32> = reader.compound_qids().collect();
+            let mut body = open_stream(compound_dictionary_query(&qids)).await?;
+            feed_chunks_reporting(reader, &mut body, on_progress).await?;
+        }
+        if reader.reference_count() > 0 {
+            reader
+                .next_enrichment_stream()
+                .map_err(|e| FetchError::Parse(e.to_string()))?;
+            let qids: Vec<u32> = reader.reference_qids().collect();
+            let mut body = open_stream(reference_dictionary_query(&qids)).await?;
+            feed_chunks_reporting(reader, &mut body, on_progress).await?;
+        }
+    }
+    Ok(())
+}
+
 /// Fold a body into a columnar set, reporting progress after each chunk.
 ///
 /// The callback runs **once per chunk**, tens of thousands of times on a wide search, so a
@@ -485,18 +564,7 @@ where
     F: FnMut(StreamProgress) + ?Sized,
 {
     let mut reader = CsvColumnarReader::new();
-    loop {
-        let Some(chunk) = body.next_chunk().await? else {
-            break;
-        };
-        reader
-            .feed(&chunk)
-            .map_err(|e| FetchError::Parse(e.to_string()))?;
-        on_progress(StreamProgress {
-            rows: reader.row_count(),
-            bytes: reader.byte_count(),
-        });
-    }
+    feed_chunks_reporting(&mut reader, &mut body, on_progress).await?;
     reader
         .finish()
         .map_err(|e| FetchError::Parse(e.to_string()))

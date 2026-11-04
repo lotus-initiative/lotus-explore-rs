@@ -140,7 +140,8 @@ impl LotusRepository for HybridRepository {
     where
         F: FnMut(lotus_search::StreamProgress) + ?Sized,
     {
-        let chunks = match sparql::execute_sparql_chunks(query).await {
+        let occ_query = lotus_query::occurrences_query(query);
+        let mut chunks = match sparql::execute_sparql_chunks(&occ_query).await {
             Ok(chunks) => chunks,
             Err(err) if is_qlever_unavailable(&err) => {
                 log::warn!("event=qlever_unavailable action=fallback_wdqs_scholarly");
@@ -151,9 +152,20 @@ impl LotusRepository for HybridRepository {
             }
             Err(err) => return Err(map_fetch_error(err)),
         };
-        lotus_search::columnar_from_chunks_reporting(chunks, on_progress)
+        let mut reader = lotus_query::CsvColumnarReader::new();
+        lotus_search::feed_chunks_reporting(&mut reader, &mut chunks, on_progress)
             .await
-            .map_err(map_fetch_error)
+            .map_err(map_fetch_error)?;
+        lotus_search::enrich_columnar_reader(
+            &mut reader,
+            |dict_query| async move { sparql::execute_sparql_chunks(&dict_query).await },
+            on_progress,
+        )
+        .await
+        .map_err(map_fetch_error)?;
+        reader
+            .finish()
+            .map_err(|e| RepositoryError::parse(e.to_string()))
     }
 
     #[cfg(not(target_arch = "wasm32"))]
