@@ -216,9 +216,9 @@ fn rdf_export_url_uses_construct_query_with_normalized_formula_binding() {
         .expect("decode query")
         .into_owned();
 
-    assert!(decoded.contains("?c wdt:P274 ?compound_formula ."));
-    assert!(decoded.contains("AS ?compound_formula"));
-    assert!(decoded.contains("STR(?compound_formula_raw)"));
+    assert!(decoded.contains("?compound wdt:P274 ?compound_formula_norm ."));
+    assert!(decoded.contains("AS ?compound_formula_norm"));
+    assert!(decoded.contains("STR(?compound_formula)"));
 }
 
 #[test]
@@ -955,13 +955,10 @@ fn a_blank_taxon_box_does_not_require_an_occurrence() {
 
     // The occurrence sits inside one OPTIONAL block rather than being a plain
     // triple, which is what makes the untaxonomised compounds reachable.
-    let p703 = query.find("?c p:P703").expect("P703 is bound");
-    let head = &query[..p703];
-    let optional = head.rfind("OPTIONAL").is_some_and(|at| {
-        query[at + "OPTIONAL".len()..p703]
-            .chars()
-            .all(|c| c.is_whitespace() || c == '{')
-    });
+    let p703 = query.find("p:P703").expect("P703 is bound");
+    let optional = query[..p703]
+        .rfind("OPTIONAL")
+        .is_some_and(|at| !query[at..p703].contains('}'));
 
     assert!(
         optional,
@@ -981,13 +978,10 @@ fn a_wildcard_taxon_still_requires_an_occurrence() {
     };
 
     let query = build_execution_query(&criteria, Some("*"));
-    let p703 = query.find("?c p:P703").expect("P703 is bound");
-    let head = &query[..p703];
-    let optional = head.rfind("OPTIONAL").is_some_and(|at| {
-        query[at + "OPTIONAL".len()..p703]
-            .chars()
-            .all(|c| c.is_whitespace() || c == '{')
-    });
+    let p703 = query.find("p:P703").expect("P703 is bound");
+    let optional = query[..p703]
+        .rfind("OPTIONAL")
+        .is_some_and(|at| !query[at..p703].contains('}'));
 
     assert!(
         !optional,
