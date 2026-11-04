@@ -452,25 +452,25 @@ fn a_structure_search_without_a_named_taxon_keeps_the_occurrence_optional() {
     }
 }
 
-/// A reference binds `?ref_qid` as a `VALUES`, outside the optional block.
+/// A reference binds `?r` as a `VALUES`, outside the optional block.
 ///
-/// Two things follow, only the first obvious. A `FILTER(?ref_qid = wd:Q…)` is wrong for an
-/// unbound `?ref_qid` -- a compound with no occurrence, precisely what a structure search exists
+/// Two things follow, only the first obvious. A `FILTER(?r = wd:Q…)` is wrong for an
+/// unbound `?r` -- a compound with no occurrence, precisely what a structure search exists
 /// to find -- because comparing against an error drops it. And because the `VALUES` sits
 /// outside the block, a reference *with* no taxon returns only the compounds that reference
-/// reported, though the block is optional: an unbound `?ref_qid` cannot join.
+/// reported, though the block is optional: an unbound `?r` cannot join.
 #[test]
 fn a_reference_binds_the_reference_item_as_a_values() {
     for cell in MATRIX.iter().filter(|c| c.reference) {
         let query = query_for(cell);
         let label = label(cell);
         assert!(
-            query.contains(&format!("VALUES ?ref_qid {{ wd:{REFERENCE_QID} }}")),
+            query.contains(&format!("VALUES ?r {{ wd:{REFERENCE_QID} }}")),
             "{label}: the reference must be bound as a VALUES\n{query}"
         );
         assert!(
-            !query.contains(&format!("FILTER(?ref_qid = wd:{REFERENCE_QID}")),
-            "{label}: a FILTER on an unbound ?ref_qid drops occurrence-less compounds\n{query}"
+            !query.contains(&format!("FILTER(?r = wd:{REFERENCE_QID}")),
+            "{label}: a FILTER on an unbound ?r drops occurrence-less compounds\n{query}"
         );
         // No other reference constraint, and no title match: a title is prose.
         assert_eq!(
@@ -483,7 +483,7 @@ fn a_reference_binds_the_reference_item_as_a_values() {
     for cell in MATRIX.iter().filter(|c| !c.reference) {
         let query = query_for(cell);
         assert!(
-            !query.contains("VALUES ?ref_qid"),
+            !query.contains("VALUES ?r "),
             "{}: an absent reference must bind nothing\n{query}",
             label(cell)
         );

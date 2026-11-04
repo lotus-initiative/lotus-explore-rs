@@ -173,7 +173,7 @@ fn writing_then_checking_succeeds() {
 #[test]
 fn checking_after_a_file_changed_fails() {
     let root = temp_root("run-edited");
-    run(&options(false, &root));
+    assert_eq!(run(&options(false, &root)), ExitCode::SUCCESS);
     let generated = files();
     std::fs::write(root.join(generated[0].0), "edited").expect("write");
     assert_eq!(run(&options(true, &root)), ExitCode::FAILURE);

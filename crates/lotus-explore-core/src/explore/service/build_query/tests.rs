@@ -67,7 +67,7 @@ fn an_exact_search_of_a_resolved_compound_never_calls_the_service() {
         structure: "CC1=C2C(=CC=C1)C(=COC2=O)O".into(),
     };
     let q = build_sparql_query(&resolved, &crit, None);
-    assert!(q.contains("VALUES ?compound { wd:Q3613679 }"), "{q}");
+    assert!(q.contains("VALUES ?c { wd:Q3613679 }"), "{q}");
     assert!(!q.contains("SERVICE"), "exact must not call it: {q}");
 }
 
@@ -98,7 +98,7 @@ fn an_exact_search_asks_about_every_compound_the_structure_resolved_to() {
     }
     // One request, not one per candidate.
     assert_eq!(
-        q.matches("VALUES ?compound {").count(),
+        q.matches("VALUES ?c {").count(),
         2,
         "the seed list is emitted once per position in the query, not once \
          per compound"

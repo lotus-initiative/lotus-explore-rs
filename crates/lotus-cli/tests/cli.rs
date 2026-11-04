@@ -85,7 +85,7 @@ fn explain_prints_a_query_and_asks_for_nothing() {
     let query = String::from_utf8(output.get_output().stdout.clone()).expect("UTF-8");
 
     assert!(query.starts_with("PREFIX"), "got: {query}");
-    assert!(query.contains("SELECT\n  ?compound\n"));
+    assert!(query.contains("SELECT\n  (xsd:integer(STRAFTER(STR(?c), \"Q\")) AS ?compound)\n"));
     // The occurrence statement is what makes a row: compound, found-in-taxon,
     // derived-from-reference.
     assert!(query.contains("p:P703"), "got: {query}");
@@ -173,7 +173,7 @@ fn every_filter_reaches_the_query() {
         ),
         (
             &["--year-min", "1990", "--year-max", "2010"],
-            &["YEAR(?ref_year) >= 1990"],
+            &["YEAR(?ref_date) >= 1990"],
         ),
         (
             &["--formula", "C17H12O7"],

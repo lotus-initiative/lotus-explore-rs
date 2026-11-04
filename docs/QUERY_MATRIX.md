@@ -17,18 +17,18 @@ is dominated by the patterns it has to resolve, not by the text.
 
 | cell                                               | bytes | triples | occurrence |
 | -------------------------------------------------- | ----- | ------- | ---------- |
-| taxon=absent structure=absent reference=absent     | 2184  | 14      | optional   |
-| taxon=absent structure=absent reference=present    | 2214  | 14      | optional   |
-| taxon=absent structure=present reference=absent    | 2140  | 15      | optional   |
-| taxon=absent structure=present reference=present   | 2170  | 15      | optional   |
-| taxon=specific structure=absent reference=absent   | 2340  | 15      | required   |
-| taxon=specific structure=absent reference=present  | 2370  | 15      | required   |
-| taxon=specific structure=present reference=absent  | 2422  | 16      | required   |
-| taxon=specific structure=present reference=present | 2452  | 16      | required   |
-| taxon="*" structure=absent reference=absent        | 1950  | 14      | required   |
-| taxon="*" structure=absent reference=present       | 1980  | 14      | required   |
-| taxon="*" structure=present reference=absent       | 2140  | 15      | optional   |
-| taxon="*" structure=present reference=present      | 2170  | 15      | optional   |
+| taxon=absent structure=absent reference=absent | 2245 | 14 | optional |
+| taxon=absent structure=absent reference=present | 2269 | 14 | optional |
+| taxon=absent structure=present reference=absent | 2194 | 15 | optional |
+| taxon=absent structure=present reference=present | 2218 | 15 | optional |
+| taxon=specific structure=absent reference=absent | 2400 | 15 | required |
+| taxon=specific structure=absent reference=present | 2424 | 15 | required |
+| taxon=specific structure=present reference=absent | 2472 | 16 | required |
+| taxon=specific structure=present reference=present | 2496 | 16 | required |
+| taxon="*" structure=absent reference=absent | 2018 | 14 | required |
+| taxon="*" structure=absent reference=present | 2042 | 14 | required |
+| taxon="*" structure=present reference=absent | 2194 | 15 | optional |
+| taxon="*" structure=present reference=present | 2218 | 15 | optional |
 
 ## How to read it
 

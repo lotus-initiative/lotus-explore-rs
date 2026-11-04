@@ -71,8 +71,8 @@ fn the_count_query_drops_the_display_only_optionals() {
     for dropped in [
         "?compoundLabelMul",
         "FILTER(LANG(",
-        "OPTIONAL { ?ref_qid wdt:P1476",
-        "OPTIONAL { ?compound wdt:P2067",
+        "OPTIONAL { ?r wdt:P1476",
+        "OPTIONAL { ?c wdt:P2067",
     ] {
         assert!(
             !counts.contains(dropped),
@@ -110,15 +110,15 @@ fn the_filter_fragments_land_in_the_outermost_where_block() {
         .expect("the base query is a prefix of the filtered one");
 
     assert!(
-        injected.contains("?compound wdt:P2067 ?compound_mass ."),
+        injected.contains("?c wdt:P2067 ?compound_mass ."),
         "mass becomes required"
     );
-    // The filter constrains `?ref_year`, which the middle subquery already
+    // The filter constrains `?ref_date`, which the middle subquery already
     // projects, and adds **no** triple of its own.
     //
-    // It used to add a required `?ref_qid wdt:P577 ?_year_date` at the outermost level. `?ref_qid` is
+    // It used to add a required `?r wdt:P577 ?_year_date` at the outermost level. `?r` is
     // bound by the occurrence block, optional in the taxon-free shapes, so a required triple
-    // on an unbound `?ref_qid` goes fresh and asks for every dated reference in Wikidata: 30s and
+    // on an unbound `?r` goes fresh and asks for every dated reference in Wikidata: 30s and
     // zero rows, the timeout reading as "nothing matched". Even with a sentinel in front, a
     // narrower year range returned nothing while a wider one returned hundreds -- which a
     // correct engine cannot do for two queries differing in one digit.
@@ -134,7 +134,7 @@ fn the_filter_fragments_land_in_the_outermost_where_block() {
         injected.contains("FILTER(?compound_mass >= 100.000000 && ?compound_mass <= 400.000000)")
     );
     assert!(injected.contains(
-        "FILTER(BOUND(?ref_year) && YEAR(?ref_year) >= 1990 && YEAR(?ref_year) <= 2010)"
+        "FILTER(BOUND(?ref_date) && YEAR(?ref_date) >= 1990 && YEAR(?ref_date) <= 2010)"
     ));
     assert!(
         injected.trim_end().ends_with('}'),
@@ -388,7 +388,7 @@ fn every_filter_something_counts_query_keeps_still_has_its_binding() {
 
 #[test]
 fn a_reference_constraint_binds_the_referenced_item() {
-    // `?ref_qid` is the reference item, the same variable the year filter already binds,
+    // `?r` is the reference item, the same variable the year filter already binds,
     // so the constraint is a `VALUES` on it rather than a filter over a projected
     // value: a row with no reference has to fail the join, not compare against an
     // unbound variable and be kept.
@@ -399,7 +399,7 @@ fn a_reference_constraint_binds_the_referenced_item() {
     let base = compounds_by_taxon_query("Q158572");
     let filtered = with_filters(&base, &criteria, NOW);
     assert!(
-        filtered.contains("VALUES ?ref_qid { wd:Q34460861 }"),
+        filtered.contains("VALUES ?r { wd:Q34460861 }"),
         "{filtered}"
     );
 }
@@ -409,12 +409,12 @@ fn no_reference_constraint_writes_nothing() {
     let criteria = SearchCriteria::up_to_year(2026);
     let base = compounds_by_taxon_query("Q158572");
     let filtered = with_filters(&base, &criteria, NOW);
-    assert!(!filtered.contains("VALUES ?ref_qid"), "{filtered}");
+    assert!(!filtered.contains("VALUES ?r "), "{filtered}");
 }
 
 #[test]
 fn a_reference_constraint_composes_with_the_year_filter() {
-    // Both bind `?ref_qid` and both must survive: the year one adds `?ref_qid wdt:P577`, and
+    // Both bind `?r` and both must survive: the year one adds `?r wdt:P577`, and
     // the two are separate things the reader asked for.
     let criteria = SearchCriteria {
         reference: "Q34460861".to_string(),
@@ -425,19 +425,19 @@ fn a_reference_constraint_composes_with_the_year_filter() {
     let base = compounds_by_taxon_query("Q158572");
     let filtered = with_filters(&base, &criteria, NOW);
     assert!(
-        filtered.contains("VALUES ?ref_qid { wd:Q34460861 }"),
+        filtered.contains("VALUES ?r { wd:Q34460861 }"),
         "{filtered}"
     );
     // The reference constraint and the year filter compose without either adding
-    // a triple: the filter constrains ?ref_year, which the middle subquery already
-    // projects, and the reference constrains ?ref_qid through VALUES.
+    // a triple: the filter constrains ?ref_date, which the middle subquery already
+    // projects, and the reference constrains ?r through VALUES.
     assert!(
-        filtered.contains("FILTER(BOUND(?ref_year) && YEAR(?ref_year)"),
+        filtered.contains("FILTER(BOUND(?ref_date) && YEAR(?ref_date)"),
         "{filtered}"
     );
     // `P577` still appears in the base query, inside the metadata OPTIONAL, so the
     // check is for the bare form the filter used to add -- not for the predicate.
-    assert!(!filtered.contains("?ref_qid wdt:P577"), "{filtered}");
+    assert!(!filtered.contains("?r wdt:P577"), "{filtered}");
 }
 
 /// `([A-Z])` splits every capital, so `C6H5COOH` tokenises to `|C6|H5|C|O|O|H`.
@@ -506,7 +506,7 @@ fn a_taxon_on_the_exact_route_is_not_optional() {
         "the taxon must reach the query\n{some}"
     );
     assert!(
-        some.contains("VALUES ?compound { wd:Q23118 }"),
+        some.contains("VALUES ?c { wd:Q23118 }"),
         "the compound seed must survive alongside the taxon\n{some}"
     );
 }
@@ -591,7 +591,7 @@ fn a_qid_reference_still_becomes_a_values_block() {
             NOW,
         );
         assert!(
-            query.contains("VALUES ?ref_qid { wd:Q23118 }"),
+            query.contains("VALUES ?r { wd:Q23118 }"),
             "{qid:?} is a QID and must reach the query\n{query}"
         );
     }

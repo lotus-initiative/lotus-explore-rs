@@ -216,7 +216,7 @@ fn rdf_export_url_uses_construct_query_with_normalized_formula_binding() {
         .expect("decode query")
         .into_owned();
 
-    assert!(decoded.contains("?compound wdt:P274 ?compound_formula_norm ."));
+    assert!(decoded.contains("?c wdt:P274 ?compound_formula_norm ."));
     assert!(decoded.contains("AS ?compound_formula_norm"));
     assert!(decoded.contains("STR(?compound_formula)"));
 }

@@ -167,7 +167,7 @@ fn the_closure_dedupes_its_properties() {
 #[test]
 fn turning_everything_off_restores_the_plain_ancestry_filter() {
     let off = compounds_by_taxon_query_with("Q122679", &Nomenclature::ALL_OFF);
-    assert!(off.contains("?taxon (wdt:P171*) wd:Q122679 ."));
+    assert!(off.contains("?t (wdt:P171*) wd:Q122679 ."));
     assert!(!off.contains("VALUES ?root"), "no seed to expand");
     for relation in lotus_model::taxon_nomenclature::ALL {
         for (property, prefixed) in relation.properties() {
@@ -218,7 +218,7 @@ fn a_structure_search_honours_the_same_relationships() {
         &Nomenclature::ALL_ON,
     );
     assert!(on.contains("{ VALUES ?root { wd:Q122679 } }"));
-    assert!(on.contains("?taxon (wdt:P171*) ?root ."));
+    assert!(on.contains("?t (wdt:P171*) ?root ."));
 
     let off = structure_search_query_with(
         "CCO",
@@ -227,7 +227,7 @@ fn a_structure_search_honours_the_same_relationships() {
         Some("Q122679"),
         &Nomenclature::ALL_OFF,
     );
-    assert!(off.contains("?taxon (wdt:P171*) wd:Q122679 ."));
+    assert!(off.contains("?t (wdt:P171*) wd:Q122679 ."));
     assert!(!off.contains("VALUES ?root"));
 }
 
@@ -302,7 +302,7 @@ fn a_resolved_closure_is_inlined_and_an_empty_one_falls_back() {
         "and the subquery that would have computed it is gone:\n{inlined}"
     );
     assert!(
-        inlined.contains("?taxon (wdt:P171*) ?root ."),
+        inlined.contains("?t (wdt:P171*) ?root ."),
         "descent from the closure is still a P171* path:\n{inlined}"
     );
 

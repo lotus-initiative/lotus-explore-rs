@@ -174,14 +174,22 @@ pub async fn execute_sparql_tempfile_at(
     sparql: &str,
     url: &str,
 ) -> Result<tempfile::NamedTempFile, FetchError> {
-    use std::io::Write as _;
+    use std::io::{BufWriter, Write as _};
 
     let http = ReqwestClient::new()?;
-    let answer = execute(&http, endpoint_for(url), sparql, ResponseFormat::Csv).await?;
-    let mut file = tempfile::NamedTempFile::new()
+    let mut answer =
+        execute_streaming(&http, endpoint_for(url), sparql, ResponseFormat::Csv).await?;
+    let file = tempfile::NamedTempFile::new()
         .map_err(|e| FetchError::Network(format!("could not create a temporary file: {e}")))?;
-    file.write_all(&answer.body)
-        .map_err(|e| FetchError::Network(format!("could not write the export: {e}")))?;
+    let mut writer = BufWriter::new(file);
+    while let Some(chunk) = answer.chunks.next_chunk().await? {
+        writer
+            .write_all(&chunk)
+            .map_err(|e| FetchError::Network(format!("could not write the export: {e}")))?;
+    }
+    let mut file = writer
+        .into_inner()
+        .map_err(|e| FetchError::Network(format!("could not flush the export: {e}")))?;
     file.flush()
         .map_err(|e| FetchError::Network(format!("could not flush the export: {e}")))?;
     Ok(file)

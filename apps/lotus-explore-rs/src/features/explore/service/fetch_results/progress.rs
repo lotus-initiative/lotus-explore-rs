@@ -13,7 +13,7 @@
 /// chunks, so reporting every one would re-render the overlay more often than a
 /// reader can see it, costing more than the parse it reports on. At ~16 KB a chunk
 /// this is a handful of updates per second.
-pub const PROGRESS_ROW_STEP: usize = 5_000;
+pub const PROGRESS_ROW_STEP: usize = 25_000;
 
 /// Decides which row counts are worth reporting, and remembers the last one.
 ///

@@ -161,13 +161,13 @@ fn reference_metadata_goes_through_the_sentinel() {
             continue;
         }
         assert!(
-            query.contains("BIND(COALESCE(?ref_qid, wd:Q0) AS ?_ref_source)"),
+            query.contains("BIND(COALESCE(?r, wd:Q0) AS ?_ref_source)"),
             "{label}: reference metadata without the sentinel"
         );
         for predicate in ["P1476", "P356", "P577"] {
             assert!(
-                !query.contains(&format!("OPTIONAL {{ ?ref_qid wdt:{predicate}")),
-                "{label}: {predicate} still reads ?ref_qid directly, so an unbound ?ref_qid is fresh"
+                !query.contains(&format!("OPTIONAL {{ ?r wdt:{predicate}")),
+                "{label}: {predicate} still reads ?r directly, so an unbound ?r is fresh"
             );
         }
     }
@@ -194,8 +194,8 @@ fn the_count_query_carries_no_reference_or_compound_metadata() {
         // `P577` may reappear only as the year filter's binding, never as a fetch.
         assert_eq!(
             counts.contains("wdt:P577"),
-            counts.contains("YEAR(?ref_year)"),
-            "{label}: P577 must be present exactly when a year filter needs ?ref_year \
+            counts.contains("FILTER(BOUND(?ref_date)"),
+            "{label}: P577 must be present exactly when a year filter needs ?ref_date \
              bound. Without the rebinding the filter references an unbound variable, \
              every solution is filtered out, and every count reads zero."
         );
@@ -235,13 +235,17 @@ fn the_reference_node_is_projected_but_not_shown() {
         "`?ref_node` is a reference-node URI, not a QID; casting it empties the column \
          on every row without failing the query"
     );
-    // Projected directly without server-side STRAFTER/SUBSTR string slicing so
-    // QLever does not allocate millions of dynamic LocalVocab strings or copy the
-    // result table across extra BIND columns; the streaming parser strips the
-    // namespace prefixes in O(1) on arrival.
+    // Reference-node and statement URIs are projected directly without STRAFTER
+    // so QLever does not allocate millions of dynamic LocalVocab strings; only
+    // QID columns use `xsd:integer(STRAFTER(STR(?x), "Q"))`, which produces inline
+    // 64-bit `Datatype::Int` values inside QLever's `ValueId`.
     assert!(
-        !select.contains("STRAFTER("),
-        "projection must not force server-side STRAFTER string allocations: {select}"
+        !select.contains("STRAFTER(STR(?ref_node)"),
+        "reference-node URIs must not force server-side LocalVocab string allocations: {select}"
+    );
+    assert!(
+        !select.contains("STRAFTER(STR(?statement_id)"),
+        "statement URIs must not force server-side LocalVocab string allocations: {select}"
     );
     assert!(
         !select.contains("SUBSTR("),

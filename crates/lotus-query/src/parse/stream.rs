@@ -369,6 +369,14 @@ impl CsvColumnarReader {
     /// A truncated body is refused rather than parsed: the rows before the cut are
     /// valid, and returning them would present an incomplete answer as a complete one.
     pub fn finish(mut self) -> Result<ColumnarResultSet, ParseError> {
+        // Check for the endpoint's inline truncation notice before reporting an
+        // open quoted field: when QLever times out mid-cell inside a quoted
+        // label or title, the unclosed `"` stays open through the appended
+        // `!!!!>># ... Operation timed out.` trailer, and `INCOMPLETE_BODY`
+        // would otherwise mask the endpoint's explicit timeout reason.
+        if let Some(reason) = truncation_notice(&self.tail) {
+            return Err(ParseError::new(truncated_by_endpoint(reason)));
+        }
         let columns = &mut self.columns;
         let header = &mut self.header;
         let rows_read = &mut self.rows_read;
@@ -379,9 +387,6 @@ impl CsvColumnarReader {
             return Err(ParseError::new(INCOMPLETE_BODY));
         }
         self.check_header()?;
-        if let Some(reason) = truncation_notice(&self.tail) {
-            return Err(ParseError::new(truncated_by_endpoint(reason)));
-        }
         Ok(self.builder.build())
     }
 }

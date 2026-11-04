@@ -483,3 +483,20 @@ fn a_body_without_the_truncation_notice_is_accepted() {
     let set = parse_compounds_columnar(body.as_bytes()).expect("the body is complete");
     assert_eq!(set.row_count(), 1);
 }
+
+/// When `QLever` times out inside a quoted field (such as a compound label or
+/// reference title), the opening `"` is never closed before the `!!!!>>#`
+/// truncation notice is appended. The reader must still report the endpoint's
+/// truncation reason rather than masking it with the generic incomplete-row
+/// message.
+#[test]
+fn a_body_cut_inside_a_quoted_field_with_the_truncation_notice_reports_the_endpoint_reason() {
+    let body = format!("{HEADER}Q1,\"unclosed quoted label\n {TRUNCATION_NOTICE}");
+    let expected = "the endpoint stopped sending before the result was complete, so these \
+                    rows are only part of the answer and are not being reported as if they \
+                    were all of it (the endpoint said: Operation timed out); re-run the \
+                    search, or narrow it";
+
+    let whole = parse_compounds_columnar(body.as_bytes()).expect_err("the body was cut short");
+    assert_eq!(whole.message(), expected);
+}
