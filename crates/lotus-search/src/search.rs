@@ -20,12 +20,11 @@ use lotus_query::{
     CsvColumnarReader, parse_compounds_csv_capped, parse_counts_csv, parse_taxon_csv,
 };
 use lotus_query::{
-    DICTIONARY_VALUES_LIMIT, Nomenclature, all_compounds_including_untaxonomised_query,
-    all_compounds_query, compound_alias_query, compound_dictionary_query, compound_inchikey_query,
-    compound_label_query, compounds_by_taxon_query_with, counts_query, entity_dictionary_query,
-    exact_compounds_query, limit_query, occurrences_query, reference_by_doi_query,
-    reference_dictionary_query, structure_compound_lookup_query, structure_search_query_with,
-    taxon_lookup_query, with_filters,
+    Nomenclature, all_compounds_including_untaxonomised_query, all_compounds_query,
+    compound_alias_query, compound_inchikey_query, compound_label_query,
+    compounds_by_taxon_query_with, counts_query, dictionary_queries, exact_compounds_query,
+    limit_query, occurrences_query, reference_by_doi_query, structure_compound_lookup_query,
+    structure_search_query_with, taxon_lookup_query, with_filters,
 };
 
 /// How a structure search should be run, once the structure is known.
@@ -526,27 +525,7 @@ where
         let compound_qids: Vec<u32> = reader.compound_qids().collect();
         let reference_qids: Vec<u32> = reader.reference_qids().collect();
 
-        // Combine compound and reference dictionaries into a single UNION query
-        // whenever their combined count fits in `DICTIONARY_VALUES_LIMIT`, cutting
-        // the HTTP request count in half so consecutive searches do not trip
-        // QLever's reverse-proxy rate limiter (HTTP 429).
-        let queries = if !compound_qids.is_empty()
-            && !reference_qids.is_empty()
-            && compound_qids.len() + reference_qids.len() <= DICTIONARY_VALUES_LIMIT
-        {
-            vec![entity_dictionary_query(&compound_qids, &reference_qids)]
-        } else {
-            let mut list = Vec::new();
-            if !compound_qids.is_empty() {
-                list.push(compound_dictionary_query(&compound_qids));
-            }
-            if !reference_qids.is_empty() {
-                list.push(reference_dictionary_query(&reference_qids));
-            }
-            list
-        };
-
-        for dict_query in queries {
+        for dict_query in dictionary_queries(&compound_qids, &reference_qids) {
             reader
                 .next_enrichment_stream()
                 .map_err(|e| FetchError::Parse(e.to_string()))?;

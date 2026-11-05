@@ -1076,9 +1076,12 @@ impl ColumnarResultSet {
     /// `O(D log D + N)`.
     #[must_use]
     pub fn sort_by_name(&self) -> Arc<[u32]> {
-        sort_rows_by_dictionary(&self.compound_ids, self.compounds.len(), |slot| {
-            self.compound_names.get(slot).filter(|n| !n.is_empty())
-        })
+        sort_rows_by_dictionary(
+            &self.compound_ids,
+            self.compounds.len(),
+            |slot| self.compound_names.get(slot),
+            Ord::cmp,
+        )
     }
 
     /// Ascending row indices sorted by compound mass (`None` first, ties broken
@@ -1086,9 +1089,12 @@ impl ColumnarResultSet {
     /// `O(D log D + N)`.
     #[must_use]
     pub fn sort_by_mass(&self) -> Arc<[u32]> {
-        sort_rows_by_dictionary(&self.compound_ids, self.compounds.len(), |slot| {
-            self.compound_mass(slot_to_id(slot)).map(OrderedMass)
-        })
+        sort_rows_by_dictionary(
+            &self.compound_ids,
+            self.compounds.len(),
+            |slot| self.compound_mass(slot_to_id(slot)),
+            f64::total_cmp,
+        )
     }
 
     /// Ascending row indices sorted by molecular formula (`None` first, ties
@@ -1096,9 +1102,12 @@ impl ColumnarResultSet {
     /// sort in `O(D log D + N)`.
     #[must_use]
     pub fn sort_by_formula(&self) -> Arc<[u32]> {
-        sort_rows_by_dictionary(&self.compound_ids, self.compounds.len(), |slot| {
-            self.compound_formulas.get(slot)
-        })
+        sort_rows_by_dictionary(
+            &self.compound_ids,
+            self.compounds.len(),
+            |slot| self.compound_formulas.get(slot),
+            Ord::cmp,
+        )
     }
 
     /// Ascending row indices sorted by taxon scientific name (`None` first, ties
@@ -1106,9 +1115,12 @@ impl ColumnarResultSet {
     /// sort in `O(D log D + N)`.
     #[must_use]
     pub fn sort_by_taxon_name(&self) -> Arc<[u32]> {
-        sort_rows_by_dictionary(&self.taxon_ids, self.taxa.len(), |slot| {
-            self.taxon_names.get(slot)
-        })
+        sort_rows_by_dictionary(
+            &self.taxon_ids,
+            self.taxa.len(),
+            |slot| self.taxon_names.get(slot),
+            Ord::cmp,
+        )
     }
 
     /// Ascending row indices sorted by reference publication year (`None` first,
@@ -1116,9 +1128,12 @@ impl ColumnarResultSet {
     /// counting sort in `O(D log D + N)`.
     #[must_use]
     pub fn sort_by_pub_year(&self) -> Arc<[u32]> {
-        sort_rows_by_dictionary(&self.reference_ids, self.references.len(), |slot| {
-            self.reference_year(slot_to_id(slot))
-        })
+        sort_rows_by_dictionary(
+            &self.reference_ids,
+            self.references.len(),
+            |slot| self.reference_year(slot_to_id(slot)),
+            Ord::cmp,
+        )
     }
 
     /// Ascending row indices sorted by reference title (`None` first, ties
@@ -1126,9 +1141,12 @@ impl ColumnarResultSet {
     /// sort in `O(D log D + N)`.
     #[must_use]
     pub fn sort_by_ref_title(&self) -> Arc<[u32]> {
-        sort_rows_by_dictionary(&self.reference_ids, self.references.len(), |slot| {
-            self.reference_titles.get(slot)
-        })
+        sort_rows_by_dictionary(
+            &self.reference_ids,
+            self.references.len(),
+            |slot| self.reference_titles.get(slot),
+            Ord::cmp,
+        )
     }
 
     /// Rebuild row `row` as a [`CompoundEntry`].
@@ -1322,10 +1340,10 @@ fn intern_qid(dictionary: &mut QidDictionary, raw: &str) -> u32 {
     parse_qid_number(raw).map_or(NO_VALUE, |n| dictionary.intern(n))
 }
 
-fn lookup_qid(dictionary: &QidDictionary, raw: &str) -> u32 {
+fn lookup_slot(dictionary: &QidDictionary, raw: &str) -> Option<usize> {
     parse_qid_number(raw)
         .and_then(|n| dictionary.lookup(n))
-        .unwrap_or(NO_VALUE)
+        .map(|id| id as usize)
 }
 
 fn parse_qid_number(raw: &str) -> Option<u32> {
@@ -1369,96 +1387,52 @@ fn slot_to_id(slot: usize) -> u32 {
     u32::try_from(slot).unwrap_or(NO_VALUE)
 }
 
-#[derive(Clone, Copy)]
-struct OrderedMass(f64);
-
-impl PartialEq for OrderedMass {
-    fn eq(&self, other: &Self) -> bool {
-        self.cmp(other) == std::cmp::Ordering::Equal
-    }
-}
-
-impl Eq for OrderedMass {}
-
-impl PartialOrd for OrderedMass {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for OrderedMass {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0
-            .partial_cmp(&other.0)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    }
-}
-
 /// Sort `0..row_ids.len()` by a dictionary-keyed value in `O(D log D + N)` using
 /// counting sort over dictionary ranks.
-fn sort_rows_by_dictionary<K: Ord>(
+fn sort_rows_by_dictionary<K>(
     row_ids: &[u32],
     dict_len: usize,
     slot_key: impl Fn(usize) -> Option<K>,
+    cmp: impl Fn(&K, &K) -> std::cmp::Ordering,
 ) -> Arc<[u32]> {
-    let n = row_ids.len();
-    if n <= 1 {
-        let single: Vec<u32> = (0..u32::try_from(n).unwrap_or(0)).collect();
-        return Arc::from(single.into_boxed_slice());
-    }
-
     let mut present: Vec<(usize, K)> = (0..dict_len)
         .filter_map(|slot| slot_key(slot).map(|key| (slot, key)))
         .collect();
-    present.sort_unstable_by(|a, b| a.1.cmp(&b.1));
+    present.sort_unstable_by(|a, b| cmp(&a.1, &b.1));
 
-    let mut slot_rank = vec![0u32; dict_len];
-    let mut max_rank = 0u32;
-    for (idx, (slot, key)) in present.iter().enumerate() {
-        let same_as_prev = idx > 0
-            && present
-                .get(idx - 1)
-                .is_some_and(|(_, prev_key)| prev_key == key);
-        if !same_as_prev {
-            max_rank = max_rank.saturating_add(1);
+    let mut slot_rank = vec![0usize; dict_len];
+    let mut buckets = 1usize;
+    for group in present.chunk_by(|a, b| cmp(&a.1, &b.1).is_eq()) {
+        for &(slot, _) in group {
+            if let Some(cell) = slot_rank.get_mut(slot) {
+                *cell = buckets;
+            }
         }
-        if let Some(cell) = slot_rank.get_mut(*slot) {
-            *cell = max_rank;
-        }
+        buckets = buckets.saturating_add(1);
     }
 
-    let num_buckets = (max_rank as usize).saturating_add(1);
-    let mut offsets = vec![0u32; num_buckets.saturating_add(1)];
+    let mut offsets = vec![0usize; buckets];
     for &id in row_ids {
-        let rank = if id == NO_VALUE {
-            0usize
-        } else {
-            slot_rank.get(id as usize).copied().unwrap_or(0) as usize
-        };
-        if let Some(count) = offsets.get_mut(rank.saturating_add(1)) {
+        let rank = slot_rank.get(id as usize).copied().unwrap_or(0);
+        if let Some(count) = offsets.get_mut(rank) {
             *count = count.saturating_add(1);
         }
     }
-    for i in 1..offsets.len() {
-        let prev = offsets.get(i - 1).copied().unwrap_or(0);
-        if let Some(curr) = offsets.get_mut(i) {
-            *curr = curr.saturating_add(prev);
-        }
+    let mut sum = 0usize;
+    for count in &mut offsets {
+        let start = sum;
+        sum = sum.saturating_add(*count);
+        *count = start;
     }
 
-    let mut out = vec![0u32; n];
+    let mut out = vec![0u32; row_ids.len()];
     for (row, &id) in row_ids.iter().enumerate() {
-        let rank = if id == NO_VALUE {
-            0usize
-        } else {
-            slot_rank.get(id as usize).copied().unwrap_or(0) as usize
-        };
+        let rank = slot_rank.get(id as usize).copied().unwrap_or(0);
         if let Some(cursor) = offsets.get_mut(rank) {
-            let dest = *cursor as usize;
-            *cursor = cursor.saturating_add(1);
-            if let Some(slot) = out.get_mut(dest) {
-                *slot = u32::try_from(row).unwrap_or(0);
+            if let Some(slot) = out.get_mut(*cursor) {
+                *slot = slot_to_id(row);
             }
+            *cursor = cursor.saturating_add(1);
         }
     }
     Arc::from(out.into_boxed_slice())
@@ -1525,31 +1499,26 @@ impl ColumnarBuilder {
         if self.seeded_compounds.words.is_empty() {
             self.seeded_compounds = Bitmask::with_len(self.set.compounds.len());
         }
-        for (slot, numeric) in self.set.compounds.numeric_ids().enumerate() {
+        for slot in 0..self.set.compounds.len() {
             let slot_id = slot_to_id(slot);
-            if self.seeded_compounds.contains(slot_id) {
-                continue;
-            }
-            if let Some(prev_id) = previous.compounds.lookup(numeric) {
+            if let Some(prev_id) = self
+                .set
+                .compounds
+                .get(slot_id)
+                .and_then(|numeric| previous.compounds.lookup(numeric))
+            {
                 let prev_slot = prev_id as usize;
-                self.set
-                    .compound_names
-                    .set(slot, previous.compound_names.get(prev_slot));
-                self.set
-                    .compound_inchikeys
-                    .set(slot, previous.compound_inchikeys.get(prev_slot));
-                self.set
-                    .compound_smiles
-                    .set(slot, previous.compound_smiles.get(prev_slot));
-                self.set
-                    .compound_formulas
-                    .set(slot, previous.compound_formulas.get(prev_slot));
-                if let Some(mass) = previous.compound_mass(prev_id)
-                    && let Some(cell) = self.set.compound_masses.get_mut(slot)
-                    && cell.is_nan()
-                {
-                    *cell = mass;
-                }
+                self.populate_compound(
+                    slot,
+                    RawRow {
+                        name: previous.compound_names.get(prev_slot).unwrap_or_default(),
+                        inchikey: previous.compound_inchikeys.get(prev_slot),
+                        smiles: previous.compound_smiles.get(prev_slot),
+                        mass: previous.compound_mass(prev_id),
+                        formula: previous.compound_formulas.get(prev_slot),
+                        ..RawRow::default()
+                    },
+                );
                 self.seeded_compounds.insert(slot_id);
             }
         }
@@ -1557,25 +1526,24 @@ impl ColumnarBuilder {
         if self.seeded_references.words.is_empty() {
             self.seeded_references = Bitmask::with_len(self.set.references.len());
         }
-        for (slot, numeric) in self.set.references.numeric_ids().enumerate() {
+        for slot in 0..self.set.references.len() {
             let slot_id = slot_to_id(slot);
-            if self.seeded_references.contains(slot_id) {
-                continue;
-            }
-            if let Some(prev_id) = previous.references.lookup(numeric) {
+            if let Some(prev_id) = self
+                .set
+                .references
+                .get(slot_id)
+                .and_then(|numeric| previous.references.lookup(numeric))
+            {
                 let prev_slot = prev_id as usize;
-                self.set
-                    .reference_titles
-                    .set(slot, previous.reference_titles.get(prev_slot));
-                self.set
-                    .reference_dois
-                    .set(slot, previous.reference_dois.get(prev_slot));
-                if let Some(year) = previous.reference_year(prev_id)
-                    && let Some(cell) = self.set.reference_years.get_mut(slot)
-                    && cell.is_none()
-                {
-                    *cell = Some(year);
-                }
+                self.populate_reference(
+                    slot,
+                    RawRow {
+                        ref_title: previous.reference_titles.get(prev_slot),
+                        ref_doi: previous.reference_dois.get(prev_slot),
+                        pub_year: previous.reference_year(prev_id),
+                        ..RawRow::default()
+                    },
+                );
                 self.seeded_references.insert(slot_id);
             }
         }
@@ -1634,47 +1602,33 @@ impl ColumnarBuilder {
             self.set.reference_node_hashes.set(row_index, Some(node));
         }
         self.set.reference_ids.push(reference_id);
-        if statement != StatementId::Absent || !self.set.statements.is_empty() {
+        if statement != StatementId::Absent {
             self.set.statements.resize(row_index, StatementId::Absent);
             self.set.statements.push(statement);
         }
     }
 
-    /// Whether any of the non-empty entity QIDs on a dictionary row is
-    /// already interned in this builder.
-    #[must_use]
-    pub fn contains_entity(
-        &self,
-        compound_qid: &str,
-        taxon_qid: &str,
-        reference_qid: &str,
-    ) -> bool {
-        lookup_qid(&self.set.compounds, compound_qid) != NO_VALUE
-            || lookup_qid(&self.set.taxa, taxon_qid) != NO_VALUE
-            || lookup_qid(&self.set.references, reference_qid) != NO_VALUE
-    }
-
     /// Populate dictionary metadata for already-interned entities without
-    /// appending an occurrence row.
+    /// appending an occurrence row, returning whether any entity on `row`
+    /// matched this builder's dictionaries.
     ///
     /// Entities absent from the occurrence dictionaries are ignored so a broad
     /// dictionary stream never inflates `compounds` or `references` with unused
     /// slots.
-    pub fn enrich(&mut self, row: RawRow<'_>) {
-        let compound_id = lookup_qid(&self.set.compounds, row.compound_qid);
-        if compound_id != NO_VALUE {
-            self.populate_compound(compound_id as usize, row);
+    pub fn enrich(&mut self, row: RawRow<'_>) -> bool {
+        let compound_slot = lookup_slot(&self.set.compounds, row.compound_qid);
+        if let Some(slot) = compound_slot {
+            self.populate_compound(slot, row);
         }
-        let taxon_id = lookup_qid(&self.set.taxa, row.taxon_qid);
-        if taxon_id != NO_VALUE {
-            self.set
-                .taxon_names
-                .set(taxon_id as usize, present(row.taxon_name));
+        let taxon_slot = lookup_slot(&self.set.taxa, row.taxon_qid);
+        if let Some(slot) = taxon_slot {
+            self.set.taxon_names.set(slot, present(row.taxon_name));
         }
-        let reference_id = lookup_qid(&self.set.references, row.reference_qid);
-        if reference_id != NO_VALUE {
-            self.populate_reference(reference_id as usize, row);
+        let reference_slot = lookup_slot(&self.set.references, row.reference_qid);
+        if let Some(slot) = reference_slot {
+            self.populate_reference(slot, row);
         }
+        compound_slot.is_some() || taxon_slot.is_some() || reference_slot.is_some()
     }
 
     /// Intern and populate compound or reference dictionary metadata without
@@ -1682,14 +1636,13 @@ impl ColumnarBuilder {
     /// unconstrained dictionary stream can be retained for seeding subsequent
     /// searches.
     pub fn intern_dictionary_row(&mut self, row: RawRow<'_>) {
-        let compound_id = intern_qid(&mut self.set.compounds, row.compound_qid);
-        if compound_id != NO_VALUE {
-            let compound_slot = compound_id as usize;
+        if let Some(numeric) = parse_qid_number(row.compound_qid) {
+            let compound_slot = self.set.compounds.intern(numeric) as usize;
             self.grow_compounds(compound_slot);
             self.populate_compound(compound_slot, row);
         }
-        let reference_id = intern_qid(&mut self.set.references, row.reference_qid);
-        if reference_id != NO_VALUE {
+        if let Some(numeric) = parse_qid_number(row.reference_qid) {
+            let reference_id = self.set.references.intern(numeric);
             self.grow_references(reference_id);
             self.populate_reference(reference_id as usize, row);
         }

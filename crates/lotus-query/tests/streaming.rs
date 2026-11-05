@@ -500,3 +500,48 @@ fn a_body_cut_inside_a_quoted_field_with_the_truncation_notice_reports_the_endpo
     let whole = parse_compounds_columnar(body.as_bytes()).expect_err("the body was cut short");
     assert_eq!(whole.message(), expected);
 }
+
+#[test]
+fn enrichment_streams_seed_and_capture_extra_entities() {
+    let full_reader = {
+        let mut r = CsvColumnarReader::new();
+        r.feed(format!("{HEADER}Q1,first,,120.5,C2H6O,Q10,Homo,Q100,\n").as_bytes())
+            .expect("feed full");
+        r
+    };
+    assert!(!full_reader.needs_enrichment());
+
+    let mut first = CsvColumnarReader::new();
+    first
+        .feed(b"compound,taxon,taxon_name,ref_qid\n1,10,Plantae,100\n")
+        .expect("feed first occurrences");
+    assert!(first.needs_enrichment());
+    assert!(first.take_extra_entities().is_none());
+
+    first.next_enrichment_stream().expect("switch to enrich");
+    first
+        .feed(
+            b"compound,compoundLabel,compound_inchikey,compound_smiles_iso,compound_mass,compound_formula,ref_qid,ref_title,ref_doi,ref_year\n\
+              1,Plant Compound,KEY-1,C,16,CH4,,,,\n\
+              2,Fungi Compound,KEY-2,CC,30,C2H6,,,,\n\
+              ,,,,,,100,Plant Paper,10.1000/p1,2020\n\
+              ,,,,,,200,Fungi Paper,10.1000/f1,2022\n",
+        )
+        .expect("feed global dictionary");
+    let extra = first
+        .take_extra_entities()
+        .expect("non-occurring Fungi entities captured in extra set");
+    let first_set = first.finish().expect("finish first set");
+    assert_eq!(first_set.compound_label(0), Some("Plant Compound"));
+    assert_eq!(first_set.reference_title(0), Some("Plant Paper"));
+
+    let mut second = CsvColumnarReader::new();
+    second
+        .feed(b"compound,taxon,taxon_name,ref_qid\n2,20,Fungi,200\n3,30,Algae,300\n")
+        .expect("feed second occurrences");
+    second.seed_from(&first_set);
+    second.seed_from(&extra);
+
+    assert_eq!(second.compound_qids().collect::<Vec<_>>(), vec![3]);
+    assert_eq!(second.reference_qids().collect::<Vec<_>>(), vec![300]);
+}

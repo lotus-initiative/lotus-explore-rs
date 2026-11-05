@@ -1231,3 +1231,142 @@ fn a_second_value_for_the_same_entity_is_dropped_and_that_is_deliberate() {
          {everything}"
     );
 }
+
+#[test]
+fn sorting_columns_orders_missing_values_first_and_breaks_ties_by_row_index() {
+    let mut r0 = entry("Q1", "Q10", "Q100");
+    r0.name = arc("Beta");
+    r0.mass = Some(300.0);
+    r0.formula = Some(arc("C9H8O4"));
+    r0.taxon_name = arc("Zea");
+    r0.pub_year = Some(2022);
+    r0.ref_title = Some(arc("Paper B"));
+
+    let mut r1 = entry("Q2", "", "");
+    r1.name = arc("");
+    r1.mass = None;
+    r1.formula = None;
+    r1.taxon_name = arc("");
+    r1.pub_year = None;
+    r1.ref_title = None;
+
+    let mut r2 = entry("Q3", "Q20", "Q200");
+    r2.name = arc("Alpha");
+    r2.mass = Some(150.0);
+    r2.formula = Some(arc("C6H12O6"));
+    r2.taxon_name = arc("Abies");
+    r2.pub_year = Some(2018);
+    r2.ref_title = Some(arc("Paper A"));
+
+    let mut r3 = entry("Q4", "Q30", "Q300");
+    r3.name = arc("Alpha");
+    r3.mass = Some(150.0);
+    r3.formula = Some(arc("C6H12O6"));
+    r3.taxon_name = arc("Abies");
+    r3.pub_year = Some(2018);
+    r3.ref_title = Some(arc("Paper A"));
+
+    let set = ColumnarResultSet::from_entries(&[r0, r1, r2, r3]);
+
+    assert_eq!(set.sort_by_name().as_ref(), &[1, 2, 3, 0]);
+    assert_eq!(set.sort_by_mass().as_ref(), &[1, 2, 3, 0]);
+    assert_eq!(set.sort_by_formula().as_ref(), &[1, 2, 3, 0]);
+    assert_eq!(set.sort_by_taxon_name().as_ref(), &[1, 2, 3, 0]);
+    assert_eq!(set.sort_by_pub_year().as_ref(), &[1, 2, 3, 0]);
+    assert_eq!(set.sort_by_ref_title().as_ref(), &[1, 2, 3, 0]);
+}
+
+#[test]
+fn builder_enrichment_and_seeding_populate_all_dictionary_fields() {
+    let mut seed_first = ColumnarBuilder::new();
+    assert!(seed_first.is_empty_dictionaries());
+    seed_first.intern_dictionary_row(RawRow {
+        compound_qid: "Q1",
+        name: "Quercetin",
+        inchikey: Some("KEY-1"),
+        smiles: Some("C1"),
+        mass: Some(302.2),
+        formula: Some("C15H10O7"),
+        ..RawRow::default()
+    });
+    assert!(!seed_first.is_empty_dictionaries());
+    let first_set = seed_first.build();
+
+    let mut seed_second = ColumnarBuilder::new();
+    seed_second.intern_dictionary_row(RawRow {
+        reference_qid: "Q100",
+        ref_title: Some("Paper One"),
+        ref_doi: Some("10.1000/one"),
+        pub_year: Some(2020),
+        ..RawRow::default()
+    });
+    assert!(!seed_second.is_empty_dictionaries());
+    let second_set = seed_second.build();
+
+    let mut builder = ColumnarBuilder::new();
+    builder.push(RawRow {
+        compound_qid: "Q1",
+        taxon_qid: "Q10",
+        reference_qid: "Q100",
+        ..RawRow::default()
+    });
+    builder.push(RawRow {
+        compound_qid: "Q2",
+        taxon_qid: "Q20",
+        reference_qid: "Q200",
+        ..RawRow::default()
+    });
+
+    assert_eq!(builder.compound_qids().collect::<Vec<_>>(), vec![1, 2]);
+    assert_eq!(builder.reference_qids().collect::<Vec<_>>(), vec![100, 200]);
+
+    builder.seed_from(&first_set);
+    builder.seed_from(&second_set);
+
+    assert_eq!(builder.compound_qids().collect::<Vec<_>>(), vec![2]);
+    assert_eq!(builder.reference_qids().collect::<Vec<_>>(), vec![200]);
+
+    assert!(!builder.enrich(RawRow {
+        compound_qid: "Q999",
+        taxon_qid: "Q999",
+        reference_qid: "Q999",
+        ..RawRow::default()
+    }));
+    assert!(builder.enrich(RawRow {
+        compound_qid: "Q2",
+        name: "Kaempferol",
+        inchikey: Some("KEY-2"),
+        smiles: Some("C2"),
+        mass: Some(286.2),
+        formula: Some("C15H10O6"),
+        ..RawRow::default()
+    }));
+    assert!(builder.enrich(RawRow {
+        taxon_qid: "Q20",
+        taxon_name: "Arabidopsis",
+        ..RawRow::default()
+    }));
+    assert!(builder.enrich(RawRow {
+        reference_qid: "Q200",
+        ref_title: Some("Paper Two"),
+        ref_doi: Some("10.1000/two"),
+        pub_year: Some(2021),
+        ..RawRow::default()
+    }));
+
+    let set = builder.build();
+    assert_eq!(set.compound_label(0), Some("Quercetin"));
+    assert_eq!(set.inchikey(0), Some("KEY-1"));
+    assert_eq!(set.smiles(0), Some("C1"));
+    assert_eq!(set.mass(0), Some(302.2));
+    assert_eq!(set.formula(0), Some("C15H10O7"));
+    assert_eq!(set.reference_title(0), Some("Paper One"));
+    assert_eq!(set.reference_doi(0), Some("10.1000/ONE"));
+    assert_eq!(set.pub_year(0), Some(2020));
+
+    assert_eq!(set.compound_label(1), Some("Kaempferol"));
+    assert_eq!(set.taxon_label(1), Some("Arabidopsis"));
+    assert_eq!(set.reference_title(1), Some("Paper Two"));
+    assert_eq!(set.reference_doi(1), Some("10.1000/TWO"));
+    assert_eq!(set.pub_year(1), Some(2021));
+}

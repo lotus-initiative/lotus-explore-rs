@@ -1369,7 +1369,7 @@ fn format_values_clause(var: &str, qids: &[u32]) -> String {
 /// Dictionary enrichment query for the distinct compounds in an occurrence set.
 #[must_use]
 pub fn compound_dictionary_query(qids: &[u32]) -> String {
-    let scope = if qids.is_empty() || qids.len() > DICTIONARY_VALUES_LIMIT {
+    let scope = if qids.len() > DICTIONARY_VALUES_LIMIT {
         "{\n    SELECT DISTINCT ?c ?compound_inchikey ?compound_smiles_conn\n    WHERE {\n      ?c wdt:P235 ?compound_inchikey ;\n         wdt:P233 ?compound_smiles_conn ;\n         p:P703 ?_s .\n    }\n  }"
             .to_string()
     } else {
@@ -1404,10 +1404,10 @@ pub fn reference_dictionary_query(qids: &[u32]) -> String {
     // An unconstrained `?_c p:P703/prov:wasDerivedFrom/pr:P248 ?r` property path
     // causes QLever to join all 1.33B `prov:wasDerivedFrom` triples in Wikidata
     // before intersecting with `p:P703`, timing out on `Sort on ?_QLever_internal_variable_qp_1`.
-    // When `qids` is empty or exceeds the single-request `VALUES` limit, materializing
+    // When `qids` exceeds the single-request `VALUES` limit, materializing
     // the LOTUS `p:P703` statements in an inner `SELECT ?_s` subquery forces QLever
     // to probe `prov:wasDerivedFrom` only for the ~2.99M LOTUS statement nodes.
-    let scope = if qids.is_empty() || qids.len() > DICTIONARY_VALUES_LIMIT {
+    let scope = if qids.len() > DICTIONARY_VALUES_LIMIT {
         "{\n    SELECT DISTINCT ?r\n    WHERE {\n      {\n        SELECT ?_s\n        WHERE {\n          ?_c wdt:P235 ?_ik ;\n              p:P703 ?_s .\n        }\n      }\n      ?_s prov:wasDerivedFrom ?_rn .\n      ?_rn pr:P248 ?r .\n    }\n  }"
             .to_string()
     } else {
@@ -1469,6 +1469,25 @@ WHERE {{
   }}
 }}"
     )
+}
+
+/// Dictionary enrichment queries for `compound_qids` and `reference_qids`.
+#[must_use]
+pub fn dictionary_queries(compound_qids: &[u32], reference_qids: &[u32]) -> Vec<String> {
+    if !compound_qids.is_empty()
+        && !reference_qids.is_empty()
+        && compound_qids.len().saturating_add(reference_qids.len()) <= DICTIONARY_VALUES_LIMIT
+    {
+        return vec![entity_dictionary_query(compound_qids, reference_qids)];
+    }
+    let mut list = Vec::new();
+    if !compound_qids.is_empty() {
+        list.push(compound_dictionary_query(compound_qids));
+    }
+    if !reference_qids.is_empty() {
+        list.push(reference_dictionary_query(reference_qids));
+    }
+    list
 }
 
 /// Append a `LIMIT`.

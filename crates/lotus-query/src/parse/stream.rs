@@ -325,9 +325,7 @@ impl CsvColumnarReader {
         if let Some(cols) = columns.as_ref() {
             let row = raw_row(record, cols);
             if enrich_only {
-                if builder.contains_entity(row.compound_qid, row.taxon_qid, row.reference_qid) {
-                    builder.enrich(row);
-                } else {
+                if !builder.enrich(row) {
                     extra_entities.intern_dictionary_row(row);
                 }
             } else {
@@ -383,8 +381,7 @@ impl CsvColumnarReader {
     /// columns, so dictionary enrichment streams are needed.
     #[must_use]
     pub fn needs_enrichment(&self) -> bool {
-        self.columns
-            .is_some_and(|c| c.label.is_none() && c.ref_title.is_none())
+        self.columns.is_some_and(|c| c.label.is_none())
     }
 
     /// Pre-populate compound and reference metadata for any entity already

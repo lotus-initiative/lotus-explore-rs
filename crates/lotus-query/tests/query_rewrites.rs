@@ -16,8 +16,10 @@
 #![allow(clippy::indexing_slicing)]
 
 use lotus_query::{
-    FallbackService, compounds_by_taxon_query, construct_from_select, counts_query,
-    escape_sparql_string, limit_query, reference_by_doi_query, wdqs_fallback,
+    DICTIONARY_VALUES_LIMIT, FallbackService, compound_dictionary_query, compounds_by_taxon_query,
+    construct_from_select, counts_query, dictionary_queries, entity_dictionary_query,
+    escape_sparql_string, limit_query, occurrences_query, reference_by_doi_query,
+    reference_dictionary_query, wdqs_fallback, with_filters,
 };
 
 /// A minimal well-formed base query: prefixes, a `SELECT`, a `WHERE`, one brace.
@@ -152,4 +154,59 @@ fn wdqs_fallback_routes_doi_lookups_to_scholarly_and_rewrites_main_reference_met
         "{rewritten_main}"
     );
     assert!(!rewritten_main.contains("?_ref_source"), "{rewritten_main}");
+}
+
+#[test]
+fn occurrences_and_dictionary_queries_respect_projection_and_values_bounds() {
+    assert_eq!(occurrences_query(BASE), BASE);
+
+    let mut criteria = lotus_model::SearchCriteria::up_to_year(2025);
+    criteria.year_min = 2015;
+    criteria.year_max = 2020;
+    let filtered = with_filters(&compounds_by_taxon_query("Q756"), &criteria, 2025);
+    let occ = occurrences_query(&filtered);
+    assert!(!occ.contains("?compoundLabel"));
+    assert!(!occ.contains("?ref_title"));
+    assert!(occ.contains("?r wdt:P577 ?ref_date .\nFILTER(BOUND(?ref_date)"));
+
+    assert_eq!(dictionary_queries(&[], &[]), Vec::<String>::new());
+    assert_eq!(
+        dictionary_queries(&[1], &[]),
+        vec![compound_dictionary_query(&[1])]
+    );
+    assert_eq!(
+        dictionary_queries(&[], &[100]),
+        vec![reference_dictionary_query(&[100])]
+    );
+    let combined = entity_dictionary_query(&[1], &[100]);
+    assert!(
+        combined.contains("VALUES ?c { wd:Q1 }") && combined.contains("VALUES ?r { wd:Q100 }"),
+        "{combined}"
+    );
+    assert_eq!(dictionary_queries(&[1], &[100]), vec![combined]);
+
+    let at_limit: Vec<u32> = (1..=u32::try_from(DICTIONARY_VALUES_LIMIT).unwrap_or(0)).collect();
+    let over_limit: Vec<u32> =
+        (1..=u32::try_from(DICTIONARY_VALUES_LIMIT + 1).unwrap_or(0)).collect();
+
+    assert!(compound_dictionary_query(&at_limit).contains("VALUES ?c {"));
+    let compounds_over = compound_dictionary_query(&over_limit);
+    assert!(!compounds_over.contains("VALUES"));
+    assert!(
+        compounds_over.contains("SELECT DISTINCT ?c ?compound_inchikey ?compound_smiles_conn"),
+        "{compounds_over}"
+    );
+
+    assert!(reference_dictionary_query(&at_limit).contains("VALUES ?r {"));
+    let references_over = reference_dictionary_query(&over_limit);
+    assert!(!references_over.contains("VALUES"));
+    assert!(references_over.contains("SELECT ?_s"), "{references_over}");
+    assert!(
+        !references_over.contains("p:P703/prov:wasDerivedFrom/pr:P248"),
+        "{references_over}"
+    );
+
+    let half_a = vec![1u32; DICTIONARY_VALUES_LIMIT - 1];
+    assert_eq!(dictionary_queries(&half_a, &[2]).len(), 1);
+    assert_eq!(dictionary_queries(&half_a, &[2, 3]).len(), 2);
 }
