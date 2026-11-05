@@ -23,12 +23,12 @@ dependencies = ["lint-server", "lint-desktop"]
 [tasks."lint-server"]
 cwd = "${REPO_ROOT}"
 description = "Clippy the app's HTTP API build, warnings denied."
-script = "cargo clippy -p lotus-explore-rs --features server --locked -- -D warnings"
+script = "cargo clippy --workspace --features lotus-explore-rs/server --locked -- -D warnings"
 
 [tasks."lint-desktop"]
 cwd = "${REPO_ROOT}"
 description = "Clippy the app's native-window build, warnings denied."
-script = "cargo clippy -p lotus-explore-rs --features desktop --locked -- -D warnings"
+script = "cargo clippy --workspace --features lotus-explore-rs/desktop --locked -- -D warnings"
 
 # Per-package WASM clippy.
 #

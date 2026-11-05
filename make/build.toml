@@ -86,6 +86,7 @@ cd apps/lotus-explore-rs
 for attempt in 1 2 3; do
   if dx build --release --platform web --package lotus-explore-rs --locked \
       --debug-symbols=false --rustc-args=-Copt-level=z; then
+    rm -rf "${REPO_ROOT}/target/dx"
     exit 0
   fi
   if [ "$attempt" = 3 ]; then

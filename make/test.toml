@@ -23,12 +23,12 @@ script = "cargo nextest run --workspace --locked --no-fail-fast --test-threads 4
 [tasks."test-server"]
 cwd = "${REPO_ROOT}"
 description = "Test the app's HTTP API build."
-script = "cargo nextest run -p lotus-explore-rs --features server --locked --no-fail-fast"
+script = "cargo nextest run --workspace --features lotus-explore-rs/server -E 'package(lotus-explore-rs)' --locked --no-fail-fast"
 
 [tasks."test-desktop"]
 cwd = "${REPO_ROOT}"
 description = "Test the app's native-window build."
-script = "cargo nextest run -p lotus-explore-rs --features desktop --all-targets --locked --no-fail-fast"
+script = "cargo nextest run --workspace --features lotus-explore-rs/desktop -E 'package(lotus-explore-rs)' --all-targets --locked --no-fail-fast"
 
 # What CI runs, as one command. The `ci` task calls the per-build tasks
 # separately so a red test names the build it failed in; this is for a human who

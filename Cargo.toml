@@ -178,6 +178,9 @@ unescaped_backticks = "warn"
 [profile.dev]
 debug = "line-tables-only"
 
+[profile.dev.package."*"]
+debug = false
+
 # The shipped wasm bundle and the desktop binary.
 #
 # `opt-level = "z"` and `lto = "fat"` because the payload is downloaded before
@@ -215,4 +218,7 @@ codegen-units = 1
 # A dependency compiled for tests is built once more than it needs to be; without
 # this the test build recompiles the whole graph with different settings.
 [profile.test]
-debug = 1
+debug = "line-tables-only"
+
+[profile.test.package."*"]
+debug = false
