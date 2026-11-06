@@ -212,6 +212,7 @@ fn the_two_paths_agree_on_every_row_and_on_the_counts() {
 /// only when the transport happens to align is not correct, and this is the same
 /// property `streaming.rs` asserts at splitter level -- here it is asserted on the
 /// bytes that come out the other end.
+#[cfg(not(miri))]
 #[test]
 fn the_export_is_identical_at_every_chunk_size() {
     let from_entries = ColumnarResultSet::from_entries(&rows());

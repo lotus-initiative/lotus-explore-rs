@@ -230,6 +230,7 @@ fn a_whole_payload_becomes_a_columnar_set_with_exact_counts() {
     assert_eq!(stats.n_references, 1);
 }
 
+#[cfg(not(miri))]
 #[test]
 fn streaming_a_payload_in_arbitrary_chunks_gives_the_same_set() {
     let payload = format!(

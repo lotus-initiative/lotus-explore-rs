@@ -127,6 +127,7 @@ fn chunks_concatenate_into_exactly_one_csv() {
     assert!(whole.contains("Q3613679"));
 }
 
+#[cfg(not(miri))]
 #[test]
 fn chunking_does_not_change_a_single_byte() {
     // The whole point of streaming is that the reassembled file is the same file,
@@ -153,6 +154,7 @@ fn chunking_does_not_change_a_single_byte() {
     assert!(streamed.contains("Q499"));
 }
 
+#[cfg(not(miri))]
 #[test]
 fn every_chunk_is_bounded_so_nothing_grows_without_limit() {
     let rows: Vec<CompoundEntry> = (0..20_000)
@@ -648,6 +650,7 @@ fn a_triple_with_an_empty_object_or_subject_is_not_emitted() {
     );
 }
 
+#[cfg(not(miri))]
 #[test]
 fn chunking_batches_rows_rather_than_emitting_one_chunk_per_row() {
     // The bound is there so a large export never holds the whole file in memory.
