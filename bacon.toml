@@ -1,0 +1,27 @@
+#:tombi schema.strict = false
+# bacon configuration for continuous agent/developer feedback (`./mk watch`).
+
+default_job = "check"
+env.CARGO_TERM_COLOR = "always"
+
+[jobs.check]
+command = ["./mk", "check"]
+need_stdout = true
+
+[jobs.lint]
+command = ["./mk", "lint"]
+need_stdout = true
+
+[jobs.test]
+command = ["./mk", "test-fast"]
+need_stdout = true
+
+[jobs.doc]
+command = ["./mk", "doc"]
+need_stdout = true
+
+[keybindings]
+c = "job:check"
+l = "job:lint"
+t = "job:test"
+d = "job:doc"

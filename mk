@@ -8,6 +8,11 @@
 # (printed with a reason). A missing tool, or one at the wrong version, is a failure.
 set -euo pipefail
 
+if [ -n "${NO_COLOR:-}" ] || [ "${CI:-}" = 1 ]; then
+    export CARGO_TERM_COLOR=never
+    export NO_COLOR=1
+fi
+
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT_DIR"
 # shellcheck source=mk.versions
@@ -46,7 +51,7 @@ cargo_make() {
     fi
     [ -f Makefile.toml ] || die "no Makefile.toml or task_$1 function for local task '$1'"
     need cargo-make
-    exec cargo make --no-workspace "$@"
+    cargo make --no-workspace "$@"
 }
 
 
@@ -320,10 +325,48 @@ done
 
 case "$cmd" in
     --list | --list-all-steps)
-        printf '%s\n' setup tools "${CI_GATES[@]}" "${NIGHTLY_GATES[@]}" \
+        printf '%s\n' setup tools check fix test-fast watch bench udeps cov hack \
+            "${CI_GATES[@]}" "${NIGHTLY_GATES[@]}" \
             ci ci-nightly ci-release coverage-baseline echoes-baseline selftest | sort -u
         for t in "${LOCAL_CI_GATES[@]}" "${LOCAL_NIGHTLY_GATES[@]}"; do echo "local:$t"; done
         if [ -f Makefile.toml ]; then echo "(any other name runs that cargo-make task)"; fi
+        ;;
+    check)
+        "$0" fmt
+        "$0" tombi
+        "$0" typos
+        "$0" lint
+        ;;
+    fix)
+        cargo fmt
+        require tombi "$TOMBI_VERSION"
+        tombi format
+        need typos-cli
+        typos --write-changes || true
+        cargo clippy --workspace --all-targets --all-features --locked --fix --allow-dirty --allow-staged -- -D warnings
+        ;;
+    test-fast)
+        if command -v cargo-nextest >/dev/null 2>&1; then
+            cargo nextest run --workspace --all-features --locked --no-tests=pass "$@"
+        else
+            cargo test --workspace --lib --bins --tests --all-features --locked "$@"
+        fi
+        ;;
+    watch)
+        if command -v bacon >/dev/null 2>&1; then
+            bacon "${1:-check}"
+        elif command -v cargo-watch >/dev/null 2>&1; then
+            cargo watch -s "./mk ${1:-check}"
+        else
+            die "install bacon (cargo binstall bacon) or cargo-watch to use ./mk watch"
+        fi
+        ;;
+    bench)
+        cargo bench --workspace --all-features --locked --no-run "$@"
+        ;;
+    udeps)
+        command -v cargo-udeps >/dev/null 2>&1 || skip "cargo-udeps not installed (./mk machete covers unused deps in ci)"
+        cargo "+$RUST_NIGHTLY" udeps --workspace --all-targets --all-features --locked
         ;;
     setup)
         tier="${1:-all}"
@@ -550,7 +593,7 @@ case "$cmd" in
         [ -s "$diff" ] || skip "no Rust changes against $base"
         run_mutants --in-diff "$diff"
         ;;
-    coverage)
+    coverage | cov)
         need cargo-llvm-cov
         cargo llvm-cov --workspace --all-features --locked --lcov --output-path lcov.info \
             --fail-under-lines "$COVERAGE_FAIL_UNDER_LINES"
@@ -567,7 +610,7 @@ case "$cmd" in
         fi
         echo "COVERAGE_FAIL_UNDER_LINES: $COVERAGE_FAIL_UNDER_LINES -> $pct (the ratchet gate rejects a decrease against the base branch)"
         ;;
-    powerset) need cargo-hack; cargo hack --workspace --feature-powerset --no-dev-deps check ;;
+    powerset | hack) need cargo-hack; cargo hack --workspace --feature-powerset --no-dev-deps check ;;
     miri)
         # Undefined behaviour, not sandboxing: tests may read the clock and the
         # environment. MIRI_PACKAGES in mk.local limits it to the crates where
