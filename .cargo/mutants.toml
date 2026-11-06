@@ -89,14 +89,6 @@ exclude_globs = ["apps/lotus-explore-rs/**", "crates/lotus-search/src/**/wasm.rs
 # and the InChIKey is the map key, so the two records are identical and keeping
 # either changes nothing.
 #
-#   lotus-model columnar.rs: replace == with != in `ColumnarBuilder::grow_references`
-#
-# With the `NO_VALUE` guard inverted, a row without a reference grows the
-# reference columns to `u32::MAX` slots: tens of gigabytes, allocated until the
-# test timeout or the machine gives out. No test can fail on it sooner, because
-# the allocation is the failure; it surfaced as a TIMEOUT on 2026-11-02, and a
-# memory bomb is not something a mutation run should be asked to set off.
-#
 #   lotus-search reqwest_client.rs: replace `build` with Ok(Default::default())
 #
 # The native client differs from `reqwest::Client::default()` only in timeouts,
@@ -107,7 +99,6 @@ exclude_re = [
   "DomainError::memory_limit",
   "MemoryLimit",
   "replace < with <= in preferred_over",
-  "replace == with != in ColumnarBuilder::grow_references",
   "replace build -> Result<reqwest::Client, String> with Ok",
 ]
 

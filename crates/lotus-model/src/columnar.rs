@@ -1336,8 +1336,10 @@ impl ColumnarResultSet {
 /// absence. A blank node in particular must not become a dictionary entry: every
 /// blank node is distinct, so it would cost a slot per row for a value no column
 /// can display.
-fn intern_qid(dictionary: &mut QidDictionary, raw: &str) -> u32 {
-    parse_qid_number(raw).map_or(NO_VALUE, |n| dictionary.intern(n))
+fn intern_qid(dictionary: &mut QidDictionary, raw: &str) -> Option<u32> {
+    let numeric = parse_qid_number(raw)?;
+    let id = dictionary.intern(numeric);
+    dictionary.get(id).map(|_| id)
 }
 
 fn lookup_slot(dictionary: &QidDictionary, raw: &str) -> Option<usize> {
@@ -1556,27 +1558,26 @@ impl ColumnarBuilder {
     /// can still disagree with the endpoint if the endpoint counts a row this
     /// cannot represent.
     pub fn push(&mut self, row: RawRow<'_>) {
-        let compound_id = intern_qid(&mut self.set.compounds, row.compound_qid);
-        if compound_id == NO_VALUE {
+        let Some(compound_id) = intern_qid(&mut self.set.compounds, row.compound_qid) else {
             return;
-        }
+        };
         let compound_slot = compound_id as usize;
-        self.grow_compounds(compound_slot);
+        self.grow_compounds();
         let numeric = self.set.compounds.get(compound_id).unwrap_or_default();
         self.populate_compound(compound_slot, row);
 
-        let taxon_id = intern_qid(&mut self.set.taxa, row.taxon_qid);
-        let reference_id = intern_qid(&mut self.set.references, row.reference_qid);
-        self.grow_references(reference_id);
-
-        if taxon_id != NO_VALUE {
+        let taxon_id = intern_qid(&mut self.set.taxa, row.taxon_qid).map_or(NO_VALUE, |id| {
             self.set
                 .taxon_names
-                .set(taxon_id as usize, present(row.taxon_name));
-        }
-        if reference_id != NO_VALUE {
-            self.populate_reference(reference_id as usize, row);
-        }
+                .set(id as usize, present(row.taxon_name));
+            id
+        });
+        let reference_id =
+            intern_qid(&mut self.set.references, row.reference_qid).map_or(NO_VALUE, |id| {
+                self.grow_references();
+                self.populate_reference(id as usize, row);
+                id
+            });
 
         let statement =
             row.statement
@@ -1636,15 +1637,13 @@ impl ColumnarBuilder {
     /// unconstrained dictionary stream can be retained for seeding subsequent
     /// searches.
     pub fn intern_dictionary_row(&mut self, row: RawRow<'_>) {
-        if let Some(numeric) = parse_qid_number(row.compound_qid) {
-            let compound_slot = self.set.compounds.intern(numeric) as usize;
-            self.grow_compounds(compound_slot);
-            self.populate_compound(compound_slot, row);
+        if let Some(id) = intern_qid(&mut self.set.compounds, row.compound_qid) {
+            self.grow_compounds();
+            self.populate_compound(id as usize, row);
         }
-        if let Some(numeric) = parse_qid_number(row.reference_qid) {
-            let reference_id = self.set.references.intern(numeric);
-            self.grow_references(reference_id);
-            self.populate_reference(reference_id as usize, row);
+        if let Some(id) = intern_qid(&mut self.set.references, row.reference_qid) {
+            self.grow_references();
+            self.populate_reference(id as usize, row);
         }
     }
 
@@ -1700,16 +1699,16 @@ impl ColumnarBuilder {
         }
     }
 
-    /// Make sure the compound columns cover `slot`.
+    /// Make sure the compound columns cover every interned compound.
     ///
-    /// Ids are minted in first-seen order, so `slot` is at most one past the end
-    /// and the loop runs at most once. It is a loop so that a caller which
-    /// interleaves builders cannot leave the columns ragged. A counted loop
-    /// rather than `while`, so that a wrong slot count leaves the columns the
-    /// wrong length instead of never ending.
-    fn grow_compounds(&mut self, slot: usize) {
+    /// Ids are minted in first-seen order, so `compounds.len()` is at most one
+    /// past the end and the loop runs at most once. It is a loop so that a
+    /// caller which interleaves builders cannot leave the columns ragged. A
+    /// counted loop rather than `while`, so that a wrong slot count leaves the
+    /// columns the wrong length instead of never ending.
+    fn grow_compounds(&mut self) {
         let first = self.compound_slots();
-        for next in first..=slot {
+        for next in first..self.set.compounds.len() {
             self.set.compound_names.set(next, None);
             self.set.compound_inchikeys.set(next, None);
             self.set.compound_smiles.set(next, None);
@@ -1723,13 +1722,10 @@ impl ColumnarBuilder {
         self.set.compound_masses.len()
     }
 
-    /// Make sure the reference columns cover `reference_id`.
-    fn grow_references(&mut self, reference_id: u32) {
-        if reference_id == NO_VALUE {
-            return;
-        }
-        while self.set.reference_years.len() <= reference_id as usize {
-            let next = self.set.reference_years.len();
+    /// Make sure the reference columns cover every interned reference.
+    fn grow_references(&mut self) {
+        let first = self.set.reference_years.len();
+        for next in first..self.set.references.len() {
             self.set.reference_titles.set(next, None);
             self.set.reference_dois.set(next, None);
             self.set.reference_years.push(None);

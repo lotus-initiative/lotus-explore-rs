@@ -10,13 +10,13 @@
 // An integration test links the crate's whole dependency graph without using it.
 // Miri cannot spawn child processes (`posix_spawnattr_init`), and the in-process
 // unit suite in `src/bin/emit-metadata/tests.rs` covers the body under Miri.
-#![cfg(not(miri))]
 #![allow(
     unused_crate_dependencies,
     clippy::expect_used,
     clippy::panic,
     clippy::unwrap_used
 )]
+#![cfg(not(miri))]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
