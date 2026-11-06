@@ -114,7 +114,7 @@ fn the_paper_is_referenced_rather_than_preferred() {
 
 #[test]
 fn codemeta_states_the_toolchain_the_build_actually_needs() {
-    // The workspace pins 1.97 and is edition 2024, so a consumer on an older
+    // The workspace pins 1.99.1 and is edition 2024, so a consumer on an older
     // toolchain fails at compile time. The requirement is stated rather than
     // discovered.
     let document = codemeta(&SOFTWARE);
@@ -127,7 +127,7 @@ fn codemeta_states_the_toolchain_the_build_actually_needs() {
     assert!(
         requirements[0]["version"]
             .as_str()
-            .is_some_and(|v| v.contains("1.97")),
+            .is_some_and(|v| v.contains("1.99.1")),
         "the pinned toolchain is named, got {requirements:?}"
     );
 }

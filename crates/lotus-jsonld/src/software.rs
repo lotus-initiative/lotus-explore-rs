@@ -246,7 +246,7 @@ pub fn codemeta(software: &Software) -> Value {
         "buildInstructions".into(),
         json!("cargo build --release -p lotus-cli"),
     );
-    // The toolchain is a real requirement -- the workspace pins 1.97 and uses
+    // The toolchain is a real requirement -- the workspace pins 1.99.1 and uses
     // edition 2024 -- so it is stated rather than left to be discovered by a
     // failed build.
     object.insert(

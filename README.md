@@ -51,7 +51,7 @@ checked as a doctest. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) says why th
 
 ## Prerequisites
 
-Rust 1.99.0 with `clippy`, `rustfmt` and `wasm32-unknown-unknown`, pinned in
+Rust 1.99.1 with `clippy`, `rustfmt` and `wasm32-unknown-unknown`, pinned in
 `rust-toolchain.toml`. Everything else is installed for you:
 
 ```bash
