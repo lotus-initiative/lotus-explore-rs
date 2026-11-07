@@ -399,6 +399,9 @@ fn folding_is_unicode_aware() {
         "ASCII case folds under Unicode lowercasing too"
     );
     assert!(contains_folded("ÉCOLE", &folded("école")));
+    assert!(contains_folded("ÉCOLE", &folded("éco")));
+    assert!(!contains_folded("ÉCOLE", &folded("ankara")));
+    assert!(!contains_folded("É", &folded("école")));
 }
 
 #[test]

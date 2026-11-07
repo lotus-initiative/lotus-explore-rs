@@ -1835,22 +1835,10 @@ pub fn contains_folded(haystack: &str, needle: &[char]) -> bool {
 
 /// Whether the folded prefix of `haystack` is `needle`.
 fn folded_prefix_matches(haystack: &str, needle: &[char]) -> bool {
-    let mut matched = 0;
-    for ch in haystack.chars() {
-        if matched == needle.len() {
-            return true;
-        }
-        for lowered in ch.to_lowercase() {
-            if matched == needle.len() {
-                break;
-            }
-            if needle.get(matched).copied() != Some(lowered) {
-                return false;
-            }
-            matched += 1;
-        }
-    }
-    matched == needle.len()
+    let mut folded_haystack = haystack.chars().flat_map(char::to_lowercase);
+    needle
+        .iter()
+        .all(|&expected| folded_haystack.next() == Some(expected))
 }
 
 /// An inclusive range on a measured quantity, where either end may be open.
