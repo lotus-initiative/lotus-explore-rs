@@ -244,6 +244,14 @@ run_mutants() {
         threads=$((n / jobs / 2))
     fi
     [ "$threads" -ge 1 ] || threads=1
+    if [ -z "${TMPDIR:-}" ]; then
+        if [ -n "${RUNNER_TEMP:-}" ] && [ -d "$RUNNER_TEMP" ]; then
+            export TMPDIR="$RUNNER_TEMP"
+        elif [ "$(free_disk_gb /tmp)" -lt "$MUTANTS_MIN_FREE_DISK_GB" ]; then
+            mkdir -p "$ROOT_DIR/target/tmp"
+            export TMPDIR="$ROOT_DIR/target/tmp"
+        fi
+    fi
     reason="$(mutants_starved)"
     [ -z "$reason" ] || die "not starting cargo-mutants: $reason"
     local -a scope=(--workspace)
@@ -616,7 +624,7 @@ case "$cmd" in
         # environment. MIRI_PACKAGES in mk.local limits it to the crates where
         # it means something (miri cannot spawn processes or open sockets).
         cargo "+$RUST_NIGHTLY" miri --version >/dev/null 2>&1 || die "miri on $RUST_NIGHTLY is not installed; run ./mk setup nightly"
-        export MIRIFLAGS="${MIRIFLAGS:--Zmiri-disable-isolation}"
+        export MIRIFLAGS="${MIRIFLAGS:--Zmiri-disable-isolation -Zmiri-tree-borrows}"
         if [ "${#MIRI_PACKAGES[@]}" -gt 0 ]; then
             cargo "+$RUST_NIGHTLY" miri test --all-features --locked "${MIRI_PACKAGES[@]/#/--package=}"
         else
