@@ -199,17 +199,9 @@ fn parse_bound(raw: &str) -> Option<f64> {
 }
 
 fn format_bound(value: f64) -> String {
-    // `200` rather than `200.0`, which is what the user typed and what the column
-    // shows. `i64` holds every mass and year the app can display.
-    #[allow(
-        clippy::cast_possible_truncation,
-        reason = "guarded by `fract() == 0.0`, and both masses and years fit in an i64"
-    )]
-    if value.fract() == 0.0 {
-        format!("{}", value as i64)
-    } else {
-        value.to_string()
-    }
+    // Rust's `f64::Display` formats whole numbers without a trailing `.0`
+    // (`200.0` -> `"200"`, `250.25` -> `"250.25"`).
+    value.to_string()
 }
 
 #[cfg(test)]

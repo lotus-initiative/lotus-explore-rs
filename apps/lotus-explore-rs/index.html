@@ -279,6 +279,26 @@
 
         document.documentElement.lang =
           params.get("lang") || params.get("locale") || "en";
+
+        var darkParam = params.get("dark_mode");
+        var storedTheme = null;
+        try {
+          storedTheme = window.localStorage.getItem("dark_mode");
+        } catch (_) {}
+        if (darkParam !== null) {
+          var lowerDark = darkParam.toLowerCase();
+          var isDark =
+            darkParam === "1" || lowerDark === "true" || lowerDark === "yes";
+          document.documentElement.setAttribute(
+            "data-theme",
+            isDark ? "dark" : "light",
+          );
+        } else if (storedTheme === "true" || storedTheme === "false") {
+          document.documentElement.setAttribute(
+            "data-theme",
+            storedTheme === "true" ? "dark" : "light",
+          );
+        }
       })();
     </script>
     <style>
@@ -301,10 +321,14 @@
        the app itself is still booting for seconds on a slow link. The values
        here must track --shell-page-bg and --text in tailwind/styles.css. */
       @media (prefers-color-scheme: dark) {
-        body {
+        html:not([data-theme="light"]) body {
           background: #0a0f19;
           color: #eef4fb;
         }
+      }
+      html[data-theme="dark"] body {
+        background: #0a0f19;
+        color: #eef4fb;
       }
       .boot-shell {
         min-height: 100vh;

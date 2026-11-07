@@ -2,14 +2,19 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The "Structure editor" tab: a full-pane Ketcher molecule editor.
 
+use crate::hooks::use_locale;
+use crate::i18n::view_label_draw;
 use crate::pages::ketcher_panel::KetcherPanel;
 use dioxus::prelude::*;
 
 #[component(lazy)]
 pub fn DrawPage() -> Element {
+    let locale = use_locale();
     rsx! {
         section {
             class: "w-full max-w-none px-4 pt-3 sm:px-6 lg:px-8",
+            aria_labelledby: "draw-page-heading",
+            h2 { class: "sr-only", id: "draw-page-heading", "{view_label_draw(locale)}" }
             div { class: "w-full rounded-xl border border-shell-border bg-shell-raised overflow-hidden",
                 // Full-width shell here keeps the editor usable on large screens without a faux content column.
                 KetcherPanel {}

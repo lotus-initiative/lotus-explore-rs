@@ -39,13 +39,13 @@ fn resolve_startup_dark_mode(startup: &crate::features::explore::InitialUrlState
     }
 
     #[cfg(target_arch = "wasm32")]
-    let mut startup_dark_mode = false;
-    #[cfg(not(target_arch = "wasm32"))]
-    let startup_dark_mode = false;
-
-    #[cfg(target_arch = "wasm32")]
     {
-        // Check localStorage first for persisted user preference
+        let params = crate::features::explore::url_state::read_url_query_params();
+        if let Some(raw) = params.get("dark_mode") {
+            return crate::features::explore::url_state::is_true_flag(raw);
+        }
+
+        // Check localStorage for persisted user preference before falling back to OS media query.
         if let Some(win) = web_sys::window()
             && let Ok(storage) = js_sys::Reflect::get(&win, &"localStorage".into())
             && !storage.is_undefined()
@@ -54,12 +54,12 @@ fn resolve_startup_dark_mode(startup: &crate::features::explore::InitialUrlState
             && let Ok(value) = get_item.call1(&storage, &"dark_mode".into())
             && let Some(value_str) = value.as_string()
         {
-            startup_dark_mode = value_str == "true";
-        }
-
-        let params = crate::features::explore::url_state::read_url_query_params();
-        if let Some(raw) = params.get("dark_mode") {
-            return crate::features::explore::url_state::is_true_flag(raw);
+            if value_str == "true" {
+                return true;
+            }
+            if value_str == "false" {
+                return false;
+            }
         }
 
         if let Some(win) = web_sys::window()
@@ -70,7 +70,7 @@ fn resolve_startup_dark_mode(startup: &crate::features::explore::InitialUrlState
         }
     }
 
-    startup_dark_mode
+    false
 }
 
 /// Whether the root links the application stylesheet from the component tree.

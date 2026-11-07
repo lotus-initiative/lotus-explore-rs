@@ -30,8 +30,14 @@ pub fn SearchButton(
             } else {
                 "w-full inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 rounded-xl bg-accent text-bg font-semibold shadow-xs hover:bg-accent-2 active:bg-accent-2 min-h-[40px] gap-2 px-3.5 py-2 text-ui active:scale-[0.98]"
             },
-            aria_label: t(locale, TextKey::RunSearch).to_string(),
-            onclick: move |_| on_click.call(()),
+            // No `aria_label`: the visible text is the accessible name, and a
+            // second name that can drift from it is a WCAG 2.5.3 failure.
+            // `prevent_default` keeps a click on this `type="submit"` button
+            // from also firing the enclosing `<form>`'s `onsubmit` handler.
+            onclick: move |evt: MouseEvent| {
+                evt.prevent_default();
+                on_click.call(());
+            },
         }
     }
 }

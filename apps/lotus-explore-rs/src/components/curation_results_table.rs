@@ -10,7 +10,6 @@ use crate::i18n::{
     hint_scroll_curation_results, label_new_item, t,
 };
 use dioxus::prelude::*;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 const NA_TEXT: &str = "n/a";
@@ -126,6 +125,7 @@ pub fn CurationResultsTable(locale: Locale, rows: Arc<[CurationResultRow]>) -> E
                 aria_label: "{crate::i18n::heading_results(locale)}",
                 aria_describedby: scroll_hint_id,
                 table { class: "curation-results-table w-full min-w-[1320px] table-auto border-collapse text-ui",
+                    caption { class: "sr-only", "{crate::i18n::heading_results(locale)}" }
                     thead {
                         tr { class: "text-left",
                             th { scope: "col", class: "border-b border-shell-border bg-shell-raised px-3 py-2 text-left text-micro font-semibold uppercase tracking-wide text-muted w-[160px] min-w-[160px]", "{col_status(locale)}" }
@@ -141,7 +141,7 @@ pub fn CurationResultsTable(locale: Locale, rows: Arc<[CurationResultRow]>) -> E
                     }
                     tbody {
                         for (idx, row) in rows.iter().enumerate() {
-                            tr { key: "{row.inchikey.as_deref().unwrap_or(&idx.to_string())}",
+                            tr { key: "{idx}|{row.input.name}|{row.input.smiles}",
                                 class: "odd:bg-surface/30 hover:bg-surface/40",
                                 {render_curation_result_cells(locale, row)}
                             }
@@ -166,23 +166,20 @@ fn status_label(locale: Locale, status: &CurationStatus) -> &'static str {
 }
 
 fn status_counts(rows: &[CurationResultRow]) -> Vec<(CurationStatus, usize)> {
-    let mut counts = HashMap::<CurationStatus, usize>::new();
-    for row in rows {
-        *counts.entry(row.status.clone()).or_insert(0) += 1;
-    }
-
-    let ordered = [
+    [
         CurationStatus::ExistingComplete,
         CurationStatus::ExistingNeedsUpdates,
         CurationStatus::NewCompound,
         CurationStatus::PendingDependencies,
+        CurationStatus::NotChecked,
         CurationStatus::Error,
-    ];
-
-    ordered
-        .into_iter()
-        .filter_map(|status| counts.get(&status).copied().map(|count| (status, count)))
-        .collect::<Vec<_>>()
+    ]
+    .into_iter()
+    .filter_map(|status| {
+        let count = rows.iter().filter(|row| row.status == status).count();
+        (count > 0).then_some((status, count))
+    })
+    .collect()
 }
 
 fn format_mass(value: Option<f64>) -> String {

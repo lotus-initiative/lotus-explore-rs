@@ -286,6 +286,7 @@ video {
   --text-micro: var(--fs-micro);
   --text-ui: var(--fs-ui);
   --text-body: var(--fs-body);
+  --text-subtitle: var(--fs-2);
   --text-title: var(--fs-2);
   --text-display: var(--fs-3);
   --text-hero: var(--fs-4);
@@ -610,6 +611,26 @@ legend {
   resize: vertical;
 }
 
+@utility spinner-lg {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin 0.75s linear infinite;
+}
+
+@utility spinner-sm {
+  display: inline-block;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 9999px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: spin 0.75s linear infinite;
+}
+
 /* ========================================
    FOCUS-VISIBLE SAFETY NET (zero-specificity :where)
    ======================================== */
@@ -666,6 +687,11 @@ legend {
   :root {
     --border: #7a879a;
     --text3: #334155;
+  }
+
+  :is([data-theme="dark"], :root:not([data-theme="light"])) {
+    --border: #94a3b8;
+    --text3: #cbd5e1;
   }
 }
 

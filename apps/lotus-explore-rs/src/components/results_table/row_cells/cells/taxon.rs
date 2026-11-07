@@ -29,6 +29,12 @@ pub(in crate::components::results_table::row_cells) fn taxon_cell(
         };
     }
 
+    let display_name: &str = if entry.taxon_name.trim().is_empty() {
+        taxon_qid
+    } else {
+        &entry.taxon_name
+    };
+
     rsx! {
         td { "property": "wdt:P703", "typeof": "Taxon", "resource": "https://www.wikidata.org/entity/{taxon_qid}", class: "min-w-0 px-3 py-2.5 align-middle text-ui shadow-[inset_3px_0_0_var(--footer-wd-taxon)]",
             div { class: "flex flex-col gap-1 max-w-[24ch]",
@@ -38,7 +44,7 @@ pub(in crate::components::results_table::row_cells) fn taxon_cell(
                     target: "_blank",
                     rel: "noopener noreferrer",
                     class: "min-h-6 break-words line-clamp-2 font-semibold italic leading-snug hover:underline text-wd-taxon",
-                    "{entry.taxon_name}"
+                    "{display_name}"
                 }
             }
             div { class: "mt-1 flex flex-wrap items-center gap-1 max-w-[24ch]",

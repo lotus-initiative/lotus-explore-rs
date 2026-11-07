@@ -51,7 +51,7 @@ pub fn SearchPanel() -> Element {
     rsx! {
         form {
             id: "lotus-search-form",
-            class: "flex-0-auto flex flex-col gap-2 rounded-xl border border-border bg-panel-soft p-3.5 w-full min-w-0 min-h-[300px]",
+            class: "shrink-0 flex flex-col gap-2 rounded-xl border border-border bg-panel-soft p-3.5 w-full min-w-0 min-h-[300px]",
             aria_label: t(locale, TextKey::Search).to_string(),
             // WebMCP declarative tool registration. These four `tool*` attributes are
             // what a WebMCP-capable browser reads: it synthesises the input schema from
@@ -191,6 +191,7 @@ fn ReferenceInput() -> Element {
                 spellcheck: "false",
                 placeholder: "10.1002/andp.18280880206",
                 value: "{reference.read()}",
+                list: "reference-suggestions",
                 oninput: move |e| ctx.update(FormAction::Reference(e.value())),
                 class: "font-mono w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
             }
@@ -215,12 +216,9 @@ fn ReferenceInput() -> Element {
 fn StructureInput() -> Element {
     let locale = crate::hooks::use_locale();
     let ctx = use_form_criteria_context();
-    // Only the two fields this draws. The threshold lives in the advanced panel, and
-    // subscribing to it would re-render this field on every slider tick.
-    let structure_fields = use_criteria_selector(ctx.criteria, |criteria| {
-        (criteria.structure.clone(), criteria.structure_search)
-    });
-    let (smiles, _smiles_search_type) = structure_fields.read().clone();
+    // Only the field this draws. The search mode and threshold live in the advanced
+    // panel, and subscribing to them would re-render this field on every slider tick.
+    let smiles = use_criteria_selector(ctx.criteria, |criteria| criteria.structure.clone());
 
     rsx! {
         div { class: "flex min-w-0 flex-col gap-1.5",
@@ -237,7 +235,7 @@ fn StructureInput() -> Element {
                 spellcheck: "false",
                 placeholder: "{t(locale, TextKey::StructurePlaceholder)}",
                 "aria-describedby": "smiles-input-examples-heading",
-                value: "{smiles}",
+                value: "{smiles.read()}",
                 oninput: move |e| ctx.update(FormAction::Smiles(e.value())),
                 rows: "2",
                 class: "resize-field min-h-16 font-mono w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
@@ -268,13 +266,9 @@ fn StructureSearchOptions() -> Element {
     let locale = crate::hooks::use_locale();
     let ctx = use_form_criteria_context();
     let structure_fields = use_criteria_selector(ctx.criteria, |criteria| {
-        (
-            criteria.structure.clone(),
-            criteria.structure_search,
-            criteria.structure_threshold,
-        )
+        (criteria.structure_search, criteria.structure_threshold)
     });
-    let (_smiles, smiles_search_type, similarity_threshold) = structure_fields.read().clone();
+    let (smiles_search_type, similarity_threshold) = *structure_fields.read();
     let show_similarity_threshold = smiles_search_type == SmilesSearchType::Similarity;
 
     rsx! {
@@ -289,6 +283,7 @@ fn StructureSearchOptions() -> Element {
                     r#type: "radio",
                     id: "smiles-search-type-exact",
                     name: "stype",
+                    value: "exact",
                     autocomplete: "off",
                     class: "accent-accent h-4 w-4 cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                     checked: smiles_search_type == SmilesSearchType::Exact,
@@ -303,6 +298,7 @@ fn StructureSearchOptions() -> Element {
                     r#type: "radio",
                     id: "smiles-search-type-substructure",
                     name: "stype",
+                    value: "substructure",
                     autocomplete: "off",
                     class: "accent-accent h-4 w-4 cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                     checked: smiles_search_type == SmilesSearchType::Substructure,
@@ -317,6 +313,7 @@ fn StructureSearchOptions() -> Element {
                     r#type: "radio",
                     id: "smiles-search-type-similarity",
                     name: "stype",
+                    value: "similarity",
                     autocomplete: "off",
                     class: "accent-accent h-4 w-4 cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                     checked: smiles_search_type == SmilesSearchType::Similarity,

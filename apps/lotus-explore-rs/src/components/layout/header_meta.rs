@@ -19,7 +19,7 @@ fn hash_prefix(value: &str) -> &str {
 fn ResolvedTaxonMetaItem(locale: crate::i18n::Locale, qid: Arc<str>) -> Element {
     rsx! {
         span { class: "flex items-center gap-1.5 flex-wrap min-w-0",
-            span { class: "font-semibold text-text2", "{t(locale, TextKey::ResolvedTaxon)}" }
+            span { class: "font-semibold text-muted", "{t(locale, TextKey::ResolvedTaxon)}" }
             span { class: "text-subtle", ":" }
             span { class: "font-mono text-subtle", "{qid}" }
             CopyButton { text: qid, title: t(locale, TextKey::CopyTaxonQid), class: "meta-copy", locale }
@@ -31,7 +31,7 @@ fn ResolvedTaxonMetaItem(locale: crate::i18n::Locale, qid: Arc<str>) -> Element 
 fn QueryHashMetaItem(locale: crate::i18n::Locale, full_hash: Arc<str>) -> Element {
     rsx! {
         span { class: "flex items-center gap-1.5 flex-wrap min-w-0",
-            span { class: "font-semibold text-text2", "{t(locale, TextKey::QueryHash)}" }
+            span { class: "font-semibold text-muted", "{t(locale, TextKey::QueryHash)}" }
             span { class: "text-subtle", ":" }
             span { class: "font-mono text-subtle", "{hash_prefix(&full_hash)}" }
             CopyButton { text: full_hash, title: t(locale, TextKey::CopyFullQueryHash), class: "meta-copy", locale }
@@ -43,7 +43,7 @@ fn QueryHashMetaItem(locale: crate::i18n::Locale, full_hash: Arc<str>) -> Elemen
 fn ResultHashMetaItem(locale: crate::i18n::Locale, full_hash: Arc<str>) -> Element {
     rsx! {
         span { class: "flex items-center gap-1.5 flex-wrap min-w-0",
-            span { class: "font-semibold text-text2", "{t(locale, TextKey::ResultHash)}" }
+            span { class: "font-semibold text-muted", "{t(locale, TextKey::ResultHash)}" }
             span { class: "text-subtle", ":" }
             span { class: "font-mono text-subtle", "{hash_prefix(&full_hash)}" }
             CopyButton { text: full_hash, title: t(locale, TextKey::CopyFullResultHash), class: "meta-copy", locale }

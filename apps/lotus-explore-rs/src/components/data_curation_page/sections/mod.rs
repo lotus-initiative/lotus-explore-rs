@@ -25,9 +25,11 @@ use crate::features::explore::absolute_share_url;
 
 #[component]
 pub fn ShareBar(locale: Locale, share: Arc<str>) -> Element {
+    let share_url = absolute_share_url(&share);
+    let copy_text = Arc::<str>::from(share_url.as_str());
     rsx! {
         div { class: "flex flex-col gap-2 p-3 rounded-xl border border-shell-border bg-shell-raised", role: "status",
-            span { class: "text-ui font-semibold text-text2", "{t(locale, TextKey::Share)}" }
+            span { class: "text-ui font-semibold text-muted", "{t(locale, TextKey::Share)}" }
             div { class: "flex flex-col gap-2",
                 input {
                     id: "curation-share-url-field",
@@ -37,10 +39,10 @@ pub fn ShareBar(locale: Locale, share: Arc<str>) -> Element {
                     class: "w-full font-mono rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                     r#type: "text",
                     readonly: true,
-                    value: "{share}",
+                    value: "{share_url}",
                 }
                 CopyButton {
-                    text: Arc::<str>::from(absolute_share_url(&share)),
+                    text: copy_text,
                     title: t(locale, TextKey::CopyShareableLink),
                     locale,
                 }
@@ -99,7 +101,7 @@ pub fn AddRowCard(
             class: "flex flex-col gap-4 rounded-xl border border-border bg-panel-soft p-4",
             SectionHeading { text: heading_add_one_row(locale).to_string() }
             div { class: "grid grid-cols-1 gap-3",
-                label { class: "form-label", r#for: "curation-name-input",
+                label { class: "text-body font-semibold text-text", r#for: "curation-name-input",
                     "{placeholder_molecule_name(locale)}"
                 }
                 input {
@@ -114,7 +116,7 @@ pub fn AddRowCard(
                     oninput: move |e| form.name.set(e.value()),
                 }
                 label {
-                    class: "form-label",
+                    class: "text-body font-semibold text-text",
                     r#for: "curation-smiles-input",
                     "SMILES"
                 }
@@ -130,7 +132,7 @@ pub fn AddRowCard(
                     oninput: move |e| form.smiles.set(e.value()),
                 }
                 label {
-                    class: "form-label",
+                    class: "text-body font-semibold text-text",
                     r#for: "curation-taxon-input",
                     "{placeholder_taxon_optional(locale)}"
                 }
@@ -145,7 +147,7 @@ pub fn AddRowCard(
                     value: "{form.taxon}",
                     oninput: move |e| form.taxon.set(e.value()),
                 }
-                label { class: "form-label", r#for: "curation-doi-input",
+                label { class: "text-body font-semibold text-text", r#for: "curation-doi-input",
                     "{placeholder_doi_optional(locale)}"
                 }
                 input {
@@ -162,9 +164,13 @@ pub fn AddRowCard(
             }
             div { class: "flex flex-wrap items-center gap-2.5",
                 Button {
+                    r#type: "submit",
                     label: button_add_row(locale).to_string(),
                     class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 rounded-xl bg-accent text-bg font-semibold shadow-xs hover:bg-accent-2 active:bg-accent-2 min-h-[34px] gap-1.5 px-3 py-1.5 text-ui active:scale-[0.98]",
-                    onclick: Some(EventHandler::new(move |_: Event<MouseData>| on_add_row.call(()))),
+                    onclick: Some(EventHandler::new(move |evt: Event<MouseData>| {
+                        evt.prevent_default();
+                        on_add_row.call(());
+                    })),
                 }
                 Button {
                     label: button_load_example_rows(locale).to_string(),
@@ -214,7 +220,7 @@ pub fn TsvImportCard(
             class: "flex flex-col gap-4 rounded-xl border border-border bg-panel-soft p-4",
             SectionHeading { text: heading_tsv_import(locale).to_string() }
             p { class: "text-ui text-subtle leading-snug", "{hint_expected_tsv_headers(locale)}" }
-            label { class: "form-label", r#for: "curation-tsv-input", "TSV" }
+            label { class: "text-body font-semibold text-text", r#for: "curation-tsv-input", "TSV" }
             textarea {
                 id: "curation-tsv-input",
                 name: "tsv",
@@ -314,6 +320,7 @@ pub fn QueueRowsCard(
                 aria_label: "{heading_queued_rows(locale)}",
                 table {
                      class: "curation-queued-table w-full min-w-max table-auto border-collapse text-ui",
+                    caption { class: "sr-only", "{heading_queued_rows(locale)}" }
 
                     thead {
                         tr { class: "text-left",
@@ -337,7 +344,7 @@ pub fn QueueRowsCard(
                             }
                         } else {
                             for (idx, row) in rows_snapshot.iter().enumerate() {
-                                tr { key: "{row.name}|{row.smiles}",
+                                tr { key: "{idx}|{row.name}|{row.smiles}",
                                     class: "odd:bg-surface/30 hover:bg-surface/60",
                                     td { class: "border-b border-panel-border px-3 py-2.5 align-top text-ui text-text w-[110px] min-w-[110px]",
                                         Button {

@@ -150,3 +150,33 @@ fn the_search_button_is_still_the_submit() {
         "exactly one control submits the form:\n{html}"
     );
 }
+
+#[test]
+fn the_search_button_has_no_second_accessible_name() {
+    let html = render();
+    let submit = html
+        .split("<button")
+        .find(|fragment| fragment.contains(r#"type="submit""#))
+        .unwrap_or_else(|| panic!("no submit button in the panel:\n{html}"));
+    let button = &submit[..submit.find("</button>").unwrap_or(submit.len())];
+    assert!(
+        !button.contains("aria-label"),
+        "SearchButton visible text is its accessible name (WCAG 2.5.3):\n{button}"
+    );
+}
+
+#[test]
+fn structure_search_radios_expose_explicit_values_and_reference_links_datalist() {
+    let html = render();
+    for expected in [
+        r#"value="exact""#,
+        r#"value="substructure""#,
+        r#"value="similarity""#,
+        r#"list="reference-suggestions""#,
+    ] {
+        assert!(
+            html.contains(expected),
+            "expected search panel markup to contain {expected}:\n{html}"
+        );
+    }
+}

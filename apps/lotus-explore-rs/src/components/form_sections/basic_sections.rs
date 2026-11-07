@@ -135,6 +135,7 @@ pub fn TaxonInput() -> Element {
                 oninput: move |e| ctx.update(FormAction::Taxon(e.value())),
                 onkeydown: move |e| {
                     if e.key() == Key::Enter {
+                        e.prevent_default();
                         interactions.search();
                     }
                 },

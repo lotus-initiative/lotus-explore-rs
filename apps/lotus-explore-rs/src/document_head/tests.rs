@@ -85,3 +85,20 @@ fn the_compiled_sheet_is_not_the_uncompiled_input() {
         THEME_SOURCE.len()
     );
 }
+
+#[test]
+fn the_compiled_sheet_carries_custom_utilities_and_typography_scale() {
+    for class in [
+        ".spinner-lg",
+        ".spinner-sm",
+        ".filter-field",
+        ".resize-field",
+        ".results-table-scroll",
+        ".text-subtitle",
+    ] {
+        assert!(
+            COMPILED_SHEET.contains(class),
+            "expected compiled lotus-explore.css to contain {class}; run `./mk web-css`"
+        );
+    }
+}

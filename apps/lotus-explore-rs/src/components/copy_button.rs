@@ -51,26 +51,13 @@ pub fn CopyButton(
 }
 
 // `async` is required for signature parity at the call site: the WASM branch
-// `.await`s a `JsFuture`, while the native branch sleeps synchronously. Clippy
+// `.await`s a `TimeoutFuture`, while the native branch sleeps synchronously. Clippy
 // sees only the current target, so on native this "looks" like an unused async.
 #[allow(clippy::unused_async)]
 async fn gloo_timer_sleep_ms(ms: u32) {
     #[cfg(target_arch = "wasm32")]
     {
-        use wasm_bindgen::JsCast;
-        use wasm_bindgen::closure::Closure;
-        let promise = js_sys::Promise::new(&mut |resolve, _reject| {
-            let cb = Closure::once_into_js(move || {
-                let _ = resolve.call0(&wasm_bindgen::JsValue::NULL);
-            });
-            if let Some(win) = web_sys::window() {
-                let _ = win.set_timeout_with_callback_and_timeout_and_arguments_0(
-                    cb.as_ref().unchecked_ref(),
-                    i32::try_from(ms).unwrap_or(i32::MAX),
-                );
-            }
-        });
-        let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+        gloo_timers::future::TimeoutFuture::new(ms).await;
     }
     #[cfg(not(target_arch = "wasm32"))]
     {

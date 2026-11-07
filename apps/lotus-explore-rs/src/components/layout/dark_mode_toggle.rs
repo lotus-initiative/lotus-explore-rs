@@ -3,8 +3,6 @@
 //! Light / dark theme toggle in the page header.
 
 use crate::app::routes::Route;
-#[cfg(target_arch = "wasm32")]
-use crate::features::explore::url_state::deployment_href;
 use crate::hooks::use_locale;
 use crate::i18n::{TextKey, t};
 use crate::state::use_app_state_context;
@@ -38,18 +36,6 @@ pub fn DarkModeToggle() -> Element {
                 let new_dark_mode = !dark_mode;
                 app_state.with_mut(|s| s.dark_mode = new_dark_mode);
                 let target = route.clone().with_dark_mode(new_dark_mode);
-                #[cfg(target_arch = "wasm32")]
-                if route.view_key() == "landing" {
-                    let path = if new_dark_mode {
-                        "/?dark_mode=true"
-                    } else {
-                        "/"
-                    };
-                    if let Some(window) = web_sys::window() {
-                        let _ = window.location().set_href(&deployment_href(path));
-                    }
-                    return;
-                }
                 let _ = navigator.replace(NavigationTarget::Internal(
                     target.navigation_string(),
                 ));

@@ -119,31 +119,6 @@ pub fn theme_chrome_color(dark_mode: bool) -> &'static str {
     if dark_mode { "#10141b" } else { "#f6f8fb" }
 }
 
-#[cfg(target_arch = "wasm32")]
-fn current_search() -> String {
-    web_sys::window()
-        .and_then(|window| window.document())
-        .and_then(|document| document.document_element())
-        .and_then(|element| element.get_attribute("data-lotus-query"))
-        .unwrap_or_default()
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn current_search() -> String {
-    String::new()
-}
-
-pub fn href_with_current_query(path: &str) -> String {
-    let query = current_search();
-    let query = query.strip_prefix('?').unwrap_or(&query);
-    let path = if query.is_empty() {
-        path.to_string()
-    } else {
-        format!("{path}?{query}")
-    };
-    deployment_href(&path)
-}
-
 pub fn absolute_share_url(share: &str) -> String {
     #[cfg(target_arch = "wasm32")]
     {
