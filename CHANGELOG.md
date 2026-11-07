@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org).
 - **Export CLI subcommand** (`lotus export`): ports `lotus_exporter.py`.
   Writes the full LOTUS compound–taxon–reference graph as `frozen.csv` and
   `frozen_metadata.csv`, streaming rows to bounded memory.
+- `lotus export` shows per-table fetch progress on interactive terminals:
+  the completed-table count advances between requests, and a spinner moves
+  while a SPARQL request is running.
 - **PubChem tree CLI subcommand** (`lotus export-pubchem-tree`): ports
   `lotus_pubchem_tree.py`. Builds three PubChem-format trees as JSON
   (biological, chemical, NPClassifier) in full and compact forms.
