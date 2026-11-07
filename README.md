@@ -51,16 +51,18 @@ checked as a doctest. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) says why th
 
 ## Prerequisites
 
-Rust 1.99.1 with `clippy`, `rustfmt` and `wasm32-unknown-unknown`, pinned in
-`rust-toolchain.toml`. Everything else is installed for you:
+Install Rust via rustup, then bootstrap `cargo-binstall` before running setup.
+The exact macOS and Debian/Ubuntu commands are in
+[`CONTRIBUTING.md`](CONTRIBUTING.md#install-prerequisites); `./mk setup` alone
+cannot install its own bootstrap tool.
 
 ```bash
 ./mk setup
 ```
 
-That installs the test runner, the task runner, the linters and the supply-chain
-tools, each at a pinned version. `dx` for the web app comes from it too. Node.js
-is not needed, because Dioxus builds the Tailwind itself.
+Setup installs the pinned Rust toolchain (with `clippy`, `rustfmt` and
+`wasm32-unknown-unknown`), task runner, test runner, linters, supply-chain
+tools and `dx`. Node.js is not needed: Dioxus builds the Tailwind itself.
 
 ## Working on it
 

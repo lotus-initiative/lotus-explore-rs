@@ -194,6 +194,18 @@ pub(crate) async fn fetch_csv_rows<H: Http>(
     read_csv_rows(&body).map_err(ExportError::Csv)
 }
 
+/// Notify the caller before a table fetch, leaving presentation to its adapter.
+async fn fetch_export_table<H: Http>(
+    http: &H,
+    endpoint: &Endpoint,
+    query: &str,
+    table: &'static str,
+    on_progress: &mut impl FnMut(&'static str),
+) -> Result<Vec<Row>, ExportError> {
+    on_progress(table);
+    fetch_csv_rows(http, endpoint, query, table).await
+}
+
 /// The value of one column, empty when absent.
 pub(crate) fn cell<'a>(row: &'a Row, column: &str) -> &'a str {
     row.get(column).map_or("", String::as_str)
@@ -390,12 +402,135 @@ fn serialize_metadata_csv(lines: &[MetaLine]) -> Result<String, ExportError> {
         .map_err(|e| ExportError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))
 }
 
+async fn fetch_taxon_index<H: Http>(
+    http: &H,
+    endpoint: &Endpoint,
+    on_progress: &mut impl FnMut(&'static str),
+) -> Result<HashMap<String, TaxonProps>, ExportError> {
+    let names = fetch_export_table(
+        http,
+        endpoint,
+        TAXON_NAME_QUERY,
+        "taxon_name",
+        &mut *on_progress,
+    )
+    .await?;
+    let ncbis = fetch_export_table(
+        http,
+        endpoint,
+        TAXON_NCBI_QUERY,
+        "taxon_ncbi",
+        &mut *on_progress,
+    )
+    .await?;
+    let otts = fetch_export_table(
+        http,
+        endpoint,
+        TAXON_OTT_QUERY,
+        "taxon_ott",
+        &mut *on_progress,
+    )
+    .await?;
+    let gbifs = fetch_export_table(
+        http,
+        endpoint,
+        TAXON_GBIF_QUERY,
+        "taxon_gbif",
+        &mut *on_progress,
+    )
+    .await?;
+    let parents = fetch_export_table(
+        http,
+        endpoint,
+        TAXON_PARENT_QUERY,
+        "taxon_parent",
+        &mut *on_progress,
+    )
+    .await?;
+    let ranks = fetch_export_table(
+        http,
+        endpoint,
+        TAXON_RANK_QUERY,
+        "taxon_rank",
+        &mut *on_progress,
+    )
+    .await?;
+    Ok(build_taxon_index(
+        &names, &ncbis, &otts, &gbifs, &parents, &ranks,
+    ))
+}
+
+async fn fetch_reference_index<H: Http>(
+    http: &H,
+    endpoint: &Endpoint,
+    on_progress: &mut impl FnMut(&'static str),
+) -> Result<HashMap<String, ReferenceProps>, ExportError> {
+    let dois = fetch_export_table(
+        http,
+        endpoint,
+        REFERENCE_DOI_QUERY,
+        "reference_doi",
+        &mut *on_progress,
+    )
+    .await?;
+    let pmids = fetch_export_table(
+        http,
+        endpoint,
+        REFERENCE_PMID_QUERY,
+        "reference_pmid",
+        &mut *on_progress,
+    )
+    .await?;
+    let pmc_ids = fetch_export_table(
+        http,
+        endpoint,
+        REFERENCE_PMCID_QUERY,
+        "reference_pmcid",
+        &mut *on_progress,
+    )
+    .await?;
+    let titles = fetch_export_table(
+        http,
+        endpoint,
+        REFERENCE_TITLE_QUERY,
+        "reference_title",
+        &mut *on_progress,
+    )
+    .await?;
+    let dates = fetch_export_table(
+        http,
+        endpoint,
+        REFERENCE_DATE_QUERY,
+        "reference_date",
+        &mut *on_progress,
+    )
+    .await?;
+    let journals = fetch_export_table(
+        http,
+        endpoint,
+        REFERENCE_JOURNAL_QUERY,
+        "reference_journal",
+        &mut *on_progress,
+    )
+    .await?;
+    Ok(build_reference_index(
+        &dois, &pmids, &pmc_ids, &titles, &dates, &journals,
+    ))
+}
+
+/// Number of sequential table requests in a full export.
+pub const EXPORT_QUERY_COUNT: u64 = 16;
+
 /// Run the full LOTUS export: fetch every table, index by QID, join, and
 /// serialize `frozen.csv` plus `frozen_metadata.csv`.
 ///
 /// `now` is the ISO-8601 stamp the host read; `year` decides whether the year
 /// filter means anything. `endpoint` is the service to query (`QLever` by
 /// default, overridable through its environment variable).
+///
+/// `on_progress` is called before each of the [`EXPORT_QUERY_COUNT`] table
+/// requests with its name. A request may take a long time; the caller can
+/// display an indeterminate spinner alongside the completed-request count.
 ///
 /// Each joined row is written to the CSV writer as soon as it is produced,
 /// so a large export never holds all joined rows in memory at once. The
@@ -411,58 +546,48 @@ pub async fn run_lotus_exporter<H: Http>(
     endpoint: Endpoint,
     now: &str,
     year: u16,
+    mut on_progress: impl FnMut(&'static str),
 ) -> Result<(String, String, ExportSummary), ExportError> {
     // 1. The core triplet: compound–taxon–reference with InChIKeys.
-    let triplets = fetch_csv_rows(
+    let triplets = fetch_export_table(
         http,
         &endpoint,
         COMPOUND_TAXON_REFERENCE_QUERY,
         "compound_taxon_reference",
+        &mut on_progress,
     )
     .await?;
     let triplet_count = triplets.len();
 
     // 2. Compound structure properties.
-    let smiles_can = fetch_csv_rows(
+    let smiles_can = fetch_export_table(
         http,
         &endpoint,
         COMPOUND_SMILES_CAN_QUERY,
         "compound_smiles_can",
+        &mut on_progress,
     )
     .await?;
-    let smiles_iso = fetch_csv_rows(
+    let smiles_iso = fetch_export_table(
         http,
         &endpoint,
         COMPOUND_SMILES_ISO_QUERY,
         "compound_smiles_iso",
+        &mut on_progress,
     )
     .await?;
-    let cids = fetch_csv_rows(http, &endpoint, COMPOUND_CID_QUERY, "compound_cid").await?;
-    let compounds = build_compound_index(&smiles_can, &smiles_iso, &cids);
-
-    // 3. Taxon properties.
-    let names = fetch_csv_rows(http, &endpoint, TAXON_NAME_QUERY, "taxon_name").await?;
-    let ncbis = fetch_csv_rows(http, &endpoint, TAXON_NCBI_QUERY, "taxon_ncbi").await?;
-    let otts = fetch_csv_rows(http, &endpoint, TAXON_OTT_QUERY, "taxon_ott").await?;
-    let gbifs = fetch_csv_rows(http, &endpoint, TAXON_GBIF_QUERY, "taxon_gbif").await?;
-    let parents = fetch_csv_rows(http, &endpoint, TAXON_PARENT_QUERY, "taxon_parent").await?;
-    let ranks = fetch_csv_rows(http, &endpoint, TAXON_RANK_QUERY, "taxon_rank").await?;
-    let taxa = build_taxon_index(&names, &ncbis, &otts, &gbifs, &parents, &ranks);
-
-    // 4. Reference properties.
-    let dois = fetch_csv_rows(http, &endpoint, REFERENCE_DOI_QUERY, "reference_doi").await?;
-    let pmids = fetch_csv_rows(http, &endpoint, REFERENCE_PMID_QUERY, "reference_pmid").await?;
-    let pmc_ids = fetch_csv_rows(http, &endpoint, REFERENCE_PMCID_QUERY, "reference_pmcid").await?;
-    let titles = fetch_csv_rows(http, &endpoint, REFERENCE_TITLE_QUERY, "reference_title").await?;
-    let dates = fetch_csv_rows(http, &endpoint, REFERENCE_DATE_QUERY, "reference_date").await?;
-    let journals = fetch_csv_rows(
+    let cids = fetch_export_table(
         http,
         &endpoint,
-        REFERENCE_JOURNAL_QUERY,
-        "reference_journal",
+        COMPOUND_CID_QUERY,
+        "compound_cid",
+        &mut on_progress,
     )
     .await?;
-    let references = build_reference_index(&dois, &pmids, &pmc_ids, &titles, &dates, &journals);
+    let compounds = build_compound_index(&smiles_can, &smiles_iso, &cids);
+
+    let taxa = fetch_taxon_index(http, &endpoint, &mut on_progress).await?;
+    let references = fetch_reference_index(http, &endpoint, &mut on_progress).await?;
 
     // 5. Join every triplet and stream rows to the CSV writer as they are
     // produced, instead of collecting the whole table into a Vec first.

@@ -127,9 +127,10 @@ async fn pipeline_serializes_frozen_csv_and_metadata() {
         csv(200, &empty_csv()), // journal
     ]);
 
-    let (frozen_csv, metadata_csv, summary) = run_lotus_exporter(&http, endpoint(), NOW, YEAR)
-        .await
-        .expect("the pipeline runs");
+    let (frozen_csv, metadata_csv, summary) =
+        run_lotus_exporter(&http, endpoint(), NOW, YEAR, |_| {})
+            .await
+            .expect("the pipeline runs");
 
     assert_eq!(summary.triplets, 2);
     assert_eq!(summary.compounds, 2);
@@ -184,7 +185,7 @@ async fn pipeline_tolerates_missing_optional_tables() {
         csv(200, &empty_csv()),
     ]);
 
-    let (frozen_csv, _, summary) = run_lotus_exporter(&http, endpoint(), NOW, YEAR)
+    let (frozen_csv, _, summary) = run_lotus_exporter(&http, endpoint(), NOW, YEAR, |_| {})
         .await
         .expect("the pipeline runs");
 
@@ -215,7 +216,30 @@ async fn pipeline_records_every_query_in_order() {
         csv(200, &empty_csv()),
     ]);
 
-    let _ = run_lotus_exporter(&http, endpoint(), NOW, YEAR).await;
+    let mut stages = Vec::new();
+    let _ = run_lotus_exporter(&http, endpoint(), NOW, YEAR, |table| stages.push(table)).await;
+    assert_eq!(
+        stages,
+        [
+            "compound_taxon_reference",
+            "compound_smiles_can",
+            "compound_smiles_iso",
+            "compound_cid",
+            "taxon_name",
+            "taxon_ncbi",
+            "taxon_ott",
+            "taxon_gbif",
+            "taxon_parent",
+            "taxon_rank",
+            "reference_doi",
+            "reference_pmid",
+            "reference_pmcid",
+            "reference_title",
+            "reference_date",
+            "reference_journal",
+        ]
+    );
+    assert_eq!(stages.len() as u64, EXPORT_QUERY_COUNT);
     let queries = http.queries();
     assert_eq!(queries.len(), 16, "one fetch per table");
     assert!(
@@ -238,8 +262,10 @@ async fn pipeline_propagates_fetch_errors() {
     // the retry loop rather than being swallowed by a second attempt.
     let http = script(vec![(400, "bad request")]);
 
-    let err = run_lotus_exporter(&http, endpoint(), NOW, YEAR)
+    let mut stages = Vec::new();
+    let err = run_lotus_exporter(&http, endpoint(), NOW, YEAR, |table| stages.push(table))
         .await
         .unwrap_err();
+    assert_eq!(stages, ["compound_taxon_reference"]);
     assert!(matches!(err, ExportError::Fetch(_)));
 }

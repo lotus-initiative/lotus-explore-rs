@@ -27,6 +27,7 @@ use std::io::{self, Write};
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand, ValueEnum};
+use indicatif::{ProgressBar, ProgressStyle};
 use lotus_explore_core::export::pubchem_tree::run_pubchem_tree;
 use lotus_model::SmilesSearchType;
 
@@ -546,6 +547,8 @@ fn hit_limit(limit: Option<usize>, truncated: bool, rows: usize) -> bool {
     limit.is_some_and(|limit| truncated || rows >= limit)
 }
 
+const EXPORT_PROGRESS_STYLE: &str = "{spinner} [{bar:16}] {pos}/{len} Fetching {msg}";
+
 /// Export the full LOTUS compound–taxon–reference graph as `frozen.csv` and
 /// `frozen_metadata.csv`, written to a directory the caller picks.
 ///
@@ -561,9 +564,20 @@ async fn export(args: ExportArgs) -> anyhow::Result<ExitCode> {
     let http = lotus_search::reqwest_client::ReqwestClient::new()?;
     let endpoint = lotus_search::Endpoint::new(lotus_search::Service::Qlever);
 
-    let (frozen_csv, metadata_csv, summary) =
-        lotus_explore_core::export::pipeline::run_lotus_exporter(&http, endpoint, &now, year)
-            .await?;
+    let progress = ProgressBar::new(lotus_explore_core::export::pipeline::EXPORT_QUERY_COUNT);
+    progress.set_style(ProgressStyle::with_template(EXPORT_PROGRESS_STYLE)?);
+    progress.enable_steady_tick(std::time::Duration::from_millis(120));
+    let mut completed = 0;
+    let result = lotus_explore_core::export::pipeline::run_lotus_exporter(
+        &http,
+        endpoint,
+        &now,
+        year,
+        |table| report_export_table(&progress, &mut completed, table),
+    )
+    .await;
+    progress.finish_and_clear();
+    let (frozen_csv, metadata_csv, summary) = result?;
 
     let output_dir = args
         .output
@@ -586,6 +600,12 @@ async fn export(args: ExportArgs) -> anyhow::Result<ExitCode> {
         metadata_path.display(),
     );
     Ok(ExitCode::SUCCESS)
+}
+
+fn report_export_table(progress: &ProgressBar, completed: &mut u64, table: &'static str) {
+    progress.set_position(*completed);
+    progress.set_message(table);
+    *completed += 1;
 }
 
 /// Build `PubChem`-format trees (biological, chemical, `NPClassifier`) as `JSON`,
@@ -1040,3 +1060,7 @@ mod archive_tests;
 #[cfg(test)]
 #[path = "main/search_limit_tests.rs"]
 mod search_limit_tests;
+
+#[cfg(test)]
+#[path = "main/export_progress_tests.rs"]
+mod export_progress_tests;

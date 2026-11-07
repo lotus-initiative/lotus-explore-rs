@@ -8,12 +8,70 @@ load-bearing: the web app and the CLI share their query building and their
 curation vocabulary precisely so that a query the explorer runs and a query
 `lotus search` runs are the same query.
 
-## Running the checks
+## Install prerequisites
+
+Install [Rust via rustup](https://rustup.rs/) and ensure `cargo` and `rustup`
+are on your `PATH`. `./mk setup` installs the toolchain and targets pinned in
+`rust-toolchain.toml`, plus the tools pinned in `mk.versions` and `mk.local`.
+It **requires `cargo-binstall` first**; it cannot install that bootstrap tool
+itself.
+
+On macOS, install `cargo-binstall` with Homebrew:
 
 ```bash
-./mk setup   # once: installs every tool, at a pinned version
-./mk ci      # every check CI runs, in order
+brew install cargo-binstall
+./mk setup
 ```
+
+Without Homebrew (also works on Linux), build the bootstrap tool from source:
+
+```bash
+cargo install cargo-binstall --locked
+./mk setup
+```
+
+
+On Debian/Ubuntu, install the native dependencies before `./mk setup`:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y --no-install-recommends \
+  pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev \
+  libayatana-appindicator3-dev librsvg2-dev libxdo-dev ripgrep
+```
+
+The first six packages are needed for the desktop build; `ripgrep` is used by
+the desktop bundle check. `./mk setup` installs apt packages automatically
+only on CI's Linux runners, not on a local machine. `./mk setup-extra` is
+optional and adds development utilities outside the required checks.
+
+## Running the checks
+
+Use the shortest check that covers the change, then run the full gate before
+pushing:
+
+```bash
+./mk check                              # Rust/TOML format, TOML schema, typos, Clippy; no tests
+./mk test-fast -E 'test(name)'          # one matching unit/integration test
+./mk gate                               # formatting, lint, tests, wasm type-checks; no mutation run
+./mk ci                                 # complete CI, including release wasm build and mutation gate
+```
+
+`./mk test-fast` without `-E` runs the unit/integration suite. `./mk gate`
+omits the slow release wasm bundle and other full-CI gates; it is a faster
+pre-push pass, not a substitute for `./mk ci`.
+
+`cargo fmt` formats Rust only. **Tombi formats and lints `*.toml`**, including
+the order of dependency keys in `Cargo.toml`. If the `tombi` gate fails, format
+the affected file and rerun just that gate:
+
+```bash
+tombi format crates/lotus-cli/Cargo.toml  # replace with the reported path
+./mk tombi
+```
+
+`./mk fix` applies Rust and TOML formatting, spelling fixes and Clippy fixes
+across the workspace; review its changes before committing.
 
 `./mk ci` is exactly what the CI workflow runs — the workflow calls this
 one command, so a check that is green locally and red in a pipeline cannot happen
