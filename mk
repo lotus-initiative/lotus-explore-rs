@@ -35,10 +35,18 @@ if [ -f mk.local ]; then . ./mk.local; fi
 
 SKIP_RC=78
 CI_GATES=(tools actions shell commits ratchet fmt tombi typos lint lints-inherit test doc deny audit machete msrv echoes refquiem semver wasm mutants-diff)
+CI_FAST_GATES=(tools actions shell commits ratchet fmt tombi typos lint lints-inherit test-fast doc deny machete msrv echoes refquiem semver wasm)
 NIGHTLY_GATES=(mutants coverage powerset miri outdated)
 
 cmd="${1:-ci}"
 shift || true
+case "$cmd" in
+    toml) cmd=tombi ;;
+    unused-deps) cmd=machete ;;
+    duplication | dup) cmd=echoes ;;
+    stale-refs) cmd=refquiem ;;
+    feature-powerset) cmd=powerset ;;
+esac
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
@@ -293,22 +301,131 @@ run_mutants() {
 
 # --- tiers ------------------------------------------------------------------
 
+gate_desc() {
+    case "$1" in
+        tools) echo "pinned tool versions from mk.versions" ;;
+        actions) echo "GitHub Actions security & SHA pinning" ;;
+        shell) echo "shell script static analysis" ;;
+        commits) echo "Conventional Commits format" ;;
+        ratchet) echo "coverage, duplication & lint-allow ratchets vs. base" ;;
+        fmt) echo "Rust code formatting" ;;
+        tombi) echo "TOML formatting & schema lint" ;;
+        typos) echo "source & documentation spell check" ;;
+        lint) echo "clippy & workspace lints" ;;
+        lints-inherit) echo "workspace lint inheritance across crates" ;;
+        test-fast) echo "unit & integration tests" ;;
+        test) echo "unit, integration & doc tests" ;;
+        doc) echo "rustdoc build & link verification" ;;
+        deny) echo "licenses, bans, advisories & sources" ;;
+        audit) echo "RustSec vulnerability & unmaintained crate check" ;;
+        machete) echo "unused dependency detection" ;;
+        msrv) echo "minimum supported Rust version check" ;;
+        echoes) echo "code duplication & dependency API reuse" ;;
+        refquiem) echo "stale symbol reference detection" ;;
+        semver) echo "semver API compatibility check" ;;
+        wasm) echo "wasm32 target compilation check" ;;
+        mutants-diff) echo "mutation testing on branch Rust diff" ;;
+        mutants) echo "bounded full-workspace mutation testing" ;;
+        coverage | cov) echo "line coverage floor check" ;;
+        powerset | hack) echo "feature powerset compilation check" ;;
+        miri) echo "undefined behavior check under Miri" ;;
+        outdated) echo "direct dependency freshness check" ;;
+    esac
+}
+
+gate_hint() {
+    case "$1" in
+        tools) echo "run './mk setup' to install pinned tool versions from mk.versions" ;;
+        fmt | tombi | typos) echo "run './mk fix' to auto-format and fix common issues" ;;
+        lint) echo "run './mk fix' or use #[expect(lint, reason = \"...\")] for justified exceptions" ;;
+        lints-inherit) echo "add '[lints] workspace = true' to every member Cargo.toml" ;;
+        commits) echo "use Conventional Commits format: feat|fix|docs|chore|refactor|test: <description>" ;;
+        ratchet) echo "ratchets in mk.local and Cargo.toml may only tighten relative to base branch" ;;
+        echoes) echo "deduplicate code, or run './mk echoes-baseline' on initial adoption (see docs/GATES.md)" ;;
+        refquiem) echo "update stale doc/comment references, or add '// refquiem: allow(name)' with docs/DEBT.md entry" ;;
+        mutants | mutants-diff) echo "add a test that kills the surviving mutant, or document an exclusion in .cargo/mutants.toml" ;;
+        coverage | cov) echo "add tests to restore line coverage, or run './mk coverage-baseline' when raising the floor" ;;
+        msrv) echo "avoid APIs newer than rust-version in Cargo.toml, or bump rust-version intentionally" ;;
+    esac
+}
+
+# True when a non-empty diff against base_ref touches only documentation, workflow,
+# editor, or non-Rust hygiene config files (never *.rs, Cargo.*, crate READMEs, or scripts).
+docs_or_meta_only_diff() {
+    local base mb changed f
+    base="$(base_ref)" || return 1
+    mb="$(git merge-base "$base" HEAD 2>/dev/null)" || return 1
+    changed="$(
+        {
+            git diff --name-only "$mb"
+            git ls-files --others --exclude-standard
+        } | sort -u
+    )"
+    [ -n "$changed" ] || return 1
+    while IFS= read -r f; do
+        case "$f" in
+            docs/* | .github/* | skills/* | .vscode/* | LICENSE* | NOTICE* | *.md | \
+            .typos.toml | .tombi.toml | .refquiem.toml | prek.toml | bacon.toml | renovate.json | .editorconfig | .gitignore)
+                case "$f" in */README.md) return 1 ;; esac
+                ;;
+            *)
+                return 1
+                ;;
+        esac
+    done <<<"$changed"
+    return 0
+}
+
+is_rust_compile_gate() {
+    case "$1" in
+        fmt | lint | lints-inherit | test | test-fast | doc | deny | machete | msrv | echoes | semver | wasm | mutants-diff)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+idle_scheduled_nightly() {
+    [ "${GITHUB_EVENT_NAME:-}" = schedule ] &&
+        [ -z "$(git log --since='24 hours ago' --oneline -n 1 2>/dev/null)" ]
+}
+
 # Runs every gate as its own process (so `set -e` holds inside each), keeps
 # going after a failure, then prints a ran/skipped/failed table.
 run_tier() {
-    local tier="$1" gate rc start
+    local tier="$1" gate rc start desc hint skip_rust=0
     shift
+    if [ "$tier" = ci ] || [ "$tier" = ci-fast ]; then
+        if docs_or_meta_only_diff; then skip_rust=1; fi
+    fi
     local -a report=()
     local failed=0
     for gate in "$@"; do
-        echo "--- $gate ---"
+        desc="$(gate_desc "$gate")"
+        if [ -n "$desc" ]; then
+            echo "--- $gate ($desc) ---"
+        else
+            echo "--- $gate ---"
+        fi
+        if [ "$skip_rust" = 1 ] && is_rust_compile_gate "$gate"; then
+            echo "[skip] $gate: docs/config-only diff against $(base_ref)"
+            report+=("SKIP  $gate")
+            continue
+        fi
         start=$SECONDS
         rc=0
         MK_NESTED=1 "$0" "$gate" || rc=$?
         case "$rc" in
             0) report+=("PASS  $gate ($((SECONDS - start))s)") ;;
             "$SKIP_RC") report+=("SKIP  $gate") ;;
-            *) report+=("FAIL  $gate (exit $rc)"); failed=1 ;;
+            *)
+                hint="$(gate_hint "$gate")"
+                if [ -n "$hint" ]; then echo "hint ($gate): $hint" >&2; fi
+                report+=("FAIL  $gate (exit $rc)")
+                failed=1
+                ;;
         esac
     done
     echo "=== $tier summary ==="
@@ -332,10 +449,40 @@ for override in "${LOCAL_OVERRIDES[@]}"; do
 done
 
 case "$cmd" in
+    -h | --help | help)
+        cat <<'EOF'
+Usage: ./mk <task> [args...]
+
+Tiers:
+  check            Fast inner loop (<10s): fmt + tombi + typos + lint
+  fix              Auto-fix formatting, TOML, typos, and clippy
+  test-fast        Unit & integration tests (nextest / cargo test, no doctests)
+  watch            Continuous feedback via bacon / cargo-watch
+  ci-fast          Local pre-push gate (skips mutants-diff & network audit; change-aware)
+  ci               Full blocking PR gate (all 21 checks + mutants-diff; change-aware)
+  ci-nightly       Scheduled deep sweep (mutants, coverage, powerset, miri, outdated)
+  ci-release       Release gate (./mk ci + cargo publish --dry-run)
+
+Gate aliases (alongside canonical tool names):
+  toml             -> tombi     (TOML formatting & schema lint)
+  unused-deps      -> machete   (unused dependency detection)
+  duplication, dup -> echoes    (code duplication & dependency API reuse)
+  stale-refs       -> refquiem  (stale mentions of deleted or changed symbols)
+  feature-powerset -> powerset  (cargo-hack --feature-powerset check)
+  cov              -> coverage  (line coverage floor check)
+
+Setup & baselines:
+  setup [ci|nightly|all]  Install pinned toolchains and tools from mk.versions
+  coverage-baseline       Record today's line coverage floor in mk.local
+  echoes-baseline         Record today's echoes ratchet counts in mk.local
+  --list                  List all available tasks
+EOF
+        ;;
     --list | --list-all-steps)
-        printf '%s\n' setup tools check fix test-fast watch bench udeps cov hack \
+        printf '%s\n' help setup tools check fix test-fast watch bench udeps cov hack \
+            toml unused-deps duplication dup stale-refs feature-powerset \
             "${CI_GATES[@]}" "${NIGHTLY_GATES[@]}" \
-            ci ci-nightly ci-release coverage-baseline echoes-baseline selftest | sort -u
+            ci ci-fast ci-nightly ci-release coverage-baseline echoes-baseline selftest | sort -u
         for t in "${LOCAL_CI_GATES[@]}" "${LOCAL_NIGHTLY_GATES[@]}"; do echo "local:$t"; done
         if [ -f Makefile.toml ]; then echo "(any other name runs that cargo-make task)"; fi
         ;;
@@ -378,6 +525,11 @@ case "$cmd" in
         ;;
     setup)
         tier="${1:-all}"
+        if [ "$tier" = nightly ] && idle_scheduled_nightly; then
+            echo "note: no commits in the last 24h on scheduled run; installing only audit and outdated"
+            install_cargo_tools "$(spec_of cargo-audit)" "$(spec_of cargo-outdated)"
+            exit 0
+        fi
         if [ "${#LOCAL_SYSTEM_PACKAGES[@]}" -gt 0 ]; then
             if [ "${CI:-}" = true ] && command -v apt-get >/dev/null; then
                 sudo apt-get update -qq
@@ -633,7 +785,15 @@ case "$cmd" in
         ;;
     outdated) need cargo-outdated; cargo outdated --workspace --root-deps-only --exit-code 1 ;;
     ci) run_tier ci "${CI_GATES[@]}" "${LOCAL_CI_GATES[@]/#/local:}" ;;
-    ci-nightly) run_tier ci-nightly "${NIGHTLY_GATES[@]}" "${LOCAL_NIGHTLY_GATES[@]/#/local:}" ;;
+    ci-fast) run_tier ci-fast "${CI_FAST_GATES[@]}" "${LOCAL_CI_GATES[@]/#/local:}" ;;
+    ci-nightly)
+        if idle_scheduled_nightly; then
+            echo "note: no commits in the last 24h on scheduled run; running only advisory/freshness gates (audit, outdated)"
+            run_tier ci-nightly audit outdated
+        else
+            run_tier ci-nightly "${NIGHTLY_GATES[@]}" "${LOCAL_NIGHTLY_GATES[@]/#/local:}"
+        fi
+        ;;
     local:*) cargo_make "${cmd#local:}" "$@" ;;
     ci-release)
         "$0" ci

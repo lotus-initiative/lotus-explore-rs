@@ -1,6 +1,7 @@
 # Configuration file for `prek` - git hook framework
 # Hooks must only call `./mk <task>` per rusti-graben conventions.
-# pre-commit and commit-msg stay fast; pre-push runs the full blocking tier, exactly as CI does.
+# pre-commit and commit-msg stay fast; pre-push runs `./mk ci-fast` (change-aware, skips slow
+# mutation testing and network advisory fetches, which run on PR/push CI via `./mk ci`).
 
 default_install_hook_types = ["pre-commit", "commit-msg", "pre-push"]
 default_stages = ["pre-commit"]
@@ -15,5 +16,5 @@ hooks = [
   { id = "typos", name = "./mk typos", language = "system", entry = "./mk typos", pass_filenames = false, always_run = true, stages = ["pre-commit"] },
   { id = "lint", name = "./mk lint", language = "system", entry = "./mk lint", pass_filenames = false, always_run = true, stages = ["pre-commit"] },
   { id = "commits", name = "./mk commits", language = "system", entry = "./mk commits", stages = ["commit-msg"] },
-  { id = "ci", name = "./mk ci", language = "system", entry = "./mk ci", pass_filenames = false, always_run = true, stages = ["pre-push"] },
+  { id = "ci-fast", name = "./mk ci-fast", language = "system", entry = "./mk ci-fast", pass_filenames = false, always_run = true, stages = ["pre-push"] },
 ]

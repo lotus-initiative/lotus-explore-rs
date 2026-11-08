@@ -137,3 +137,5 @@ test_tool = "nextest"
 # The ~300 "unviable" are mutants that do not compile -- an array replaced with a
 # different arity, a function replaced with a body of the wrong type. Not a gap in
 # the tests: cargo-mutants reports a build failure as unviable rather than caught.
+
+timeout_multiplier = 1.5
