@@ -185,6 +185,28 @@ fn a_compound_query_never_touches_the_structure_service() {
 }
 
 #[test]
+fn exact_compound_search_fetches_canonical_smiles_without_requiring_an_occurrence() {
+    for taxon in [None, Some(("Q257106", &Nomenclature::ALL_OFF))] {
+        let query = exact_compound_query("Q18216", taxon);
+        assert_eq!(
+            query
+                .matches("OPTIONAL { ?c wdt:P233 ?compound_smiles_conn. }")
+                .count(),
+            1,
+            "canonical SMILES must be fetched independently of the occurrence: {query}"
+        );
+        assert!(
+            !lotus_query::counts_query(&query).contains("wdt:P233"),
+            "display-only SMILES must not change counts"
+        );
+        assert!(
+            !lotus_query::occurrences_query(&query).contains("wdt:P233"),
+            "occurrence streaming must not fetch display-only SMILES"
+        );
+    }
+}
+
+#[test]
 fn a_compound_identity_query_seeds_on_the_compound_it_was_given() {
     let query = exact_compound_query("Q18216", None);
     assert!(query.contains("VALUES ?c { wd:Q18216 }"), "{query}");

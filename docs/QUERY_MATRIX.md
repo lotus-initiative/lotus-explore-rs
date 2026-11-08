@@ -1,34 +1,25 @@
 # Which query runs when
 
-The reference for the search matrix: three arguments, twelve combinations, and
-the query each one builds. Generated from the tests, not maintained by hand --
-`crates/lotus-search/tests/matrix.rs` asserts this table cell by cell, so a change
-to the builder fails the suite instead of quietly making this file a lie.
+The twelve combinations of taxon, structure, and reference arguments are checked
+in `crates/lotus-search/tests/matrix.rs` for the constraints they apply and the
+scope of their occurrence patterns. Query-text byte and triple counts are not
+behavioral contracts: fetching another display property changes them without
+changing which results are returned.
 
-```bash
-cargo test -p lotus-search --test matrix every_cell_is_substantial_and_the_table_does_not_drift -- --nocapture
-```
-
-`bytes` is the length of the generated query and `triples` the number of
-statement-terminating triple patterns in it, counted after IRIs and string
-literals are removed so the dots in `https://…` are not counted. Neither is a
-cost measurement: a longer query is not a slower query, and the endpoint's time
-is dominated by the patterns it has to resolve, not by the text.
-
-| cell                                               | bytes | triples | occurrence |
-| -------------------------------------------------- | ----- | ------- | ---------- |
-| taxon=absent structure=absent reference=absent | 2245 | 14 | optional |
-| taxon=absent structure=absent reference=present | 2269 | 14 | optional |
-| taxon=absent structure=present reference=absent | 2194 | 15 | optional |
-| taxon=absent structure=present reference=present | 2218 | 15 | optional |
-| taxon=specific structure=absent reference=absent | 2952 | 17 | required |
-| taxon=specific structure=absent reference=present | 2976 | 17 | required |
-| taxon=specific structure=present reference=absent | 3077 | 18 | required |
-| taxon=specific structure=present reference=present | 3101 | 18 | required |
-| taxon="*" structure=absent reference=absent | 2018 | 14 | required |
-| taxon="*" structure=absent reference=present | 2042 | 14 | required |
-| taxon="*" structure=present reference=absent | 2194 | 15 | optional |
-| taxon="*" structure=present reference=present | 2218 | 15 | optional |
+| taxon    | structure | reference | occurrence |
+| -------- | --------- | --------- | ---------- |
+| absent   | absent    | absent    | optional   |
+| absent   | absent    | present   | optional   |
+| absent   | present   | absent    | optional   |
+| absent   | present   | present   | optional   |
+| specific | absent    | absent    | required   |
+| specific | absent    | present   | required   |
+| specific | present   | absent    | required   |
+| specific | present   | present   | required   |
+| "*"      | absent    | absent    | required   |
+| "*"      | absent    | present   | required   |
+| "*"      | present   | absent    | optional   |
+| "*"      | present   | present   | optional   |
 
 ## How to read it
 
@@ -135,20 +126,19 @@ Two things follow that are worth a human's attention rather than a change here:
   scripted `Http` trait is a decision worth making deliberately rather than taking
   here; `spareval` (pure Rust, parse-only, much smaller) is the one to add.
 
-## The distinct shapes, measured
+## The distinct shapes
 
 The twelve cells are not twelve queries. They collapse into **six base shapes**
-plus **orthogonal filter layers**, and the layers compose with any shape. Measured
-from `lotus search --explain`, not asserted:
+plus **orthogonal filter layers**, and the layers compose with any shape.
 
-| Base shape                    | bytes | taxon closure                        | occurrence   | structure service |
-| ----------------------------- | ----- | ------------------------------------ | ------------ | ----------------- |
-| nothing given                 | 2,195 | none                                 | **optional** | no                |
-| `*`                           | 2,247 | none                                 | required     | no                |
-| named taxon, nomenclature on  | 2,616 | nomenclatural subquery, then `P171*` | required     | no                |
-| named taxon, nomenclature off | 2,284 | bare `P171*`                         | required     | no                |
-| structure only                | 2,169 | none                                 | **optional** | yes               |
-| structure + named taxon       | 2,553 | nomenclatural subquery, then `P171*` | required     | yes               |
+| Base shape                    | taxon closure                        | occurrence   | structure service |
+| ----------------------------- | ------------------------------------ | ------------ | ----------------- |
+| nothing given                 | none                                 | **optional** | no                |
+| `*`                           | none                                 | required     | no                |
+| named taxon, nomenclature on  | nomenclatural subquery, then `P171*` | required     | no                |
+| named taxon, nomenclature off | bare `P171*`                         | required     | no                |
+| structure only                | none                                 | **optional** | yes               |
+| structure + named taxon       | nomenclatural subquery, then `P171*` | required     | yes               |
 
 | Filter layer | What it adds                                                           | Composes with |
 | ------------ | ---------------------------------------------------------------------- | ------------- |

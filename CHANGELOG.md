@@ -43,6 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org).
 
 ### Fixed
 
+- Exact compound searches now fetch canonical SMILES (P233) even when no
+  isomeric SMILES (P2017) exists, restoring structure depictions and SMILES in
+  downloaded CSV, JSON, and RDF results.
 - `clippy::future_not_send` on wasm32: added
   `#![cfg_attr(target_arch = "wasm32", allow(clippy::future_not_send))]`
   to `lotus-explore-core`, matching the same allow already present in

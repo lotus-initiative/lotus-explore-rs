@@ -300,6 +300,7 @@ const COMPOUND_PROPERTIES: &str = r#"
   OPTIONAL { ?c rdfs:label ?compoundLabelEn. FILTER(LANG(?compoundLabelEn) = "en") }
   OPTIONAL { ?c rdfs:label ?compoundLabelMul. FILTER(LANG(?compoundLabelMul) = "mul") }
   BIND(COALESCE(?compoundLabelMul, ?compoundLabelEn) AS ?compoundLabel)
+  OPTIONAL { ?c wdt:P233 ?compound_smiles_conn. }
   OPTIONAL { ?c wdt:P2017 ?compound_smiles_iso. }
   OPTIONAL { ?c wdt:P2067 ?compound_mass. }
   OPTIONAL { ?c wdt:P274 ?compound_formula. }

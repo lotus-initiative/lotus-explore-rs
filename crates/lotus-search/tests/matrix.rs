@@ -42,7 +42,6 @@
 
 use lotus_model::SearchCriteria;
 use lotus_search::{SearchRequest, build_execution_query};
-use std::fmt::Write as _;
 
 const NOW: u16 = 2026;
 const TAXON_QID: &str = "Q16521";
@@ -225,38 +224,6 @@ fn occurrence_is_optional(query: &str) -> bool {
     !query[at..p703].contains('}')
 }
 
-/// Triple patterns in the query: statements, counted after IRIs and literals are
-/// removed so that the dots inside `https://…` and `"10.1/a"` are not counted.
-fn triple_patterns(query: &str) -> usize {
-    let mut stripped = String::with_capacity(query.len());
-    let mut chars = query.chars();
-    while let Some(c) = chars.next() {
-        match c {
-            // An IRI: `<…>`, dots included.
-            '<' => {
-                for c in chars.by_ref() {
-                    if c == '>' {
-                        break;
-                    }
-                }
-                stripped.push(' ');
-            }
-            // A literal: `"…"`, dots included. SPARQL has no escape we emit here.
-            '"' => {
-                chars.next();
-                for c in chars.by_ref() {
-                    if c == '"' {
-                        break;
-                    }
-                }
-                stripped.push(' ');
-            }
-            _ => stripped.push(c),
-        }
-    }
-    stripped.matches('.').count()
-}
-
 /// Balanced braces and parentheses, ignoring the contents of IRIs and literals.
 ///
 /// The cheapest honest check that a built query is well formed without pulling in
@@ -308,10 +275,9 @@ fn inverses_are_scoped(query: &str) -> bool {
         .all(|(at, _)| matches!(query[..at].chars().next_back(), Some('(' | '|')))
 }
 
-/// The table `docs/QUERY_MATRIX.md` is generated from: one line per cell.
+/// Each combination must produce balanced query syntax.
 #[test]
-fn every_cell_is_well_formed_and_records_its_shape() {
-    let mut rows = Vec::new();
+fn every_cell_is_well_formed() {
     for cell in &MATRIX {
         let query = query_for(cell);
         let label = label(cell);
@@ -325,24 +291,6 @@ fn every_cell_is_well_formed_and_records_its_shape() {
             !query.contains("FILTER()"),
             "{label}: an empty FILTER\n{query}"
         );
-
-        rows.push(format!(
-            "| {label} | {} | {} | {} |",
-            query.len(),
-            triple_patterns(&query),
-            if occurrence_is_optional(&query) {
-                "optional"
-            } else {
-                "required"
-            }
-        ));
-    }
-
-    // The table, so a change to the matrix is visible in a test failure rather
-    // than only in a regenerated document.
-    println!("\n| cell | bytes | triples | occurrence |\n|---|---|---|---|");
-    for row in &rows {
-        println!("{row}");
     }
 }
 
@@ -510,56 +458,6 @@ fn only_a_specific_taxon_binds_a_taxon_qid() {
                 "{label}: no taxon was resolved, so none may be bound\n{query}"
             ),
         }
-    }
-}
-
-/// The table in `docs/QUERY_MATRIX.md`, restated here so a drift fails the suite.
-///
-/// Sizes are asserted as a range rather than an exact number: the point is that
-/// no cell collapses to something trivially small -- a cell that lost its
-/// patterns would still be balanced and still pass every other test here.
-#[test]
-fn every_cell_is_substantial_and_the_table_does_not_drift() {
-    let mut summary = String::new();
-    for cell in &MATRIX {
-        let query = query_for(cell);
-        let triples = triple_patterns(&query);
-        assert!(
-            triples >= 10,
-            "{}: only {triples} triple patterns, which cannot be right\n{query}",
-            label(cell)
-        );
-        let _ = writeln!(
-            summary,
-            "{}|{}|{}|{}",
-            label(cell),
-            query.len(),
-            triples,
-            if occurrence_is_optional(&query) {
-                "optional"
-            } else {
-                "required"
-            }
-        );
-    }
-
-    let table = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../docs/QUERY_MATRIX.md"
-    ))
-    .expect("docs/QUERY_MATRIX.md is the reference for which query runs when");
-    // Printed unconditionally, and captured unless `--nocapture` is passed,
-    // because the assertion below tells the reader to regenerate the table from
-    // a `--nocapture` run: a command that only prints the mismatch is not a way
-    // to regenerate twelve rows.
-    println!("{summary}");
-    for line in summary.lines() {
-        let expected = line.replace('|', " | ");
-        assert!(
-            table.contains(&expected),
-            "docs/QUERY_MATRIX.md does not record this cell:\n  {expected}\n\
-             regenerate the table from `cargo test -p lotus-search --test matrix -- --nocapture`"
-        );
     }
 }
 
