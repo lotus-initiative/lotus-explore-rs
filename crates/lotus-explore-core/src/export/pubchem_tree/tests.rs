@@ -133,7 +133,7 @@ fn node_fields(doc: &Value) -> Vec<String> {
 
 #[tokio::test]
 async fn index_names_and_describes_each_compound() {
-    let data = fetch_all_pubchem_data(&scripted(), &Endpoint::new(Service::Qlever))
+    let data = fetch_all_pubchem_data(&scripted(), &Endpoint::new(Service::Qlever), &mut |_| {})
         .await
         .expect("the tables parse");
     let index = Index::new(&data);
@@ -164,10 +164,32 @@ async fn index_names_and_describes_each_compound() {
 /// then compact.
 async fn documents() -> [Value; 6] {
     let http = scripted();
-    let documents = run_pubchem_tree(&http, Endpoint::new(Service::Qlever), NOW)
-        .await
-        .expect("the pipeline runs");
+    let mut steps = Vec::new();
+    let documents = run_pubchem_tree(&http, Endpoint::new(Service::Qlever), NOW, |step| {
+        steps.push(step);
+    })
+    .await
+    .expect("the pipeline runs");
     assert_eq!(http.call_count(), 13);
+    assert_eq!(steps.len() as u64, PUBCHEM_TREE_QUERY_COUNT);
+    assert_eq!(
+        steps,
+        [
+            "compound_taxon",
+            "taxon_ncbi",
+            "taxon_name",
+            "taxon_parent",
+            "compound_smiles_can",
+            "compound_smiles_iso",
+            "compound_smarts",
+            "compound_cxsmiles",
+            "compound_label",
+            "compound_parent",
+            "reference_doi",
+            "reference_pmid",
+            "npclassifier_cache",
+        ]
+    );
     let queries = http.queries();
     assert!(
         queries[10].contains("SELECT DISTINCT ?compound ?taxon ?reference ?doi"),

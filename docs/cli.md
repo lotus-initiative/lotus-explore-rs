@@ -286,9 +286,10 @@ file, so you can reproduce an export exactly by passing the same values.
 
 While fetching the 4 SPARQL entity tables (`compound_taxon_reference`,
 `compounds`, `taxa`, `references`), an interactive terminal shows a transient
-progress line on `stderr` with the completed-table count and the table
-currently being fetched. The count is not a percentage of rows or an estimate
-of time remaining. Redirected output stays quiet until the final summary.
+progress bar (`[====>---]`) on `stderr` with the completed-table count and the
+table currently being fetched. The count is not a percentage of rows or an
+estimate of time remaining. Redirected output stays quiet until the final
+summary.
 
 The two files are:
 
@@ -325,7 +326,9 @@ Writes six files:
 | `lotus_npclassifier_tree_pubchem.json` | NPClassifier tree, PubChem compact |
 
 `--output` defaults to the current working directory. `--year` defaults to this
-year. The NPClassifier tree is empty when its cache could not be read.
+year. The NPClassifier tree is empty when its cache could not be read. On an
+interactive terminal, `stderr` shows the same transient `[====>---]` progress
+bar across the 13 table fetches.
 
 ## archive
 

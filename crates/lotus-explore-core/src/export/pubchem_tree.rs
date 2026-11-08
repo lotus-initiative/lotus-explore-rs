@@ -24,6 +24,7 @@ use lotus_search::{Endpoint, Http, HttpResponse};
 use serde::Serialize;
 
 use self::document::{FullDocument, TreeKind};
+pub use self::index::PUBCHEM_TREE_QUERY_COUNT;
 use self::index::{Index, fetch_all_pubchem_data};
 use self::npclassifier::{SmilesIndex, classify, npclassifier_tree};
 use self::trees::{biological_tree, chemical_tree};
@@ -70,13 +71,15 @@ pub async fn run_pubchem_tree<H: Http>(
     http: &H,
     endpoint: Endpoint,
     now: &str,
+    mut on_progress: impl FnMut(&'static str),
 ) -> Result<(String, String, String, String, String, String), ExportError> {
-    let data = fetch_all_pubchem_data(http, &endpoint).await?;
+    let data = fetch_all_pubchem_data(http, &endpoint, &mut on_progress).await?;
     let index = Index::new(&data);
 
     let biological = biological_tree(&data, &index);
     let chemical = chemical_tree(&data, &index);
 
+    on_progress("npclassifier_cache");
     let npclassifier_rows = http_get_text(http, NPCLASSIFIER_CACHE_URL)
         .await
         .ok()

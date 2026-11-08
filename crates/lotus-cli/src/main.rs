@@ -27,7 +27,7 @@ use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand, ValueEnum};
-use lotus_explore_core::export::pubchem_tree::run_pubchem_tree;
+use lotus_explore_core::export::pubchem_tree::{PUBCHEM_TREE_QUERY_COUNT, run_pubchem_tree};
 use lotus_model::SmilesSearchType;
 
 mod curate;
@@ -546,7 +546,10 @@ fn hit_limit(limit: Option<usize>, truncated: bool, rows: usize) -> bool {
     limit.is_some_and(|limit| truncated || rows >= limit)
 }
 
-/// Transient single-line `stderr` progress reporter for multi-query exports.
+/// Character width of the visual progress bar (`[====>---]`).
+const PROGRESS_BAR_WIDTH: usize = 40;
+
+/// Transient single-line `stderr` progress bar for multi-query exports.
 struct ExportProgress<W> {
     writer: W,
     is_terminal: bool,
@@ -566,10 +569,16 @@ impl<W: Write> ExportProgress<W> {
 
     fn step(&mut self, table: &'static str) {
         if self.is_terminal {
+            #[expect(
+                clippy::cast_possible_truncation,
+                reason = "completed <= total and PROGRESS_BAR_WIDTH is 40, so the quotient fits in usize"
+            )]
+            let filled = ((self.completed * PROGRESS_BAR_WIDTH as u64) / self.total) as usize;
+            let rest = PROGRESS_BAR_WIDTH - filled;
             let _ = write!(
                 self.writer,
-                "\r\x1b[2K{}/{} Fetching {table}",
-                self.completed, self.total
+                "\r\x1b[2K[\x1b[36m{:=<filled$}>\x1b[34m{:->rest$}\x1b[0m] {}/{} Fetching {table}",
+                "", "", self.completed, self.total
             );
             let _ = self.writer.flush();
         }
@@ -649,8 +658,12 @@ async fn export_pubchem_tree(args: ExportPubchemTreeArgs) -> anyhow::Result<Exit
     let http = lotus_search::reqwest_client::ReqwestClient::new()?;
     let endpoint = lotus_search::Endpoint::new(lotus_search::Service::Qlever);
 
-    let (bio_full, chem_full, npc_full, bio_pc, chem_pc, npc_pc) =
-        run_pubchem_tree(&http, endpoint, &now).await?;
+    let stderr = io::stderr();
+    let is_terminal = stderr.is_terminal();
+    let mut progress = ExportProgress::new(stderr, is_terminal, PUBCHEM_TREE_QUERY_COUNT);
+    let result = run_pubchem_tree(&http, endpoint, &now, |table| progress.step(table)).await;
+    progress.finish();
+    let (bio_full, chem_full, npc_full, bio_pc, chem_pc, npc_pc) = result?;
 
     let output_dir = args
         .output
