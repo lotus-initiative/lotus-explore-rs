@@ -24,7 +24,7 @@ use lotus_query::{
     compound_alias_query, compound_inchikey_query, compound_label_query,
     compounds_by_taxon_query_with, counts_query, dictionary_queries, exact_compounds_query,
     limit_query, occurrences_query, reference_by_doi_query, structure_compound_lookup_query,
-    structure_search_query_with, taxon_lookup_query, with_filters,
+    structure_search_query_with, taxon_common_name_lookup_query, taxon_lookup_query, with_filters,
 };
 
 /// How a structure search should be run, once the structure is known.
@@ -208,7 +208,17 @@ pub async fn resolve_taxon<H: Http>(http: &H, input: &str) -> Result<TaxonResolu
         crate::execute_with_fallback(http, &taxon_lookup_query(&looked_up), ResponseFormat::Csv)
             .await?
             .text()?;
-    let candidates = parse_taxon_csv(csv.as_bytes())?;
+    let mut candidates = parse_taxon_csv(csv.as_bytes())?;
+    if candidates.is_empty() {
+        let fallback_csv = crate::execute_with_fallback(
+            http,
+            &taxon_common_name_lookup_query(&looked_up),
+            ResponseFormat::Csv,
+        )
+        .await?
+        .text()?;
+        candidates = parse_taxon_csv(fallback_csv.as_bytes())?;
+    }
 
     let Some(chosen) = pick_match(&looked_up, &candidates) else {
         return Err(FetchError::Parse(format!("no taxon matched {trimmed:?}")));
@@ -688,12 +698,9 @@ pub async fn resolve_structure<H: Http>(
         canonical = first_canonical_smiles(&by_label);
         compounds.extend(by_label.into_iter().map(|c| c.qid));
         if compounds.is_empty() {
-            compounds.extend(
-                lookup_compounds(http, &compound_alias_query(trimmed))
-                    .await?
-                    .into_iter()
-                    .map(|c| c.qid),
-            );
+            let by_alias = lookup_compounds(http, &compound_alias_query(trimmed)).await?;
+            canonical = first_canonical_smiles(&by_alias);
+            compounds.extend(by_alias.into_iter().map(|c| c.qid));
         }
     } else {
         compounds.extend(

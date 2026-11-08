@@ -202,7 +202,7 @@ const BROAD_TAXON_QIDS: &[&str] = &[
     "Q132089",   // Pinophyta / Acrogymnospermae
     "Q28499",    // Asterales
     "Q25400",    // Asteraceae
-    "Q21744",    // Gentianales
+    "Q21754",    // Gentianales
     "Q155900",   // Apocynaceae
     "Q156569",   // Rubiaceae
     "Q21878",    // Fabales

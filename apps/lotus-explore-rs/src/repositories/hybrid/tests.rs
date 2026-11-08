@@ -95,6 +95,10 @@ fn needs_split_occurrences_only_for_unconstrained_and_broad_clades() {
         "Plantae (Q756) must use split occurrences"
     );
     assert!(
+        needs_split_occurrences(&lotus_query::compounds_by_taxon_query("Q21754")),
+        "Gentianales (Q21754) must use split occurrences"
+    );
+    assert!(
         !needs_split_occurrences(&lotus_query::compounds_by_taxon_query("Q7560")),
         "Q7560 must not prefix-match Q756"
     );

@@ -143,6 +143,10 @@ async fn a_compound_name_falls_back_to_its_alias_when_the_label_matches_nothing(
         vec!["Q9".to_string()],
         "the alias match must be taken when the label matched nothing"
     );
+    assert_eq!(
+        resolution.smiles, "CCO",
+        "the alias match must also supply the compound's canonical SMILES"
+    );
     assert_eq!(http.call_count(), 2, "both queries run, in order");
 }
 

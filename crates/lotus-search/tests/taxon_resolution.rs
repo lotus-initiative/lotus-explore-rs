@@ -35,13 +35,19 @@ async fn a_taxon_that_matched_nothing_is_an_error_naming_what_was_looked_for() {
     // The rule the FAQ states: a name that matches nothing is an error, because
     // there is nothing to guess at. `Ok` with no QID would leave the caller
     // searching all of LOTUS while the reader believes they narrowed it.
-    let http = Scripted::new(vec![(200, &lookup_csv(&[]))]);
+    let empty = lookup_csv(&[]);
+    let http = Scripted::new(vec![(200, &empty), (200, &empty)]);
     let error = resolve_taxon(&http, "Gentiana lutea")
         .await
         .expect_err("a name that matched nothing is an error");
     assert!(
         matches!(&error, FetchError::Parse(message) if message.contains("Gentiana lutea")),
         "the error must name what was searched for, got {error:?}"
+    );
+    assert_eq!(
+        http.call_count(),
+        2,
+        "both the scientific-name and common-name lookups run before failing"
     );
 }
 
@@ -50,10 +56,41 @@ async fn a_lookup_that_answered_with_no_usable_row_is_also_a_miss() {
     // The endpoint answered 200 with a header and nothing usable. That is the
     // same answer to the reader's question -- nothing matched -- so it takes the
     // same path rather than surfacing as something stranger.
-    let http = Scripted::new(vec![(200, "taxon,taxon_name,matched_by\n")]);
+    let http = Scripted::new(vec![
+        (200, "taxon,taxon_name,matched_by\n"),
+        (200, "taxon,taxon_name,matched_by\n"),
+    ]);
     resolve_taxon(&http, "Rosa")
         .await
         .expect_err("no usable row is a miss");
+    assert_eq!(http.call_count(), 2);
+}
+
+#[tokio::test]
+async fn a_taxon_falls_back_to_its_common_name_when_the_scientific_name_matches_nothing() {
+    let empty = lookup_csv(&[]);
+    let found = lookup_csv(&[(
+        "http://www.wikidata.org/entity/Q158572",
+        "bitterwort",
+        "common",
+    )]);
+    let http = Scripted::new(vec![(200, &empty), (200, &found)]);
+    let resolution = resolve_taxon(&http, "bitterwort")
+        .await
+        .expect("the common-name fallback resolves");
+    assert_eq!(resolution.qid.as_deref(), Some("Q158572"));
+    assert_eq!(http.call_count(), 2, "both queries run, in order");
+    let queries = http.queries();
+    assert!(
+        queries[0].contains("wdt:P225"),
+        "scientific lookup runs first: {}",
+        queries[0]
+    );
+    assert!(
+        queries[1].contains("p:P1843/ps:P1843"),
+        "common-name lookup runs second: {}",
+        queries[1]
+    );
 }
 
 #[tokio::test]
