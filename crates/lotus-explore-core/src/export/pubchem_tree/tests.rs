@@ -781,3 +781,75 @@ fn count_nodes_counts_children_not_compounds() {
     let biological_tree = [taxon(("T", "Q1", None), compounds, Vec::new())];
     assert_eq!(count_nodes(&biological_tree), 1);
 }
+
+#[test]
+fn index_prefers_mul_compound_labels_over_english_regardless_of_row_order() {
+    let label_row = |q: &str, label: &str, lang: &str| {
+        row_map(&[("compound", q), ("compound_label", label), ("lang", lang)])
+    };
+    let data = PubChemData {
+        compound_label: vec![
+            label_row("Q1", "Caffeine (mul)", "mul"),
+            label_row("Q1", "Caffeine (en)", "en"),
+            label_row("Q2", "Theobromine (en)", "en"),
+            label_row("Q2", "Theobromine (mul)", "mul"),
+            label_row("Q3", "First en", "en"),
+            label_row("Q3", "Second en", "en"),
+        ],
+        ..Default::default()
+    };
+    let index = Index::new(&data);
+    assert_eq!(index.compound_node("Q1").name, "Caffeine (mul)");
+    assert_eq!(index.compound_node("Q2").name, "Theobromine (mul)");
+    assert_eq!(index.compound_node("Q3").name, "Second en");
+}
+
+#[test]
+fn biological_tree_walks_all_parents_when_a_taxon_has_multiple_parent_rows() {
+    let parent_row =
+        |child: &str, parent: &str| row_map(&[("taxon", child), ("taxon_parent", parent)]);
+    let data = PubChemData {
+        compound_taxon: vec![row_map(&[
+            ("compound", "Q1"),
+            ("compound_inchikey", "IK1"),
+            ("taxon", "Q100"),
+        ])],
+        // Q100 has two parents: Q200 (which leads up to Biota Q10) and Q300
+        // (which is in a two-node cycle Q300 <-> Q301 and comes last in row order).
+        taxon_parent: vec![
+            parent_row("Q100", "Q200"),
+            parent_row("Q200", "Q10"),
+            parent_row("Q100", "Q300"),
+            parent_row("Q300", "Q301"),
+            parent_row("Q301", "Q300"),
+        ],
+        taxon_name: vec![
+            row_map(&[("taxon", "Q10"), ("taxon_name", "Biota")]),
+            row_map(&[("taxon", "Q200"), ("taxon_name", "Plantae")]),
+            row_map(&[("taxon", "Q100"), ("taxon_name", "Salvia")]),
+        ],
+        ..Default::default()
+    };
+    let index = Index::new(&data);
+    let tree = trees::biological_tree(&data, &index);
+    assert_eq!(
+        written(&tree),
+        json!([{
+            "Name": "Biota",
+            "Identifiers": {"QID": "Q10"},
+            "Children": [{
+                "Name": "Plantae",
+                "Identifiers": {"QID": "Q200"},
+                "Children": [{
+                    "Name": "Salvia",
+                    "Identifiers": {"QID": "Q100"},
+                    "Compounds": [{
+                        "Name": "Q1",
+                        "Identifiers": {"QID": "Q1"},
+                        "Descriptors": {"InChIKey": "IK1"},
+                    }],
+                }],
+            }],
+        }])
+    );
+}

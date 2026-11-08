@@ -143,7 +143,8 @@ pub(super) fn non_empty(value: &str) -> Option<String> {
     (!value.is_empty()).then(|| value.to_string())
 }
 
-/// One compound's properties. The last row of a table wins, as in the Python.
+/// One compound's properties. The last row of a table wins, except that a
+/// multilingual (`mul`) label is never overwritten by an English (`en`) one.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct CompoundProps {
     pub(super) smiles_can: Option<String>,
@@ -151,6 +152,7 @@ pub(super) struct CompoundProps {
     pub(super) smarts: Option<String>,
     pub(super) cxsmiles: Option<String>,
     pub(super) label: Option<String>,
+    pub(super) label_is_mul: bool,
     /// Every `InChIKey` a compound-taxon row gives the compound. A compound
     /// "has taxa" exactly when this is not empty.
     pub(super) inchikeys: BTreeSet<String>,
@@ -206,7 +208,7 @@ pub(super) struct Index {
 impl Index {
     pub(super) fn new(data: &PubChemData) -> Self {
         let mut compounds: HashMap<String, CompoundProps> = HashMap::new();
-        let columns: [Column<'_>; 6] = [
+        let columns: [Column<'_>; 5] = [
             (&data.compound_smiles_can, "compound_smiles_can", |p, v| {
                 p.smiles_can = Some(v.to_string());
             }),
@@ -219,15 +221,20 @@ impl Index {
             (&data.compound_cxsmiles, "compound_cxsmiles", |p, v| {
                 p.cxsmiles = non_empty(v);
             }),
-            (&data.compound_label, "compound_label", |p, v| {
-                p.label = Some(v.to_string());
-            }),
             (&data.compound_taxon, "compound_inchikey", |p, v| {
                 p.inchikeys.extend(non_empty(v));
             }),
         ];
         for (rows, column, set) in columns {
             fill(&mut compounds, rows, "compound", column, set);
+        }
+        for row in &data.compound_label {
+            let entry = compounds.entry(qid(row, "compound")).or_default();
+            let is_mul = cell(row, "lang") == "mul";
+            if is_mul || !entry.label_is_mul {
+                entry.label = Some(cell(row, "compound_label").to_string());
+                entry.label_is_mul = is_mul;
+            }
         }
 
         let mut taxa: HashMap<String, TaxonProps> = HashMap::new();
@@ -334,7 +341,7 @@ fn fill<P: Default>(
 /// A `subclass of` / `parent taxon` hierarchy read from child-parent rows.
 #[derive(Debug, Clone, Default)]
 pub(super) struct Hierarchy {
-    parent_of: HashMap<String, String>,
+    parents_of: HashMap<String, Vec<String>>,
     children_of: HashMap<String, Vec<String>>,
 }
 
@@ -344,14 +351,19 @@ impl Hierarchy {
         for row in rows {
             let child = qid(row, child_column);
             let parent = qid(row, parent_column);
-            hierarchy.parent_of.insert(child.clone(), parent.clone());
+            hierarchy
+                .parents_of
+                .entry(child.clone())
+                .or_default()
+                .push(parent.clone());
             hierarchy.children_of.entry(parent).or_default().push(child);
         }
         hierarchy
     }
 
-    pub(super) fn parent(&self, qid: &str) -> Option<&String> {
-        self.parent_of.get(qid)
+    /// The parents in row order, a parent listed once per row.
+    pub(super) fn parents(&self, qid: &str) -> &[String] {
+        self.parents_of.get(qid).map_or(&[], Vec::as_slice)
     }
 
     /// The children in row order, a child listed once per row.
@@ -365,7 +377,7 @@ impl Hierarchy {
         let mut roots: Vec<&String> = self
             .children_of
             .keys()
-            .filter(|qid| !self.parent_of.contains_key(*qid))
+            .filter(|qid| !self.parents_of.contains_key(*qid))
             .collect();
         roots.sort_unstable();
         roots

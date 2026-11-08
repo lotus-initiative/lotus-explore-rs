@@ -85,10 +85,14 @@ SELECT ?taxon ?taxon_name ?taxon_ncbi ?taxon_ott ?taxon_gbif ?taxon_parent ?taxo
 SELECT ?reference ?doi ?pmid ?pmcid ?title ?date ?journal ?journal_label WHERE {
   {
     SELECT DISTINCT ?reference WHERE {
-      ?compound wdt:P235 ?inchikey .
-      ?compound p:P703 ?statement .
-      ?statement ps:P703 ?taxon .
-      ?statement prov:wasDerivedFrom/pr:P248 ?reference .
+      {
+        SELECT ?statement WHERE {
+          ?compound wdt:P235 ?inchikey ;
+                    p:P703 ?statement .
+        }
+      }
+      ?statement ps:P703 ?taxon ;
+                 prov:wasDerivedFrom/pr:P248 ?reference .
     }
   }
   OPTIONAL { ?reference wdt:P356 ?doi . }

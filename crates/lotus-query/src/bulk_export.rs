@@ -236,20 +236,25 @@ SELECT ?taxon ?taxon_name ?taxon_ncbi ?taxon_ott ?taxon_gbif ?taxon_parent ?taxo
 /// Consolidated bibliographic properties (DOI, PMID, PMCID, title, date,
 /// journal and journal title) for references cited by occurrence statements.
 ///
-/// Deduplicating `?reference` in an inner subquery runs the four-way
-/// occurrence join once instead of six times, and the `wd:Q0` sentinel keeps
+/// Materializing the occurrence `?statement` set in an inner subquery before
+/// traversing `prov:wasDerivedFrom/pr:P248` keeps `QLever` from scanning all
+/// 130 million provenance triples in Wikidata, and the `wd:Q0` sentinel keeps
 /// references without a journal (`P1433`) from scanning every titled item in
-/// Wikidata.
+/// the graph.
 pub const EXPORT_REFERENCES_QUERY: &str = concat!(
     prefixes!(),
     "
 SELECT ?reference ?doi ?pmid ?pmcid ?title ?date ?journal ?journal_label WHERE {
   {
     SELECT DISTINCT ?reference WHERE {
-      ?compound wdt:P235 ?inchikey .
-      ?compound p:P703 ?statement .
-      ?statement ps:P703 ?taxon .
-      ?statement prov:wasDerivedFrom/pr:P248 ?reference .
+      {
+        SELECT ?statement WHERE {
+          ?compound wdt:P235 ?inchikey ;
+                    p:P703 ?statement .
+        }
+      }
+      ?statement ps:P703 ?taxon ;
+                 prov:wasDerivedFrom/pr:P248 ?reference .
     }
   }
   OPTIONAL { ?reference wdt:P356 ?doi . }
