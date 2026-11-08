@@ -168,6 +168,17 @@ async fn documents() -> [Value; 6] {
         .await
         .expect("the pipeline runs");
     assert_eq!(http.call_count(), 13);
+    let queries = http.queries();
+    assert!(
+        queries[10].contains("SELECT DISTINCT ?compound ?taxon ?reference ?doi"),
+        "biological tree references require compound and taxon columns: {}",
+        queries[10]
+    );
+    assert!(
+        queries[11].contains("SELECT DISTINCT ?compound ?taxon ?reference ?pmid"),
+        "biological tree references require compound and taxon columns: {}",
+        queries[11]
+    );
     assert_eq!(
         http.endpoints().last().map(String::as_str),
         Some(NPCLASSIFIER_CACHE_URL)

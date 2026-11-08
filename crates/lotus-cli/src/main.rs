@@ -23,11 +23,10 @@
     reason = "a binary has no external consumer, so every `pub` item crosses a module boundary for nothing"
 )]
 
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand, ValueEnum};
-use indicatif::{ProgressBar, ProgressStyle};
 use lotus_explore_core::export::pubchem_tree::run_pubchem_tree;
 use lotus_model::SmilesSearchType;
 
@@ -547,7 +546,43 @@ fn hit_limit(limit: Option<usize>, truncated: bool, rows: usize) -> bool {
     limit.is_some_and(|limit| truncated || rows >= limit)
 }
 
-const EXPORT_PROGRESS_STYLE: &str = "{spinner} [{bar:16}] {pos}/{len} Fetching {msg}";
+/// Transient single-line `stderr` progress reporter for multi-query exports.
+struct ExportProgress<W> {
+    writer: W,
+    is_terminal: bool,
+    completed: u64,
+    total: u64,
+}
+
+impl<W: Write> ExportProgress<W> {
+    const fn new(writer: W, is_terminal: bool, total: u64) -> Self {
+        Self {
+            writer,
+            is_terminal,
+            completed: 0,
+            total,
+        }
+    }
+
+    fn step(&mut self, table: &'static str) {
+        if self.is_terminal {
+            let _ = write!(
+                self.writer,
+                "\r\x1b[2K{}/{} Fetching {table}",
+                self.completed, self.total
+            );
+            let _ = self.writer.flush();
+        }
+        self.completed += 1;
+    }
+
+    fn finish(&mut self) {
+        if self.is_terminal {
+            let _ = write!(self.writer, "\r\x1b[2K");
+            let _ = self.writer.flush();
+        }
+    }
+}
 
 /// Export the full LOTUS compound–taxon–reference graph as `frozen.csv` and
 /// `frozen_metadata.csv`, written to a directory the caller picks.
@@ -564,19 +599,22 @@ async fn export(args: ExportArgs) -> anyhow::Result<ExitCode> {
     let http = lotus_search::reqwest_client::ReqwestClient::new()?;
     let endpoint = lotus_search::Endpoint::new(lotus_search::Service::Qlever);
 
-    let progress = ProgressBar::new(lotus_explore_core::export::pipeline::EXPORT_QUERY_COUNT);
-    progress.set_style(ProgressStyle::with_template(EXPORT_PROGRESS_STYLE)?);
-    progress.enable_steady_tick(std::time::Duration::from_millis(120));
-    let mut completed = 0;
+    let stderr = io::stderr();
+    let is_terminal = stderr.is_terminal();
+    let mut progress = ExportProgress::new(
+        stderr,
+        is_terminal,
+        lotus_explore_core::export::pipeline::EXPORT_QUERY_COUNT,
+    );
     let result = lotus_explore_core::export::pipeline::run_lotus_exporter(
         &http,
         endpoint,
         &now,
         year,
-        |table| report_export_table(&progress, &mut completed, table),
+        |table| progress.step(table),
     )
     .await;
-    progress.finish_and_clear();
+    progress.finish();
     let (frozen_csv, metadata_csv, summary) = result?;
 
     let output_dir = args
@@ -600,12 +638,6 @@ async fn export(args: ExportArgs) -> anyhow::Result<ExitCode> {
         metadata_path.display(),
     );
     Ok(ExitCode::SUCCESS)
-}
-
-fn report_export_table(progress: &ProgressBar, completed: &mut u64, table: &'static str) {
-    progress.set_position(*completed);
-    progress.set_message(table);
-    *completed += 1;
 }
 
 /// Build `PubChem`-format trees (biological, chemical, `NPClassifier`) as `JSON`,

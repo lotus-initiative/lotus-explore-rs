@@ -2,43 +2,55 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The table count shown while the bulk exporter fetches sequential requests.
 
-#![allow(clippy::expect_used)]
-
-use indicatif::{InMemoryTerm, ProgressBar, ProgressDrawTarget, ProgressStyle};
-
-use super::{EXPORT_PROGRESS_STYLE, report_export_table};
+use super::ExportProgress;
 
 #[test]
 fn the_visible_export_count_advances_between_tables() {
-    let terminal = InMemoryTerm::new(2, 100);
-    let progress = ProgressBar::with_draw_target(
-        Some(lotus_explore_core::export::pipeline::EXPORT_QUERY_COUNT),
-        ProgressDrawTarget::term_like(Box::new(terminal.clone())),
+    let mut progress = ExportProgress::new(
+        Vec::new(),
+        true,
+        lotus_explore_core::export::pipeline::EXPORT_QUERY_COUNT,
     );
-    progress.set_style(ProgressStyle::with_template(EXPORT_PROGRESS_STYLE).expect("valid style"));
-    let mut completed = 0;
 
-    report_export_table(&progress, &mut completed, "compound_taxon_reference");
-    assert!(
-        terminal
-            .contents()
-            .contains("0/16 Fetching compound_taxon_reference"),
+    progress.step("compound_taxon_reference");
+    assert_eq!(
+        String::from_utf8_lossy(&progress.writer),
+        "\r\x1b[2K0/4 Fetching compound_taxon_reference",
         "the first request has started, but none has completed"
     );
 
-    report_export_table(&progress, &mut completed, "compound_smiles_can");
-    assert!(
-        terminal
-            .contents()
-            .contains("1/16 Fetching compound_smiles_can"),
+    progress.step("compounds");
+    assert_eq!(
+        String::from_utf8_lossy(&progress.writer),
+        "\r\x1b[2K0/4 Fetching compound_taxon_reference\r\x1b[2K1/4 Fetching compounds",
         "the first request must count as completed while the second is active"
     );
 
-    report_export_table(&progress, &mut completed, "compound_smiles_iso");
-    assert!(
-        terminal
-            .contents()
-            .contains("2/16 Fetching compound_smiles_iso"),
+    progress.step("taxa");
+    assert_eq!(
+        String::from_utf8_lossy(&progress.writer),
+        "\r\x1b[2K0/4 Fetching compound_taxon_reference\r\x1b[2K1/4 Fetching compounds\r\x1b[2K2/4 Fetching taxa",
         "the completed count must continue advancing"
+    );
+
+    progress.finish();
+    assert!(
+        String::from_utf8_lossy(&progress.writer).ends_with("\r\x1b[2K"),
+        "finishing clears the transient status line"
+    );
+}
+
+#[test]
+fn non_terminal_stderr_emits_no_progress_escapes() {
+    let mut progress = ExportProgress::new(
+        Vec::new(),
+        false,
+        lotus_explore_core::export::pipeline::EXPORT_QUERY_COUNT,
+    );
+    progress.step("compound_taxon_reference");
+    progress.finish();
+    assert!(
+        progress.writer.is_empty(),
+        "non-TTY stderr must stay quiet so piped logs are not polluted with ANSI escapes"
     );
 }

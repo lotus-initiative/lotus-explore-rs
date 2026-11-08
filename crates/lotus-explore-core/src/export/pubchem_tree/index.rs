@@ -7,8 +7,8 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use lotus_query::{
     COMPOUND_CXSMILES_QUERY, COMPOUND_INCHIKEY_TAXON_QUERY, COMPOUND_LABEL_QUERY,
     COMPOUND_PARENT_QUERY, COMPOUND_SMARTS_QUERY, COMPOUND_SMILES_CAN_ALL_QUERY,
-    COMPOUND_SMILES_ISO_ALL_QUERY, REFERENCE_DOI_QUERY, REFERENCE_PMID_QUERY, TAXON_NAME_QUERY,
-    TAXON_NCBI_QUERY, TAXON_PARENT_QUERY,
+    COMPOUND_SMILES_ISO_ALL_QUERY, REFERENCE_DOI_COMPOUND_TAXON_QUERY,
+    REFERENCE_PMID_COMPOUND_TAXON_QUERY, TAXON_NAME_QUERY, TAXON_NCBI_QUERY, TAXON_PARENT_QUERY,
 };
 use lotus_search::{Endpoint, Http};
 
@@ -51,8 +51,8 @@ pub(super) async fn fetch_all_pubchem_data<H: Http>(
         compound_cxsmiles: fetch(COMPOUND_CXSMILES_QUERY, "compound_cxsmiles").await?,
         compound_label: fetch(COMPOUND_LABEL_QUERY, "compound_label").await?,
         compound_parent: fetch(COMPOUND_PARENT_QUERY, "compound_parent").await?,
-        reference_doi: fetch(REFERENCE_DOI_QUERY, "reference_doi").await?,
-        reference_pmid: fetch(REFERENCE_PMID_QUERY, "reference_pmid").await?,
+        reference_doi: fetch(REFERENCE_DOI_COMPOUND_TAXON_QUERY, "reference_doi").await?,
+        reference_pmid: fetch(REFERENCE_PMID_COMPOUND_TAXON_QUERY, "reference_pmid").await?,
     })
 }
 

@@ -37,13 +37,13 @@ On Debian/Ubuntu, install the native dependencies before `./mk setup`:
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
   pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev \
-  libayatana-appindicator3-dev librsvg2-dev libxdo-dev ripgrep
+  libayatana-appindicator3-dev librsvg2-dev libxdo-dev
 ```
 
-The first six packages are needed for the desktop build; `ripgrep` is used by
-the desktop bundle check. `./mk setup` installs apt packages automatically
-only on CI's Linux runners, not on a local machine. `./mk setup-extra` is
-optional and adds development utilities outside the required checks.
+These six packages are needed for the desktop build. `./mk setup` installs apt
+packages automatically only on CI's Linux runners, not on a local machine.
+`./mk setup-extra` is optional and adds development utilities outside the
+required checks.
 
 ## Running the checks
 

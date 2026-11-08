@@ -284,11 +284,11 @@ lotus export --output ./lotus-export --year 2025 --now 2026-01-15T00:00:00Z
 year, and `--now` to the current UTC time. Both are written into the metadata
 file, so you can reproduce an export exactly by passing the same values.
 
-While fetching the 16 SPARQL tables, an interactive terminal shows a progress
-bar with the completed-table count and the table currently being fetched.
-The spinner keeps moving during long requests; the count is not a percentage
-of rows or an estimate of time remaining. Redirected output stays quiet until
-the final summary.
+While fetching the 4 SPARQL entity tables (`compound_taxon_reference`,
+`compounds`, `taxa`, `references`), an interactive terminal shows a transient
+progress line on `stderr` with the completed-table count and the table
+currently being fetched. The count is not a percentage of rows or an estimate
+of time remaining. Redirected output stays quiet until the final summary.
 
 The two files are:
 
