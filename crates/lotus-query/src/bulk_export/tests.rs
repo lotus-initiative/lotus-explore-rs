@@ -28,7 +28,7 @@ PREFIX wd: <http://www.wikidata.org/entity/>
 /// Every query as `(query, text before the prefixes, text after them)`.
 ///
 /// Only the compound labels put a prefix of their own ahead of the shared block.
-const CASES: [(&str, &str, &str); 25] = [
+const CASES: [(&str, &str, &str); 28] = [
     (
         COMPOUND_TAXON_REFERENCE_QUERY,
         "",
@@ -38,6 +38,71 @@ SELECT DISTINCT ?compound ?compound_inchikey ?taxon ?reference WHERE {
   ?compound p:P703 ?statement .
   ?statement ps:P703 ?taxon .
   ?statement prov:wasDerivedFrom/pr:P248 ?reference .
+}",
+    ),
+    (
+        EXPORT_COMPOUNDS_QUERY,
+        "",
+        r"
+SELECT ?compound ?compound_smiles_can ?compound_smiles_iso ?compound_cid WHERE {
+  {
+    SELECT DISTINCT ?compound WHERE {
+      ?compound wdt:P235 ?inchikey ;
+                wdt:P703 ?taxon .
+    }
+  }
+  OPTIONAL { ?compound wdt:P233 ?compound_smiles_can . }
+  OPTIONAL { ?compound wdt:P2017 ?compound_smiles_iso . }
+  OPTIONAL { ?compound wdt:P662 ?compound_cid . }
+}",
+    ),
+    (
+        EXPORT_TAXA_QUERY,
+        "",
+        r#"
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?taxon ?taxon_name ?taxon_ncbi ?taxon_ott ?taxon_gbif ?taxon_parent ?taxon_rank ?taxon_rank_label WHERE {
+  {
+    SELECT DISTINCT ?taxon WHERE {
+      ?compound wdt:P235 ?inchikey ;
+                wdt:P703 ?taxon .
+    }
+  }
+  OPTIONAL { ?taxon wdt:P225 ?taxon_name . }
+  OPTIONAL { ?taxon wdt:P685 ?taxon_ncbi . }
+  OPTIONAL { ?taxon wdt:P9157 ?taxon_ott . }
+  OPTIONAL { ?taxon wdt:P846 ?taxon_gbif . }
+  OPTIONAL { ?taxon wdt:P171 ?taxon_parent . }
+  OPTIONAL { ?taxon wdt:P105 ?taxon_rank . }
+  BIND(COALESCE(?taxon_rank, wd:Q0) AS ?_taxon_rank)
+  OPTIONAL { ?_taxon_rank rdfs:label ?taxon_rank_label . FILTER(LANG(?taxon_rank_label) = "en") }
+}"#,
+    ),
+    (
+        EXPORT_REFERENCES_QUERY,
+        "",
+        r"
+SELECT ?reference ?doi ?pmid ?pmcid ?title ?date ?journal ?journal_label WHERE {
+  {
+    SELECT DISTINCT ?reference WHERE {
+      {
+        SELECT ?statement WHERE {
+          ?compound wdt:P235 ?inchikey ;
+                    p:P703 ?statement .
+        }
+      }
+      ?statement ps:P703 ?taxon ;
+                 prov:wasDerivedFrom/pr:P248 ?reference .
+    }
+  }
+  OPTIONAL { ?reference wdt:P356 ?doi . }
+  OPTIONAL { ?reference wdt:P698 ?pmid . }
+  OPTIONAL { ?reference wdt:P932 ?pmcid . }
+  OPTIONAL { ?reference wdt:P1476 ?title . }
+  OPTIONAL { ?reference wdt:P577 ?date . }
+  OPTIONAL { ?reference wdt:P1433 ?journal . }
+  BIND(COALESCE(?journal, wd:Q0) AS ?_journal)
+  OPTIONAL { ?_journal wdt:P1476 ?journal_label . }
 }",
     ),
     (

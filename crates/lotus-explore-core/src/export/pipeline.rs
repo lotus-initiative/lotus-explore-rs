@@ -17,17 +17,23 @@ use std::io::Write;
 use std::sync::Arc;
 
 use lotus_query::{
-    COMPOUND_CID_QUERY, COMPOUND_SMILES_CAN_QUERY, COMPOUND_SMILES_ISO_QUERY,
-    COMPOUND_TAXON_REFERENCE_QUERY, QLEVER_WIKIDATA, REFERENCE_DATE_QUERY, REFERENCE_DOI_QUERY,
-    REFERENCE_JOURNAL_QUERY, REFERENCE_PMCID_QUERY, REFERENCE_PMID_QUERY, REFERENCE_TITLE_QUERY,
-    TAXON_GBIF_QUERY, TAXON_NAME_QUERY, TAXON_NCBI_QUERY, TAXON_OTT_QUERY, TAXON_PARENT_QUERY,
-    TAXON_RANK_QUERY, extract_qid,
+    COMPOUND_TAXON_REFERENCE_QUERY, EXPORT_COMPOUNDS_QUERY, EXPORT_REFERENCES_QUERY,
+    EXPORT_TAXA_QUERY, QLEVER_WIKIDATA, extract_qid,
 };
 use lotus_search::{Endpoint, FetchError, Http, ResponseFormat, execute_streaming};
 use thiserror::Error;
 
 /// One result row, as column name → cell value.
 pub(crate) type Row = HashMap<Arc<str>, String>;
+
+/// One occurrence triplet from [`COMPOUND_TAXON_REFERENCE_QUERY`], with QIDs
+/// already stripped of their entity IRI prefixes.
+struct TripletRow {
+    compound_qid: String,
+    compound_inchikey: String,
+    taxon_qid: String,
+    reference_qid: String,
+}
 
 /// All of one compound's structure properties, keyed by compound QID.
 #[derive(Clone, Default)]
@@ -179,6 +185,20 @@ pub(crate) fn read_csv_rows(bytes: &[u8]) -> Result<Vec<Row>, csv::Error> {
     Ok(rows)
 }
 
+/// POST one SPARQL query and collect its streamed CSV bytes.
+async fn fetch_csv_bytes<H: Http>(
+    http: &H,
+    endpoint: &Endpoint,
+    query: &str,
+) -> Result<Vec<u8>, ExportError> {
+    let mut answer = execute_streaming(http, endpoint.clone(), query, ResponseFormat::Csv).await?;
+    let mut body = Vec::new();
+    while let Some(bytes) = answer.chunks.next_chunk().await? {
+        body.extend_from_slice(&bytes);
+    }
+    Ok(body)
+}
+
 /// POST one SPARQL query, read every chunk, and parse the CSV into rows.
 pub(crate) async fn fetch_csv_rows<H: Http>(
     http: &H,
@@ -186,12 +206,20 @@ pub(crate) async fn fetch_csv_rows<H: Http>(
     query: &str,
     _table: &'static str,
 ) -> Result<Vec<Row>, ExportError> {
-    let mut answer = execute_streaming(http, endpoint.clone(), query, ResponseFormat::Csv).await?;
-    let mut body = Vec::new();
-    while let Some(bytes) = answer.chunks.next_chunk().await? {
-        body.extend_from_slice(&bytes);
-    }
+    let body = fetch_csv_bytes(http, endpoint, query).await?;
     read_csv_rows(&body).map_err(ExportError::Csv)
+}
+
+/// Notify the caller before a table fetch, leaving presentation to its adapter.
+async fn fetch_export_bytes<H: Http>(
+    http: &H,
+    endpoint: &Endpoint,
+    query: &str,
+    table: &'static str,
+    on_progress: &mut impl FnMut(&'static str),
+) -> Result<Vec<u8>, ExportError> {
+    on_progress(table);
+    fetch_csv_bytes(http, endpoint, query).await
 }
 
 /// The value of one column, empty when absent.
@@ -204,98 +232,123 @@ pub(crate) fn qid(row: &Row, column: &str) -> String {
     extract_qid(cell(row, column)).to_string()
 }
 
-/// Build `compound QID → CompoundProps` from the structure tables.
-fn build_compound_index(
-    smiles_can: &[Row],
-    smiles_iso: &[Row],
-    cids: &[Row],
-) -> HashMap<String, CompoundProps> {
-    let mut index: HashMap<String, CompoundProps> = HashMap::new();
-    for row in smiles_can {
-        index.entry(qid(row, "compound")).or_default().smiles_can =
-            Some(cell(row, "compound_smiles_can").to_string());
-    }
-    for row in smiles_iso {
-        index.entry(qid(row, "compound")).or_default().smiles_iso =
-            Some(cell(row, "compound_smiles_iso").to_string());
-    }
-    for row in cids {
-        index.entry(qid(row, "compound")).or_default().cid =
-            Some(cell(row, "compound_cid").to_string());
-    }
-    index
+/// Read a named column from `record`, returning `""` when the column is absent.
+fn record_col<'a>(
+    headers: &csv::StringRecord,
+    record: &'a csv::StringRecord,
+    name: &str,
+) -> &'a str {
+    headers
+        .iter()
+        .position(|h| h == name)
+        .and_then(|i| record.get(i))
+        .unwrap_or("")
 }
 
-/// Build `taxon QID → TaxonProps` from the taxon tables.
-fn build_taxon_index(
-    names: &[Row],
-    ncbis: &[Row],
-    otts: &[Row],
-    gbifs: &[Row],
-    parents: &[Row],
-    ranks: &[Row],
-) -> HashMap<String, TaxonProps> {
-    let mut index: HashMap<String, TaxonProps> = HashMap::new();
-    for row in names {
-        index.entry(qid(row, "taxon")).or_default().name =
-            Some(cell(row, "taxon_name").to_string());
+/// Overwrite `slot` when `record` carries a non-empty value for `name`.
+fn set_col(
+    slot: &mut Option<String>,
+    headers: &csv::StringRecord,
+    record: &csv::StringRecord,
+    name: &str,
+) {
+    let val = record_col(headers, record, name);
+    if !val.is_empty() {
+        *slot = Some(val.to_string());
     }
-    for row in ncbis {
-        index.entry(qid(row, "taxon")).or_default().ncbi =
-            Some(cell(row, "taxon_ncbi").to_string());
-    }
-    for row in otts {
-        index.entry(qid(row, "taxon")).or_default().ott = Some(cell(row, "taxon_ott").to_string());
-    }
-    for row in gbifs {
-        index.entry(qid(row, "taxon")).or_default().gbif =
-            Some(cell(row, "taxon_gbif").to_string());
-    }
-    for row in parents {
-        index.entry(qid(row, "taxon")).or_default().parent =
-            Some(cell(row, "taxon_parent").to_string());
-    }
-    for row in ranks {
-        let e = index.entry(qid(row, "taxon")).or_default();
-        e.rank = Some(cell(row, "taxon_rank").to_string());
-        e.rank_label = Some(cell(row, "taxon_rank_label").to_string());
-    }
-    index
 }
 
-/// Build `reference QID → ReferenceProps` from the reference tables.
-fn build_reference_index(
-    dois: &[Row],
-    pmid_s: &[Row],
-    pmc_ids: &[Row],
-    titles: &[Row],
-    dates: &[Row],
-    journals: &[Row],
-) -> HashMap<String, ReferenceProps> {
-    let mut index: HashMap<String, ReferenceProps> = HashMap::new();
-    for row in dois {
-        index.entry(qid(row, "reference")).or_default().doi = Some(cell(row, "doi").to_string());
+/// Index a CSV payload by QID without allocating per-row `HashMap`s.
+fn index_csv_records<V: Default>(
+    bytes: &[u8],
+    key_col: &str,
+    mut populate: impl FnMut(&mut V, &csv::StringRecord, &csv::StringRecord),
+) -> Result<HashMap<String, V>, csv::Error> {
+    let mut reader = csv::ReaderBuilder::new()
+        .has_headers(true)
+        .flexible(true)
+        .from_reader(bytes);
+    let headers = reader.headers()?.clone();
+    let mut index = HashMap::new();
+    for record in reader.records() {
+        let record = record?;
+        let key = extract_qid(record_col(&headers, &record, key_col)).to_string();
+        populate(index.entry(key).or_default(), &headers, &record);
     }
-    for row in pmid_s {
-        index.entry(qid(row, "reference")).or_default().pmid = Some(cell(row, "pmid").to_string());
+    Ok(index)
+}
+
+/// Parse the occurrence triplets table directly into [`TripletRow`] records.
+fn read_triplets(bytes: &[u8]) -> Result<Vec<TripletRow>, csv::Error> {
+    let mut reader = csv::ReaderBuilder::new()
+        .has_headers(true)
+        .flexible(true)
+        .from_reader(bytes);
+    let headers = reader.headers()?.clone();
+    let mut rows = Vec::new();
+    for record in reader.records() {
+        let record = record?;
+        rows.push(TripletRow {
+            compound_qid: extract_qid(record_col(&headers, &record, "compound")).to_string(),
+            compound_inchikey: record_col(&headers, &record, "compound_inchikey").to_string(),
+            taxon_qid: extract_qid(record_col(&headers, &record, "taxon")).to_string(),
+            reference_qid: extract_qid(record_col(&headers, &record, "reference")).to_string(),
+        });
     }
-    for row in pmc_ids {
-        index.entry(qid(row, "reference")).or_default().pmcid =
-            Some(cell(row, "pmcid").to_string());
-    }
-    for row in titles {
-        index.entry(qid(row, "reference")).or_default().title =
-            Some(cell(row, "title").to_string());
-    }
-    for row in dates {
-        index.entry(qid(row, "reference")).or_default().date = Some(cell(row, "date").to_string());
-    }
-    for row in journals {
-        let e = index.entry(qid(row, "reference")).or_default();
-        e.journal = Some(cell(row, "journal").to_string());
-        e.journal_label = Some(cell(row, "journal_label").to_string());
-    }
-    index
+    Ok(rows)
+}
+
+/// Build `compound QID → CompoundProps` from the consolidated compounds CSV.
+fn build_compound_index(bytes: &[u8]) -> Result<HashMap<String, CompoundProps>, csv::Error> {
+    index_csv_records(
+        bytes,
+        "compound",
+        |entry: &mut CompoundProps, headers, record| {
+            set_col(
+                &mut entry.smiles_can,
+                headers,
+                record,
+                "compound_smiles_can",
+            );
+            set_col(
+                &mut entry.smiles_iso,
+                headers,
+                record,
+                "compound_smiles_iso",
+            );
+            set_col(&mut entry.cid, headers, record, "compound_cid");
+        },
+    )
+}
+
+/// Build `taxon QID → TaxonProps` from the consolidated taxa CSV.
+fn build_taxon_index(bytes: &[u8]) -> Result<HashMap<String, TaxonProps>, csv::Error> {
+    index_csv_records(bytes, "taxon", |entry: &mut TaxonProps, headers, record| {
+        set_col(&mut entry.name, headers, record, "taxon_name");
+        set_col(&mut entry.ncbi, headers, record, "taxon_ncbi");
+        set_col(&mut entry.ott, headers, record, "taxon_ott");
+        set_col(&mut entry.gbif, headers, record, "taxon_gbif");
+        set_col(&mut entry.parent, headers, record, "taxon_parent");
+        set_col(&mut entry.rank, headers, record, "taxon_rank");
+        set_col(&mut entry.rank_label, headers, record, "taxon_rank_label");
+    })
+}
+
+/// Build `reference QID → ReferenceProps` from the consolidated references CSV.
+fn build_reference_index(bytes: &[u8]) -> Result<HashMap<String, ReferenceProps>, csv::Error> {
+    index_csv_records(
+        bytes,
+        "reference",
+        |entry: &mut ReferenceProps, headers, record| {
+            set_col(&mut entry.doi, headers, record, "doi");
+            set_col(&mut entry.pmid, headers, record, "pmid");
+            set_col(&mut entry.pmcid, headers, record, "pmcid");
+            set_col(&mut entry.title, headers, record, "title");
+            set_col(&mut entry.date, headers, record, "date");
+            set_col(&mut entry.journal, headers, record, "journal");
+            set_col(&mut entry.journal_label, headers, record, "journal_label");
+        },
+    )
 }
 
 /// Join every triplet and stream the resulting rows to `out` as a CSV,
@@ -303,7 +356,7 @@ fn build_reference_index(
 ///
 /// Returns the number of rows written.
 fn write_joined_rows<W: Write>(
-    triplets: &[Row],
+    triplets: &[TripletRow],
     compounds: &HashMap<String, CompoundProps>,
     taxa: &HashMap<String, TaxonProps>,
     references: &HashMap<String, ReferenceProps>,
@@ -313,9 +366,9 @@ fn write_joined_rows<W: Write>(
     writer.write_record(FROZEN_COLUMNS)?;
     let mut count = 0;
     for triplet in triplets {
-        let compound_qid = extract_qid(cell(triplet, "compound"));
-        let taxon_qid = extract_qid(cell(triplet, "taxon"));
-        let reference_qid = extract_qid(cell(triplet, "reference"));
+        let compound_qid = triplet.compound_qid.as_str();
+        let taxon_qid = triplet.taxon_qid.as_str();
+        let reference_qid = triplet.reference_qid.as_str();
 
         let compound = compounds.get(compound_qid);
         let taxon = taxa.get(taxon_qid);
@@ -323,7 +376,7 @@ fn write_joined_rows<W: Write>(
 
         let row = ExportRow {
             compound_qid,
-            compound_inchikey: cell(triplet, "compound_inchikey"),
+            compound_inchikey: triplet.compound_inchikey.as_str(),
             compound_smiles_can: compound.and_then(|c| c.smiles_can.as_deref()).unwrap_or(""),
             compound_smiles_iso: compound.and_then(|c| c.smiles_iso.as_deref()).unwrap_or(""),
             compound_cid: compound.and_then(|c| c.cid.as_deref()).unwrap_or(""),
@@ -390,12 +443,18 @@ fn serialize_metadata_csv(lines: &[MetaLine]) -> Result<String, ExportError> {
         .map_err(|e| ExportError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))
 }
 
+/// Number of sequential table requests in a full export.
+pub const EXPORT_QUERY_COUNT: u64 = 4;
+
 /// Run the full LOTUS export: fetch every table, index by QID, join, and
 /// serialize `frozen.csv` plus `frozen_metadata.csv`.
 ///
 /// `now` is the ISO-8601 stamp the host read; `year` decides whether the year
 /// filter means anything. `endpoint` is the service to query (`QLever` by
 /// default, overridable through its environment variable).
+///
+/// `on_progress` is called before each of the [`EXPORT_QUERY_COUNT`] table
+/// requests with its name.
 ///
 /// Each joined row is written to the CSV writer as soon as it is produced,
 /// so a large export never holds all joined rows in memory at once. The
@@ -404,75 +463,55 @@ fn serialize_metadata_csv(lines: &[MetaLine]) -> Result<String, ExportError> {
 /// wasm-clean.
 ///
 /// # Errors
-/// Returns [`ExportError`] when a fetch, a parse, or a serialization fails. A
-/// missing column is reported rather than emitting empty cells silently.
+/// Returns [`ExportError`] when a fetch, a parse, or a serialization fails.
 pub async fn run_lotus_exporter<H: Http>(
     http: &H,
     endpoint: Endpoint,
     now: &str,
     year: u16,
+    mut on_progress: impl FnMut(&'static str),
 ) -> Result<(String, String, ExportSummary), ExportError> {
-    // 1. The core triplet: compound–taxon–reference with InChIKeys.
-    let triplets = fetch_csv_rows(
+    let triplet_bytes = fetch_export_bytes(
         http,
         &endpoint,
         COMPOUND_TAXON_REFERENCE_QUERY,
         "compound_taxon_reference",
+        &mut on_progress,
     )
     .await?;
+    let triplets = read_triplets(&triplet_bytes)?;
     let triplet_count = triplets.len();
 
-    // 2. Compound structure properties.
-    let smiles_can = fetch_csv_rows(
+    let compound_bytes = fetch_export_bytes(
         http,
         &endpoint,
-        COMPOUND_SMILES_CAN_QUERY,
-        "compound_smiles_can",
+        EXPORT_COMPOUNDS_QUERY,
+        "compounds",
+        &mut on_progress,
     )
     .await?;
-    let smiles_iso = fetch_csv_rows(
+    let compounds = build_compound_index(&compound_bytes)?;
+
+    let taxon_bytes =
+        fetch_export_bytes(http, &endpoint, EXPORT_TAXA_QUERY, "taxa", &mut on_progress).await?;
+    let taxa = build_taxon_index(&taxon_bytes)?;
+
+    let reference_bytes = fetch_export_bytes(
         http,
         &endpoint,
-        COMPOUND_SMILES_ISO_QUERY,
-        "compound_smiles_iso",
+        EXPORT_REFERENCES_QUERY,
+        "references",
+        &mut on_progress,
     )
     .await?;
-    let cids = fetch_csv_rows(http, &endpoint, COMPOUND_CID_QUERY, "compound_cid").await?;
-    let compounds = build_compound_index(&smiles_can, &smiles_iso, &cids);
+    let references = build_reference_index(&reference_bytes)?;
 
-    // 3. Taxon properties.
-    let names = fetch_csv_rows(http, &endpoint, TAXON_NAME_QUERY, "taxon_name").await?;
-    let ncbis = fetch_csv_rows(http, &endpoint, TAXON_NCBI_QUERY, "taxon_ncbi").await?;
-    let otts = fetch_csv_rows(http, &endpoint, TAXON_OTT_QUERY, "taxon_ott").await?;
-    let gbifs = fetch_csv_rows(http, &endpoint, TAXON_GBIF_QUERY, "taxon_gbif").await?;
-    let parents = fetch_csv_rows(http, &endpoint, TAXON_PARENT_QUERY, "taxon_parent").await?;
-    let ranks = fetch_csv_rows(http, &endpoint, TAXON_RANK_QUERY, "taxon_rank").await?;
-    let taxa = build_taxon_index(&names, &ncbis, &otts, &gbifs, &parents, &ranks);
-
-    // 4. Reference properties.
-    let dois = fetch_csv_rows(http, &endpoint, REFERENCE_DOI_QUERY, "reference_doi").await?;
-    let pmids = fetch_csv_rows(http, &endpoint, REFERENCE_PMID_QUERY, "reference_pmid").await?;
-    let pmc_ids = fetch_csv_rows(http, &endpoint, REFERENCE_PMCID_QUERY, "reference_pmcid").await?;
-    let titles = fetch_csv_rows(http, &endpoint, REFERENCE_TITLE_QUERY, "reference_title").await?;
-    let dates = fetch_csv_rows(http, &endpoint, REFERENCE_DATE_QUERY, "reference_date").await?;
-    let journals = fetch_csv_rows(
-        http,
-        &endpoint,
-        REFERENCE_JOURNAL_QUERY,
-        "reference_journal",
-    )
-    .await?;
-    let references = build_reference_index(&dois, &pmids, &pmc_ids, &titles, &dates, &journals);
-
-    // 5. Join every triplet and stream rows to the CSV writer as they are
-    // produced, instead of collecting the whole table into a Vec first.
     let mut buffer = Vec::new();
     let rows_written = write_joined_rows(&triplets, &compounds, &taxa, &references, &mut buffer)?;
 
     let frozen_csv = String::from_utf8(buffer)
         .map_err(|e| ExportError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
 
-    // 6. Metadata.
     let meta_lines = vec![
         MetaLine {
             key: "endpoint".into(),

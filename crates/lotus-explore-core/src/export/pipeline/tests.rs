@@ -22,73 +22,45 @@ fn csv(status: u16, body: &str) -> (u16, &str) {
 
 /// A triplet payload: the compound-taxon-reference core table.
 fn triplet_csv() -> String {
-    "compound,compound_inchikey,taxon,reference\n\
-http://www.wikidata.org/entity/Q1000,IK100,http://www.wikidata.org/entity/Q2000,http://www.wikidata.org/entity/Q3000\n\
-http://www.wikidata.org/entity/Q1001,,http://www.wikidata.org/entity/Q2001,\n\
-".to_string()
-}
-
-/// A compound canonical-SMILES payload.
-fn smiles_can_csv() -> String {
-    "compound,compound_smiles_can\n\
-http://www.wikidata.org/entity/Q1000,CCO\n\
-http://www.wikidata.org/entity/Q1001,CC\n\
+    "compound_inchikey,compound,taxon,reference\n\
+IK100,http://www.wikidata.org/entity/Q1000,http://www.wikidata.org/entity/Q2000,http://www.wikidata.org/entity/Q3000\n\
+,http://www.wikidata.org/entity/Q1001,http://www.wikidata.org/entity/Q2001,\n\
 "
     .to_string()
 }
 
-/// A compound isomeric-SMILES payload.
-fn smiles_iso_csv() -> String {
-    "compound,compound_smiles_iso\n\
-http://www.wikidata.org/entity/Q1000,C[C@H](O)O\n\
+/// Consolidated compound properties, including a second row for `Q1000` with
+/// an empty `compound_smiles_can` cell so empty optional cells never clobber a
+/// populated field.
+fn compounds_csv() -> String {
+    "compound_cid,compound,compound_smiles_can,compound_smiles_iso\n\
+1234,http://www.wikidata.org/entity/Q1000,CCO,\n\
+,http://www.wikidata.org/entity/Q1000,,C[C@H](O)O\n\
+,http://www.wikidata.org/entity/Q1001,CC,\n\
 "
     .to_string()
 }
 
-/// A compound PubChem-CID payload.
-fn cid_csv() -> String {
-    "compound,compound_cid\n\
-http://www.wikidata.org/entity/Q1000,1234\n\
+/// Consolidated taxon properties covering every taxon column.
+fn taxa_csv() -> String {
+    "taxon_name,taxon,taxon_ncbi,taxon_ott,taxon_gbif,taxon_parent,taxon_rank,taxon_rank_label\n\
+Gentiana lutea,http://www.wikidata.org/entity/Q2000,4204,OTT1,GBIF1,http://www.wikidata.org/entity/Q10,http://www.wikidata.org/entity/Q7432,species\n\
+Taxon without QID,http://www.wikidata.org/entity/Q2001,,,,,,\n\
 "
     .to_string()
 }
 
-/// A taxon-name payload.
-fn name_csv() -> String {
-    "taxon,taxon_name\n\
-http://www.wikidata.org/entity/Q2000,Gentiana lutea\n\
-http://www.wikidata.org/entity/Q2001,Taxon without QID\n\
+/// Consolidated reference properties covering every bibliographic column.
+fn references_csv() -> String {
+    "doi,reference,pmid,pmcid,title,date,journal,journal_label\n\
+10.1/a,http://www.wikidata.org/entity/Q3000,999,PMC1,The title,2026-01-01,http://www.wikidata.org/entity/Q50,Journal Name\n\
 "
     .to_string()
 }
 
-/// A taxon NCBI payload.
-fn ncbi_csv() -> String {
-    "taxon,taxon_ncbi\n\
-http://www.wikidata.org/entity/Q2000,4204\n\
-"
-    .to_string()
-}
-
-/// An empty payload: a table with a header but no rows.
-fn empty_csv() -> String {
-    "taxon,taxon_ncbi\n".to_string()
-}
-
-/// A reference title payload.
-fn title_csv() -> String {
-    "reference,title\n\
-http://www.wikidata.org/entity/Q3000,The title\n\
-"
-    .to_string()
-}
-
-/// A reference DOI payload.
-fn doi_csv() -> String {
-    "reference,doi\n\
-http://www.wikidata.org/entity/Q3000,10.1/a\n\
-"
-    .to_string()
+/// A minimal table with a header and no rows.
+fn empty_references_csv() -> String {
+    "reference,doi\n".to_string()
 }
 
 fn script(replies: Vec<(u16, &str)>) -> Scripted {
@@ -110,26 +82,15 @@ fn out_dir() -> PathBuf {
 async fn pipeline_serializes_frozen_csv_and_metadata() {
     let http = script(vec![
         csv(200, &triplet_csv()),
-        csv(200, &smiles_can_csv()),
-        csv(200, &smiles_iso_csv()),
-        csv(200, &cid_csv()),
-        csv(200, &name_csv()),
-        csv(200, &ncbi_csv()),
-        csv(200, &empty_csv()), // ott
-        csv(200, &empty_csv()), // gbif
-        csv(200, &empty_csv()), // parent
-        csv(200, &empty_csv()), // rank
-        csv(200, &doi_csv()),
-        csv(200, &empty_csv()), // pmid
-        csv(200, &empty_csv()), // pmcid
-        csv(200, &title_csv()),
-        csv(200, &empty_csv()), // date
-        csv(200, &empty_csv()), // journal
+        csv(200, &compounds_csv()),
+        csv(200, &taxa_csv()),
+        csv(200, &references_csv()),
     ]);
 
-    let (frozen_csv, metadata_csv, summary) = run_lotus_exporter(&http, endpoint(), NOW, YEAR)
-        .await
-        .expect("the pipeline runs");
+    let (frozen_csv, metadata_csv, summary) =
+        run_lotus_exporter(&http, endpoint(), NOW, YEAR, |_| {})
+            .await
+            .expect("the pipeline runs");
 
     assert_eq!(summary.triplets, 2);
     assert_eq!(summary.compounds, 2);
@@ -148,9 +109,12 @@ reference_pmid,reference_pmcid,reference_date,reference_journal,\
 reference_journal_label"
     );
     let first = lines.next().expect("row 1");
-    assert!(first.starts_with("Q1000,IK100,CCO,C[C@H](O)O,1234,"));
-    assert!(first.contains(",Q2000,Gentiana lutea,4204,"));
-    assert!(first.contains(",Q3000,The title,10.1/a,"));
+    assert_eq!(
+        first,
+        "Q1000,IK100,CCO,C[C@H](O)O,1234,Q2000,Gentiana lutea,4204,OTT1,GBIF1,\
+http://www.wikidata.org/entity/Q10,http://www.wikidata.org/entity/Q7432,species,\
+Q3000,The title,10.1/a,999,PMC1,2026-01-01,http://www.wikidata.org/entity/Q50,Journal Name"
+    );
 
     assert!(metadata_csv.contains("date_created,2026-03-04T05:06:07Z"));
     assert!(metadata_csv.contains("triplets,2"));
@@ -167,57 +131,47 @@ reference_journal_label"
 async fn pipeline_tolerates_missing_optional_tables() {
     let http = script(vec![
         csv(200, &triplet_csv()),
-        csv(200, &smiles_can_csv()),
-        csv(200, &smiles_iso_csv()),
-        csv(200, &cid_csv()),
-        csv(200, &name_csv()),
-        csv(200, &ncbi_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
+        csv(200, &compounds_csv()),
+        csv(200, &taxa_csv()),
+        csv(200, &empty_references_csv()),
     ]);
 
-    let (frozen_csv, _, summary) = run_lotus_exporter(&http, endpoint(), NOW, YEAR)
+    let (frozen_csv, _, summary) = run_lotus_exporter(&http, endpoint(), NOW, YEAR, |_| {})
         .await
         .expect("the pipeline runs");
 
     assert_eq!(summary.rows_written, 2);
-    // Q1001 has no inchikey, no taxon name, no reference: empty cells, not a missing row.
+    // Q1001 has no inchikey, no optional compound/taxon/reference cells: empty cells, not a missing row.
     let rows: HashSet<String> = frozen_csv.lines().skip(1).map(str::to_string).collect();
-    assert!(rows.iter().any(|r| r.starts_with("Q1001,,CC,,,")));
+    assert!(
+        rows.iter()
+            .any(|r| r.starts_with("Q1001,,CC,,,Q2001,Taxon without QID,,,,,,,,"))
+    );
 }
 
 #[tokio::test]
 async fn pipeline_records_every_query_in_order() {
     let http = script(vec![
         csv(200, &triplet_csv()),
-        csv(200, &smiles_can_csv()),
-        csv(200, &smiles_iso_csv()),
-        csv(200, &cid_csv()),
-        csv(200, &name_csv()),
-        csv(200, &ncbi_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
-        csv(200, &empty_csv()),
+        csv(200, &compounds_csv()),
+        csv(200, &taxa_csv()),
+        csv(200, &references_csv()),
     ]);
 
-    let _ = run_lotus_exporter(&http, endpoint(), NOW, YEAR).await;
+    let mut stages = Vec::new();
+    let _ = run_lotus_exporter(&http, endpoint(), NOW, YEAR, |table| stages.push(table)).await;
+    assert_eq!(
+        stages,
+        [
+            "compound_taxon_reference",
+            "compounds",
+            "taxa",
+            "references",
+        ]
+    );
+    assert_eq!(stages.len() as u64, EXPORT_QUERY_COUNT);
     let queries = http.queries();
-    assert_eq!(queries.len(), 16, "one fetch per table");
+    assert_eq!(queries.len(), 4, "one fetch per entity table");
     assert!(
         queries
             .first()
@@ -226,9 +180,21 @@ async fn pipeline_records_every_query_in_order() {
     );
     assert!(
         queries
+            .get(1)
+            .expect("compounds query")
+            .contains("SELECT ?compound ?compound_smiles_can ?compound_smiles_iso ?compound_cid")
+    );
+    assert!(
+        queries
+            .get(2)
+            .expect("taxa query")
+            .contains("SELECT ?taxon ?taxon_name ?taxon_ncbi ?taxon_ott ?taxon_gbif ?taxon_parent ?taxon_rank ?taxon_rank_label")
+    );
+    assert!(
+        queries
             .last()
-            .expect("last query")
-            .contains("?reference wdt:P1433 ?journal")
+            .expect("references query")
+            .contains("SELECT ?reference ?doi ?pmid ?pmcid ?title ?date ?journal ?journal_label")
     );
 }
 
@@ -238,8 +204,10 @@ async fn pipeline_propagates_fetch_errors() {
     // the retry loop rather than being swallowed by a second attempt.
     let http = script(vec![(400, "bad request")]);
 
-    let err = run_lotus_exporter(&http, endpoint(), NOW, YEAR)
+    let mut stages = Vec::new();
+    let err = run_lotus_exporter(&http, endpoint(), NOW, YEAR, |table| stages.push(table))
         .await
         .unwrap_err();
+    assert_eq!(stages, ["compound_taxon_reference"]);
     assert!(matches!(err, ExportError::Fetch(_)));
 }

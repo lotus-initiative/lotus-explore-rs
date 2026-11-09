@@ -21,10 +21,16 @@ pub(super) fn biological_tree(data: &PubChemData, index: &Index) -> Vec<TaxonNod
     let taxa = Hierarchy::new(&data.taxon_parent, "taxon", "taxon_parent");
 
     let mut relevant: HashSet<&str> = HashSet::new();
-    for taxon in taxon_compounds.keys() {
-        let mut current = Some(taxon);
-        while let Some(taxon) = current.filter(|t| relevant.insert(t.as_str())) {
-            current = taxa.parent(taxon);
+    let mut stack: Vec<&str> = taxon_compounds
+        .keys()
+        .map(String::as_str)
+        .filter(|t| relevant.insert(*t))
+        .collect();
+    while let Some(taxon) = stack.pop() {
+        for parent in taxa.parents(taxon) {
+            if relevant.insert(parent.as_str()) {
+                stack.push(parent.as_str());
+            }
         }
     }
 
@@ -34,8 +40,10 @@ pub(super) fn biological_tree(data: &PubChemData, index: &Index) -> Vec<TaxonNod
         .iter()
         .copied()
         .filter(|t| {
-            taxa.parent(t)
-                .is_none_or(|p| !relevant.contains(p.as_str()))
+            !taxa
+                .parents(t)
+                .iter()
+                .any(|p| relevant.contains(p.as_str()))
         })
         .collect();
     roots.sort_unstable();
