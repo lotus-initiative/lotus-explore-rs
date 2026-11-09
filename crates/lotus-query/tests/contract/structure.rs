@@ -271,7 +271,7 @@ fn the_taxon_and_all_compounds_queries_are_unchanged_by_the_exact_seed() {
     // The compound seed is an addition, not a rewrite: with none of them the two
     // queries are byte-for-byte what they were.
     let all = all_compounds_query();
-    assert!(all.contains("?c wdt:P235 ?compound_inchikey ;"));
+    assert!(all.contains("?c wdt:P235 ?compound_inchikey ."));
     assert!(all.contains("?c p:P703 ?statement_id ."));
     assert!(all.contains("?t wdt:P225 ?taxon_name"));
     let by_taxon = compounds_by_taxon_query("Q156598");

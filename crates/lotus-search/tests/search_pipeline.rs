@@ -578,6 +578,32 @@ async fn an_inchikey_in_the_structure_box_is_looked_up_by_inchikey() {
     }
 }
 
+#[tokio::test]
+async fn a_similarity_search_on_a_resolved_compound_sends_its_smiles_to_sachem() {
+    let http = Scripted::new(vec![(200, LOOKUP_CSV), (200, ROWS_CSV), (200, COUNTS_CSV)]);
+    let request = SearchRequest::new(
+        SearchCriteria {
+            structure: "Berberine".into(),
+            structure_search: lotus_search::SmilesSearchType::Similarity,
+            ..criteria("")
+        },
+        NOW,
+    );
+
+    let result = search(&http, &request).await.expect("the search succeeds");
+
+    assert!(
+        result.query.contains(r#"sachem:query "COc1ccccc1O""#),
+        "Sachem must receive the resolved compound's SMILES rather than its name:\n{}",
+        result.query
+    );
+    assert!(
+        !result.query.contains("Berberine"),
+        "the compound name must not be handed to Sachem:\n{}",
+        result.query
+    );
+}
+
 /// The two-block string that is *not* an `InChIKey` is not treated as one.
 ///
 /// This is the other half of the same mistake and it is the reason the old

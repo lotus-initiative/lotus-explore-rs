@@ -137,6 +137,10 @@ pub struct ResolvedInputs {
     /// Compound QIDs a structure field resolved to. Non-empty only when the
     /// structure was something other than a SMILES the service could take.
     pub compounds: Vec<String>,
+    /// The canonical SMILES a compound name or `InChIKey` resolved to, used when
+    /// a substructure or similarity search needs a structure literal for the
+    /// service rather than the identifier or name the reader typed.
+    pub smiles: Option<String>,
     /// The reference QID a DOI resolved to.
     pub reference_qid: Option<String>,
 }
@@ -157,6 +161,11 @@ pub fn build_execution_query_with(
     let mut criteria = request.criteria.clone();
     if let Some(reference) = &resolved.reference_qid {
         criteria.reference.clone_from(reference);
+    }
+    if let Some(smiles) = &resolved.smiles
+        && !smiles.is_empty()
+    {
+        criteria.structure.clone_from(smiles);
     }
 
     let base = if !resolved.compounds.is_empty()
@@ -631,6 +640,9 @@ pub async fn resolve_inputs<H: Http>(
     let structure = normalize_structure(&criteria.structure);
     if !structure.is_empty() {
         let found = resolve_structure(http, &structure).await?;
+        if found.smiles != structure.trim() {
+            resolved.smiles = Some(found.smiles);
+        }
         resolved.compounds = found.compounds;
     }
 

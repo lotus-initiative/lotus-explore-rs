@@ -198,8 +198,12 @@ fn occurrences_and_dictionary_queries_respect_projection_and_values_bounds() {
         let compounds_over = compound_dictionary_query(&over_limit);
         assert!(!compounds_over.contains("VALUES"));
         assert!(
-            compounds_over.contains("SELECT DISTINCT ?c ?compound_inchikey ?compound_smiles_conn"),
+            compounds_over.contains("SELECT DISTINCT ?c ?compound_inchikey\n"),
             "{compounds_over}"
+        );
+        assert!(
+            compounds_over.contains("OPTIONAL { ?c wdt:P233 ?compound_smiles_conn . }"),
+            "P233 must remain OPTIONAL above the VALUES limit so P2017-only compounds are enriched:\n{compounds_over}"
         );
 
         assert!(reference_dictionary_query(&at_limit).contains("VALUES ?r {"));

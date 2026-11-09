@@ -183,11 +183,17 @@ fn reference_metadata_goes_through_the_sentinel() {
 fn the_count_query_carries_no_reference_or_compound_metadata() {
     for (label, query) in every_shape() {
         let counts = lotus_query::counts_query(&query);
-        for needle in ["P1476", "P356", "_ref_source", "P2017", "P2067"] {
+        let occurrences = lotus_query::occurrences_query(&query);
+        for needle in ["P1476", "P356", "_ref_source", "P233", "P2017", "P2067"] {
             assert!(
                 !counts.contains(needle),
                 "{label}: counts_query kept `{needle}`; the strip is a string match, so \
                  anything guarding or fetching that column has to live inside the constant"
+            );
+            assert!(
+                !occurrences.contains(needle),
+                "{label}: occurrences_query kept `{needle}`; occurrence streaming must not \
+                 join display-only metadata"
             );
         }
 
