@@ -8,6 +8,26 @@ load-bearing: the web app and the CLI share their query building and their
 curation vocabulary precisely so that a query the explorer runs and a query
 `lotus search` runs are the same query.
 
+## 5-minute onboarding: inspect a query and run one test
+
+You do not need to launch the web server, download frontend assets, or touch the
+network to see what the codebase does or to test a change:
+
+```bash
+# 1. Print the exact SPARQL query that a search builds (zero network access):
+cargo run -p lotus-cli -- search --taxon "Gentiana lutea" --explain
+
+# 2. Run a single unit or contract test by substring:
+./mk test-fast -E 'test(exact_compound)'
+
+# 3. Run the fast inner check (rustfmt, tombi, typos, clippy):
+./mk check
+```
+
+Because both the CLI and the web app call `lotus-query` and `lotus-search`,
+`cargo run -p lotus-cli -- search ... --explain` is the fastest way to inspect
+the SPARQL produced for any combination of filters.
+
 ## Install prerequisites
 
 Install [Rust via rustup](https://rustup.rs/) and ensure `cargo` and `rustup`
@@ -136,22 +156,43 @@ follow them.
 
 ## Where a change goes
 
-| You are changing                                          | It belongs in    |
-| --------------------------------------------------------- | ---------------- |
-| A domain type, a filter rule, validation                  | `lotus-model`    |
-| A SPARQL string, a CSV column, an export format           | `lotus-query`    |
-| Which endpoint, when to retry, taxon resolution           | `lotus-search`   |
-| A curation row, a statement, the TSV reader               | `lotus-curation` |
-| JSON-LD, CodeMeta, CITATION                               | `lotus-jsonld`   |
-| A flag, an output format, an exit code                    | `lotus-cli`      |
-| How many rows this machine renders, the clock, cache keys | the app          |
-| Anything a person sees                                    | the app          |
+| You are changing                                                           | It belongs in                                              |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| A domain type, a filter rule, validation                                   | [`crates/lotus-model/`](crates/lotus-model/)               |
+| A SPARQL string, a CSV column, an export format                            | [`crates/lotus-query/`](crates/lotus-query/)               |
+| Which endpoint, when to retry, taxon/compound/reference resolution         | [`crates/lotus-search/`](crates/lotus-search/)             |
+| A curation row, a statement, the TSV reader                                | [`crates/lotus-curation/`](crates/lotus-curation/)         |
+| JSON-LD, CodeMeta, CITATION                                                | [`crates/lotus-jsonld/`](crates/lotus-jsonld/)             |
+| Framework-free state reducers, URL parameters, client-side filter/sort     | [`crates/lotus-explore-core/`](crates/lotus-explore-core/) |
+| A CLI flag, an output format, an exit code                                 | [`crates/lotus-cli/`](crates/lotus-cli/)                   |
+| How many rows this machine renders, the clock, cache keys, Dioxus UI       | [`apps/lotus-explore-rs/`](apps/lotus-explore-rs/)         |
 
 The rule behind the table is **a crate that can be pure is pure**: no HTTP, no
-clock, no async runtime in the four library crates, checked in CI by building
+clock, no async runtime in the four pure library crates (`lotus-model`,
+`lotus-query`, `lotus-curation`, `lotus-jsonld`), checked in CI by building
 them for `wasm32` in their own right. If you want a clock in one of them, the
 year is meant to be an argument. The reasoning is in
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+### Symptom → Exact file & function
+
+When hunting a bug or adding a feature, start at the exact file that owns that
+stage of the pipeline:
+
+| If you are looking for… | Open this file | Key function / type |
+| --- | --- | --- |
+| The 6 base 15-column `SELECT` shapes & shared triple blocks | [`crates/lotus-query/src/query.rs`](crates/lotus-query/src/query.rs) | `COMPOUND_PROPERTIES`, `REFERENCE_METADATA`, `exact_compounds_query`, `structure_search_query_with`, `compounds_by_taxon_query_with`, `all_compounds_query`, `all_compounds_including_untaxonomised_query` |
+| How `SearchCriteria` (mass, year, formula, reference QID) becomes SPARQL | [`crates/lotus-query/src/query.rs`](crates/lotus-query/src/query.rs) | `with_filters`, `filter_clauses` |
+| How the 4-column `(?compound ?taxon ?taxon_name ?r)` fast query and `COUNT(DISTINCT ...)` query strip heavy optional joins | [`crates/lotus-query/src/query.rs`](crates/lotus-query/src/query.rs) | `occurrences_query`, `counts_query`, `limit_query`, `construct_from_select`, `wdqs_fallback` |
+| How per-entity metadata (labels, SMILES, taxonomy, DOIs) is fetched in batches for the split-stream pipeline | [`crates/lotus-query/src/query.rs`](crates/lotus-query/src/query.rs) | `dictionary_queries`, `entity_dictionary_query`, `compound_dictionary_query`, `reference_dictionary_query` |
+| How a compound name, InChIKey, QID, taxon name, or DOI is resolved before the main query | [`crates/lotus-query/src/query.rs`](crates/lotus-query/src/query.rs) and [`crates/lotus-search/src/search.rs`](crates/lotus-search/src/search.rs) | `compound_inchikey_query`, `compound_label_query`, `taxon_lookup_query`, `resolve_taxon`, `resolve_structure`, `resolve_reference` |
+| How taxon synonyms and nomenclature work across GBIF/OTT/NCBI/iNaturalist/WFO | [`crates/lotus-query/src/query.rs`](crates/lotus-query/src/query.rs) | `SYNONYM_PATH`, `taxon_compounds_query_body` |
+| How CSV, SPARQL JSON, and RDF/Turtle downloads and bulk exports are formatted | [`crates/lotus-query/src/export_rows.rs`](crates/lotus-query/src/export_rows.rs) and [`crates/lotus-query/src/bulk_export.rs`](crates/lotus-query/src/bulk_export.rs) | `RowExporter`, `ExportFormat` |
+| How URL query parameters (`?taxon=...&structure=...`) are parsed and built | [`crates/lotus-explore-core/src/explore/url_codec/criteria.rs`](crates/lotus-explore-core/src/explore/url_codec/criteria.rs) | `CriteriaQueryDto` |
+| How the web app's state machine transitions during search, streaming, filtering, and sorting | [`crates/lotus-explore-core/src/explore/search_state/`](crates/lotus-explore-core/src/explore/search_state/) | `ExploreState`, `ExploreAction`, `reduce_mut` |
+| How the fetched table is filtered and sorted client-side over `ColumnarResultSet` | [`crates/lotus-explore-core/src/filters.rs`](crates/lotus-explore-core/src/filters.rs) and [`crates/lotus-explore-core/src/sort.rs`](crates/lotus-explore-core/src/sort.rs) | `TableFilters`, `SortColumn`, `sort_indices` |
+| How clicking "Search" in the web UI orchestrates resolution, streaming, and progressive counts | [`apps/lotus-explore-rs/src/features/explore/`](apps/lotus-explore-rs/src/features/explore/) | `ExploreController` ([`orchestrator/controller.rs`](apps/lotus-explore-rs/src/features/explore/orchestrator/controller.rs)), `execute_search` ([`executor.rs`](apps/lotus-explore-rs/src/features/explore/executor.rs)), `build_execution_plan` ([`service/results_pipeline/plan.rs`](apps/lotus-explore-rs/src/features/explore/service/results_pipeline/plan.rs)), `fetch_results` ([`service/fetch_results/`](apps/lotus-explore-rs/src/features/explore/service/fetch_results/)) |
+| How the virtualized results table renders | [`apps/lotus-explore-rs/src/components/results_table.rs`](apps/lotus-explore-rs/src/components/results_table.rs) and [`apps/lotus-explore-rs/src/components/results_table/`](apps/lotus-explore-rs/src/components/results_table/) | [`virtualized_table.rs`](apps/lotus-explore-rs/src/components/results_table/virtualized_table.rs), [`row_cells.rs`](apps/lotus-explore-rs/src/components/results_table/row_cells.rs) |
 
 ## Two things that will bite you
 

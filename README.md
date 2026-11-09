@@ -33,21 +33,51 @@ For the web explorer, the release build, the optional HTTP API, and how to serve
 the output the way the deploy does, see
 [`apps/lotus-explore-rs/README.md`](apps/lotus-explore-rs/README.md).
 
+## Architecture at a glance
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Front ends & build tools                                                │
+│   apps/lotus-explore-rs (Web WASM / Desktop / Axum HTTP API server)     │
+│   crates/lotus-cli      (`lotus` CLI: search, curate, export, archive)  │
+│   crates/lotus-web-assets (build-time fetcher for RDKit / Ketcher)      │
+└───────────────────────────────┬─────────────────────────────────────────┘
+                                │
+┌───────────────────────────────▼─────────────────────────────────────────┐
+│ Use-case & framework-free application core (injectable `Http`, no UI)   │
+│   crates/lotus-explore-core (Explore state machine, URL codec, client   │
+│                              table filter/sort, bulk export pipelines)  │
+│   crates/lotus-search       (SPARQL execution, QLever→WDQS fallback,    │
+│                              split-stream fold + dictionary enrichment) │
+└───────────────────────────────┬─────────────────────────────────────────┘
+                                │
+┌───────────────────────────────▼─────────────────────────────────────────┐
+│ Pure domain & query crates (`wasm32`-checked, zero I/O, no clock)       │
+│   crates/lotus-query    (SPARQL query builders, rewriters, CSV/RDF I/O) │
+│   crates/lotus-model    (SearchCriteria, ColumnarResultSet, validators) │
+│   crates/lotus-curation (TSV reader, Wikidata lookup, QuickStatements)  │
+│   crates/lotus-jsonld   (Bioschemas JSON-LD, CodeMeta, CITATION.cff)    │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
 ## The crates
 
-| crate                   | what it is                                                               |
-| ----------------------- | ------------------------------------------------------------------------ |
-| `lotus-model`           | the vocabulary: a filter set, a result row, what makes a filter active   |
-| `lotus-query`           | SPARQL construction and CSV parsing. Pure.                               |
-| `lotus-search`          | the search use case: which endpoint, when to fall back, taxon resolution |
-| `lotus-curation`        | the curation vocabulary and the statements it produces                   |
-| `lotus-jsonld`          | Bioschemas JSON-LD, CodeMeta, `CITATION.cff`                             |
-| `lotus-cli`             | the `lotus` binary                                                       |
-| `lotus-web-assets`      | host-only fetcher for the third-party frontend assets                    |
-| `apps/lotus-explore-rs` | the app: WASM client, optional native server, optional desktop window    |
+| crate                                                       | what it is                                                                                     |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| [`lotus-model`](crates/lotus-model/README.md)               | Domain vocabulary: `SearchCriteria`, `ColumnarResultSet`, structure/identifier classifiers     |
+| [`lotus-query`](crates/lotus-query/README.md)               | Pure SPARQL construction, query rewriters (`counts_query`, `occurrences_query`), CSV/RDF I/O   |
+| [`lotus-search`](crates/lotus-search/README.md)             | Search execution: taxon/compound/DOI resolution, retry, QLever→WDQS fallback, streaming fold   |
+| [`lotus-curation`](crates/lotus-curation/README.md)         | Curation vocabulary, TSV reader, Wikidata reconciliation queries, QuickStatements V1 generator |
+| [`lotus-jsonld`](crates/lotus-jsonld/README.md)             | Bioschemas JSON-LD, CodeMeta, `CITATION.cff`                                                   |
+| [`lotus-explore-core`](crates/lotus-explore-core/README.md) | Framework-free app core: state reducers, URL codec, table filter/sort, bulk export pipelines   |
+| [`lotus-cli`](crates/lotus-cli/README.md)                   | The `lotus` binary (`search`, `curate`, `export`, `export-pubchem-tree`, `archive`)            |
+| `lotus-web-assets`                                          | Host-only fetcher for third-party frontend assets (Ketcher, RDKit, Citation.js)                |
+| [`apps/lotus-explore-rs`](apps/lotus-explore-rs/README.md)  | Dioxus web client (WASM), optional Axum HTTP API (`--features server`), optional desktop app   |
 
 Each library crate has a README that is compiled as its documentation, so the example in it is
-checked as a doctest. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) says why the boundaries are where they are, and is the one place the crate table above is explained.
+checked as a doctest. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) explains the layer boundaries,
+the end-to-end request lifecycle, and the module map inside each crate;
+[`CONTRIBUTING.md`](CONTRIBUTING.md) has a symptom-to-file navigation table for common changes and bugs.
 
 ## Prerequisites
 
