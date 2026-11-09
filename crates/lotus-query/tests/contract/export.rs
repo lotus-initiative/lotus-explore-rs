@@ -48,8 +48,8 @@ fn a_taxon_query_is_one_level_deeper_than_the_all_compounds_query() {
     assert_eq!(subquery_depth(&all_compounds_query()), 4);
     assert_eq!(
         subquery_depth(&compounds_by_taxon_query("Q16521")),
-        5,
-        "staged taxon subquery plus the synonym expansion"
+        8,
+        "staged taxon subquery plus two-sided root and occurring-taxon synonym expansion"
     );
     assert_eq!(
         subquery_depth(&compounds_by_taxon_query_with(
@@ -57,7 +57,7 @@ fn a_taxon_query_is_one_level_deeper_than_the_all_compounds_query() {
             &Nomenclature::ALL_OFF
         )),
         4,
-        "the expansion is the only thing that adds a level"
+        "the expansion is the only thing that adds subqueries"
     );
 }
 
@@ -75,7 +75,7 @@ fn the_expansion_is_its_own_subquery() {
         .find("{ VALUES ?root { wd:Q122679 } }")
         .expect("the seed is a constant, not a join");
     let root_at = query
-        .find("?t (wdt:P171*) ?root .")
+        .find("?desc (wdt:P171*) ?root .")
         .expect("the ancestry filter runs off the expanded roots");
     assert!(expansion < root_at, "expansion comes first");
 
@@ -85,8 +85,16 @@ fn the_expansion_is_its_own_subquery() {
     // combined path from the tree's root.
     let expansion_block = &query[expansion..root_at];
     assert!(
-        expansion_block.contains("}\n          }"),
+        expansion_block.contains("}\n              }"),
         "the expansion is a self-contained subquery, closing before P171*"
+    );
+
+    let leaf_occur = query
+        .find("?_s ps:P703 ?t .")
+        .expect("occurring-taxon leaf expansion is scoped to P703 objects");
+    assert!(
+        root_at < leaf_occur,
+        "occurring-taxon synonym expansion joins after the P171* descent"
     );
 }
 
@@ -181,10 +189,10 @@ fn the_rdf_export_rewrites_the_outer_select_as_a_construct() {
     assert!(construct.contains("AS ?compound_formula_norm)"));
     assert_eq!(
         construct.matches("SELECT").count(),
-        4,
-        "the outer SELECT becomes CONSTRUCT; the inner four stay"
+        7,
+        "the outer SELECT becomes CONSTRUCT; the inner seven stay"
     );
-    assert_eq!(construct.matches("WHERE").count(), 5);
+    assert_eq!(construct.matches("WHERE").count(), 8);
     assert_eq!(
         construct.matches('{').count(),
         construct.matches('}').count(),

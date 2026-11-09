@@ -687,7 +687,12 @@ fn seeded_compounds_core(
           ?statement_id ps:P703 ?t ;\
                         prov:wasDerivedFrom ?ref_node .\
           ?ref_node pr:P248 ?r .\
-          ?t wdt:P225 ?taxon_name .{ancestry}"
+          ?t wdt:P225 ?taxon_name .
+          {{
+            SELECT DISTINCT ?t
+            WHERE {{{ancestry}
+            }}
+          }}"
             ),
             REFERENCE_METADATA,
         )
@@ -726,20 +731,21 @@ fn seeded_compounds_core(
 /// whereas `{ VALUES ?root { wd:Q… } } UNION { wd:Q… (path) ?root . }` pushes `wd:Q…` into
 /// all sixteen index lookups (~150 ms).
 ///
-/// # Why a separate subquery and not one big path
+/// # Why two sibling subqueries and not one big path
 ///
-/// Interleaving as `?t (wdt:P171*|SYN*) wd:Q` costs time twice over:
+/// Interleaving as `?t (wdt:P171*|SYN*) wd:Q` or chaining `?desc (wdt:P171*) ?root . ?desc (path)? ?t .`
+/// in a single group fails at scale:
 ///
-/// 1. The endpoint evaluates a path from its endpoints, so `(P171*|SYN*)` anchored at `wd:Q`
-///    walks the whole `P171` tree *and* re-walks the nomenclatural closure at every node it
-///    passes, instead of expanding one seed list then descending once. On `Gentianales`
-///    (Q21754): 11009 compounds against 11088 for the subquery form, reached more slowly.
-/// 2. Interleaving makes the result a fixpoint of both relations, so a synonym of a
-///    *descendant* silently joins it. Whether that is right is arguable; that nobody chose
-///    it deliberately is not.
+/// 1. Interleaving `(P171*|SYN*)` anchored at `wd:Q` re-walks the nomenclatural closure at
+///    every node of the tree and misses compounds (`11,009` vs `11,088` on `Gentianales`).
+/// 2. Chaining `?desc (path)? ?t` after `?desc (wdt:P171*) ?root` forces `QLever` to evaluate
+///    the 16-predicate path across up to 1.4M descendants (`Plantae`), timing out at 30s.
 ///
-/// So the seed is expanded first and only the resulting handful of QIDs is handed to
-/// `P171*`, which is cheap because the expansion is evaluated against one constant.
+/// Instead, [`taxon_ancestry_pattern_with_roots`] isolates two sibling subqueries joined on
+/// `?desc`: one descends `?desc (wdt:P171*) ?root` from the expanded seed, and the other
+/// expands `?t (path)? ?desc` starting strictly from the ~38.6k distinct taxa `?t` that ever
+/// appear in `?_s ps:P703 ?t` across all of Wikidata (`56,806` pairs total, `O(1)` independent
+/// of clade size and cached across queries by `QLever`).
 fn nomenclature_path(nomenclature: Nomenclature) -> Option<String> {
     let mut alternatives: Vec<String> = Vec::new();
     for (property, _) in nomenclature.properties() {
@@ -792,16 +798,21 @@ fn taxon_ancestry_pattern_with_roots(
     };
 
     // Resolved, and resolved to something.
-    if !roots.is_empty() {
+    let root_expansion = if roots.is_empty() {
+        format!(
+            "{{\n                SELECT DISTINCT ?root\n                WHERE {{\n                  {{ VALUES ?root {{ wd:{escaped} }} }}\n                  UNION\n                  {{ wd:{escaped} {path} ?root . }}\n                }}\n              }}"
+        )
+    } else {
         let values = roots
             .iter()
             .map(|root| format!("wd:{}", escape_sparql_string(root)))
             .collect::<Vec<_>>()
             .join(" ");
-        return format!("VALUES ?root {{ {values} }}\n          ?t (wdt:P171*) ?root .");
-    }
+        format!("VALUES ?root {{ {values} }}")
+    };
+
     format!(
-        "{{\n            SELECT DISTINCT ?root\n            WHERE {{\n              {{ VALUES ?root {{ wd:{escaped} }} }}\n              UNION\n              {{ wd:{escaped} {path} ?root . }}\n            }}\n          }}\n          ?t (wdt:P171*) ?root ."
+        "{{\n            SELECT ?desc\n            WHERE {{\n              {root_expansion}\n              ?desc (wdt:P171*) ?root .\n            }}\n          }}\n          {{\n            SELECT ?desc ?t\n            WHERE {{\n              {{\n                SELECT DISTINCT ?t\n                WHERE {{\n                  ?_s ps:P703 ?t .\n                }}\n              }}\n              ?t {path}? ?desc .\n            }}\n          }}"
     )
 }
 
@@ -1126,17 +1137,7 @@ pub fn structure_search_query(
 /// filter under the caller's control.
 ///
 /// The choice means the same thing here as it does for
-/// [`compounds_by_taxon_query_with`]: a structure search is run *within* a
-/// taxon, and the taxon's nomenclatural closure is the same set of organisms
-/// whether the compound was found by name or by substructure.
-#[must_use]
-pub fn structure_search_query_with(
-    structure: &str,
-    search: SmilesSearchType,
-    threshold: f64,
-    taxon_qid: Option<&str>,
-    nomenclature: &Nomenclature,
-) -> String {
+fn idsm_service_clause(structure: &str, search: SmilesSearchType, threshold: f64) -> String {
     let literal = escape_structure_literal(structure);
     let is_multiline = literal.starts_with("'''");
 
@@ -1146,7 +1147,7 @@ pub fn structure_search_query_with(
     // has an identity to search for, so the substructure service is the only thing
     // that can answer. Documented rather than silent: see
     // `docs/STRUCTURE-SEARCH.md`.
-    let service = match search {
+    match search {
         // `Exact` is answered by `exact_compound_query` before it gets here. It
         // reaches this function only when the input named nothing, so the closest
         // answer the service can give is the same molecule: an identical
@@ -1191,7 +1192,21 @@ pub fn structure_search_query_with(
     ].
   }}"
         ),
-    };
+    }
+}
+
+/// [`compounds_by_taxon_query_with`]: a structure search is run *within* a
+/// taxon, and the taxon's nomenclatural closure is the same set of organisms
+/// whether the compound was found by name or by substructure.
+#[must_use]
+pub fn structure_search_query_with(
+    structure: &str,
+    search: SmilesSearchType,
+    threshold: f64,
+    taxon_qid: Option<&str>,
+    nomenclature: &Nomenclature,
+) -> String {
+    let service = idsm_service_clause(structure, search, threshold);
 
     // With a taxon, the service runs in its own subquery so that `QLever` can
     // pre-filter before enriching, and the occurrence triple is *required* —
@@ -1243,7 +1258,12 @@ pub fn structure_search_query_with(
                 prov:wasDerivedFrom ?ref_node .
   ?ref_node pr:P248 ?r .
   ?t wdt:P225 ?taxon_name .
-  {}
+  {{
+    SELECT DISTINCT ?t
+    WHERE {{
+      {}
+    }}
+  }}
 
   {REFERENCE_METADATA}
   {COMPOUND_PROPERTIES}

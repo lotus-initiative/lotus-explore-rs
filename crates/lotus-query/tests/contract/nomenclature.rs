@@ -174,9 +174,9 @@ fn turning_everything_off_restores_the_plain_ancestry_filter() {
             assert!(!off.contains(prefixed), "{property} is not reached");
         }
     }
-    // One level shallower than the synonym-expanded query.
+    // Four subqueries shallower than the two-sided synonym-expanded query.
     assert_eq!(
-        subquery_depth(&off) + 1,
+        subquery_depth(&off) + 4,
         subquery_depth(&compounds_by_taxon_query("Q122679")),
         "adding the options must not deepen the query when they are all off"
     );
@@ -218,7 +218,8 @@ fn a_structure_search_honours_the_same_relationships() {
         &Nomenclature::ALL_ON,
     );
     assert!(on.contains("{ VALUES ?root { wd:Q122679 } }"));
-    assert!(on.contains("?t (wdt:P171*) ?root ."));
+    assert!(on.contains("?desc (wdt:P171*) ?root ."));
+    assert!(on.contains("?_s ps:P703 ?t ."));
 
     let off = structure_search_query_with(
         "CCO",
@@ -302,7 +303,7 @@ fn a_resolved_closure_is_inlined_and_an_empty_one_falls_back() {
         "and the subquery that would have computed it is gone:\n{inlined}"
     );
     assert!(
-        inlined.contains("?t (wdt:P171*) ?root ."),
+        inlined.contains("?desc (wdt:P171*) ?root ."),
         "descent from the closure is still a P171* path:\n{inlined}"
     );
 

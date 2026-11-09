@@ -21,10 +21,10 @@ is dominated by the patterns it has to resolve, not by the text.
 | taxon=absent structure=absent reference=present | 2269 | 14 | optional |
 | taxon=absent structure=present reference=absent | 2194 | 15 | optional |
 | taxon=absent structure=present reference=present | 2218 | 15 | optional |
-| taxon=specific structure=absent reference=absent | 2400 | 15 | required |
-| taxon=specific structure=absent reference=present | 2424 | 15 | required |
-| taxon=specific structure=present reference=absent | 2472 | 16 | required |
-| taxon=specific structure=present reference=present | 2496 | 16 | required |
+| taxon=specific structure=absent reference=absent | 2952 | 17 | required |
+| taxon=specific structure=absent reference=present | 2976 | 17 | required |
+| taxon=specific structure=present reference=absent | 3077 | 18 | required |
+| taxon=specific structure=present reference=present | 3101 | 18 | required |
 | taxon="*" structure=absent reference=absent | 2018 | 14 | required |
 | taxon="*" structure=absent reference=present | 2042 | 14 | required |
 | taxon="*" structure=present reference=absent | 2194 | 15 | optional |
