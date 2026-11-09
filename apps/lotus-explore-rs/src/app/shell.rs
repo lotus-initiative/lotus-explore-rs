@@ -254,7 +254,11 @@ pub fn AppShell() -> Element {
 pub(crate) fn ExplorePage() -> Element {
     let locale = crate::hooks::use_locale();
     let criteria = use_form_criteria_context().criteria;
-    let searched_once = use_results_context().explore.read().lifecycle.searched_once;
+    let explore = use_results_context().explore;
+    let searched_once = *crate::features::explore::use_lifecycle_selector(explore, |lifecycle| {
+        lifecycle.searched_once
+    })
+    .read();
     let shareable_url =
         use_memo(move || build_shareable_url(&criteria.read()).map(Arc::<str>::from));
 

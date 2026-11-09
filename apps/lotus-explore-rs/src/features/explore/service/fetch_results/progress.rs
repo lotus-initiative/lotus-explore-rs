@@ -9,10 +9,10 @@
 
 /// Rows that must arrive between two progress reports.
 ///
-/// Small enough that medium searches tick smoothly several times and wide
-/// searches glide at ~15-30 updates per second rather than jumping in coarse
-/// 25,000-row steps.
-pub const PROGRESS_ROW_STEP: usize = 2_500;
+/// Small enough that species and genus searches tick smoothly several times and
+/// wide searches glide at 60fps rather than freezing between coarse multi-thousand
+/// row jumps.
+pub const PROGRESS_ROW_STEP: usize = 250;
 
 /// Decides which row counts are worth reporting, and remembers the last one.
 ///

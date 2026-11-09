@@ -59,6 +59,10 @@ pub fn use_startup_effect<R: LotusRepository>(
             return;
         }
 
+        if pending.is_none() && !direct_execute {
+            return;
+        }
+
         let (searched_once, loading) = {
             let explore_state = explore.read();
             (
@@ -104,8 +108,10 @@ pub fn use_download_dispatch_effect(
             state.download.pending_format
         };
         // Classify current phase based on pending format and explore state.
-        // Compute within a scoped read to avoid cloning the entire ExploreState.
-        let phase = {
+        // Only subscribe to `explore` and read the clock when a download is
+        // actually pending, so streaming `SearchProgress` ticks do not re-run
+        // this effect or cross the JS `Date` boundary.
+        let phase = if pending.is_some() {
             let state = explore.read();
             download_effects::classify_dispatch_phase(
                 pending,
@@ -113,6 +119,8 @@ pub fn use_download_dispatch_effect(
                 crate::clock::current_year(),
                 &crate::clock::now_iso8601(),
             )
+        } else {
+            DispatchPhase::Inactive
         };
 
         match phase {

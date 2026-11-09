@@ -4,11 +4,11 @@
 //! can observe it; `.cargo/mutants.toml` excludes this file for that reason.
 
 use super::{BodyChunks, ChunkFuture, ReadProgress, ResponseBody, STREAM_STALL_TIMEOUT};
-use futures::StreamExt as _;
+use futures::{FutureExt as _, StreamExt as _};
 
 /// Decompressed bytes processed between macrotask yields so a fast stream of
 /// buffered `ReadableStream` chunks does not starve the browser's paint loop.
-const PAINT_YIELD_BYTES: usize = 131_072;
+const PAINT_YIELD_BYTES: usize = 16_384;
 
 /// Wasm streaming: `reqwest`'s `ReadableStream` as a `Stream` of `Bytes`.
 pub(super) struct WasmChunks {
@@ -25,7 +25,19 @@ impl BodyChunks for WasmChunks {
                 self.bytes_since_yield = 0;
                 gloo_timers::future::TimeoutFuture::new(0).await;
             }
-            let next = self.inner.next();
+            let mut next = self.inner.next();
+            // Fast path: if a chunk is already buffered in the browser's
+            // `ReadableStream`, take it immediately without allocating and
+            // cancelling a 45s `setTimeout` across the WASM-JS boundary.
+            if let Some(ready) = (&mut next).now_or_never() {
+                let chunk = ready
+                    .transpose()
+                    .map_err(|e| self.progress.failed(e.to_string()))?;
+                if let Some(bytes) = &chunk {
+                    self.bytes_since_yield = self.bytes_since_yield.saturating_add(bytes.len());
+                }
+                return Ok(self.progress.arrived(chunk));
+            }
             // `gloo-timers` counts whole milliseconds in a `u32`, where `tokio`
             // takes a `Duration`. Saturating rather than `as`, so a value past
             // the ceiling would wrap to a near-instant timeout rather than a
