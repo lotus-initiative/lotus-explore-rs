@@ -193,6 +193,43 @@ fn every_export_format_is_identical_whichever_way_the_set_was_built() {
 }
 
 #[test]
+fn a_canonical_only_compound_is_depictable_and_exported_in_every_format() {
+    const SMILES: &str = "CC(=O)OC1=CC=CC=C1C(=O)O";
+    let payload = "compound,compoundLabel,compound_inchikey,compound_smiles_conn,compound_smiles_iso,taxon,taxon_name,ref_qid\n\
+                   18216,aspirin,BSYNRYMUTXBXSQ-UHFFFAOYSA-N,CC(=O)OC1=CC=CC=C1C(=O)O,,257106,Glycyrrhiza glabra,71214999\n";
+    let set = streamed(payload, 17);
+    assert_eq!(set.row_count(), 1);
+    assert_eq!(set.entry(0).and_then(|row| row.smiles), Some(arc(SMILES)));
+
+    let csv = render(ExportFormat::Csv, &set);
+    let mut csv_reader = csv::Reader::from_reader(csv.as_bytes());
+    assert_eq!(
+        csv_reader.headers().expect("CSV header").get(3),
+        Some("compound_smiles")
+    );
+    let record = csv_reader
+        .records()
+        .next()
+        .expect("aspirin row")
+        .expect("valid CSV");
+    assert_eq!(record.get(3), Some(SMILES));
+
+    let json: serde_json::Value =
+        serde_json::from_str(&render(ExportFormat::Json, &set)).expect("valid JSON");
+    assert_eq!(
+        json.pointer("/results/bindings/0/compound_smiles/value")
+            .and_then(serde_json::Value::as_str),
+        Some(SMILES)
+    );
+
+    let rdf = render(ExportFormat::Rdf, &set);
+    assert!(
+        rdf.lines()
+            .any(|line| { line == format!("wd:Q18216 wdt:P233 \"{SMILES}\" .") })
+    );
+}
+
+#[test]
 fn the_two_paths_agree_on_every_row_and_on_the_counts() {
     let from_entries = ColumnarResultSet::from_entries(&rows());
     let from_csv = streamed(&query_dialect_csv(&from_entries), 4096);

@@ -41,6 +41,7 @@ fn an_exact_compound_search_by_wildcard_taxon_asks_for_a_named_taxon() {
     criteria.structure_search = SmilesSearchType::Exact;
     let resolved = ResolvedInputs {
         compounds: vec!["Q3613679".to_string()],
+        smiles: None,
         reference_qid: None,
     };
 
@@ -80,6 +81,7 @@ fn a_broad_structure_search_keeps_the_structure_and_ignores_the_resolved_compoun
     // collapsing onto the one compound the name happened to resolve to.
     let resolved = ResolvedInputs {
         compounds: vec!["Q3613679".to_string()],
+        smiles: None,
         reference_qid: None,
     };
 
@@ -109,6 +111,7 @@ fn a_resolved_reference_replaces_the_doi_the_user_typed() {
     criteria.reference = "10.1000/xyz".to_string();
     let resolved = ResolvedInputs {
         compounds: Vec::new(),
+        smiles: None,
         reference_qid: Some("Q100000001".to_string()),
     };
 
@@ -126,6 +129,7 @@ fn a_resolved_reference_replaces_the_doi_the_user_typed() {
     // is nothing to look up and no reason to lose the constraint.
     let unresolved_qid = ResolvedInputs {
         compounds: Vec::new(),
+        smiles: None,
         reference_qid: None,
     };
     let query = build_execution_query_with(
@@ -155,6 +159,7 @@ fn a_resolved_reference_replaces_the_doi_the_user_typed() {
     // reference becomes query syntax. `lotus-query`'s contract tests pin that.
     let unresolved_doi = ResolvedInputs {
         compounds: Vec::new(),
+        smiles: None,
         reference_qid: None,
     };
     let query = build_execution_query_with(&request(criteria), None, &unresolved_doi);

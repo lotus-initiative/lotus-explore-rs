@@ -309,9 +309,11 @@ fn a_compound_name_lookup_keeps_lexemes_out() {
 #[test]
 fn every_lookup_brings_back_the_compounds_own_structure() {
     // An exact search does not need it, but substructure and similarity do: they
-    // ask about other compounds, and the compound's own canonical SMILES is what
-    // they have to hand the service. A lookup that omitted it would fall back to
-    // the text the reader typed -- which, for a name, is not a structure at all.
+    // ask about other compounds, and the compound's own SMILES (P2017 preferred,
+    // falling back to P233) is what they have to hand the service. A lookup that
+    // omitted either property would fall back to the text the reader typed --
+    // which, for a name, QID, or InChIKey of an isomeric-only compound such as
+    // feteic acid (Q122526036), is not a structure at all.
     for query in [
         compound_by_qid_query("Q23118"),
         compound_inchikey_query("BSYNRYMUTXBXSQ-UHFFFAOYSA-N"),
@@ -320,7 +322,12 @@ fn every_lookup_brings_back_the_compounds_own_structure() {
         structure_compound_lookup_query("C[C@H](O)CO"),
     ] {
         assert!(query.contains("wdt:P233"), "{query}");
+        assert!(query.contains("wdt:P2017"), "{query}");
         assert!(query.contains("canonical_smiles"), "{query}");
+        assert!(
+            query.contains("COALESCE(?_label_mul, ?_label_en) AS ?compound_label"),
+            "{query}"
+        );
     }
 }
 
@@ -605,10 +612,10 @@ fn the_optional_occurrence_keeps_its_hops_together() {
 
     let block = occurrence_block(&everything);
     assert!(
-        block.contains("ps:P703")
-            && block.contains("pr:P248")
-            && block.contains("wdt:P233 ?compound_smiles_conn"),
-        "the taxon, reference and connectivity SMILES must be inside the same OPTIONAL as the statement"
+        block.contains("ps:P703") && block.contains("pr:P248") && !block.contains("wdt:P233"),
+        "the taxon and reference hops must be inside the same OPTIONAL as the statement, \
+         while display-only SMILES (P233) must stay outside so occurrences on P2017-only \
+         compounds are not dropped"
     );
 }
 

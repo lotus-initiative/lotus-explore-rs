@@ -300,6 +300,7 @@ const COMPOUND_PROPERTIES: &str = r#"
   OPTIONAL { ?c rdfs:label ?compoundLabelEn. FILTER(LANG(?compoundLabelEn) = "en") }
   OPTIONAL { ?c rdfs:label ?compoundLabelMul. FILTER(LANG(?compoundLabelMul) = "mul") }
   BIND(COALESCE(?compoundLabelMul, ?compoundLabelEn) AS ?compoundLabel)
+  OPTIONAL { ?c wdt:P233 ?compound_smiles_conn. }
   OPTIONAL { ?c wdt:P2017 ?compound_smiles_iso. }
   OPTIONAL { ?c wdt:P2067 ?compound_mass. }
   OPTIONAL { ?c wdt:P274 ?compound_formula. }
@@ -536,8 +537,7 @@ WHERE {{
           {{
             SELECT *
             WHERE {{
-              ?c wdt:P235 ?compound_inchikey ;
-                 wdt:P233 ?compound_smiles_conn .
+              ?c wdt:P235 ?compound_inchikey .
               ?c p:P703 ?statement_id .
               ?statement_id ps:P703 ?t .
               ?t wdt:P225 ?taxon_name .
@@ -574,7 +574,6 @@ WHERE {{
           }}
           ?t wdt:P225 ?taxon_name .
           ?c wdt:P235 ?compound_inchikey ;
-             wdt:P233 ?compound_smiles_conn ;
              p:P703 ?statement_id .
           ?statement_id ps:P703 ?t .
         }}
@@ -610,7 +609,6 @@ WHERE {{
                   SELECT *
                   WHERE {{
                     ?c wdt:P235 ?_ik ;
-                       wdt:P233 ?compound_smiles_conn ;
                        p:P703 ?statement_id .
                     ?statement_id ps:P703 ?t .
                     ?t wdt:P225 ?taxon_name .{ancestry}
@@ -906,6 +904,16 @@ fn tagged_name_values(name: &str) -> String {
     format!("VALUES ?name {{ {rows} }}")
 }
 
+/// Label (`@mul` preferred over `@en`) and SMILES (`P2017` preferred over `P233`)
+/// bindings shared by all five compound lookup queries.
+const COMPOUND_LOOKUP_PROPERTIES: &str = "\
+  OPTIONAL { ?compound rdfs:label ?_label_en . FILTER(LANG(?_label_en) = \"en\") }
+  OPTIONAL { ?compound rdfs:label ?_label_mul . FILTER(LANG(?_label_mul) = \"mul\") }
+  BIND(COALESCE(?_label_mul, ?_label_en) AS ?compound_label)
+  OPTIONAL { ?compound wdt:P233 ?_smiles_conn . }
+  OPTIONAL { ?compound wdt:P2017 ?_smiles_iso . }
+  BIND(COALESCE(?_smiles_iso, ?_smiles_conn) AS ?canonical_smiles)";
+
 /// Resolve a structure to the Wikidata compound it is.
 ///
 /// The one lookup the structure service answers, asked the narrowest question with an
@@ -937,8 +945,7 @@ WHERE {{
       sachem:cutoff \"1\"^^xsd:double
     ].
   }}
-  OPTIONAL {{ ?compound rdfs:label ?compound_label . FILTER(LANG(?compound_label) = \"en\") }}
-  OPTIONAL {{ ?compound wdt:P233 ?canonical_smiles . }}
+{COMPOUND_LOOKUP_PROPERTIES}
   BIND(\"structure\" AS ?matched_by)
 }}
 LIMIT {STRUCTURE_LOOKUP_LIMIT}",
@@ -1018,8 +1025,7 @@ pub fn compound_by_qid_query(qid: &str) -> String {
 SELECT (xsd:integer(STRAFTER(STR(?compound), \"Q\")) AS ?compound_qid) ?compound_label ?canonical_smiles ?matched_by
 WHERE {{
   VALUES ?compound {{ wd:{uppercase} }}
-  OPTIONAL {{ ?compound rdfs:label ?compound_label . FILTER(LANG(?compound_label) = \"en\") }}
-  OPTIONAL {{ ?compound wdt:P233 ?canonical_smiles . }}
+{COMPOUND_LOOKUP_PROPERTIES}
   BIND(\"qid\" AS ?matched_by)
 }}"
     )
@@ -1033,7 +1039,7 @@ WHERE {{
 /// against a name lookup's `VALUES` over fifteen language tags with a fallback query behind
 /// it. Measured ~0.2s on `QLever`.
 ///
-/// `P233` (canonical SMILES) comes back alongside. An exact search does not need it, but
+/// `P2017` / `P233` SMILES comes back alongside. An exact search does not need it, but
 /// substructure and similarity ask about *other* compounds, and this is the structure they
 /// must take to the service.
 #[must_use]
@@ -1044,8 +1050,7 @@ SELECT (xsd:integer(STRAFTER(STR(?compound), \"Q\")) AS ?compound_qid) ?compound
 WHERE {{
   VALUES ?name {{ \"{}\" }}
   ?compound wdt:P235 ?name .
-  OPTIONAL {{ ?compound rdfs:label ?compound_label . FILTER(LANG(?compound_label) = \"en\") }}
-  OPTIONAL {{ ?compound wdt:P233 ?canonical_smiles . }}
+{COMPOUND_LOOKUP_PROPERTIES}
   BIND(\"inchikey\" AS ?matched_by)
 }}",
         escape_sparql_string(inchikey)
@@ -1077,8 +1082,7 @@ WHERE {{
   {values}
   ?compound rdfs:label ?name .
   FILTER(STRSTARTS(STR(?compound), \"http://www.wikidata.org/entity/Q\"))
-  OPTIONAL {{ ?compound rdfs:label ?compound_label . FILTER(LANG(?compound_label) = \"en\") }}
-  OPTIONAL {{ ?compound wdt:P233 ?canonical_smiles . }}
+{COMPOUND_LOOKUP_PROPERTIES}
   BIND(\"label\" AS ?matched_by)
 }}",
         values = tagged_name_values(name),
@@ -1101,8 +1105,7 @@ WHERE {{
   {values}
   ?compound skos:altLabel ?name .
   FILTER(STRSTARTS(STR(?compound), \"http://www.wikidata.org/entity/Q\"))
-  OPTIONAL {{ ?compound rdfs:label ?compound_label . FILTER(LANG(?compound_label) = \"en\") }}
-  OPTIONAL {{ ?compound wdt:P233 ?canonical_smiles . }}
+{COMPOUND_LOOKUP_PROPERTIES}
   BIND(\"alias\" AS ?matched_by)
 }}",
         values = tagged_name_values(name),
@@ -1224,8 +1227,7 @@ pub fn structure_search_query_with(
                 "
   {service}
 
-  ?c wdt:P235 ?compound_inchikey ;
-     wdt:P233 ?compound_smiles_conn .
+  ?c wdt:P235 ?compound_inchikey .
 
   OPTIONAL {{
     ?c p:P703 ?statement_id .
@@ -1251,8 +1253,7 @@ pub fn structure_search_query_with(
     }}
   }}
 
-  ?c wdt:P235 ?compound_inchikey ;
-     wdt:P233 ?compound_smiles_conn .
+  ?c wdt:P235 ?compound_inchikey .
   ?c p:P703 ?statement_id .
   ?statement_id ps:P703 ?t ;
                 prov:wasDerivedFrom ?ref_node .
@@ -1390,11 +1391,11 @@ fn format_values_clause(var: &str, qids: &[u32]) -> String {
 #[must_use]
 pub fn compound_dictionary_query(qids: &[u32]) -> String {
     let scope = if qids.len() > DICTIONARY_VALUES_LIMIT {
-        "{\n    SELECT DISTINCT ?c ?compound_inchikey ?compound_smiles_conn\n    WHERE {\n      ?c wdt:P235 ?compound_inchikey ;\n         wdt:P233 ?compound_smiles_conn ;\n         p:P703 ?_s .\n    }\n  }"
+        "{\n    SELECT DISTINCT ?c ?compound_inchikey\n    WHERE {\n      ?c wdt:P235 ?compound_inchikey ;\n         p:P703 ?_s .\n    }\n  }"
             .to_string()
     } else {
         format!(
-            "{}\n  OPTIONAL {{ ?c wdt:P235 ?compound_inchikey . }}\n  OPTIONAL {{ ?c wdt:P233 ?compound_smiles_conn . }}",
+            "{}\n  OPTIONAL {{ ?c wdt:P235 ?compound_inchikey . }}",
             format_values_clause("?c", qids)
         )
     };
@@ -1409,6 +1410,7 @@ SELECT
   ?compound_formula
 WHERE {{
   {scope}
+  OPTIONAL {{ ?c wdt:P233 ?compound_smiles_conn . }}
   OPTIONAL {{ ?c wdt:P2017 ?_smiles_iso . }}
   OPTIONAL {{ ?c wdt:P2067 ?compound_mass . }}
   OPTIONAL {{ ?c wdt:P274 ?compound_formula . }}

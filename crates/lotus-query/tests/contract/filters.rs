@@ -320,10 +320,10 @@ fn bound_in(query: &str, var: &str) -> bool {
 /// read zero -- with no error anywhere, because a `FILTER` that rejects every row
 /// is a successful query returning no rows.
 ///
-/// That is not hypothetical: the formula filter read `?compound_formula`,
-/// bound only inside `COMPOUND_PROPERTIES`, so every stats card read zero for any
-/// search with a formula filter on. This asserts the pairing for every filter
-/// this crate can build.
+/// That is not hypothetical: the formula filter once read `?compound_formula`
+/// only from the display-property block stripped by `counts_query`, so every
+/// stats card read zero with a formula filter active. This asserts the pairing
+/// for every filter this crate can build.
 #[test]
 fn every_filter_something_counts_query_keeps_still_has_its_binding() {
     let filters: [(&str, SearchCriteria); 4] = [

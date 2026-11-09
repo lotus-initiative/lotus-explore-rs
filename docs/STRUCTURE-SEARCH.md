@@ -148,6 +148,11 @@ need a structure, and falls back to the reader's own input when the compound has
 none — for a name that is not a structure, and the service will say so, which is
 the right place for that to surface.
 
+The result query fetches P233 independently of any occurrence and uses P2017
+when available. Depictions and downloaded CSV, JSON, and RDF therefore retain
+P233 for compounds such as aspirin that have no P2017; a compound without
+either SMILES still appears without a depiction.
+
 ## Why a SMILES is never silently replaced
 
 The guard is `could_be_a_compound_name` in `lotus-model`, and it refuses input
