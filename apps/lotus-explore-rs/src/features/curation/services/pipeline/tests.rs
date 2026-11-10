@@ -16,6 +16,7 @@ async fn fake_curate(_locale: Locale, input: CurationInputRow) -> CurationResult
     CurationResultRow {
         input,
         canonical_smiles: None,
+        isomeric_smiles: None,
         inchikey: None,
         inchi: None,
         formula: None,

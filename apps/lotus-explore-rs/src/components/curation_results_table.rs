@@ -4,10 +4,11 @@
 use crate::components::ui::SectionHeading;
 use crate::curation::{CurationResultRow, CurationStatus};
 use crate::i18n::{
-    Locale, TextKey, col_canonical_smiles, col_exact_mass, col_name, col_original_smiles,
-    col_status, curation_badge_mass_missing, curation_badge_prerequisite_pending,
-    curation_badge_second_pass_required, curation_mass_warning_title, curation_status_label,
-    hint_scroll_curation_results, label_new_item, t,
+    Locale, TextKey, col_canonical_smiles, col_exact_mass, col_isomeric_smiles, col_name,
+    col_original_smiles, col_status, curation_badge_mass_missing,
+    curation_badge_prerequisite_pending, curation_badge_second_pass_required,
+    curation_mass_warning_title, curation_status_label, hint_scroll_curation_results,
+    label_new_item, t,
 };
 use dioxus::prelude::*;
 use std::sync::Arc;
@@ -97,6 +98,7 @@ fn render_curation_result_cells(locale: Locale, row: &CurationResultRow) -> Elem
         td { class: "border-b border-panel-border px-3 py-2.5 align-top text-ui text-text", "{row.input.name}" }
         td { class: "border-b border-panel-border px-3 py-2.5 align-top text-ui text-text font-mono text-micro break-all", "{row.input.smiles}" }
         td { class: "border-b border-panel-border px-3 py-2.5 align-top text-ui text-text font-mono text-micro break-all", "{row.canonical_smiles.as_deref().unwrap_or(NA_TEXT)}" }
+        td { class: "border-b border-panel-border px-3 py-2.5 align-top text-ui text-text font-mono text-micro break-all", "{row.isomeric_smiles.as_deref().unwrap_or(NA_TEXT)}" }
         td { class: "border-b border-panel-border px-3 py-2.5 align-top text-ui text-text font-mono text-micro break-all", "{row.inchikey.as_deref().unwrap_or(NA_TEXT)}" }
         td { class: "border-b border-panel-border px-3 py-2.5 align-top text-ui text-text font-mono text-micro break-all", "{row.inchi.as_deref().unwrap_or(NA_TEXT)}" }
         td { class: "border-b border-panel-border px-3 py-2.5 align-top text-ui text-text font-mono text-micro break-all", "{row.formula.as_deref().unwrap_or(NA_TEXT)}" }
@@ -124,7 +126,7 @@ pub fn CurationResultsTable(locale: Locale, rows: Arc<[CurationResultRow]>) -> E
                 tabindex: "0",
                 aria_label: "{crate::i18n::heading_results(locale)}",
                 aria_describedby: scroll_hint_id,
-                table { class: "curation-results-table w-full min-w-[1320px] table-auto border-collapse text-ui",
+                table { class: "curation-results-table w-full min-w-[1500px] table-auto border-collapse text-ui",
                     caption { class: "sr-only", "{crate::i18n::heading_results(locale)}" }
                     thead {
                         tr { class: "text-left",
@@ -133,8 +135,9 @@ pub fn CurationResultsTable(locale: Locale, rows: Arc<[CurationResultRow]>) -> E
                             th { scope: "col", class: "border-b border-shell-border bg-shell-raised px-3 py-2 text-left text-micro font-semibold uppercase tracking-wide text-muted w-[14ch] min-w-[14ch]", "{col_name(locale)}" }
                             th { scope: "col", class: "border-b border-shell-border bg-shell-raised px-3 py-2 text-left text-micro font-semibold uppercase tracking-wide text-muted w-[180px] min-w-[180px]", "{col_original_smiles(locale)}" }
                             th { scope: "col", class: "border-b border-shell-border bg-shell-raised px-3 py-2 text-left text-micro font-semibold uppercase tracking-wide text-muted w-[180px] min-w-[180px]", "{col_canonical_smiles(locale)}" }
-                            th { scope: "col", class: "border-b border-shell-border bg-shell-raised px-3 py-2 text-left text-micro font-semibold uppercase tracking-wide text-muted w-[180px] min-w-[180px]", "InChIKey" }
-                            th { scope: "col", class: "border-b border-shell-border bg-shell-raised px-3 py-2 text-left text-micro font-semibold uppercase tracking-wide text-muted w-[180px] min-w-[180px]", "InChI" }
+                            th { scope: "col", class: "border-b border-shell-border bg-shell-raised px-3 py-2 text-left text-micro font-semibold uppercase tracking-wide text-muted w-[180px] min-w-[180px]", "{col_isomeric_smiles(locale)}" }
+                            th { scope: "col", class: "border-b border-shell-border bg-shell-raised px-3 py-2 text-left text-micro font-semibold uppercase tracking-wide text-muted w-[180px] min-w-[180px]", "InChIKey (P235)" }
+                            th { scope: "col", class: "border-b border-shell-border bg-shell-raised px-3 py-2 text-left text-micro font-semibold uppercase tracking-wide text-muted w-[180px] min-w-[180px]", "InChI (P234)" }
                             th { scope: "col", class: "border-b border-shell-border bg-shell-raised px-3 py-2 text-left text-micro font-semibold uppercase tracking-wide text-muted w-[8ch] min-w-[8ch]", "{t(locale, TextKey::Formula)}" }
                             th { scope: "col", class: "border-b border-shell-border bg-shell-raised px-3 py-2 text-left text-micro font-semibold uppercase tracking-wide text-muted w-[8ch] min-w-[8ch]", "{col_exact_mass(locale)}" }
                         }

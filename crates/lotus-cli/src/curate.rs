@@ -224,11 +224,22 @@ async fn curate_row<H: lotus_search::Http>(
 /// not mistaken for a finished curation.
 fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
     let name = escape_quickstatements(finding.name.trim());
-    let mut statements = vec![format!(
+    let raw_smiles = finding.smiles.trim();
+    let canonical = lotus_curation::strip_stereo_marks(raw_smiles);
+    let mut compound_block = format!(
         "## {name}\nCREATE\nLAST|{PROPERTY_NAME}|\"{name}\"\n\
-         LAST|{PROPERTY_CANONICAL_SMILES}|\"{smiles}\"\nLAST|{PROPERTY_ISOMERIC_SMILES}|\"{smiles}\"",
-        smiles = escape_quickstatements(finding.smiles.trim()),
-    )];
+         LAST|{PROPERTY_CANONICAL_SMILES}|\"{canonical}\"",
+        canonical = escape_quickstatements(&canonical),
+    );
+    if lotus_curation::has_stereo_marks(raw_smiles) {
+        use std::fmt::Write as _;
+        let _ = write!(
+            compound_block,
+            "\nLAST|{PROPERTY_ISOMERIC_SMILES}|\"{isomeric}\"",
+            isomeric = escape_quickstatements(raw_smiles),
+        );
+    }
+    let mut statements = vec![compound_block];
     if let Some(taxon) = finding
         .taxon
         .as_deref()
@@ -255,6 +266,7 @@ fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
     lotus_curation::CurationResultRow {
         input: finding.clone(),
         canonical_smiles: None,
+        isomeric_smiles: None,
         inchikey: None,
         inchi: None,
         formula: None,

@@ -63,6 +63,7 @@ pub async fn curate_single_row(
     .unwrap_or_else(|err| CurationResultRow {
         input,
         canonical_smiles: None,
+        isomeric_smiles: None,
         inchikey: None,
         inchi: None,
         formula: None,
@@ -245,6 +246,9 @@ async fn update_existing(
     Ok(CurationResultRow {
         input: row.input.clone(),
         canonical_smiles: Some(structure.canonical_smiles.clone()),
+        isomeric_smiles: has_isomeric_smiles(&structure.isomeric_smiles)
+            .then(|| structure.isomeric_smiles.clone())
+            .or_else(|| existing.isomeric_smiles.clone()),
         inchikey: Some(structure.inchikey.clone()),
         inchi: Some(structure.inchi.clone()),
         formula: existing
@@ -412,6 +416,8 @@ async fn create_new(row: &Row<'_>) -> Result<CurationResultRow, CurationError> {
     Ok(CurationResultRow {
         input: row.input.clone(),
         canonical_smiles: Some(structure.canonical_smiles.clone()),
+        isomeric_smiles: has_isomeric_smiles(&structure.isomeric_smiles)
+            .then(|| structure.isomeric_smiles.clone()),
         inchikey: Some(structure.inchikey.clone()),
         inchi: Some(structure.inchi.clone()),
         formula: structure.formula.clone(),

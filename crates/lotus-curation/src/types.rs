@@ -44,9 +44,11 @@ pub enum CurationStatus {
 pub struct CurationResultRow {
     /// The row this result came from.
     pub input: CurationInputRow,
-    /// The structure after canonicalisation.
+    /// The structure after canonicalisation (`P233`, stereo-stripped).
     pub canonical_smiles: Option<String>,
-    /// The `InChIKey`, which is how the same molecule is recognised across sources.
+    /// The stereochemistry-preserving `SMILES` (`P2017`), when the structure has stereochemistry.
+    pub isomeric_smiles: Option<String>,
+    /// The `InChIKey` (`P235`), which is how the same molecule is recognised across sources.
     pub inchikey: Option<String>,
     /// The `InChI`.
     pub inchi: Option<String>,

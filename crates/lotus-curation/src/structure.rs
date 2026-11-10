@@ -53,6 +53,36 @@ impl ConvertedStructure {
     }
 }
 
+/// Whether a `SMILES` string carries tetrahedral (`@`) or double-bond (`/`, `\`)
+/// stereochemistry markers.
+#[must_use]
+pub fn has_stereo_marks(smiles: &str) -> bool {
+    smiles.contains('@') || smiles.contains('/') || smiles.contains('\\')
+}
+
+/// Strip tetrahedral (`@`, `@@`) and cis/trans (`/`, `\`) stereochemistry
+/// markers from a `SMILES` string so it can be asserted as a non-isomeric
+/// canonical `SMILES` (`P233`).
+///
+/// Uncharged, non-isotopic carbon stereocentres (`[C@H]`, `[C@@H]`, `[C@]`,
+/// `[C@@]`, `[c@H]`, `[c@@H]`) are only bracketed in `SMILES` because of the `@`
+/// stereo specification, so removing `@` also unbrackets them to bare `C`/`c`
+/// rather than leaving `[CH]` or `[C]`.
+#[must_use]
+pub fn strip_stereo_marks(smiles: &str) -> String {
+    let unbracketed = smiles
+        .replace("[C@@H]", "C")
+        .replace("[C@H]", "C")
+        .replace("[C@@]", "C")
+        .replace("[C@]", "C")
+        .replace("[c@@H]", "c")
+        .replace("[c@H]", "c");
+    unbracketed
+        .chars()
+        .filter(|c| !matches!(c, '@' | '/' | '\\'))
+        .collect()
+}
+
 /// The URL the batch converter is called at, for one output format.
 fn batch_url(output_format: &str) -> String {
     format!("{NATPROD_API_BASE}/convert/batch?output_format={output_format}")
@@ -211,6 +241,25 @@ pub async fn convert_structures<H: Http>(
     rows.iter()
         .enumerate()
         .map(|(index, _)| {
+            let raw_smiles = canonical
+                .get(index)
+                .cloned()
+                .map(|converted| converted.into_result("output"))
+                .transpose()?
+                .flatten();
+            // The service has no separate `isomericsmiles` endpoint -- its
+            // `canonicalsmiles` output preserves stereochemistry (`C[C@@H](C(=O)O)N`
+            // for L-alanine). Wikidata's `P233` (canonical SMILES) forbids stereo
+            // markers and `P2017` (isomeric SMILES) is only for structures that
+            // have them, so a stereo-carrying answer is split into its stereo-free
+            // `P233` form and its stereo-preserving `P2017` form here.
+            let (canonical_smiles, isomeric_smiles) = match raw_smiles {
+                Some(smiles) if has_stereo_marks(&smiles) => {
+                    (Some(strip_stereo_marks(&smiles)), Some(smiles))
+                }
+                Some(smiles) => (Some(smiles), None),
+                None => (None, None),
+            };
             Ok(ConvertedStructure {
                 // A structure the service could not read has no key, and that is
                 // what makes the row an error rather than a new compound.
@@ -220,18 +269,8 @@ pub async fn convert_structures<H: Http>(
                     .map(|converted| converted.into_result("output"))
                     .transpose()?
                     .flatten(),
-                canonical_smiles: canonical
-                    .get(index)
-                    .cloned()
-                    .map(|converted| converted.into_result("output"))
-                    .transpose()?
-                    .flatten(),
-                // The service has no isomeric-SMILES output -- it answers
-                // "Unsupported output format" -- so there is nothing to ask for.
-                // Its canonical form already carries stereochemistry
-                // (`C[C@@H](C(=O)O)N` for L-alanine), so a second copy of it here
-                // would look like a fact about the compound rather than a copy.
-                isomeric_smiles: None,
+                canonical_smiles,
+                isomeric_smiles,
                 inchi: inchi
                     .get(index)
                     .cloned()

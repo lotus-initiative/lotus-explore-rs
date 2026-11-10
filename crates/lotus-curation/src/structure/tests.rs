@@ -311,3 +311,32 @@ async fn a_reply_with_no_results_array_is_a_parse_failure() {
         "a shape this does not read will not read on a retry either: {err:?}"
     );
 }
+
+#[tokio::test]
+async fn chiral_conversion_splits_canonical_and_isomeric_smiles() {
+    let http = script(vec![
+        (200, batch(&["QNAYBMKLOCPYGJ-REOHCLBHSA-N"])),
+        (200, batch(&["C[C@@H](C(=O)O)N"])),
+        (
+            200,
+            batch(&["InChI=1S/C3H7NO2/c1-2(4)3(5)6/h2H,4H2,1H3/t2-/m0/s1"]),
+        ),
+    ]);
+    let structure = convert_structure(&http, "C[C@@H](C(=O)O)N")
+        .await
+        .expect("chiral structure converts");
+    assert_eq!(structure.canonical_smiles.as_deref(), Some("CC(C(=O)O)N"));
+    assert_eq!(
+        structure.isomeric_smiles.as_deref(),
+        Some("C[C@@H](C(=O)O)N")
+    );
+}
+
+#[test]
+fn strip_stereo_marks_removes_tetrahedral_and_alkene_stereo_cleanly() {
+    assert_eq!(strip_stereo_marks("C[C@@H](C(=O)O)N"), "CC(C(=O)O)N");
+    assert_eq!(strip_stereo_marks("C[C@](O)(F)Cl"), "CC(O)(F)Cl");
+    assert_eq!(strip_stereo_marks("C/C=C/C"), "CC=CC");
+    assert_eq!(strip_stereo_marks("C/C=C\\C"), "CC=CC");
+    assert_eq!(strip_stereo_marks("[13C@H](O)(F)Cl"), "[13CH](O)(F)Cl");
+}

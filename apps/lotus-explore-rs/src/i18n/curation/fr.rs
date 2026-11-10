@@ -70,11 +70,15 @@ pub(super) const fn col_action() -> &'static str {
 }
 
 pub(super) const fn col_original_smiles() -> &'static str {
-    "SMILES original"
+    "SMILES saisi"
 }
 
 pub(super) const fn col_canonical_smiles() -> &'static str {
-    "SMILES canonique"
+    "SMILES canonique (P233)"
+}
+
+pub(super) const fn col_isomeric_smiles() -> &'static str {
+    "SMILES isomérique (P2017)"
 }
 
 pub(super) const fn col_exact_mass() -> &'static str {

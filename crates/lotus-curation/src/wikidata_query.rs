@@ -178,26 +178,35 @@ pub fn has_occurrence_query(compound_qid: &str, taxon_qid: &str) -> String {
 /// `P31` is asserted before the structure, because an item with no class is not
 /// findable by anything that filters on one, and a `QuickStatements` run stops
 /// at the first failure -- so the statements that make the item *usable* come
-/// before the ones that fill it in.
+/// before the ones that fill it in. `P2017` (isomeric SMILES) is emitted only
+/// when `isomeric_smiles` is non-empty, so achiral structures do not assert an
+/// isomeric SMILES property.
 #[must_use]
 pub fn create_compound_statements(
     name: &str,
     canonical_smiles: &str,
     isomeric_smiles: &str,
 ) -> String {
-    format!(
+    use std::fmt::Write as _;
+    let mut out = format!(
         "CREATE\n  LAST|{label}|\"{name}\"\n  \
          LAST|P31|wd:{compound_class}\n  \
-         LAST|{canonical}|\"{canonical_value}\"\n  \
-         LAST|{isomeric}|\"{isomeric_value}\"",
+         LAST|{canonical}|\"{canonical_value}\"",
         label = property::LABEL,
         name = crate::escape_quickstatements(name),
         compound_class = WD_CHEMICAL_COMPOUND_QID,
         canonical = property::CANONICAL_SMILES,
         canonical_value = crate::escape_quickstatements(canonical_smiles),
-        isomeric = property::ISOMERIC_SMILES,
-        isomeric_value = crate::escape_quickstatements(isomeric_smiles),
-    )
+    );
+    if !isomeric_smiles.trim().is_empty() {
+        let _ = write!(
+            out,
+            "\n  LAST|{isomeric}|\"{isomeric_value}\"",
+            isomeric = property::ISOMERIC_SMILES,
+            isomeric_value = crate::escape_quickstatements(isomeric_smiles),
+        );
+    }
+    out
 }
 
 /// Fetch every compound in a run with **one** query, keyed by the `InChIKey` the

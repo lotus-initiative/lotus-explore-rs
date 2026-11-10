@@ -106,7 +106,11 @@
       }
 
       function stripStereoFromSmiles(smiles) {
-        return smiles.replace(/@{1,2}/g, "").replace(/[/\\]/g, "");
+        return smiles
+          .replace(/\[C@+H?\]/g, "C")
+          .replace(/\[c@+H?\]/g, "c")
+          .replace(/@+/g, "")
+          .replace(/[/\\]/g, "");
       }
 
       bridge.rdkit = {
@@ -123,7 +127,18 @@
               canonicalsmiles.includes("/") ||
               canonicalsmiles.includes("\\")
             ) {
-              canonicalsmiles = stripStereoFromSmiles(canonicalsmiles);
+              const stripped = stripStereoFromSmiles(canonicalsmiles);
+              try {
+                canonicalsmiles = withMol(stripped, (strippedMol) =>
+                  stripStereoFromSmiles(
+                    strippedMol.get_smiles(
+                      JSON.stringify({ canonical: true, isomericSmiles: false }),
+                    ),
+                  ),
+                );
+              } catch (_) {
+                canonicalsmiles = stripped;
+              }
             }
             const inchi = mol.get_inchi();
             if (!inchi) {

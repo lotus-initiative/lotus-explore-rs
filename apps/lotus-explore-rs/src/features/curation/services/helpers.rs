@@ -108,12 +108,8 @@ pub fn qs_isomeric_smiles_statement(subject: &str, isomeric_smiles: &str) -> Str
 
 // -- Text / chemistry normalization --------------------------------------------
 
-pub(super) fn has_stereo_marks(smiles: &str) -> bool {
-    smiles.contains('@') || smiles.contains('/') || smiles.contains('\\')
-}
-
 pub(super) fn has_isomeric_smiles(smiles: &str) -> bool {
-    has_stereo_marks(smiles)
+    lotus_curation::has_stereo_marks(smiles)
 }
 
 pub fn extract_formula_from_inchi(inchi: &str) -> Option<String> {

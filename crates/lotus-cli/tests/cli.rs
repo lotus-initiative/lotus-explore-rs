@@ -396,12 +396,20 @@ fn curate_writes_the_occurrence_and_the_reference_as_separate_statements() {
     // after the rows and `jsonl` is one row per line with no room for them.
     let output = lotus()
         .args(["curate", "-", "--offline", "--format", "json"])
-        .write_stdin("name\tsmiles\ttaxon\tdoi\nQuercetin\tCCO\tGentiana lutea\t10.1/a\n")
+        .write_stdin(
+            "name\tsmiles\ttaxon\tdoi\nL-alanine\tC[C@@H](C(=O)O)N\tGentiana lutea\t10.1/a\n",
+        )
         .assert()
         .success();
     let stdout = String::from_utf8(output.get_output().stdout.clone()).expect("UTF-8");
-    assert!(stdout.contains("P233"), "canonical SMILES: {stdout}");
-    assert!(stdout.contains("P2017"), "isomeric SMILES: {stdout}");
+    assert!(
+        stdout.contains("LAST|P233|\\\"CC(C(=O)O)N\\\""),
+        "canonical SMILES (stereo-stripped): {stdout}"
+    );
+    assert!(
+        stdout.contains("LAST|P2017|\\\"C[C@@H](C(=O)O)N\\\""),
+        "isomeric SMILES (stereo-preserved): {stdout}"
+    );
     assert!(stdout.contains("P703"), "occurrence: {stdout}");
     assert!(stdout.contains("P248"), "reference: {stdout}");
 }

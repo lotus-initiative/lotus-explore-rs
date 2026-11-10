@@ -214,9 +214,11 @@ pub fn statements_for(
             // Not in Wikidata, and the structure is known: this is the one case
             // where a `CREATE` is the right output. The class comes first, because
             // an item with no class is not findable by anything that filters on
-            // one.
+            // one. `P233` gets the stereo-stripped canonical SMILES and `P2017`
+            // gets the stereo-preserving isomeric SMILES (when present).
             let canonical = converted.canonical_smiles.as_deref().unwrap_or_default();
-            let mut block = create_compound_statements(row.name.trim(), canonical, canonical);
+            let isomeric = converted.isomeric_smiles.as_deref().unwrap_or_default();
+            let mut block = create_compound_statements(row.name.trim(), canonical, isomeric);
             if let Some(inchikey) = converted.inchikey.as_deref() {
                 let _ = writeln!(
                     block,
@@ -353,6 +355,12 @@ pub fn to_result_row(
                 .compound
                 .as_ref()
                 .and_then(|c| c.canonical_smiles.clone())
+        }),
+        isomeric_smiles: converted.isomeric_smiles.clone().or_else(|| {
+            lookup
+                .compound
+                .as_ref()
+                .and_then(|c| c.isomeric_smiles.clone())
         }),
         inchikey: key.inchikey,
         inchi: lookup.compound.as_ref().and_then(|c| c.inchi.clone()),

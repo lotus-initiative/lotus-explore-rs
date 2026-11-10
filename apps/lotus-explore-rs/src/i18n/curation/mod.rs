@@ -106,6 +106,7 @@ dispatch!(col_name);
 dispatch!(col_action);
 dispatch!(col_original_smiles);
 dispatch!(col_canonical_smiles);
+dispatch!(col_isomeric_smiles);
 dispatch!(col_exact_mass);
 dispatch!(col_status);
 dispatch!(label_new_item);

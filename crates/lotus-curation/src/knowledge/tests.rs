@@ -250,6 +250,44 @@ mod unit {
             "{statements}"
         );
         assert!(statements.contains(r#""Ethanol""#), "{statements}");
+        assert!(
+            statements.contains("LAST|P233|\"CCO\""),
+            "canonical SMILES goes to P233: {statements}"
+        );
+        assert!(
+            !statements.contains("P2017"),
+            "achiral structure must not emit P2017: {statements}"
+        );
+    }
+
+    #[test]
+    fn a_new_chiral_compound_emits_both_p233_and_p2017() {
+        let chiral = crate::ConvertedStructure {
+            inchikey: Some("QNAYBMKLOCPYGJ-REOHCLBHSA-N".into()),
+            canonical_smiles: Some("CC(C(=O)O)N".into()),
+            isomeric_smiles: Some("C[C@@H](C(=O)O)N".into()),
+            inchi: None,
+        };
+        let result = to_result_row(
+            &row("L-alanine", "C[C@@H](C(=O)O)N", None, None),
+            &chiral,
+            &WikidataLookup::default(),
+        );
+        assert_eq!(result.canonical_smiles.as_deref(), Some("CC(C(=O)O)N"));
+        assert_eq!(result.isomeric_smiles.as_deref(), Some("C[C@@H](C(=O)O)N"));
+        let statements = result.quickstatements.join("\n");
+        assert!(
+            statements.contains("LAST|P233|\"CC(C(=O)O)N\""),
+            "stereo-stripped canonical SMILES goes to P233: {statements}"
+        );
+        assert!(
+            statements.contains("LAST|P2017|\"C[C@@H](C(=O)O)N\""),
+            "isomeric SMILES goes to P2017: {statements}"
+        );
+        assert!(
+            statements.contains("LAST|P235|\"QNAYBMKLOCPYGJ-REOHCLBHSA-N\""),
+            "InChIKey goes to P235: {statements}"
+        );
     }
 
     #[test]

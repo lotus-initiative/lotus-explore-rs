@@ -36,7 +36,9 @@ pub use knowledge::{
     taxon_dependency_statements, to_result_row,
 };
 pub use quickstatements::{build_quickstatements_bundle, escape_quickstatements};
-pub use structure::{ConvertedStructure, convert_structure, convert_structures};
+pub use structure::{
+    ConvertedStructure, convert_structure, convert_structures, has_stereo_marks, strip_stereo_marks,
+};
 pub use types::{
     CurationError, CurationErrorKind, CurationInputRow, CurationResultRow, CurationStatus,
     QuickStatementsBundle,

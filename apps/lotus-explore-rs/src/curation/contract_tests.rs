@@ -33,6 +33,7 @@ fn result(
     CurationResultRow {
         input,
         canonical_smiles: None,
+        isomeric_smiles: None,
         inchikey: None,
         inchi: None,
         formula: None,

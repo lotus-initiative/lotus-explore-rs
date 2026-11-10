@@ -33,6 +33,7 @@ fn row(status: &CurationStatus) -> CurationResultRow {
             doi: None,
         },
         canonical_smiles: None,
+        isomeric_smiles: None,
         inchikey: None,
         inchi: None,
         formula: None,
