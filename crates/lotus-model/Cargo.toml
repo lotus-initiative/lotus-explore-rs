@@ -1,11 +1,11 @@
 [package]
 name = "lotus-model"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 rust-version.workspace = true
 description = "LOTUS domain types, validation, and filter semantics. No IO, no runtime."
 repository.workspace = true
-license = "AGPL-3.0-only"
+license.workspace = true
 keywords = ["bioinformatics", "lotus", "natural-products"]
 categories = ["science"]
 publish = false

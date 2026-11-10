@@ -1,11 +1,11 @@
 [package]
 name = "lotus-curation"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 rust-version.workspace = true
 description = "The LOTUS curation vocabulary: what a curation row is, what a result is, the Wikidata queries curation asks, and how QuickStatements are bundled for submission. No clock, no HTTP client, and no submission: the caller injects a transport and reads the diff."
 repository.workspace = true
-license = "AGPL-3.0-only"
+license.workspace = true
 keywords = ["bioinformatics", "curation", "lotus", "quickstatements", "wikidata"]
 categories = ["science", "web-programming"]
 publish = false

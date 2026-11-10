@@ -1,11 +1,11 @@
 [package]
 name = "lotus-explore-core"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 rust-version.workspace = true
 description = "The LOTUS Explorer's domain logic: state, validation, query building, export. No UI framework, no IO."
 repository.workspace = true
-license = "AGPL-3.0-only"
+license.workspace = true
 keywords = ["lotus", "natural-products", "sparql", "state-machine"]
 categories = ["science"]
 publish = false

@@ -32,8 +32,8 @@ pub use constants::{
 pub use input::{normalize_doi, parse_tsv, row_uniqueness_key};
 pub use internal::{DependencyResolution, MassResolution, WikidataCompound};
 pub use knowledge::{
-    StructureKey, WikidataLookup, creation_statements, look_up, statements_for,
-    taxon_dependency_statements, to_result_row,
+    StructureKey, WikidataLookup, creation_statements, look_up, reference_dependency_statements,
+    statements_for, taxon_dependency_statements, to_result_row,
 };
 pub use quickstatements::{build_quickstatements_bundle, escape_quickstatements};
 pub use structure::{

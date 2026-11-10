@@ -1,11 +1,11 @@
 [package]
 name = "lotus-explore-rs"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 rust-version.workspace = true
 description = "LOTUS Explorer — chemical occurrence explorer"
 repository.workspace = true
-license = "AGPL-3.0-only"
+license.workspace = true
 keywords = ["dioxus", "lotus", "natural-products", "wasm", "wikidata"]
 categories = ["science", "wasm", "web-programming"]
 build = "build.rs"

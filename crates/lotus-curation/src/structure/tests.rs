@@ -62,11 +62,27 @@ async fn a_structure_becomes_the_key_wikidata_is_matched_on() {
         structure.inchikey.as_deref(),
         Some("LFQSCWFLJHTTHZ-UHFFFAOYSA-N")
     );
+    assert_eq!(structure.canonical_smiles.as_deref(), Some("CCO"));
+    assert_eq!(
+        structure.isomeric_smiles, None,
+        "achiral structure must not set isomeric_smiles"
+    );
     assert!(structure.is_known());
     assert_eq!(
         structure.structure_key().inchikey.as_deref(),
         Some("LFQSCWFLJHTTHZ-UHFFFAOYSA-N")
     );
+}
+
+#[test]
+fn has_stereo_marks_detects_each_marker_individually_and_rejects_achiral() {
+    assert!(
+        !has_stereo_marks("CCO"),
+        "achiral SMILES has no stereo marks"
+    );
+    assert!(has_stereo_marks("C[C@@H](C(=O)O)N"), "tetrahedral @");
+    assert!(has_stereo_marks("C/C=C/C"), "alkene /");
+    assert!(has_stereo_marks(r"C\C=C\C"), r"alkene \");
 }
 
 #[tokio::test]

@@ -25,8 +25,8 @@ pub mod property {
     pub const FORMULA: &str = "P274";
     /// Exact mass.
     pub const EXACT_MASS: &str = "P2067";
-    /// Label, the compound's name.
-    pub const LABEL: &str = "rdfs:label";
+    /// English label in `QuickStatements` syntax.
+    pub const LABEL: &str = "Len";
     /// "Found in taxon".
     pub const OCCURS_IN_TAXON: &str = "P703";
     /// DOI, the identifier a reference is matched on.
@@ -209,7 +209,7 @@ pub fn create_compound_statements(
     use std::fmt::Write as _;
     let mut out = format!(
         "CREATE\n  LAST|{label}|\"{name}\"\n  \
-         LAST|P31|wd:{compound_class}\n  \
+         LAST|P31|{compound_class}\n  \
          LAST|{canonical}|\"{canonical_value}\"",
         label = property::LABEL,
         name = crate::escape_quickstatements(name),

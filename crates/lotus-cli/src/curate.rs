@@ -193,15 +193,7 @@ async fn curate_row<H: lotus_search::Http>(
     converted: &lotus_curation::ConvertedStructure,
 ) -> lotus_curation::CurationResultRow {
     match lotus_curation::look_up(http, finding, converted).await {
-        Ok(lookup) => {
-            let mut result = lotus_curation::to_result_row(finding, converted, &lookup);
-            // The `InChI` the conversion produced is worth keeping even when
-            // Wikidata has none of its own.
-            if result.inchi.is_none() {
-                result.inchi.clone_from(&converted.inchi);
-            }
-            result
-        }
+        Ok(lookup) => lotus_curation::to_result_row(finding, converted, &lookup),
         Err(err) => {
             let mut result = lotus_curation::to_result_row(
                 finding,

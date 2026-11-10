@@ -45,7 +45,6 @@ futures = { version = "0.3", default-features = false, features = ["async-await"
 gloo-timers = { version = "0.3", features = ["futures"] }
 js-sys = "0.3"
 log = "0.4"
-lotus-cli = { path = "crates/lotus-cli", version = "0.1" }
 lotus-curation = { path = "crates/lotus-curation", version = "0.1" }
 lotus-explore-core = { path = "crates/lotus-explore-core", version = "0.1" }
 lotus-jsonld = { path = "crates/lotus-jsonld", version = "0.1" }

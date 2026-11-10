@@ -1,11 +1,11 @@
 [package]
 name = "lotus-web-assets"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 rust-version.workspace = true
 description = "Vendors the web client's third-party frontend assets (Ketcher, RDKit, citation.js) and preloads the built wasm module"
 repository.workspace = true
-license = "AGPL-3.0-only"
+license.workspace = true
 keywords = ["assets", "ketcher", "rdkit", "vendoring"]
 categories = ["development-tools::build-utils", "web-programming"]
 publish = false

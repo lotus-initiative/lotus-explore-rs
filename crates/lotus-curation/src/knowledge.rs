@@ -205,9 +205,60 @@ async fn ask<H: Http>(http: &H, query: &str) -> Result<bool, CurationError> {
 fn occurrence_line(subject: &str, taxon: &str, reference: Option<&str>) -> String {
     let occurs = property::OCCURS_IN_TAXON;
     reference.map_or_else(
-        || format!("{subject}|{occurs}|wd:{taxon}"),
-        |ref_qid| format!("{subject}|{occurs}|wd:{taxon}|S248|wd:{ref_qid}"),
+        || format!("{subject}|{occurs}|{taxon}"),
+        |ref_qid| format!("{subject}|{occurs}|{taxon}|S248|{ref_qid}"),
     )
+}
+
+/// Whether `row` names a DOI that could not be resolved in `lookup`.
+fn is_reference_pending(row: &CurationInputRow, lookup: &WikidataLookup) -> bool {
+    row.doi.as_deref().and_then(crate::normalize_doi).is_some() && lookup.reference_qid.is_none()
+}
+
+/// Missing structure property statements (`P233`, `P2017`, `P234`) for an
+/// existing Wikidata compound.
+fn missing_compound_property_statements(
+    compound: &WikidataCompound,
+    converted: &crate::ConvertedStructure,
+) -> Vec<String> {
+    let mut lines = Vec::new();
+    let qid = &compound.qid;
+
+    if compound.canonical_smiles.is_none()
+        && let Some(canonical) = converted
+            .canonical_smiles
+            .as_deref()
+            .filter(|s| !s.trim().is_empty())
+    {
+        lines.push(format!(
+            "{qid}|{prop}|\"{val}\"",
+            prop = property::CANONICAL_SMILES,
+            val = escape_quickstatements(canonical),
+        ));
+    }
+    if compound.isomeric_smiles.is_none()
+        && let Some(isomeric) = converted
+            .isomeric_smiles
+            .as_deref()
+            .filter(|s| !s.trim().is_empty())
+    {
+        lines.push(format!(
+            "{qid}|{prop}|\"{val}\"",
+            prop = property::ISOMERIC_SMILES,
+            val = escape_quickstatements(isomeric),
+        ));
+    }
+    if compound.inchi.is_none()
+        && let Some(inchi) = converted.inchi.as_deref().filter(|s| !s.trim().is_empty())
+    {
+        lines.push(format!(
+            "{qid}|{prop}|\"{val}\"",
+            prop = property::INCHI,
+            val = escape_quickstatements(inchi),
+        ));
+    }
+
+    lines
 }
 
 /// The statements a row needs, and what curation concluded about it.
@@ -222,8 +273,9 @@ pub fn statements_for(
 ) -> Vec<String> {
     let mut out = Vec::new();
     let name = escape_quickstatements(row.name.trim());
+    let ref_pending = is_reference_pending(row, lookup);
 
-    if lookup.compound.is_none() {
+    let Some(compound) = &lookup.compound else {
         if converted.is_known() {
             // Not in Wikidata, and the structure is known: this is the one case
             // where a `CREATE` is the right output. The class comes first, because
@@ -240,7 +292,17 @@ pub fn statements_for(
                     key = property::INCHIKEY
                 );
             }
-            if let Some(taxon) = lookup.taxon_qid.as_deref() {
+            if let Some(inchi) = converted.inchi.as_deref().filter(|s| !s.trim().is_empty()) {
+                let _ = write!(
+                    block,
+                    "\n  LAST|{prop}|\"{val}\"",
+                    prop = property::INCHI,
+                    val = escape_quickstatements(inchi),
+                );
+            }
+            if let Some(taxon) = lookup.taxon_qid.as_deref()
+                && !ref_pending
+            {
                 let line = occurrence_line("LAST", taxon, lookup.reference_qid.as_deref());
                 let _ = write!(block, "\n  {line}");
             }
@@ -255,13 +317,16 @@ pub fn statements_for(
             ));
         }
         return out;
-    }
+    };
 
-    if let (Some(compound), Some(taxon)) = (&lookup.compound, &lookup.taxon_qid)
+    out.extend(missing_compound_property_statements(compound, converted));
+
+    if let Some(taxon) = &lookup.taxon_qid
         && lookup.has_occurrence == Some(false)
+        && !ref_pending
     {
         // The comment names the item, because a bundle of these is read by a
-        // person months later and `wd:Q123` on its own does not say which of
+        // person months later and `Q123` on its own does not say which of
         // forty rows it belonged to.
         let statement = occurrence_line(&compound.qid, taxon, lookup.reference_qid.as_deref());
         out.push(format!(
@@ -295,11 +360,27 @@ pub fn taxon_dependency_statements(row: &CurationInputRow) -> Vec<String> {
         return Vec::new();
     }
     vec![format!(
-        "## {name} — taxon\nCREATE\n  LAST|{class}|wd:{taxon_class}\n  LAST|{name_prop}|\"{name}\"",
+        "## {name} — taxon\nCREATE\n  LAST|{label}|\"{name}\"\n  LAST|{class}|{taxon_class}\n  LAST|{name_prop}|\"{name}\"",
         name = escape_quickstatements(taxon),
+        label = property::LABEL,
         class = "P31",
         taxon_class = crate::WD_TAXON_QID,
         name_prop = property::SCIENTIFIC_NAME,
+    )]
+}
+
+/// The statements that would create a scholarly article item for a DOI the row
+/// needs and Wikidata lacks.
+#[must_use]
+pub fn reference_dependency_statements(row: &CurationInputRow) -> Vec<String> {
+    let Some(doi) = row.doi.as_deref().and_then(crate::normalize_doi) else {
+        return Vec::new();
+    };
+    let escaped = escape_quickstatements(&doi);
+    vec![format!(
+        "## {escaped} — reference\nCREATE\n  LAST|{label}|\"{escaped}\"\n  LAST|P31|Q13442814\n  LAST|{doi_prop}|\"{escaped}\"",
+        label = property::LABEL,
+        doi_prop = property::DOI,
     )]
 }
 
@@ -313,33 +394,33 @@ pub fn to_result_row(
     let key = converted.structure_key();
     let statements = statements_for(row, converted, lookup);
 
-    // A taxon the row names but Wikidata does not have is a dependency that is
-    // not there yet, not a finished row. Reporting it as complete is the worst
-    // outcome available: the curator reads "nothing to do", submits nothing, and
-    // the finding is silently lost.
+    // A taxon or reference the row names but Wikidata does not have is a
+    // dependency that is not there yet, not a finished row. Reporting it as
+    // complete is the worst outcome available: the curator reads "nothing to
+    // do", submits nothing, and the finding is silently lost.
     let taxon_named = row
         .taxon
         .as_deref()
         .map(str::trim)
         .is_some_and(|taxon| !taxon.is_empty());
     let taxon_pending = taxon_named && lookup.taxon_qid.is_none();
+    let ref_pending = is_reference_pending(row, lookup);
+    let deps_pending = taxon_pending || ref_pending;
 
     let status = if !key.is_known() {
         // Not "new": the run could not tell, and reporting a compound as new
         // because the identifier was missing is how a duplicate gets made.
         CurationStatus::Error
+    } else if deps_pending {
+        CurationStatus::PendingDependencies
     } else if lookup.compound.is_some() {
-        if lookup.has_occurrence == Some(false) {
-            CurationStatus::ExistingNeedsUpdates
-        } else if taxon_pending {
-            CurationStatus::PendingDependencies
-        } else {
+        if statements.is_empty() {
             // The compound is there, the occurrence is there or was never asked
             // for, and there is nothing outstanding.
             CurationStatus::ExistingComplete
+        } else {
+            CurationStatus::ExistingNeedsUpdates
         }
-    } else if taxon_pending {
-        CurationStatus::PendingDependencies
     } else {
         CurationStatus::NewCompound
     };
@@ -356,11 +437,16 @@ pub fn to_result_row(
             note.push_str("Wikidata has no taxon by that name. ");
         }
     }
-    if let Some(doi) = row.doi.as_deref()
-        && !doi.trim().is_empty()
-        && lookup.reference_qid.is_none()
-    {
+    if ref_pending {
         note.push_str("Wikidata has no reference with that DOI. ");
+    }
+
+    let mut dependency_blocks = Vec::new();
+    if taxon_pending {
+        dependency_blocks.extend(taxon_dependency_statements(row));
+    }
+    if ref_pending {
+        dependency_blocks.extend(reference_dependency_statements(row));
     }
 
     CurationResultRow {
@@ -381,18 +467,17 @@ pub fn to_result_row(
                 .and_then(|c| c.isomeric_smiles.clone())
         }),
         inchikey: key.inchikey,
-        inchi: lookup.compound.as_ref().and_then(|c| c.inchi.clone()),
+        inchi: converted
+            .inchi
+            .clone()
+            .or_else(|| lookup.compound.as_ref().and_then(|c| c.inchi.clone())),
         formula: lookup.compound.as_ref().and_then(|c| c.formula.clone()),
         exact_mass: lookup.compound.as_ref().and_then(|c| c.mass),
         mass_warning: None,
         wikidata_qid: lookup.compound.as_ref().map(|c| c.qid.clone()),
         status,
         note: note.trim().to_string(),
-        dependency_blocks: if taxon_pending {
-            taxon_dependency_statements(row)
-        } else {
-            Vec::new()
-        },
+        dependency_blocks,
         quickstatements: statements,
     }
 }

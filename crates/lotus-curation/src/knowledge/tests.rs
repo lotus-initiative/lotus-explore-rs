@@ -79,6 +79,7 @@ mod unit {
         WikidataLookup {
             compound: Some(WikidataCompound {
                 qid: qid.into(),
+                canonical_smiles: Some("CCO".into()),
                 ..WikidataCompound::default()
             }),
             taxon_qid: Some("Q16521".into()),
@@ -132,6 +133,7 @@ mod unit {
         let lookup = WikidataLookup {
             compound: Some(WikidataCompound {
                 qid: "Q1".into(),
+                canonical_smiles: Some("CCO".into()),
                 ..WikidataCompound::default()
             }),
             taxon_qid: None,
@@ -157,8 +159,13 @@ mod unit {
         assert_eq!(result.status, CurationStatus::ExistingNeedsUpdates);
         assert_eq!(result.quickstatements.len(), 1);
         assert!(
-            result.quickstatements[0].contains("Q1|P703|wd:Q16521"),
+            result.quickstatements[0].contains("Q1|P703|Q16521"),
             "{:?}",
+            result.quickstatements
+        );
+        assert!(
+            !result.quickstatements[0].contains("wd:"),
+            "QuickStatements uses bare QIDs, not wd: prefixes: {:?}",
             result.quickstatements
         );
         assert!(
@@ -271,7 +278,7 @@ mod unit {
             inchikey: Some("QNAYBMKLOCPYGJ-REOHCLBHSA-N".into()),
             canonical_smiles: Some("CC(C(=O)O)N".into()),
             isomeric_smiles: Some("C[C@@H](C(=O)O)N".into()),
-            inchi: None,
+            inchi: Some("InChI=1S/C3H7NO2/c1-2(4)3(5)6/h2H,4H2,1H3,(H,5,6)/t2-/m0/s1".into()),
         };
         let result = to_result_row(
             &row("L-alanine", "C[C@@H](C(=O)O)N", None, None),
@@ -280,7 +287,19 @@ mod unit {
         );
         assert_eq!(result.canonical_smiles.as_deref(), Some("CC(C(=O)O)N"));
         assert_eq!(result.isomeric_smiles.as_deref(), Some("C[C@@H](C(=O)O)N"));
+        assert_eq!(
+            result.inchi.as_deref(),
+            Some("InChI=1S/C3H7NO2/c1-2(4)3(5)6/h2H,4H2,1H3,(H,5,6)/t2-/m0/s1")
+        );
         let statements = result.quickstatements.join("\n");
+        assert!(
+            statements.contains("LAST|Len|\"L-alanine\""),
+            "English label goes to Len: {statements}"
+        );
+        assert!(
+            statements.contains("LAST|P31|Q11173"),
+            "bare QID in P31: {statements}"
+        );
         assert!(
             statements.contains("LAST|P233|\"CC(C(=O)O)N\""),
             "stereo-stripped canonical SMILES goes to P233: {statements}"
@@ -292,6 +311,45 @@ mod unit {
         assert!(
             statements.contains("LAST|P235|\"QNAYBMKLOCPYGJ-REOHCLBHSA-N\""),
             "InChIKey goes to P235: {statements}"
+        );
+        assert!(
+            statements.contains(
+                "LAST|P234|\"InChI=1S/C3H7NO2/c1-2(4)3(5)6/h2H,4H2,1H3,(H,5,6)/t2-/m0/s1\""
+            ),
+            "InChI goes to P234: {statements}"
+        );
+    }
+
+    #[test]
+    fn an_existing_compound_missing_structure_properties_gets_update_statements() {
+        let converted = crate::ConvertedStructure {
+            inchikey: Some("QNAYBMKLOCPYGJ-REOHCLBHSA-N".into()),
+            canonical_smiles: Some("CC(C(=O)O)N".into()),
+            isomeric_smiles: Some("C[C@@H](C(=O)O)N".into()),
+            inchi: Some("InChI=1S/C3H7NO2".into()),
+        };
+        let lookup = WikidataLookup {
+            compound: Some(WikidataCompound {
+                qid: "Q218642".into(),
+                ..WikidataCompound::default()
+            }),
+            taxon_qid: None,
+            reference_qid: None,
+            has_occurrence: None,
+        };
+        let result = to_result_row(
+            &row("L-alanine", "C[C@@H](C(=O)O)N", None, None),
+            &converted,
+            &lookup,
+        );
+        assert_eq!(result.status, CurationStatus::ExistingNeedsUpdates);
+        assert_eq!(
+            result.quickstatements,
+            vec![
+                "Q218642|P233|\"CC(C(=O)O)N\"".to_string(),
+                "Q218642|P2017|\"C[C@@H](C(=O)O)N\"".to_string(),
+                "Q218642|P234|\"InChI=1S/C3H7NO2\"".to_string(),
+            ]
         );
     }
 
@@ -328,16 +386,61 @@ mod unit {
             );
         }
 
-        // With a DOI present and unresolved, the note is correct.
+        // With a DOI present and unresolved, the note is correct and the row
+        // is marked PendingDependencies with a reference CREATE block.
         let result = to_result_row(
             &row("ethanol", "CCO", None, Some("10.1/x")),
             &known(),
             &lookup,
         );
+        assert_eq!(result.status, CurationStatus::PendingDependencies);
         assert!(
             result.note.contains("no reference with that DOI"),
             "a real, unresolved DOI should be reported: {}",
             result.note
+        );
+        let deps = result.dependency_blocks.join("\n");
+        assert!(
+            deps.contains("LAST|P31|Q13442814") && deps.contains("LAST|P356|\"10.1/X\""),
+            "unresolved DOI must produce a scholarly article dependency block: {deps}"
+        );
+
+        let new_with_taxon = WikidataLookup {
+            compound: None,
+            taxon_qid: Some("Q16521".into()),
+            reference_qid: Some("Q100".into()),
+            has_occurrence: None,
+        };
+        let resolved_new = to_result_row(
+            &row("ethanol", "CCO", Some("Gentiana lutea"), Some("10.1/x")),
+            &known(),
+            &new_with_taxon,
+        );
+        assert!(
+            resolved_new
+                .quickstatements
+                .join("\n")
+                .contains("LAST|P703|Q16521|S248|Q100"),
+            "new compound with resolved taxon and reference emits LAST|P703: {:?}",
+            resolved_new.quickstatements
+        );
+
+        let new_with_unresolved_ref = WikidataLookup {
+            compound: None,
+            taxon_qid: Some("Q16521".into()),
+            reference_qid: None,
+            has_occurrence: None,
+        };
+        let pending_new = to_result_row(
+            &row("ethanol", "CCO", Some("Gentiana lutea"), Some("10.1/x")),
+            &known(),
+            &new_with_unresolved_ref,
+        );
+        assert_eq!(pending_new.status, CurationStatus::PendingDependencies);
+        assert!(
+            !pending_new.quickstatements.join("\n").contains("P703"),
+            "new compound with unresolved DOI must not emit unreferenced P703: {:?}",
+            pending_new.quickstatements
         );
     }
 
@@ -474,7 +577,7 @@ mod networked {
         assert_eq!(result.status, CurationStatus::ExistingNeedsUpdates);
         assert_eq!(result.quickstatements.len(), 1, "one statement, not four");
         assert!(
-            result.quickstatements[0].contains("Q16521|P703|wd:Q16521|S248|wd:Q100"),
+            result.quickstatements[0].contains("Q16521|P703|Q16521|S248|Q100"),
             "{:?}",
             result.quickstatements
         );
