@@ -14,12 +14,18 @@
 (function () {
   "use strict";
 
+  const CITATION_SCRIPT_GLOBAL = "__lotusCitationJs";
   const CITATION_BASE_PATH = (() => {
     const base =
       document.documentElement.getAttribute("data-lotus-base-path") || "/";
     return base.endsWith("/") ? base : `${base}/`;
   })();
-  const CITATION_JS_SRC = `${CITATION_BASE_PATH}assets/vendor/citation-js/citation.js`;
+  function citationJsSrc() {
+    return (
+      window[CITATION_SCRIPT_GLOBAL] ||
+      `${CITATION_BASE_PATH}assets/vendor/citation-js/citation.js`
+    );
+  }
   const bridge = (window.__lotusCitation = window.__lotusCitation || {});
 
   function loadCitationJs() {
@@ -31,9 +37,8 @@
     }
 
     bridge.loadPromise = new Promise((resolve, reject) => {
-      const existing = document.querySelector(
-        `script[src="${CITATION_JS_SRC}"]`,
-      );
+      const src = citationJsSrc();
+      const existing = document.querySelector(`script[src="${src}"]`);
       const complete = () => {
         try {
           let CiteCtor = null;
@@ -69,7 +74,7 @@
       }
 
       const script = document.createElement("script");
-      script.src = CITATION_JS_SRC;
+      script.src = src;
       script.async = true;
       script.crossOrigin = "anonymous";
       script.addEventListener("load", complete, { once: true });

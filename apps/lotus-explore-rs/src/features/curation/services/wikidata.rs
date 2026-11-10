@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-use super::helpers::{binding_value, escape_qs_string, escape_sparql_string, extract_qid_from_uri};
-use super::{
-    CURATION_SPARQL_PREFIXES, CurationError, WD_TAXON_QID, WikidataCompound, normalize_doi,
-};
+use super::helpers::{binding_value, escape_qs_string, extract_qid_from_uri};
+use super::{CurationError, WD_TAXON_QID, WikidataCompound, normalize_doi};
 use crate::sparql::{FetchError, ResponseFormat};
+pub(super) use lotus_curation::normalize_taxon_lookup;
 use lotus_curation::{
     build_compound_lookup_query, build_occurrence_query, build_occurrence_with_ref_query,
-    build_reference_lookup_query, build_taxon_lookup_query,
+    build_reference_lookup_query, build_single_taxon_lookup_query, build_taxon_lookup_query,
+    taxon_name_candidates,
 };
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -247,75 +247,6 @@ pub async fn resolve_or_create_taxon(
         format!("LAST|P225|\"{}\"", escape_qs_string(name)),
     ];
     Ok((None, qs))
-}
-
-pub(super) fn normalize_taxon_lookup(name: &str) -> Option<String> {
-    let trimmed = name.trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_ascii_lowercase())
-    }
-}
-
-fn canonicalize_taxon_label(name: &str) -> String {
-    let mut words = name.split_whitespace();
-    let Some(first) = words.next() else {
-        return String::new();
-    };
-
-    // Pre-allocate with known length — output is same byte count as input.
-    let mut rebuilt = String::with_capacity(name.len());
-    let mut chars = first.chars();
-    if let Some(ch) = chars.next() {
-        rebuilt.push(ch.to_ascii_uppercase());
-        rebuilt.extend(chars.map(|c| c.to_ascii_lowercase()));
-    }
-    for word in words {
-        rebuilt.push(' ');
-        rebuilt.push_str(&word.to_ascii_lowercase());
-    }
-    rebuilt
-}
-
-fn taxon_name_candidates(name: &str) -> Vec<String> {
-    let trimmed = name.trim();
-    if trimmed.is_empty() {
-        return Vec::new();
-    }
-
-    let canonical = canonicalize_taxon_label(trimmed);
-    if canonical == trimmed {
-        vec![trimmed.into()]
-    } else {
-        vec![trimmed.into(), canonical]
-    }
-}
-
-fn build_single_taxon_lookup_query(name: &str) -> Option<String> {
-    let candidates = taxon_name_candidates(name);
-    if candidates.is_empty() {
-        return None;
-    }
-
-    let mut values = String::with_capacity(candidates.len() * 40);
-    for (i, candidate) in candidates.iter().enumerate() {
-        if i > 0 {
-            values.push(' ');
-        }
-        values.push('"');
-        values.push_str(&escape_sparql_string(candidate));
-        values.push('"');
-    }
-
-    Some(format!(
-        "{CURATION_SPARQL_PREFIXES}\n\
-         SELECT ?taxon WHERE {{\n  \
-           VALUES ?taxonName {{ {values} }}\n  \
-           ?taxon wdt:P225 ?taxonName ;\n        \
-                  wdt:P31 wd:Q16521 .\n\
-         }} LIMIT 1"
-    ))
 }
 
 pub async fn resolve_reference_qids_batch<'a>(

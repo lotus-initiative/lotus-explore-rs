@@ -54,6 +54,16 @@ static RDKIT: Option<manganis::Asset> = manganis::option_asset!(
 static KETCHER: Option<manganis::Asset> =
     manganis::option_asset!("/public/assets/ketcher", manganis::AssetOptions::folder());
 
+/// `Citation.js` (Scholia's bundle), which formats a resolved `DOI` as
+/// `QuickStatements` on the curation page.
+// As `RDKIT` above.
+#[used]
+#[allow(dead_code, clippy::volatile_composites)]
+static CITATION_JS: Option<manganis::Asset> = manganis::option_asset!(
+    "/public/assets/vendor/citation-js",
+    manganis::AssetOptions::folder()
+);
+
 /// Where the desktop bundle serves its assets from.
 const ASSET_DIR: &str = "assets";
 
@@ -145,6 +155,12 @@ pub fn rdkit_script_url() -> Option<String> {
 #[must_use]
 pub fn rdkit_wasm_url() -> Option<String> {
     bundled_asset_url(RDKIT.as_ref()).map(|url| in_folder(&url, "RDKit_minimal.wasm"))
+}
+
+/// The URL of `Citation.js`'s bundle, or `None` if it was never fetched.
+#[must_use]
+pub fn citation_script_url() -> Option<String> {
+    bundled_asset_url(CITATION_JS.as_ref()).map(|url| in_folder(&url, "citation.js"))
 }
 
 /// Join a file name onto a bundled folder path, tolerating either a trailing

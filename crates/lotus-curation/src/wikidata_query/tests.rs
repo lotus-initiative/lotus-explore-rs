@@ -333,3 +333,23 @@ fn build_reference_lookup_query_uses_values_pairs() {
     assert!(query.contains("\"10.1000/ABC\" \"10.1000/ABC\""));
     assert!(query.contains("?ref wdt:P356 ?doi"));
 }
+
+#[test]
+fn normalize_taxon_lookup_trims_and_lowercases() {
+    assert_eq!(
+        normalize_taxon_lookup("  Gentiana lutea  "),
+        Some("gentiana lutea".to_string())
+    );
+    assert_eq!(normalize_taxon_lookup("   \n"), None);
+}
+
+#[test]
+fn build_single_taxon_lookup_query_uses_values_without_lcase_filter() {
+    let query = build_single_taxon_lookup_query("ficticia imaginaria").expect("query");
+
+    assert!(query.contains("VALUES ?taxonName"));
+    assert!(query.contains("\"ficticia imaginaria\" \"Ficticia imaginaria\""));
+    assert!(query.contains("wdt:P31 wd:Q16521"));
+    assert!(!query.contains("LCASE"));
+    assert!(!query.contains("FILTER"));
+}

@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
+// A `WebView` round trip via `document::eval`, so the future is not `Send`.
+#![expect(
+    clippy::future_not_send,
+    reason = "`document::eval` holds a WebView channel handle that is not `Send`"
+)]
+
+use dioxus::prelude::*;
+use serde_json::Value;
+
 fn parse_quickstatements_text(text: &str) -> Option<Vec<String>> {
     let lines = text
         .lines()
@@ -12,38 +21,31 @@ fn parse_quickstatements_text(text: &str) -> Option<Vec<String>> {
     (!lines.is_empty()).then_some(lines)
 }
 
-#[cfg(target_arch = "wasm32")]
+/// Ask the `Citation.js` bridge in the page to format a `DOI` as
+/// `QuickStatements`, using `document::eval` so both browser and desktop
+/// `WebView` run the same path.
 pub(super) async fn fetch_reference_quickstatements(doi: &str) -> Option<Vec<String>> {
-    use js_sys::{Function, Promise, Reflect};
-    use wasm_bindgen::{JsCast, JsValue};
-    use wasm_bindgen_futures::JsFuture;
+    let doi_literal = serde_json::to_string(doi.trim()).ok()?;
+    let script = format!(
+        r"(async () => {{
+            try {{
+                const bridge = window.__lotusCitation;
+                if (!bridge || typeof bridge.quickStatements !== 'function') {{
+                    dioxus.send({{ lotus_citation_value: null }});
+                    return;
+                }}
+                const value = await bridge.quickStatements({doi_literal});
+                dioxus.send({{ lotus_citation_value: typeof value === 'string' ? value : null }});
+            }} catch (_error) {{
+                dioxus.send({{ lotus_citation_value: null }});
+            }}
+        }})();"
+    );
 
-    let window = web_sys::window()?;
-    let window_value = JsValue::from(window);
-    let bridge = Reflect::get(&window_value, &JsValue::from_str("__lotusCitation")).ok()?;
-
-    if bridge.is_null() || bridge.is_undefined() {
-        return None;
-    }
-
-    let function = Reflect::get(&bridge, &JsValue::from_str("quickStatements"))
-        .ok()?
-        .dyn_into::<Function>()
-        .ok()?;
-    let result = function.call1(&bridge, &JsValue::from_str(doi)).ok()?;
-    let result = if let Ok(promise) = result.clone().dyn_into::<Promise>() {
-        JsFuture::from(promise).await.ok()?
-    } else {
-        result
-    };
-
-    parse_quickstatements_text(&result.as_string()?)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub(super) async fn fetch_reference_quickstatements(_doi: &str) -> Option<Vec<String>> {
-    let _ = parse_quickstatements_text("");
-    None
+    let mut eval = document::eval(&script);
+    let outcome: Value = eval.recv().await.ok()?;
+    let text = outcome.get("lotus_citation_value")?.as_str()?;
+    parse_quickstatements_text(text)
 }
 
 #[cfg(test)]

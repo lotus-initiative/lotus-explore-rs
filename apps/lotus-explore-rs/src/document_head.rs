@@ -33,6 +33,7 @@ use dioxus::prelude::*;
 pub fn CurationScripts() -> Element {
     let loader = crate::vendor_assets::rdkit_script_url();
     let wasm = crate::vendor_assets::rdkit_wasm_url();
+    let citation = crate::vendor_assets::citation_script_url();
 
     // `document::eval` rather than an inline `<script>`. Dioxus renders a
     // `document::Script` from a single text node and rejects anything else, and
@@ -42,6 +43,9 @@ pub fn CurationScripts() -> Element {
     use_effect(move || {
         if let Some(wasm) = wasm.as_deref() {
             document::eval(&format!("window.{RDKIT_WASM_GLOBAL} = '{wasm}';"));
+        }
+        if let Some(citation) = citation.as_deref() {
+            document::eval(&format!("window.{CITATION_SCRIPT_GLOBAL} = '{citation}';"));
         }
     });
 
@@ -60,6 +64,10 @@ pub fn CurationScripts() -> Element {
 /// by name relative to itself. The bundled copy is content-addressed, so that
 /// name is not what the loader asks for.
 const RDKIT_WASM_GLOBAL: &str = "__lotusRDKitWasm";
+
+/// The global the `Citation.js` bridge reads the bundled script URL from when
+/// lazily loading `citation.js` on demand.
+const CITATION_SCRIPT_GLOBAL: &str = "__lotusCitationJs";
 
 /// The application stylesheet, on native only.
 ///

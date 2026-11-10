@@ -9,13 +9,6 @@
 use super::*;
 
 #[test]
-fn escape_sparql_string_escapes_backslash_and_quote() {
-    assert_eq!(escape_sparql_string(r#"C\C"#), r#"C\\C"#);
-    assert_eq!(escape_sparql_string(r#"C"C"#), r#"C\"C"#);
-    assert_eq!(escape_sparql_string(r#"C\C"D"#), r#"C\\C\"D"#);
-}
-
-#[test]
 fn escape_qs_string_escapes_only_quote_newline_tab() {
     // SMILES with backslashes (stereo chemistry) should NOT be double-escaped
     // See https://www.wikidata.org/wiki/Q140985706

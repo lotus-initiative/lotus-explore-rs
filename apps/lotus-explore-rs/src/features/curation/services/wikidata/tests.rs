@@ -7,21 +7,19 @@
 use super::*;
 
 #[test]
-fn normalize_taxon_lookup_trims_and_lowercases() {
+fn qid_of_extracts_entity_id_from_wikidata_uri() {
     assert_eq!(
-        normalize_taxon_lookup("  Gentiana lutea  "),
-        Some("gentiana lutea".to_string())
+        qid_of("http://www.wikidata.org/entity/Q16521"),
+        Some("Q16521".to_string())
     );
-    assert_eq!(normalize_taxon_lookup("   \n"), None);
+    assert_eq!(qid_of("not-a-uri"), None);
 }
 
 #[test]
-fn build_single_taxon_lookup_query_uses_values_without_lcase_filter() {
-    let query = build_single_taxon_lookup_query("ficticia imaginaria").expect("query");
-
-    assert!(query.contains("VALUES ?taxonName"));
-    assert!(query.contains("\"ficticia imaginaria\" \"Ficticia imaginaria\""));
-    assert!(query.contains("wdt:P31 wd:Q16521"));
-    assert!(!query.contains("LCASE"));
-    assert!(!query.contains("FILTER"));
+fn resolve_or_create_taxon_returns_pre_resolved_qid_without_generating_statements() {
+    let (qid, statements) =
+        futures::executor::block_on(resolve_or_create_taxon("Gentiana lutea", Some("Q158559")))
+            .expect("pre-resolved taxon");
+    assert_eq!(qid.as_deref(), Some("Q158559"));
+    assert_eq!(statements, Vec::<String>::new());
 }

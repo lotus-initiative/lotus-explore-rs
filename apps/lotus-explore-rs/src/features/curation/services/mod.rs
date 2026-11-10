@@ -18,10 +18,9 @@ use futures::future::BoxFuture;
 #[cfg(target_arch = "wasm32")]
 use futures::future::LocalBoxFuture;
 pub(super) use lotus_curation::{
-    CURATION_SPARQL_PREFIXES, CurationError, CurationInputRow, CurationResultRow, CurationStatus,
-    DependencyResolution, MassResolution, WD_CHEMICAL_COMPOUND_QID, WD_OCCURS_IN_TAXON_PROP,
-    WD_STEREOISOMER_GROUP_QID, WD_TAXON_QID, WD_TYPE_CHEMICAL_ENTITY_QID, WikidataCompound,
-    normalize_doi,
+    CurationError, CurationInputRow, CurationResultRow, CurationStatus, DependencyResolution,
+    MassResolution, WD_CHEMICAL_COMPOUND_QID, WD_OCCURS_IN_TAXON_PROP, WD_STEREOISOMER_GROUP_QID,
+    WD_TAXON_QID, WD_TYPE_CHEMICAL_ENTITY_QID, WikidataCompound, normalize_doi,
 };
 
 mod chemical;

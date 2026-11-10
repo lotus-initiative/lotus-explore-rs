@@ -501,11 +501,13 @@ async fn resolve_or_create_reference(
     }
 
     let mut lines = vec![REFERENCE_STEP_HEADER.to_owned()];
-    lines.extend(
-        fetch_reference_quickstatements(doi)
-            .await
-            .unwrap_or_default(),
-    );
+    if let Some(fetched) = fetch_reference_quickstatements(doi).await {
+        lines.extend(fetched);
+    } else {
+        lines.push("CREATE".to_owned());
+        lines.push("LAST|P31|Q13442814".to_owned());
+        lines.push(format!("LAST|P356|\"{}\"", escape_qs_string(doi)));
+    }
     Ok((None, lines))
 }
 
