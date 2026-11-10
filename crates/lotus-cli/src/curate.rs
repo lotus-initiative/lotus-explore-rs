@@ -201,9 +201,11 @@ async fn curate_row<H: lotus_search::Http>(
                 &lotus_curation::WikidataLookup::default(),
             );
             // A lookup that failed is not a compound that is absent, so the row is
-            // an error and not a new item.
+            // an error and not a new item, and must carry no creation statements.
             result.status = lotus_curation::CurationStatus::Error;
             result.note = format!("Wikidata could not be reached: {err}");
+            result.dependency_blocks.clear();
+            result.quickstatements.clear();
             result
         }
     }
@@ -351,20 +353,7 @@ async fn curate_findings(findings: &[Finding], offline: bool) -> anyhow::Result<
         }
     }
 
-    let mut statements = Vec::new();
-    let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
-    for row in &rows {
-        for block in &row.dependency_blocks {
-            if seen.insert(block.as_str()) {
-                statements.push(block.clone());
-            }
-        }
-        for block in &row.quickstatements {
-            if seen.insert(block.as_str()) {
-                statements.push(block.clone());
-            }
-        }
-    }
+    let statements = collect_report_statements(&rows);
 
     Ok(CuratedReport {
         rows,
@@ -373,21 +362,35 @@ async fn curate_findings(findings: &[Finding], offline: bool) -> anyhow::Result<
     })
 }
 
+/// Collect deduplicated statements across `rows`, emitting all dependency blocks
+/// before all main statements so prerequisites are created first.
+fn collect_report_statements(rows: &[lotus_curation::CurationResultRow]) -> Vec<String> {
+    let mut statements = Vec::new();
+    let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    for row in rows {
+        for block in &row.dependency_blocks {
+            if seen.insert(block.as_str()) {
+                statements.push(block.clone());
+            }
+        }
+    }
+    for row in rows {
+        for block in &row.quickstatements {
+            if seen.insert(block.as_str()) {
+                statements.push(block.clone());
+            }
+        }
+    }
+    statements
+}
+
 /// The short status name a report carries.
 ///
 /// Stable text, because it is what a person greps for and what a downstream
 /// script switches on; the enum variant is a Rust detail.
 #[must_use]
 pub const fn status_key(status: &lotus_curation::CurationStatus) -> &'static str {
-    use lotus_curation::CurationStatus;
-    match status {
-        CurationStatus::ExistingComplete => "existing_complete",
-        CurationStatus::ExistingNeedsUpdates => "existing_updates",
-        CurationStatus::NewCompound => "new_compound",
-        CurationStatus::PendingDependencies => "pending_dependencies",
-        CurationStatus::NotChecked => "not_checked",
-        CurationStatus::Error => "error",
-    }
+    status.as_key()
 }
 
 fn write_report<W: Write>(

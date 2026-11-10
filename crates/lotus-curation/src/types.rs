@@ -39,6 +39,21 @@ pub enum CurationStatus {
     Error,
 }
 
+impl CurationStatus {
+    /// Stable short status key shared by CLI reports and UI i18n lookup.
+    #[must_use]
+    pub const fn as_key(&self) -> &'static str {
+        match self {
+            Self::ExistingComplete => "existing_complete",
+            Self::ExistingNeedsUpdates => "existing_updates",
+            Self::NewCompound => "new_compound",
+            Self::PendingDependencies => "pending_dependencies",
+            Self::NotChecked => "not_checked",
+            Self::Error => "error",
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 /// One row after curation: what `Wikidata` has, and what it would take to add it.
 pub struct CurationResultRow {

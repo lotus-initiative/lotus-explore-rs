@@ -157,15 +157,7 @@ pub fn CurationResultsTable(locale: Locale, rows: Arc<[CurationResultRow]>) -> E
 }
 
 fn status_label(locale: Locale, status: &CurationStatus) -> &'static str {
-    let key = match status {
-        CurationStatus::ExistingComplete => "existing_complete",
-        CurationStatus::ExistingNeedsUpdates => "existing_updates",
-        CurationStatus::NewCompound => "new_compound",
-        CurationStatus::PendingDependencies => "pending_dependencies",
-        CurationStatus::NotChecked => "not_checked",
-        CurationStatus::Error => "error",
-    };
-    curation_status_label(locale, key)
+    curation_status_label(locale, status.as_key())
 }
 
 fn status_counts(rows: &[CurationResultRow]) -> Vec<(CurationStatus, usize)> {

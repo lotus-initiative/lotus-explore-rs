@@ -7,7 +7,7 @@
 //! for the same reason must get the same answer, and the reasoning is only in the
 //! doc comments above the two functions.
 
-use super::{CurationError, CurationErrorKind};
+use super::{CurationError, CurationErrorKind, CurationStatus};
 
 /// Every variant, with a value that is plausible for it.
 fn every_error() -> [(CurationError, CurationErrorKind, bool); 4] {
@@ -95,4 +95,23 @@ fn a_missing_column_names_the_column_in_the_message() {
         error.to_string().contains("'taxon'"),
         "the message must name the column: {error}"
     );
+}
+
+#[test]
+fn curation_status_as_key_maps_every_variant_distinctly() {
+    assert_eq!(
+        CurationStatus::ExistingComplete.as_key(),
+        "existing_complete"
+    );
+    assert_eq!(
+        CurationStatus::ExistingNeedsUpdates.as_key(),
+        "existing_updates"
+    );
+    assert_eq!(CurationStatus::NewCompound.as_key(), "new_compound");
+    assert_eq!(
+        CurationStatus::PendingDependencies.as_key(),
+        "pending_dependencies"
+    );
+    assert_eq!(CurationStatus::NotChecked.as_key(), "not_checked");
+    assert_eq!(CurationStatus::Error.as_key(), "error");
 }

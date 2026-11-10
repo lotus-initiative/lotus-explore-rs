@@ -151,15 +151,8 @@ fn a_batch_with_nothing_convertible_sends_nothing() {
 /// Four of these had no test. They are a wire format: the doc says the strings
 /// are what "a person greps for and what a downstream script switches on", which
 /// makes a renamed arm a silent break for anything reading the output, and no
-/// test could tell.
-///
-/// Duplicated knowledge, recorded rather than acted on: the web client carries a
-/// second copy of these six strings in
-/// `apps/lotus-explore-rs/src/components/curation_results_table.rs`. The two
-/// crates cannot see each other -- the app does not depend on `lotus-cli` -- so
-/// nothing can assert they agree, and a test in either crate cannot catch a
-/// divergence. Worth a decision by a human: one shared table, or an accepted
-/// duplication with the strings written down somewhere both can read.
+/// test could tell. Both `lotus-cli` and `apps/lotus-explore-rs` read the single
+/// shared table on [`lotus_curation::CurationStatus::as_key`].
 #[test]
 fn every_status_has_a_stable_key() {
     use lotus_curation::CurationStatus;
@@ -256,6 +249,58 @@ async fn a_missing_input_file_names_the_path_it_could_not_read() {
     assert!(
         rendered.contains("lotus-nonexistent-input.tsv"),
         "the error must name the file: {rendered:?}"
+    );
+}
+
+#[test]
+fn collect_report_statements_emits_all_dependencies_before_main_statements() {
+    let mut first = row(&CurationStatus::PendingDependencies);
+    first.dependency_blocks = vec!["DEP_1".to_string(), "DEP_SHARED".to_string()];
+    first.quickstatements = vec!["MAIN_1".to_string()];
+
+    let mut second = row(&CurationStatus::PendingDependencies);
+    second.dependency_blocks = vec!["DEP_SHARED".to_string(), "DEP_2".to_string()];
+    second.quickstatements = vec!["MAIN_2".to_string()];
+
+    assert_eq!(
+        super::collect_report_statements(&[first, second]),
+        vec![
+            "DEP_1".to_string(),
+            "DEP_SHARED".to_string(),
+            "DEP_2".to_string(),
+            "MAIN_1".to_string(),
+            "MAIN_2".to_string(),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn curate_row_clears_statements_when_wikidata_lookup_fails() {
+    let dead_http = lotus_search::testing::Scripted::new(vec![(0, "")]);
+    let converted = lotus_curation::ConvertedStructure {
+        inchikey: Some("LFQSCWFLJHTTHZ-UHFFFAOYSA-N".into()),
+        canonical_smiles: Some("CCO".into()),
+        ..lotus_curation::ConvertedStructure::default()
+    };
+    let input = Finding {
+        name: "Ethanol".into(),
+        smiles: "CCO".into(),
+        taxon: Some("Gentiana lutea".into()),
+        doi: Some("10.1000/abc".into()),
+    };
+
+    let result = super::curate_row(&dead_http, &input, &converted).await;
+    assert_eq!(result.status, CurationStatus::Error);
+    assert!(result.note.contains("Wikidata could not be reached"));
+    assert_eq!(
+        result.dependency_blocks,
+        Vec::<String>::new(),
+        "failed lookup must not emit dependency CREATE blocks"
+    );
+    assert_eq!(
+        result.quickstatements,
+        Vec::<String>::new(),
+        "failed lookup must not emit compound CREATE statements"
     );
 }
 
