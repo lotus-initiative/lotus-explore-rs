@@ -37,7 +37,8 @@ pub use knowledge::{
 };
 pub use quickstatements::{build_quickstatements_bundle, escape_quickstatements};
 pub use structure::{
-    ConvertedStructure, convert_structure, convert_structures, has_stereo_marks, strip_stereo_marks,
+    ConvertedStructure, convert_structure, convert_structures, extract_formula_from_inchi,
+    has_stereo_marks, normalize_formula_for_wikidata, strip_stereo_marks,
 };
 pub use types::{
     CurationError, CurationErrorKind, CurationInputRow, CurationResultRow, CurationStatus,

@@ -232,19 +232,23 @@ pub async fn resolve_or_create_taxon(
     name: &str,
     pre_resolved_qid: Option<&str>,
 ) -> Result<(Option<String>, Vec<String>), CurationError> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return Ok((None, Vec::new()));
+    }
     if let Some(qid) = pre_resolved_qid {
         return Ok((Some(qid.into()), Vec::new()));
     }
 
-    if let Some(qid) = resolve_taxon_qid(name).await? {
+    if let Some(qid) = resolve_taxon_qid(trimmed).await? {
         return Ok((Some(qid), Vec::new()));
     }
     let qs = vec![
         "## -- Step: create missing taxon --".into(),
         "CREATE".into(),
-        format!("LAST|Len|\"{}\"", escape_qs_string(name)),
+        format!("LAST|Len|\"{}\"", escape_qs_string(trimmed)),
         format!("LAST|P31|{WD_TAXON_QID}"),
-        format!("LAST|P225|\"{}\"", escape_qs_string(name)),
+        format!("LAST|P225|\"{}\"", escape_qs_string(trimmed)),
     ];
     Ok((None, qs))
 }

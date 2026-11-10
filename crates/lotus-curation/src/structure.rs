@@ -51,6 +51,53 @@ impl ConvertedStructure {
             .as_deref()
             .is_some_and(|key| !key.trim().is_empty())
     }
+
+    /// The Wikidata-formatted molecular formula (`P274`) implied by `self.inchi`,
+    /// when `inchi` has a formula layer.
+    #[must_use]
+    pub fn formula(&self) -> Option<String> {
+        self.inchi
+            .as_deref()
+            .and_then(extract_formula_from_inchi)
+            .map(|f| normalize_formula_for_wikidata(&f))
+    }
+}
+
+/// Extract the molecular formula layer from a standard `InChI` string
+/// (e.g. `"InChI=1S/C2H6O/c1-2-3/h3H,2H2,1H3"` -> `Some("C2H6O")`).
+#[must_use]
+pub fn extract_formula_from_inchi(inchi: &str) -> Option<String> {
+    let cleaned = inchi.trim();
+    if !cleaned.starts_with("InChI=") {
+        return None;
+    }
+    let right = cleaned.split('/').nth(1)?;
+    if right.is_empty() {
+        return None;
+    }
+    Some(right.into())
+}
+
+/// Convert ASCII digits in a molecular formula to Unicode subscript digits as
+/// stored in Wikidata `P274` (e.g. `"C2H6O"` -> `"C₂H₆O"`).
+#[must_use]
+pub fn normalize_formula_for_wikidata(value: &str) -> String {
+    value
+        .chars()
+        .map(|ch| match ch {
+            '0' => '₀',
+            '1' => '₁',
+            '2' => '₂',
+            '3' => '₃',
+            '4' => '₄',
+            '5' => '₅',
+            '6' => '₆',
+            '7' => '₇',
+            '8' => '₈',
+            '9' => '₉',
+            _ => ch,
+        })
+        .collect()
 }
 
 /// Whether a `SMILES` string carries tetrahedral (`@`) or double-bond (`/`, `\`)

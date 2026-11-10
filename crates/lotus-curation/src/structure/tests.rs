@@ -85,6 +85,26 @@ fn has_stereo_marks_detects_each_marker_individually_and_rejects_achiral() {
     assert!(has_stereo_marks(r"C\C=C\C"), r"alkene \");
 }
 
+#[test]
+fn extract_and_normalize_formula_from_inchi() {
+    assert_eq!(extract_formula_from_inchi(""), None);
+    assert_eq!(extract_formula_from_inchi("CCO"), None);
+    assert_eq!(extract_formula_from_inchi("InChI=1S/"), None);
+    assert_eq!(
+        extract_formula_from_inchi("  InChI=1S/C2H6O/c1-2-3/h3H,2H2,1H3  ").as_deref(),
+        Some("C2H6O")
+    );
+    assert_eq!(
+        normalize_formula_for_wikidata("C10H23N45O67P89"),
+        "C₁₀H₂₃N₄₅O₆₇P₈₉"
+    );
+    let converted = ConvertedStructure {
+        inchi: Some("InChI=1S/C3H7NO2/c1-2(4)3(5)6".into()),
+        ..ConvertedStructure::default()
+    };
+    assert_eq!(converted.formula().as_deref(), Some("C₃H₇NO₂"));
+}
+
 #[tokio::test]
 async fn a_whole_file_costs_three_requests_and_not_three_per_row() {
     // Why this is batched: the per-row version was rate-limited on the third

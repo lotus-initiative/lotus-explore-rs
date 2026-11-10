@@ -44,7 +44,7 @@ pub const QS_REF_INFERRED_FROM_ISOMERIC_SMILES: &str = "Q123282952"; // inferred
 /// Build a `QuickStatements` statement with S887 reference(s).
 /// Returns a statement like: `subject|prop|"value"|S887|Q113907573|S887|Q123282952`
 pub fn qs_statement_with_refs(subject: &str, prop: &str, value: &str, refs: &[&str]) -> String {
-    let mut stmt = format!("{subject}|{prop}|\"{value}\"");
+    let mut stmt = format!("{subject}|{prop}|\"{}\"", escape_qs_string(value));
     for r in refs {
         stmt.push_str("|S887|");
         stmt.push_str(r);
@@ -67,7 +67,7 @@ pub fn qs_canonical_smiles_statement(
         )
     } else {
         // No reference for canonical SMILES when no isomeric present
-        format!("{subject}|P233|\"{canonical_smiles}\"")
+        format!("{subject}|P233|\"{}\"", escape_qs_string(canonical_smiles))
     }
 }
 
@@ -84,7 +84,7 @@ pub fn qs_inchikey_statement(subject: &str, inchikey: &str) -> String {
 /// Build an isomeric SMILES statement WITHOUT any S887 reference.
 /// Isomeric SMILES is the source itself, not inferred from something else.
 pub fn qs_isomeric_smiles_statement(subject: &str, isomeric_smiles: &str) -> String {
-    format!("{subject}|P2017|\"{isomeric_smiles}\"")
+    format!("{subject}|P2017|\"{}\"", escape_qs_string(isomeric_smiles))
 }
 
 // -- Text / chemistry normalization --------------------------------------------
@@ -93,36 +93,7 @@ pub(super) fn has_isomeric_smiles(smiles: &str) -> bool {
     lotus_curation::has_stereo_marks(smiles)
 }
 
-pub fn extract_formula_from_inchi(inchi: &str) -> Option<String> {
-    let cleaned = inchi.trim();
-    if cleaned.is_empty() || !cleaned.starts_with("InChI=") {
-        return None;
-    }
-    let right = cleaned.split('/').nth(1)?;
-    if right.is_empty() {
-        return None;
-    }
-    Some(right.into())
-}
-
-pub fn normalize_formula_for_wikidata(value: &str) -> String {
-    value
-        .chars()
-        .map(|ch| match ch {
-            '0' => '₀',
-            '1' => '₁',
-            '2' => '₂',
-            '3' => '₃',
-            '4' => '₄',
-            '5' => '₅',
-            '6' => '₆',
-            '7' => '₇',
-            '8' => '₈',
-            '9' => '₉',
-            _ => ch,
-        })
-        .collect()
-}
+pub use lotus_curation::{extract_formula_from_inchi, normalize_formula_for_wikidata};
 
 #[cfg(test)]
 #[path = "helpers/tests.rs"]

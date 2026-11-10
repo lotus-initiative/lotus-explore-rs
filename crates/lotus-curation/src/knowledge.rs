@@ -257,6 +257,15 @@ fn missing_compound_property_statements(
             val = escape_quickstatements(inchi),
         ));
     }
+    if compound.formula.is_none()
+        && let Some(formula) = converted.formula()
+    {
+        lines.push(format!(
+            "{qid}|{prop}|\"{val}\"",
+            prop = property::FORMULA,
+            val = escape_quickstatements(&formula),
+        ));
+    }
 
     lines
 }
@@ -298,6 +307,14 @@ pub fn statements_for(
                     "\n  LAST|{prop}|\"{val}\"",
                     prop = property::INCHI,
                     val = escape_quickstatements(inchi),
+                );
+            }
+            if let Some(formula) = converted.formula() {
+                let _ = write!(
+                    block,
+                    "\n  LAST|{prop}|\"{val}\"",
+                    prop = property::FORMULA,
+                    val = escape_quickstatements(&formula),
                 );
             }
             if let Some(taxon) = lookup.taxon_qid.as_deref()
@@ -471,7 +488,11 @@ pub fn to_result_row(
             .inchi
             .clone()
             .or_else(|| lookup.compound.as_ref().and_then(|c| c.inchi.clone())),
-        formula: lookup.compound.as_ref().and_then(|c| c.formula.clone()),
+        formula: lookup
+            .compound
+            .as_ref()
+            .and_then(|c| c.formula.clone())
+            .or_else(|| converted.formula()),
         exact_mass: lookup.compound.as_ref().and_then(|c| c.mass),
         mass_warning: None,
         wikidata_qid: lookup.compound.as_ref().map(|c| c.qid.clone()),

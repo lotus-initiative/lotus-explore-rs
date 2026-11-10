@@ -439,7 +439,12 @@ async fn resolve_row_dependencies(
     prefetched_taxa: &HashMap<String, String>,
     prefetched_references: &HashMap<String, String>,
 ) -> Result<Option<DependencyResolution>, CurationError> {
-    let Some(taxon_name) = input.taxon.as_deref() else {
+    let Some(taxon_name) = input
+        .taxon
+        .as_deref()
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+    else {
         return Ok(None);
     };
 

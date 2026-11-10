@@ -291,6 +291,7 @@ mod unit {
             result.inchi.as_deref(),
             Some("InChI=1S/C3H7NO2/c1-2(4)3(5)6/h2H,4H2,1H3,(H,5,6)/t2-/m0/s1")
         );
+        assert_eq!(result.formula.as_deref(), Some("C₃H₇NO₂"));
         let statements = result.quickstatements.join("\n");
         assert!(
             statements.contains("LAST|Len|\"L-alanine\""),
@@ -318,6 +319,10 @@ mod unit {
             ),
             "InChI goes to P234: {statements}"
         );
+        assert!(
+            statements.contains("LAST|P274|\"C₃H₇NO₂\""),
+            "formula goes to P274: {statements}"
+        );
     }
 
     #[test]
@@ -343,12 +348,14 @@ mod unit {
             &lookup,
         );
         assert_eq!(result.status, CurationStatus::ExistingNeedsUpdates);
+        assert_eq!(result.formula.as_deref(), Some("C₃H₇NO₂"));
         assert_eq!(
             result.quickstatements,
             vec![
                 "Q218642|P233|\"CC(C(=O)O)N\"".to_string(),
                 "Q218642|P2017|\"C[C@@H](C(=O)O)N\"".to_string(),
                 "Q218642|P234|\"InChI=1S/C3H7NO2\"".to_string(),
+                "Q218642|P274|\"C₃H₇NO₂\"".to_string(),
             ]
         );
     }
