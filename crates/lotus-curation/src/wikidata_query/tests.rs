@@ -104,6 +104,16 @@ fn the_occurrence_query_asks_rather_than_selects() {
     assert!(query.contains("ASK"), "{query}");
     assert!(!query.contains("SELECT"), "{query}");
     assert!(query.contains("wd:Q1 wdt:P703 wd:Q2"), "{query}");
+
+    let ref_query = has_occurrence_with_ref_query("Q1", "Q2", "Q3");
+    assert!(ref_query.contains("ASK"), "{ref_query}");
+    assert!(ref_query.contains("wd:Q1 p:P703 ?stmt"), "{ref_query}");
+    assert!(ref_query.contains("?stmt ps:P703 wd:Q2"), "{ref_query}");
+    assert!(
+        ref_query.contains("prov:wasDerivedFrom ?refnode"),
+        "{ref_query}"
+    );
+    assert!(ref_query.contains("?refnode pr:P248 wd:Q3"), "{ref_query}");
 }
 
 #[test]
@@ -217,17 +227,32 @@ fn the_batched_compound_query_projects_the_aggregate_under_a_new_name() {
 fn the_batched_occurrence_queries_have_no_as_clause_to_conflict() {
     let pairs = vec![("Q153".to_string(), "Q15978631".to_string())];
     let triples = vec![(
-        "Q22918685".to_string(),
-        "Q202864".to_string(),
-        "Q22330782".to_string(),
+        "Q407418".to_string(),
+        "Q8071725".to_string(),
+        "Q64216123".to_string(),
     )];
     let occ_query = build_occurrence_query(&pairs);
     let occ_ref_query = build_occurrence_with_ref_query(&triples);
     assert!(
-        occ_ref_query.contains("(wd:Q22918685 wd:Q202864 wd:Q22330782)"),
+        occ_ref_query.contains("(wd:Q407418 wd:Q8071725 wd:Q64216123)"),
         "{occ_ref_query}"
     );
-    assert!(occ_ref_query.contains("wdt:P248 ?ref"), "{occ_ref_query}");
+    assert!(
+        occ_ref_query.contains("?compound p:P703 ?stmt"),
+        "{occ_ref_query}"
+    );
+    assert!(
+        occ_ref_query.contains("?stmt ps:P703 ?taxon"),
+        "{occ_ref_query}"
+    );
+    assert!(
+        occ_ref_query.contains("prov:wasDerivedFrom ?refnode"),
+        "{occ_ref_query}"
+    );
+    assert!(
+        occ_ref_query.contains("?refnode pr:P248 ?ref"),
+        "{occ_ref_query}"
+    );
     assert_as_targets_are_not_used_elsewhere(&occ_query);
     assert_as_targets_are_not_used_elsewhere(&occ_ref_query);
 }

@@ -117,10 +117,10 @@
         convert(smiles) {
           return withMol(smiles, (mol) => {
             const isomericsmiles = mol.get_smiles(
-              JSON.stringify({ canonical: true, isomericSmiles: true }),
+              JSON.stringify({ canonical: true, doIsomericSmiles: true }),
             );
             let canonicalsmiles = mol.get_smiles(
-              JSON.stringify({ canonical: true, isomericSmiles: false }),
+              JSON.stringify({ canonical: true, doIsomericSmiles: false }),
             );
             if (
               canonicalsmiles.includes("@") ||
@@ -132,7 +132,7 @@
                 canonicalsmiles = withMol(stripped, (strippedMol) =>
                   stripStereoFromSmiles(
                     strippedMol.get_smiles(
-                      JSON.stringify({ canonical: true, isomericSmiles: false }),
+                      JSON.stringify({ canonical: true, doIsomericSmiles: false }),
                     ),
                   ),
                 );
@@ -159,14 +159,35 @@
         },
         hasUndefinedStereo(smiles) {
           return withMol(smiles, (mol) => {
-            const tags = JSON.parse(mol.get_stereo_tags() || "[]");
-            if (!Array.isArray(tags)) {
-              return false;
+            const descriptors = JSON.parse(mol.get_descriptors() || "{}");
+            if (
+              typeof descriptors?.NumUnspecifiedAtomStereoCenters === "number" &&
+              descriptors.NumUnspecifiedAtomStereoCenters > 0
+            ) {
+              return true;
             }
-            return tags.some((tag) => {
-              const text = String(tag || "").toLowerCase();
-              return text.includes("unspecified") || text.includes("unknown");
-            });
+            const tags = JSON.parse(mol.get_stereo_tags() || "{}");
+            const isUndefinedTag = (entry) => {
+              const label = Array.isArray(entry)
+                ? entry[entry.length - 1]
+                : entry;
+              const text = String(label || "").toLowerCase();
+              return (
+                text.includes("?") ||
+                text.includes("unspecified") ||
+                text.includes("unknown")
+              );
+            };
+            if (Array.isArray(tags)) {
+              return tags.some(isUndefinedTag);
+            }
+            const cipAtoms = Array.isArray(tags?.CIP_atoms)
+              ? tags.CIP_atoms
+              : [];
+            const cipBonds = Array.isArray(tags?.CIP_bonds)
+              ? tags.CIP_bonds
+              : [];
+            return cipAtoms.some(isUndefinedTag) || cipBonds.some(isUndefinedTag);
           });
         },
       };

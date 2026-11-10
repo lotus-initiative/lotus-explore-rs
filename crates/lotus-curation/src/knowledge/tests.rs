@@ -157,8 +157,13 @@ mod unit {
         assert_eq!(result.status, CurationStatus::ExistingNeedsUpdates);
         assert_eq!(result.quickstatements.len(), 1);
         assert!(
-            result.quickstatements[0].contains("wd:Q16521"),
+            result.quickstatements[0].contains("Q1|P703|wd:Q16521"),
             "{:?}",
+            result.quickstatements
+        );
+        assert!(
+            !result.quickstatements[0].contains("CREATE"),
+            "an existing compound must not emit CREATE: {:?}",
             result.quickstatements
         );
     }
@@ -469,8 +474,13 @@ mod networked {
         assert_eq!(result.status, CurationStatus::ExistingNeedsUpdates);
         assert_eq!(result.quickstatements.len(), 1, "one statement, not four");
         assert!(
-            result.quickstatements[0].contains("LAST|P703|wd:Q16521"),
+            result.quickstatements[0].contains("Q16521|P703|wd:Q16521|S248|wd:Q100"),
             "{:?}",
+            result.quickstatements
+        );
+        assert!(
+            !result.quickstatements[0].contains("CREATE"),
+            "an existing compound must not emit CREATE: {:?}",
             result.quickstatements
         );
     }

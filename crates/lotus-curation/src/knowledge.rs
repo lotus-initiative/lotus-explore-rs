@@ -150,15 +150,19 @@ pub async fn look_up<H: Http>(
         }
     }
 
-    if let Some(doi) = row.doi.as_deref().map(str::trim).filter(|d| !d.is_empty()) {
-        let json = execute(http, &reference_by_doi_query(doi)).await?;
+    if let Some(doi) = row.doi.as_deref().and_then(crate::normalize_doi) {
+        let json = execute(http, &reference_by_doi_query(&doi)).await?;
         if let Some(bindings) = first_bindings(&json) {
             out.reference_qid = binding_qid(bindings, "ref");
         }
     }
 
     if let (Some(compound), Some(taxon)) = (&out.compound, &out.taxon_qid) {
-        let answer = ask(http, &has_occurrence_query(&compound.qid, taxon)).await?;
+        let query = out.reference_qid.as_deref().map_or_else(
+            || has_occurrence_query(&compound.qid, taxon),
+            |reference| crate::has_occurrence_with_ref_query(&compound.qid, taxon, reference),
+        );
+        let answer = ask(http, &query).await?;
         out.has_occurrence = Some(answer);
     }
 
@@ -196,6 +200,16 @@ async fn ask<H: Http>(http: &H, query: &str) -> Result<bool, CurationError> {
         })
 }
 
+/// Format a `P703` occurrence statement line for `subject`, optionally qualified
+/// with `S248` when `reference` resolved.
+fn occurrence_line(subject: &str, taxon: &str, reference: Option<&str>) -> String {
+    let occurs = property::OCCURS_IN_TAXON;
+    reference.map_or_else(
+        || format!("{subject}|{occurs}|wd:{taxon}"),
+        |ref_qid| format!("{subject}|{occurs}|wd:{taxon}|S248|wd:{ref_qid}"),
+    )
+}
+
 /// The statements a row needs, and what curation concluded about it.
 ///
 /// Empty when the row is already correct, which is the whole point: the answer
@@ -220,11 +234,15 @@ pub fn statements_for(
             let isomeric = converted.isomeric_smiles.as_deref().unwrap_or_default();
             let mut block = create_compound_statements(row.name.trim(), canonical, isomeric);
             if let Some(inchikey) = converted.inchikey.as_deref() {
-                let _ = writeln!(
+                let _ = write!(
                     block,
-                    "\nLAST|{key}|\"{inchikey}\"",
+                    "\n  LAST|{key}|\"{inchikey}\"",
                     key = property::INCHIKEY
                 );
+            }
+            if let Some(taxon) = lookup.taxon_qid.as_deref() {
+                let line = occurrence_line("LAST", taxon, lookup.reference_qid.as_deref());
+                let _ = write!(block, "\n  {line}");
             }
             out.push(block);
         } else {
@@ -245,10 +263,10 @@ pub fn statements_for(
         // The comment names the item, because a bundle of these is read by a
         // person months later and `wd:Q123` on its own does not say which of
         // forty rows it belonged to.
+        let statement = occurrence_line(&compound.qid, taxon, lookup.reference_qid.as_deref());
         out.push(format!(
-            "## {name} — {qid} in {taxon}\nCREATE\n  LAST|{occurs}|wd:{taxon}",
+            "## {name} — {qid} in {taxon}\n{statement}",
             qid = compound.qid,
-            occurs = property::OCCURS_IN_TAXON,
         ));
     }
 

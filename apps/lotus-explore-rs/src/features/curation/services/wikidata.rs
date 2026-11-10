@@ -433,15 +433,7 @@ pub async fn compound_has_taxon_with_ref(
     taxon_qid: &str,
     ref_qid: &str,
 ) -> Result<bool, CurationError> {
-    let query = format!(
-        "{CURATION_SPARQL_PREFIXES}\n\
-         ASK {{\n  \
-           wd:{compound_qid} p:P703 ?stmt .\n  \
-           ?stmt ps:P703 wd:{taxon_qid} ;\n        \
-                 prov:wasDerivedFrom ?refnode .\n  \
-           ?refnode pr:P248 wd:{ref_qid} .\n\
-         }}"
-    );
+    let query = lotus_curation::has_occurrence_with_ref_query(compound_qid, taxon_qid, ref_qid);
     let parsed = execute_sparql_json(&query).await?;
     Ok(parsed
         .get("boolean")

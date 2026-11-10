@@ -173,6 +173,25 @@ pub fn has_occurrence_query(compound_qid: &str, taxon_qid: &str) -> String {
     )
 }
 
+/// Whether a compound already has an occurrence in a taxon stated in a specific
+/// reference (`P248` on the `P703` statement's reference node).
+#[must_use]
+pub fn has_occurrence_with_ref_query(compound_qid: &str, taxon_qid: &str, ref_qid: &str) -> String {
+    format!(
+        "{CURATION_SPARQL_PREFIXES}\n\
+         ASK {{\n  \
+           wd:{compound} p:{occurs} ?stmt .\n  \
+           ?stmt ps:{occurs} wd:{taxon} ;\n        \
+                 prov:wasDerivedFrom ?refnode .\n  \
+           ?refnode pr:P248 wd:{reference} .\n\
+         }}",
+        compound = compound_qid,
+        occurs = property::OCCURS_IN_TAXON,
+        taxon = taxon_qid,
+        reference = ref_qid,
+    )
+}
+
 /// The statements that would add a compound to Wikidata, given a structure.
 ///
 /// `P31` is asserted before the structure, because an item with no class is not
@@ -256,6 +275,11 @@ pub fn build_occurrence_query(pairs: &[(String, String)]) -> String {
 }
 
 /// The batched `(compound, taxon, reference)` occurrence query.
+///
+/// Checks the `prov:wasDerivedFrom / pr:P248` reference node on the reified
+/// `p:P703` statement rather than a direct `wdt:P248` on `?compound`, because
+/// Wikidata records the supporting publication as a reference on the taxon
+/// occurrence statement.
 #[must_use]
 pub fn build_occurrence_with_ref_query(triples: &[(String, String, String)]) -> String {
     let values = triples
@@ -267,8 +291,10 @@ pub fn build_occurrence_with_ref_query(triples: &[(String, String, String)]) -> 
         "{CURATION_SPARQL_PREFIXES}\n\
          SELECT DISTINCT ?compound ?taxon ?ref WHERE {{\n  \
            VALUES (?compound ?taxon ?ref) {{ {values} }}\n  \
-           ?compound wdt:{occurs} ?taxon ;\n        \
-                   wdt:P248 ?ref .\n\
+           ?compound p:{occurs} ?stmt .\n  \
+           ?stmt ps:{occurs} ?taxon ;\n        \
+                 prov:wasDerivedFrom ?refnode .\n  \
+           ?refnode pr:P248 ?ref .\n\
          }}",
         occurs = property::OCCURS_IN_TAXON,
     )
