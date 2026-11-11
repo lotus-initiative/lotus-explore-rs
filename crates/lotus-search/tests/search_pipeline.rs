@@ -889,3 +889,92 @@ async fn a_stream_answer_names_its_endpoint_and_not_its_body() {
         "the body must not be read to describe the answer, got {rendered:?}"
     );
 }
+
+#[tokio::test]
+async fn an_unmatched_compound_name_or_inchikey_is_rejected_in_resolve_inputs() {
+    let empty_lookup = "compound_qid,compound_label,canonical_smiles,matched_by\n";
+
+    let http_name = Scripted::new(vec![(200, empty_lookup), (200, empty_lookup)]);
+    let err_name = lotus_search::resolve_inputs(
+        &http_name,
+        &SearchCriteria {
+            structure: "amarogentina".into(),
+            ..criteria("")
+        },
+    )
+    .await
+    .expect_err("an unmatched compound name must fail before Sachem");
+    assert!(
+        err_name
+            .to_string()
+            .contains("no compound in Wikidata for 'amarogentina'"),
+        "got: {err_name}"
+    );
+
+    let http_key = Scripted::new(vec![(200, empty_lookup)]);
+    let err_key = lotus_search::resolve_inputs(
+        &http_key,
+        &SearchCriteria {
+            structure: "DBOVHQOUSDWAPQ-WTONXPSSSA-N".into(),
+            ..criteria("")
+        },
+    )
+    .await
+    .expect_err("an unmatched InChIKey must fail before Sachem");
+    assert!(
+        err_key
+            .to_string()
+            .contains("no compound in Wikidata for 'DBOVHQOUSDWAPQ-WTONXPSSSA-N'"),
+        "got: {err_key}"
+    );
+}
+
+#[tokio::test]
+async fn a_qid_in_the_structure_box_fetches_its_smiles_only_for_non_exact_searches() {
+    let http_exact = Scripted::new(Vec::new());
+    let exact = lotus_search::resolve_inputs(
+        &http_exact,
+        &SearchCriteria {
+            structure: "q23118".into(),
+            structure_search: lotus_search::SmilesSearchType::Exact,
+            ..criteria("")
+        },
+    )
+    .await
+    .expect("exact QID needs no network call");
+    assert_eq!(http_exact.call_count(), 0);
+    assert_eq!(exact.compounds, vec!["Q23118".to_string()]);
+    assert_eq!(exact.smiles, None);
+
+    let http_sim = Scripted::new(vec![(200, LOOKUP_CSV)]);
+    let sim = lotus_search::resolve_inputs(
+        &http_sim,
+        &SearchCriteria {
+            structure: "q23118".into(),
+            structure_search: lotus_search::SmilesSearchType::Similarity,
+            ..criteria("")
+        },
+    )
+    .await
+    .expect("similarity QID resolves its canonical SMILES");
+    assert_eq!(http_sim.call_count(), 1);
+    assert_eq!(sim.smiles.as_deref(), Some("COc1ccccc1O"));
+
+    let empty_lookup = "compound_qid,compound_label,canonical_smiles,matched_by\n";
+    let http_missing = Scripted::new(vec![(200, empty_lookup)]);
+    let err = lotus_search::resolve_inputs(
+        &http_missing,
+        &SearchCriteria {
+            structure: "Q999999999".into(),
+            structure_search: lotus_search::SmilesSearchType::Substructure,
+            ..criteria("")
+        },
+    )
+    .await
+    .expect_err("a QID with no structure in Wikidata cannot run a substructure search");
+    assert!(
+        err.to_string()
+            .contains("no compound structure in Wikidata for 'Q999999999'"),
+        "got: {err}"
+    );
+}

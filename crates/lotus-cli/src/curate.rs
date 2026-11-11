@@ -135,13 +135,6 @@ pub async fn run(args: &CurateArgs) -> anyhow::Result<ExitCode> {
             "lotus: nothing has been submitted. These are statements for a \
              person to read and submit."
         );
-        if matches!(args.log, LogLevel::Info | LogLevel::Debug) {
-            eprintln!(
-                "lotus: [info] curating {} unique row(s) (offline={})",
-                unique.len(),
-                args.offline
-            );
-        }
     }
 
     let report = curate_findings(&unique, args.offline).await?;

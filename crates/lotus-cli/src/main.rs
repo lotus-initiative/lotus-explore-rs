@@ -515,13 +515,7 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
     }
 
     let http = lotus_search::reqwest_client::ReqwestClient::new()?;
-    if matches!(args.log, LogLevel::Info | LogLevel::Debug) {
-        eprintln!("lotus: [info] running search (year_max={year_max})");
-    }
     let result = lotus_search::search(&http, &request).await?;
-    if args.log == LogLevel::Debug {
-        eprintln!("lotus: [debug] query:\n{}", result.query);
-    }
 
     if let Some(taxon) = &result.taxon {
         for note in &taxon.notes {
