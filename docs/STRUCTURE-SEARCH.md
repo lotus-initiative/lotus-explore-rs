@@ -194,8 +194,8 @@ And where the mode itself is carried:
 | Surface | How                                                                                                         |
 | ------- | ----------------------------------------------------------------------------------------------------------- |
 | Model   | `SmilesSearchType::{Exact, Substructure, Similarity}`, `Exact` is `Default`                                 |
-| URL     | `structure_search_type=exact\|substructure\|similarity`, and `similarity_threshold` for the third           |
-| API     | `SearchRequest.structure_search`, plus `similarity_threshold`; the old `smiles_threshold` is still accepted |
+| URL     | `structure_search_type=exact\|substructure\|similarity`, and `similarity_threshold` for the third                                   |
+| API     | `SearchRequest.structure_search`, plus `similarity_threshold`; `smiles_search_type`, `smiles_threshold`, and `structure_threshold` are also accepted |
 | CLI     | `--structure-search exact\|substructure\|similarity`, `--threshold`                                         |
 | UI      | three radios under the structure field; the cutoff appears only for similarity                              |
 

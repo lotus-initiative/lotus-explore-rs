@@ -135,6 +135,13 @@ pub async fn run(args: &CurateArgs) -> anyhow::Result<ExitCode> {
             "lotus: nothing has been submitted. These are statements for a \
              person to read and submit."
         );
+        if matches!(args.log, LogLevel::Info | LogLevel::Debug) {
+            eprintln!(
+                "lotus: [info] curating {} unique row(s) (offline={})",
+                unique.len(),
+                args.offline
+            );
+        }
     }
 
     let report = curate_findings(&unique, args.offline).await?;
@@ -220,12 +227,16 @@ fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
     let name = escape_quickstatements(finding.name.trim());
     let raw_smiles = finding.smiles.trim();
     let canonical = lotus_curation::strip_stereo_marks(raw_smiles);
+    let isomeric_smiles =
+        lotus_curation::has_stereo_marks(raw_smiles).then(|| raw_smiles.to_string());
     let mut compound_block = format!(
         "## {name}\nCREATE\nLAST|{PROPERTY_NAME}|\"{name}\"\n\
+         LAST|P31|{qid}\n\
          LAST|{PROPERTY_CANONICAL_SMILES}|\"{canonical}\"",
+        qid = lotus_curation::WD_CHEMICAL_COMPOUND_QID,
         canonical = escape_quickstatements(&canonical),
     );
-    if lotus_curation::has_stereo_marks(raw_smiles) {
+    if isomeric_smiles.is_some() {
         use std::fmt::Write as _;
         let _ = write!(
             compound_block,
@@ -259,8 +270,8 @@ fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
 
     lotus_curation::CurationResultRow {
         input: finding.clone(),
-        canonical_smiles: None,
-        isomeric_smiles: None,
+        canonical_smiles: (!canonical.is_empty()).then_some(canonical),
+        isomeric_smiles,
         inchikey: None,
         inchi: None,
         formula: None,

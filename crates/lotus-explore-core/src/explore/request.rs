@@ -54,7 +54,6 @@ impl SearchRequest {
     }
 
     /// The command that triggered this request.
-    #[allow(dead_code)]
     #[must_use]
     pub const fn command(&self) -> SearchCommand {
         self.command

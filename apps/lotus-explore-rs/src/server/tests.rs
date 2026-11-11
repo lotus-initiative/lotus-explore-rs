@@ -1055,3 +1055,37 @@ fn an_absent_or_blank_reference_is_accepted() {
         );
     }
 }
+
+#[test]
+fn client_dto_round_trips_through_server_search_request() {
+    let mut criteria = lotus_model::SearchCriteria {
+        taxon: "Gentiana lutea".into(),
+        structure: "CCO".into(),
+        structure_search: lotus_model::SmilesSearchType::Similarity,
+        structure_threshold: 0.85,
+        ..lotus_model::SearchCriteria::up_to_year(crate::clock::current_year())
+    };
+    criteria.taxon_names.accepted_synonyms = false;
+    criteria.taxon_names.basionyms = false;
+
+    let dto = lotus_explore_core::api::dto::SearchRequest::from_criteria(
+        &criteria,
+        50,
+        true,
+        crate::clock::current_year(),
+    );
+    let wire = serde_json::to_string(&dto).expect("serializes");
+    let server_req: SearchRequest = serde_json::from_str(&wire).expect("deserializes");
+    let applied = apply_request(&server_req).expect("validates");
+
+    assert_eq!(applied.structure, "CCO");
+    assert_eq!(
+        applied.structure_search,
+        lotus_model::SmilesSearchType::Similarity
+    );
+    assert!((applied.structure_threshold - 0.85).abs() < f64::EPSILON);
+    assert!(!applied.taxon_names.accepted_synonyms);
+    assert!(!applied.taxon_names.basionyms);
+    assert!(applied.taxon_names.protonyms);
+    assert!(applied.taxon_names.replacements);
+}

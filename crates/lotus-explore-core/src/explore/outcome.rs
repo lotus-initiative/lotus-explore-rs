@@ -9,7 +9,6 @@ use std::sync::Arc;
 
 /// Outcome of a results pipeline execution.
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
 pub struct ResultsPipelineOutcome {
     /// The complete result set.
     pub set: Arc<ColumnarResultSet>,
@@ -27,7 +26,6 @@ pub struct ResultsPipelineOutcome {
 
 /// The raw outcome from a completed search execution.
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
 pub struct SearchOutcome {
     /// The complete result set.
     pub set: std::sync::Arc<ColumnarResultSet>,

@@ -11,7 +11,6 @@ use std::sync::Arc;
 
 /// All state transitions that can occur in the Explore feature.
 #[derive(Clone, Debug, PartialEq)]
-#[allow(dead_code)]
 pub enum ExploreAction {
     /// Start a new search lifecycle.
     SearchRequested {

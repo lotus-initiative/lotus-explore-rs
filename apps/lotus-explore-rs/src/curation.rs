@@ -72,19 +72,22 @@ pub async fn curate_rows(
     // The compounds need the local `InChIKey` first, so this runs after the
     // structures are converted -- `convert_structure` is RDKit in the browser
     // and costs no network at all.
-    crate::features::curation::services::prefetch_knowledge(
-        &rows,
-        repository.as_ref(),
-        prefetched_taxa.as_ref(),
-        prefetched_references.as_ref(),
-        &occurrence_ask_cache,
-    )
-    .await?;
+    let prefetched_compounds = Arc::new(
+        crate::features::curation::services::prefetch_knowledge(
+            &rows,
+            repository.as_ref(),
+            prefetched_taxa.as_ref(),
+            prefetched_references.as_ref(),
+            &occurrence_ask_cache,
+        )
+        .await?,
+    );
 
     pipeline::curate_rows(
         locale,
         rows,
         {
+            let prefetched_compounds = Arc::clone(&prefetched_compounds);
             let prefetched_taxa = Arc::clone(&prefetched_taxa);
             let prefetched_references = Arc::clone(&prefetched_references);
             let occurrence_ask_cache = Arc::clone(&occurrence_ask_cache);
@@ -94,6 +97,7 @@ pub async fn curate_rows(
                     locale,
                     row,
                     Arc::clone(&repository),
+                    Arc::clone(&prefetched_compounds),
                     Arc::clone(&prefetched_taxa),
                     Arc::clone(&prefetched_references),
                     Arc::clone(&occurrence_ask_cache),

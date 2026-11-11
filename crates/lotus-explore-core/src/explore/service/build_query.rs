@@ -81,7 +81,9 @@ pub fn build_sparql_query(
             Some(qid) if qid != "*" => {
                 lotus_query::compounds_by_taxon_query_with(qid, &nomenclature)
             }
-            _ => lotus_query::all_compounds_query(),
+            Some(_) => lotus_query::all_compounds_query(),
+            None if crit.taxon.trim() == "*" => lotus_query::all_compounds_query(),
+            None => lotus_query::all_compounds_including_untaxonomised_query(),
         };
     }
 

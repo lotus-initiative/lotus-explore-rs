@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use super::rules::{
-    validate_element_count, validate_mass, validate_similarity_threshold, validate_smiles,
+    validate_element_count, validate_mass_range, validate_similarity_threshold, validate_smiles,
     validate_taxon, validate_year_range,
 };
 use super::types::ValidationError;
@@ -43,7 +43,7 @@ fn validation_errors(criteria: &SearchCriteria) -> Result<(), Vec<ValidationErro
     push_error(&mut errors, validate_smiles(&criteria.structure));
     push_error(
         &mut errors,
-        validate_mass(criteria.mass_min, criteria.mass_min, criteria.mass_max),
+        validate_mass_range(criteria.mass_min, criteria.mass_max),
     );
     push_error(
         &mut errors,
@@ -51,7 +51,7 @@ fn validation_errors(criteria: &SearchCriteria) -> Result<(), Vec<ValidationErro
     );
     push_error(
         &mut errors,
-        validate_element_count(criteria.c_min + criteria.h_min),
+        validate_element_count(criteria.c_min.saturating_add(criteria.h_min)),
     );
     push_error(
         &mut errors,

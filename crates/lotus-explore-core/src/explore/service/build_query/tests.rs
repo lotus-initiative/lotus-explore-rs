@@ -13,12 +13,11 @@ const YEAR: u16 = 2026;
 fn empty_smiles_and_no_taxon_returns_all_compounds_query() {
     let crit = SearchCriteria::up_to_year(YEAR);
     let q = build_sparql_query(&ResolvedStructure::unresolved(""), &crit, None);
-    // All-compounds query should select without a FILTER for a specific taxon.
-    assert!(
-        q.contains("SELECT") || q.contains("select"),
-        "must be a SELECT query"
+    assert_eq!(
+        q,
+        lotus_query::all_compounds_including_untaxonomised_query(),
+        "an empty taxon box must include untaxonomised compounds"
     );
-    assert!(!q.contains("Q12345"), "must not contain a specific QID");
 }
 
 #[test]
@@ -174,6 +173,19 @@ fn the_wildcard_taxon_with_no_structure_is_exactly_the_all_compounds_query() {
     assert_eq!(
         build_sparql_query(&ResolvedStructure::unresolved(""), &crit, Some("*")),
         lotus_query::all_compounds_query()
+    );
+    let unresolved_wildcard = SearchCriteria {
+        taxon: " * ".into(),
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    assert_eq!(
+        build_sparql_query(
+            &ResolvedStructure::unresolved(""),
+            &unresolved_wildcard,
+            None
+        ),
+        lotus_query::all_compounds_query(),
+        "an unresolved wildcard in criteria.taxon must still require an occurrence"
     );
 }
 

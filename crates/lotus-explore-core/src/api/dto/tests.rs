@@ -141,3 +141,24 @@ fn server_stats_become_dataset_stats_counter_for_counter() {
     };
     assert_eq!(DatasetStats::from(uncounted).n_entries_unique, 7);
 }
+
+#[test]
+fn request_builder_serializes_disabled_taxon_nomenclature_switches_only() {
+    let default_req =
+        SearchRequest::from_criteria(&SearchCriteria::up_to_year(YEAR), 10, false, YEAR);
+    assert_eq!(default_req.taxon_accepted_synonyms, None);
+    assert_eq!(default_req.taxon_basionyms, None);
+    assert_eq!(default_req.taxon_protonyms, None);
+    assert_eq!(default_req.taxon_replacements, None);
+
+    let mut narrowed = SearchCriteria::up_to_year(YEAR);
+    narrowed.taxon_names.accepted_synonyms = false;
+    narrowed.taxon_names.basionyms = false;
+    narrowed.taxon_names.protonyms = false;
+    narrowed.taxon_names.replacements = false;
+    let narrowed_req = SearchRequest::from_criteria(&narrowed, 10, false, YEAR);
+    assert_eq!(narrowed_req.taxon_accepted_synonyms, Some(false));
+    assert_eq!(narrowed_req.taxon_basionyms, Some(false));
+    assert_eq!(narrowed_req.taxon_protonyms, Some(false));
+    assert_eq!(narrowed_req.taxon_replacements, Some(false));
+}

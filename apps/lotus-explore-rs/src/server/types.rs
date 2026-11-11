@@ -30,6 +30,7 @@ pub struct HealthResponse {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum ApiSmilesSearchType {
+    Exact,
     Substructure,
     Similarity,
 }
@@ -37,6 +38,7 @@ pub enum ApiSmilesSearchType {
 impl From<ApiSmilesSearchType> for SmilesSearchType {
     fn from(value: ApiSmilesSearchType) -> Self {
         match value {
+            ApiSmilesSearchType::Exact => Self::Exact,
             ApiSmilesSearchType::Substructure => Self::Substructure,
             ApiSmilesSearchType::Similarity => Self::Similarity,
         }
@@ -85,12 +87,15 @@ pub struct SearchRequest {
     pub(crate) taxon_basionyms: Option<bool>,
     pub(crate) taxon_protonyms: Option<bool>,
     pub(crate) taxon_replacements: Option<bool>,
+    #[serde(alias = "structure")]
     pub(crate) smiles: Option<String>,
+    #[serde(alias = "structure_search")]
     pub(crate) smiles_search_type: Option<ApiSmilesSearchType>,
     /// Tanimoto cutoff for a similarity structure search. Read under the name it
-    /// now has; the old `smiles_threshold` is still accepted, because links
-    /// naming it are already in people's clipboard histories.
-    #[serde(alias = "smiles_threshold")]
+    /// now has; the old `smiles_threshold` and client `structure_threshold` are
+    /// still accepted, because links naming it are already in people's clipboard
+    /// histories.
+    #[serde(alias = "smiles_threshold", alias = "structure_threshold")]
     pub(crate) similarity_threshold: Option<f64>,
     pub(crate) mass_min: Option<f64>,
     pub(crate) mass_max: Option<f64>,

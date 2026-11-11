@@ -102,6 +102,14 @@ fn a_two_sided_range_is_the_only_way_to_get_a_lower_bound() {
         error.contains("MIN..MAX"),
         "the message must say what was expected: {error:?}"
     );
+
+    let inverted = parse("20..10").expect_err("an inverted range is rejected");
+    assert!(
+        inverted.contains("minimum 20 is above maximum 10"),
+        "the message must explain why the range failed: {inverted:?}"
+    );
+    let exact = parse("10..10").expect("an exact range parses");
+    assert_eq!((exact.min, exact.max), (10, 10));
 }
 
 #[test]

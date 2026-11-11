@@ -319,10 +319,14 @@ impl std::str::FromStr for Range {
                 min: 0,
                 max: max.parse().map_err(|_| bad())?,
             }),
-            Some((min, max)) => Ok(Self {
-                min: min.parse().map_err(|_| bad())?,
-                max: max.parse().map_err(|_| bad())?,
-            }),
+            Some((min, max)) => {
+                let min: u16 = min.parse().map_err(|_| bad())?;
+                let max: u16 = max.parse().map_err(|_| bad())?;
+                if min > max {
+                    return Err(format!("minimum {min} is above maximum {max} in {value:?}"));
+                }
+                Ok(Self { min, max })
+            }
             None => {
                 // A bare number is an upper bound: `--carbon 5` reads as "at
                 // most 5 carbons", which is the bound a chemist narrows with.
@@ -511,7 +515,13 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
     }
 
     let http = lotus_search::reqwest_client::ReqwestClient::new()?;
+    if matches!(args.log, LogLevel::Info | LogLevel::Debug) {
+        eprintln!("lotus: [info] running search (year_max={year_max})");
+    }
     let result = lotus_search::search(&http, &request).await?;
+    if args.log == LogLevel::Debug {
+        eprintln!("lotus: [debug] query:\n{}", result.query);
+    }
 
     if let Some(taxon) = &result.taxon {
         for note in &taxon.notes {
@@ -653,6 +663,14 @@ async fn export(args: ExportArgs) -> anyhow::Result<ExitCode> {
 /// writing six files to an output directory. No network transport beyond the
 /// SPARQL endpoint and the `NPClassifier` cache fetch.
 async fn export_pubchem_tree(args: ExportPubchemTreeArgs) -> anyhow::Result<ExitCode> {
+    let year = args.year.unwrap_or_else(current_year);
+    if !(lotus_model::YEAR_MIN..=current_year()).contains(&year) {
+        anyhow::bail!(
+            "--year must be in {}..={}, got {year}",
+            lotus_model::YEAR_MIN,
+            current_year()
+        );
+    }
     let now = now_iso_utc();
 
     let http = lotus_search::reqwest_client::ReqwestClient::new()?;
@@ -674,7 +692,11 @@ async fn export_pubchem_tree(args: ExportPubchemTreeArgs) -> anyhow::Result<Exit
     let write = |name: &str, content: &str| -> anyhow::Result<()> {
         let path = output_dir.join(name);
         std::fs::write(&path, content)?;
-        eprintln!("lotus: wrote {} to {}", content.len(), path.display());
+        eprintln!(
+            "lotus: wrote {} bytes (up to {year}) to {}",
+            content.len(),
+            path.display()
+        );
         Ok(())
     };
 

@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use lotus_query::{
     COMPOUND_TAXON_REFERENCE_QUERY, EXPORT_COMPOUNDS_QUERY, EXPORT_REFERENCES_QUERY,
-    EXPORT_TAXA_QUERY, QLEVER_WIKIDATA, extract_qid,
+    EXPORT_TAXA_QUERY, extract_qid,
 };
 use lotus_search::{Endpoint, FetchError, Http, ResponseFormat, execute_streaming};
 use thiserror::Error;
@@ -515,7 +515,7 @@ pub async fn run_lotus_exporter<H: Http>(
     let meta_lines = vec![
         MetaLine {
             key: "endpoint".into(),
-            value: QLEVER_WIKIDATA.to_string(),
+            value: endpoint.url().to_string(),
         },
         MetaLine {
             key: "date_created".into(),

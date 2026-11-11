@@ -47,6 +47,7 @@ pub async fn curate_single_row(
     locale: Locale,
     input: CurationInputRow,
     repository: Arc<dyn CurationKnowledgeRepository>,
+    prefetched_compounds: Arc<HashMap<String, WikidataCompound>>,
     prefetched_taxa: Arc<HashMap<String, String>>,
     prefetched_references: Arc<HashMap<String, String>>,
     occurrence_ask_cache: Arc<Mutex<OccurrenceAskCache>>,
@@ -55,6 +56,7 @@ pub async fn curate_single_row(
         locale,
         &input,
         repository.as_ref(),
+        prefetched_compounds.as_ref(),
         prefetched_taxa.as_ref(),
         prefetched_references.as_ref(),
         occurrence_ask_cache.as_ref(),
@@ -92,15 +94,22 @@ async fn enrich_and_generate(
     locale: Locale,
     input: &CurationInputRow,
     repository: &dyn CurationKnowledgeRepository,
+    prefetched_compounds: &HashMap<String, WikidataCompound>,
     prefetched_taxa: &HashMap<String, String>,
     prefetched_references: &HashMap<String, String>,
     occurrence_ask_cache: &Mutex<OccurrenceAskCache>,
 ) -> Result<CurationResultRow, CurationError> {
     let structure = convert_structure(&input.smiles).await?;
     let normalized_doi = input.doi.as_deref().and_then(normalize_doi);
-    let existing = repository
-        .fetch_compound_by_inchikey(&structure.inchikey)
-        .await?;
+    let existing = match prefetched_compounds.get(&structure.inchikey) {
+        Some(compound) => Some(compound.clone()),
+        None if prefetched_compounds.is_empty() => {
+            repository
+                .fetch_compound_by_inchikey(&structure.inchikey)
+                .await?
+        }
+        None => None,
+    };
 
     let dependencies = resolve_row_dependencies(
         locale,

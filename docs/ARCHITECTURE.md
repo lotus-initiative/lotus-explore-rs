@@ -11,7 +11,7 @@ the same query from being written three times, and it is checkable in CI.
 | -------------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------ | -------------------------------------------- |
 | [`lotus-model`](../crates/lotus-model/README.md)               | Pure         | `SearchCriteria`, `ColumnarResultSet`, `LotusEntry`, structure/identifier classifiers, validators | *(none)*                                     |
 | [`lotus-query`](../crates/lotus-query/README.md)               | Pure         | SPARQL builders, query rewriters (`counts_query`, `occurrences_query`), CSV/JSON/RDF parsers/I/O | `lotus-model`                                |
-| [`lotus-curation`](../crates/lotus-curation/README.md)         | Pure         | Curation vocabulary, TSV reader, Wikidata lookup SPARQL, QuickStatements V1 generator            | *(none)*                                     |
+| [`lotus-curation`](../crates/lotus-curation/README.md)         | Use-case     | Curation vocabulary, TSV reader, Wikidata lookup SPARQL, QuickStatements V1 generator            | `lotus-search`                               |
 | [`lotus-jsonld`](../crates/lotus-jsonld/README.md)             | Pure         | Bioschemas JSON-LD, CodeMeta (`codemeta.json`), `CITATION.cff`                                   | `lotus-model`                                |
 | [`lotus-search`](../crates/lotus-search/README.md)             | Use-case     | `Http` trait, taxon/compound/DOI resolution, retry, QLever→WDQS fallback, split-stream fold      | `lotus-model`, `lotus-query`                 |
 | [`lotus-explore-core`](../crates/lotus-explore-core/README.md) | App core     | Framework-free `ExploreState` reducer, `CriteriaQueryDto` URL codec, client filter/sort, exports | `lotus-model`, `lotus-query`, `lotus-search` |
@@ -19,9 +19,9 @@ the same query from being written three times, and it is checkable in CI.
 | [`lotus-cli`](../crates/lotus-cli/README.md)                   | Front end    | The `lotus` binary (`search`, `curate`, `export`, `export-pubchem-tree`, `archive`)              | all shared crates above                      |
 | [`apps/lotus-explore-rs`](../apps/lotus-explore-rs/README.md)  | Front end    | Dioxus web client (WASM), optional Axum HTTP API (`--features server`), optional desktop window  | all shared crates above                      |
 
-The arrows all point inward. `lotus-model` and `lotus-curation` depend on no
-other crate in the workspace, which is why they hold the foundational vocabulary
-that everything else agrees on.
+The arrows all point inward. `lotus-model` depends on no other crate in the
+workspace, which is why it holds the foundational vocabulary that everything
+else agrees on.
 
 ## Three rules, and why they are checkable
 
@@ -193,7 +193,10 @@ crates/
 │   └── export/          Bulk pipelines: pipeline.rs (`lotus export`), pubchem_tree.rs, archive.rs
 │
 └── lotus-curation/src/
-    ├── input.rs          TSV curation file parser
+    ├── constants.rs      Wikidata property & entity constants
+    ├── types.rs          CurationInputRow, ConvertedStructure, CurationResultRow, CurationStatus
+    ├── input.rs          TSV curation file parser and row deduplication key
+    ├── structure.rs      CDK Depict / Cactus SMILES->InChIKey/InChI/formula/mass conversion
     ├── wikidata_query.rs SPARQL lookups for existing compounds, taxa, references, occurrences
     ├── knowledge.rs      Reconciliation logic (matching local rows against Wikidata items)
     └── quickstatements.rs QuickStatements V1 batch generation

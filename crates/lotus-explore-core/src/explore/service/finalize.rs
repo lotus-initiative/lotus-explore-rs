@@ -9,7 +9,6 @@ use std::sync::Arc;
 
 /// Computed hashes and metadata JSON for a single search result.
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
 pub struct FinalizedMeta {
     /// Hash of the query that produced the result.
     pub query_hash: Arc<str>,

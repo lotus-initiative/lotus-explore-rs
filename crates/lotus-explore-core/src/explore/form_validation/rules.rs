@@ -6,7 +6,7 @@ use lotus_model::SmilesSearchType;
 
 const MAX_TAXON_LEN: usize = 500;
 const MAX_STRUCTURE_LEN: usize = 10_000;
-const MIN_YEAR: u16 = 1600;
+const MIN_YEAR: u16 = lotus_model::YEAR_MIN;
 const MAX_MASS: f64 = 10_000.0;
 const MAX_ELEMENT_COUNT: u16 = 1000;
 
@@ -69,7 +69,6 @@ pub(super) fn validate_mass(value: f64, min: f64, max: f64) -> ValidationResult<
 }
 
 /// Validate mass range. Helper for validators and test code.
-#[cfg(test)]
 pub(super) fn validate_mass_range(min: f64, max: f64) -> ValidationResult<()> {
     validate_mass(min, min, max)?;
     validate_mass(max, min, max)

@@ -11,9 +11,9 @@
 //! The LOTUS Explorer's domain logic.
 //!
 //! The modules are public rather than flattened into the crate root, because
-//! the names repeat: `explore::request::SearchRequest` and `api::dto::SearchRequest`
-//! are different things, and a flat root would have to invent a prefix for one
-//! of them.
+//! the names repeat: `explore::request::SearchRequest` (the client-side search
+//! envelope) and `api::dto::SearchRequest` (the REST wire payload) are different
+//! things, and a flat root would have to invent a prefix for one of them.
 
 /// The wire format the REST API speaks.
 pub mod api;

@@ -46,7 +46,6 @@ pub fn retry_eligibility_summary(
 
 /// Normalized retry decision used by lifecycle/telemetry orchestration.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[allow(dead_code)]
 pub struct RetryPlan {
     /// The class of error that produced this plan.
     pub error_class: ErrorClass,

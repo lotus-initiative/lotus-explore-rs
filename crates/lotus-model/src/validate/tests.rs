@@ -56,6 +56,27 @@ fn an_inverted_range_is_rejected_rather_than_silently_swapped() {
         validate_criteria(&year, 2026),
         Err(ValidationError::YearRangeInverted)
     );
+
+    let carbon = SearchCriteria {
+        c_min: 20,
+        c_max: 10,
+        ..criteria()
+    };
+    assert_eq!(
+        validate_criteria(&carbon, 2026),
+        Err(ValidationError::ElementRangeInverted { element: "C" })
+    );
+
+    let exact_carbon = SearchCriteria {
+        c_min: 10,
+        c_max: 10,
+        ..criteria()
+    };
+    assert_eq!(
+        validate_criteria(&exact_carbon, 2026),
+        Ok(()),
+        "an exact element count is valid, not inverted"
+    );
 }
 
 #[test]

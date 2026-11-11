@@ -81,7 +81,7 @@ constraint at all. That is the largest answer this app can produce, and the
 narrowest reading of "I typed nothing" is that nothing is constrained.
 
 **This is deliberate, and the reasoning is written down** in
-`apps/lotus-explore-rs/src/table_budget.rs`. An earlier 500-row ceiling was
+`crates/lotus-explore-core/src/table_budget.rs`. An earlier 500-row ceiling was
 removed on purpose, because it was a row-count bound standing in for a memory
 bound, and it had three bad consequences:
 
@@ -98,7 +98,7 @@ dictionary ids and the table materialises only the thirty rows on screen.
 
 So for these cells there is deliberately **no `LIMIT`** and no `truncated` flag
 on the web path — `display_capped_rows` is a constant `false`, with the reason in
-`features/explore/outcome.rs`. What remains is a ceiling on a single request's
+`crates/lotus-explore-core/src/explore/outcome.rs`. What remains is a ceiling on a single request's
 payload, which belongs to the server rather than to the query.
 
 Two things follow that are worth a human's attention rather than a change here:

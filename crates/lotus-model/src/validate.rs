@@ -44,6 +44,9 @@ pub enum ValidationError {
     #[error("{element} count is above {max}, the widest a molecule can plausibly be")]
     ElementCountTooHigh { element: &'static str, max: u16 },
 
+    #[error("{element} minimum count is above the maximum")]
+    ElementRangeInverted { element: &'static str },
+
     #[error("similarity search needs a threshold above 0")]
     SimilarityThresholdInvalid,
 
@@ -123,6 +126,9 @@ pub fn validate_criteria(criteria: &SearchCriteria, year_max: u16) -> Result<(),
                     max: default_max,
                 });
             }
+        }
+        if min > max {
+            return Err(ValidationError::ElementRangeInverted { element: symbol });
         }
     }
 

@@ -49,9 +49,6 @@ pub fn format_curation_error_typed(locale: Locale, err: &CurationError) -> Strin
     if matches!(err.kind(), CurationErrorKind::Transport) {
         return format_curation_error(locale, &detail);
     }
-    if !err.is_recoverable() {
-        return msg_curation_failed(locale, &detail);
-    }
     msg_curation_failed(locale, &detail)
 }
 

@@ -639,8 +639,26 @@ pub async fn resolve_inputs<H: Http>(
 
     let structure = normalize_structure(&criteria.structure);
     if !structure.is_empty() {
+        let trimmed = structure.trim();
         let found = resolve_structure(http, &structure).await?;
-        if found.smiles != structure.trim() {
+        if found.compounds.is_empty()
+            && (looks_like_inchikey(trimmed) || lotus_model::could_be_a_compound_name(trimmed))
+        {
+            return Err(FetchError::Parse(format!(
+                "no compound in Wikidata for '{}'",
+                found.looked_up
+            )));
+        }
+        if criteria.structure_search != lotus_model::SmilesSearchType::Exact && is_qid(trimmed) {
+            let qid = trimmed.to_ascii_uppercase();
+            let matches = lookup_compounds(http, &lotus_query::compound_by_qid_query(&qid)).await?;
+            let Some(smiles) = first_canonical_smiles(&matches) else {
+                return Err(FetchError::Parse(format!(
+                    "no compound structure in Wikidata for '{qid}'"
+                )));
+            };
+            resolved.smiles = Some(smiles);
+        } else if found.smiles != trimmed {
             resolved.smiles = Some(found.smiles);
         }
         resolved.compounds = found.compounds;

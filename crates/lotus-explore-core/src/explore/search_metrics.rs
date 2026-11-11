@@ -6,7 +6,6 @@
 
 /// Wall-clock timings accumulated during a single search execution.
 #[derive(Default, Clone, Copy, Debug)]
-#[allow(dead_code)]
 pub struct SearchMetrics {
     /// Total wall time spent waiting for network responses (ms).
     pub network_ms: f64,

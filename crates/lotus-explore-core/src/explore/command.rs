@@ -4,7 +4,6 @@
 
 /// The entry point that asked for a search.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[allow(dead_code)]
 pub enum SearchCommand {
     /// User clicked search / pressed Enter / requested preview.
     Interactive,
@@ -17,7 +16,6 @@ pub enum SearchCommand {
 impl SearchCommand {
     /// Whether this command prepares a download instead of an interactive search.
     #[must_use]
-    #[allow(dead_code)]
     pub const fn direct_download(self) -> bool {
         matches!(self, Self::StartupDownload)
     }

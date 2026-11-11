@@ -11,7 +11,6 @@ use super::super::ResultDataState;
 use lotus_model::ColumnarResultSet;
 
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
 pub(super) struct SearchSuccessPayload {
     pub set: Arc<ColumnarResultSet>,
     pub qid: Option<String>,

@@ -60,8 +60,17 @@ impl From<ElementState> for ApiElementState {
 #[derive(Debug, Serialize)]
 pub struct SearchRequest {
     taxon: Option<String>,
-    /// A Wikidata QID or a DOI. Resolved server-side, like `taxon`.
+    /// A Wikidata QID (e.g. `"Q23118"`). A DOI must be resolved to its QID before
+    /// calling the server API.
     reference: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    taxon_accepted_synonyms: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    taxon_basionyms: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    taxon_protonyms: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    taxon_replacements: Option<bool>,
     structure: Option<String>,
     structure_search: Option<ApiSmilesSearchType>,
     structure_threshold: Option<f64>,
@@ -115,6 +124,10 @@ impl SearchRequest {
                 let reference = criteria.reference.trim();
                 (!reference.is_empty()).then(|| reference.to_string())
             },
+            taxon_accepted_synonyms: (!criteria.taxon_names.accepted_synonyms).then_some(false),
+            taxon_basionyms: (!criteria.taxon_names.basionyms).then_some(false),
+            taxon_protonyms: (!criteria.taxon_names.protonyms).then_some(false),
+            taxon_replacements: (!criteria.taxon_names.replacements).then_some(false),
             structure: has_smiles.then_some(smiles),
             structure_search: has_smiles.then_some(criteria.structure_search.into()),
             structure_threshold: (criteria.structure_search == SmilesSearchType::Similarity
