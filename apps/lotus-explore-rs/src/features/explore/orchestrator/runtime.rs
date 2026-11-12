@@ -134,8 +134,11 @@ async fn handle_search_error(
 }
 
 fn validate_search_criteria(criteria: &SearchCriteria) -> Result<(), DomainError> {
-    lotus_explore_core::explore::form_validation::validate_dispatch_criteria(criteria)
-        .map_err(DomainError::Validation)
+    lotus_explore_core::explore::form_validation::validate_dispatch_criteria(
+        criteria,
+        crate::clock::current_year(),
+    )
+    .map_err(DomainError::Validation)
 }
 
 fn build_search_succeeded_action(request: &SearchRequest, outcome: SearchOutcome) -> ExploreAction {

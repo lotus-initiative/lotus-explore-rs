@@ -185,9 +185,9 @@ crates/
 │   │   ├── actions.rs       ExploreAction enum (every state transition)
 │   │   ├── service/         build_query.rs (ResolvedStructure -> SPARQL), strategy.rs, finalize.rs
 │   │   ├── url_codec/       CriteriaQueryDto (URL query string <-> SearchCriteria round-trip)
-│   │   └── form_validation/ Form validation dispatch and error types
+│   │   └── form_validation.rs Maps lotus_model::validate_criteria to ValidationFault
 │   ├── filters.rs       Per-column client-side filtering over ColumnarResultSet
-│   ├── sort.rs          Multi-column client-side sorting over ColumnarResultSet
+│   ├── sort.rs          Per-column client-side sorting over ColumnarResultSet
 │   ├── table_budget.rs  Row rendering budget calculation
 │   ├── api/             REST API DTOs and error types shared by client and server
 │   └── export/          Bulk pipelines: pipeline.rs (`lotus export`), pubchem_tree.rs, archive.rs
@@ -260,7 +260,7 @@ The app domain is split into `crates/lotus-explore-core` (framework-free) and `a
 - Actions/outcomes/types: `lotus_explore_core::explore::{actions,outcome,types,request,retry,...}`
 - URL/state encoding: `lotus_explore_core::explore::url_codec/*`
 - Domain services/logic: `lotus_explore_core::explore::service/*`, `form_validation`, `form_actions`, `search_utils`, etc.
-- Shared domain: `lotus_explore_core::{api,dto,error,export,filters,sort,table_budget,ports}`
+- Shared domain: `lotus_explore_core::{api,export,filters,sort,table_budget,ports}`
 - Clock/time: pass `year: u16`/ISO strings as parameters (no `now()` in core)
 
 ### Adapter (Dioxus-specific)

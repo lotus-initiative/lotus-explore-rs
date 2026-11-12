@@ -190,6 +190,9 @@ pub enum ValidationFault {
     /// The requested element count is unreasonably high.
     #[error("element count is too high")]
     ElementCountTooHigh,
+    /// An element's minimum count exceeds its maximum count.
+    #[error("element range is invalid")]
+    ElementRangeInvalid,
     /// The similarity threshold is not a positive number.
     #[error("similarity threshold must be greater than 0")]
     SimilarityThresholdInvalid,

@@ -199,10 +199,12 @@ And where the mode itself is carried:
 | CLI     | `--structure-search exact\|substructure\|similarity`, `--threshold`                                         |
 | UI      | three radios under the structure field; the cutoff appears only for similarity                              |
 
-The CLI is the one surface that does **not** resolve. It shares the query builders
-with the app but not the resolver, so `--structure` takes a structure — which is
-what its own description says, and why `--structure-search exact` there means a
-same-molecule search rather than an identity one.
+Both the web app (`resolve_structure::resolve`) and `lotus search`
+(`lotus_search::resolve_structure`) resolve compound names, InChIKeys, QIDs, and
+exact structures before building the query. The two surfaces that do **not**
+resolve are the HTTP REST API (`/v1/search`, whose `smiles` field goes straight to
+`lotus_search::build_execution_query`) and `lotus search --explain` (which stays
+offline by design and only seeds bare QIDs directly).
 
 ## The example buttons
 

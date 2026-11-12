@@ -91,6 +91,7 @@ pub async fn run_pubchem_tree<H: Http>(
         &index,
     );
 
+    let sparql_endpoint = endpoint.url();
     let (npclassifier_full, npclassifier_pubchem) = if npclassifier.is_empty() {
         (String::new(), String::new())
     } else {
@@ -99,14 +100,25 @@ pub async fn run_pubchem_tree<H: Http>(
                 TreeKind::NpClassifier,
                 &npclassifier,
                 now,
+                sparql_endpoint,
             ))?,
             render(&compact::npclassifier(&npclassifier))?,
         )
     };
 
     Ok((
-        render(&FullDocument::new(TreeKind::Biological, &biological, now))?,
-        render(&FullDocument::new(TreeKind::Chemical, &chemical, now))?,
+        render(&FullDocument::new(
+            TreeKind::Biological,
+            &biological,
+            now,
+            sparql_endpoint,
+        ))?,
+        render(&FullDocument::new(
+            TreeKind::Chemical,
+            &chemical,
+            now,
+            sparql_endpoint,
+        ))?,
         npclassifier_full,
         render(&compact::biological(&biological))?,
         render(&compact::chemical(&chemical))?,

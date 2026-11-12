@@ -39,6 +39,10 @@ pub fn err_element_count_too_high() -> String {
     "Les comptages d'éléments de la formule sont trop élevés.".to_string()
 }
 
+pub fn err_element_range_invalid() -> String {
+    "Le minimum d'un élément de la formule ne peut pas dépasser son maximum.".to_string()
+}
+
 pub fn err_similarity_threshold_invalid() -> String {
     "Le seuil de similarité doit être supérieur à 0.".to_string()
 }

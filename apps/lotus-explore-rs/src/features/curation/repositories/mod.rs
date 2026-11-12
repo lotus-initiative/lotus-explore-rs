@@ -25,13 +25,6 @@ pub type OccurrencePair = (String, String);
 pub type OccurrenceTriple = (String, String, String);
 
 pub trait CurationKnowledgeRepository: Send + Sync {
-    /// Fetch a chemical compound by `InChIKey` from Wikidata.
-    /// Returns `None` if no compound with that key exists; errors indicate network/parse issues.
-    fn fetch_compound_by_inchikey(
-        &self,
-        inchikey: &str,
-    ) -> BoxedFuture<'_, Result<Option<WikidataCompound>, CurationError>>;
-
     /// Resolve or create a taxon entity by name.
     /// If `pre_resolved_qid` is provided and valid, returns it immediately.
     fn resolve_or_create_taxon(
@@ -39,12 +32,6 @@ pub trait CurationKnowledgeRepository: Send + Sync {
         name: &str,
         pre_resolved_qid: Option<&str>,
     ) -> BoxedFuture<'_, ResolveTaxonResult>;
-
-    /// Resolve a reference (publication) by DOI to a Wikidata QID.
-    fn resolve_reference_qid(
-        &self,
-        doi: &str,
-    ) -> BoxedFuture<'_, Result<Option<String>, CurationError>>;
 
     /// Check if a compound has a taxon occurrence with a specific reference (all three linked).
     fn compound_has_taxon_with_ref(
@@ -75,9 +62,7 @@ pub trait CurationKnowledgeRepository: Send + Sync {
 
     /// Fetch every compound in a run with one query, keyed by `InChIKey`.
     ///
-    /// A batch item, not a convenience: the per-key method above it is what a run
-    /// used to call once per row, four requests per row against a shared public
-    /// endpoint. Keys absent from the map are absent from Wikidata.
+    /// Keys absent from the map are absent from Wikidata.
     fn fetch_compounds_by_inchikeys(
         &self,
         keys: &[String],

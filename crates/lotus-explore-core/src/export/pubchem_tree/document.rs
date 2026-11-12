@@ -3,7 +3,6 @@
 //! The full form of a tree: the tree under a documentation block and a
 //! metadata block.
 
-use lotus_query::QLEVER_WIKIDATA;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
 
@@ -19,18 +18,18 @@ pub(super) enum TreeKind {
 }
 
 /// The fixed text one kind of document carries.
-struct Texts {
+struct Texts<'a> {
     name: &'static str,
     overview: &'static str,
     description: &'static str,
     notes: [&'static str; 4],
     root: &'static str,
     classification: &'static str,
-    endpoint: &'static str,
+    endpoint: &'a str,
 }
 
 impl TreeKind {
-    const fn texts(self) -> Texts {
+    const fn texts(self, sparql_endpoint: &str) -> Texts<'_> {
         match self {
             Self::Biological => Texts {
                 name: "LOTUS biological Tree",
@@ -44,7 +43,7 @@ impl TreeKind {
                 ],
                 root: "Biota (Q2382443)",
                 classification: "Wikidata",
-                endpoint: QLEVER_WIKIDATA,
+                endpoint: sparql_endpoint,
             },
             Self::Chemical => Texts {
                 name: "LOTUS chemical Tree (Wikidata)",
@@ -58,7 +57,7 @@ impl TreeKind {
                 ],
                 root: "chemical compound (Q11173)",
                 classification: "Wikidata",
-                endpoint: QLEVER_WIKIDATA,
+                endpoint: sparql_endpoint,
             },
             Self::NpClassifier => Texts {
                 name: "LOTUS chemical Tree (NPClassifier)",
@@ -88,8 +87,13 @@ pub(super) struct FullDocument<'a, T> {
 }
 
 impl<'a, T: TreeNode> FullDocument<'a, T> {
-    pub(super) fn new(kind: TreeKind, tree: &'a [T], generated: &str) -> Self {
-        let texts = kind.texts();
+    pub(super) fn new(
+        kind: TreeKind,
+        tree: &'a [T],
+        generated: &str,
+        sparql_endpoint: &str,
+    ) -> Self {
+        let texts = kind.texts(sparql_endpoint);
         Self {
             documentation: documentation(kind, &texts),
             metadata: json!({

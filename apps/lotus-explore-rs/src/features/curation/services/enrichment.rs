@@ -101,15 +101,7 @@ async fn enrich_and_generate(
 ) -> Result<CurationResultRow, CurationError> {
     let structure = convert_structure(&input.smiles).await?;
     let normalized_doi = input.doi.as_deref().and_then(normalize_doi);
-    let existing = match prefetched_compounds.get(&structure.inchikey) {
-        Some(compound) => Some(compound.clone()),
-        None if prefetched_compounds.is_empty() => {
-            repository
-                .fetch_compound_by_inchikey(&structure.inchikey)
-                .await?
-        }
-        None => None,
-    };
+    let existing = prefetched_compounds.get(&structure.inchikey).cloned();
 
     let dependencies = resolve_row_dependencies(
         locale,
@@ -466,7 +458,7 @@ async fn resolve_row_dependencies(
     let (ref_qid_opt, ref_new_qs) = match normalized_doi {
         Some(doi) => {
             let prefetched_ref_qid = prefetched_references.get(doi).map(String::as_str);
-            resolve_or_create_reference(repository, doi, prefetched_ref_qid).await?
+            resolve_or_create_reference(doi, prefetched_ref_qid).await
         }
         None => (None, Vec::new()),
     };
@@ -498,20 +490,17 @@ async fn resolve_row_dependencies(
     Ok(Some(resolution))
 }
 
-/// Resolve a row's reference, or produce the statements that would create one.
+/// Resolve a row's reference from the batch lookup, or produce the statements
+/// that would create one.
 ///
 /// Returns `None` for the item and the dependency block that creates it, because
 /// the row's own statements cannot name a reference that does not exist.
 async fn resolve_or_create_reference(
-    repository: &dyn CurationKnowledgeRepository,
     doi: &str,
     pre_resolved_qid: Option<&str>,
-) -> Result<(Option<String>, Vec<String>), CurationError> {
+) -> (Option<String>, Vec<String>) {
     if let Some(qid) = pre_resolved_qid {
-        return Ok((Some(qid.into()), Vec::new()));
-    }
-    if let Some(qid) = repository.resolve_reference_qid(doi).await? {
-        return Ok((Some(qid), Vec::new()));
+        return (Some(qid.into()), Vec::new());
     }
 
     let mut lines = vec![REFERENCE_STEP_HEADER.to_owned()];
@@ -522,7 +511,7 @@ async fn resolve_or_create_reference(
         lines.push("LAST|P31|Q13442814".to_owned());
         lines.push(format!("LAST|P356|\"{}\"", escape_qs_string(doi)));
     }
-    Ok((None, lines))
+    (None, lines)
 }
 
 /// Heads the block that creates a missing reference, so a curator can see where

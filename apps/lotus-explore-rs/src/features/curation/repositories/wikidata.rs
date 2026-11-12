@@ -12,14 +12,6 @@ use super::ResolveTaxonResult;
 pub struct WikidataKnowledgeRepository;
 
 impl CurationKnowledgeRepository for WikidataKnowledgeRepository {
-    fn fetch_compound_by_inchikey(
-        &self,
-        inchikey: &str,
-    ) -> super::BoxedFuture<'_, Result<Option<WikidataCompound>, CurationError>> {
-        let inchikey = inchikey.to_string();
-        Box::pin(async move { wikidata::fetch_wikidata_compound_by_inchikey(&inchikey).await })
-    }
-
     fn resolve_or_create_taxon(
         &self,
         name: &str,
@@ -30,14 +22,6 @@ impl CurationKnowledgeRepository for WikidataKnowledgeRepository {
         Box::pin(async move {
             wikidata::resolve_or_create_taxon(&name, pre_resolved_qid.as_deref()).await
         })
-    }
-
-    fn resolve_reference_qid(
-        &self,
-        doi: &str,
-    ) -> super::BoxedFuture<'_, Result<Option<String>, CurationError>> {
-        let doi = doi.to_string();
-        Box::pin(async move { wikidata::resolve_reference_qid(&doi).await })
     }
 
     fn compound_has_taxon_with_ref(

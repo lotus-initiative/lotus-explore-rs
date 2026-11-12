@@ -56,7 +56,7 @@ for the test that runs every example in this file.
 | `--no-basionyms`                                                               | Ignore the basionym, the name first described under (`P566`)                |
 | `--no-protonyms`                                                               | Ignore the original combination, as first published (`P1403`)               |
 | `--no-replacements`                                                            | Ignore replacement names and what they replaced (`P694`)                    |
-| `--structure`                                                                  | SMILES, or an MDL molfile (V2000/V3000)                                     |
+| `--structure`                                                                  | Compound name, InChIKey, Wikidata QID, SMILES, or MDL molfile (V2000/V3000) |
 | `--structure-search`                                                           | `exact` (default), `substructure` or `similarity`                           |
 | `--threshold`                                                                  | Tanimoto cutoff for a similarity search, 0 to 1                             |
 | `--mass-min`, `--mass-max`                                                     | Molecular mass range, in daltons                                            |
@@ -82,12 +82,11 @@ not, and Wikidata stores them under four separate property pairs.
 [TAXON-SEARCH.md](TAXON-SEARCH.md) has the vocabulary, the properties, the
 traversal, and the measured table of what each switch changes.
 
-`--structure-search exact` asks for one molecule. With a structure that is a
-similarity search at a cutoff of 1, since there is nothing else to search by; the
-web app resolves names, InChIKeys and QIDs to a compound first and then asks for
-that compound directly, which `--structure` does not do — the flag takes a
-structure, as its description says. See
-[STRUCTURE-SEARCH.md](STRUCTURE-SEARCH.md) for the app-side routes.
+`--structure-search exact` asks for one compound. Like the web app, `lotus search`
+resolves compound names, InChIKeys, Wikidata QIDs, and exact SMILES/molfiles to
+their Wikidata compound QIDs before running the occurrence query (`--explain`
+stays offline and leaves non-QID inputs unresolved, printing a note on stderr).
+See [STRUCTURE-SEARCH.md](STRUCTURE-SEARCH.md) for the resolution routes.
 
 An element range is written `MIN..MAX`, and either end may be omitted:
 `--carbon ..20` is at most 20 carbons, `--carbon 5..` is at least 5. A bare
@@ -311,7 +310,6 @@ both full form (documentation + metadata + tree) and PubChem compact form
 
 ```bash
 lotus export-pubchem-tree --output ./lotus-trees
-lotus export-pubchem-tree --output ./lotus-trees --year 2025
 ```
 
 Writes six files:
@@ -325,10 +323,9 @@ Writes six files:
 | `lotus_chemical_tree_pubchem.json` | Chemical tree, PubChem compact |
 | `lotus_npclassifier_tree_pubchem.json` | NPClassifier tree, PubChem compact |
 
-`--output` defaults to the current working directory. `--year` defaults to this
-year. The NPClassifier tree is empty when its cache could not be read. On an
-interactive terminal, `stderr` shows the same transient `[====>---]` progress
-bar across the 13 table fetches.
+`--output` defaults to the current working directory. The NPClassifier tree is
+empty when its cache could not be read. On an interactive terminal, `stderr`
+shows the same transient `[====>---]` progress bar across the 13 table fetches.
 
 ## archive
 

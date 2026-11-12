@@ -54,36 +54,6 @@ fn extract_first_qid_from_json(json: &Value, var_name: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
-pub async fn fetch_wikidata_compound_by_inchikey(
-    inchikey: &str,
-) -> Result<Option<WikidataCompound>, CurationError> {
-    let query = lotus_curation::compound_by_inchikey_query(inchikey);
-    let json = execute_sparql_json(&query).await?;
-    let Some(first) = first_json_binding(&json) else {
-        return Ok(None);
-    };
-
-    let qid = first
-        .get("compound")
-        .and_then(|v| v.get("value"))
-        .and_then(Value::as_str)
-        .and_then(extract_qid_from_uri)
-        .ok_or_else(|| CurationError::Parse("missing compound qid".into()))?;
-
-    Ok(Some(WikidataCompound {
-        qid: qid.into(),
-        canonical_smiles: binding_value(first, "canonical"),
-        isomeric_smiles: binding_value(first, "iso"),
-        inchi: binding_value(first, "inchi"),
-        formula: binding_value(first, "formula"),
-        mass: first
-            .get("mass")
-            .and_then(|v| v.get("value"))
-            .and_then(Value::as_str)
-            .and_then(|v| v.parse::<f64>().ok()),
-    }))
-}
-
 pub async fn fetch_compounds_by_inchikeys<'a>(
     inchikeys: impl IntoIterator<Item = &'a str>,
 ) -> Result<HashMap<String, WikidataCompound>, CurationError> {
@@ -351,16 +321,6 @@ pub(super) async fn resolve_taxon_qid(name: &str) -> Result<Option<String>, Cura
     };
     let json = execute_sparql_json(&query).await?;
     Ok(extract_first_qid_from_json(&json, "taxon"))
-}
-
-pub async fn resolve_reference_qid(doi: &str) -> Result<Option<String>, CurationError> {
-    // Normalize DOI: strip the `doi.org/` prefix (case-insensitive) and uppercase.
-    // Wikidata stores P356 (DOI) values in uppercase without the prefix.
-    let normalized = normalize_doi(doi)
-        .ok_or_else(|| CurationError::InvalidInput("invalid or empty DOI".to_string()))?;
-    let query = lotus_curation::reference_by_doi_query(&normalized);
-    let json = execute_sparql_json(&query).await?;
-    Ok(extract_first_qid_from_json(&json, "ref"))
 }
 
 pub async fn compound_has_taxon_with_ref(

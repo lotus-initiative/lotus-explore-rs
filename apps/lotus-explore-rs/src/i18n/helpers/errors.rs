@@ -93,6 +93,7 @@ dispatch!(err_mass_range_invalid);
 dispatch!(err_year_out_of_range);
 dispatch!(err_year_range_invalid);
 dispatch!(err_element_count_too_high);
+dispatch!(err_element_range_invalid);
 dispatch!(err_similarity_threshold_invalid);
 dispatch!(warn_wdqs_fallback);
 

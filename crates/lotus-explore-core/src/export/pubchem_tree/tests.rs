@@ -853,3 +853,26 @@ fn biological_tree_walks_all_parents_when_a_taxon_has_multiple_parent_rows() {
         }])
     );
 }
+
+#[tokio::test]
+async fn run_pubchem_tree_records_configured_endpoint_in_wikidata_metadata() {
+    let endpoint = Endpoint::new(Service::Wdqs);
+    let expected_url = endpoint.url().to_string();
+    let (bio_full, chem_full, npc_full, _, _, _) =
+        run_pubchem_tree(&scripted(), endpoint, NOW, |_| {})
+            .await
+            .expect("pubchem tree succeeds");
+
+    assert_eq!(
+        parse(&bio_full)["metadata"]["source"]["endpoint"],
+        expected_url
+    );
+    assert_eq!(
+        parse(&chem_full)["metadata"]["source"]["endpoint"],
+        expected_url
+    );
+    assert_eq!(
+        parse(&npc_full)["metadata"]["source"]["endpoint"],
+        NPCLASSIFIER_CACHE_URL
+    );
+}

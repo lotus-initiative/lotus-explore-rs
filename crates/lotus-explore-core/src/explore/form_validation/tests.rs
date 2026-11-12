@@ -1,229 +1,151 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-#![allow(clippy::manual_string_new)]
-#![allow(clippy::expect_used)]
-
-use super::dispatch::validate_dispatch_criteria;
-use super::rules::{
-    validate_element_count, validate_mass, validate_mass_range, validate_smiles, validate_taxon,
-    validate_year_range,
-};
-use super::types::{ValidationCode, ValidationField};
+use super::validate_dispatch_criteria;
 use crate::explore::types::ValidationFault;
 use lotus_model::{SearchCriteria, SmilesSearchType};
 
-#[test]
-fn validate_taxon_accepts_empty_string() {
-    assert!(validate_taxon("").is_ok());
-}
+const YEAR: u16 = 2027;
 
 #[test]
-fn validate_taxon_accepts_valid_input() {
-    assert!(validate_taxon("Rosa").is_ok());
-}
-
-#[test]
-fn validate_taxon_rejects_extremely_long_input() {
-    let long = "x".repeat(501);
-    assert!(validate_taxon(&long).is_err());
-}
-
-#[test]
-fn validate_smiles_accepts_empty_string() {
-    assert!(validate_smiles("").is_ok());
-}
-
-#[test]
-fn validate_smiles_accepts_valid_smiles() {
-    assert!(validate_smiles("CC(C)Cc1ccc(cc1)C(C)C(=O)O").is_ok());
-}
-
-#[test]
-fn validate_smiles_rejects_extremely_long_input() {
-    let long = "C".repeat(10_001);
-    assert!(validate_smiles(&long).is_err());
-}
-
-#[test]
-fn validate_smiles_rejects_single_lowercase_token() {
-    assert!(validate_smiles("d").is_err());
-}
-
-#[test]
-fn validate_mass_range_rejects_inverted_range() {
-    assert!(validate_mass_range(200.0, 100.0).is_err());
-}
-
-#[test]
-fn validate_mass_range_accepts_valid_range() {
-    assert!(validate_mass_range(100.0, 200.0).is_ok());
-}
-
-#[test]
-fn validate_year_range_rejects_inverted_range() {
-    let result = validate_year_range(2025, 2020, 2026);
-    assert!(result.is_err());
-}
-
-#[test]
-fn validate_year_range_accepts_valid_range() {
-    let result = validate_year_range(2000, 2025, 2026);
-    assert!(result.is_ok());
-}
-
-#[test]
-fn validate_element_count_accepts_reasonable_counts() {
-    assert!(validate_element_count(100).is_ok());
-}
-
-#[test]
-fn validate_element_count_rejects_unreasonably_high_counts() {
-    assert!(validate_element_count(1001).is_err());
-}
-
-#[test]
-fn validate_dispatch_criteria_accepts_a_search_that_names_nothing() {
-    // Refusing this was a kindness that cost the reader their question. "Everything
-    // published in 2019" is a real one, and it needs no structure and no taxon --
-    // so the answer is a notice saying what it covers, not an error.
-    let criteria = SearchCriteria {
+fn accepts_unconstrained_and_formula_only_searches() {
+    let unconstrained = SearchCriteria {
         taxon: "   ".into(),
-        structure: "".into(),
-        formula_enabled: false,
-        ..SearchCriteria::up_to_year(2026)
+        ..SearchCriteria::up_to_year(YEAR)
     };
-    assert_eq!(validate_dispatch_criteria(&criteria), Ok(()));
-}
+    assert_eq!(validate_dispatch_criteria(&unconstrained, YEAR), Ok(()));
 
-#[test]
-fn validate_dispatch_criteria_accepts_formula_only_search() {
-    let criteria = SearchCriteria {
-        taxon: "".into(),
-        structure: "".into(),
+    let formula_only = SearchCriteria {
         formula_enabled: true,
-        ..SearchCriteria::up_to_year(2026)
+        ..SearchCriteria::up_to_year(YEAR)
     };
-    assert_eq!(validate_dispatch_criteria(&criteria), Ok(()));
+    assert_eq!(validate_dispatch_criteria(&formula_only, YEAR), Ok(()));
 }
 
 #[test]
-fn validate_dispatch_criteria_maps_mass_out_of_range_to_domain_fault() {
-    let criteria = SearchCriteria {
-        taxon: "Rosa".into(),
-        mass_min: -1.0,
-        ..SearchCriteria::up_to_year(2026)
-    };
-
-    assert_eq!(
-        validate_dispatch_criteria(&criteria),
-        Err(ValidationFault::MassOutOfRange)
-    );
-}
-
-#[test]
-fn validate_dispatch_criteria_maps_year_range_to_domain_fault() {
-    let criteria = SearchCriteria {
-        taxon: "Rosa".into(),
-        year_min: 2025,
-        year_max: 2020,
-        ..SearchCriteria::up_to_year(2026)
-    };
-
-    assert_eq!(
-        validate_dispatch_criteria(&criteria),
-        Err(ValidationFault::YearRangeInvalid)
-    );
-}
-
-#[test]
-fn validation_error_uses_typed_field_for_taxon() {
-    let long = "x".repeat(501);
-    let err = validate_taxon(&long).expect_err("expected taxon length error");
-    assert_eq!(err.field, ValidationField::Taxon);
-    assert_eq!(err.code, ValidationCode::TaxonTooLong);
-}
-
-#[test]
-fn validation_error_uses_typed_field_for_mass() {
-    let err = validate_mass(-1.0, -1.0, 100.0).expect_err("expected mass range error");
-    assert_eq!(err.field, ValidationField::Mass);
-    assert_eq!(err.code, ValidationCode::MassOutOfRange);
-}
-
-#[test]
-fn validate_dispatch_criteria_rejects_zero_similarity_threshold() {
-    let criteria = SearchCriteria {
-        taxon: "Rosa".into(),
-        structure: "c1ccccc1".into(),
-        structure_search: SmilesSearchType::Similarity,
-        structure_threshold: 0.0,
-        ..SearchCriteria::up_to_year(2026)
+fn maps_taxon_and_structure_faults() {
+    let long_taxon = SearchCriteria {
+        taxon: "x".repeat(501),
+        ..SearchCriteria::up_to_year(YEAR)
     };
     assert_eq!(
-        validate_dispatch_criteria(&criteria),
-        Err(ValidationFault::SimilarityThresholdInvalid)
+        validate_dispatch_criteria(&long_taxon, YEAR),
+        Err(ValidationFault::TaxonTooLong)
     );
-}
 
-#[test]
-fn validate_dispatch_criteria_accepts_positive_similarity_threshold() {
-    let criteria = SearchCriteria {
-        taxon: "Rosa".into(),
-        structure: "c1ccccc1".into(),
-        structure_search: SmilesSearchType::Similarity,
-        structure_threshold: 0.7,
-        ..SearchCriteria::up_to_year(2026)
+    let long_structure = SearchCriteria {
+        structure: "C".repeat(10_001),
+        ..SearchCriteria::up_to_year(YEAR)
     };
-    assert_eq!(validate_dispatch_criteria(&criteria), Ok(()));
-}
+    assert_eq!(
+        validate_dispatch_criteria(&long_structure, YEAR),
+        Err(ValidationFault::StructureTooLong)
+    );
 
-#[test]
-fn validate_dispatch_criteria_ignores_threshold_for_substructure() {
-    let criteria = SearchCriteria {
-        taxon: "Rosa".into(),
-        structure: "c1ccccc1".into(),
-        structure_search: SmilesSearchType::Substructure,
-        structure_threshold: 0.0,
-        ..SearchCriteria::up_to_year(2026)
-    };
-    assert_eq!(validate_dispatch_criteria(&criteria), Ok(()));
-}
-
-#[test]
-fn validate_dispatch_criteria_rejects_malformed_single_letter_structure() {
-    let criteria = SearchCriteria {
-        taxon: "Rosa".into(),
+    let single_lowercase = SearchCriteria {
         structure: "d".into(),
         structure_search: SmilesSearchType::Substructure,
-        ..SearchCriteria::up_to_year(2026)
+        ..SearchCriteria::up_to_year(YEAR)
     };
     assert_eq!(
-        validate_dispatch_criteria(&criteria),
+        validate_dispatch_criteria(&single_lowercase, YEAR),
         Err(ValidationFault::EmptyInput)
     );
 }
 
 #[test]
-fn every_bound_is_inclusive_at_its_limit() {
-    assert_eq!(validate_mass(100.0, 100.0, 100.0), Ok(()));
-    assert_eq!(validate_year_range(2020, 2020, 2026), Ok(()));
-    assert_eq!(validate_element_count(1000), Ok(()));
-    assert_eq!(validate_taxon(&"x".repeat(500)), Ok(()));
+fn maps_reference_mass_and_year_faults() {
+    let bad_ref = SearchCriteria {
+        reference: "  not-an-id  ".into(),
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    assert_eq!(
+        validate_dispatch_criteria(&bad_ref, YEAR),
+        Err(ValidationFault::ReferenceNotAnIdentifier {
+            input: "not-an-id".into()
+        })
+    );
+
+    let mass_out_of_range = SearchCriteria {
+        mass_min: -1.0,
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    assert_eq!(
+        validate_dispatch_criteria(&mass_out_of_range, YEAR),
+        Err(ValidationFault::MassOutOfRange)
+    );
+
+    let mass_inverted = SearchCriteria {
+        mass_min: 200.0,
+        mass_max: 100.0,
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    assert_eq!(
+        validate_dispatch_criteria(&mass_inverted, YEAR),
+        Err(ValidationFault::MassRangeInvalid)
+    );
+
+    let year_out_of_range = SearchCriteria {
+        year_max: YEAR + 1,
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    assert_eq!(
+        validate_dispatch_criteria(&year_out_of_range, YEAR),
+        Err(ValidationFault::YearOutOfRange)
+    );
+
+    let year_inverted = SearchCriteria {
+        year_min: 2025,
+        year_max: 2020,
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    assert_eq!(
+        validate_dispatch_criteria(&year_inverted, YEAR),
+        Err(ValidationFault::YearRangeInvalid)
+    );
 }
 
 #[test]
-fn validate_dispatch_criteria_counts_carbon_and_hydrogen_together() {
-    // 1000 + 1 is over the limit; their difference and their product are not,
-    // so only the sum rejects this.
-    let criteria = SearchCriteria {
-        taxon: "Rosa".into(),
-        c_min: 1000,
-        h_min: 1,
-        ..SearchCriteria::up_to_year(2026)
+fn maps_per_element_ceilings_inverted_ranges_and_similarity_threshold() {
+    // Hydrogen's default ceiling is 1024; the old sum-of-1000 duplicate rule
+    // rejected `c_min=500, h_min=600` even though both lie within model bounds.
+    let valid_high_hydrogen = SearchCriteria {
+        c_min: 500,
+        h_min: 600,
+        ..SearchCriteria::up_to_year(YEAR)
     };
     assert_eq!(
-        validate_dispatch_criteria(&criteria),
+        validate_dispatch_criteria(&valid_high_hydrogen, YEAR),
+        Ok(())
+    );
+
+    let element_too_high = SearchCriteria {
+        c_max: 513,
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    assert_eq!(
+        validate_dispatch_criteria(&element_too_high, YEAR),
         Err(ValidationFault::ElementCountTooHigh)
+    );
+
+    let element_inverted = SearchCriteria {
+        n_min: 10,
+        n_max: 5,
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    assert_eq!(
+        validate_dispatch_criteria(&element_inverted, YEAR),
+        Err(ValidationFault::ElementRangeInvalid)
+    );
+
+    let zero_similarity = SearchCriteria {
+        structure: "c1ccccc1".into(),
+        structure_search: SmilesSearchType::Similarity,
+        structure_threshold: 0.0,
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    assert_eq!(
+        validate_dispatch_criteria(&zero_similarity, YEAR),
+        Err(ValidationFault::SimilarityThresholdInvalid)
     );
 }

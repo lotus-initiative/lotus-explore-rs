@@ -96,17 +96,13 @@ pub struct ExportArgs {
     pub now: Option<String>,
 }
 
-/// Where the `PubChem` tree `JSON` files are written, and the year they carry.
+/// Where the `PubChem` tree `JSON` files are written.
 #[derive(Debug, clap::Args)]
 pub struct ExportPubchemTreeArgs {
     /// Directory to write the six tree JSON files into.
     /// Defaults to the current working directory.
     #[arg(short, long, value_name = "DIR")]
     pub output: Option<std::path::PathBuf>,
-
-    /// Latest publication year to include. Defaults to this year.
-    #[arg(long)]
-    pub year: Option<u16>,
 }
 
 /// Archive LOTUS SMILES from Wikidata as a tar.gz with manifest and checksums.
@@ -174,7 +170,7 @@ struct SearchArgs {
     #[arg(long, default_value_t = false)]
     no_replacements: bool,
 
-    /// SMILES or an MDL molfile (V2000/V3000) to search by structure.
+    /// Compound name, `InChIKey`, Wikidata QID, SMILES, or MDL molfile (V2000/V3000).
     #[arg(short, long, default_value = "")]
     structure: String,
 
@@ -657,14 +653,6 @@ async fn export(args: ExportArgs) -> anyhow::Result<ExitCode> {
 /// writing six files to an output directory. No network transport beyond the
 /// SPARQL endpoint and the `NPClassifier` cache fetch.
 async fn export_pubchem_tree(args: ExportPubchemTreeArgs) -> anyhow::Result<ExitCode> {
-    let year = args.year.unwrap_or_else(current_year);
-    if !(lotus_model::YEAR_MIN..=current_year()).contains(&year) {
-        anyhow::bail!(
-            "--year must be in {}..={}, got {year}",
-            lotus_model::YEAR_MIN,
-            current_year()
-        );
-    }
     let now = now_iso_utc();
 
     let http = lotus_search::reqwest_client::ReqwestClient::new()?;
@@ -686,11 +674,7 @@ async fn export_pubchem_tree(args: ExportPubchemTreeArgs) -> anyhow::Result<Exit
     let write = |name: &str, content: &str| -> anyhow::Result<()> {
         let path = output_dir.join(name);
         std::fs::write(&path, content)?;
-        eprintln!(
-            "lotus: wrote {} bytes (up to {year}) to {}",
-            content.len(),
-            path.display()
-        );
+        eprintln!("lotus: wrote {} bytes to {}", content.len(), path.display());
         Ok(())
     };
 

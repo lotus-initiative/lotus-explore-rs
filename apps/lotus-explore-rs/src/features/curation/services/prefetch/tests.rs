@@ -45,14 +45,6 @@ impl Counting {
 }
 
 impl CurationKnowledgeRepository for Counting {
-    fn fetch_compound_by_inchikey(
-        &self,
-        _inchikey: &str,
-    ) -> BoxedFuture<'_, Result<Option<WikidataCompound>, CurationError>> {
-        self.count("compound-single");
-        Box::pin(async { Ok(None) })
-    }
-
     fn resolve_or_create_taxon(
         &self,
         _name: &str,
@@ -60,14 +52,6 @@ impl CurationKnowledgeRepository for Counting {
     ) -> BoxedFuture<'_, ResolveTaxonResult> {
         self.count("taxon-single");
         Box::pin(async { Ok((None, Vec::new())) })
-    }
-
-    fn resolve_reference_qid(
-        &self,
-        _doi: &str,
-    ) -> BoxedFuture<'_, Result<Option<String>, CurationError>> {
-        self.count("reference-single");
-        Box::pin(async { Ok(None) })
     }
 
     fn compound_has_taxon_with_ref(

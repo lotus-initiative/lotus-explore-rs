@@ -16,26 +16,12 @@ struct MockRepo {
 }
 
 impl CurationKnowledgeRepository for MockRepo {
-    fn fetch_compound_by_inchikey(
-        &self,
-        _inchikey: &str,
-    ) -> BoxedFuture<'_, Result<Option<WikidataCompound>, CurationError>> {
-        Box::pin(async { Ok(None) })
-    }
-
     fn resolve_or_create_taxon(
         &self,
         _name: &str,
         _pre_resolved_qid: Option<&str>,
     ) -> BoxedFuture<'_, ResolveTaxonResult> {
         Box::pin(async { Ok((None, Vec::new())) })
-    }
-
-    fn resolve_reference_qid(
-        &self,
-        _doi: &str,
-    ) -> BoxedFuture<'_, Result<Option<String>, CurationError>> {
-        Box::pin(async { Ok(None) })
     }
 
     fn compound_has_taxon_with_ref(

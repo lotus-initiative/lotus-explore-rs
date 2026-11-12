@@ -39,6 +39,10 @@ pub fn err_element_count_too_high() -> String {
     "Formula element counts are too high.".to_string()
 }
 
+pub fn err_element_range_invalid() -> String {
+    "Formula element minimum cannot exceed maximum.".to_string()
+}
+
 pub fn err_similarity_threshold_invalid() -> String {
     "Similarity threshold must be greater than 0.".to_string()
 }

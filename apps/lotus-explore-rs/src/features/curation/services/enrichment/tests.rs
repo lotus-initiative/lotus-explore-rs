@@ -177,24 +177,12 @@ struct AlreadyRecorded;
 macro_rules! repository_answering {
     ($name:ident, $occurrence:literal) => {
         impl CurationKnowledgeRepository for $name {
-            fn fetch_compound_by_inchikey(
-                &self,
-                _inchikey: &str,
-            ) -> BoxedFuture<'_, Result<Option<WikidataCompound>, CurationError>> {
-                Box::pin(async { Ok(None) })
-            }
             fn resolve_or_create_taxon(
                 &self,
                 _name: &str,
                 _pre_resolved_qid: Option<&str>,
             ) -> BoxedFuture<'_, ResolveTaxonResult> {
                 Box::pin(async { Ok((None, Vec::new())) })
-            }
-            fn resolve_reference_qid(
-                &self,
-                _doi: &str,
-            ) -> BoxedFuture<'_, Result<Option<String>, CurationError>> {
-                Box::pin(async { Ok(None) })
             }
             fn compound_has_taxon_with_ref(
                 &self,
@@ -320,4 +308,11 @@ fn an_unresolved_taxon_still_gets_the_placeholder_statement() {
         occurrence_for(&row, &NotRecorded).as_deref(),
         Some("Q1503|P703|[NEW_TAXON_QID]")
     );
+}
+
+#[test]
+fn pre_resolved_reference_is_used_without_fallback_creation() {
+    let (qid, lines) = block_on(resolve_or_create_reference("10.1000/XYZ", Some("Q999")));
+    assert_eq!(qid.as_deref(), Some("Q999"));
+    assert!(lines.is_empty(), "got {lines:?}");
 }
