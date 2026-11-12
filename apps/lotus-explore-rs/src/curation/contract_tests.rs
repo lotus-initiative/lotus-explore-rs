@@ -80,17 +80,25 @@ fn rows_without_a_name_or_a_smiles_are_skipped_not_rejected() {
 }
 
 #[test]
-fn a_row_whose_first_cell_is_empty_shifts_every_column_left() {
-    // Known bug, pinned so that fixing it is a deliberate change. `parse_tsv_rows`
-    // trims each line before splitting it on tabs, and `str::trim` eats the
-    // leading tab — so the row `\tCCO\tX` is read as name="CCO", smiles="X".
-    // The row is then kept with the wrong name and a SMILES that is really a
-    // taxon. A real export has a name in column one, so this is rare, but the
-    // fix is to split before trimming.
+fn a_row_whose_first_cell_is_empty_is_skipped_when_name_or_smiles_are_blank() {
+    // Fixed: `parse_tsv_rows` no longer trims each line with `str::trim` before
+    // splitting on tabs, so a leading `\t` keeps columns aligned instead of
+    // shifting everything left. With `name\tsmiles\ttaxon` as header,
+    // `\tCCO\tX` now parses as name="" smiles="CCO" taxon="X" — and the empty
+    // name causes the row to be skipped by the `name.is_empty()` guard.
     let rows = parse_tsv_rows("name\tsmiles\ttaxon\n\tCCO\tX\n").expect("valid TSV");
+    assert_eq!(rows.len(), 0, "an empty name causes the row to be skipped");
+}
+
+#[test]
+fn an_empty_optional_first_column_preserves_alignment() {
+    // When the optional taxon column comes first and is empty, columns stay
+    // aligned and the row survives (taxon=None, name="Ethanol", smiles="CCO").
+    let rows = parse_tsv_rows("taxon\tname\tsmiles\n\tEthanol\tCCO\n").expect("valid TSV");
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].name, "CCO", "the SMILES landed in the name column");
-    assert_eq!(rows[0].smiles, "X", "the taxon landed in the SMILES column");
+    assert_eq!(rows[0].name, "Ethanol");
+    assert_eq!(rows[0].smiles, "CCO");
+    assert_eq!(rows[0].taxon, None);
 }
 
 #[test]

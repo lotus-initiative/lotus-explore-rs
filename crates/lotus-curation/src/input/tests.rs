@@ -92,11 +92,6 @@ fn a_row_needs_both_a_name_and_a_smiles() {
     // The row is dropped if either half is missing. Each is dropped on its
     // own here, because the guard is an `||`: turned into `&&`, a row with
     // only one half survives and gets submitted with nothing to label it by.
-    //
-    // The empty field is in the middle deliberately. `parse_tsv` trims each
-    // whole line before splitting it, so a leading tab is gone before the
-    // columns are read and the first field can never come out empty -- the
-    // only way to see this is a gap between two present fields.
     let tsv = "organism\tname\tsmiles\n\
                Taxon\tKeep\tCCO\n\
                Taxon\t\tCCC\n\

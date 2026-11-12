@@ -24,7 +24,15 @@ use crate::{CurationError, CurationInputRow};
 /// [`CurationError::MissingTsvColumn`] if there is no `name` or `smiles`
 /// column. An empty input is not an error: it is an empty batch.
 pub fn parse_tsv(tsv: &str) -> Result<Vec<CurationInputRow>, CurationError> {
-    let mut lines = tsv.lines().map(str::trim).filter(|line| !line.is_empty());
+    // `lines()` already strips `\n` and `\r\n`. A bare `\r` at line-end is
+    // stripped with `trim_end_matches`. Leading/trailing whitespace on the line
+    // as a whole is NOT stripped here, because `str::trim` eats `\t`, which
+    // shifts columns when the first cell is empty. Each cell is trimmed
+    // individually at `field.trim()` below.
+    let mut lines = tsv
+        .lines()
+        .map(|line| line.trim_end_matches('\r'))
+        .filter(|line| !line.trim().is_empty());
 
     let Some(header) = lines.next() else {
         return Ok(Vec::new());
