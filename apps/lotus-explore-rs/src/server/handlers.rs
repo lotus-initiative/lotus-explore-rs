@@ -19,7 +19,9 @@ use tokio::{
 use crate::export;
 use crate::server::{
     errors::{ApiError, ErrorResponse, SharedApiError},
-    query_logic::{apply_request, build_execution_query, resolve_taxon_qid_cached},
+    query_logic::{
+        apply_request, build_execution_query_with, resolve_search_inputs, resolve_taxon_qid_cached,
+    },
     services::build_search_response,
     state::{
         AppState, RuntimeMetrics, build_export_cache_key, build_search_cache_key, export_cache_get,
@@ -59,18 +61,17 @@ pub async fn metrics(State(state): State<AppState>) -> Result<Response, ApiError
         .body(axum::body::Body::from(state.metrics.render_prometheus()))?)
 }
 
-struct PreparedSearchRequest {
+struct PreparedQuery {
     execution_query: String,
     resolved_taxon_qid: Option<String>,
     warning: Option<String>,
-    limit: usize,
-    include_counts: bool,
 }
 
-async fn prepare_search_request(
+async fn prepare_query(
     state: &AppState,
     req: &SearchRequest,
-) -> Result<PreparedSearchRequest, ApiError> {
+    event: &'static str,
+) -> Result<PreparedQuery, ApiError> {
     let mut criteria = apply_request(req)?;
     if !criteria.is_searchable() {
         return Err(ApiError::bad_request(
@@ -88,7 +89,7 @@ async fn prepare_search_request(
             .metrics
             .request_timeouts
             .fetch_add(1, Ordering::Relaxed);
-        log::warn!("event=search state=timeout phase=taxon");
+        log::warn!("event={event} state=timeout phase=taxon");
         ApiError::upstream("taxon resolution timed out")
     })??;
 
@@ -98,10 +99,44 @@ async fn prepare_search_request(
         criteria.taxon = qid.to_string();
     }
 
-    Ok(PreparedSearchRequest {
-        execution_query: build_execution_query(&criteria, resolved_taxon_qid.as_deref()),
+    let resolved_inputs = timeout(state.request_timeout, resolve_search_inputs(&criteria))
+        .await
+        .map_err(|_| {
+            state
+                .metrics
+                .request_timeouts
+                .fetch_add(1, Ordering::Relaxed);
+            log::warn!("event={event} state=timeout phase=inputs");
+            ApiError::upstream("input resolution timed out")
+        })??;
+
+    let execution_query =
+        build_execution_query_with(&criteria, resolved_taxon_qid.as_deref(), &resolved_inputs);
+
+    Ok(PreparedQuery {
+        execution_query,
         resolved_taxon_qid,
         warning,
+    })
+}
+
+struct PreparedSearchRequest {
+    execution_query: String,
+    resolved_taxon_qid: Option<String>,
+    warning: Option<String>,
+    limit: usize,
+    include_counts: bool,
+}
+
+async fn prepare_search_request(
+    state: &AppState,
+    req: &SearchRequest,
+) -> Result<PreparedSearchRequest, ApiError> {
+    let prepared = prepare_query(state, req, "search").await?;
+    Ok(PreparedSearchRequest {
+        execution_query: prepared.execution_query,
+        resolved_taxon_qid: prepared.resolved_taxon_qid,
+        warning: prepared.warning,
         limit: req
             .limit
             .unwrap_or(state.default_limit)
@@ -245,37 +280,10 @@ async fn prepare_export_request(
     state: &AppState,
     req: &SearchRequest,
 ) -> Result<PreparedExportRequest, ApiError> {
-    let mut criteria = apply_request(req)?;
-    if !criteria.is_searchable() {
-        return Err(ApiError::bad_request(
-            "Either taxon or smiles/structure must be provided",
-        ));
-    }
-
-    let (resolved_taxon_qid, _warning) = timeout(
-        state.request_timeout,
-        resolve_taxon_qid_cached(state, criteria.taxon.clone()),
-    )
-    .await
-    .map_err(|_| {
-        state
-            .metrics
-            .request_timeouts
-            .fetch_add(1, Ordering::Relaxed);
-        log::warn!("event=export state=timeout phase=taxon");
-        ApiError::upstream("taxon resolution timed out")
-    })??;
-
-    if let Some(qid) = resolved_taxon_qid.as_deref()
-        && qid != "*"
-    {
-        criteria.taxon = qid.to_string();
-    }
-
-    let query = build_execution_query(&criteria, resolved_taxon_qid.as_deref());
+    let prepared = prepare_query(state, req, "export").await?;
     Ok(PreparedExportRequest {
-        cache_key: build_export_cache_key(&query),
-        query,
+        cache_key: build_export_cache_key(&prepared.execution_query),
+        query: prepared.execution_query,
     })
 }
 

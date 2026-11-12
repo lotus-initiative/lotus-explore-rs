@@ -66,12 +66,14 @@ impl From<ApiElementState> for lotus_model::ElementState {
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct SearchRequest {
     pub(crate) taxon: Option<String>,
-    /// A Wikidata QID naming the reference to constrain by, as `Q23118`.
+    /// A Wikidata QID (`Q23118`) or DOI (`10.7554/eLife.70780`, bare or `https://doi.org/…`)
+    /// naming the reference to constrain by.
     ///
-    /// A QID only. This endpoint does not resolve a DOI to a QID the way the
-    /// browser does, so a DOI here is refused with a 400 rather than turned into
-    /// an IRI no endpoint can answer. See
-    /// [`query_logic::check_reference`](crate::server::query_logic).
+    /// Validated at the boundary by [`query_logic::check_reference`](crate::server::query_logic)
+    /// and resolved to a QID before building the query by
+    /// [`query_logic::resolve_search_inputs`](crate::server::query_logic); an
+    /// unrecognised string or unmatched DOI is refused with a 400 rather than
+    /// dropped.
     pub(crate) reference: Option<String>,
     /// Whether the taxon filter also collects the compounds recorded against
     /// the taxon's other names.

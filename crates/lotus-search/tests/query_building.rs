@@ -153,8 +153,9 @@ fn a_resolved_reference_replaces_the_doi_the_user_typed() {
     // now gates on a QID's shape.
     //
     // A dropped constraint is not a good outcome either, which is why every
-    // surface that can refuses instead of relying on the drop: the API's
-    // `check_reference` returns a 400, and `--explain` bails. This builder only
+    // surface that can resolves or refuses instead of relying on the drop: the
+    // API's `check_reference` and `resolve_search_inputs` return a 400 on
+    // malformed or unmatched inputs, and `--explain` bails. This builder only
     // builds queries and cannot report, so all it can guarantee is that no
     // reference becomes query syntax. `lotus-query`'s contract tests pin that.
     let unresolved_doi = ResolvedInputs {

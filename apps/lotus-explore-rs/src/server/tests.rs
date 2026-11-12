@@ -21,7 +21,10 @@ use crate::export;
 use crate::server::{
     ApiDoc, build_router,
     config::AppConfig,
-    query_logic::{apply_request, build_execution_query},
+    query_logic::{
+        apply_request, build_execution_query, build_execution_query_with,
+        resolve_search_inputs_with, resolve_taxon_with,
+    },
     state::{
         AppState, CachedExportResponse, export_inflight_cell, prune_cache, search_inflight_cell,
         taxon_cache_put,
@@ -989,27 +992,19 @@ fn a_wildcard_taxon_still_requires_an_occurrence() {
     );
 }
 
-/// A reference carrying SPARQL syntax must be refused at the boundary.
+/// A reference carrying SPARQL syntax or garbage text must be refused at the boundary.
 ///
-/// `apply_request` copies `reference` into the criteria and this path does not
-/// resolve it -- the taxon is resolved above it, the reference is not -- so the
-/// field reaches `with_filters` exactly as typed. That splices it into a `wd:`
-/// IRI, where `{ } . #` are syntax rather than text, and the string-literal
-/// escaper it used to be routed through escapes none of them: a caller could
-/// close the `VALUES`, append triples and comment out the rest of the query.
-///
-/// The builder now gates on a QID's shape as well, so this cannot inject from
-/// any caller. What this pins is the half the builder cannot do: the API tells
-/// the caller its reference was unusable, rather than searching without the
-/// constraint and saying nothing.
+/// The builder gates on a QID's shape so nothing can inject into a `wd:` IRI,
+/// and `check_reference` ensures the API tells the caller its reference was
+/// neither a QID nor a DOI rather than searching without the constraint.
 #[test]
 fn a_reference_carrying_sparql_syntax_is_refused() {
     for payload in [
         "Q1 } } . ?s ?p <http://evil.example/x> . #",
         "Q1 } UNION { ?s ?p ?o } #",
         "Q1\n}\n.\n?s ?p ?o",
+        "10.1000/xyz } } #",
         "not a reference at all",
-        "10.1000/xyz",
     ] {
         let req: SearchRequest = serde_json::from_str(&format!(
             r#"{{"taxon":"Gentiana","reference":{}}}"#,
@@ -1019,24 +1014,30 @@ fn a_reference_carrying_sparql_syntax_is_refused() {
 
         assert!(
             apply_request(&req).is_err(),
-            "{payload:?} is not a QID, so it cannot name a reference and must be \
-             refused rather than dropped"
+            "{payload:?} is neither a QID nor a DOI and must be refused rather than dropped"
         );
     }
 }
 
-/// The form that does work, still accepted, in either case.
+/// QIDs and DOIs (bare or resolver-prefixed) are accepted at request validation.
 #[test]
-fn a_qid_reference_is_accepted_in_either_case() {
-    for qid in ["Q23118", "q23118", "  Q23118  "] {
+fn a_qid_or_doi_reference_is_accepted() {
+    for reference in [
+        "Q23118",
+        "q23118",
+        "  Q23118  ",
+        "10.7554/eLife.70780",
+        "doi:10.7554/eLife.70780",
+        "https://doi.org/10.7554/eLife.70780",
+    ] {
         let req: SearchRequest = serde_json::from_str(&format!(
             r#"{{"taxon":"Gentiana","reference":{}}}"#,
-            serde_json::to_string(qid).expect("a json string")
+            serde_json::to_string(reference).expect("a json string")
         ))
         .expect("a deserialisable request");
 
-        let criteria = apply_request(&req).expect("a QID is the accepted form");
-        assert_eq!(criteria.reference.trim(), qid.trim());
+        let criteria = apply_request(&req).expect("a QID or DOI is accepted");
+        assert_eq!(criteria.reference.trim(), reference.trim());
     }
 }
 
@@ -1088,4 +1089,133 @@ fn client_dto_round_trips_through_server_search_request() {
     assert!(!applied.taxon_names.basionyms);
     assert!(applied.taxon_names.protonyms);
     assert!(applied.taxon_names.replacements);
+}
+
+#[tokio::test]
+async fn resolve_taxon_with_delegates_to_lotus_search_including_common_name_fallback() {
+    use lotus_search::testing::Scripted;
+
+    let idle = Scripted::new(Vec::new());
+    assert_eq!(
+        resolve_taxon_with(&idle, " * ").await.expect("wildcard"),
+        (Some("*".into()), None)
+    );
+    assert_eq!(
+        resolve_taxon_with(&idle, "   ").await.expect("blank"),
+        (None, None)
+    );
+    assert_eq!(idle.call_count(), 0);
+
+    let empty = "taxon,taxon_name,matched_by\n";
+    let common_hit = "taxon,taxon_name,matched_by\nQ2598745,Gentiana lutea,common_name\n";
+    let http = Scripted::new(vec![(200, empty), (200, common_hit)]);
+    let (qid, warning) = resolve_taxon_with(&http, "yellow gentian")
+        .await
+        .expect("common name fallback");
+    assert_eq!(qid.as_deref(), Some("Q2598745"));
+    assert!(
+        warning
+            .as_deref()
+            .is_some_and(|msg| msg.contains("yellow gentian")),
+        "capitalisation note preserved: {warning:?}"
+    );
+    assert_eq!(http.call_count(), 2);
+
+    let ambiguous = "taxon,taxon_name,matched_by\n\
+                     Q2598745,Gentiana lutea,scientific\n\
+                     Q9999999,Gentiana lutea,scientific\n";
+    let http_amb = Scripted::new(vec![(200, ambiguous)]);
+    let (qid, warning) = resolve_taxon_with(&http_amb, "gentiana_lutea")
+        .await
+        .expect("ambiguous standardized taxon");
+    assert_eq!(qid.as_deref(), Some("Q2598745"));
+    let warning = warning.expect("both standardization and ambiguity reported");
+    assert!(warning.contains("gentiana_lutea"));
+    assert!(warning.contains("several taxa matched"));
+
+    let http_miss = Scripted::new(vec![(200, empty), (200, empty)]);
+    let miss_err = resolve_taxon_with(&http_miss, "not a real taxon")
+        .await
+        .expect_err("unmatched taxon returns 400");
+    assert_eq!(miss_err.status, StatusCode::BAD_REQUEST);
+    assert_eq!(miss_err.message, "Taxon not found: not a real taxon");
+
+    let http_fail = Scripted::new(vec![(400, "bad upstream")]);
+    let fail_err = resolve_taxon_with(&http_fail, "Gentiana lutea")
+        .await
+        .expect_err("upstream rejection returns 502");
+    assert_eq!(fail_err.status, StatusCode::BAD_GATEWAY);
+}
+
+#[tokio::test]
+async fn resolve_search_inputs_with_resolves_compounds_and_dois_and_maps_misses_to_400() {
+    use lotus_search::testing::Scripted;
+
+    let empty_compound = "compound_qid,compound_label,canonical_smiles,matched_by\n";
+    let alias_hit = "compound_qid,compound_label,canonical_smiles,matched_by\nQ3613679,Amarogentina,CCO,alias\n";
+    let doi_hit = "ref\nhttp://www.wikidata.org/entity/Q111973294\n";
+
+    let http = Scripted::new(vec![
+        (200, empty_compound),
+        (200, alias_hit),
+        (200, doi_hit),
+    ]);
+    let criteria = lotus_model::SearchCriteria {
+        taxon: "Q2598745".into(),
+        structure: "amarogentina".into(),
+        structure_search: lotus_model::SmilesSearchType::Exact,
+        reference: "https://doi.org/10.7554/eLife.70780".into(),
+        ..lotus_model::SearchCriteria::up_to_year(crate::clock::current_year())
+    };
+    let resolved = resolve_search_inputs_with(&http, &criteria)
+        .await
+        .expect("compound alias and DOI resolve");
+    assert_eq!(resolved.compounds, vec!["Q3613679".to_string()]);
+    assert_eq!(resolved.reference_qid.as_deref(), Some("Q111973294"));
+
+    let query = build_execution_query_with(&criteria, Some("Q2598745"), &resolved);
+    assert!(query.contains("VALUES ?c { wd:Q3613679 }"), "{query}");
+    assert!(query.contains("VALUES ?r { wd:Q111973294 }"), "{query}");
+    assert!(!query.contains("amarogentina"), "{query}");
+    assert!(!query.contains("10.7554"), "{query}");
+
+    let http_missing_compound = Scripted::new(vec![(200, empty_compound), (200, empty_compound)]);
+    let err = resolve_search_inputs_with(
+        &http_missing_compound,
+        &lotus_model::SearchCriteria {
+            structure: "notacompound".into(),
+            ..lotus_model::SearchCriteria::up_to_year(crate::clock::current_year())
+        },
+    )
+    .await
+    .expect_err("unmatched compound name is a 400");
+    assert_eq!(err.status, StatusCode::BAD_REQUEST);
+    assert!(err.message.contains("no compound in Wikidata"));
+
+    let http_missing_doi = Scripted::new(vec![(200, "ref\n")]);
+    let err = resolve_search_inputs_with(
+        &http_missing_doi,
+        &lotus_model::SearchCriteria {
+            taxon: "*".into(),
+            reference: "10.1000/missing".into(),
+            ..lotus_model::SearchCriteria::up_to_year(crate::clock::current_year())
+        },
+    )
+    .await
+    .expect_err("unmatched DOI is a 400");
+    assert_eq!(err.status, StatusCode::BAD_REQUEST);
+    assert!(err.message.contains("no reference matched"));
+
+    let http_upstream = Scripted::new(vec![(400, "bad upstream")]);
+    let err = resolve_search_inputs_with(
+        &http_upstream,
+        &lotus_model::SearchCriteria {
+            taxon: "*".into(),
+            reference: "10.1000/broken".into(),
+            ..lotus_model::SearchCriteria::up_to_year(crate::clock::current_year())
+        },
+    )
+    .await
+    .expect_err("upstream failure is a 502");
+    assert_eq!(err.status, StatusCode::BAD_GATEWAY);
 }

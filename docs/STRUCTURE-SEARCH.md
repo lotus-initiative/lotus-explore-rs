@@ -199,12 +199,12 @@ And where the mode itself is carried:
 | CLI     | `--structure-search exact\|substructure\|similarity`, `--threshold`                                         |
 | UI      | three radios under the structure field; the cutoff appears only for similarity                              |
 
-Both the web app (`resolve_structure::resolve`) and `lotus search`
-(`lotus_search::resolve_structure`) resolve compound names, InChIKeys, QIDs, and
-exact structures before building the query. The two surfaces that do **not**
-resolve are the HTTP REST API (`/v1/search`, whose `smiles` field goes straight to
-`lotus_search::build_execution_query`) and `lotus search --explain` (which stays
-offline by design and only seeds bare QIDs directly).
+The web app (`resolve_structure::resolve`), `lotus search`
+(`lotus_search::resolve_structure`), and the HTTP REST API (`/v1/search` and
+`/v1/export-url`, via `lotus_search::resolve_inputs`) all resolve compound
+names, InChIKeys, QIDs, and exact structures before building the query. Only
+`lotus search --explain` skips network resolution (staying offline by design and
+seeding bare QIDs directly).
 
 ## The example buttons
 

@@ -7,8 +7,7 @@
 use crate::server::errors::ApiError;
 use crate::server::state::{AppState, taxon_cache_get, taxon_cache_put};
 use crate::server::types::SearchRequest;
-use crate::sparql;
-use lotus_model::{SearchCriteria, TaxonMatch};
+use lotus_model::SearchCriteria;
 
 pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
     let mut c = SearchCriteria {
@@ -124,58 +123,52 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
     Ok(c)
 }
 
-/// Refuse a reference this endpoint cannot use, rather than dropping it.
+/// Refuse a reference that is neither a Wikidata QID nor a DOI, rather than
+/// letting `lotus_query::with_filters` silently drop the constraint.
 ///
-/// The taxon is resolved on this path and the reference is not, so the field
-/// reaches the query builder as typed. The builder gates on a QID's shape now --
-/// it has to, because it splices the value into a `wd:` IRI -- but a dropped
-/// constraint is the failure commit ff0a5d2 exists to end: the caller gets every
-/// compound matching the rest of the search, with nothing saying the reference
-/// was ignored. So the gate that knows what a caller asked for is here.
-///
-/// A DOI is refused rather than accepted, and that is a change from the
-/// field's own documentation, which promised a DOI. This endpoint has never
-/// resolved one: the browser resolves a DOI to a QID before the query is built
-/// (`features::explore::service::resolve_reference`), and this path builds the
-/// query without doing that. A DOI here became `wd:10.1000/xyz`, which is not a
-/// valid SPARQL local name, so the caller's search failed at the endpoint with a
-/// parse error it could not connect to anything it had sent. A 400 naming the one
-/// form that works is the honest version of the same failure.
+/// DOIs accepted here are resolved to their Wikidata QID by
+/// [`resolve_search_inputs`] before the query is built; a DOI that matches
+/// nothing in Wikidata is also refused with a 400 there.
 ///
 /// # Errors
-/// `ApiError::BadRequest` naming the accepted form, for a non-blank reference
-/// that is not a QID.
+/// `ApiError::BadRequest` naming the accepted forms for a non-blank reference
+/// that is neither a QID nor a DOI.
 fn check_reference(reference: &str) -> Result<(), ApiError> {
     let trimmed = reference.trim();
-    if trimmed.is_empty() || lotus_model::looks_like_reference_qid(trimmed) {
+    if trimmed.is_empty()
+        || lotus_model::looks_like_reference_qid(trimmed)
+        || lotus_model::looks_like_doi(trimmed)
+    {
         return Ok(());
     }
     Err(ApiError::bad_request(
-        "reference must be a Wikidata QID such as Q23118; \
-         resolve a DOI to its QID before searching",
+        "reference must be a Wikidata QID (such as Q23118) or a DOI (such as 10.7554/eLife.70780)",
     ))
 }
 
-/// The query the API sends, which is the query the browser sends.
-///
-/// Was a second implementation of the dispatch `lotus_search::build_base_query`
-/// performs, and the two disagreed: the server resolved a wildcard to
-/// `Some("*")` where the library resolves it to `None`, and `None` is also what an
-/// *empty* taxon box produces. An empty box then ran `all_compounds_query`
-/// (requires `P703`) while the browser ran
-/// `all_compounds_including_untaxonomised_query` (does not) — the exact bug
-/// commit 4ead47a set out to fix, fixed in the library and still live here. Two
-/// implementations of one dispatch is what let that happen.
-///
-/// One implementation now. The wildcard still arrives as `Some("*")`, handled by
-/// the library's own match (`Some(_) => all_compounds_query()`), so the API keeps
-/// requiring an occurrence for `*` and gains the broader answer for a blank box.
+/// The query the API sends when structure and reference need no extra resolution.
 pub fn build_execution_query(
     criteria: &SearchCriteria,
     resolved_taxon_qid: Option<&str>,
 ) -> String {
+    build_execution_query_with(
+        criteria,
+        resolved_taxon_qid,
+        &lotus_search::ResolvedInputs::default(),
+    )
+}
+
+/// The query the API sends once taxon, structure, and reference inputs are resolved.
+///
+/// Delegates directly to [`lotus_search::build_execution_query_with`] so the
+/// server, CLI, and browser answer the same request with the same SPARQL.
+pub fn build_execution_query_with(
+    criteria: &SearchCriteria,
+    resolved_taxon_qid: Option<&str>,
+    resolved_inputs: &lotus_search::ResolvedInputs,
+) -> String {
     let request = lotus_search::SearchRequest::new(criteria.clone(), crate::clock::current_year());
-    lotus_search::build_execution_query(&request, resolved_taxon_qid)
+    lotus_search::build_execution_query_with(&request, resolved_taxon_qid, resolved_inputs)
 }
 
 pub async fn resolve_taxon_qid_cached(
@@ -189,62 +182,68 @@ pub async fn resolve_taxon_qid_cached(
         return Ok(cached);
     }
 
-    let resolved = resolve_taxon_qid(taxon_input).await?;
+    let http = lotus_search::reqwest_client::ReqwestClient::new()
+        .map_err(|e| ApiError::upstream(format!("HTTP client init failed: {e}")))?;
+    let resolved = resolve_taxon_with(&http, &taxon_input).await?;
     if !key.is_empty() {
         taxon_cache_put(state, key, resolved.clone());
     }
     Ok(resolved)
 }
 
-async fn resolve_taxon_qid(
-    taxon_input: String,
+/// Resolve a taxon string via [`lotus_search::resolve_taxon`], including the
+/// `P1843` common-name fallback when `P225` matches nothing.
+///
+/// Preserves `Some("*")` for the wildcard so `SearchResponse.resolved_taxon_qid`
+/// distinguishes `"*"` (every reported occurrence) from an empty taxon box.
+pub async fn resolve_taxon_with<H: lotus_search::Http>(
+    http: &H,
+    taxon_input: &str,
 ) -> Result<(Option<String>, Option<String>), ApiError> {
-    let taxon = taxon_input.trim();
-    if taxon.is_empty() {
-        return Ok((None, None));
-    }
-    if taxon == "*" {
+    let trimmed = taxon_input.trim();
+    if trimmed == "*" {
         return Ok((Some("*".into()), None));
     }
-    if lotus_search::is_qid(taxon) {
-        return Ok((Some(taxon.to_ascii_uppercase()), None));
-    }
-
-    let sanitized = lotus_search::standardize_taxon_name(taxon);
-    let query = lotus_query::taxon_lookup_query(&sanitized);
-    let csv = sparql::execute_sparql_bytes(&query)
+    let resolution = lotus_search::resolve_taxon(http, trimmed)
         .await
-        .map_err(|e| ApiError::upstream(format!("taxon lookup failed: {e}")))?;
-    let matches = lotus_query::parse_taxon_csv(&csv)
-        .map_err(|e| ApiError::upstream(format!("taxon parse failed: {e}")))?;
+        .map_err(|err| match err {
+            lotus_search::FetchError::Parse(msg) if msg.starts_with("no taxon matched ") => {
+                ApiError::bad_request(format!("Taxon not found: {trimmed}"))
+            }
+            other => ApiError::upstream(format!("taxon lookup failed: {other}")),
+        })?;
 
-    if matches.is_empty() {
-        return Err(ApiError::bad_request(format!("Taxon not found: {taxon}")));
-    }
+    let warning = (!resolution.notes.is_empty()).then(|| {
+        resolution
+            .notes
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join("; ")
+    });
+    Ok((resolution.qid, warning))
+}
 
-    let exact: Vec<&TaxonMatch> = matches
-        .iter()
-        .filter(|m| m.name.eq_ignore_ascii_case(&sanitized))
-        .collect();
-    let best = exact
-        .first()
-        .copied()
-        .or_else(|| matches.first())
-        .ok_or_else(|| ApiError::bad_request("Could not resolve taxon"))?;
+/// Resolve structure (compound name, `InChIKey`, QID, or exact SMILES) and
+/// reference DOI inputs before building the execution query.
+pub async fn resolve_search_inputs(
+    criteria: &SearchCriteria,
+) -> Result<lotus_search::ResolvedInputs, ApiError> {
+    let http = lotus_search::reqwest_client::ReqwestClient::new()
+        .map_err(|e| ApiError::upstream(format!("HTTP client init failed: {e}")))?;
+    resolve_search_inputs_with(&http, criteria).await
+}
 
-    let warning = if sanitized != taxon {
-        Some(format!(
-            "Taxon normalized from '{taxon}' to '{}' ({}).",
-            best.name, best.qid
-        ))
-    } else if exact.len() > 1 || (exact.is_empty() && matches.len() > 1) {
-        Some(format!(
-            "Ambiguous taxon input. Using '{}' ({})",
-            best.name, best.qid
-        ))
-    } else {
-        None
-    };
-
-    Ok((Some(best.qid.clone()), warning))
+pub async fn resolve_search_inputs_with<H: lotus_search::Http>(
+    http: &H,
+    criteria: &SearchCriteria,
+) -> Result<lotus_search::ResolvedInputs, ApiError> {
+    lotus_search::resolve_inputs(http, criteria)
+        .await
+        .map_err(|err| match err {
+            lotus_search::FetchError::Parse(msg) if msg.starts_with("no ") => {
+                ApiError::bad_request(msg)
+            }
+            other => ApiError::upstream(format!("input resolution failed: {other}")),
+        })
 }
