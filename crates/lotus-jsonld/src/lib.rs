@@ -100,7 +100,7 @@ pub const SOFTWARE: crate::software::Software = crate::software::Software {
     license_url: "https://www.gnu.org/licenses/agpl-3.0.html",
     language: "Rust",
     language_url: "https://www.rust-lang.org",
-    requires_rust: ">= 1.99.1",
+    requires_rust: ">= 1.100.0",
     // The first commit in this repository; there is no release tag to date from yet.
     date_published: "2026-09-22",
     application_category: "scientific data analysis",
