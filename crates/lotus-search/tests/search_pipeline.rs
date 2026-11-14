@@ -421,6 +421,71 @@ async fn a_dropped_connection_falls_back_to_wikidata() {
     );
 }
 
+/// Two rows, so a search limited to one can see that the endpoint had more.
+const TWO_ROWS_CSV: &str = "compound,compoundLabel,compound_inchikey,compound_smiles_conn,compound_smiles_iso,compound_mass,compound_formula,taxon,taxon_name,ref_qid,ref_title,ref_doi,ref_date,statement\nQ1,Quercetin,IK1,CCO,,180.16,C9H8O4,Q16521,Gentiana lutea,Q100,T,10.1/a,2021,\nQ2,Rutin,IK2,CCC,,610.5,C27H30O16,Q16521,Gentiana lutea,Q100,T,10.1/a,2021,\n";
+
+const RATE_LIMITED: &str = r#"{"exception":"Operation timed out"}"#;
+
+/// `truncated` says the limit hid rows. The rows query asks for one more than
+/// the limit, so the parser can see the extra row; asking for exactly the limit
+/// meant the endpoint never sent more and `truncated` was never true.
+#[tokio::test]
+async fn a_result_larger_than_the_limit_is_reported_as_truncated() {
+    let http = Scripted::new(vec![
+        (200, TAXON_CSV),
+        (200, TWO_ROWS_CSV),
+        (200, COUNTS_CSV),
+    ]);
+    let request = SearchRequest::new(criteria("Gentiana lutea"), NOW).with_limit(1);
+
+    let result = search(&http, &request).await.expect("the search succeeds");
+
+    assert_eq!(result.rows.len(), 1, "the limit still caps the rows");
+    assert!(result.truncated, "the endpoint had a second row");
+    assert!(
+        http.queries()[1].contains("LIMIT 2"),
+        "a real endpoint honours the limit, so it must be asked for the extra row"
+    );
+}
+
+/// When the count query fails, the rows are all that is known. If they are the
+/// whole result their counts are the whole result's; if the limit cut them,
+/// their counts describe one page, and `stats` promises counts for everything.
+#[tokio::test]
+async fn a_failed_count_on_a_truncated_page_reports_no_totals() {
+    let http = Scripted::new(vec![
+        (200, TAXON_CSV),
+        (200, TWO_ROWS_CSV),
+        (429, RATE_LIMITED),
+    ]);
+    let request = SearchRequest::new(criteria("Gentiana lutea"), NOW).with_limit(1);
+
+    let result = search(&http, &request)
+        .await
+        .expect("the rows still arrive");
+
+    assert!(result.truncated);
+    assert!(
+        result.stats.is_none(),
+        "one page's counts are not the result's: {:?}",
+        result.stats
+    );
+}
+
+#[tokio::test]
+async fn a_failed_count_on_a_complete_page_keeps_the_rows_counts() {
+    let http = Scripted::new(vec![(200, TAXON_CSV), (200, ROWS_CSV), (429, RATE_LIMITED)]);
+    let request = SearchRequest::new(criteria("Gentiana lutea"), NOW).with_limit(5);
+
+    let result = search(&http, &request).await.expect("the search succeeds");
+
+    assert!(!result.truncated);
+    let stats = result
+        .stats
+        .expect("every row is here, so its counts are the totals");
+    assert_eq!(stats.n_entries, 1);
+}
+
 #[tokio::test]
 async fn the_returned_query_is_the_one_that_was_sent() {
     // A caller downloads "the query", and shows it as provenance. If it is not
@@ -433,8 +498,8 @@ async fn the_returned_query_is_the_one_that_was_sent() {
     let sent = http.queries();
     let rows_query = sent[1].split_once('|').map_or("", |(_, q)| q);
     assert!(
-        rows_query.contains("LIMIT 25"),
-        "the limit reached the endpoint"
+        rows_query.contains("LIMIT 26"),
+        "the limit reached the endpoint, plus the one row that shows there are more"
     );
     assert!(
         result.query.contains("SELECT"),

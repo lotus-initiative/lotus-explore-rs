@@ -340,7 +340,10 @@ pub async fn search<H: Http>(
 
     let query = build_execution_query_with(request, taxon.qid.as_deref(), &resolved);
     let limit = request.limit.unwrap_or(DEFAULT_ROW_LIMIT);
-    let display_query = limit_query(&query, limit);
+    // One row past the limit, so a result larger than the limit is visible as
+    // one: an endpoint asked for exactly `limit` rows never sends more, and the
+    // parser could not tell a full page from a cut one.
+    let display_query = limit_query(&query, limit.saturating_add(1));
 
     let csv = crate::execute_with_fallback(http, &display_query, ResponseFormat::Csv)
         .await
@@ -361,13 +364,18 @@ pub async fn search<H: Http>(
         })?;
 
     // The count query is the expensive one, so it is the one that gets
-    // rate-limited. Falling back to the row-derived count keeps the totals
-    // usable rather than reporting nothing.
-    let stats = counts(http, &query).await.unwrap_or(stats);
+    // rate-limited. When the rows are the whole result their counts are the
+    // totals; when the limit cut them they describe one page, and reporting
+    // them as totals would be wrong without saying so.
+    let stats = match counts(http, &query).await {
+        Ok(totals) => Some(totals),
+        Err(_) if !truncated => Some(stats),
+        Err(_) => None,
+    };
 
     Ok(SearchResult {
         rows,
-        stats: Some(stats),
+        stats,
         taxon: Some(taxon),
         query,
         truncated,

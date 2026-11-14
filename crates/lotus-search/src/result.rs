@@ -9,7 +9,8 @@ use lotus_model::{CompoundEntry, DatasetStats, Rows, SearchCriteria};
 pub struct SearchResult {
     /// The rows, already deduplicated and capped at the requested limit.
     pub rows: Vec<CompoundEntry>,
-    /// Counts for the whole result set, not just the returned page.
+    /// Counts for the whole result set, not just the returned page. `None`
+    /// when the count query failed and the rows are only part of the result.
     pub stats: Option<DatasetStats>,
     /// How the taxon's input was interpreted, or `None` for a structure-only
     /// search.

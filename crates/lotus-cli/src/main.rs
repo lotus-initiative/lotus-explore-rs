@@ -519,14 +519,11 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
         }
     }
 
-    // Both conditions, because `result.truncated` alone is not enough. It means the
-    // *parser* dropped rows, while the limit is pushed to the endpoint, so a capped
-    // result arrives already capped and the parser sees exactly the rows asked for.
-    // Hitting the limit is the only signal the CLI has, and a weak one: there may be
-    // more, not that there is.
-    if hit_limit(args.limit, result.truncated, result.rows.len()) {
+    // The search asks the endpoint for one row past the limit, so `truncated` is
+    // exact: it is true only when there were more rows than were kept.
+    if result.truncated {
         eprintln!(
-            "lotus: showing {} rows, which is the limit you set; there may be more. \
+            "lotus: showing {} rows, which is the limit you set; there are more. \
              Raise --limit, or drop it for all of them.",
             result.rows.len()
         );
@@ -536,14 +533,6 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
     write_rows(stdout, &result, args.format, args.explain)?;
     let _ = io::stderr().flush();
     Ok(ExitCode::SUCCESS)
-}
-
-/// Whether a search stopped at the `--limit` the user set.
-///
-/// Split out of `search` because the result it reads comes from the network,
-/// and a dropped condition here silently removes the "there may be more" note.
-fn hit_limit(limit: Option<usize>, truncated: bool, rows: usize) -> bool {
-    limit.is_some_and(|limit| truncated || rows >= limit)
 }
 
 /// Character width of the visual progress bar (`[====>---]`).
@@ -1109,10 +1098,6 @@ mod nomenclature_flag_tests;
 #[cfg(test)]
 #[path = "main/archive_tests.rs"]
 mod archive_tests;
-
-#[cfg(test)]
-#[path = "main/search_limit_tests.rs"]
-mod search_limit_tests;
 
 #[cfg(test)]
 #[path = "main/export_progress_tests.rs"]
