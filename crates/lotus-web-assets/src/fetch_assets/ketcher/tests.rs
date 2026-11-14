@@ -372,3 +372,45 @@ fn a_directory_entry_is_created_but_not_counted_as_a_file() {
     assert!(dir.join("static").is_dir(), "but it is created");
     let _ = fs::remove_dir_all(&dir);
 }
+
+/// An extraction that fails part way must leave no editor behind. Written
+/// straight into the target, the `index.html` already on disk named the
+/// version, so the next run's `already_present` accepted the half-written tree
+/// and never repaired it.
+#[test]
+fn an_extraction_that_fails_part_way_leaves_no_editor() {
+    let dir = temp_dir("ketcher-partial");
+    // `a` is a file, so `a/b.js` cannot be written under it: the failure comes
+    // after `index.html` is already out.
+    let bytes = zip_of(&[
+        ("standalone/index.html", "<title>Ketcher v9.9.9</title>"),
+        ("standalone/a", "x"),
+        ("standalone/a/b.js", "y"),
+    ]);
+    let mut archive = ZipArchive::new(Cursor::new(bytes)).expect("the fixture is a zip");
+
+    assert!(install(&mut archive, &dir).is_err(), "the extraction fails");
+    assert!(
+        !dir.join("index.html").exists(),
+        "no index.html, so the next run downloads again rather than trusting it"
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_successful_install_replaces_the_old_editor() {
+    let dir = temp_dir("ketcher-replace");
+    fs::create_dir_all(&dir).expect("a directory");
+    fs::write(dir.join("stale.js"), "old").expect("a stale file");
+    let bytes = zip_of(&[("standalone/index.html", "<title>Ketcher v9.9.9</title>")]);
+    let mut archive = ZipArchive::new(Cursor::new(bytes)).expect("the fixture is a zip");
+
+    install(&mut archive, &dir).expect("the install succeeds");
+
+    assert!(dir.join("index.html").is_file());
+    assert!(
+        !dir.join("stale.js").exists(),
+        "nothing of the old tree is kept"
+    );
+    let _ = fs::remove_dir_all(&dir);
+}

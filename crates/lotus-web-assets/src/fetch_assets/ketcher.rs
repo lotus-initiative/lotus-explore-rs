@@ -246,8 +246,9 @@ fn already_present(target: &KetcherTarget, version: &str) -> Result<bool, std::i
 ///
 /// # Errors
 /// Returns the first version-resolution, transport, archive or filesystem
-/// failure. A stale tree is removed before the download, so a failure leaves no
-/// editor behind rather than a half-updated one.
+/// failure. A failure leaves no editor behind rather than a half-updated one:
+/// the archive is unpacked beside the target and moved into place only once
+/// every entry is written.
 pub fn fetch_ketcher(
     client: &Client,
     target: &KetcherTarget,
@@ -271,9 +272,41 @@ pub fn fetch_ketcher(
     let bytes = response.bytes()?;
     println!("  downloaded {} bytes", bytes.len());
 
-    fs::create_dir_all(&target.dir)?;
     let mut archive = ZipArchive::new(Cursor::new(bytes.to_vec()))?;
-    let tally = extract(&mut archive, &target.dir)?;
+    let tally = install(&mut archive, &target.dir)?;
     println!("{}", tally.summary(&target.dir));
     Ok(())
+}
+
+/// Unpack `archive` beside `dir`, then put it in `dir`'s place.
+///
+/// Extracting into `dir` itself meant a failure part way left the editor's
+/// `index.html` naming the version, and [`already_present`] then trusted the
+/// half-written tree on every later run. Here a failure leaves `dir` without an
+/// editor -- the old one is removed whether or not the new one arrives -- and
+/// the next run downloads again.
+fn install(
+    archive: &mut ZipArchive<Cursor<Vec<u8>>>,
+    dir: &Path,
+) -> Result<Tally, Box<dyn std::error::Error>> {
+    let mut staging = dir.as_os_str().to_owned();
+    staging.push(".partial");
+    let staging = std::path::PathBuf::from(staging);
+    if staging.exists() {
+        fs::remove_dir_all(&staging)?;
+    }
+    if dir.exists() {
+        fs::remove_dir_all(dir)?;
+    }
+    fs::create_dir_all(&staging)?;
+    match extract(archive, &staging) {
+        Ok(tally) => {
+            fs::rename(&staging, dir)?;
+            Ok(tally)
+        }
+        Err(e) => {
+            let _ = fs::remove_dir_all(&staging);
+            Err(e)
+        }
+    }
 }
