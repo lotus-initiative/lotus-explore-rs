@@ -254,17 +254,30 @@ fn build() -> Result<reqwest::Client, String> {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        use std::time::Duration;
-        reqwest::Client::builder()
-            .connect_timeout(Duration::from_secs(8))
-            .timeout(Duration::from_mins(2))
-            .pool_idle_timeout(Duration::from_secs(90))
-            .pool_max_idle_per_host(32)
-            .tcp_keepalive(Duration::from_secs(30))
-            .gzip(true)
+        native_builder(STREAM_STALL_TIMEOUT)
             .build()
             .map_err(|e| e.to_string())
     }
+}
+
+/// The native client, bounded by how long the connection may sit idle.
+///
+/// An idle deadline and no overall one, for the reason [`STREAM_STALL_TIMEOUT`]
+/// gives: reqwest's `timeout` covers the whole request, body included, so the
+/// two-minute cap it used to carry failed every streamed export that took
+/// longer, however steadily it was arriving -- and reported it as the
+/// connection closing early. The endpoint's own time budget bounds how long it
+/// computes; this bounds how long it may go quiet.
+#[cfg(not(target_arch = "wasm32"))]
+fn native_builder(idle: std::time::Duration) -> reqwest::ClientBuilder {
+    use std::time::Duration;
+    reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(8))
+        .read_timeout(idle)
+        .pool_idle_timeout(Duration::from_secs(90))
+        .pool_max_idle_per_host(32)
+        .tcp_keepalive(Duration::from_secs(30))
+        .gzip(true)
 }
 
 #[cfg(test)]

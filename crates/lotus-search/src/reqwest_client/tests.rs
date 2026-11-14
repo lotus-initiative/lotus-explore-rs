@@ -107,6 +107,14 @@ const ACCEPT_WITHIN: Duration = Duration::from_secs(5);
 /// to arrive in pieces, or to stop partway. The handle yields the request as it
 /// was received, head and body.
 async fn serve_once(parts: &'static [&'static str]) -> (String, tokio::task::JoinHandle<String>) {
+    serve_paced(parts, Duration::from_millis(20)).await
+}
+
+/// [`serve_once`], with `pause` between the parts.
+async fn serve_paced(
+    parts: &'static [&'static str],
+    pause: Duration,
+) -> (String, tokio::task::JoinHandle<String>) {
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
         .expect("a free loopback port");
@@ -123,7 +131,7 @@ async fn serve_once(parts: &'static [&'static str]) -> (String, tokio::task::Joi
         for part in parts {
             stream.write_all(part.as_bytes()).await.expect("a write");
             stream.flush().await.expect("a flush");
-            tokio::time::sleep(Duration::from_millis(20)).await;
+            tokio::time::sleep(pause).await;
         }
         request
     });
@@ -321,4 +329,72 @@ async fn a_body_that_stops_partway_says_how_far_it_got() {
             }),
         }
     );
+}
+
+/// A body sent in pieces, so it can be made to arrive slowly.
+const TRICKLE: &[&str] = &[
+    "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n",
+    "1\r\na\r\n",
+    "1\r\nb\r\n",
+    "1\r\nc\r\n",
+    "1\r\nd\r\n",
+    "1\r\ne\r\n",
+    "0\r\n\r\n",
+];
+
+/// A body that keeps arriving is read to its end however long it takes in all.
+/// Each pause here is under the idle deadline and the whole is well over it,
+/// which a total timeout -- what the client used to carry -- would cut short.
+#[tokio::test]
+async fn a_slow_body_that_keeps_moving_is_read_whole() {
+    let (url, server) = serve_paced(TRICKLE, Duration::from_millis(150)).await;
+    let client = idle_bounded_client(Duration::from_millis(400));
+
+    let response = client
+        .post(&url, "text/csv", "query=ASK%7B%7D".to_owned())
+        .await
+        .expect("a response");
+    let mut chunks = response.into_chunks().expect("native responses stream");
+
+    assert_eq!(
+        drain(async || chunks.next_chunk().await).await,
+        Drained {
+            body: b"abcde".to_vec(),
+            end: Ok(()),
+        },
+        "a second of steady transfer under a 400 ms idle deadline"
+    );
+    server.await.expect("the server finished");
+}
+
+/// A body that stops moving for longer than the idle deadline is a failure, not
+/// a wait without end.
+#[tokio::test]
+async fn a_body_that_goes_quiet_past_the_idle_deadline_fails() {
+    let (url, server) = serve_paced(TRICKLE, Duration::from_millis(600)).await;
+    let client = idle_bounded_client(Duration::from_millis(200));
+
+    let outcome = match client
+        .post(&url, "text/csv", "query=ASK%7B%7D".to_owned())
+        .await
+    {
+        Ok(response) => {
+            let mut chunks = response.into_chunks().expect("native responses stream");
+            drain(async || chunks.next_chunk().await).await.end
+        }
+        Err(e) => Err(e),
+    };
+    assert!(
+        outcome.is_err(),
+        "a 600 ms silence under a 200 ms idle deadline"
+    );
+    server.abort();
+}
+
+/// A client with a short idle deadline. Leaked because `ReqwestClient` holds a
+/// `&'static`, as the shared one does; a test leaks one small allocation.
+fn idle_bounded_client(idle: Duration) -> ReqwestClient {
+    ReqwestClient(Box::leak(Box::new(
+        native_builder(idle).build().expect("a client"),
+    )))
 }
