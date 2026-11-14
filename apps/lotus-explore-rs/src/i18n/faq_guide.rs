@@ -29,10 +29,6 @@ pub enum FaqBlock {
     Heading(&'static str),
     /// A paragraph.
     Text(&'static str),
-    /// A bulleted list. No section uses one yet: every list worth having turned out
-    /// to be a table, which carries column headers.
-    #[allow(dead_code)]
-    List(&'static [&'static str]),
     /// A table. The first row is the header.
     Table(&'static [&'static [&'static str]]),
     /// A caveat worth setting apart: a limitation, or a deliberate omission.

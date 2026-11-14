@@ -211,11 +211,6 @@ fn guide_strings() -> Vec<(&'static str, &'static str)> {
                         out.extend(row.iter().map(|cell| (section.id, *cell)));
                     }
                 }
-                FaqBlock::List(items) => {
-                    for item in *items {
-                        out.push((section.id, item));
-                    }
-                }
             }
         }
     }

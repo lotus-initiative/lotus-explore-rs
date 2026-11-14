@@ -209,15 +209,6 @@ fn render_block(block: FaqBlock, first: bool) -> Element {
         FaqBlock::Text(text) => rsx! {
             p { class: "{top} text-body leading-relaxed text-muted", "{text}" }
         },
-        FaqBlock::List(items) => rsx! {
-            // Block flow, not flex, for the same reason as the contents list above: a
-            // flex container puts the marker outside the gap it is measuring.
-            ul { class: "{top} flex list-none flex-col gap-1 text-body leading-relaxed text-muted",
-                for item in items.iter() {
-                    li { "{*item}" }
-                }
-            }
-        },
         FaqBlock::Table(rows) => {
             // A real table with a real header row, not a grid of divs: the only
             // structure a screen reader announces row and column headers for, and
