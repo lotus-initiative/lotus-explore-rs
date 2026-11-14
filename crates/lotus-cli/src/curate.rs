@@ -355,6 +355,7 @@ async fn curate_findings(findings: &[Finding], offline: bool) -> anyhow::Result<
         }
     }
 
+    lotus_curation::merge_new_compound_creates(&mut rows);
     let statements = collect_report_statements(&rows);
 
     Ok(CuratedReport {

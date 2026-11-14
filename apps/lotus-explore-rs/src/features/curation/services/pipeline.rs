@@ -37,6 +37,7 @@ where
     for row in unique_rows {
         results.push(curate_single_row(locale, row).await);
     }
+    lotus_curation::merge_new_compound_creates(&mut results);
     let bundle = build_quickstatements_bundle(&results);
     Ok((results, bundle))
 }

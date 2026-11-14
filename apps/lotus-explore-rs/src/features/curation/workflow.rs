@@ -93,7 +93,7 @@ pub fn apply_second_pass(
         .map(|row| (row_uniqueness_key(&row.input), row))
         .collect::<HashMap<_, _>>();
 
-    let merged_rows = previous_rows
+    let mut merged_rows = previous_rows
         .iter()
         .map(|row| {
             let key = row_uniqueness_key(&row.input);
@@ -101,6 +101,7 @@ pub fn apply_second_pass(
         })
         .collect::<Vec<_>>();
 
+    lotus_curation::merge_new_compound_creates(&mut merged_rows);
     let quickstatements = build_quickstatements_bundle(&merged_rows);
     let pending_count = merged_rows
         .iter()

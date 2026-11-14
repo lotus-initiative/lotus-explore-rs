@@ -35,7 +35,9 @@ pub use knowledge::{
     StructureKey, WikidataLookup, creation_statements, look_up, reference_dependency_statements,
     statements_for, taxon_dependency_statements, to_result_row,
 };
-pub use quickstatements::{build_quickstatements_bundle, escape_quickstatements};
+pub use quickstatements::{
+    build_quickstatements_bundle, escape_quickstatements, merge_new_compound_creates,
+};
 pub use structure::{
     ConvertedStructure, convert_structure, convert_structures, extract_formula_from_inchi,
     has_stereo_marks, normalize_formula_for_wikidata, strip_stereo_marks,
