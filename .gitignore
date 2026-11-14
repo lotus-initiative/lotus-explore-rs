@@ -20,6 +20,8 @@ crates/lotus-web-assets/public/
 .code-review-graph/
 GEMINI.md
 *.agent-scratch*
+# Local audit ledger; working notes, never source.
+.agent-work/
 .ignore
 !.vscode/
 .vscode/*
