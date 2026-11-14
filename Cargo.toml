@@ -15,7 +15,7 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.99.1"
+rust-version = "1.100.0"
 # Declared here so `cargo metadata` reports a repository for every package, and
 # so the citation metadata this workspace generates can read it instead of
 # carrying a second copy of the URL.
@@ -85,8 +85,8 @@ pedantic = { level = "deny", priority = -2 }
 # Clippy nursery lints (experimental, may be noisy)
 nursery = { level = "deny", priority = -3 }
 
-# `future_not_send` is in here and denied, and the app still carries an
-# `#[allow]` for it in fifteen modules. That is not a gap left over: Dioxus
+# `future_not_send` is in here and denied, and the app still suppresses it in
+# about twenty modules, each with its reason. That is not a gap left over: Dioxus
 # `spawn` is single-threaded by design, and what the lint objects to -- a future
 # holding a `Signal`, which is a `RefCell` -- is how a component updates state.
 # The fix was attempted and does not close. `LotusRepository: Send + Sync` is
@@ -101,7 +101,7 @@ nursery = { level = "deny", priority = -3 }
 # built, not a lint fix.
 #
 # The rest of `nursery` stays denied: the deny catches what is fixable, and the
-# fifteen suppressions are the parts that are not.
+# suppressions are the parts that are not.
 
 # Clippy cargo lints (Cargo.toml hygiene)
 # Note: multiple_crate_versions is allow-listed due to transitive deps from dioxus
@@ -133,15 +133,17 @@ multiple_crate_versions = "allow"
 
 [workspace.lints.rust]
 #
-# The lints below are on because the whole workspace already satisfies them with
-# no `#[allow]` and no `#[expect]` anywhere. That is the test for whether a lint
-# belongs here: one that needs suppressing somewhere is not a gate, it is noise
-# that teaches the reader to ignore the list.
+# A lint belongs here when the workspace satisfies it everywhere except at a few
+# named sites whose reason is written beside the suppression. The known sites:
+# `dead_code` on the `#[used]` asset statics in the app's `vendor_assets.rs`,
+# which only the bundler reads; `unused_crate_dependencies` at crate roots and in
+# integration tests, where a self-dev-dependency or a feature-gated
+# dev-dependency is linked without being named; `unreachable_pub` on
+# target-specific items. A lint that needs suppressing in many unrelated places
+# is not a gate and does not go in this table.
 dead_code = "deny"
 missing_debug_implementations = "deny"
 missing_docs = "deny"
-# A binding that shadows another in the same scope is nearly always a mistake in
-# which of the two was meant.
 unreachable_pub = "deny"
 unsafe_code = "forbid"
 # Require an explicit unsafe block per unsafe operation inside unsafe fns

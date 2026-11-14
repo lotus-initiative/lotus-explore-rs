@@ -10,8 +10,7 @@ The search, query-building and curation logic lives in the `lotus-*` crates, whi
 the `lotus` CLI and the tests all share. A query the explorer runs and a query the CLI runs are
 the same query.
 
-For agent instructions, conventions, and the single command that runs every check —
-see [`AGENTS.md`](AGENTS.md).
+To build it, run the checks, or send a change, see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## CLI tools for full-graph operations
 
