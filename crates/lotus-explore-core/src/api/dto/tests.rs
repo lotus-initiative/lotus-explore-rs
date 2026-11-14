@@ -74,6 +74,7 @@ fn request_builder_sends_trimmed_text_fields_and_omits_blank_ones() {
         taxon: "  Gentiana lutea ".into(),
         reference: " 10.1000/xyz ".into(),
         formula_exact: " C15H10O5 ".into(),
+        formula_enabled: true,
         ..SearchCriteria::up_to_year(YEAR)
     };
     let request = SearchRequest::from_criteria(&filled, 10, false, YEAR);
@@ -161,4 +162,19 @@ fn request_builder_serializes_disabled_taxon_nomenclature_switches_only() {
     assert_eq!(narrowed_req.taxon_basionyms, Some(false));
     assert_eq!(narrowed_req.taxon_protonyms, Some(false));
     assert_eq!(narrowed_req.taxon_replacements, Some(false));
+}
+
+/// A formula typed and then switched off is not a filter: the local query
+/// builder and the URL codec both ignore it, and the server treats any
+/// `formula_exact` it receives as switched on. So it must not be sent.
+#[test]
+fn a_switched_off_formula_is_not_sent() {
+    let criteria = SearchCriteria {
+        taxon: "Gentiana lutea".into(),
+        formula_exact: "C6H6".into(),
+        formula_enabled: false,
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    let request = SearchRequest::from_criteria(&criteria, 10, false, YEAR);
+    assert_eq!(request.formula_exact, None);
 }

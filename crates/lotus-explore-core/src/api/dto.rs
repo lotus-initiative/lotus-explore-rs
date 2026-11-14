@@ -137,7 +137,8 @@ impl SearchRequest {
             mass_max: criteria.has_mass_filter().then_some(criteria.mass_max),
             year_min: criteria.has_year_filter(year).then_some(criteria.year_min),
             year_max: criteria.has_year_filter(year).then_some(criteria.year_max),
-            formula_exact: (!formula_exact.is_empty()).then(|| formula_exact.to_string()),
+            formula_exact: (criteria.formula_enabled && !formula_exact.is_empty())
+                .then(|| formula_exact.to_string()),
             c_min: criteria.formula_enabled.then_some(criteria.c_min),
             c_max: criteria.formula_enabled.then_some(criteria.c_max),
             h_min: criteria.formula_enabled.then_some(criteria.h_min),
