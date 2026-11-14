@@ -294,10 +294,12 @@ const fn should_warn_about_unchecked(unchecked: usize, quiet: bool) -> bool {
 
 /// How many rows were never looked up.
 ///
-/// A row ends up `NotChecked` when its structure could not be converted, and the
-/// count is printed rather than folded into an error: the rows that *were* looked
-/// up are still correct, and the ones that were not are still a valid batch to
-/// paste into a spreadsheet. A zero is not worth a line on stderr.
+/// A row ends up `NotChecked` when it was never looked up, which is every row
+/// under `--offline`. (A row whose structure could not be read is looked up and
+/// reported as an `error` instead.) The count is printed rather than folded into
+/// an error: the rows that *were* looked up are still correct, and the ones that
+/// were not are still a valid batch to paste into a spreadsheet. A zero is not
+/// worth a line on stderr.
 fn unchecked_count(report: &CuratedReport) -> usize {
     report
         .rows

@@ -174,10 +174,37 @@ async fn the_structures_are_sent_as_smiles_and_trimmed() {
 }
 
 #[tokio::test]
-async fn a_structure_the_service_cannot_read_is_invalid_input() {
+async fn a_structure_the_service_cannot_read_fails_its_row_not_the_file() {
+    // One unreadable structure is a fact about that row. It comes back with no
+    // key -- which the caller reports for that row -- and every other row is
+    // still converted. Failing the batch left a curator with no report for
+    // any row of a file because of one typo.
     let http = script(batch_with_one_bad());
 
-    let err = convert_structures(&http, &["bad", "CCO"])
+    let converted = convert_structures(&http, &["bad", "CCO"])
+        .await
+        .expect("the file converts");
+
+    assert_eq!(converted.len(), 2);
+    assert!(
+        converted.first().is_some_and(|row| !row.is_known()),
+        "{converted:?}"
+    );
+    assert!(
+        converted.get(1).is_some_and(ConvertedStructure::is_known),
+        "{converted:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_single_structure_the_service_cannot_read_is_invalid_input() {
+    // With one structure, the row is the whole request, so the reason is the
+    // caller's answer.
+    let unreadable =
+        r#"{"results":[{"success":false,"output":"","error":"unparsable"}]}"#.to_string();
+    let http = script(vec![(200, unreadable.clone()), (200, unreadable)]);
+
+    let err = convert_structure(&http, "bad")
         .await
         .expect_err("the unreadable structure is reported");
 
@@ -185,7 +212,6 @@ async fn a_structure_the_service_cannot_read_is_invalid_input() {
         matches!(err, CurationError::InvalidInput(ref m) if m.contains("unparsable")),
         "{err:?}"
     );
-    // A fault in the row, so retrying changes nothing.
     assert!(!err.is_recoverable(), "{err:?}");
 }
 

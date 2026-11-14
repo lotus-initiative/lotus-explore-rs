@@ -278,22 +278,32 @@ pub async fn convert_structures<H: Http>(
             "there are no structures to convert".into(),
         ));
     }
+    convert_rows(http, rows, Unreadable::FailsItsRow).await
+}
 
+/// What a structure the service cannot read does to the conversion.
+#[derive(Clone, Copy)]
+enum Unreadable {
+    /// The row comes back with no key; the others are unaffected.
+    FailsItsRow,
+    /// The conversion fails with the service's reason.
+    IsAnError,
+}
+
+async fn convert_rows<H: Http>(
+    http: &H,
+    rows: &[&str],
+    unreadable: Unreadable,
+) -> Result<Vec<ConvertedStructure>, CurationError> {
     let keys = convert_all(http, rows, "inchikey").await?;
     let canonical = convert_all(http, rows, "canonicalsmiles").await?;
     // The `InChI` is a bonus, and a service that will not produce one should not
     // cost the caller the two it did answer.
     let inchi = convert_all(http, rows, "inchi").await.unwrap_or_default();
 
-    rows.iter()
-        .enumerate()
-        .map(|(index, _)| {
-            let raw_smiles = canonical
-                .get(index)
-                .cloned()
-                .map(|converted| converted.into_result("output"))
-                .transpose()?
-                .flatten();
+    (0..rows.len())
+        .map(|index| {
+            let raw_smiles = row_value(canonical.get(index), unreadable)?;
             // The service has no separate `isomericsmiles` endpoint -- its
             // `canonicalsmiles` output preserves stereochemistry (`C[C@@H](C(=O)O)N`
             // for L-alanine). Wikidata's `P233` (canonical SMILES) forbids stereo
@@ -310,23 +320,36 @@ pub async fn convert_structures<H: Http>(
             Ok(ConvertedStructure {
                 // A structure the service could not read has no key, and that is
                 // what makes the row an error rather than a new compound.
-                inchikey: keys
-                    .get(index)
-                    .cloned()
-                    .map(|converted| converted.into_result("output"))
-                    .transpose()?
-                    .flatten(),
+                inchikey: row_value(keys.get(index), unreadable)?,
                 canonical_smiles,
                 isomeric_smiles,
-                inchi: inchi
-                    .get(index)
-                    .cloned()
-                    .map(|converted| converted.into_result("output"))
-                    .transpose()?
-                    .flatten(),
+                inchi: row_value(inchi.get(index), unreadable)?,
             })
         })
         .collect()
+}
+
+/// One row's answer, with an unreadable structure as no answer.
+///
+/// The service saying a structure cannot be read is a fact about that row, as
+/// [`convert_all`] documents, so it becomes `None` -- no key, which the caller
+/// reports for that row -- rather than an error that fails every other row in
+/// the file. A reply in a shape this does not read is still an error: that is a
+/// fault in the service, not in the row.
+fn row_value(
+    converted: Option<&Converted>,
+    unreadable: Unreadable,
+) -> Result<Option<String>, CurationError> {
+    match (
+        converted
+            .cloned()
+            .map(|c| c.into_result("output"))
+            .transpose(),
+        unreadable,
+    ) {
+        (Err(CurationError::InvalidInput(_)), Unreadable::FailsItsRow) => Ok(None),
+        (other, _) => other.map(Option::flatten),
+    }
 }
 
 /// Convert a single structure, for a caller that has only one.
@@ -342,7 +365,9 @@ pub async fn convert_structure<H: Http>(
             "the row has no structure".into(),
         ));
     }
-    convert_structures(http, &[smiles])
+    // One structure is the whole request, so here the service's reason for not
+    // reading it is the answer, not a row to report among others.
+    convert_rows(http, &[smiles], Unreadable::IsAnError)
         .await?
         .into_iter()
         .next()
