@@ -222,6 +222,34 @@ fn inline_script_texts_finds_the_body_and_skips_the_rest() {
     );
 }
 
+/// The `static` image serves the same `index.html` through nginx, whose CSP is a
+/// hand-written snippet rather than `_headers`. Without the digests there, the
+/// inline boot script is blocked under that image exactly as it was when the
+/// `_headers` digest drifted.
+#[test]
+fn the_nginx_csp_carries_the_digest_of_every_inline_script() -> Result<(), Box<dyn Error>> {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let index_html = fs::read_to_string(manifest_dir.join("index.html"))?;
+    let snippet =
+        fs::read_to_string(manifest_dir.join("../../docker/snippets/security-headers.conf"))?;
+    let csp = snippet
+        .lines()
+        .find(|line| {
+            line.trim_start()
+                .starts_with("add_header Content-Security-Policy")
+        })
+        .ok_or_else(|| "the nginx snippet has no CSP line".to_owned())?;
+    for script in inline_script_texts(&index_html) {
+        let source = format!("'sha256-{}'", base64_standard(&sha256(script.as_bytes())));
+        assert!(
+            csp.contains(&source),
+            "docker/snippets/security-headers.conf does not carry {source} for \
+             an inline script in index.html, so nginx blocks it"
+        );
+    }
+    Ok(())
+}
+
 #[test]
 fn the_csp_carries_the_digest_of_every_inline_script() -> Result<(), Box<dyn Error>> {
     // This is the check that keeps `_headers` and `index.html` from describing
