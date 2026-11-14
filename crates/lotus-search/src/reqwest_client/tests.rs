@@ -398,3 +398,10 @@ fn idle_bounded_client(idle: Duration) -> ReqwestClient {
         native_builder(idle).build().expect("a client"),
     )))
 }
+
+/// The idle deadline covers the wait for response headers, so it must outlast
+/// the slowest endpoint's own limit (WDQS: 60 s), or a slow first byte is cut.
+#[test]
+fn the_idle_deadline_outlasts_the_slowest_endpoints_time_limit() {
+    assert!(CONNECTION_IDLE_TIMEOUT > Duration::from_secs(60));
+}

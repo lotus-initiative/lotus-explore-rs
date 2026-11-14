@@ -254,11 +254,21 @@ fn build() -> Result<reqwest::Client, String> {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        native_builder(STREAM_STALL_TIMEOUT)
+        native_builder(CONNECTION_IDLE_TIMEOUT)
             .build()
             .map_err(|e| e.to_string())
     }
 }
+
+/// How long the native client lets a connection go without a byte, headers
+/// included.
+///
+/// Longer than any endpoint's own time limit -- WDQS computes for up to 60 s
+/// before its first byte -- so a slow but legitimate answer is not cut off.
+/// A streamed body has its own, shorter watchdog in [`STREAM_STALL_TIMEOUT`];
+/// this is the backstop for everything else.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) const CONNECTION_IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(90);
 
 /// The native client, bounded by how long the connection may sit idle.
 ///
