@@ -87,7 +87,8 @@ pub struct ExportArgs {
     #[arg(short, long, value_name = "DIR")]
     pub output: Option<std::path::PathBuf>,
 
-    /// Latest publication year to include. Defaults to this year.
+    /// Year recorded in the export metadata. Defaults to this year. It does
+    /// not filter: the export is the whole graph.
     #[arg(long)]
     pub year: Option<u16>,
 

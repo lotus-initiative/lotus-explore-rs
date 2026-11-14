@@ -6,7 +6,8 @@
 //! The pipeline runs the same queries as `lotus_exporter.py`, but through an
 //! injected [`lotus_search::Http`] transport so a test can drive it against a scripted
 //! double instead of the network. Every table is fetched once, indexed by QID,
-//! and joined in memory before the output is streamed row by row.
+//! and joined in memory, and the output is built in memory too: nothing here
+//! streams to disk.
 //!
 //! No clock: the caller supplies `now` (the ISO-8601 stamp) and `year`. No
 //! UI framework: this crate draws nothing. The CLI and the app each supply
@@ -449,18 +450,17 @@ pub const EXPORT_QUERY_COUNT: u64 = 4;
 /// Run the full LOTUS export: fetch every table, index by QID, join, and
 /// serialize `frozen.csv` plus `frozen_metadata.csv`.
 ///
-/// `now` is the ISO-8601 stamp the host read; `year` decides whether the year
-/// filter means anything. `endpoint` is the service to query (`QLever` by
-/// default, overridable through its environment variable).
+/// `now` is the ISO-8601 stamp the host read; `year` is recorded in the
+/// metadata and filters nothing. `endpoint` is the service to query (`QLever`
+/// by default, overridable through its environment variable).
 ///
 /// `on_progress` is called before each of the [`EXPORT_QUERY_COUNT`] table
 /// requests with its name.
 ///
-/// Each joined row is written to the CSV writer as soon as it is produced,
-/// so a large export never holds all joined rows in memory at once. The
-/// caller writes the two returned strings to disk (native) or triggers a
-/// browser download (wasm); this crate performs no file I/O, so it stays
-/// wasm-clean.
+/// The fetched tables, their indexes and the finished CSV are all in memory
+/// at once, so peak memory grows with the graph. The caller writes the two
+/// returned strings to disk (native) or triggers a browser download (wasm);
+/// this crate performs no file I/O, so it stays wasm-clean.
 ///
 /// # Errors
 /// Returns [`ExportError`] when a fetch, a parse, or a serialization fails.

@@ -300,8 +300,10 @@ The two files are:
 | `frozen.csv` | One row per compound–taxon–reference association |
 | `frozen_metadata.csv` | Export metadata: version, generated timestamp, source endpoint, row counts |
 
-Streaming: each CSV row is written as soon as it is joined from the SPARQL
-results, so a large export never holds the whole graph in memory.
+Memory: the export does not stream. All four tables are fetched into memory,
+indexed, joined, and the whole of `frozen.csv` is built before anything is
+written, so peak memory grows with the size of the graph. Run it on a machine
+with room for several copies of the output file.
 
 ## export-pubchem-tree
 

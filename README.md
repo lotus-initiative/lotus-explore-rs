@@ -17,7 +17,7 @@ To build it, run the checks, or send a change, see [`CONTRIBUTING.md`](CONTRIBUT
 The CLI has three bulk-data subcommands that fetch the entire LOTUS graph, not
 a filtered result set:
 
-- `lotus export` — the full compound–taxon–reference graph as CSV (streams, bounded memory)
+- `lotus export` — the full compound–taxon–reference graph as CSV (held in memory while it is joined; see [`docs/cli.md`](docs/cli.md))
 - `lotus export-pubchem-tree` — three PubChem-format JSON trees
 - `lotus archive` — InChIKey-to-SMILES mappings, deduplicated, tar+gzip packed, with optional Zenodo publishing (dry-run by default)
 
