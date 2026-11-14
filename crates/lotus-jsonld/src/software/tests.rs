@@ -198,7 +198,11 @@ fn the_citation_document_survives_the_mistypings_yaml_allows() {
     // rather than as two -- so the second entry is lost without complaint.
     for (label, key, expected) in [
         ("keywords", "keywords:", SOFTWARE.keywords.len()),
-        ("identifiers", "identifiers:", 2),
+        (
+            "identifiers",
+            "identifiers:",
+            1 + usize::from(SOFTWARE.doi.is_some()),
+        ),
     ] {
         let tail = cff
             .split_once(&format!("\n{key}\n"))
@@ -220,22 +224,38 @@ fn the_citation_document_survives_the_mistypings_yaml_allows() {
 }
 
 #[test]
-fn the_doi_is_bare_and_the_resolver_url_is_an_identifier() {
-    // CFF defines `doi` as the identifier without a prefix. A resolver URL
-    // there is either rejected by `cffconvert --validate` or, worse, silently
-    // doubled by a consumer that prepends the prefix itself.
-    let cff = citation_cff(&SOFTWARE);
+fn a_doi_is_bare_in_both_places_cff_carries_it() {
+    // CFF defines `doi`, and an identifier of `type: doi`, as the identifier
+    // without a prefix: `cffconvert --validate` rejects a resolver URL in
+    // either, and a consumer that prepends the prefix itself doubles it.
+    let software = crate::software::Software {
+        doi: Some("10.5281/zenodo.123"),
+        ..SOFTWARE
+    };
+    let cff = citation_cff(&software);
     assert!(
-        cff.contains("doi: 10.7554/eLife.70780"),
+        cff.contains("\ndoi: 10.5281/zenodo.123\n"),
         "the doi field is bare, got:\n{cff}"
     );
     assert!(
-        !cff.contains("doi: \"https://doi.org/"),
-        "the doi field must not carry a resolver prefix"
+        cff.contains("  - type: doi\n    value: 10.5281/zenodo.123"),
+        "and so is the identifier, got:\n{cff}"
     );
+    assert!(!cff.contains("https://doi.org/10.5281"), "got:\n{cff}");
+}
+
+/// The software has no DOI of its own. The LOTUS article's belongs to the
+/// article, which the citation file credits under `references`; stated as the
+/// software's, citation tools resolved this program to the 2022 paper.
+#[test]
+fn the_software_does_not_claim_the_papers_doi() {
+    assert_eq!(SOFTWARE.doi, None);
+    let cff = citation_cff(&SOFTWARE);
+    let (head, references) = cff.split_once("\nreferences:").unwrap_or((&cff, ""));
+    assert!(!head.contains("10.7554/eLife.70780"), "got:\n{cff}");
     assert!(
-        cff.contains("- type: doi"),
-        "the resolver URL is an identifier instead"
+        references.contains("doi: 10.7554/eLife.70780"),
+        "got:\n{cff}"
     );
 }
 

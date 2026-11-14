@@ -335,8 +335,9 @@ pub fn citation_cff(software: &Software) -> String {
         fields.push(format!("doi: {}", yaml_scalar(doi)));
     }
 
-    // Both dereferenceable forms of the project, so a consumer that wants a URL
-    // has one whether it reads `identifiers` or resolves `doi` itself.
+    // The project's URL, and its DOI when it has one. An identifier of
+    // `type: doi` takes the bare DOI, as the `doi` field does: the schema
+    // rejects a resolver URL in either.
     let mut identifiers = format!(
         "identifiers:\n  - type: url\n    value: {}\n",
         yaml_scalar(software.url)
@@ -346,7 +347,7 @@ pub fn citation_cff(software: &Software) -> String {
         let _ = writeln!(
             identifiers,
             "  - type: doi\n    value: {}",
-            yaml_scalar(&doi_uri(doi))
+            yaml_scalar(doi)
         );
     }
     fields.push(identifiers.trim_end().to_string());

@@ -33,7 +33,6 @@
     "Bioschemas-compliant JSON-LD export",
     "QuickStatements curation for compounds Wikidata is missing"
   ],
-  "identifier": "https://doi.org/10.7554/eLife.70780",
   "issueTracker": "https://github.com/lotusnprod/lotus-explore-rs/issues",
   "keywords": [
     "natural products",

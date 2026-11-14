@@ -94,7 +94,10 @@ pub const SOFTWARE: crate::software::Software = crate::software::Software {
     url: "https://lotus-initiative.github.io/lotus-explore-rs",
     repository: env!("CARGO_PKG_REPOSITORY"),
     issue_tracker: concat!(env!("CARGO_PKG_REPOSITORY"), "/issues"),
-    doi: Some("10.7554/eLife.70780"),
+    // None: the software has no DOI of its own. `10.7554/eLife.70780` is the
+    // LOTUS article, credited under `references`; claiming it here told citation
+    // tools that this program is that paper.
+    doi: None,
     version: env!("CARGO_PKG_VERSION"),
     license: "AGPL-3.0-only",
     license_url: "https://www.gnu.org/licenses/agpl-3.0.html",
