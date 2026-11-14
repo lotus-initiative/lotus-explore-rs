@@ -475,14 +475,21 @@ pub async fn export_file(
     Path((cache_key, format_raw)): Path<(String, String)>,
     Query(params): Query<ExportFileQuery>,
 ) -> Result<Response, ApiError> {
-    let _permit = state.request_permits.try_acquire().map_err(|_| {
-        state
-            .metrics
-            .overload_rejections
-            .fetch_add(1, Ordering::Relaxed);
-        log::warn!("event=export_file state=rejected reason=overloaded");
-        ApiError::overloaded("Server is busy, retry shortly")
-    })?;
+    // Owned, because the work outlives this handler: it returns as soon as the
+    // response starts, and the spawned pump below does the export. A borrowed
+    // permit was released at that return, so any number of exports could run at
+    // once -- each a full upstream stream, and for JSON or Turtle the whole
+    // result set in memory.
+    let permit = Arc::clone(&state.request_permits)
+        .try_acquire_owned()
+        .map_err(|_| {
+            state
+                .metrics
+                .overload_rejections
+                .fetch_add(1, Ordering::Relaxed);
+            log::warn!("event=export_file state=rejected reason=overloaded");
+            ApiError::overloaded("Server is busy, retry shortly")
+        })?;
 
     let format = ExportFormat::parse(&format_raw)
         .ok_or_else(|| ApiError::bad_request("Unsupported export format"))?;
@@ -497,6 +504,15 @@ pub async fn export_file(
     // asking for Turtle capped the export at whatever the endpoint would assemble in
     // time. The `SELECT` streams, and the other two formats are rendered here from
     // the same rows the CSV path already fetches.
+    // The same polite limit a search takes: an export is a query to the public
+    // endpoint, and a long one.
+    let upstream_permit = acquire_upstream_permit(
+        &state.upstream_permits,
+        state.upstream_queue_wait,
+        &state.metrics,
+    )
+    .await
+    .map_err(ApiError::from)?;
     let select_url = export::qlever_export_url(&cached.query, ExportFormat::Csv);
     let http = lotus_search::reqwest_client::ReqwestClient::new()
         .map_err(|e| ApiError::upstream(format!("could not open the export client: {e}")))?;
@@ -531,7 +547,11 @@ pub async fn export_file(
     // A bounded channel, so a client that stops reading stops the work. Unbounded
     // would trade the buffering we removed for buffering somewhere less visible.
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(8);
-    tokio::spawn(pump_export(response, tx, format, compress));
+    tokio::spawn(async move {
+        // Both slots are held until the export has been sent or abandoned.
+        let _held = (permit, upstream_permit);
+        pump_export(response, tx, format, compress).await;
+    });
 
     let stream = futures::stream::unfold(rx, |mut rx| async move {
         rx.recv().await.map(|item| (item, rx))

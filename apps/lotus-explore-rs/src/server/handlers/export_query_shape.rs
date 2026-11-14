@@ -90,3 +90,26 @@ fn the_export_streams_rather_than_buffering() {
         "the outbound channel must be bounded, or backpressure becomes buffering"
     );
 }
+
+/// An export runs in a spawned task after its handler has returned, so the
+/// permits that bound it have to move into that task. A permit borrowed in the
+/// handler was released on return, which left exports unbounded.
+#[test]
+fn an_export_holds_its_permits_until_it_is_done() {
+    let handler = HANDLERS
+        .split_once("pub async fn export_file(")
+        .and_then(|(_, rest)| rest.split_once("\nasync fn pump_export"))
+        .map_or("", |(body, _)| body);
+    assert!(
+        handler.contains(concat!("try_acquire", "_owned()")),
+        "the request permit must be owned, so it can outlive the handler"
+    );
+    assert!(
+        handler.contains(concat!("acquire_upstream", "_permit(")),
+        "an export is an upstream query and takes an upstream slot"
+    );
+    assert!(
+        handler.contains(concat!("let _held = (permit, upstream", "_permit);")),
+        "both permits move into the task that does the export"
+    );
+}
