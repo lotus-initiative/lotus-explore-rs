@@ -320,6 +320,31 @@ fn not_checked_row_populates_canonical_and_isomeric_smiles_and_p31() {
     assert_eq!(blank.isomeric_smiles, None);
 }
 
+/// `P703` (found in taxon) and `P248` (stated in) take items. Offline, the taxon
+/// and the DOI are never resolved to one, so any statement for them is either
+/// invalid -- a quoted string where an item belongs -- or a bare `CREATE` that
+/// `QuickStatements` runs anyway, leaving an empty item in Wikidata.
+#[test]
+fn an_offline_row_emits_nothing_for_an_unresolved_taxon_or_reference() {
+    let row = super::not_checked_row(&Finding {
+        name: "Quercetin".into(),
+        smiles: "CCO".into(),
+        taxon: Some("Gentiana lutea".into()),
+        doi: Some("10.1/x".into()),
+    });
+
+    assert_eq!(row.quickstatements.len(), 1, "{:?}", row.quickstatements);
+    let all = row.quickstatements.join("\n");
+    assert!(!all.contains("P703"), "{all}");
+    assert!(!all.contains("P248"), "{all}");
+    assert_eq!(all.matches("CREATE").count(), 1, "{all}");
+    assert!(
+        row.note.contains("taxon") && row.note.contains("reference"),
+        "the note must say what was left out: {}",
+        row.note
+    );
+}
+
 /// A scratch directory under the temp dir, removed by the caller.
 ///
 /// Hand-rolled rather than a `tempfile` dev-dependency: the earlier session

@@ -224,8 +224,11 @@ The row is reported instead of guessed at.
 lotus curate findings.tsv --offline
 ```
 
-The statements are still emitted, because there is something to read either way,
-but the status says they are a draft. Under `--offline` that is every row.
+Each row still gets its compound statement, drafted from the SMILES, because
+there is something to read either way; the status says it is a draft. The
+occurrence and the reference are left out, and the row's note says so: `P703`
+and `P248` take Wikidata items, and offline the taxon and the DOI are never
+resolved to one.
 
 **Nothing is submitted to Wikidata, and there is no flag that would.** The
 output is QuickStatements for a person to read and submit, and the command says

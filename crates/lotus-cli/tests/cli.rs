@@ -380,10 +380,10 @@ fn curate_quiet_suppresses_the_reminder_and_nothing_else() {
 }
 
 #[test]
-fn curate_writes_the_occurrence_and_the_reference_as_separate_statements() {
-    // They are separate because a `QuickStatements` run stops at the first
-    // failure: an occurrence pointing at a taxon nobody has created would take
-    // down the compound statement in the same block.
+fn an_offline_curate_drafts_the_compound_and_leaves_out_what_it_did_not_resolve() {
+    // Offline, the compound is drafted from the SMILES alone. The occurrence and
+    // the reference are not: `P703` and `P248` take items, and the taxon and
+    // the DOI were never resolved to one.
     let tsv = "name\tsmiles\ttaxon\tdoi\nQuercetin\tCCO\tGentiana lutea\t10.1/a\n";
     let output = lotus()
         .args(["curate", "-", "--offline"])
@@ -410,8 +410,12 @@ fn curate_writes_the_occurrence_and_the_reference_as_separate_statements() {
         stdout.contains("LAST|P2017|\\\"C[C@@H](C(=O)O)N\\\""),
         "isomeric SMILES (stereo-preserved): {stdout}"
     );
-    assert!(stdout.contains("P703"), "occurrence: {stdout}");
-    assert!(stdout.contains("P248"), "reference: {stdout}");
+    assert!(!stdout.contains("P703"), "occurrence: {stdout}");
+    assert!(!stdout.contains("P248"), "reference: {stdout}");
+    assert!(
+        stdout.contains("no statement for the taxon or reference"),
+        "{stdout}"
+    );
 }
 
 #[test]

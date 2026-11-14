@@ -213,9 +213,11 @@ async fn curate_row<H: lotus_search::Http>(
 
 /// Report a row that was never looked up.
 ///
-/// The statements are still generated, because a curator offline still wants
-/// something to read, but the status says the row is unchecked so the bundle is
-/// not mistaken for a finished curation.
+/// The compound statement is still generated, because a curator offline still
+/// wants something to read, but the status says the row is unchecked so the
+/// bundle is not mistaken for a finished curation. The occurrence and the
+/// reference are not: `P703` and `P248` take items, and offline the taxon and
+/// the DOI were never resolved to one. The note says so.
 fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
     let name = escape_quickstatements(finding.name.trim());
     let raw_smiles = finding.smiles.trim();
@@ -237,28 +239,24 @@ fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
             isomeric = escape_quickstatements(raw_smiles),
         );
     }
-    let mut statements = vec![compound_block];
-    if let Some(taxon) = finding
-        .taxon
-        .as_deref()
-        .map(str::trim)
-        .filter(|t| !t.is_empty())
-    {
-        statements.push(format!(
-            "\n## {name} — occurrence\nCREATE\nLAST|P703|\"{taxon}\"",
-            taxon = escape_quickstatements(taxon),
-        ));
-    }
-    if let Some(doi) = finding
-        .doi
-        .as_deref()
-        .map(str::trim)
-        .filter(|d| !d.is_empty())
-    {
-        statements.push(format!(
-            "\n## {name} — reference\nCREATE\nLAST|P248|\"{doi}\"",
-            doi = escape_quickstatements(doi),
-        ));
+    let statements = vec![compound_block];
+    let named = |field: Option<&str>| field.map(str::trim).is_some_and(|v| !v.is_empty());
+    let unresolved: Vec<&str> = [
+        named(finding.taxon.as_deref()).then_some("taxon"),
+        named(finding.doi.as_deref()).then_some("reference"),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    let mut note =
+        String::from("not looked up: run without --offline to check this against Wikidata");
+    if !unresolved.is_empty() {
+        use std::fmt::Write as _;
+        let _ = write!(
+            note,
+            "; no statement for the {} until it is resolved to an item",
+            unresolved.join(" or ")
+        );
     }
 
     lotus_curation::CurationResultRow {
@@ -272,7 +270,7 @@ fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
         mass_warning: None,
         wikidata_qid: None,
         status: lotus_curation::CurationStatus::NotChecked,
-        note: "not looked up: run without --offline to check this against Wikidata".into(),
+        note,
         dependency_blocks: Vec::new(),
         quickstatements: statements,
     }
