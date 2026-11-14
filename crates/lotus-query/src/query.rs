@@ -1316,9 +1316,16 @@ pub fn counts_query(base: &str) -> String {
     // Rebinding is not a workaround: the metadata OPTIONAL and this triple both supply
     // `?ref_date` from `?r wdt:P577`, and the filter's own `BOUND()` drops dateless rows
     // either way, so both queries count the same set.
-    let year_filtered = stripped.contains("FILTER(BOUND(?ref_date)");
-    if year_filtered {
-        stripped.push_str("\n?r wdt:P577 ?ref_date .");
+    //
+    // The triple goes immediately before the filter, inside the same group. Appended at
+    // the end it would land after the base query's closing brace -- outside the filter's
+    // scope, and beside a sub-select, which SPARQL does not allow.
+    if stripped.contains("FILTER(BOUND(?ref_date)") {
+        stripped = stripped.replacen(
+            "FILTER(BOUND(?ref_date)",
+            "?r wdt:P577 ?ref_date .\nFILTER(BOUND(?ref_date)",
+            1,
+        );
     }
 
     format!(

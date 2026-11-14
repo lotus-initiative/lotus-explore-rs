@@ -386,6 +386,35 @@ fn every_filter_something_counts_query_keeps_still_has_its_binding() {
     }
 }
 
+/// Where the rebinding lands matters, not just that it exists. The counts query
+/// wraps the filtered base in a subquery, and the year `FILTER` sits inside it:
+/// a binding appended after the subquery's closing brace is outside the
+/// filter's scope, and SPARQL does not allow a triple beside a sub-select in
+/// the same group at all.
+#[test]
+fn the_counts_query_binds_the_reference_date_inside_the_year_filters_group() {
+    let criteria = SearchCriteria {
+        year_min: 1990,
+        ..criteria()
+    };
+    let counts = counts_query(&with_filters(
+        &compounds_by_taxon_query("Q16521"),
+        &criteria,
+        NOW,
+    ));
+
+    let filter_at = counts
+        .find("FILTER(BOUND(?ref_date)")
+        .expect("the year filter survives");
+    let bind_at = counts
+        .find("?r wdt:P577 ?ref_date .")
+        .expect("the reference date is rebound");
+    assert!(
+        bind_at < filter_at,
+        "the binding comes after the filter, outside its group:\n{counts}"
+    );
+}
+
 #[test]
 fn a_reference_constraint_binds_the_referenced_item() {
     // `?r` is the reference item, the same variable the year filter already binds,
