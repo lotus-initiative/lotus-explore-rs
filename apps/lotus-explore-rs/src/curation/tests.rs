@@ -38,10 +38,10 @@ fn normalize_formula_passes_through_non_digit_chars() {
 }
 
 #[test]
-fn row_key_normalizes_structure_taxon_and_doi() {
+fn row_key_trims_the_structure_and_folds_taxon_and_doi() {
     let row = CurationInputRow {
         name: "compound A".to_string(),
-        smiles: " cco ".to_string(),
+        smiles: " CCO ".to_string(),
         taxon: Some("  Voacanga africana ".to_string()),
         doi: Some("https://doi.org/10.1000/abc".to_string()),
     };

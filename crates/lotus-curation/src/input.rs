@@ -109,19 +109,16 @@ pub fn parse_tsv(tsv: &str) -> Result<Vec<CurationInputRow>, CurationError> {
 /// # Errors
 /// Never; infallible by construction.
 pub fn row_uniqueness_key(row: &CurationInputRow) -> String {
-    // Every part is compared case-insensitively, and the structure is
-    // upper-cased. A spreadsheet has no opinion about capitalisation, and `CCO`
-    // and `cco` are the same molecule, as are `10.1/A` and `10.1/a`. The
-    // CLI's own version of this key did all three; the web's did not, so the
-    // web treated a re-cased duplicate as two findings.
+    // The taxon and the DOI are compared case-insensitively: `10.1/A` and
+    // `10.1/a` are one DOI, and a spreadsheet has no opinion about how a taxon
+    // is capitalised. The structure is not folded, because in SMILES case is
+    // chemistry: `c1ccccc1` is benzene and `C1CCCCC1` is cyclohexane.
     let smiles = row.smiles.trim();
     let taxon = row.taxon.as_deref().and_then(non_empty).unwrap_or_default();
     let doi = row.doi.as_deref().and_then(normalize_doi);
     let doi_str = doi.as_deref().unwrap_or_default();
     let mut out = String::with_capacity(smiles.len() + taxon.len() + doi_str.len() + 2);
-    for ch in smiles.chars() {
-        out.push(ch.to_ascii_uppercase());
-    }
+    out.push_str(smiles);
     out.push('\t');
     for ch in taxon.chars() {
         out.push(ch.to_ascii_lowercase());

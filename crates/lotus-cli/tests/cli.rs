@@ -478,8 +478,9 @@ fn curate_emits_jsonl_one_finding_per_line() {
 #[test]
 fn curate_deduplicates_rows_that_name_the_same_finding() {
     // The same structure, taxon and DOI under two names is one finding: a
-    // spreadsheet artefact, not two things to submit.
-    let tsv = "name\tsmiles\ttaxon\tdoi\nQuercetin\tCCO\tGentiana lutea\t10.1/a\nAlso called quercetin\tcco\tGENTIANA LUTEA\t10.1/A\n";
+    // spreadsheet artefact, not two things to submit. The taxon and DOI may
+    // differ in case; the SMILES may not, because there case is chemistry.
+    let tsv = "name\tsmiles\ttaxon\tdoi\nQuercetin\tCCO\tGentiana lutea\t10.1/a\nAlso called quercetin\tCCO\tGENTIANA LUTEA\t10.1/A\n";
     let output = lotus()
         .args(["curate", "-", "--offline", "--format", "jsonl"])
         .write_stdin(tsv)

@@ -50,13 +50,13 @@ fn parse_tsv_ignores_a_header_row() {
 
 #[test]
 fn row_key_normalizes_structure_taxon_and_doi() {
-    // All three are folded, and the structure is upper-cased. This used to
-    // assert the opposite for the DOI, pinning behaviour where `10.1/A` and
-    // `10.1/a` were two different findings -- which is how a re-cased
-    // duplicate got submitted twice.
+    // The taxon and the DOI are case-folded; the structure is only trimmed.
+    // This used to assert the opposite for the DOI, pinning behaviour where
+    // `10.1/A` and `10.1/a` were two different findings -- which is how a
+    // re-cased duplicate got submitted twice.
     let row = CurationInputRow {
         name: "compound A".into(),
-        smiles: " cco ".into(),
+        smiles: " CCO ".into(),
         taxon: Some("  Voacanga africana ".into()),
         doi: Some("https://doi.org/10.1000/ABC".into()),
     };
@@ -66,11 +66,31 @@ fn row_key_normalizes_structure_taxon_and_doi() {
     );
 }
 
+/// In SMILES, case is chemistry: lower case marks an aromatic atom, and `Co`
+/// is cobalt where `CO` is carbon then oxygen. Folding it made these pairs one
+/// finding, and the second row of each was dropped as a duplicate.
 #[test]
-fn a_row_matches_itself_regardless_of_case() {
+fn smiles_that_differ_only_in_case_are_different_findings() {
+    for (a, b) in [("c1ccccc1", "C1CCCCC1"), ("[Co]", "[CO]"), ("Co", "CO")] {
+        let row = |smiles: &str| CurationInputRow {
+            name: "x".into(),
+            smiles: smiles.into(),
+            taxon: Some("Gentiana lutea".into()),
+            doi: Some("10.1/a".into()),
+        };
+        assert_ne!(
+            row_uniqueness_key(&row(a)),
+            row_uniqueness_key(&row(b)),
+            "{a} and {b} are different molecules"
+        );
+    }
+}
+
+#[test]
+fn a_row_matches_itself_regardless_of_taxon_and_doi_case() {
     let lower = CurationInputRow {
         name: "Quercetin".into(),
-        smiles: "cco".into(),
+        smiles: "CCO".into(),
         taxon: Some("Gentiana lutea".into()),
         doi: Some("10.1/a".into()),
     };
