@@ -1250,3 +1250,29 @@ async fn a_cancelled_leader_does_not_pin_its_search_cell() {
         "the finished cell was forgotten, so the next request searches again"
     );
 }
+
+/// The API takes the same criteria as the CLI and the browser, and the model's
+/// `validate_criteria` is what keeps them from disagreeing about what is valid.
+/// Without it a taxon or SMILES up to the body limit went to the upstream
+/// resolvers, and a year outside the dataset was a quiet empty answer.
+#[test]
+fn the_api_refuses_what_the_shared_validation_refuses() {
+    for (what, body) in [
+        (
+            "a year after this one",
+            r#"{"taxon":"Gentiana","year_min":2999}"#.to_owned(),
+        ),
+        (
+            "an overlong taxon",
+            format!(r#"{{"taxon":"{}"}}"#, "a".repeat(600)),
+        ),
+        (
+            "a mass beyond the range",
+            r#"{"taxon":"Gentiana","mass_max":99999}"#.to_owned(),
+        ),
+    ] {
+        let req: SearchRequest = serde_json::from_str(&body).expect("a deserialisable request");
+        let err = apply_request(&req).expect_err(what);
+        assert_eq!(err.status, StatusCode::BAD_REQUEST, "{what}");
+    }
+}

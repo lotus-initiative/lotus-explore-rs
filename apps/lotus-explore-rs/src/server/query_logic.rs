@@ -120,7 +120,16 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
     apply_opt!(req.br_state.map(Into::into) => c.br_state);
     apply_opt!(req.i_state.map(Into::into)  => c.i_state);
 
-    Ok(c)
+    validated(c)
+}
+
+/// The same rules the CLI and the browser apply, so one request means the same
+/// thing on every surface -- and so an overlong taxon or structure is refused
+/// here rather than forwarded to the upstream resolvers.
+fn validated(criteria: SearchCriteria) -> Result<SearchCriteria, ApiError> {
+    lotus_model::validate_criteria(&criteria, crate::clock::current_year())
+        .map_err(|e| ApiError::bad_request(e.to_string()))?;
+    Ok(criteria)
 }
 
 /// Refuse a reference that is neither a Wikidata QID nor a DOI, rather than
