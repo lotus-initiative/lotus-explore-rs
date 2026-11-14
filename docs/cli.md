@@ -359,7 +359,8 @@ environment variable; CI never sets either.
 
 `--publish --dry-run` validates the Zenodo metadata and upload plan — checking
 that `SOURCE_CODE_URL` is an `https` URL with a `/commit/<40-hex-SHA>` suffix,
-and that the three archive files exist — without sending anything to Zenodo.
+and that the three files can be uploaded under distinct names — without sending
+anything to Zenodo. A plan that fails either check exits with status 1.
 
 ```bash
 lotus archive --output ./lotus-archive --publish --dry-run
@@ -383,8 +384,8 @@ back to production (`ZENODO_TOKEN`).
 | Code | Meaning                                       |
 | ---- | --------------------------------------------- |
 | 0    | Success                                       |
-| 1    | The search or curation could not be completed |
-| 2    | The arguments were not valid                  |
+| 1    | The command could not be completed, including a value that parses but is out of range (a mass above the maximum, an inverted year range) |
+| 2    | The command line could not be parsed (an unknown flag, a missing value) |
 
 ## Endpoints
 

@@ -158,7 +158,7 @@ fn a_dry_run_states_the_plan_for_a_first_record_and_for_a_new_version() {
         std::path::Path::new("out/SUMS"),
     );
     assert_eq!(
-        dry_run_zenodo(archive, manifest, checksums, None),
+        dry_run_zenodo(archive, manifest, checksums, None).expect("a valid plan"),
         "lotus: Zenodo dry run OK — metadata valid, 3 files ready, plan: publish the \
          initial Zenodo record"
     );
@@ -168,7 +168,8 @@ fn a_dry_run_states_the_plan_for_a_first_record_and_for_a_new_version() {
             manifest,
             checksums,
             Some(zenodo_rs::DepositionId(42))
-        ),
+        )
+        .expect("a valid plan"),
         "lotus: Zenodo dry run OK — metadata valid, 3 files ready, plan: publish a new \
          version from deposition 42"
     );
@@ -177,15 +178,18 @@ fn a_dry_run_states_the_plan_for_a_first_record_and_for_a_new_version() {
 #[test]
 fn a_dry_run_reports_an_upload_plan_that_cannot_be_built() {
     // Two files with the same name would collide in the Zenodo bucket.
-    let report = dry_run_zenodo(
+    // An error, so the command exits non-zero rather than printing "failed"
+    // and reporting success.
+    let err = dry_run_zenodo(
         std::path::Path::new("one/same"),
         std::path::Path::new("two/same"),
         std::path::Path::new("out/SUMS"),
         None,
-    );
+    )
+    .expect_err("a plan with a collision is an error");
     assert_eq!(
-        report,
-        "lotus: Zenodo dry run failed — upload spec: prepare Zenodo upload specs: \
+        err.to_string(),
+        "Zenodo dry run failed: upload spec: prepare Zenodo upload specs: \
          duplicate upload filename: same"
     );
 }

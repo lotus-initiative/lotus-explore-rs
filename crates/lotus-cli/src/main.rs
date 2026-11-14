@@ -776,7 +776,7 @@ async fn archive(args: ArchiveArgs) -> anyhow::Result<ExitCode> {
             )?;
             eprintln!(
                 "{}",
-                dry_run_zenodo(&archive_path, &manifest_path, &checksums_path, root_id)
+                dry_run_zenodo(&archive_path, &manifest_path, &checksums_path, root_id)?
             );
         } else {
             Box::pin(publish_to_zenodo(
@@ -857,19 +857,20 @@ fn dry_run_zenodo(
     manifest_path: &std::path::Path,
     checksums_path: &std::path::Path,
     root_id: Option<zenodo_rs::DepositionId>,
-) -> String {
-    let files = match archive_upload_paths(archive_path, manifest_path, checksums_path) {
-        Ok(files) => files,
-        Err(e) => return format!("lotus: Zenodo dry run failed — upload spec: {e}"),
-    };
+) -> anyhow::Result<String> {
+    // An error, not a message: a dry run that cannot build its plan has found
+    // the problem it exists to find, and a script checking the exit status must
+    // see it.
+    let files = archive_upload_paths(archive_path, manifest_path, checksums_path)
+        .map_err(|e| anyhow::anyhow!("Zenodo dry run failed: upload spec: {e}"))?;
     let plan = root_id.map_or_else(
         || "publish the initial Zenodo record".to_string(),
         |root_id| format!("publish a new version from deposition {}", root_id.0),
     );
-    format!(
+    Ok(format!(
         "lotus: Zenodo dry run OK — metadata valid, {} files ready, plan: {plan}",
         files.len()
-    )
+    ))
 }
 
 /// Actually publish the archive to Zenodo. Tries the sandbox token first, then
