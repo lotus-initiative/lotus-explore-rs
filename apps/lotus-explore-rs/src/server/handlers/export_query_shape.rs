@@ -86,7 +86,7 @@ fn the_export_streams_rather_than_buffering() {
     // The channel is what stops a client that stops reading from being turned
     // into unbounded buffering somewhere less visible than the export.
     assert!(
-        HANDLERS.contains("tokio::sync::mpsc::channel::<Bytes>(8)"),
+        HANDLERS.contains("tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(8)"),
         "the outbound channel must be bounded, or backpressure becomes buffering"
     );
 }

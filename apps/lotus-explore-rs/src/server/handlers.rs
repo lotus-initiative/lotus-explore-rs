@@ -530,13 +530,11 @@ pub async fn export_file(
 
     // A bounded channel, so a client that stops reading stops the work. Unbounded
     // would trade the buffering we removed for buffering somewhere less visible.
-    let (tx, rx) = tokio::sync::mpsc::channel::<Bytes>(8);
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(8);
     tokio::spawn(pump_export(response, tx, format, compress));
 
     let stream = futures::stream::unfold(rx, |mut rx| async move {
-        rx.recv()
-            .await
-            .map(|chunk| (Ok::<Bytes, std::io::Error>(chunk), rx))
+        rx.recv().await.map(|item| (item, rx))
     });
     log::info!(
         "event=export_file state=started format={} compressed={compress} parsed={}",
@@ -561,9 +559,14 @@ pub async fn export_file(
 /// Separated from the handler so the handler reads as a decision about headers and
 /// this reads as the pipeline it sets running. `response` is taken by value and moved
 /// into the task, which is what lets the handler return without holding the body.
+///
+/// A failure part way -- the upstream body cut short, or rows that do not parse
+/// -- ends the stream with an error and no gzip trailer, so the client sees a
+/// failed download. Finishing cleanly instead handed over a valid file holding
+/// part of the export, with nothing to say so.
 async fn pump_export<H>(
     mut response: H,
-    tx: tokio::sync::mpsc::Sender<Bytes>,
+    tx: tokio::sync::mpsc::Sender<Result<Bytes, std::io::Error>>,
     format: ExportFormat,
     compress: bool,
 ) where
@@ -611,19 +614,29 @@ async fn pump_export<H>(
     // alternative is the CONSTRUCT this replaced -- and it costs a constant rather
     // than a second copy of the export.
     if let (false, Some(reader)) = (failed, reader) {
-        {
-            match reader.finish() {
-                Ok(set) => {
-                    let mut exporter = RowExporter::new(format, &set);
-                    while let Some(chunk) = exporter.next_chunk() {
-                        if !push_chunk(&tx, &mut encoder, chunk.as_bytes()).await {
-                            break;
-                        }
+        match reader.finish() {
+            Ok(set) => {
+                let mut exporter = RowExporter::new(format, &set);
+                while let Some(chunk) = exporter.next_chunk() {
+                    if !push_chunk(&tx, &mut encoder, chunk.as_bytes()).await {
+                        break;
                     }
                 }
-                Err(e) => log("parse_failed", e.to_string()),
+            }
+            Err(e) => {
+                log("parse_failed", e.to_string());
+                failed = true;
             }
         }
+    }
+
+    if failed {
+        let _ = tx
+            .send(Err(std::io::Error::other(
+                "the export stopped before the endpoint finished sending it",
+            )))
+            .await;
+        return;
     }
 
     if let Some(encoder) = encoder {
@@ -631,13 +644,13 @@ async fn pump_export<H>(
         // bytes it produced are taken from the inner buffer afterwards.
         let finished = encoder.finish().unwrap_or_default();
         if !finished.is_empty() {
-            let _ = tx.send(Bytes::from(finished)).await;
+            let _ = tx.send(Ok(Bytes::from(finished))).await;
         }
     }
 }
 
 async fn push_chunk(
-    tx: &tokio::sync::mpsc::Sender<Bytes>,
+    tx: &tokio::sync::mpsc::Sender<Result<Bytes, std::io::Error>>,
     encoder: &mut Option<GzEncoder<Vec<u8>>>,
     data: &[u8],
 ) -> bool {
@@ -650,9 +663,9 @@ async fn push_chunk(
             // Drain what the encoder has produced so far rather than the whole buffer,
             // so memory stays proportional to one chunk instead of the whole export.
             let ready = std::mem::take(encoder.get_mut());
-            ready.is_empty() || tx.send(Bytes::from(ready)).await.is_ok()
+            ready.is_empty() || tx.send(Ok(Bytes::from(ready))).await.is_ok()
         }
-        None => tx.send(Bytes::from(data.to_vec())).await.is_ok(),
+        None => tx.send(Ok(Bytes::from(data.to_vec()))).await.is_ok(),
     }
 }
 
@@ -666,3 +679,7 @@ async fn push_chunk(
 #[cfg(test)]
 #[path = "handlers/export_query_shape.rs"]
 mod export_query_shape;
+
+#[cfg(test)]
+#[path = "handlers/pump_tests.rs"]
+mod pump_tests;
