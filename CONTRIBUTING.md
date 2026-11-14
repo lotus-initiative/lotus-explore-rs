@@ -14,8 +14,10 @@ You do not need to launch the web server, download frontend assets, or touch the
 network to see what the codebase does or to test a change:
 
 ```bash
-# 1. Print the exact SPARQL query that a search builds (zero network access):
-cargo run -p lotus-cli -- search --taxon "Gentiana lutea" --explain
+# 1. Print the exact SPARQL query that a search builds (zero network access).
+#    A taxon is given by its Wikidata QID here (Q158572 is Gentiana lutea):
+#    turning a name into a QID needs the network, so --explain refuses names.
+cargo run -p lotus-cli -- search --taxon Q158572 --explain
 
 # 2. Run a single unit or contract test by substring:
 ./mk test-fast -E 'test(exact_compound)'
