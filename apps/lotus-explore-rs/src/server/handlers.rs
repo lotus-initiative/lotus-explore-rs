@@ -260,7 +260,7 @@ async fn cached_search_response(
         })
         .await
         .clone();
-    search_inflight_remove(state, &cache_key, &cell, is_leader);
+    search_inflight_remove(state, &cache_key, &cell);
 
     match response {
         Ok(response) => {
@@ -336,7 +336,7 @@ async fn cached_export_urls(
         })
         .await
         .clone();
-    export_inflight_remove(state, &prepared.cache_key, &cell, is_leader);
+    export_inflight_remove(state, &prepared.cache_key, &cell);
 
     match response {
         Ok(response) => {

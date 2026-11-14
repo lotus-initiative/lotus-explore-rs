@@ -296,10 +296,14 @@ pub fn search_inflight_cell(
     Ok((cell, true))
 }
 
-pub fn search_inflight_remove(state: &AppState, key: &str, cell: &InFlightSearch, is_leader: bool) {
-    if !is_leader {
-        return;
-    }
+/// Forget a finished in-flight cell, so the next request looks again.
+///
+/// Called by every request that awaited the cell, not only the one that created
+/// it. The creator can be cancelled -- its client disconnects -- after which a
+/// waiting request finishes the work; if only the creator removed the entry, a
+/// finished result, or a finished error, would be served from it forever. The
+/// pointer check leaves a newer cell for the same key alone.
+pub fn search_inflight_remove(state: &AppState, key: &str, cell: &InFlightSearch) {
     if let Ok(mut inflight) = state.search_inflight.lock()
         && inflight
             .get(key)
@@ -332,10 +336,14 @@ pub fn export_inflight_cell(
     Ok((cell, true))
 }
 
-pub fn export_inflight_remove(state: &AppState, key: &str, cell: &InFlightExport, is_leader: bool) {
-    if !is_leader {
-        return;
-    }
+/// Forget a finished in-flight cell, so the next request looks again.
+///
+/// Called by every request that awaited the cell, not only the one that created
+/// it. The creator can be cancelled -- its client disconnects -- after which a
+/// waiting request finishes the work; if only the creator removed the entry, a
+/// finished result, or a finished error, would be served from it forever. The
+/// pointer check leaves a newer cell for the same key alone.
+pub fn export_inflight_remove(state: &AppState, key: &str, cell: &InFlightExport) {
     if let Ok(mut inflight) = state.export_inflight.lock()
         && inflight
             .get(key)

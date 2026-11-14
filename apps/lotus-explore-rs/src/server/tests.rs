@@ -27,7 +27,7 @@ use crate::server::{
     },
     state::{
         AppState, CachedExportResponse, export_inflight_cell, prune_cache, search_inflight_cell,
-        taxon_cache_put,
+        search_inflight_remove, taxon_cache_put,
     },
     types::{ExportUrlResponse, SearchRequest},
 };
@@ -1218,4 +1218,35 @@ async fn resolve_search_inputs_with_resolves_compounds_and_dois_and_maps_misses_
     .await
     .expect_err("upstream failure is a 502");
     assert_eq!(err.status, StatusCode::BAD_GATEWAY);
+}
+
+/// A client that disconnects drops its handler, and with it the request that
+/// created the in-flight cell. A request already waiting on that cell then
+/// finishes the work. It must also forget the cell, or every later identical
+/// search is answered from it -- including an error -- long after the cache's
+/// own expiry.
+#[tokio::test]
+async fn a_cancelled_leader_does_not_pin_its_search_cell() {
+    let state = AppState::new(&test_config());
+
+    let (leader, is_leader) = search_inflight_cell(&state, "k").expect("a cell");
+    assert!(is_leader, "the first request creates the cell");
+    drop(leader); // cancelled before it finished, so it never removed the entry
+
+    let (waiter, is_leader) = search_inflight_cell(&state, "k").expect("a cell");
+    assert!(!is_leader, "the entry is still there");
+    let _ = waiter
+        .get_or_init(|| async {
+            Err(crate::server::errors::SharedApiError::timed_out(
+                "search execution timed out",
+            ))
+        })
+        .await;
+    search_inflight_remove(&state, "k", &waiter);
+
+    let (_, is_leader) = search_inflight_cell(&state, "k").expect("a cell");
+    assert!(
+        is_leader,
+        "the finished cell was forgotten, so the next request searches again"
+    );
 }
