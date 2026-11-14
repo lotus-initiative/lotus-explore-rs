@@ -29,9 +29,9 @@ PREFIX prov: <http://www.w3.org/ns/prov#>\n\
 PREFIX pr: <http://www.wikidata.org/prop/reference/>\n\
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>";
 
-/// The Wikidata class a curated compound is an instance of.
+/// "Chemical compound": the class a new compound is a subclass of (`P279`).
 pub const WD_CHEMICAL_COMPOUND_QID: &str = "Q11173";
-/// The Wikidata class for the type of a chemical entity.
+/// "Type of chemical entity": the class a new compound is an instance of (`P31`).
 pub const WD_TYPE_CHEMICAL_ENTITY_QID: &str = "Q113145171";
 /// The Wikidata class for the group of stereoisomers a structure belongs to.
 pub const WD_STEREOISOMER_GROUP_QID: &str = "Q59199015";

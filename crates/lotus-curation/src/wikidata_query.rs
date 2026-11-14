@@ -9,7 +9,7 @@
 //! copies of "find the item for this `InChIKey`" would eventually answer
 //! differently, and the difference would be a curator submitting a duplicate.
 
-use crate::{CURATION_SPARQL_PREFIXES, WD_CHEMICAL_COMPOUND_QID};
+use crate::{CURATION_SPARQL_PREFIXES, WD_CHEMICAL_COMPOUND_QID, WD_TYPE_CHEMICAL_ENTITY_QID};
 
 /// The Wikidata properties curation reads and writes.
 pub mod property {
@@ -194,7 +194,10 @@ pub fn has_occurrence_with_ref_query(compound_qid: &str, taxon_qid: &str, ref_qi
 
 /// The statements that would add a compound to Wikidata, given a structure.
 ///
-/// `P31` is asserted before the structure, because an item with no class is not
+/// The item is an instance of "type of chemical entity" (`P31 Q113145171`) and
+/// a subclass of "chemical compound" (`P279 Q11173`), the model the web app
+/// writes too. `P31` is asserted before the structure, because an item with no
+/// class is not
 /// findable by anything that filters on one, and a `QuickStatements` run stops
 /// at the first failure -- so the statements that make the item *usable* come
 /// before the ones that fill it in. `P2017` (isomeric SMILES) is emitted only
@@ -209,10 +212,12 @@ pub fn create_compound_statements(
     use std::fmt::Write as _;
     let mut out = format!(
         "CREATE\n  LAST|{label}|\"{name}\"\n  \
-         LAST|P31|{compound_class}\n  \
+         LAST|P31|{entity_type}\n  \
+         LAST|P279|{compound_class}\n  \
          LAST|{canonical}|\"{canonical_value}\"",
         label = property::LABEL,
         name = crate::escape_quickstatements(name),
+        entity_type = WD_TYPE_CHEMICAL_ENTITY_QID,
         compound_class = WD_CHEMICAL_COMPOUND_QID,
         canonical = property::CANONICAL_SMILES,
         canonical_value = crate::escape_quickstatements(canonical_smiles),

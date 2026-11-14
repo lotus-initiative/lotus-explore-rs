@@ -309,7 +309,8 @@ fn not_checked_row_populates_canonical_and_isomeric_smiles_and_p31() {
     let achiral = super::not_checked_row(&finding("CCO"));
     assert_eq!(achiral.canonical_smiles.as_deref(), Some("CCO"));
     assert_eq!(achiral.isomeric_smiles, None);
-    assert!(achiral.quickstatements[0].contains("LAST|P31|Q11173"));
+    assert!(achiral.quickstatements[0].contains("LAST|P31|Q113145171"));
+    assert!(achiral.quickstatements[0].contains("LAST|P279|Q11173"));
 
     let chiral = super::not_checked_row(&finding("C[C@H](O)C"));
     assert_eq!(chiral.canonical_smiles.as_deref(), Some("CC(O)C"));

@@ -125,9 +125,19 @@ fn a_created_compound_is_classed_before_it_is_filled_in() {
         class < canonical,
         "an item with no class is unfindable, so P31 comes first:\\n{statements}"
     );
+    // The same model the web app writes: an instance of "type of chemical
+    // entity", a subclass of "chemical compound".
     assert!(
-        statements.contains(WD_CHEMICAL_COMPOUND_QID),
+        statements.contains(&format!("LAST|P31|{WD_TYPE_CHEMICAL_ENTITY_QID}")),
         "{statements}"
+    );
+    assert!(
+        statements.contains(&format!("LAST|P279|{WD_CHEMICAL_COMPOUND_QID}")),
+        "{statements}"
+    );
+    assert!(
+        !statements.contains(&format!("P31|{WD_CHEMICAL_COMPOUND_QID}")),
+        "not an instance of chemical compound: {statements}"
     );
 }
 

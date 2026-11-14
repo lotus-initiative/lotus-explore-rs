@@ -226,9 +226,11 @@ fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
         lotus_curation::has_stereo_marks(raw_smiles).then(|| raw_smiles.to_string());
     let mut compound_block = format!(
         "## {name}\nCREATE\nLAST|{PROPERTY_NAME}|\"{name}\"\n\
-         LAST|P31|{qid}\n\
+         LAST|P31|{entity_type}\n\
+         LAST|P279|{compound_class}\n\
          LAST|{PROPERTY_CANONICAL_SMILES}|\"{canonical}\"",
-        qid = lotus_curation::WD_CHEMICAL_COMPOUND_QID,
+        entity_type = lotus_curation::WD_TYPE_CHEMICAL_ENTITY_QID,
+        compound_class = lotus_curation::WD_CHEMICAL_COMPOUND_QID,
         canonical = escape_quickstatements(&canonical),
     );
     if isomeric_smiles.is_some() {

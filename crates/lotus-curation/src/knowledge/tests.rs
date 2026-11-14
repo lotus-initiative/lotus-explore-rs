@@ -298,8 +298,8 @@ mod unit {
             "English label goes to Len: {statements}"
         );
         assert!(
-            statements.contains("LAST|P31|Q11173"),
-            "bare QID in P31: {statements}"
+            statements.contains("LAST|P31|Q113145171") && statements.contains("LAST|P279|Q11173"),
+            "bare QIDs in P31 and P279: {statements}"
         );
         assert!(
             statements.contains("LAST|P233|\"CC(C(=O)O)N\""),
