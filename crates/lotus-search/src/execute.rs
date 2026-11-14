@@ -351,11 +351,16 @@ async fn send_response<H: Http>(
         // Read the body before reporting, because it carries the endpoint's
         // explanation and a gateway's is an HTML page.
         let response = response.bytes().await.map_err(|_| FetchError::Empty);
+        let wdqs_timeout = response
+            .as_ref()
+            .is_ok_and(|bytes| status >= 500 && is_wdqs_query_timeout(bytes));
         let message = response.map_or_else(|_| String::new(), |bytes| compact(&bytes));
         // 429 is the endpoint cancelling a query that outran its time limit, so
         // it becomes its own error rather than a status the retry loop weighs.
-        // See `FetchError::TimedOut` for the measurement behind that.
-        if status == 429 {
+        // See `FetchError::TimedOut` for the measurement behind that. WDQS says
+        // the same thing as a 500 carrying the Java timeout, which `compact`
+        // would reduce to the echoed query, so it is read from the raw body.
+        if status == 429 || wdqs_timeout {
             return Err(FetchError::TimedOut {
                 budget: query_budget(endpoint),
                 message,
@@ -617,6 +622,13 @@ pub async fn execute_streaming_with_fallback<H: Http>(
     format: ResponseFormat,
 ) -> Result<StreamAnswer, FetchError> {
     with_fallback(http, query, format, execute_streaming).await
+}
+
+/// Whether an error body is WDQS reporting that the query outran its time
+/// limit: Blazegraph's stack trace names `java.util.concurrent.TimeoutException`.
+fn is_wdqs_query_timeout(body: &[u8]) -> bool {
+    const NEEDLE: &[u8] = b"java.util.concurrent.TimeoutException";
+    body.windows(NEEDLE.len()).any(|window| window == NEEDLE)
 }
 
 const fn is_success(status: u16) -> bool {

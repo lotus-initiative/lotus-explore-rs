@@ -63,3 +63,28 @@ fn configuration_and_network_have_expected_retryability() {
     assert!(!TransportFailureKind::Configuration.is_retryable());
     assert!(TransportFailureKind::Network.is_retryable());
 }
+
+/// "timeout" in a 4xx body is not a rate limit. `QLever` answers a request whose
+/// time budget exceeds its ceiling with a 403 that says so; the same request
+/// gets the same 403 however often it is sent, so it must not be retried.
+/// A 4xx that does say "too many" or "rate limit" still is one.
+#[test]
+fn a_client_error_mentioning_timeout_is_not_a_rate_limit() {
+    let ceiling = RepositoryError::Http {
+        status: 403,
+        body: "User submitted timeout was higher than what is currently allowed by this instance (30s)."
+            .into(),
+    };
+    let kind = classify_transport_error(&ceiling);
+    assert_eq!(kind, TransportFailureKind::BadRequest);
+    assert!(!kind.is_retryable());
+
+    let throttled = RepositoryError::Http {
+        status: 403,
+        body: "Too many requests from this client".into(),
+    };
+    assert_eq!(
+        classify_transport_error(&throttled),
+        TransportFailureKind::RateLimit
+    );
+}

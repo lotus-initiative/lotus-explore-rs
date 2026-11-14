@@ -164,3 +164,25 @@ fn rate_limit_refusal_distinguishes_proxy_429_from_query_timeout() {
         "non-429 status is not a rate-limit refusal"
     );
 }
+
+/// A query that ran out of time must reach the retry planner as too expensive,
+/// whatever the endpoint wrote in its message: `WDQS`'s is the echoed query, not
+/// `QLever`'s "Operation timed out". Read as a rate limit, it was retried at the
+/// full time budget each time.
+#[test]
+fn a_timed_out_query_is_too_expensive_whatever_its_message() {
+    for message in ["Operation timed out", "SPARQL-QUERY: queryStr=SELECT ?x"] {
+        let mapped = map_fetch_error(lotus_search::FetchError::TimedOut {
+            budget: None,
+            message: message.into(),
+        });
+        let kind = lotus_explore_core::explore::transport_classification::classify_transport_error(
+            &mapped,
+        );
+        assert_eq!(
+            kind,
+            lotus_explore_core::explore::transport_classification::TransportFailureKind::QueryTooExpensive,
+            "{message}"
+        );
+    }
+}

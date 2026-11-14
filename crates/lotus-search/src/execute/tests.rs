@@ -553,3 +553,47 @@ fn an_empty_or_whitespace_token_is_not_a_token() {
         Some("secret")
     );
 }
+
+/// WDQS reports a query that outran its time limit as a 500 whose body is the
+/// query echoed back, then the Java exception. It is the same event as
+/// `QLever`'s 429 -- the query is too expensive -- and retrying it runs it to
+/// the same limit again. A plain 500 is still retried.
+#[tokio::test]
+async fn a_wdqs_query_timeout_is_not_retried() {
+    let body = "SPARQL-QUERY: queryStr=SELECT ?x WHERE { ?x ?p ?o }\n\
+                java.util.concurrent.ExecutionException: java.util.concurrent.TimeoutException\n\
+                \tat java.util.concurrent.FutureTask.report(FutureTask.java:122)\n";
+    let http = crate::testing::Scripted::new(vec![(500, body), (200, "never sent")]);
+
+    let result = execute(
+        &http,
+        Endpoint::new(Service::Wdqs),
+        "SELECT ?x WHERE { ?x ?p ?o }",
+        ResponseFormat::Csv,
+    )
+    .await;
+
+    assert!(
+        matches!(result, Err(FetchError::TimedOut { .. })),
+        "a query timeout, whichever endpoint reports it: {result:?}"
+    );
+    assert_eq!(http.queries().len(), 1, "and it is sent once");
+}
+
+#[tokio::test]
+async fn a_plain_server_error_is_still_retried() {
+    // Longer than the timeout marker, so the search for it actually runs.
+    let body = "java.lang.IllegalStateException: the triple store is being reloaded, retry";
+    let http = crate::testing::Scripted::new(vec![(500, body), (200, "x\n1\n")]);
+
+    let result = execute(
+        &http,
+        Endpoint::new(Service::Wdqs),
+        "SELECT ?x WHERE { ?x ?p ?o }",
+        ResponseFormat::Csv,
+    )
+    .await;
+
+    assert!(result.is_ok(), "{result:?}");
+    assert_eq!(http.queries().len(), 2);
+}

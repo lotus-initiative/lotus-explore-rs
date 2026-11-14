@@ -69,7 +69,12 @@ fn classify_http_error(status: u16, body: &str) -> TransportFailureKind {
         // outstaying its budget, while "too many" is a request-rate refusal.
         // Both are 429, and treating the first as the second is what produced
         // four full-length queries for one search.
-        return if body.contains("timed out") {
+        //
+        // "time limit" is how `lotus_search::FetchError::TimedOut` words it, and
+        // that error is a 429 by the time it reaches here whichever endpoint
+        // reported the timeout -- WDQS's message is the echoed query, not QLever's
+        // "Operation timed out".
+        return if body.contains("timed out") || body.contains("time limit") {
             TransportFailureKind::QueryTooExpensive
         } else {
             TransportFailureKind::RateLimit
@@ -78,6 +83,13 @@ fn classify_http_error(status: u16, body: &str) -> TransportFailureKind {
 
     match classify_sparql_error_text(body) {
         SparqlErrorClass::CacheConflict => TransportFailureKind::CacheConflict,
+        // A client error is a rate limit only when it says so. "timeout" or
+        // "queue" in a 4xx is a request the endpoint refuses outright -- `QLever`'s
+        // 403 for a time budget above its ceiling -- and resending it gets the
+        // same refusal.
+        SparqlErrorClass::RateLimit if (400..500).contains(&status) && !says_slow_down(body) => {
+            TransportFailureKind::BadRequest
+        }
         SparqlErrorClass::RateLimit => TransportFailureKind::RateLimit,
         SparqlErrorClass::QuerySyntax => TransportFailureKind::QuerySyntax,
         SparqlErrorClass::NoResults | SparqlErrorClass::Unknown => {
@@ -88,6 +100,12 @@ fn classify_http_error(status: u16, body: &str) -> TransportFailureKind {
             }
         }
     }
+}
+
+/// Whether a body asks the client to send less, rather than to send differently.
+fn says_slow_down(body: &str) -> bool {
+    let body = body.to_ascii_lowercase();
+    body.contains("too many") || body.contains("rate limit")
 }
 
 fn classify_parse_error(detail: &str) -> TransportFailureKind {
