@@ -29,6 +29,9 @@ pub fn parse_tsv(tsv: &str) -> Result<Vec<CurationInputRow>, CurationError> {
     // as a whole is NOT stripped here, because `str::trim` eats `\t`, which
     // shifts columns when the first cell is empty. Each cell is trimmed
     // individually at `field.trim()` below.
+    // A byte-order mark, which spreadsheet programs write by default, is not part
+    // of the first column's name.
+    let tsv = tsv.strip_prefix('\u{feff}').unwrap_or(tsv);
     let mut lines = tsv
         .lines()
         .map(|line| line.trim_end_matches('\r'))

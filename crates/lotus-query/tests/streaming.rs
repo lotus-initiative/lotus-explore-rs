@@ -546,3 +546,13 @@ fn enrichment_streams_seed_and_capture_extra_entities() {
     assert_eq!(second.compound_qids().collect::<Vec<_>>(), vec![3]);
     assert_eq!(second.reference_qids().collect::<Vec<_>>(), vec![300]);
 }
+
+/// A byte-order mark is not part of the first column's name. Read as one, the
+/// `compound` column went unrecognised and every row was dropped for lacking a
+/// compound, with no error: an empty result for a full payload.
+#[test]
+fn a_byte_order_mark_before_the_header_keeps_every_row() {
+    let set = lotus_query::parse_compounds_columnar(&b"\xEF\xBB\xBFcompound,taxon\nQ1,Q2\n"[..])
+        .expect("the payload parses");
+    assert_eq!(set.row_count(), 1);
+}

@@ -202,3 +202,25 @@ fn an_upper_case_doi_url_strips_the_host_and_matches_lower_case() {
         "host case does not split one reference into two submissions"
     );
 }
+
+/// Spreadsheet programs save "UTF-8 with BOM" by default. The mark is not part
+/// of the first column's name: read as one, a leading `taxon` or `doi` column
+/// was silently ignored, and a leading `name` was reported missing.
+#[test]
+fn a_byte_order_mark_does_not_rename_the_first_column() {
+    let tsv = "\u{feff}taxon\tname\tsmiles\nGentiana lutea\tEthanol\tCCO\n";
+    let rows = parse_tsv(tsv).expect("tsv parse");
+    assert_eq!(
+        rows.first().and_then(|row| row.taxon.as_deref()),
+        Some("Gentiana lutea"),
+        "{rows:?}"
+    );
+
+    let tsv = "\u{feff}name\tsmiles\nEthanol\tCCO\n";
+    assert_eq!(
+        parse_tsv(tsv)
+            .expect("a leading name column is found")
+            .len(),
+        1
+    );
+}

@@ -333,9 +333,16 @@ impl CsvColumnarReader {
                 builder.push(row);
             }
         } else {
+            // `trim` keeps a byte-order mark, which would rename the first column
+            // and lose every row for want of a `compound`.
             let names: Vec<String> = record
                 .iter()
-                .map(|field| String::from_utf8_lossy(field).trim().to_owned())
+                .map(|field| {
+                    String::from_utf8_lossy(field)
+                        .trim()
+                        .trim_start_matches('\u{feff}')
+                        .to_owned()
+                })
                 .collect();
             *columns = Some(Columns::from_names(&names));
             *header = Some(names);
