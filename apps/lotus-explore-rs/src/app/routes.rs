@@ -63,27 +63,41 @@ impl fmt::Display for RouteQuery {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Routable)]
-#[rustfmt::skip]
-pub enum Route {
-    #[layout(AppShell)]
-    #[route("/?:..query#:hash")]
-    Landing { query: RouteQuery, hash: String },
+pub use route_table::Route;
 
-    #[route("/search?:..query#:hash")]
-    Search { query: RouteQuery, hash: String },
+/// Holds only `Route`, so the allow below covers the impls `Routable` generates
+/// beside it and nothing else in this file. Since Rust 1.100 that generated code
+/// trips `unreachable_code`; it is not code this crate can edit.
+#[allow(
+    unreachable_code,
+    reason = "the `Routable` derive's generated impls read as unreachable since Rust 1.100"
+)]
+mod route_table {
+    use super::{AppShell, Curation, Draw, Faq, Landing, NotFound, RouteQuery, Search};
+    use dioxus::prelude::*;
 
-    #[route("/curation?:..query#:hash")]
-    Curation { query: RouteQuery, hash: String },
+    #[derive(Clone, Debug, PartialEq, Eq, Routable)]
+    #[rustfmt::skip]
+    pub enum Route {
+        #[layout(AppShell)]
+        #[route("/?:..query#:hash")]
+        Landing { query: RouteQuery, hash: String },
 
-    #[route("/draw?:..query#:hash")]
-    Draw { query: RouteQuery, hash: String },
+        #[route("/search?:..query#:hash")]
+        Search { query: RouteQuery, hash: String },
 
-    #[route("/faq?:..query#:hash")]
-    Faq { query: RouteQuery, hash: String },
+        #[route("/curation?:..query#:hash")]
+        Curation { query: RouteQuery, hash: String },
 
-    #[route("/:..segments")]
-    NotFound { segments: Vec<String> },
+        #[route("/draw?:..query#:hash")]
+        Draw { query: RouteQuery, hash: String },
+
+        #[route("/faq?:..query#:hash")]
+        Faq { query: RouteQuery, hash: String },
+
+        #[route("/:..segments")]
+        NotFound { segments: Vec<String> },
+    }
 }
 
 impl Route {

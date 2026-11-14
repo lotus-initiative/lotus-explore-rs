@@ -223,8 +223,9 @@ fn json_is_sparql_results_and_parses() {
         .get("head")
         .and_then(|head| head.get("vars"))
         .and_then(serde_json::Value::as_array)
-        .map(|vars| vars.iter().filter_map(serde_json::Value::as_str).collect())
-        .unwrap_or_default();
+        .map_or_else(Vec::new, |vars| {
+            vars.iter().filter_map(serde_json::Value::as_str).collect()
+        });
     assert_eq!(vars, COLUMNS, "head.vars must match the column order");
 
     let bindings: Vec<serde_json::Value> = parsed

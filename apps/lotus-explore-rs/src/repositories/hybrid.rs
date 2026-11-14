@@ -275,14 +275,13 @@ fn needs_split_occurrences(query: &str) -> bool {
 }
 
 fn should_use_split_occurrences(query: &str) -> bool {
-    if needs_split_occurrences(query) {
-        return true;
-    }
+    // Only the browser keeps a seed set, so only it can tell an unnarrowed query
+    // is broad from the cache alone.
     #[cfg(target_arch = "wasm32")]
-    if is_unnarrowed_query(query) && crate::cache::has_broad_seed_set() {
-        return true;
-    }
-    false
+    let seeded_broad = is_unnarrowed_query(query) && crate::cache::has_broad_seed_set();
+    #[cfg(not(target_arch = "wasm32"))]
+    let seeded_broad = false;
+    needs_split_occurrences(query) || seeded_broad
 }
 
 /// Backoff delays (in milliseconds) for in-place retries when `qlever.dev`'s

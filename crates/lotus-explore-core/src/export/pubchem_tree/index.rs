@@ -299,7 +299,7 @@ impl Index {
             identifiers: Qid {
                 qid: compound.to_string(),
             },
-            descriptors: props.map(CompoundProps::descriptors).unwrap_or_default(),
+            descriptors: props.map_or_else(Descriptors::default, CompoundProps::descriptors),
         }
     }
 

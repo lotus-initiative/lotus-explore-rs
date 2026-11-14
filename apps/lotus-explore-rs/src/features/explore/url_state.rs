@@ -64,8 +64,7 @@ pub fn deployment_href(path: &str) -> String {
         .and_then(|window| window.document())
         .and_then(|document| document.document_element())
         .and_then(|element| element.get_attribute("data-lotus-base-path"))
-        .map(|value| value.trim_end_matches('/').to_string())
-        .unwrap_or_default();
+        .map_or_else(String::new, |value| value.trim_end_matches('/').to_string());
     if prefix.is_empty() {
         let pathname = web_sys::window()
             .and_then(|window| window.location().pathname().ok())

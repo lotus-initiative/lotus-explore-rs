@@ -18,6 +18,10 @@
     reason = "a `pub` item in a target-gated module is unreachable from the other target"
 )]
 #![allow(
+    clippy::empty_enums,
+    reason = "Dioxus's `Props` derive emits an empty enum for every `#[component]`; clippy 1.100 reports it at each call site"
+)]
+#![allow(
     clippy::missing_const_for_fn,
     reason = "fires on the locale-dispatch helpers, which cannot be `const` without cascading into all four locale tables"
 )]

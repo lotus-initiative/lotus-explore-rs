@@ -160,8 +160,7 @@ impl Row<'_> {
     fn dependency_blocks(&self) -> Vec<String> {
         self.dependencies
             .as_ref()
-            .map(|deps| deps.dependency_blocks.clone())
-            .unwrap_or_default()
+            .map_or_else(Vec::new, |deps| deps.dependency_blocks.clone())
     }
 
     /// The status and note for a row whose dependencies are still outstanding.
@@ -173,8 +172,7 @@ impl Row<'_> {
         let notes = self
             .dependencies
             .as_ref()
-            .map(|deps| deps.pending_messages.join("\n"))
-            .unwrap_or_default();
+            .map_or_else(String::new, |deps| deps.pending_messages.join("\n"));
         if pending {
             (
                 CurationStatus::PendingDependencies,

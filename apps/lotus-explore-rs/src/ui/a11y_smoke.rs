@@ -88,8 +88,7 @@ mod brand {
 
         let group = SWITCH
             .split_once("SegmentedControl {")
-            .map(|(_, rest)| rest.chars().take(200).collect::<String>())
-            .unwrap_or_default();
+            .map_or_else(String::new, |(_, rest)| rest.chars().take(200).collect());
         assert!(
             group.contains("aria_label: \"\""),
             "the group inside the nav must not repeat the nav's name"

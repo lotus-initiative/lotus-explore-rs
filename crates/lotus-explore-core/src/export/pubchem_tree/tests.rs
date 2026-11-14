@@ -127,8 +127,7 @@ fn parse(text: &str) -> Value {
 fn node_fields(doc: &Value) -> Vec<String> {
     doc["_documentation"]["structure"]["node_fields"]
         .as_object()
-        .map(|m| m.keys().cloned().collect())
-        .unwrap_or_default()
+        .map_or_else(Vec::new, |m| m.keys().cloned().collect())
 }
 
 #[tokio::test]

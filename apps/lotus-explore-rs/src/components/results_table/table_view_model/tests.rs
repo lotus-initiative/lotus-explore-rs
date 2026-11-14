@@ -299,8 +299,7 @@ fn shown_as_names(set: &ColumnarResultSet, order: &[u32]) -> Vec<String> {
         .iter()
         .map(|offset| {
             set.entry(*offset as usize)
-                .map(|entry| entry.name.to_string())
-                .unwrap_or_default()
+                .map_or_else(String::new, |entry| entry.name.to_string())
         })
         .collect()
 }
