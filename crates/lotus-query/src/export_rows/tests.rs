@@ -120,8 +120,12 @@ fn chunks_concatenate_into_exactly_one_csv() {
     let whole = render(ExportFormat::Csv, &set);
     assert_eq!(
         whole.lines().count(),
-        3,
-        "header, one row, and the trailing newline: {whole:?}"
+        2,
+        "header and one row, and no blank line after: {whole:?}"
+    );
+    assert!(
+        whole.ends_with('\n') && !whole.ends_with("\n\n"),
+        "{whole:?}"
     );
     assert!(whole.starts_with("compound,compoundLabel,"));
     assert!(whole.contains("Q3613679"));
@@ -150,7 +154,7 @@ fn chunking_does_not_change_a_single_byte() {
     assert!(count > 1, "500 rows should span more than one chunk");
 
     // Re-render and compare, which is the invariant that matters.
-    assert_eq!(streamed.lines().count(), 502);
+    assert_eq!(streamed.lines().count(), 501, "the header and 500 rows");
     assert!(streamed.contains("Q499"));
 }
 
@@ -183,7 +187,7 @@ fn every_chunk_is_bounded_so_nothing_grows_without_limit() {
 fn an_empty_set_still_produces_a_valid_file() {
     let set = ColumnarResultSet::default();
     let csv = render(ExportFormat::Csv, &set);
-    assert_eq!(csv.lines().count(), 2, "header and the trailing newline");
+    assert_eq!(csv.lines().count(), 1, "the header alone");
 
     let json = render(ExportFormat::Json, &set);
     let parsed: serde_json::Value = serde_json::from_str(&json).unwrap_or_default();

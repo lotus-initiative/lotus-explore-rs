@@ -191,11 +191,12 @@ impl<'a> RowExporter<'a> {
 
     fn push_epilogue(&mut self) {
         match self.format {
-            // A trailing newline, so the file ends on a line and `wc -l` agrees with
-            // the row count.
-            ExportFormat::Csv => self.chunk.push('\n'),
             ExportFormat::Json => self.chunk.push_str("]}}"),
-            ExportFormat::Rdf => {}
+            // Nothing for CSV: the header and every row already end in a newline.
+            // A second one left a blank last line, which some readers take for an
+            // empty record and which made `wc -l` count one line more than there
+            // are. Turtle needs no closing either.
+            ExportFormat::Csv | ExportFormat::Rdf => {}
         }
     }
 
