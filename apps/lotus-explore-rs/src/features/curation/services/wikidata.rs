@@ -70,9 +70,20 @@ pub async fn fetch_compounds_by_inchikeys<'a>(
     }
 
     let json = execute_sparql_json(&build_compound_lookup_query(&keys)).await?;
+    Ok(compounds_by_key(&json))
+}
 
+/// One item per `InChIKey`, from the lookup's bindings.
+///
+/// Several items can share a key. The lowest QID -- by number, so `Q20` comes
+/// before `Q100` -- is kept, so the answer does not depend on the endpoint's
+/// row order, and the properties kept are that item's own. Keeping the first
+/// row's properties under a later row's QID judged one item by another's
+/// statements: a missing `P233` went unreported, or a second, conflicting one
+/// was proposed.
+fn compounds_by_key(json: &Value) -> HashMap<String, WikidataCompound> {
     let mut resolved: HashMap<String, WikidataCompound> = HashMap::new();
-    for binding in json_bindings(&json) {
+    for binding in json_bindings(json) {
         // `compound_item`, not `compound`: the aggregate needs a target the body
         // did not already bind, and QLever answers `400 Invalid SPARQL query: The
         // target ?compound of an AS clause was already used in the query body`.
@@ -86,29 +97,37 @@ pub async fn fetch_compounds_by_inchikeys<'a>(
         ) else {
             continue;
         };
-        resolved
-            .entry(key)
-            .and_modify(|existing| {
-                // Several candidate items for one key: keep the lowest QID, so the
-                // answer does not depend on the endpoint's row order.
-                if qid < existing.qid.as_str() {
-                    existing.qid = qid.into();
+        let candidate = WikidataCompound {
+            qid: qid.into(),
+            canonical_smiles: binding_value(binding, "canonical"),
+            isomeric_smiles: binding_value(binding, "iso"),
+            inchi: binding_value(binding, "inchi"),
+            formula: binding_value(binding, "formula"),
+            mass: binding
+                .get("mass")
+                .and_then(|v| v.get("value"))
+                .and_then(Value::as_str)
+                .and_then(|v| v.parse::<f64>().ok()),
+        };
+        match resolved.entry(key) {
+            std::collections::hash_map::Entry::Vacant(slot) => {
+                slot.insert(candidate);
+            }
+            std::collections::hash_map::Entry::Occupied(mut slot) => {
+                if qid_number(&candidate.qid) < qid_number(&slot.get().qid) {
+                    slot.insert(candidate);
                 }
-            })
-            .or_insert_with(|| WikidataCompound {
-                qid: qid.into(),
-                canonical_smiles: binding_value(binding, "canonical"),
-                isomeric_smiles: binding_value(binding, "iso"),
-                inchi: binding_value(binding, "inchi"),
-                formula: binding_value(binding, "formula"),
-                mass: binding
-                    .get("mass")
-                    .and_then(|v| v.get("value"))
-                    .and_then(Value::as_str)
-                    .and_then(|v| v.parse::<f64>().ok()),
-            });
+            }
+        }
     }
-    Ok(resolved)
+    resolved
+}
+
+/// The number in a QID, for ordering; a malformed one sorts last.
+fn qid_number(qid: &str) -> u64 {
+    qid.strip_prefix('Q')
+        .and_then(|n| n.parse().ok())
+        .unwrap_or(u64::MAX)
 }
 
 /// Resolve every `(compound, taxon)` occurrence question in a run with **one**
