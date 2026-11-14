@@ -754,14 +754,15 @@ async fn archive(args: ArchiveArgs) -> anyhow::Result<ExitCode> {
     let http = lotus_search::reqwest_client::ReqwestClient::new()?;
     let endpoint = lotus_search::Endpoint::new(lotus_search::Service::Qlever);
 
+    let filename = archive_filename(fetched_at);
     let (artifacts, summary) = Box::pin(lotus_explore_core::export::archive::run_archive(
-        &http, endpoint, &now,
+        &http, endpoint, &now, &filename,
     ))
     .await
     .map_err(|e| anyhow::anyhow!("archive failed: {e}"))?;
 
     let (archive_path, manifest_path, checksums_path) =
-        write_archive_files(args.output.as_ref(), fetched_at, &artifacts)?;
+        write_archive_files(args.output.as_ref(), &filename, &artifacts)?;
 
     eprintln!(
         "lotus: wrote archive ({} source, {} deduplicated, {} missing-key, {} parse errors) to {}",
@@ -804,21 +805,28 @@ async fn archive(args: ArchiveArgs) -> anyhow::Result<ExitCode> {
     Ok(ExitCode::SUCCESS)
 }
 
+/// The archive's file name, stamped with the fetch time so successive Zenodo
+/// versions do not share one name.
+fn archive_filename(fetched_at: chrono::DateTime<chrono::Utc>) -> String {
+    format!(
+        "lotus-wikidata-smiles-{}.tar.gz",
+        fetched_at.format("%Y%m%dT%H%M%SZ")
+    )
+}
+
 /// Write the archive tar.gz, manifest JSON, and SHA256SUMS file to `output_dir`.
+///
+/// `filename` must be the name the archive's checksum line was computed under.
 fn write_archive_files(
     output: Option<&std::path::PathBuf>,
-    fetched_at: chrono::DateTime<chrono::Utc>,
+    filename: &str,
     artifacts: &lotus_explore_core::export::archive::ArchiveArtifacts,
 ) -> anyhow::Result<(std::path::PathBuf, std::path::PathBuf, std::path::PathBuf)> {
     let output_dir: &std::path::Path =
         output.map_or_else(|| std::path::Path::new("."), |p| p.as_path());
     std::fs::create_dir_all(output_dir)?;
 
-    let filename = format!(
-        "lotus-wikidata-smiles-{}.tar.gz",
-        fetched_at.format("%Y%m%dT%H%M%SZ")
-    );
-    let archive_path = output_dir.join(&filename);
+    let archive_path = output_dir.join(filename);
     let manifest_path = output_dir.join("lotus-wikidata-smiles.manifest.json");
     let checksums_path = output_dir.join("lotus-wikidata-smiles.SHA256SUMS");
 

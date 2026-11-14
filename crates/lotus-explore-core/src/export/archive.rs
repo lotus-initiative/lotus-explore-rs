@@ -85,6 +85,9 @@ pub struct ParseErrorRecord {
     pub smiles_kind: SmilesKind,
     /// The source string that failed to parse.
     pub smiles: String,
+    /// Why the parser rejected it. The archive header has an `error` column and
+    /// the CSV writer refuses a record shorter than its header.
+    pub error: String,
 }
 
 /// The summary the archive returns: what it fetched and wrote.
@@ -360,10 +363,15 @@ pub struct ArchiveArtifacts {
 /// The archive members have a fixed metadata timestamp so the only intended
 /// run-specific value is `manifest.json`'s `fetched_at` field.
 ///
+/// `archive_filename` is the name the caller will write the archive under. It is
+/// what the checksums file names, so `sha256sum -c` only passes when the two are
+/// the same string.
+///
 /// # Errors
 /// Returns [`ArchiveError::Csv`] or [`ArchiveError::Io`] when serialization fails.
 pub fn write_archive(
     fetched_at: &str,
+    archive_filename: &str,
     endpoint: &str,
     source_records: usize,
     missing_inchi_key_records: &[MissingInchiKeyRecord],
@@ -412,7 +420,6 @@ pub fn write_archive(
     let manifest = String::from_utf8(manifest_bytes)
         .map_err(|e| ArchiveError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
 
-    let archive_filename = "lotus-wikidata-smiles.tar.gz";
     let manifest_filename = "lotus-wikidata-smiles.manifest.json";
     let checksums = write_checksums(&[
         (archive_bytes.as_slice(), archive_filename),
@@ -474,7 +481,8 @@ fn write_checksums(files: &[(&[u8], &str)]) -> String {
 /// deduplicate by `InChIKey`, and package as tar.gz plus manifest and checksums.
 ///
 /// `fetched_at` is the ISO-8601 stamp the caller read; `endpoint` is the
-/// `QLever` service to query.
+/// `QLever` service to query; `archive_filename` is the name the caller writes
+/// the archive under, and the name the checksums file records for it.
 ///
 /// Returns the tar.gz bytes, the manifest JSON, and the SHA-256 checksums
 /// string. The caller writes them to disk.
@@ -485,6 +493,7 @@ pub async fn run_archive<H: Http>(
     http: &H,
     endpoint: Endpoint,
     fetched_at: &str,
+    archive_filename: &str,
 ) -> Result<(ArchiveArtifacts, ArchiveSummary), ArchiveError> {
     let client = QleverClient::new(http, endpoint.clone());
 
@@ -510,6 +519,7 @@ pub async fn run_archive<H: Http>(
 
     let artifacts = write_archive(
         fetched_at,
+        archive_filename,
         endpoint.url(),
         source_records_count,
         &missing_inchi_key_records,

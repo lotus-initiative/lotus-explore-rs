@@ -104,7 +104,8 @@ fn write_archive_files_writes_the_three_artifacts_under_their_names() {
     };
 
     let (archive, manifest, checksums) =
-        write_archive_files(Some(&dir), fetched_at, &artifacts).expect("files are written");
+        write_archive_files(Some(&dir), &archive_filename(fetched_at), &artifacts)
+            .expect("files are written");
 
     assert_eq!(
         archive,
@@ -186,5 +187,38 @@ fn a_dry_run_reports_an_upload_plan_that_cannot_be_built() {
         report,
         "lotus: Zenodo dry run failed — upload spec: prepare Zenodo upload specs: \
          duplicate upload filename: same"
+    );
+}
+
+/// The checksums file must name the archive by the name it is written under, or
+/// `sha256sum -c` fails for anyone who downloads the deposit.
+#[test]
+fn the_checksums_file_names_the_archive_that_was_written() {
+    let dir = scratch_dir("checksum-names");
+    let fetched_at = parse_iso_utc("2025-01-15T12:30:05Z").expect("valid RFC3339");
+    let filename = archive_filename(fetched_at);
+    let artifacts = lotus_explore_core::export::archive::write_archive(
+        "2025-01-15T12:30:05Z",
+        &filename,
+        "https://qlever.example/wikidata",
+        0,
+        &[],
+        &[],
+        &[],
+    )
+    .expect("an empty archive serialises");
+
+    let (archive, _, checksums) =
+        write_archive_files(Some(&dir), &filename, &artifacts).expect("files are written");
+
+    let written = archive
+        .file_name()
+        .and_then(std::ffi::OsStr::to_str)
+        .expect("a utf-8 file name");
+    let sums = std::fs::read_to_string(&checksums).expect("checksums");
+    assert!(
+        sums.lines()
+            .any(|line| line.ends_with(&format!("  {written}"))),
+        "SHA256SUMS does not name {written}:\n{sums}"
     );
 }

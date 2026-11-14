@@ -100,7 +100,7 @@ async fn run_archive_fetches_all_pages_and_deduplicates() {
         ),
     ]);
 
-    let (artifacts, summary) = run_archive(&http, endpoint(), "2026-03-04T05:06:07Z")
+    let (artifacts, summary) = run_archive(&http, endpoint(), "2026-03-04T05:06:07Z", "a.tar.gz")
         .await
         .expect("the archive runs");
 
@@ -167,7 +167,7 @@ async fn run_archive_fetches_all_pages_and_deduplicates() {
     );
 
     let checksums = &artifacts.checksums;
-    assert!(checksums.contains("  lotus-wikidata-smiles.tar.gz\n"));
+    assert!(checksums.contains("  a.tar.gz\n"));
     assert!(checksums.contains("  lotus-wikidata-smiles.manifest.json\n"));
 
     // Verify the manifest inside the archive matches the standalone one.
@@ -182,7 +182,7 @@ async fn run_archive_handles_empty_results() {
         json_reply(200, &smiles_without_inchikey_page(&[])),
     ]);
 
-    let (artifacts, summary) = run_archive(&http, endpoint(), "2026-01-01T00:00:00Z")
+    let (artifacts, summary) = run_archive(&http, endpoint(), "2026-01-01T00:00:00Z", "a.tar.gz")
         .await
         .expect("the archive runs");
 
@@ -263,6 +263,7 @@ fn write_archive_produces_checksums_and_manifest() {
 
     let artifacts = write_archive(
         "2026-09-17T00:00:00Z",
+        "lotus-wikidata-smiles-20260917T000000Z.tar.gz",
         DEFAULT_QLEVER_ENDPOINT,
         1,
         &missing,
@@ -295,7 +296,7 @@ fn write_archive_produces_checksums_and_manifest() {
     assert_eq!(archive_manifest, &artifacts.manifest);
 
     let checksums = &artifacts.checksums;
-    assert!(checksums.contains("  lotus-wikidata-smiles.tar.gz\n"));
+    assert!(checksums.contains("  lotus-wikidata-smiles-20260917T000000Z.tar.gz\n"));
     assert!(checksums.contains("  lotus-wikidata-smiles.manifest.json\n"));
 }
 

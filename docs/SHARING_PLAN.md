@@ -27,7 +27,8 @@ the port does not create parallel implementations.
   this: `smiles-rs` has no `wasm32` story and the workspace's linters deny `expect`/`unwrap`
   on untrusted input, which `smiles-rs`'s parser does not guarantee. SMILES validation is
   documented as a known gap; `parse_errors` is always zero in the Rust port, and the CSV
-  column is still emitted so the format stays compatible. If validation is needed later it
+  columns are still emitted so the format stays compatible. `ParseErrorRecord` has a field
+  for each of them, `error` included, so a validator added later only has to fill it in. If validation is needed later it
   lands behind a `native-only` Cargo feature, not in the shared crate.
 - **Zenodo publishing** (archive only): dry-run by default; real push requires explicit opt-in
   flag + env var/secret. Not part of the exporter or pubchem tree.
