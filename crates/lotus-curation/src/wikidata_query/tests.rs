@@ -19,7 +19,10 @@ fn the_compound_query_matches_on_the_inchikey() {
         !query.contains("wdt:P233 \""),
         "must not match on SMILES: {query}"
     );
-    assert!(query.contains("LIMIT 1"), "{query}");
+    assert!(
+        query.contains("ORDER BY STRLEN(STR(?compound)) ?compound LIMIT 1"),
+        "single-compound lookup must sort QIDs by length before URI so Q20 precedes Q100: {query}"
+    );
 }
 
 #[test]
@@ -350,13 +353,21 @@ fn assert_as_targets_are_not_used_elsewhere(query: &str) {
 }
 
 #[test]
-fn the_batched_compound_query_projects_the_aggregate_under_a_new_name() {
+fn the_batched_compound_query_returns_raw_items_without_lexicographic_min() {
     let query = build_compound_lookup_query(&["LFQSCWFLJHTTHZ-UHFFFAOYSA-N".to_string()]);
     assert!(
-        query.contains("(MIN(?compound) AS ?compound_item)"),
-        "the aggregate is projected as ?compound_item:\n{query}"
+        query.contains("SELECT ?key ?compound ?canonical"),
+        "the query returns ?compound directly for client-side numeric QID selection:\n{query}"
+    );
+    assert!(
+        !query.contains("MIN(") && !query.contains("GROUP BY"),
+        "SPARQL MIN orders Q100 before Q20 lexicographically and must not be used:\n{query}"
     );
     assert_as_targets_are_not_used_elsewhere(&query);
+    assert!(
+        qid_number("Q20") < qid_number("Q100"),
+        "Q20 must sort before Q100 numerically"
+    );
 }
 
 #[test]
@@ -520,7 +531,8 @@ fn occurrence_with_ref_queries_exclude_deprecated_rank() {
 fn limit_one_lookup_queries_have_deterministic_ordering() {
     assert!(
         compound_by_inchikey_query("LFQSCWFLJHTTHZ-UHFFFAOYSA-N")
-            .contains("ORDER BY ?compound LIMIT 1")
+            .contains("ORDER BY STRLEN(STR(?compound)) ?compound LIMIT 1"),
+        "compound lookup must order by IRI string length before IRI so Q20 precedes Q100"
     );
     assert!(taxon_by_name_query("Gentiana lutea").contains("ORDER BY ?taxon LIMIT 1"));
     assert!(reference_by_doi_query("10.1000/xyz123").contains("ORDER BY ?ref LIMIT 1"));

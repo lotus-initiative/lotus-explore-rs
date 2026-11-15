@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-use super::helpers::{binding_value, escape_qs_string, extract_qid_from_uri};
+use super::helpers::{binding_value, extract_qid_from_uri};
 use super::{CurationError, WD_TAXON_QID, WikidataCompound, normalize_doi};
 use crate::sparql::{FetchError, ResponseFormat};
 pub(super) use lotus_curation::normalize_taxon_lookup;
 use lotus_curation::{
     build_compound_lookup_query, build_occurrence_query, build_occurrence_with_ref_query,
     build_reference_lookup_query, build_single_taxon_lookup_query, build_taxon_lookup_query,
-    extract_canonical_taxon_name, taxon_name_candidates,
+    escape_quickstatements, extract_canonical_taxon_name, qid_number, taxon_name_candidates,
 };
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -84,13 +84,10 @@ pub async fn fetch_compounds_by_inchikeys<'a>(
 fn compounds_by_key(json: &Value) -> HashMap<String, WikidataCompound> {
     let mut resolved: HashMap<String, WikidataCompound> = HashMap::new();
     for binding in json_bindings(json) {
-        // `compound_item`, not `compound`: the aggregate needs a target the body
-        // did not already bind, and QLever answers `400 Invalid SPARQL query: The
-        // target ?compound of an AS clause was already used in the query body`.
         let (Some(key), Some(qid)) = (
             binding_value(binding, "key"),
             binding
-                .get("compound_item")
+                .get("compound")
                 .and_then(|v| v.get("value"))
                 .and_then(Value::as_str)
                 .and_then(extract_qid_from_uri),
@@ -124,12 +121,6 @@ fn compounds_by_key(json: &Value) -> HashMap<String, WikidataCompound> {
 }
 
 /// The number in a QID, for ordering; a malformed one sorts last.
-fn qid_number(qid: &str) -> u64 {
-    qid.strip_prefix('Q')
-        .and_then(|n| n.parse().ok())
-        .unwrap_or(u64::MAX)
-}
-
 /// Resolve every `(compound, taxon)` occurrence question in a run with **one**
 /// query, returning which pairs Wikidata already records.
 ///
@@ -239,9 +230,9 @@ pub async fn resolve_or_create_taxon(
     let qs = vec![
         "## -- Step: create missing taxon --".into(),
         "CREATE".into(),
-        format!("LAST|Len|\"{}\"", escape_qs_string(&canonical)),
+        format!("LAST|Len|\"{}\"", escape_quickstatements(&canonical)),
         format!("LAST|P31|{WD_TAXON_QID}"),
-        format!("LAST|P225|\"{}\"", escape_qs_string(&canonical)),
+        format!("LAST|P225|\"{}\"", escape_quickstatements(&canonical)),
     ];
     Ok((None, qs))
 }
@@ -346,6 +337,13 @@ pub(super) async fn resolve_taxon_qid(name: &str) -> Result<Option<String>, Cura
     Ok(extract_first_qid_from_json(&json, "taxon"))
 }
 
+fn parse_ask_boolean(parsed: &Value) -> Result<bool, CurationError> {
+    parsed
+        .get("boolean")
+        .and_then(Value::as_bool)
+        .ok_or_else(|| CurationError::Parse("SPARQL ASK response missing boolean result".into()))
+}
+
 pub async fn compound_has_taxon_with_ref(
     compound_qid: &str,
     taxon_qid: &str,
@@ -353,10 +351,7 @@ pub async fn compound_has_taxon_with_ref(
 ) -> Result<bool, CurationError> {
     let query = lotus_curation::has_occurrence_with_ref_query(compound_qid, taxon_qid, ref_qid);
     let parsed = execute_sparql_json(&query).await?;
-    Ok(parsed
-        .get("boolean")
-        .and_then(Value::as_bool)
-        .unwrap_or(false))
+    parse_ask_boolean(&parsed)
 }
 
 pub async fn compound_has_taxon(
@@ -365,10 +360,7 @@ pub async fn compound_has_taxon(
 ) -> Result<bool, CurationError> {
     let query = lotus_curation::has_occurrence_query(compound_qid, taxon_qid);
     let parsed = execute_sparql_json(&query).await?;
-    Ok(parsed
-        .get("boolean")
-        .and_then(Value::as_bool)
-        .unwrap_or(false))
+    parse_ask_boolean(&parsed)
 }
 
 #[cfg(test)]

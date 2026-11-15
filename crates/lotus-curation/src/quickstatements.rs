@@ -15,7 +15,8 @@ pub fn escape_quickstatements(value: &str) -> String {
     for c in value.chars() {
         match c {
             '"' => out.push_str("\\\""),
-            '\n' | '\r' | '\t' => out.push(' '),
+            '|' => out.push(' '),
+            c if c.is_control() => out.push(' '),
             _ => out.push(c),
         }
     }

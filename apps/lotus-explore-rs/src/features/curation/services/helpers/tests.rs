@@ -9,22 +9,30 @@
 use super::*;
 
 #[test]
-fn escape_qs_string_escapes_only_quote_newline_tab() {
-    // SMILES with backslashes (stereo chemistry) should NOT be double-escaped
+fn quickstatements_statements_preserve_smiles_and_escape_delimiters() {
+    // SMILES with backslashes (stereochemistry) must NOT be double-escaped
     // See https://www.wikidata.org/wiki/Q140985706
     let smiles = r#"C/C(=C\CC/C=C(\C)CC/C=C(\C)CCC(=O)O)CC/C=C(\C)CCC(=O)O"#;
-    assert_eq!(escape_qs_string(smiles), smiles);
+    assert_eq!(
+        qs_canonical_smiles_statement("LAST", smiles, false),
+        format!(r#"LAST|P233|"{smiles}""#),
+        "stereochemical SMILES backslashes must not be double-escaped"
+    );
 
-    // Double quotes should be escaped
-    assert_eq!(escape_qs_string(r#"C"C"#), r#"C\"C"#);
+    // Quotes are escaped and pipe/control characters are flattened to spaces.
+    assert_eq!(
+        qs_isomeric_smiles_statement("LAST", "C\"C|P31\nQ1\tX"),
+        r#"LAST|P2017|"C\"C P31 Q1 X""#,
+        "quotes must escape and QuickStatements delimiters must flatten to spaces"
+    );
 
-    // Newlines and tabs should be escaped
-    assert_eq!(escape_qs_string("C\nC"), "C\\nC");
-    assert_eq!(escape_qs_string("C\tC"), "C\\tC");
-
-    // InChI with backslashes should not be double-escaped
+    // InChI with slashes must survive untouched
     let inchi = "InChI=1S/C8H10N4O2/c1-10-4-9-6-5(10)7(13)12(3)8(14)11(6)2/h4-6H,1-3H3";
-    assert_eq!(escape_qs_string(inchi), inchi);
+    assert_eq!(
+        qs_inchi_statement("LAST", inchi),
+        format!(r#"LAST|P234|"{inchi}"|S887|Q113907573"#),
+        "InChI statement preserves slashes and appends S887"
+    );
 }
 
 #[test]

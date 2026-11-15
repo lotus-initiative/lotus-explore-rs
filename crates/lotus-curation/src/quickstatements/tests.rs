@@ -33,6 +33,11 @@ fn escape_flattens_whitespace_that_would_break_the_line() {
         "line one line two ",
         "each control character is replaced, including trailing ones"
     );
+    assert_eq!(
+        escape_quickstatements("foo|P31|Q1\x00bar"),
+        "foo P31 Q1 bar",
+        "pipes and control characters must become spaces so they cannot split QuickStatements fields"
+    );
 }
 
 #[test]

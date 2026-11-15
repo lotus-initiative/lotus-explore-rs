@@ -31,16 +31,16 @@ fn a_shared_key_keeps_the_lower_item_with_its_own_properties() {
     let json = serde_json::json!({"results": {"bindings": [
         {
             "key": {"value": "K"},
-            "compound_item": {"value": "http://www.wikidata.org/entity/Q20"},
+            "compound": {"value": "http://www.wikidata.org/entity/Q20"},
             "canonical": {"value": "CCO"}
         },
         {
             "key": {"value": "K"},
-            "compound_item": {"value": "http://www.wikidata.org/entity/Q100"}
+            "compound": {"value": "http://www.wikidata.org/entity/Q100"}
         },
         {
             "key": {"value": "K"},
-            "compound_item": {"value": "http://www.wikidata.org/entity/Q10"}
+            "compound": {"value": "http://www.wikidata.org/entity/Q10"}
         }
     ]}});
 
@@ -52,5 +52,19 @@ fn a_shared_key_keeps_the_lower_item_with_its_own_properties() {
         kept.and_then(|c| c.canonical_smiles.as_deref()),
         None,
         "Q10 states no canonical SMILES; Q20's must not be read as its"
+    );
+}
+
+#[test]
+fn parse_ask_boolean_requires_valid_boolean_field() {
+    assert!(parse_ask_boolean(&serde_json::json!({"boolean": true})).expect("valid true"));
+    assert!(!parse_ask_boolean(&serde_json::json!({"boolean": false})).expect("valid false"));
+    assert!(
+        parse_ask_boolean(&serde_json::json!({})).is_err(),
+        "missing boolean field must error instead of defaulting to false"
+    );
+    assert!(
+        parse_ask_boolean(&serde_json::json!({"boolean": "true"})).is_err(),
+        "string boolean field must error instead of defaulting to false"
     );
 }

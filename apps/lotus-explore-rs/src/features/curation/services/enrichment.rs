@@ -25,7 +25,7 @@ use super::{
     WD_STEREOISOMER_GROUP_QID, WD_TYPE_CHEMICAL_ENTITY_QID, convert_smiles,
     curation_note_dependencies_pending, curation_note_existing_complete,
     curation_note_existing_updates, curation_note_missing_doi, curation_note_new_compound,
-    curation_pending_reference, curation_pending_taxon, escape_qs_string,
+    curation_pending_reference, curation_pending_taxon, escape_quickstatements,
     fetch_reference_quickstatements, has_isomeric_smiles, has_undefined_stereo, normalize_doi,
     normalize_taxon_lookup, qs_canonical_smiles_statement, qs_inchi_statement,
     qs_inchikey_statement, qs_isomeric_smiles_statement, qs_statement_with_refs,
@@ -385,7 +385,7 @@ async fn create_new(row: &Row<'_>) -> Result<CurationResultRow, CurationError> {
     let mut lines = vec!["CREATE".into()];
     lines.push(format!(
         "LAST|Len|\"{}\"",
-        escape_qs_string(&row.input.name)
+        escape_quickstatements(&row.input.name)
     ));
     lines.push("LAST|Den|\"chemical compound\"".into());
     // A structure the toolkit cannot read is not "no undefined stereo", so the
@@ -523,7 +523,7 @@ async fn resolve_or_create_reference(
     } else {
         lines.push("CREATE".to_owned());
         lines.push("LAST|P31|Q13442814".to_owned());
-        lines.push(format!("LAST|P356|\"{}\"", escape_qs_string(doi)));
+        lines.push(format!("LAST|P356|\"{}\"", escape_quickstatements(doi)));
     }
     (None, lines)
 }

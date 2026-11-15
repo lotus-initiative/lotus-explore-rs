@@ -66,6 +66,15 @@ pub fn qid_from_uri(value: &str) -> Option<&str> {
     })
 }
 
+/// Numeric value of a Wikidata QID (`Q20` -> `20`), or `u64::MAX` for anything
+/// non-numeric so valid QIDs always sort before malformed placeholders.
+#[must_use]
+pub fn qid_number(qid: &str) -> u64 {
+    qid.strip_prefix('Q')
+        .and_then(|n| n.parse().ok())
+        .unwrap_or(u64::MAX)
+}
+
 /// The item for a structure, matched on its `InChIKey`.
 ///
 /// `P235` rather than the SMILES: `InChIKey` is a hash of the normalised
@@ -84,7 +93,7 @@ pub fn compound_by_inchikey_query(inchikey: &str) -> String {
            OPTIONAL {{ ?compound wdt:{inchi} ?inchi . }}\n  \
            OPTIONAL {{ ?compound wdt:{formula} ?formula . }}\n  \
            OPTIONAL {{ ?compound wdt:{mass} ?mass . }}\n\
-         }} ORDER BY ?compound LIMIT 1",
+         }} ORDER BY STRLEN(STR(?compound)) ?compound LIMIT 1",
         inchikey_prop = property::INCHIKEY,
         value = escape_sparql_string(inchikey),
         canonical = property::CANONICAL_SMILES,
@@ -420,10 +429,11 @@ pub fn create_compound_statements(
 /// Fetch every compound in a run with **one** query, keyed by the `InChIKey` the
 /// caller computed locally.
 ///
-/// No `LIMIT`: Wikidata has a handful of items for some structures, and that
-/// ambiguity is per key, so `MIN(?compound)` picks deterministically instead of
-/// letting plan order decide. The aggregate projects as **`?compound_item`** —
-/// an `AS` clause may not target a variable the body already binds.
+/// No `LIMIT` and no `MIN(?compound)` aggregate: SPARQL `MIN` compares IRIs
+/// lexicographically (`Q100` before `Q20`), and grouping on optional properties
+/// fails to collapse items whose properties differ anyway. Every matching row
+/// is returned so the caller picks the lowest QID numerically via
+/// [`qid_number`].
 #[must_use]
 pub fn build_compound_lookup_query(keys: &[String]) -> String {
     let values = keys
@@ -433,15 +443,15 @@ pub fn build_compound_lookup_query(keys: &[String]) -> String {
         .join(" ");
     format!(
         "{CURATION_SPARQL_PREFIXES}\n\
-         SELECT ?key (MIN(?compound) AS ?compound_item) ?canonical ?iso ?inchi ?formula ?mass WHERE {{\n  \
+         SELECT ?key ?compound ?canonical ?iso ?inchi ?formula ?mass WHERE {{\n  \
            VALUES ?key {{ {values} }}\n  \
            ?compound wdt:P235 ?key .\n  \
            OPTIONAL {{ ?compound wdt:P233 ?canonical . }}\n  \
            OPTIONAL {{ ?compound wdt:P2017 ?iso . }}\n  \
            OPTIONAL {{ ?compound wdt:P234 ?inchi . }}\n  \
            OPTIONAL {{ ?compound wdt:P274 ?formula . }}\n  \
-           OPTIONAL {{ ?compound wdt:P2067 ?mass . }}\n  \
-         }} GROUP BY ?key ?canonical ?iso ?inchi ?formula ?mass"
+           OPTIONAL {{ ?compound wdt:P2067 ?mass . }}\n\
+         }}"
     )
 }
 

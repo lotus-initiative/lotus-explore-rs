@@ -51,6 +51,6 @@ pub use wikidata_query::{
     build_reference_lookup_query, build_single_taxon_lookup_query, build_taxon_lookup_query,
     compound_by_inchikey_query, create_compound_statements, escape_sparql_string,
     extract_canonical_taxon_name, has_occurrence_query, has_occurrence_with_ref_query, is_binomial,
-    normalize_taxon_lookup, property, qid_from_uri, reference_by_doi_query, taxon_by_name_query,
-    taxon_name_candidates,
+    normalize_taxon_lookup, property, qid_from_uri, qid_number, reference_by_doi_query,
+    taxon_by_name_query, taxon_name_candidates,
 };
