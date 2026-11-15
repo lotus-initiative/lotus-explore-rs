@@ -211,7 +211,10 @@ pub struct MetadataInputs<'a> {
 )]
 // Called with an inline-constructed `MetadataInputs` at both call sites;
 // taking it by reference would add a strict lifetime without benefit.
-#[allow(clippy::needless_pass_by_value)]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "callers pass inline MetadataInputs literals by value"
+)]
 /// The metadata document for one export, as a JSON string.
 #[must_use]
 pub fn build_metadata_json(inp: MetadataInputs<'_>) -> String {

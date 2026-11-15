@@ -6,7 +6,13 @@
 // `lotus_search::Http`. On wasm32 the browser's promise is `!Send` (holds an `Rc`),
 // so every future that awaits an HTTP call is `!Send` there. Native keeps the
 // guarantee; the deny is worth keeping for the native builds that need it.
-#![cfg_attr(target_arch = "wasm32", allow(clippy::future_not_send))]
+#![cfg_attr(
+    target_arch = "wasm32",
+    allow(
+        clippy::future_not_send,
+        reason = "browser HTTP futures hold Rc and run on one thread"
+    )
+)]
 
 //! The LOTUS Explorer's domain logic.
 //!

@@ -21,7 +21,8 @@
     clippy::expect_used,
     clippy::panic,
     clippy::print_stdout,
-    clippy::print_stderr
+    clippy::print_stderr,
+    reason = "CLI binary prints status and exits or panics on internal invariant failures"
 )]
 
 use std::process::ExitCode;

@@ -6,7 +6,13 @@
 // A `fetch` future is not `Send`: the browser's is single-threaded and has no
 // reactor to hand work to another thread. The allow is on the wasm build only,
 // because on native a `Send` future is a real requirement and worth keeping.
-#![cfg_attr(target_arch = "wasm32", allow(clippy::future_not_send))]
+#![cfg_attr(
+    target_arch = "wasm32",
+    allow(
+        clippy::future_not_send,
+        reason = "browser fetch futures are single-threaded and !Send"
+    )
+)]
 
 use crate::error::FetchError;
 use std::future::Future;

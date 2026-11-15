@@ -8,7 +8,13 @@
 
 // As in `client`: a wasm `fetch` future is not `Send`, and the only thing using
 // this module on wasm is the browser, which has one thread by definition.
-#![cfg_attr(target_arch = "wasm32", allow(clippy::future_not_send))]
+#![cfg_attr(
+    target_arch = "wasm32",
+    allow(
+        clippy::future_not_send,
+        reason = "browser fetch futures are single-threaded and !Send"
+    )
+)]
 
 use super::error::TruncationReason;
 use super::{BodyChunks, ChunkFuture, ChunkedBody, FetchError, Http, HttpResponse, ResponseBody};

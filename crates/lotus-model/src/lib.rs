@@ -9,7 +9,10 @@
 // reports it -- in the lib-test build only, which is why the allow is here and
 // not in the workspace table. The same trade `lotus-search` makes for the same
 // reason.
-#![allow(unused_crate_dependencies)]
+#![allow(
+    unused_crate_dependencies,
+    reason = "self dev-dependency enables the testing feature for integration tests"
+)]
 
 mod columnar;
 mod criteria;

@@ -7,7 +7,13 @@
 // hand control back to the single-threaded runtime that owns it, so every future
 // here is `!Send` when built for wasm. Native keeps the guarantee; see the
 // workspace's `nursery` note on why the deny is worth keeping.
-#![cfg_attr(target_arch = "wasm32", allow(clippy::future_not_send))]
+#![cfg_attr(
+    target_arch = "wasm32",
+    allow(
+        clippy::future_not_send,
+        reason = "browser backoff promises hold Rc and are !Send"
+    )
+)]
 // This crate dev-depends on itself to turn on `testing` for its own tests; see the
 // comment on that line in `Cargo.toml`. Cargo cannot express a dev-dependency that
 // only applies to this crate's integration tests, so the lib target links the
@@ -15,7 +21,10 @@
 // The lint stays denied workspace-wide, where it still catches real dead
 // dependencies in the other crates -- the same trade `apps/lotus-explore-rs`
 // makes for its feature-gated `tower` test dependency.
-#![allow(unused_crate_dependencies)]
+#![allow(
+    unused_crate_dependencies,
+    reason = "self dev-dependency enables the testing feature for integration tests"
+)]
 
 mod client;
 mod error;

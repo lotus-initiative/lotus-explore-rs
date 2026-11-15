@@ -201,7 +201,10 @@ pub struct SearchResponse {
 #[derive(Debug, Clone, Deserialize)]
 // Field names mirror the `/v1` JSON wire format (`*_url`); renaming would
 // break deserialization without per-field `serde(rename)` churn.
-#[allow(clippy::struct_field_names)]
+#[allow(
+    clippy::struct_field_names,
+    reason = "field names match the /v1 JSON wire format (*_url)"
+)]
 pub struct ExportUrlResponse {
     /// The uncompressed CSV.
     pub csv_url: String,
@@ -227,7 +230,10 @@ pub struct ExportUrlResponse {
 #[derive(Debug, Deserialize)]
 // Field names mirror `DatasetStats` counters (`n_*`); renaming would break
 // the serde DTO mapping without per-field `serde(rename)` churn.
-#[allow(clippy::struct_field_names)]
+#[allow(
+    clippy::struct_field_names,
+    reason = "field names match DatasetStats wire counters (n_*)"
+)]
 pub struct SearchStats {
     /// How many distinct compounds.
     pub n_compounds: usize,

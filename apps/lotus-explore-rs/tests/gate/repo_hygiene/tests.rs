@@ -324,3 +324,144 @@ fn human_docs_never_link_to_agent_files() -> Result<()> {
     }
     Ok(())
 }
+
+#[test]
+fn crate_production_lint_allows_carry_a_reason() -> Result<()> {
+    let root = repo_root();
+    let mut stack = vec![root.join("crates")];
+    let mut files = Vec::new();
+    while let Some(current) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&current) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if path.file_name().is_some_and(|n| n == "target") {
+                    continue;
+                }
+                stack.push(path);
+            } else if path.extension().is_some_and(|ext| ext == "rs") {
+                let norm = path.to_string_lossy().replace('\\', "/");
+                if norm.contains("/src/")
+                    && !norm.ends_with("/tests.rs")
+                    && !norm.ends_with("_tests.rs")
+                    && !norm.ends_with("/test_support.rs")
+                {
+                    files.push(path);
+                }
+            }
+        }
+    }
+
+    let mut offenders = Vec::new();
+    for path in files {
+        let text = std::fs::read_to_string(&path)?;
+        let rel = path.strip_prefix(&root).unwrap_or(&path);
+        for (line_no, attr) in extract_allow_attributes(&text) {
+            if !attr.contains("reason =") && !attr.contains("reason=") {
+                offenders.push(format!("{}:{line_no}: {attr}", rel.display()));
+            }
+        }
+    }
+
+    assert!(
+        offenders.is_empty(),
+        "production lint `allow(...)` attributes in crates/ must declare `reason = \"...\"`:\n  {}",
+        offenders.join("\n  ")
+    );
+    Ok(())
+}
+
+fn extract_allow_attributes(src: &str) -> Vec<(usize, String)> {
+    let mut out = Vec::new();
+    let bytes = src.as_bytes();
+    let mut i = 0_usize;
+    let mut line = 1_usize;
+
+    while let Some(&b) = bytes.get(i) {
+        if b == b'\n' {
+            line += 1;
+            i += 1;
+            continue;
+        }
+        // Skip line comments so prose mentions like `#[allow(...)]` do not count.
+        if b == b'/' && bytes.get(i + 1) == Some(&b'/') {
+            while let Some(&c) = bytes.get(i) {
+                i += 1;
+                if c == b'\n' {
+                    line += 1;
+                    break;
+                }
+            }
+            continue;
+        }
+        // Skip string literals so raw strings in fixtures do not trigger.
+        if b == b'"' {
+            i += 1;
+            while let Some(&c) = bytes.get(i) {
+                if c == b'\\' {
+                    i += 2;
+                    continue;
+                }
+                if c == b'\n' {
+                    line += 1;
+                }
+                i += 1;
+                if c == b'"' {
+                    break;
+                }
+            }
+            continue;
+        }
+        let is_inner =
+            b == b'#' && bytes.get(i + 1) == Some(&b'!') && bytes.get(i + 2) == Some(&b'[');
+        let is_outer = b == b'#' && bytes.get(i + 1) == Some(&b'[');
+        if is_inner || is_outer {
+            let start = i;
+            let start_line = line;
+            let open_bracket = i + if is_inner { 2 } else { 1 };
+            let mut depth = 1_usize;
+            i = open_bracket + 1;
+            while i < bytes.len() && depth > 0 {
+                let Some(&c) = bytes.get(i) else {
+                    break;
+                };
+                if c == b'"' {
+                    i += 1;
+                    while let Some(&sc) = bytes.get(i) {
+                        if sc == b'\\' {
+                            i += 2;
+                            continue;
+                        }
+                        if sc == b'\n' {
+                            line += 1;
+                        }
+                        i += 1;
+                        if sc == b'"' {
+                            break;
+                        }
+                    }
+                    continue;
+                }
+                if c == b'[' {
+                    depth += 1;
+                } else if c == b']' {
+                    depth -= 1;
+                } else if c == b'\n' {
+                    line += 1;
+                }
+                i += 1;
+            }
+            if let Some(attr) = src.get(start..i)
+                && attr.contains("allow(")
+            {
+                let summary = attr.lines().map(str::trim).collect::<Vec<_>>().join(" ");
+                out.push((start_line, summary));
+            }
+            continue;
+        }
+        i += 1;
+    }
+    out
+}

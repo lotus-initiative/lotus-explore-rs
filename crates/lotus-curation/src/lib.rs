@@ -7,7 +7,13 @@
 // hand control back to the single-threaded runtime that owns it, so every future
 // here is `!Send` when built for wasm. Native keeps the guarantee; see the
 // workspace's `nursery` note on why the deny is worth keeping.
-#![cfg_attr(target_arch = "wasm32", allow(clippy::future_not_send))]
+#![cfg_attr(
+    target_arch = "wasm32",
+    allow(
+        clippy::future_not_send,
+        reason = "browser JS promises hold Rc and are single-threaded"
+    )
+)]
 
 mod constants;
 mod input;
