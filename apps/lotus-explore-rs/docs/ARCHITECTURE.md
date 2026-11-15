@@ -74,7 +74,8 @@ When a user submits the search form or loads a shared URL:
 1. **URL & form sync ([`features/explore/url_state.rs`](../src/features/explore/url_state.rs) & `CriteriaQueryDto`):**
    Query parameters are parsed via
    `lotus_explore_core::explore::url_codec::CriteriaQueryDto` into
-   `lotus_model::SearchCriteria`.
+   `lotus_model::SearchCriteria`, preserving explicit/empty taxon fields and
+   Molfile leading blank header lines.
 2. **Orchestrator dispatch ([`features/explore/orchestrator/runtime.rs`](../src/features/explore/orchestrator/runtime.rs)):**
    `start_search` validates criteria through
    `lotus_explore_core::explore::form_validation::validate_dispatch_criteria`,

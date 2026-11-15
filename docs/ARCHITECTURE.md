@@ -286,19 +286,23 @@ Three data-movement tools share the same home in
 
 | Module | What it does | Entry points |
 |--------|-------------|--------------|
-| `pipeline.rs` | The full LOTUS compound–taxon–reference graph as `frozen.csv` + `frozen_metadata.csv` (ports `lotus_exporter.py`) | `lotus export` (CLI), API export endpoint (server) |
+| `pipeline.rs` | The full LOTUS compound–taxon–reference graph as `frozen.csv` + `frozen_metadata.csv` (ports `lotus_exporter.py`) | `lotus export` (CLI) |
 | `pubchem_tree.rs` | Three PubChem-format JSON trees: biological, chemical, NPClassifier — each full or compact (ports `lotus_pubchem_tree.py`) | `lotus export-pubchem-tree` (CLI) |
 | `archive.rs` | All InChIKey-to-SMILES mappings, deduplicated and tar+gzip packed (ports `lotus-wikidata-archive`) | `lotus archive` (CLI) |
 
 All three are target-agnostic: they take an `Http` trait implementor and an
-`Endpoint`, return bytes/strings, and do all file I/O themselves. The CLI
-(`crates/lotus-cli/src/main.rs`) is the thin native-only wrapper that writes
-those bytes to disk and, for `archive`, optionally publishes to Zenodo behind
-the `zenodo-rs` dependency. The web app never calls the archive or pubchem-tree
-paths because those fetch the entire dataset — the browser's export buttons use
-the per-query `pipeline` path instead.
+`Endpoint`, return bytes/strings in memory, and do no file I/O themselves. The CLI
+(`crates/lotus-cli/src/main.rs`) is the native wrapper that writes those bytes to
+disk and, for `archive`, optionally publishes to Zenodo via `zenodo-rs`. The web
+app and the API `/v1/export` endpoint do not invoke these full-graph exporters;
+per-query browser and server exports stream through `lotus-query`
+(`CsvColumnarReader` and `RowExporter`).
+
+Note that `archive.rs` deduplicates InChIKey-to-SMILES records without a
+`smiles-rs` parse pass, and `pubchem_tree.rs` builds all six JSON trees from
+QLever and the NPClassifier CSV cache without calling the PubChem REST API.
 
 `lotus-query` owns the SPARQL query strings and `ARCHIVE_PAGE_SIZE`.
 `lotus-model` owns the `SearchCriteria` argument matrix that `pipeline` reuses.
 `lotus-search` owns the `Http` trait, `Scripted` test double, and QLever/WDQS
-endpoint resolution. See [`docs/SHARING_PLAN.md`](SHARING_PLAN.md) for the full plan.
+endpoint resolution.

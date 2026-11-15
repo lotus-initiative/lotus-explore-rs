@@ -326,6 +326,14 @@ fn human_docs_never_link_to_agent_files() -> Result<()> {
 }
 
 #[test]
+fn session_log_is_absent() {
+    assert!(
+        !repo_root().join("SESSION_LOG.md").exists(),
+        "SESSION_LOG.md is a local agent scratchpad and must not be committed"
+    );
+}
+
+#[test]
 fn crate_production_lint_allows_carry_a_reason() -> Result<()> {
     let root = repo_root();
     let mut stack = vec![root.join("crates")];

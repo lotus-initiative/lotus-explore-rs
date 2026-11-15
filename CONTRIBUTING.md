@@ -210,8 +210,9 @@ called `models.rs`.
 **Half a serialisation contract is worse than none of it.** The URL parameter
 names used to be built by a model method and parsed by a DTO in a different
 crate, and a rename broke every link already in a browser's history with nothing
-failing. Both halves now live in `CriteriaQueryDto`, and there is a round-trip
-test to keep them together. If you add a parameter, add it there.
+failing. Both halves now live in `CriteriaQueryDto` (without stripping Molfile
+leading blank header lines or clearing taxon), and there are round-trip tests
+to keep them together. If you add a parameter, add it there.
 
 ## Tests
 

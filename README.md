@@ -117,7 +117,6 @@ conventions, and how to refresh the fixtures.
 - [`CHANGELOG.md`](CHANGELOG.md) — what changed in each release
 - [`docs/cli.md`](docs/cli.md) — the `lotus` command, every flag, checked against `--help` by a test
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — the crates and their boundaries
-- [`docs/SHARING_PLAN.md`](docs/SHARING_PLAN.md) — how the export/archive/pubchem-tree ports share code
 - [`docs/TAXON-SEARCH.md`](docs/TAXON-SEARCH.md) — how a taxon name becomes a QID, and the four nomenclatural relationships
 - [`docs/STRUCTURE-SEARCH.md`](docs/STRUCTURE-SEARCH.md) — how a name, an InChIKey or a QID becomes a compound identity
 - [`docs/FRONTENDS.md`](docs/FRONTENDS.md) — web, desktop and CLI: how each is built
