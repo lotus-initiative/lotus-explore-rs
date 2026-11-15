@@ -67,39 +67,7 @@ pub fn request(host: &str, port: u16, path: &str) -> std::io::Result<u16> {
     // a response body would be. The body is not read: only the status is
     // asserted on, and reading the rest of an export response to look at
     // something already known would be the slow way to learn nothing.
-    // Read until the end of the status line (`\n`), EOF, or a full 8 KiB
-    // header buffer so a status line split across TCP segments is still
-    // parsed without reading the body.
-    let mut buf = [0_u8; 8192];
-    let mut filled = 0;
-    while let Some(tail) = buf.get_mut(filled..) {
-        if tail.is_empty() {
-            break;
-        }
-        let n = match stream.read(tail) {
-            Ok(n) => n,
-            Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
-            Err(err) => return Err(err),
-        };
-        if n == 0 {
-            break;
-        }
-        filled += n;
-        if buf.get(..filled).is_some_and(|head| head.contains(&b'\n')) {
-            break;
-        }
-    }
-
-    // `HTTP/1.1 200 OK` -> 200. Anything that is not a status line is a
-    // connection that answered with something other than HTTP, which for the
-    // purpose of "is the server serving" is a failure.
-    // `filled` is what `read` reported, so it is in range; `.get` rather than a
-    // slice because a zero-length read is a real case here (a peer that closes
-    // without answering) and must be an error, not a panic.
-    let head = buf
-        .get(..filled)
-        .and_then(|b| std::str::from_utf8(b).ok())
-        .unwrap_or_default();
+    let head = read_status_head(&mut stream)?;
     let status = head
         .split_whitespace()
         .nth(1)
@@ -114,6 +82,40 @@ pub fn request(host: &str, port: u16, path: &str) -> std::io::Result<u16> {
     } else {
         Err(std::io::Error::other(format!("server answered {status}")))
     }
+}
+
+/// Read up to `\n`, EOF, or an 8 KiB header buffer so a status line split
+/// across TCP segments or interrupted by `EINTR` is reassembled without
+/// reading the response body.
+fn read_status_head(reader: &mut impl Read) -> std::io::Result<String> {
+    let mut buf = [0_u8; 8192];
+    let mut filled = 0;
+    while let Some(tail) = buf.get_mut(filled..) {
+        if tail.is_empty() {
+            break;
+        }
+        let n = match reader.read(tail) {
+            Ok(n) => n,
+            Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(err) => return Err(err),
+        };
+        if n == 0 {
+            break;
+        }
+        filled += n;
+        if buf.get(..filled).is_some_and(|head| head.contains(&b'\n')) {
+            break;
+        }
+    }
+
+    // `filled` is what `read` reported, so it is in range; `.get` rather than a
+    // slice because a zero-length read is a real case here (a peer that closes
+    // without answering) and must be an error, not a panic.
+    Ok(buf
+        .get(..filled)
+        .and_then(|b| std::str::from_utf8(b).ok())
+        .unwrap_or_default()
+        .to_owned())
 }
 
 fn target_from(

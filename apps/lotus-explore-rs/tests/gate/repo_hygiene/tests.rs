@@ -406,20 +406,7 @@ fn extract_allow_attributes(src: &str) -> Vec<(usize, String)> {
         }
         // Skip string literals so raw strings in fixtures do not trigger.
         if b == b'"' {
-            i += 1;
-            while let Some(&c) = bytes.get(i) {
-                if c == b'\\' {
-                    i += 2;
-                    continue;
-                }
-                if c == b'\n' {
-                    line += 1;
-                }
-                i += 1;
-                if c == b'"' {
-                    break;
-                }
-            }
+            skip_string_literal(bytes, &mut i, &mut line);
             continue;
         }
         let is_inner =
@@ -436,20 +423,7 @@ fn extract_allow_attributes(src: &str) -> Vec<(usize, String)> {
                     break;
                 };
                 if c == b'"' {
-                    i += 1;
-                    while let Some(&sc) = bytes.get(i) {
-                        if sc == b'\\' {
-                            i += 2;
-                            continue;
-                        }
-                        if sc == b'\n' {
-                            line += 1;
-                        }
-                        i += 1;
-                        if sc == b'"' {
-                            break;
-                        }
-                    }
+                    skip_string_literal(bytes, &mut i, &mut line);
                     continue;
                 }
                 if c == b'[' {
@@ -472,4 +446,21 @@ fn extract_allow_attributes(src: &str) -> Vec<(usize, String)> {
         i += 1;
     }
     out
+}
+
+fn skip_string_literal(bytes: &[u8], i: &mut usize, line: &mut usize) {
+    *i += 1;
+    while let Some(&c) = bytes.get(*i) {
+        if c == b'\\' {
+            *i += 2;
+            continue;
+        }
+        if c == b'\n' {
+            *line += 1;
+        }
+        *i += 1;
+        if c == b'"' {
+            break;
+        }
+    }
 }

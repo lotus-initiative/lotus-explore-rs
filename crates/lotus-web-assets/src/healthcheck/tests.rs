@@ -12,7 +12,7 @@
 // fails on a bad fixture is reporting a failure, not panicking on input.
 #![allow(clippy::expect_used, clippy::panic)]
 
-use super::{probe, request, target_from};
+use super::{probe, read_status_head, request, target_from};
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use std::thread;
@@ -276,4 +276,52 @@ fn request_reassembles_a_status_line_split_across_reads() {
     let status = request(&host, port, "/health").expect("split status line should succeed");
     assert_eq!(status, 204, "split status line should return HTTP 204");
     server.join().expect("the server thread");
+}
+
+struct ScriptedReader {
+    steps: std::collections::VecDeque<std::io::Result<&'static [u8]>>,
+}
+
+impl std::io::Read for ScriptedReader {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let Some(step) = self.steps.pop_front() else {
+            return Ok(0);
+        };
+        let chunk = step?;
+        let n = chunk.len().min(buf.len());
+        if let (Some(dst), Some(src)) = (buf.get_mut(..n), chunk.get(..n)) {
+            dst.copy_from_slice(src);
+        }
+        Ok(n)
+    }
+}
+
+#[test]
+fn read_status_head_retries_on_interrupted() {
+    let mut reader = ScriptedReader {
+        steps: std::collections::VecDeque::from([
+            Err(std::io::Error::from(std::io::ErrorKind::Interrupted)),
+            Ok(&b"HTTP/1.1 200 OK\r\n"[..]),
+        ]),
+    };
+    let head = read_status_head(&mut reader).expect("EINTR should be retried");
+    assert_eq!(
+        head, "HTTP/1.1 200 OK\r\n",
+        "retried read should return the full status line"
+    );
+}
+
+#[test]
+fn read_status_head_propagates_non_interrupted_errors() {
+    let mut reader = ScriptedReader {
+        steps: std::collections::VecDeque::from([Err(std::io::Error::from(
+            std::io::ErrorKind::TimedOut,
+        ))]),
+    };
+    let err = read_status_head(&mut reader).expect_err("non-Interrupted read errors must not loop");
+    assert_eq!(
+        err.kind(),
+        std::io::ErrorKind::TimedOut,
+        "timeout error should be returned directly"
+    );
 }
