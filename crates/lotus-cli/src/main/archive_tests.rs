@@ -84,6 +84,10 @@ fn zenodo_metadata_builds_with_valid_inputs() {
     assert_eq!(metadata.license, Some("cc-by-4.0".to_string()));
     assert_eq!(metadata.keywords.len(), 3);
     assert_eq!(metadata.related_identifiers.len(), 1);
+    assert!(
+        !metadata.description_html.contains("smiles-rs"),
+        "description must not falsely claim a smiles-rs parse-error report"
+    );
 }
 
 /// A fresh, empty directory under the system temp dir, unique to this test.

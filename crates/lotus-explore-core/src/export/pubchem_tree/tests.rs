@@ -875,3 +875,29 @@ async fn run_pubchem_tree_records_configured_endpoint_in_wikidata_metadata() {
         NPCLASSIFIER_CACHE_URL
     );
 }
+
+#[tokio::test]
+async fn run_pubchem_tree_propagates_npclassifier_cache_errors() {
+    let failing = Scripted::new(vec![
+        (200, COMPOUND_TAXON),
+        (200, TAXON_NCBI),
+        (200, TAXON_NAME),
+        (200, TAXON_PARENT),
+        (200, SMILES_CAN),
+        (200, SMILES_ISO),
+        (200, SMARTS),
+        (200, CXSMILES),
+        (200, LABEL),
+        (200, COMPOUND_PARENT),
+        (200, REFERENCE_DOI),
+        (200, REFERENCE_PMID),
+        (500, "cache upstream failed"),
+    ]);
+    let err = run_pubchem_tree(&failing, Endpoint::new(Service::Qlever), NOW, |_| {})
+        .await
+        .expect_err("HTTP 500 on NPClassifier cache must fail instead of producing an empty tree");
+    assert!(
+        err.to_string().contains("500"),
+        "error should report the upstream HTTP status: {err}"
+    );
+}

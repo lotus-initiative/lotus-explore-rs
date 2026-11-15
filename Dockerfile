@@ -290,7 +290,7 @@ EXPOSE 8787
 # The defaults inside it are the container's own configuration, so the line below
 # passes no arguments and cannot drift from what the server was told to listen on.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD ["/usr/local/bin/lotus-healthcheck", "127.0.0.1", "8787", "/health"]
+    CMD ["/usr/local/bin/lotus-healthcheck"]
 
 USER nonroot:nonroot
 

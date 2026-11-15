@@ -9,6 +9,11 @@
     "http://edamontology.org/topic_3172",
     "http://edamontology.org/topic_0637"
   ],
+  "author": {
+    "@type": "Organization",
+    "name": "LOTUS Initiative",
+    "url": "https://www.wikidata.org/wiki/Q104225190"
+  },
   "buildInstructions": "cargo build --release -p lotus-cli",
   "citation": [
     {

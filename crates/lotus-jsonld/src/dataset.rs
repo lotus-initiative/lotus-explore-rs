@@ -57,11 +57,6 @@ pub fn result_set_jsonld(set: &ResultSet<'_>) -> Value {
         "@type": "Dataset",
         "@id": url,
         "name": format!("LOTUS occurrences — {}", display_taxon(set.taxon)),
-        "description": format!(
-            "Chemical compounds reported in {} in the LOTUS knowledge graph, \
-             retrieved by SPARQL from Wikidata and served by the LOTUS Explorer.",
-            display_taxon(set.taxon)
-        ),
         "url": url,
         "identifier": [
             // A checksum of the result, which is what it is. Rejected as a second

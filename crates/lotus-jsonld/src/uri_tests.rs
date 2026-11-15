@@ -18,6 +18,21 @@ fn each_uri_carries_its_own_identifier() {
         "https://pubchem.ncbi.nlm.nih.gov/compound/LFQSCWFLJHTTHZ-UHFFFAOYSA-N"
     );
     assert_eq!(doi_uri("10.1000/xyz"), "https://doi.org/10.1000/xyz");
+    assert_eq!(
+        doi_uri("https://doi.org/10.1000/xyz"),
+        "https://doi.org/10.1000/xyz",
+        "DOI resolver prefix should be stripped instead of doubled"
+    );
+    assert_eq!(
+        doi_uri("http://dx.doi.org/10.1000/xyz"),
+        "https://doi.org/10.1000/xyz",
+        "legacy dx.doi.org prefix should be stripped"
+    );
+    assert_eq!(
+        doi_uri(" doi:10.1000/xyz "),
+        "https://doi.org/10.1000/xyz",
+        "doi: prefix and whitespace should be stripped"
+    );
 }
 
 #[test]

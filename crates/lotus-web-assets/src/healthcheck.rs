@@ -67,17 +67,37 @@ pub fn request(host: &str, port: u16, path: &str) -> std::io::Result<u16> {
     // a response body would be. The body is not read: only the status is
     // asserted on, and reading the rest of an export response to look at
     // something already known would be the slow way to learn nothing.
+    // Read until the end of the status line (`\n`), EOF, or a full 8 KiB
+    // header buffer so a status line split across TCP segments is still
+    // parsed without reading the body.
     let mut buf = [0_u8; 8192];
-    let n = stream.read(&mut buf)?;
+    let mut filled = 0;
+    while let Some(tail) = buf.get_mut(filled..) {
+        if tail.is_empty() {
+            break;
+        }
+        let n = match stream.read(tail) {
+            Ok(n) => n,
+            Err(err) if err.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(err) => return Err(err),
+        };
+        if n == 0 {
+            break;
+        }
+        filled += n;
+        if buf.get(..filled).is_some_and(|head| head.contains(&b'\n')) {
+            break;
+        }
+    }
 
     // `HTTP/1.1 200 OK` -> 200. Anything that is not a status line is a
     // connection that answered with something other than HTTP, which for the
     // purpose of "is the server serving" is a failure.
-    // `n` is what `read` reported, so it is in range; `.get` rather than a
+    // `filled` is what `read` reported, so it is in range; `.get` rather than a
     // slice because a zero-length read is a real case here (a peer that closes
     // without answering) and must be an error, not a panic.
     let head = buf
-        .get(..n)
+        .get(..filled)
         .and_then(|b| std::str::from_utf8(b).ok())
         .unwrap_or_default();
     let status = head
@@ -96,16 +116,29 @@ pub fn request(host: &str, port: u16, path: &str) -> std::io::Result<u16> {
     }
 }
 
+fn target_from(
+    mut args: impl Iterator<Item = String>,
+    env_port: Option<&str>,
+) -> (String, u16, String) {
+    let host = args.next().unwrap_or_else(|| "127.0.0.1".to_owned());
+    let arg_port = args.next();
+    let port: u16 = arg_port
+        .as_deref()
+        .or(env_port)
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(8787);
+    let path = args.next().unwrap_or_else(|| "/health".to_owned());
+    (host, port, path)
+}
+
 /// `lotus-healthcheck [host] [port] [path]`.
 ///
-/// The defaults are the container's own configuration, so the `HEALTHCHECK`
-/// line in the Dockerfile needs no arguments and cannot drift from what the
-/// server was told to listen on.
+/// The defaults are the container's own configuration (`PORT` if set, otherwise
+/// `8787`), so the `HEALTHCHECK` line in the Dockerfile needs no arguments and
+/// cannot drift from what the server was told to listen on.
 fn main() -> ExitCode {
-    let mut args = std::env::args().skip(1);
-    let host = args.next().unwrap_or_else(|| "127.0.0.1".to_owned());
-    let port: u16 = args.next().and_then(|p| p.parse().ok()).unwrap_or(8787);
-    let path = args.next().unwrap_or_else(|| "/health".to_owned());
+    let env_port = std::env::var("PORT").ok();
+    let (host, port, path) = target_from(std::env::args().skip(1), env_port.as_deref());
 
     probe(&host, port, &path)
 }

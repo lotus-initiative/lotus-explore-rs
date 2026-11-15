@@ -53,10 +53,11 @@ pub fn pubchem_uri(inchikey: &str) -> String {
     format!("https://pubchem.ncbi.nlm.nih.gov/compound/{inchikey}")
 }
 
-/// The `doi.org` URL for a bare DOI.
+/// The `doi.org` URL for a DOI (stripping any resolver prefix or whitespace).
 #[must_use]
 pub fn doi_uri(doi: &str) -> String {
-    format!("https://doi.org/{doi}")
+    let bare = lotus_model::strip_doi_prefix(doi.trim());
+    format!("https://doi.org/{bare}")
 }
 
 /// A `PropertyValue` pairing a value with the scheme that identifies it.

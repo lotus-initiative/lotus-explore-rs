@@ -12,7 +12,7 @@
 // fails on a bad fixture is reporting a failure, not panicking on input.
 #![allow(clippy::expect_used, clippy::panic)]
 
-use super::{probe, request};
+use super::{probe, request, target_from};
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use std::thread;
@@ -233,5 +233,47 @@ fn a_truncated_status_line_is_an_error() {
         request(&host, port, "/health").is_err(),
         "a connection closed with no answer must not be healthy"
     );
+    server.join().expect("the server thread");
+}
+
+#[test]
+fn target_defaults_to_port_env_when_cli_port_is_omitted() {
+    assert_eq!(
+        target_from(std::iter::empty(), Some("9090")),
+        ("127.0.0.1".to_owned(), 9090, "/health".to_owned()),
+        "PORT environment variable should override default port 8787"
+    );
+    assert_eq!(
+        target_from(
+            ["0.0.0.0".to_owned(), "9191".to_owned()].into_iter(),
+            Some("9090")
+        ),
+        ("0.0.0.0".to_owned(), 9191, "/health".to_owned()),
+        "explicit CLI port should take precedence over PORT env"
+    );
+    assert_eq!(
+        target_from(std::iter::empty(), Some("invalid")),
+        ("127.0.0.1".to_owned(), 8787, "/health".to_owned()),
+        "unparsable PORT should fall back to 8787"
+    );
+}
+
+#[test]
+fn request_reassembles_a_status_line_split_across_reads() {
+    let (listener, host, port) = bind();
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("a connection");
+        let mut req_buf = [0_u8; 512];
+        let _ = std::io::Read::read(&mut stream, &mut req_buf);
+        stream.write_all(b"HTTP/1.1 ").expect("write first chunk");
+        stream.flush().expect("flush first chunk");
+        thread::sleep(std::time::Duration::from_millis(20));
+        stream
+            .write_all(b"204 No Content\r\nContent-Length: 0\r\n\r\n")
+            .expect("write second chunk");
+        stream.flush().expect("flush second chunk");
+    });
+    let status = request(&host, port, "/health").expect("split status line should succeed");
+    assert_eq!(status, 204, "split status line should return HTTP 204");
     server.join().expect("the server thread");
 }

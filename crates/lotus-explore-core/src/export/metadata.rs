@@ -8,7 +8,7 @@ use serde::Serialize;
 use serde_json::{Map, Value, json};
 
 /// The version the metadata document reports.
-pub const APP_VERSION: &str = "0.1.0";
+pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// The name the metadata document reports.
 pub const APP_NAME: &str = "LOTUS Explorer";
 /// From the manifest, so the URL is declared once for the whole workspace.

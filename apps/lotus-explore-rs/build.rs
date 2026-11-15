@@ -93,7 +93,7 @@ struct Shortcut {
 
 /// The files this build script generates into `public/`, relative to it.
 /// `clean_dx_output` removes exactly these from `dx`'s output, and nothing else.
-const GENERATED_METADATA: [&str; 9] = [
+const GENERATED_METADATA: [&str; 10] = [
     "llms.txt",
     "humans.txt",
     "robots.txt",
@@ -102,6 +102,7 @@ const GENERATED_METADATA: [&str; 9] = [
     "_headers",
     "_redirects",
     ".well-known/ai-catalog.json",
+    ".well-known/agent-skills.json",
     ".well-known/security.txt",
 ];
 
@@ -140,6 +141,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         well_known_dir.join("ai-catalog.json"),
         build_ai_catalog(&metadata)?,
     )?;
+    write_if_changed(
+        well_known_dir.join("agent-skills.json"),
+        build_agent_skills(&metadata)?,
+    )?;
     write_if_changed(public_dir.join("humans.txt"), build_humans_txt(&metadata))?;
     write_if_changed(public_dir.join("robots.txt"), build_robots_txt(&metadata))?;
     write_if_changed(public_dir.join("sitemap.xml"), build_sitemap_xml(&metadata))?;
@@ -166,7 +171,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 /// Remove the previously-generated metadata files from `dx`'s output tree.
-/// This runs on every wasm compile of the app, including the `cargo check`
+/// This runs on every wasm compile of the app, including `cargo check`, so
+/// generated assets stay in sync before bundling.
 fn clean_dx_output() -> Result<(), Box<dyn Error>> {
     let Ok(target) = std::env::var("TARGET") else {
         return Ok(());
@@ -324,6 +330,62 @@ fn build_ai_catalog(meta: &Metadata) -> Result<String, Box<dyn Error>> {
         ],
     });
     Ok(format!("{}\n", serde_json::to_string_pretty(&catalog)?))
+}
+
+/// Agent skills manifest for `.well-known/agent-skills.json`, keeping the
+/// documented site base URL synchronized with `site-metadata.json`.
+fn build_agent_skills(meta: &Metadata) -> Result<String, Box<dyn Error>> {
+    let doc = serde_json::json!({
+        "@context": "https://specification.website/contexts/agent-skills.jsonld",
+        "skills": [
+            {
+                "name": "Search Compounds",
+                "description": "Search for chemical compounds by name, SMILES, or Molfile",
+                "instructions": "Use the search interface to query compounds. Support structural and text-based search, and respect the visible accessibility affordances in the page header and filters.",
+                "triggers": ["compound search", "SMILES lookup", "chemical structure"],
+            },
+            {
+                "name": "Browse Taxonomies",
+                "description": "Explore plant and organism taxonomies from domain to species level",
+                "instructions": "Navigate through taxonomy hierarchy or use search to find specific taxa",
+                "triggers": ["taxonomy browse", "plant families", "species lookup"],
+            },
+            {
+                "name": "Citation Lookup",
+                "description": "Find references by DOI or Wikidata identifier",
+                "instructions": "Enter a DOI, reference title, or Wikidata QID to retrieve publication metadata",
+                "triggers": ["reference lookup", "DOI search", "reference title search"],
+            },
+            {
+                "name": "SPARQL Query",
+                "description": "Execute structured SPARQL queries against the LOTUS dataset",
+                "instructions": "Write SPARQL queries to explore the compound-taxon-reference knowledge graph",
+                "triggers": ["SPARQL", "structured query"],
+            },
+            {
+                "name": "Export Results",
+                "description": "Download search results as CSV, TSV, JSON, JSON-LD, or Turtle",
+                "instructions": "After performing a search, use export options to download structured data",
+                "triggers": ["export data", "download results"],
+            },
+            {
+                "name": "Curation Workflows",
+                "description": "Generate QuickStatements to contribute to Wikidata",
+                "instructions": "Use curation tools to create structured data edits for Wikidata. Keep form labels, visible focus states, and document metadata intact when guiding the workflow.",
+                "triggers": ["curation", "wikidata contribution", "quickstatements"],
+            },
+        ],
+        "capabilities": {
+            "structured_search": true,
+            "taxonomy_browsing": true,
+            "sparql_queries": true,
+            "data_export": true,
+            "wikidata_integration": true,
+        },
+        "data_source": "https://qlever.dev/api/wikidata",
+        "documentation": meta.site.base_url,
+    });
+    Ok(format!("{}\n", serde_json::to_string_pretty(&doc)?))
 }
 
 /// The `WebMCP` half of the `Discovery` section of `llms.txt`, in prose.

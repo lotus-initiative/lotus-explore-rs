@@ -1,50 +1,72 @@
 {
   "@context": "https://specification.website/contexts/agent-skills.jsonld",
-  "skills": [
-    {
-      "name": "Search Compounds",
-      "description": "Search for chemical compounds by name, SMILES, or Molfile",
-      "instructions": "Use the search interface to query compounds. Support structural and text-based search, and respect the visible accessibility affordances in the page header and filters.",
-      "triggers": ["compound search", "SMILES lookup", "chemical structure"]
-    },
-    {
-      "name": "Browse Taxonomies",
-      "description": "Explore plant and organism taxonomies from domain to species level",
-      "instructions": "Navigate through taxonomy hierarchy or use search to find specific taxa",
-      "triggers": ["taxonomy browse", "plant families", "species lookup"]
-    },
-    {
-      "name": "Citation Lookup",
-      "description": "Find references by DOI, or Wikidata identifier",
-      "instructions": "Enter a DOI, PubMed ID, or Wikidata QID to retrieve publication metadata",
-      "triggers": ["reference lookup", "DOI search", "PMID search"]
-    },
-    {
-      "name": "SPARQL Query",
-      "description": "Execute structured SPARQL queries against the LOTUS dataset",
-      "instructions": "Write SPARQL queries to explore the compound-taxon-reference knowledge graph",
-      "triggers": ["SPARQL", "structured query"]
-    },
-    {
-      "name": "Export Results",
-      "description": "Download search results as CSV, JSON, or other formats",
-      "instructions": "After performing a search, use export options to download structured data",
-      "triggers": ["export data", "download results"]
-    },
-    {
-      "name": "Curation Workflows",
-      "description": "Generate QuickStatements to contribute to Wikidata",
-      "instructions": "Use curation tools to create structured data edits for Wikidata. Keep form labels, visible focus states, and document metadata intact when guiding the workflow.",
-      "triggers": ["curation", "wikidata contribution", "quickstatements"]
-    }
-  ],
   "capabilities": {
+    "data_export": true,
+    "sparql_queries": true,
     "structured_search": true,
     "taxonomy_browsing": true,
-    "sparql_queries": true,
-    "data_export": true,
     "wikidata_integration": true
   },
-  "data_source": "https://query.wikidata.org/",
-  "documentation": "https://lotusnprod.github.io/lotus-wikidata-interact/"
+  "data_source": "https://qlever.dev/api/wikidata",
+  "documentation": "https://lotus-initiative.github.io/lotus-explore-rs/",
+  "skills": [
+    {
+      "description": "Search for chemical compounds by name, SMILES, or Molfile",
+      "instructions": "Use the search interface to query compounds. Support structural and text-based search, and respect the visible accessibility affordances in the page header and filters.",
+      "name": "Search Compounds",
+      "triggers": [
+        "compound search",
+        "SMILES lookup",
+        "chemical structure"
+      ]
+    },
+    {
+      "description": "Explore plant and organism taxonomies from domain to species level",
+      "instructions": "Navigate through taxonomy hierarchy or use search to find specific taxa",
+      "name": "Browse Taxonomies",
+      "triggers": [
+        "taxonomy browse",
+        "plant families",
+        "species lookup"
+      ]
+    },
+    {
+      "description": "Find references by DOI or Wikidata identifier",
+      "instructions": "Enter a DOI, reference title, or Wikidata QID to retrieve publication metadata",
+      "name": "Citation Lookup",
+      "triggers": [
+        "reference lookup",
+        "DOI search",
+        "reference title search"
+      ]
+    },
+    {
+      "description": "Execute structured SPARQL queries against the LOTUS dataset",
+      "instructions": "Write SPARQL queries to explore the compound-taxon-reference knowledge graph",
+      "name": "SPARQL Query",
+      "triggers": [
+        "SPARQL",
+        "structured query"
+      ]
+    },
+    {
+      "description": "Download search results as CSV, TSV, JSON, JSON-LD, or Turtle",
+      "instructions": "After performing a search, use export options to download structured data",
+      "name": "Export Results",
+      "triggers": [
+        "export data",
+        "download results"
+      ]
+    },
+    {
+      "description": "Generate QuickStatements to contribute to Wikidata",
+      "instructions": "Use curation tools to create structured data edits for Wikidata. Keep form labels, visible focus states, and document metadata intact when guiding the workflow.",
+      "name": "Curation Workflows",
+      "triggers": [
+        "curation",
+        "wikidata contribution",
+        "quickstatements"
+      ]
+    }
+  ]
 }

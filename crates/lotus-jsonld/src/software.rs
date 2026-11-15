@@ -72,10 +72,21 @@ pub struct Paper {
 
 /// The project as a conforming `SoftwareApplication`.
 #[must_use]
+fn author_organization() -> Value {
+    json!({
+        "@type": "Organization",
+        "name": "LOTUS Initiative",
+        "url": "https://www.wikidata.org/wiki/Q104225190",
+    })
+}
+
+/// The `SoftwareApplication` + Bioschemas `ComputationalTool` document
+/// representing LOTUS Explorer.
 #[allow(
     clippy::too_many_lines,
     reason = "single Bioschemas ComputationalTool document with FormalParameter input/output descriptors"
 )]
+#[must_use]
 pub fn software_jsonld(software: &Software) -> Value {
     let mut object = serde_json::Map::new();
     object.insert("@type".into(), json!("SoftwareApplication"));
@@ -99,14 +110,7 @@ pub fn software_jsonld(software: &Software) -> Value {
             edam::TOPIC_TAXONOMY,
         ]),
     );
-    object.insert(
-        "author".into(),
-        json!({
-            "@type": "Organization",
-            "name": "LOTUS Initiative",
-            "url": "https://www.wikidata.org/wiki/Q104225190",
-        }),
-    );
+    object.insert("author".into(), author_organization());
     object.insert("codeRepository".into(), json!(software.repository));
     object.insert(
         "programmingLanguage".into(),
@@ -211,6 +215,7 @@ pub fn codemeta(software: &Software) -> Value {
     object.insert("@type".into(), json!("SoftwareSourceCode"));
     object.insert("name".into(), json!(software.name));
     object.insert("description".into(), json!(software.description));
+    object.insert("author".into(), author_organization());
     object.insert("codeRepository".into(), json!(software.repository));
     object.insert("issueTracker".into(), json!(software.issue_tracker));
     object.insert("url".into(), json!(software.url));

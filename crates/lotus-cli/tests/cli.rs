@@ -285,7 +285,7 @@ fn a_similarity_cutoff_outside_the_unit_interval_is_rejected() {
             "1.5",
         ])
         .assert()
-        .failure()
+        .code(1)
         .stderr(predicate::str::contains("0..=1"));
 }
 
@@ -301,7 +301,20 @@ fn an_inverted_mass_range_is_rejected_before_anything_is_sent() {
             "--explain",
         ])
         .assert()
-        .failure();
+        .code(1);
+}
+
+#[test]
+fn an_inverted_element_range_exits_with_code_1_and_parse_errors_with_code_2() {
+    lotus()
+        .args(["search", "--carbon", "20..10", "--explain"])
+        .assert()
+        .code(1);
+
+    lotus()
+        .args(["search", "--threshold", "notanumber"])
+        .assert()
+        .code(2);
 }
 
 #[test]
@@ -309,7 +322,7 @@ fn an_unknown_flag_is_rejected() {
     lotus()
         .args(["search", "--magic"])
         .assert()
-        .failure()
+        .code(2)
         .stderr(predicate::str::contains("--magic"));
 }
 

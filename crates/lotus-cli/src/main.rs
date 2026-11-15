@@ -180,7 +180,7 @@ struct SearchArgs {
     structure_search: StructureSearch,
 
     /// Tanimoto cutoff for a similarity search, 0 to 1.
-    #[arg(long, default_value_t = lotus_model::DEFAULT_STRUCTURE_THRESHOLD, value_parser = parse_threshold)]
+    #[arg(long, default_value_t = lotus_model::DEFAULT_STRUCTURE_THRESHOLD)]
     threshold: f64,
 
     /// Lowest molecular mass, in daltons.
@@ -319,9 +319,6 @@ impl std::str::FromStr for Range {
             Some((min, max)) => {
                 let min: u16 = min.parse().map_err(|_| bad())?;
                 let max: u16 = max.parse().map_err(|_| bad())?;
-                if min > max {
-                    return Err(format!("minimum {min} is above maximum {max} in {value:?}"));
-                }
                 Ok(Self { min, max })
             }
             None => {
@@ -333,18 +330,6 @@ impl std::str::FromStr for Range {
                 Ok(Self { min: 0, max })
             }
         }
-    }
-}
-
-/// A Tanimoto cutoff is a similarity, so anything outside 0..=1 is a typo.
-fn parse_threshold(value: &str) -> Result<f64, String> {
-    let parsed: f64 = value
-        .parse()
-        .map_err(|_| format!("{value:?} is not a number"))?;
-    if (0.0..=1.0).contains(&parsed) {
-        Ok(parsed)
-    } else {
-        Err(format!("{parsed} is outside 0..=1"))
     }
 }
 
@@ -441,6 +426,9 @@ fn criteria_from_args(args: &SearchArgs, year_max: u16) -> lotus_model::SearchCr
 }
 
 async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
+    if !(0.0..=1.0).contains(&args.threshold) {
+        anyhow::bail!("--threshold {} is outside 0..=1", args.threshold);
+    }
     let year_max = args.year_max.unwrap_or_else(current_year);
     let criteria = criteria_from_args(&args, year_max);
     lotus_model::validate_criteria(&criteria, year_max)?;
@@ -709,8 +697,8 @@ fn zenodo_metadata(
         .description_html(
             "<p>InChIKey-deduplicated Wikidata SMILES for chemical structures with P703 \
              (found in taxon), fetched from QLever. Isomeric P2017 values take \
-             precedence over canonical P233 values. The archive includes a \
-             smiles-rs parse-error report and query provenance.</p>",
+             precedence over canonical P233 values. The archive includes source \
+             statements and query provenance.</p>",
         )
         .creator_named(creator)
         .access_right(zenodo_rs::AccessRight::Open)

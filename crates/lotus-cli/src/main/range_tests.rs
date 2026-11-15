@@ -103,10 +103,17 @@ fn a_two_sided_range_is_the_only_way_to_get_a_lower_bound() {
         "the message must say what was expected: {error:?}"
     );
 
-    let inverted = parse("20..10").expect_err("an inverted range is rejected");
+    let inverted = parse("20..10").expect("syntactically valid range parses");
+    assert_eq!(
+        (inverted.min, inverted.max),
+        (20, 10),
+        "inverted ranges parse syntactically so semantic validation exits with code 1"
+    );
+    let mut criteria = lotus_model::SearchCriteria::up_to_year(2026);
+    super::apply_ranges(&mut criteria, Some(inverted), None, None, None, None, None);
     assert!(
-        inverted.contains("minimum 20 is above maximum 10"),
-        "the message must explain why the range failed: {inverted:?}"
+        lotus_model::validate_criteria(&criteria, 2026).is_err(),
+        "semantic validation must reject an inverted element range"
     );
     let exact = parse("10..10").expect("an exact range parses");
     assert_eq!((exact.min, exact.max), (10, 10));

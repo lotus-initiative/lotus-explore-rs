@@ -34,17 +34,24 @@ use super::pipeline::{ExportError, read_csv_rows};
 const NPCLASSIFIER_CACHE_URL: &str = "https://media.githubusercontent.com/media/adafede/marimo/main/apps/public/npclassifier/npclassifier_cache.csv";
 
 /// The app version carried in every metadata document.
-const APP_VERSION: &str = "0.1.0";
+const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// The generator name carried in every metadata document.
 const APP_NAME: &str = "LOTUS PubChem Tree Generator";
 
 /// Get an arbitrary URL's text body (`NPClassifier` cache CSV).
 async fn http_get_text<H: Http>(http: &H, url: &str) -> Result<String, ExportError> {
     let response = http.get(url, "text/csv").await?;
+    let status = response.status();
     let text = response
         .text()
         .await
         .map_err(|e| ExportError::Fetch(lotus_search::FetchError::Network(e.to_string())))?;
+    if !(200..300).contains(&status) {
+        return Err(ExportError::Fetch(lotus_search::FetchError::Http {
+            status,
+            message: text,
+        }));
+    }
     Ok(text)
 }
 
@@ -62,11 +69,13 @@ fn render(document: &impl Serialize) -> Result<String, ExportError> {
 ///
 /// Returns (`biological_full`, `chemical_full`, `npclassifier_full`,
 /// `biological_pubchem`, `chemical_pubchem`, `npclassifier_pubchem`) as JSON strings.
-/// `npclassifier_*` are empty strings when the cache could not be read.
+/// `npclassifier_*` are empty strings only when no loaded structure matches a
+/// row in the `NPClassifier` cache.
 ///
 /// # Errors
 ///
-/// Returns an error if fetching from the endpoint or cache fails.
+/// Returns an error if fetching or parsing any Wikidata table or the
+/// `NPClassifier` cache CSV fails.
 pub async fn run_pubchem_tree<H: Http>(
     http: &H,
     endpoint: Endpoint,
@@ -80,11 +89,8 @@ pub async fn run_pubchem_tree<H: Http>(
     let chemical = chemical_tree(&data, &index);
 
     on_progress("npclassifier_cache");
-    let npclassifier_rows = http_get_text(http, NPCLASSIFIER_CACHE_URL)
-        .await
-        .ok()
-        .and_then(|text| read_csv_rows(text.as_bytes()).ok())
-        .unwrap_or_default();
+    let npclassifier_text = http_get_text(http, NPCLASSIFIER_CACHE_URL).await?;
+    let npclassifier_rows = read_csv_rows(npclassifier_text.as_bytes())?;
     let npclassifier = npclassifier_tree(
         &classify(&npclassifier_rows),
         &SmilesIndex::new(&data, &index),

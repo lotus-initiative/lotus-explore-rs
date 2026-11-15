@@ -46,6 +46,11 @@ fn codemeta_names_the_repository_and_the_version() {
     assert_eq!(node["@type"], json!("SoftwareSourceCode"));
     assert_eq!(node["codeRepository"], json!(crate::SOFTWARE.repository));
     assert_eq!(node["version"], json!(crate::SOFTWARE.version));
+    assert_eq!(
+        node["author"],
+        software_jsonld(&crate::SOFTWARE)["author"],
+        "codemeta and SoftwareApplication JSON-LD should share the author organization"
+    );
 }
 
 #[test]

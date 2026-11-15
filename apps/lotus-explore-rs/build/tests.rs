@@ -73,6 +73,7 @@ fn every_host_bearing_artefact_follows_base_url() -> Result<(), Box<dyn Error>> 
             ("sitemap.xml", build_sitemap_xml(&meta)),
             ("security.txt", build_security_txt(&meta)),
             ("ai-catalog.json", build_ai_catalog(&meta)?),
+            ("agent-skills.json", build_agent_skills(&meta)?),
         ] {
             assert!(
                 contents.contains(expected),
@@ -500,6 +501,7 @@ fn generated_metadata_list_covers_everything_the_script_writes() {
         "_headers",
         "_redirects",
         ".well-known/ai-catalog.json",
+        ".well-known/agent-skills.json",
         ".well-known/security.txt",
     ] {
         assert!(
