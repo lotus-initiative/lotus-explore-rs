@@ -17,8 +17,16 @@ dependencies = ["test-nextest", "test-server", "test-desktop", "test-doc"]
 # is not worth the time.
 [tasks."test-nextest"]
 cwd = "${REPO_ROOT}"
-description = "Run the test suite with cargo-nextest, fail-fast."
-script = "cargo nextest run --workspace --locked --no-fail-fast --test-threads 4"
+description = "Run the test suite with cargo-nextest, writing JUnit output under CI."
+script = """
+#!/usr/bin/env bash
+set -euo pipefail
+args=()
+if [ "${CI:-}" = "true" ] || [ "${CI:-}" = "1" ]; then
+  args+=(--profile ci)
+fi
+exec cargo nextest run --workspace --locked --no-fail-fast --test-threads 4 "${args[@]}"
+"""
 
 [tasks."test-server"]
 cwd = "${REPO_ROOT}"

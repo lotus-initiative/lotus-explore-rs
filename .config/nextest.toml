@@ -74,8 +74,3 @@ status-level = "fail"
 final-status-level = "fail"
 # Anything reaching a real endpoint deserves more room than a fixture does.
 slow-timeout = { period = "300s" }
-
-# ── Per-test overrides ───────────────────────────────────────────────────────
-# Both of these exist because a group of tests is legitimately slower than the
-# period above, and a timeout that fires on a test doing its job is a timeout
-# that trains people to ignore timeouts.

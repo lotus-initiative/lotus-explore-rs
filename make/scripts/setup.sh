@@ -51,10 +51,6 @@ install_tool() {
   cargo install --locked "$crate" --version "$version"
 }
 
-# Test runner. Without this every other task that mentions tests is wrong.
-# This task runner. Installing it is a chicken-and-egg for `./mk setup`, which is
-# why the first thing to try is a plain `cargo install`.
-
 # Lints and manifest hygiene.
 install_tool cargo-edit 0.13.13     # `cargo upgrade`, `cargo add`, `cargo rm`
 install_tool cargo-msrv 0.19.3       # the real MSRV, rather than the asserted one
@@ -66,27 +62,21 @@ install_tool cargo-msrv 0.19.3       # the real MSRV, rather than the asserted o
 install_tool cargo-geiger 0.13.0
 install_tool cargo-udeps 0.1.61
 
-# The nextest integration is what makes the coverage report describe the same run
-# the suite performs.
-
 # Build time and the wasm bundle. `twiggy` is superseded by `wasm-opt` for size
 # work and `cargo bloat` for the native binaries, and neither is in the gate.
 install_tool cargo-bloat 0.12.1
 
-# tombi is the TOML formatter and linter, and the tool the git hooks already run
-# via `tombi-pre-commit`. It is NOT on crates.io: `tombi-cli` there is a 0.0.1
-# placeholder with no binary, so `cargo install tombi-cli` produces nothing. The
-# real binary is a GitHub release, and the version is read from `prek.toml` so
-# the hook and this cannot be pinned to different releases -- the same reasoning
-# as `dx` below.
 echo "==> dioxus-cli@$DX_VERSION"
-if ! command -v dx >/dev/null 2>&1 || [ "$(dx --version 2>/dev/null || true)" != "$DX_VERSION" ]; then
-  cargo install dioxus-cli --version "$DX_VERSION" --locked
-else
-  echo "    dx is already $DX_VERSION"
-fi
+case " $(dx --version 2>/dev/null || true) " in
+  *" $DX_VERSION "*)
+    echo "    dx is already $DX_VERSION"
+    ;;
+  *)
+    cargo install dioxus-cli --version "$DX_VERSION" --locked
+    ;;
+esac
 
 echo
 echo "Installed. The tasks are:"
 echo
-./mk --list-all-steps
+./mk --list

@@ -13,7 +13,9 @@ if [ "$(uname -s)" != "Darwin" ]; then
   exit 0
 fi
 src=apps/lotus-explore-rs/public/apple-touch-icon.png
-iconset=$(mktemp -d)/lotus.iconset
+tmpdir=$(mktemp -d)
+trap 'rm -rf "$tmpdir"' EXIT
+iconset="$tmpdir/lotus.iconset"
 mkdir -p "$iconset"
 for size in 16 32 128 256 512; do
   sips -z $size $size "$src" --out "$iconset/icon_${size}x${size}.png" >/dev/null

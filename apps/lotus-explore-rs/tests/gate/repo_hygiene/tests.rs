@@ -223,3 +223,104 @@ fn the_mcp_config_has_no_typo_in_package_names() -> Result<()> {
     );
     Ok(())
 }
+
+/// Extract the pinned channel from `rust-toolchain.toml`.
+fn rust_toolchain_channel() -> Result<String> {
+    let content = read("rust-toolchain.toml")?;
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("channel")
+            && let Some(val) = rest.trim_start().strip_prefix('=')
+        {
+            return Ok(val.trim().trim_matches('"').to_owned());
+        }
+    }
+    Err("rust-toolchain.toml does not specify a `channel`".into())
+}
+
+#[test]
+fn rust_toolchain_version_is_consistent_across_manifests_and_workflows() -> Result<()> {
+    let version = rust_toolchain_channel()?;
+    let checks = [
+        ("Cargo.toml", format!("rust-version = \"{version}\"")),
+        ("Dockerfile", format!("ARG RUST_VERSION={version}")),
+        ("compose.yaml", format!("RUST_VERSION: \"{version}\"")),
+        (
+            "crates/lotus-jsonld/src/lib.rs",
+            format!("requires_rust: \">= {version}\""),
+        ),
+        (".github/workflows/ci.yml", format!("toolchain: {version}")),
+        (
+            ".github/workflows/archive.yml",
+            format!("toolchain: {version}"),
+        ),
+    ];
+    for (file, expected) in checks {
+        let content = read(file)?;
+        assert!(
+            content.contains(&expected),
+            "{file} is out of sync with rust-toolchain.toml ({version}): expected `{expected}`"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn security_policy_referenced_by_site_metadata_exists() {
+    assert!(
+        repo_root().join("SECURITY.md").is_file(),
+        "SECURITY.md must exist at repository root because site-metadata.json \
+         and security.txt link to it"
+    );
+}
+
+#[test]
+fn human_docs_never_link_to_agent_files() -> Result<()> {
+    let root = repo_root();
+    let mut files = vec![
+        root.join("README.md"),
+        root.join("CONTRIBUTING.md"),
+        root.join("CHANGELOG.md"),
+        root.join("SECURITY.md"),
+        root.join(".github/PULL_REQUEST_TEMPLATE.md"),
+    ];
+    for dir in [root.join("docs"), root.join("crates"), root.join("apps")] {
+        let mut stack = vec![dir];
+        while let Some(current) = stack.pop() {
+            let Ok(entries) = std::fs::read_dir(&current) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    if path.file_name().is_some_and(|n| n == "target") {
+                        continue;
+                    }
+                    stack.push(path);
+                } else if path
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+                {
+                    files.push(path);
+                }
+            }
+        }
+    }
+
+    let forbidden = ["AGENTS.md", "CLAUDE.md", "GEMINI.md", ".github/ai/"];
+    for path in files {
+        if !path.is_file() {
+            continue;
+        }
+        let text = std::fs::read_to_string(&path)?;
+        let rel = path.strip_prefix(&root).unwrap_or(&path);
+        for token in forbidden {
+            assert!(
+                !text.contains(token),
+                "{} mentions agent file `{token}` — human docs must stay independent of agent files",
+                rel.display()
+            );
+        }
+    }
+    Ok(())
+}

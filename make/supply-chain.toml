@@ -16,7 +16,7 @@ description = "Find unused dependencies by inspecting the compiled code. Needs n
 script = """
 set -e
 if ! command -v cargo-udeps >/dev/null 2>&1; then
-  echo "cargo-udeps is not installed; run './mk setup'" >&2
+  echo "cargo-udeps is not installed; run './mk setup-extra'" >&2
   exit 1
 fi
 cargo +nightly udeps --workspace --all-targets

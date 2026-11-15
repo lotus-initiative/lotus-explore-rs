@@ -16,15 +16,25 @@ crates/lotus-web-assets/public/
 /public/assets/
 /public/
 
-# Project-specific agent tooling not covered by global gitignore
+# Local agent tooling, working notes, OS clutter, and mutation outputs.
+/.agent-work/
+/.agentignore
+/.claudeignore
+/.claude/
+/.agents/
+/.gemini/
+/.delta/
+/.kb/
+/.mcp.json
+/.poolside/
+/graphify-out/
 .code-review-graph/
 GEMINI.md
 *.agent-scratch*
-# Local audit ledger; working notes, never source.
-.agent-work/
 .ignore
 !.vscode/
 .vscode/*
 !.vscode/settings.json
 lcov.info
-mutants.out*/
+/mutants.out*/
+.DS_Store

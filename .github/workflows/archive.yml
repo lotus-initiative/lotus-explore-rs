@@ -1,13 +1,12 @@
 # Scheduled/manual archive workflow.
 #
 # Default is dry-run: the archive is built and the Zenodo metadata + upload plan
-# is validated without contacting Zenodo. A real publish requires the caller to
-# pass `--no-dry-run` (or omit `--dry-run` when also passing `--publish`) AND
-# for the `ZENODO_TOKEN` (or `ZENODO_SANDBOX_TOKEN`) secret to be present.
+# are validated (`--publish --dry-run`) without contacting Zenodo. Publishing
+# requires setting the `publish` workflow input to `true` and providing the
+# `ZENODO_TOKEN` secret.
 #
-# CI on push or pull_request must never publish: this workflow is workflow_dispatch
-# only, so it can only run on explicit human request. The publish step is gated on
-# the `publish` input, which defaults to false and must be set by hand.
+# This workflow is `workflow_dispatch` only so push and pull_request CI cannot
+# publish accidentally.
 
 name: Archive
 
@@ -47,7 +46,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
-          toolchain: 1.99.1
+          toolchain: 1.100.0
           components: clippy
 
       - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
@@ -58,10 +57,12 @@ jobs:
         run: cargo build --release -p lotus-cli
 
       - name: Run archive (dry-run, no Zenodo contact)
+        if: ${{ inputs.publish != true }}
         env:
+          SOURCE_CODE_URL: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
           OUTPUT_DIR: ${{ inputs.output_dir }}
         run: |
-          ./target/release/lotus archive --output "$OUTPUT_DIR"
+          ./target/release/lotus archive --output "$OUTPUT_DIR" --publish --dry-run --creator "CI"
 
       - name: Publish to Zenodo
         if: ${{ inputs.publish == true }}

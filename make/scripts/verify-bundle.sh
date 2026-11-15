@@ -43,6 +43,8 @@ if [ -z "$resources" ]; then
 fi
 echo "ok    bundle resources: $resources"
 
+fail=0
+
 # The plist names an icon whether or not one was configured, and Finder shows a
 # generic icon when the named file is not there. Only macOS has a plist.
 case "$(uname -s)" in
@@ -62,7 +64,6 @@ Darwin)
   echo "skip  icon: $(uname -s) has no bundle plist to check it against"
   ;;
 esac
-fail=0
 
 # The URLs the app actually requests, not just the files that exist. These two
 # were different for a long time: the bundle had every file, and `bundled_path`
