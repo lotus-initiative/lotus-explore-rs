@@ -438,11 +438,18 @@ where
     if !endpoint.contains(QLever::HOST) {
         return None;
     }
+    let authenticated = access_token_from(&mut env).is_some();
     Some(
         env("LOTUS_QLEVER_TIMEOUT")
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty())
-            .and_then(|value| clamp_budget(&value))
+            .and_then(|value| {
+                if authenticated {
+                    parse_budget_millis(&value).map(|ms| format!("{ms}ms"))
+                } else {
+                    clamp_budget(&value)
+                }
+            })
             .unwrap_or_else(|| QLever::DEFAULT_QUERY_BUDGET.to_string()),
     )
 }
@@ -550,19 +557,26 @@ where
 /// Only the two spellings this crate's own constant uses are understood. A
 /// duration the parser does not recognise is refused rather than guessed at,
 /// because guessing would send a budget nobody asked for.
-fn clamp_budget(value: &str) -> Option<String> {
+fn parse_budget_millis(value: &str) -> Option<u64> {
     let (digits, unit) = value.split_at(
         value
             .find(|c: char| !c.is_ascii_digit())
             .unwrap_or(value.len()),
     );
     let amount: u64 = digits.parse().ok()?;
-    let millis = match unit.trim() {
-        "ms" => amount,
-        "s" | "sec" | "" => amount.checked_mul(1_000)?,
-        "min" => amount.checked_mul(60_000)?,
-        _ => return None,
-    };
+    if amount == 0 {
+        return None;
+    }
+    match unit.trim() {
+        "ms" => Some(amount),
+        "s" | "sec" | "" => amount.checked_mul(1_000),
+        "min" => amount.checked_mul(60_000),
+        _ => None,
+    }
+}
+
+fn clamp_budget(value: &str) -> Option<String> {
+    let millis = parse_budget_millis(value)?;
     let ceiling: u64 = QLever::MAX_QUERY_BUDGET
         .strip_suffix('s')
         .and_then(|seconds: &str| seconds.parse::<u64>().ok())

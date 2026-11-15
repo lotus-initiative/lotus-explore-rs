@@ -597,3 +597,41 @@ async fn a_plain_server_error_is_still_retried() {
     assert!(result.is_ok(), "{result:?}");
     assert_eq!(http.queries().len(), 2);
 }
+
+#[test]
+fn authenticated_budget_above_30s_is_not_clamped_and_zero_is_refused() {
+    assert_eq!(
+        clamp_budget("0s"),
+        None,
+        "a zero duration must be rejected rather than sent as 0ms"
+    );
+    assert_eq!(
+        query_budget_from("https://qlever.dev/api/wikidata", |key| match key {
+            "LOTUS_QLEVER_TIMEOUT" => Some("2min".to_string()),
+            _ => None,
+        })
+        .as_deref(),
+        Some("30000ms"),
+        "anonymous requests stay clamped to the 30s public ceiling"
+    );
+    assert_eq!(
+        query_budget_from("https://qlever.dev/api/wikidata", |key| match key {
+            "LOTUS_QLEVER_TOKEN" => Some("secret-token".to_string()),
+            "LOTUS_QLEVER_TIMEOUT" => Some("2min".to_string()),
+            _ => None,
+        })
+        .as_deref(),
+        Some("120000ms"),
+        "requests carrying a token must pass a raised duration un-clamped"
+    );
+    assert_eq!(
+        query_budget_from("https://qlever.dev/api/wikidata", |key| match key {
+            "LOTUS_QLEVER_TOKEN" => Some("secret-token".to_string()),
+            "LOTUS_QLEVER_TIMEOUT" => Some("0s".to_string()),
+            _ => None,
+        })
+        .as_deref(),
+        Some("30s"),
+        "authenticated requests still fall back to default budget when timeout parses to zero"
+    );
+}

@@ -373,3 +373,42 @@ fn a_reference_lookup_without_a_ref_column_is_an_empty_answer() {
             .expect("reads");
     assert_eq!(matches.len(), 0, "no ref column means nothing to read");
 }
+
+#[test]
+fn utf8_bom_is_stripped_by_all_small_csv_parsers() {
+    let bom = b"\xEF\xBB\xBF";
+    let counts = [
+        bom.as_slice(),
+        b"n_entries,n_entries_unique,n_compounds,n_taxa,n_references\n10,8,3,2,4\n",
+    ]
+    .concat();
+    let stats = parse_counts_csv(&counts).expect("counts CSV with BOM");
+    assert_eq!(stats.n_entries, 10, "counts header must survive BOM");
+
+    let taxon = [
+        bom.as_slice(),
+        b"taxon,taxon_name,matched_by\nQ1,Gentiana,scientific\n",
+    ]
+    .concat();
+    let taxa = parse_taxon_csv(&taxon).expect("taxon CSV with BOM");
+    assert_eq!(taxa.len(), 1, "taxon header must survive BOM");
+    assert_eq!(taxa[0].qid, "Q1");
+
+    let reference = [
+        bom.as_slice(),
+        b"ref\nhttp://www.wikidata.org/entity/Q23118\n",
+    ]
+    .concat();
+    let refs = parse_reference_lookup_csv(&reference).expect("reference CSV with BOM");
+    assert_eq!(refs.len(), 1, "reference header must survive BOM");
+    assert_eq!(refs[0].qid, "Q23118");
+
+    let compound = [
+        bom.as_slice(),
+        b"compound_qid,compound_label,canonical_smiles\n18216,aspirin,CC(=O)O\n",
+    ]
+    .concat();
+    let compounds = parse_compound_lookup_csv(&compound).expect("compound CSV with BOM");
+    assert_eq!(compounds.len(), 1, "compound header must survive BOM");
+    assert_eq!(compounds[0].qid, "Q18216");
+}

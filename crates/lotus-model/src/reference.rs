@@ -59,11 +59,13 @@ pub fn looks_like_doi(text: &str) -> bool {
 /// stores the bare form, so the prefixes are stripped before the lookup.
 #[must_use]
 pub fn strip_doi_prefix(text: &str) -> &str {
-    const PREFIXES: [&str; 5] = [
+    const PREFIXES: [&str; 7] = [
         "https://doi.org/",
         "http://doi.org/",
         "https://dx.doi.org/",
         "http://dx.doi.org/",
+        "dx.doi.org/",
+        "doi.org/",
         "doi:",
     ];
     let lowered = text.trim();

@@ -649,12 +649,15 @@ fn seeded_compounds_core(
     // left side of its own size instead of one it has to assume. Without the
     // repeated `VALUES` inside, the subquery inherits the binding and the slow plan
     // comes back.
-    let seeded: String = qid
+    let mut sanitized: Vec<String> = qid
         .iter()
-        .map(|q| escape_sparql_string(q))
+        .filter_map(|q| sanitize_qid(q))
         .map(|q| format!("wd:{q}"))
-        .collect::<Vec<_>>()
-        .join(" ");
+        .collect();
+    if sanitized.is_empty() {
+        sanitized.push("wd:Q0".to_string());
+    }
+    let seeded = sanitized.join(" ");
     // A taxon here is a real constraint, so the occurrence block stops being optional.
     //
     // Leaving it optional with the taxon ancestry inside constrains nothing:
@@ -790,23 +793,26 @@ fn taxon_ancestry_pattern_with_roots(
     nomenclature: Nomenclature,
     roots: &[String],
 ) -> String {
-    let escaped = escape_sparql_string(qid);
+    let sanitized_qid = sanitize_qid_or_sentinel(qid);
     let Some(path) = nomenclature_path(nomenclature) else {
-        return format!("?t (wdt:P171*) wd:{escaped} .");
+        return format!("?t (wdt:P171*) wd:{sanitized_qid} .");
     };
 
     // Resolved, and resolved to something.
     let root_expansion = if roots.is_empty() {
         format!(
-            "{{\n                SELECT DISTINCT ?root\n                WHERE {{\n                  {{ VALUES ?root {{ wd:{escaped} }} }}\n                  UNION\n                  {{ wd:{escaped} {path} ?root . }}\n                }}\n              }}"
+            "{{\n                SELECT DISTINCT ?root\n                WHERE {{\n                  {{ VALUES ?root {{ wd:{sanitized_qid} }} }}\n                  UNION\n                  {{ wd:{sanitized_qid} {path} ?root . }}\n                }}\n              }}"
         )
     } else {
-        let values = roots
+        let mut values: Vec<String> = roots
             .iter()
-            .map(|root| format!("wd:{}", escape_sparql_string(root)))
-            .collect::<Vec<_>>()
-            .join(" ");
-        format!("VALUES ?root {{ {values} }}")
+            .filter_map(|root| sanitize_qid(root))
+            .map(|root| format!("wd:{root}"))
+            .collect();
+        if values.is_empty() {
+            values.push("wd:Q0".to_string());
+        }
+        format!("VALUES ?root {{ {} }}", values.join(" "))
     };
 
     format!(
@@ -1000,7 +1006,7 @@ pub fn reference_by_qid_query(qid: &str) -> String {
 SELECT ?ref WHERE {{
   VALUES ?ref {{ wd:{} }}
 }}",
-        escape_sparql_string(&qid.trim().to_ascii_uppercase())
+        sanitize_qid_or_sentinel(qid)
     )
 }
 
@@ -1018,13 +1024,12 @@ SELECT ?ref WHERE {{
 /// A lowercase `q` is accepted, as in the taxon field: `q18216` means Q18216.
 #[must_use]
 pub fn compound_by_qid_query(qid: &str) -> String {
-    let qid = qid.trim();
-    let uppercase = qid.to_ascii_uppercase();
+    let qid = sanitize_qid_or_sentinel(qid);
     format!(
         "{PREFIXES}
 SELECT (xsd:integer(STRAFTER(STR(?compound), \"Q\")) AS ?compound_qid) ?compound_label ?canonical_smiles ?matched_by
 WHERE {{
-  VALUES ?compound {{ wd:{uppercase} }}
+  VALUES ?compound {{ wd:{qid} }}
 {COMPOUND_LOOKUP_PROPERTIES}
   BIND(\"qid\" AS ?matched_by)
 }}"
@@ -1543,9 +1548,13 @@ pub fn limit_query(base: &str, limit: usize) -> String {
 /// crate instead: [`lotus_model::looks_like_reference_qid`] to accept, and their
 /// own message to reject. This one exists because a query builder cannot report
 /// an error, so it has to be safe on its own.
-fn reference_qid(value: &str) -> Option<String> {
+fn sanitize_qid(value: &str) -> Option<String> {
     let trimmed = value.trim();
     lotus_model::looks_like_reference_qid(trimmed).then(|| trimmed.to_ascii_uppercase())
+}
+
+fn sanitize_qid_or_sentinel(value: &str) -> String {
+    sanitize_qid(value).unwrap_or_else(|| "Q0".to_string())
 }
 
 /// Apply the active filters to a base query.
@@ -1620,7 +1629,7 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
     // Uppercased here for the same reason the taxon field is: a QID's local name
     // is case-sensitive in SPARQL, so `wd:q23118` is a different item from
     // `wd:Q23118`, and every gate that admits a reference admits a lowercase one.
-    if let Some(qid) = reference_qid(&criteria.reference) {
+    if let Some(qid) = sanitize_qid(&criteria.reference) {
         let _ = writeln!(required, "VALUES ?r {{ wd:{qid} }}");
     }
 
@@ -1791,15 +1800,14 @@ pub fn construct_from_select(select: &str) -> String {
     };
     let where_at = select_at + where_at;
     let prefixes = &select[..select_at];
-    // Splice in the source's whole trailing block, minus its final brace: the
-    // formula BIND goes inside it, and the brace is re-emitted below.
-    let where_block = select[where_at..].trim();
-    let Some(where_block) = where_block.strip_suffix('}') else {
+    // Splice in the source's whole trailing block up to its final closing
+    // brace so the formula BIND lands inside WHERE and any trailing clause
+    // (such as LIMIT or OFFSET) stays after it.
+    let trailing = select[where_at..].trim();
+    let Some((where_body, suffix)) = trailing.rsplit_once('}') else {
         return select.to_string();
     };
 
-    // `where_block` already begins with `WHERE`, so only the CONSTRUCT template
-    // goes above it; the formula BIND is appended inside that same block.
     format!(
         "{prefixes}
 CONSTRUCT {{
@@ -1818,9 +1826,9 @@ CONSTRUCT {{
   ?r wdt:P356 ?ref_doi .
   ?r wdt:P577 ?ref_date .
 }}
-{where_block}
+{where_body}
   BIND({} AS ?compound_formula_norm)
-}}
+}}{suffix}
 ",
         normalize_digits_expr("?compound_formula")
     )

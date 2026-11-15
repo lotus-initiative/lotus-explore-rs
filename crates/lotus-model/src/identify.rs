@@ -62,8 +62,7 @@ pub fn normalize_doi(value: &str) -> Option<String> {
     if trimmed.is_empty() {
         return None;
     }
-    let without_prefix = find_ascii_ci(trimmed, b"doi.org/")
-        .map_or(trimmed, |idx| &trimmed[idx + "doi.org/".len()..]);
+    let without_prefix = crate::strip_doi_prefix(trimmed);
     let canonical = without_prefix.trim();
     if canonical.is_empty() {
         None
@@ -108,7 +107,10 @@ pub fn non_empty(s: &str) -> Option<&str> {
 
 /// Byte-level case-insensitive search. ASCII, because every needle here is an
 /// ASCII literal in a URL, DOI, or molfile marker.
-#[allow(unreachable_pub)]
+#[allow(
+    unreachable_pub,
+    reason = "identify is private; shared with sibling module structure without widening public API"
+)]
 pub fn find_ascii_ci(haystack: &str, needle: &[u8]) -> Option<usize> {
     let hay = haystack.as_bytes();
     if needle.is_empty() || hay.len() < needle.len() {

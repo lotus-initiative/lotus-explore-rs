@@ -718,7 +718,8 @@ pub async fn resolve_structure<H: Http>(
     http: &H,
     input: &str,
 ) -> Result<StructureResolution, FetchError> {
-    let trimmed = input.trim();
+    let normalized = normalize_structure(input);
+    let trimmed = normalized.trim();
     let mut compounds = Vec::new();
     let mut canonical = None;
 
@@ -742,7 +743,7 @@ pub async fn resolve_structure<H: Http>(
         }
     } else {
         compounds.extend(
-            lookup_compounds(http, &structure_compound_lookup_query(trimmed))
+            lookup_compounds(http, &structure_compound_lookup_query(&normalized))
                 .await?
                 .into_iter()
                 .map(|c| c.qid),
@@ -751,8 +752,8 @@ pub async fn resolve_structure<H: Http>(
 
     Ok(StructureResolution {
         compounds,
-        smiles: canonical.unwrap_or_else(|| trimmed.to_string()),
-        looked_up: trimmed.to_string(),
+        smiles: canonical.unwrap_or_else(|| normalized.clone()),
+        looked_up: normalized,
     })
 }
 

@@ -34,13 +34,32 @@ fn parse_criteria_supports_formula_and_halogens() {
 }
 
 #[test]
-fn parse_criteria_structure_without_explicit_taxon_clears_default_taxon() {
+fn parse_criteria_structure_without_taxon_leaves_taxon_empty() {
     let mut params = QueryParams::new();
     params.insert("structure".into(), "CCO".into());
 
     let crit = parse_criteria_from_params(&params, 2026);
     assert_eq!(crit.structure, "CCO");
     assert_eq!(crit.taxon.len(), 0, "expected no entries");
+}
+
+#[test]
+fn molfile_blank_leading_lines_round_trip_through_query_params() {
+    let mol = "\n  Mrv2014 010126\n\n  1  0  0  0  0  0            999 V2000\n    0.0000    0.0000    0.0000 C   0  0\nM  END\n";
+    let mut crit = SearchCriteria::up_to_year(2026);
+    crit.structure = mol.replace('\n', "\r\n");
+
+    let params = criteria_query_params(&crit, 2026);
+    assert_eq!(
+        params.get("structure").map(String::as_str),
+        Some(mol),
+        "URL serialization must unify CRLF to LF without stripping leading header lines"
+    );
+    let parsed = parse_criteria_from_params(&params, 2026);
+    assert_eq!(
+        parsed.structure, mol,
+        "decoded criteria must keep molfile header lines intact"
+    );
 }
 
 #[test]

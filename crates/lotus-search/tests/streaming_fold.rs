@@ -365,3 +365,31 @@ async fn a_name_that_resolves_to_nothing_keeps_the_users_own_text() {
         "and the user's own text is what would be searched"
     );
 }
+
+#[tokio::test]
+async fn resolve_structure_preserves_molfile_leading_blank_lines() {
+    let mol_lf = "\n  Mrv2014 010126\n\n  1  0  0  0  0  0            999 V2000\n    0.0000    0.0000    0.0000 C   0  0\nM  END\n";
+    let mol_crlf = mol_lf.replace('\n', "\r\n");
+    let empty = "compound_qid,compound_label,canonical_smiles,matched_by\n";
+    let http = Scripted::new(vec![(200, empty)]);
+
+    let resolution = resolve_structure(&http, &mol_crlf)
+        .await
+        .expect("valid empty compound lookup");
+
+    assert_eq!(
+        resolution.smiles, mol_lf,
+        "resolved fallback structure must keep leading header newlines with LF endings"
+    );
+    assert_eq!(
+        resolution.looked_up, mol_lf,
+        "looked_up must match normalized molfile with leading blank lines"
+    );
+    assert!(
+        http.queries()
+            .first()
+            .is_some_and(|q| q.contains("'''\n  Mrv2014")),
+        "compound lookup SPARQL must keep leading blank line in literal:\n{:?}",
+        http.queries()
+    );
+}

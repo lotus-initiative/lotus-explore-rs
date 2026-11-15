@@ -26,7 +26,10 @@ pub const WIKIDATA_ENTITY_PREFIX: &str = "http://www.wikidata.org/entity/";
 /// Python `extract_qid` helper that all three sources replicate.
 #[must_use]
 pub fn extract_qid(value: &str) -> &str {
-    value.strip_prefix(WIKIDATA_ENTITY_PREFIX).unwrap_or(value)
+    value
+        .strip_prefix(WIKIDATA_ENTITY_PREFIX)
+        .or_else(|| value.strip_prefix("https://www.wikidata.org/entity/"))
+        .unwrap_or(value)
 }
 
 /// Base prefixes shared by every Wikidata query.

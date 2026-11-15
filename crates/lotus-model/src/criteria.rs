@@ -40,7 +40,7 @@ pub struct SearchCriteria {
     pub taxon_names: TaxonNomenclature,
     /// SMILES or an MDL molfile (V2000/V3000).
     pub structure: String,
-    /// How `structure` is matched. [`SmilesSearchType::Similarity`] unless set.
+    /// How `structure` is matched. [`SmilesSearchType::Exact`] unless set.
     pub structure_search: SmilesSearchType,
     /// Tanimoto cutoff in 0.0..=1.0, used only for similarity search.
     pub structure_threshold: f64,
@@ -322,6 +322,7 @@ impl SearchCriteria {
     #[must_use]
     pub fn has_effective_filters(&self, year_max: u16) -> bool {
         !self.structure.trim().is_empty()
+            || !self.reference.trim().is_empty()
             || self.has_mass_filter()
             || self.has_year_filter(year_max)
             || self.has_formula_filter()
@@ -330,7 +331,9 @@ impl SearchCriteria {
     /// Whether this criteria would send a query at all.
     #[must_use]
     pub fn is_searchable(&self) -> bool {
-        !self.taxon.trim().is_empty() || !self.structure.trim().is_empty()
+        !self.taxon.trim().is_empty()
+            || !self.reference.trim().is_empty()
+            || !self.structure.trim().is_empty()
     }
 }
 

@@ -55,8 +55,15 @@ fn the_taxon_qid_is_escaped() {
         compounds_by_taxon_query(r#"Q1" . OPTIONAL { ?s ?p ?o }"#),
         compounds_by_taxon_query_with(r#"Q1" . OPTIONAL { ?s ?p ?o }"#, &Nomenclature::ALL_ON),
     ] {
-        // A crafted QID must not be able to close the pattern and add its own.
-        assert!(query.contains(r#"wd:Q1\" . OPTIONAL"#));
+        // A crafted QID must be rejected at the QID gate rather than spliced into `wd:`.
+        assert!(
+            !query.contains("OPTIONAL { ?s ?p ?o }"),
+            "injection payload must never reach query text:\n{query}"
+        );
+        assert!(
+            query.contains("wd:Q0"),
+            "invalid QID must collapse to nonexistent sentinel wd:Q0:\n{query}"
+        );
     }
 }
 
@@ -624,4 +631,49 @@ fn a_qid_reference_still_becomes_a_values_block() {
             "{qid:?} is a QID and must reach the query\n{query}"
         );
     }
+}
+
+#[test]
+fn lookup_qids_and_closure_roots_reject_sparql_injection() {
+    let payload = r#"Q1" } . OPTIONAL { ?s ?p ?o } #"#;
+
+    let ref_q = lotus_query::reference_by_qid_query(payload);
+    assert!(
+        ref_q.contains("VALUES ?ref { wd:Q0 }") && !ref_q.contains("OPTIONAL"),
+        "reference_by_qid_query must collapse invalid QID to wd:Q0:\n{ref_q}"
+    );
+
+    let comp_q = lotus_query::compound_by_qid_query(payload);
+    assert!(
+        comp_q.contains("VALUES ?compound { wd:Q0 }") && !comp_q.contains("OPTIONAL { ?s"),
+        "compound_by_qid_query must collapse invalid QID to wd:Q0:\n{comp_q}"
+    );
+
+    let bad_roots = vec![payload.to_string(), "Q42".to_string()];
+    let closure_q = lotus_query::compounds_by_taxon_query_with_resolved_closure(
+        payload,
+        &Nomenclature::ALL_ON,
+        &bad_roots,
+    );
+    assert!(
+        !closure_q.contains("OPTIONAL { ?s") && closure_q.contains("VALUES ?root { wd:Q42 }"),
+        "resolved closure must drop invalid root QIDs and keep valid ones:\n{closure_q}"
+    );
+
+    let all_bad_roots = vec![payload.to_string()];
+    let fallback_q = lotus_query::compounds_by_taxon_query_with_resolved_closure(
+        "Q16521",
+        &Nomenclature::ALL_ON,
+        &all_bad_roots,
+    );
+    assert!(
+        fallback_q.contains("VALUES ?root { wd:Q0 }") && !fallback_q.contains("OPTIONAL { ?s"),
+        "when all supplied closure roots are invalid, fallback to wd:Q0:\n{fallback_q}"
+    );
+
+    let seeded = lotus_query::exact_compounds_query(&[payload.to_string()], None);
+    assert!(
+        seeded.contains("VALUES ?c { wd:Q0 }") && !seeded.contains("OPTIONAL { ?s"),
+        "seeded compound QIDs must collapse invalid QIDs to wd:Q0:\n{seeded}"
+    );
 }

@@ -329,3 +329,26 @@ fn the_default_is_every_relationship_on() {
         assert!(TaxonNomenclature::ALL_ON.for_relation(&relation));
     }
 }
+
+#[test]
+fn reference_only_criteria_counts_as_searchable_and_effective_filter() {
+    let mut crit = criteria();
+    assert!(
+        !crit.is_searchable(),
+        "empty criteria with no taxon, structure, or reference must not be searchable"
+    );
+    assert!(
+        !crit.has_effective_filters(2026),
+        "empty criteria has no effective filter"
+    );
+
+    crit.reference = "10.1000/xyz".to_string();
+    assert!(
+        crit.is_searchable(),
+        "a reference alone must make a criteria searchable"
+    );
+    assert!(
+        crit.has_effective_filters(2026),
+        "a reference filter narrows results beyond taxon and must count as an effective filter"
+    );
+}

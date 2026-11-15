@@ -22,7 +22,6 @@ struct CriteriaQueryDto {
     mass_filter: Option<RangeF64Dto>,
     year_filter: Option<RangeU16Dto>,
     formula_filter: Option<FormulaQueryDto>,
-    has_explicit_taxon: bool,
 }
 
 /// The four nomenclatural toggles, each still possibly unspecified.
@@ -158,9 +157,9 @@ pub fn criteria_query_params(criteria: &SearchCriteria, year_max: u16) -> QueryP
         params.insert("reference".to_string(), reference.to_string());
     }
 
-    let structure = criteria.structure.trim();
-    if !structure.is_empty() {
-        params.insert("structure".to_string(), structure.to_string());
+    if !criteria.structure.trim().is_empty() {
+        let structure = lotus_search::normalize_structure(&criteria.structure);
+        params.insert("structure".to_string(), structure);
         params.insert(
             "structure_search_type".to_string(),
             criteria.structure_search.as_str().to_string(),
@@ -222,7 +221,6 @@ impl CriteriaQueryDto {
         let taxon = params.get("taxon").cloned();
         let reference = params.get("reference").cloned();
         Self {
-            has_explicit_taxon: taxon.is_some(),
             taxon,
             reference,
             taxon_names: PartialNomenclature::parse(params),
@@ -283,11 +281,6 @@ impl CriteriaQueryDto {
             formula.apply(&mut criteria);
         }
 
-        if criteria.structure.trim().is_empty() || self.has_explicit_taxon {
-            return criteria;
-        }
-
-        criteria.taxon.clear();
         criteria
     }
 }

@@ -220,3 +220,19 @@ fn occurrences_and_dictionary_queries_respect_projection_and_values_bounds() {
         assert_eq!(dictionary_queries(&half_a, &[2, 3]).len(), 2);
     }
 }
+
+#[test]
+fn construct_from_select_preserves_trailing_limit_clause() {
+    let base = compounds_by_taxon_query("Q16521");
+    let limited = lotus_query::limit_query(&base, 25);
+    let constructed = construct_from_select(&limited);
+
+    assert!(
+        constructed.starts_with("PREFIX") && constructed.contains("CONSTRUCT {"),
+        "construct_from_select must still build a CONSTRUCT query when LIMIT is present:\n{constructed}"
+    );
+    assert!(
+        constructed.trim_end().ends_with("}\nLIMIT 25"),
+        "LIMIT 25 must remain outside and after the closing WHERE brace:\n{constructed}"
+    );
+}

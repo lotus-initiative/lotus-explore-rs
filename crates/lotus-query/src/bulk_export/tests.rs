@@ -371,3 +371,22 @@ fn archive_inchikey_validation_rejects_non_inchikeys() {
     assert!(!looks_like_archive_inchikey("not-an-inchikey"));
     assert!(!looks_like_archive_inchikey(""));
 }
+
+#[test]
+fn extract_qid_strips_both_http_and_https_entity_prefixes() {
+    assert_eq!(
+        extract_qid("http://www.wikidata.org/entity/Q153"),
+        "Q153",
+        "http entity URI must yield bare QID"
+    );
+    assert_eq!(
+        extract_qid("https://www.wikidata.org/entity/Q153"),
+        "Q153",
+        "https entity URI must yield bare QID"
+    );
+    assert_eq!(
+        extract_qid("Q153"),
+        "Q153",
+        "bare QID must pass through unchanged"
+    );
+}

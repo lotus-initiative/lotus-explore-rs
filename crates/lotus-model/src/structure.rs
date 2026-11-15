@@ -101,6 +101,7 @@ pub const REFERENCE_INPUT_EXAMPLES: [&str; 3] = [
 /// What the structure field's example buttons offer.
 ///
 /// * `amarogentina` — a name, resolved through a label or alias lookup.
+/// * `红雀椿素` — a Chinese alias, testing non-ASCII label lookup.
 /// * `DBOVHQOUSDWAPQ-WTONXPSSSA-N` — an `InChIKey`, resolved through `P235`.
 /// * `Q23118` — a QID, confirmed against Wikidata.
 /// * `C[C@H](O)CO` — a SMILES, resolved by asking the structure service.

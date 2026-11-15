@@ -377,3 +377,32 @@ fn a_failure_is_not_remembered_as_a_miss() {
         "the retry has to reach the endpoint"
     );
 }
+
+#[test]
+fn molfile_preserves_leading_header_lines_across_lookup_and_cache() {
+    structure_cache::clear();
+    let mol_lf = "\n  Mrv2014 010126\n\n  1  0  0  0  0  0            999 V2000\n    0.0000    0.0000    0.0000 C   0  0\nM  END\n";
+    let mol_crlf = mol_lf.replace('\n', "\r\n");
+    let repo = StubRepo::new(vec![Ok(csv(""))]);
+
+    let first = resolve_on(&mol_crlf, &repo);
+    assert_eq!(
+        first.resolved.structure, mol_lf,
+        "unresolved molfile must retain its leading blank header line with LF line endings"
+    );
+    assert!(
+        queries(&repo)
+            .first()
+            .is_some_and(|q| q.contains("'''\n  Mrv2014")),
+        "query literal must retain leading blank header line:\n{:?}",
+        queries(&repo)
+    );
+
+    let second = resolve_on(mol_lf, &repo);
+    assert_eq!(second, first, "normalized molfile must hit cache cleanly");
+    assert_eq!(
+        repo.taken(),
+        1,
+        "LF follow-up must reuse cached CRLF normalized entry"
+    );
+}

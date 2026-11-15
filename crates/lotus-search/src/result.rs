@@ -12,8 +12,8 @@ pub struct SearchResult {
     /// Counts for the whole result set, not just the returned page. `None`
     /// when the count query failed and the rows are only part of the result.
     pub stats: Option<DatasetStats>,
-    /// How the taxon's input was interpreted, or `None` for a structure-only
-    /// search.
+    /// How the taxon's input was interpreted, or `None` when no taxon filter
+    /// was set.
     pub taxon: Option<TaxonResolution>,
     /// The query that produced the rows, after filters and before the limit, so
     /// that a caller can download the whole result rather than one page.
@@ -40,8 +40,8 @@ impl SearchResult {
 pub struct ColumnarSearchResult {
     /// Every row, stored by column.
     pub set: lotus_model::ColumnarResultSet,
-    /// How the taxon's input was interpreted, or `None` for a structure-only
-    /// search.
+    /// How the taxon's input was interpreted, or `None` when no taxon filter
+    /// was set.
     pub taxon: Option<TaxonResolution>,
     /// The query that produced the rows, so a caller can download the same set by
     /// another route or show it to the reader.

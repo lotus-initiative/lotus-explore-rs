@@ -175,6 +175,10 @@ pub fn parse_compounds_csv_capped(
     Ok((rows, set.stats(), truncated))
 }
 
+fn strip_utf8_bom(bytes: &[u8]) -> &[u8] {
+    bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(bytes)
+}
+
 /// Read the single-row `COUNT` result.
 ///
 /// A reported `n_entries_unique` of zero means the count subquery did not
@@ -188,7 +192,7 @@ pub fn parse_counts_csv(bytes: &[u8]) -> Result<DatasetStats, ParseError> {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
         .flexible(true)
-        .from_reader(bytes);
+        .from_reader(strip_utf8_bom(bytes));
 
     let headers = reader.headers().map_err(ParseError::new)?.clone();
     let index = |name: &str| headers.iter().position(|h| h == name);
@@ -236,7 +240,7 @@ pub fn parse_taxon_csv(bytes: &[u8]) -> Result<Vec<TaxonMatch>, ParseError> {
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
         .flexible(true)
-        .from_reader(bytes);
+        .from_reader(strip_utf8_bom(bytes));
 
     let headers = reader.headers().map_err(ParseError::new)?.clone();
     let qid_at = headers.iter().position(|h| h == "taxon");
@@ -296,7 +300,7 @@ pub fn parse_reference_lookup_csv(bytes: &[u8]) -> Result<Vec<ReferenceMatch>, P
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
         .flexible(true)
-        .from_reader(bytes);
+        .from_reader(strip_utf8_bom(bytes));
     let headers = reader.headers().map_err(ParseError::new)?.clone();
     let at = headers.iter().position(|h| h.trim() == "ref");
 
@@ -337,7 +341,7 @@ pub fn parse_compound_lookup_csv(bytes: &[u8]) -> Result<Vec<CompoundMatch>, Par
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
         .flexible(true)
-        .from_reader(bytes);
+        .from_reader(strip_utf8_bom(bytes));
 
     let headers = reader.headers().map_err(ParseError::new)?.clone();
     let qid_at = headers.iter().position(|h| h == "compound_qid");

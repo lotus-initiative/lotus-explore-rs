@@ -87,7 +87,8 @@ pub async fn resolve<R: LotusRepository>(
     repo: &R,
     metrics: &mut SearchMetrics,
 ) -> Result<StructureResolution, DomainError> {
-    let trimmed = input.trim();
+    let normalized = lotus_search::normalize_structure(input);
+    let trimmed = normalized.trim();
     if trimmed.is_empty() {
         return Ok(StructureResolution {
             resolved: ResolvedStructure::unresolved(""),
@@ -98,34 +99,39 @@ pub async fn resolve<R: LotusRepository>(
     // Both remembered outcomes short-circuit: a hit from the cache, a miss from it
     // too. Only `Unknown` means "ask the endpoint".
     let claims_a_compound = names_a_compound(trimmed);
-    match structure_cache::lookup(trimmed) {
+    let canonical_input = if claims_a_compound {
+        trimmed
+    } else {
+        normalized.as_str()
+    };
+    match structure_cache::lookup(canonical_input) {
         structure_cache::Cached::Unknown => {}
-        cached => return from_cached(input, cached, claims_a_compound),
+        cached => return from_cached(canonical_input, cached, claims_a_compound),
     }
 
-    let found = lookup(trimmed, claims_a_compound, repo, metrics).await?;
+    let found = lookup(canonical_input, claims_a_compound, repo, metrics).await?;
     // Remembered either way, so a repeat search does not repeat the lookup; the
     // miss is the one worth remembering, being the one a reader most likely
     // retypes.
-    structure_cache::store(trimmed, found.clone());
+    structure_cache::store(canonical_input, found.clone());
 
     match found {
         Some(cached) => Ok(StructureResolution {
-            resolved: to_resolved(input, &cached),
+            resolved: to_resolved(canonical_input, &cached),
             notices: to_notices(&cached),
         }),
         // A name, an `InChIKey` or a QID matching nothing: a claim about a
         // compound that does not exist. Refused like an unknown taxon name.
         None if claims_a_compound => {
             Err(DomainError::Validation(ValidationFault::CompoundNotFound {
-                input: input.to_owned(),
+                input: canonical_input.to_owned(),
             }))
         }
         // A structure with no Wikidata compound. Not a miss: a good structure
         // simply not in the database. Nothing in a structure is a claim that
         // can turn out wrong.
         None => Ok(StructureResolution {
-            resolved: ResolvedStructure::unresolved(input),
+            resolved: ResolvedStructure::unresolved(canonical_input),
             notices: Vec::new(),
         }),
     }

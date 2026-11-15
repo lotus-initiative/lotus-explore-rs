@@ -220,11 +220,15 @@ impl<'a> RowExporter<'a> {
                 self.chunk.push('{');
                 let mut first = true;
                 for (name, cell) in COLUMNS.iter().zip(Self::cells(set, row)) {
+                    let value = cell.as_ref();
+                    if value.is_empty() {
+                        continue;
+                    }
                     if !std::mem::replace(&mut first, false) {
                         self.chunk.push(',');
                     }
                     let _ = write!(self.chunk, "\"{name}\":{{\"type\":\"literal\",\"value\":");
-                    json_string(&mut self.chunk, cell.as_ref());
+                    json_string(&mut self.chunk, value);
                     self.chunk.push('}');
                 }
                 self.chunk.push('}');

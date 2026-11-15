@@ -121,3 +121,27 @@ fn formula_subscripts_fold_all_ten_digits_to_ascii() {
     );
     assert_eq!(normalize_formula_subscripts("C17H12O7"), "C17H12O7");
 }
+
+#[test]
+fn normalize_doi_strips_doi_scheme_and_dx_resolver_prefixes() {
+    assert_eq!(
+        normalize_doi("doi:10.1000/xyz").as_deref(),
+        Some("10.1000/XYZ"),
+        "a doi: prefix must normalize cleanly"
+    );
+    assert_eq!(
+        normalize_doi("DOI: 10.1000/xyz").as_deref(),
+        Some("10.1000/XYZ"),
+        "case-insensitive doi: prefix with whitespace must normalize"
+    );
+    assert_eq!(
+        normalize_doi("https://dx.doi.org/10.1000/xyz").as_deref(),
+        Some("10.1000/XYZ"),
+        "legacy dx.doi.org resolver URLs must strip cleanly"
+    );
+    assert_eq!(
+        normalize_doi("doi:   "),
+        None,
+        "a bare doi: prefix with no identifier has no DOI"
+    );
+}

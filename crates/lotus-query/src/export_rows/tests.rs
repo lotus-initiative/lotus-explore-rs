@@ -734,3 +734,32 @@ fn the_preamble_is_the_first_chunk_and_appears_once() {
         "the preamble is emitted once, not once per chunk"
     );
 }
+
+#[test]
+fn export_json_omits_unbound_empty_cells() {
+    let row = CompoundEntry {
+        compound_qid: arc("Q42"),
+        ..empty_row()
+    };
+    let rendered = render(ExportFormat::Json, &set_of(&[row]));
+    let (_, bindings) = rendered
+        .split_once(r#""bindings":"#)
+        .expect("JSON output must contain bindings array");
+    assert!(
+        bindings.contains(r#""compound":{"type":"literal","value":"Q42"}"#),
+        "populated compound binding must appear:\n{rendered}"
+    );
+    for omitted in [
+        "\"compoundLabel\"",
+        "\"compound_inchikey\"",
+        "\"compound_smiles\"",
+        "\"taxon\"",
+        "\"ref\"",
+        "\"ref_doi\"",
+    ] {
+        assert!(
+            !bindings.contains(omitted),
+            "unbound empty field {omitted} must be omitted from JSON bindings:\n{rendered}"
+        );
+    }
+}
