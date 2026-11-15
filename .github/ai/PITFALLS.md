@@ -19,8 +19,14 @@ the named test fails if it breaks.
   edits statements handles both.
 - A structure the service cannot read fails its row (no InChIKey, status
   `Error`), never the batch. An unparsable service reply fails the batch.
-- Several Wikidata items per InChIKey: keep the lowest QID by number, with its
-  own properties.
+- Several Wikidata items per InChIKey: `compound_by_inchikey_query` orders by
+  `STRLEN(STR(?compound)) ?compound LIMIT 1` and `lotus_curation::qid_number`
+  compares QIDs numerically (never lexicographic `MIN`).
+- `lotus_curation::escape_quickstatements` is the single QuickStatements
+  escaper across CLI and web app: escapes `"` and flattens `|` and control
+  characters to `' '`.
+- SPARQL `ASK` JSON parsing (`parse_ask_boolean`) requires an explicit boolean
+  `"boolean"` field rather than defaulting missing values to `false`.
 - A new compound is `P31 Q113145171` (type of chemical entity) + `P279 Q11173`
   (chemical compound), never `P31 Q11173`, in every front end. The web app
   uses `P31 Q59199015` instead when stereochemistry is undefined.
@@ -44,8 +50,28 @@ the named test fails if it breaks.
   `lotus_search::search`, and the API's `apply_request`.
 - Formula fields reach the API only when `formula_enabled`.
 - Header parsing strips a UTF-8 byte-order mark (CSV stream, curation TSV).
+- Sanitize QIDs with `lotus_model::normalize_qid` before interpolating
+  `wd:{qid}`; `lotus_model::strip_doi_prefix` strips `doi:`,
+  `http(s)://doi.org/`, and `http(s)://dx.doi.org/`.
+- `construct_from_select` strips trailing `LIMIT`/`OFFSET` via
+  `rsplit_once("\nLIMIT ")`.
+- Preserve leading blank lines in the 3-line Molfile header block across search,
+  URL encoding, and cache keys (do not `.trim()` a Molfile).
+- `RowExporter` omits empty CSV cells when emitting JSON bindings; token-budget
+  error extraction parses multi-digit durations (`> 30s`).
 
 ## Server and exports
+
+- `apply_request` passes raw `min`/`max` bounds to `validate_criteria` without
+  `.max()` clamping; `/v1/search` and `/v1/compounds` fetch `limit + 1` and
+  propagate count-query errors via `resolve_count_stats` rather than
+  substituting page counts.
+- `ApiError::from_fetch` and `/v1/export` map upstream timeouts
+  (`FetchError::TimedOut` / handler timeout) to HTTP `504`.
+- `run_pubchem_tree` checks HTTP 2xx and propagates NPClassifier CSV
+  fetch/parse errors.
+- `lotus-healthcheck` loops `read` until `\n`/EOF and falls back to `PORT` env
+  when the CLI port argument is omitted.
 
 - Work that outlives a handler (spawned export pump) owns its permits:
   `try_acquire_owned`, moved into the task.
@@ -78,6 +104,3 @@ the named test fails if it breaks.
 - `lotus-web-assets` fetches RDKit and Ketcher at `latest`, with no checksum
   and with redirects followed.
 - CLI output files are written in place, not atomically.
-- `escape_quickstatements` does not escape `|`; the app has a second escaper
-  with different rules.
-- API taxon and export timeouts answer 502 where OpenAPI documents 504.

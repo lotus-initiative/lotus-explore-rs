@@ -10,7 +10,7 @@ retries, the server, or exports. Each entry there was a shipped bug.
 
 ## Commands
 
-- `./mk setup` — install pinned tools (once). `./mk setup-extra` adds `dx`.
+- `./mk setup` — install pinned gate tools (including `dx`). `./mk setup-extra` adds optional audit/dev tools (`cargo-udeps`, `cargo-geiger`, `cargo-msrv`, `cargo-edit`, `cargo-bloat`).
 - `./mk check` — fmt, tombi, typos, clippy. Seconds when warm.
 - `./mk test-fast -E 'test(name)'` — one test. `./mk test-fast` — all, nextest.
 - `./mk test` — nextest over default, `server` and `desktop` builds, plus doctests.
@@ -54,10 +54,10 @@ have no HTTP, clock or runtime; `./mk gate` builds them for wasm32 alone.
 - SPDX header on every `.rs` file (`./mk local:license-headers`).
 - `SearchCriteria` has no `Default`: use `SearchCriteria::up_to_year(year)`.
 - Name crates at call sites: `lotus_model::SearchCriteria`.
-- `CriteriaQueryDto` owns both directions of the URL contract; a new parameter
-  needs a round-trip test.
-- No `unwrap`/`expect`/`panic`/indexing outside tests (denied). A needed
-  suppression gets `reason = "..."` and a `docs/DEBT.md` row.
+- `CriteriaQueryDto` owns both directions of the URL contract (including `reference` and `structure` without clearing explicit/empty taxon, and preserving Molfile leading blank header lines); a new parameter needs a round-trip test.
+- No `unwrap`/`expect`/`panic`/indexing outside tests (denied). Every production
+  `allow(...)` in `crates/` must carry `reason = "..."` (`gate_consistency`),
+  and any workspace/app suppression gets `reason = "..."` plus a `docs/DEBT.md` row.
 - Tests assert exact values (exact SPARQL, statements, bytes). Fix the code,
   not the expectation, unless the expectation encoded the bug; then say so in
   the commit.
