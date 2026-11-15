@@ -14,7 +14,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
     match key {
         TextKey::Share => "Teilen",
         TextKey::ShareableLink => "Teilbarer Link",
-        TextKey::TsvFileUpload => "TSV-Datei",
+        TextKey::TsvFileUpload => "TSV- / CSV-Datei",
         TextKey::Copy => "Kopieren",
         TextKey::Copied => "Kopiert!",
         TextKey::CopyToClipboard => "In die Zwischenablage kopieren",

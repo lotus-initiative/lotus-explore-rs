@@ -6,7 +6,7 @@ pub(super) const fn heading_add_one_row() -> &'static str {
 }
 
 pub(super) const fn heading_tsv_import() -> &'static str {
-    "Import TSV"
+    "Import TSV / CSV"
 }
 
 pub(super) const fn heading_queued_rows() -> &'static str {
@@ -46,7 +46,7 @@ pub(super) const fn button_load_example_rows() -> &'static str {
 }
 
 pub(super) const fn button_append_tsv_rows() -> &'static str {
-    "Aggiungi righe TSV"
+    "Aggiungi righe"
 }
 
 pub(super) const fn button_generate_quickstatements() -> &'static str {
@@ -94,7 +94,7 @@ pub(super) const fn label_new_item() -> &'static str {
 }
 
 pub(super) const fn hint_expected_tsv_headers() -> &'static str {
-    "Intestazioni attese: name, smiles, taxon (o organism), doi"
+    "Intestazioni attese (TSV o CSV): name (o compound_name), smiles, taxon (o organism, species), doi"
 }
 
 pub(super) const fn hint_scroll_curation_results() -> &'static str {
@@ -219,6 +219,10 @@ pub(super) const fn curation_note_new_compound() -> &'static str {
 
 pub(super) const fn curation_note_dependencies_pending() -> &'static str {
     "Le entità prerequisito non sono ancora risolte."
+}
+
+pub(super) const fn curation_note_missing_doi() -> &'static str {
+    "Nessun DOI fornito: la dichiarazione di occorrenza (P703) è priva di riferimento bibliografico (P248)."
 }
 
 pub(super) fn curation_pending_taxon(taxon: &str) -> String {

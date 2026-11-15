@@ -24,11 +24,12 @@ use super::{
     MassResolution, QS_REF_INFERRED_FROM_SMILES, WD_CHEMICAL_COMPOUND_QID,
     WD_STEREOISOMER_GROUP_QID, WD_TYPE_CHEMICAL_ENTITY_QID, convert_smiles,
     curation_note_dependencies_pending, curation_note_existing_complete,
-    curation_note_existing_updates, curation_note_new_compound, curation_pending_reference,
-    curation_pending_taxon, escape_qs_string, fetch_reference_quickstatements, has_isomeric_smiles,
-    has_undefined_stereo, normalize_doi, normalize_taxon_lookup, qs_canonical_smiles_statement,
-    qs_inchi_statement, qs_inchikey_statement, qs_isomeric_smiles_statement,
-    qs_statement_with_refs, resolve_exact_mass,
+    curation_note_existing_updates, curation_note_missing_doi, curation_note_new_compound,
+    curation_pending_reference, curation_pending_taxon, escape_qs_string,
+    fetch_reference_quickstatements, has_isomeric_smiles, has_undefined_stereo, normalize_doi,
+    normalize_taxon_lookup, qs_canonical_smiles_statement, qs_inchi_statement,
+    qs_inchikey_statement, qs_isomeric_smiles_statement, qs_statement_with_refs,
+    resolve_exact_mass,
 };
 use crate::features::curation::repositories::CurationKnowledgeRepository;
 use crate::features::curation::services::helpers::{
@@ -163,6 +164,12 @@ impl Row<'_> {
             .map_or_else(Vec::new, |deps| deps.dependency_blocks.clone())
     }
 
+    /// Warning text when the row names a taxon without a literature DOI.
+    fn missing_doi_warning(&self) -> Option<&'static str> {
+        (self.dependencies.is_some() && self.doi.is_none())
+            .then(|| curation_note_missing_doi(self.locale))
+    }
+
     /// The status and note for a row whose dependencies are still outstanding.
     fn pending_outcome(&self) -> (CurationStatus, String) {
         let pending = self
@@ -173,7 +180,7 @@ impl Row<'_> {
             .dependencies
             .as_ref()
             .map_or_else(String::new, |deps| deps.pending_messages.join("\n"));
-        if pending {
+        let (status, mut note) = if pending {
             (
                 CurationStatus::PendingDependencies,
                 format!(
@@ -186,7 +193,12 @@ impl Row<'_> {
                 CurationStatus::NewCompound,
                 curation_note_new_compound(self.locale).into(),
             )
+        };
+        if let Some(warn) = self.missing_doi_warning() {
+            note.push('\n');
+            note.push_str(warn);
         }
+        (status, note)
     }
 }
 
@@ -240,6 +252,10 @@ async fn update_existing(
     } else if changes > 0 {
         status = CurationStatus::ExistingNeedsUpdates;
         note = curation_note_existing_updates(row.locale).into();
+    }
+    if let Some(warn) = row.missing_doi_warning() {
+        note.push('\n');
+        note.push_str(warn);
     }
 
     Ok(CurationResultRow {

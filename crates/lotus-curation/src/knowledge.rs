@@ -19,8 +19,8 @@ use lotus_search::{FetchError, Http, ResponseFormat};
 use crate::{
     CurationError, CurationInputRow, CurationResultRow, CurationStatus, WikidataCompound,
     compound_by_inchikey_query, create_compound_statements, escape_quickstatements,
-    has_occurrence_query, is_binomial, property, qid_from_uri, reference_by_doi_query,
-    taxon_by_name_query,
+    extract_canonical_taxon_name, has_occurrence_query, is_binomial, property, qid_from_uri,
+    reference_by_doi_query, taxon_by_name_query,
 };
 
 /// How a compound's structure is identified on Wikidata.
@@ -370,15 +370,12 @@ pub fn taxon_dependency_statements(row: &CurationInputRow) -> Vec<String> {
     else {
         return Vec::new();
     };
-    // A genus on its own is ambiguous, so there is no statement that would be
-    // right: creating "Gentiana" as a taxon would be creating a real item from
-    // an ambiguous name.
-    if !is_binomial(taxon) {
+    let Some(canonical_taxon) = extract_canonical_taxon_name(taxon) else {
         return Vec::new();
-    }
+    };
     vec![format!(
         "## {name} — taxon\nCREATE\n  LAST|{label}|\"{name}\"\n  LAST|{class}|{taxon_class}\n  LAST|{name_prop}|\"{name}\"",
-        name = escape_quickstatements(taxon),
+        name = escape_quickstatements(&canonical_taxon),
         label = property::LABEL,
         class = "P31",
         taxon_class = crate::WD_TAXON_QID,
@@ -446,12 +443,27 @@ pub fn to_result_row(
     if !key.is_known() {
         note.push_str("no InChIKey for this structure; nothing could be looked up. ");
     }
-    if let Some(taxon) = row.taxon.as_deref() {
-        let taxon = taxon.trim();
-        if !taxon.is_empty() && !is_binomial(taxon) {
-            note.push_str("the taxon is a genus on its own, which is ambiguous. ");
+    if let Some(taxon) = row
+        .taxon
+        .as_deref()
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+    {
+        if !is_binomial(taxon) {
+            if taxon.contains(char::is_whitespace) {
+                note.push_str(
+                    "the taxon uses open nomenclature or lacks a specific epithet, so it cannot be resolved unambiguously. ",
+                );
+            } else {
+                note.push_str("the taxon is a genus on its own, which is ambiguous. ");
+            }
         } else if lookup.taxon_qid.is_none() {
             note.push_str("Wikidata has no taxon by that name. ");
+        }
+        if row.doi.as_deref().and_then(crate::normalize_doi).is_none() {
+            note.push_str(
+                "no DOI provided; occurrence statement has no literature reference (P248). ",
+            );
         }
     }
     if ref_pending {

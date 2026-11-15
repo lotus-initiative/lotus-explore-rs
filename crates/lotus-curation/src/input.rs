@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-//! Reading a curation input file.
+//! Reading a curation input table (TSV or CSV).
 //!
 //! Both front-ends -- the web upload and `lotus curate` -- take the same file, and
 //! each used to have its own parser. They disagreed: this one matches columns by
@@ -9,94 +9,89 @@
 //! in the first four fields. A file prepared for the web page then run through the
 //! CLI got a different answer, silently.
 //!
-//! Columns are matched by name, case- and space-insensitively, and `organism`
-//! is accepted for `taxon` because that is what a sheet of occurrence data will
-//! have in it. Only `name` and `smiles` are required: a row with no taxon
-//! and no DOI still has a compound to curate.
+//! Delimiter (`\t` for TSV or `,` for CSV) is chosen from whichever splits the
+//! header line into more columns, and RFC-4180 quoted fields are unescaped. Columns are matched by name,
+//! case- and space-insensitively, accepting common natural-product headers such
+//! as `compound_name` for `name`, `organism` / `source_organism` / `species`
+//! for `taxon`, and `reference_doi` for `doi`. Only `name` and `smiles` are
+//! required: a row with no taxon and no DOI still has a compound to curate.
 
 use lotus_search::non_empty;
 pub use lotus_search::normalize_doi;
 
 use crate::{CurationError, CurationInputRow};
 
+/// Parses a curation batch table from UTF-8 TSV or CSV text.
+///
+/// The delimiter (`\t` or `,`) is inferred from the header line outside double
+/// quotes. Quoted fields follow RFC-4180 (`""` unescapes to `"`). Leading
+/// UTF-8 BOMs, `#`-prefixed comment or template example rows, and empty lines
+/// are ignored.
 ///
 /// # Errors
 /// [`CurationError::MissingTsvColumn`] if there is no `name` or `smiles`
-/// column. An empty input is not an error: it is an empty batch.
-pub fn parse_tsv(tsv: &str) -> Result<Vec<CurationInputRow>, CurationError> {
-    // `lines()` already strips `\n` and `\r\n`. A bare `\r` at line-end is
-    // stripped with `trim_end_matches`. Leading/trailing whitespace on the line
-    // as a whole is NOT stripped here, because `str::trim` eats `\t`, which
-    // shifts columns when the first cell is empty. Each cell is trimmed
-    // individually at `field.trim()` below.
-    // A byte-order mark, which spreadsheet programs write by default, is not part
-    // of the first column's name.
-    let tsv = tsv.strip_prefix('\u{feff}').unwrap_or(tsv);
-    let mut lines = tsv
-        .lines()
-        .map(|line| line.trim_end_matches('\r'))
-        .filter(|line| !line.trim().is_empty());
+/// column (or supported alias). An empty input is not an error: it is an empty
+/// batch.
+pub fn parse_tabular(input: &str) -> Result<Vec<CurationInputRow>, CurationError> {
+    let input = input.strip_prefix('\u{feff}').unwrap_or(input);
+    let trimmed_start = input.trim_start_matches(['\r', '\n']);
+    if trimmed_start.trim().is_empty() {
+        return Ok(Vec::new());
+    }
 
-    let Some(header) = lines.next() else {
+    let tsv_rows = parse_records(trimmed_start, '\t');
+    let csv_rows = parse_records(trimmed_start, ',');
+    let chosen = if csv_rows.first().map_or(0, Vec::len) > tsv_rows.first().map_or(0, Vec::len) {
+        csv_rows
+    } else {
+        tsv_rows
+    };
+    let mut records = chosen.into_iter();
+    let Some(header) = records.next() else {
         return Ok(Vec::new());
     };
 
-    let columns = header.split('\t').map(normalize_header).collect::<Vec<_>>();
-    let name_idx = columns
-        .iter()
-        .position(|c| c == "name")
-        .ok_or(CurationError::MissingTsvColumn("name"))?;
-    let smiles_idx = columns
-        .iter()
-        .position(|c| c == "smiles")
+    let columns: Vec<String> = header.iter().map(|h| normalize_header(h)).collect();
+    let name_idx = find_col(
+        &columns,
+        &["name", "compound_name", "compound", "compound_id"],
+    )
+    .ok_or(CurationError::MissingTsvColumn("name"))?;
+    let smiles_idx = find_col(&columns, &["smiles", "isomeric_smiles"])
         .ok_or(CurationError::MissingTsvColumn("smiles"))?;
-    let taxon_idx = columns
-        .iter()
-        .position(|c| matches!(c.as_str(), "taxon" | "organism"));
-    let doi_idx = columns.iter().position(|c| c == "doi");
-    let max_needed_idx = [Some(name_idx), Some(smiles_idx), taxon_idx, doi_idx]
-        .into_iter()
-        .flatten()
-        .max()
-        .unwrap_or(0);
+    let taxon_idx = find_col(
+        &columns,
+        &["taxon", "organism", "source_organism", "species"],
+    );
+    let doi_idx = find_col(&columns, &["doi", "reference_doi"]);
 
     let mut out = Vec::new();
-    for line in lines {
-        let mut name: Option<&str> = None;
-        let mut smiles: Option<&str> = None;
-        let mut taxon_raw: Option<&str> = None;
-        let mut doi_raw: Option<&str> = None;
-
-        for (idx, field) in line.split('\t').enumerate() {
-            if idx > max_needed_idx {
-                break;
-            }
-            let field = field.trim();
-            if idx == name_idx {
-                name = Some(field);
-            }
-            if idx == smiles_idx {
-                smiles = Some(field);
-            }
-            if taxon_idx == Some(idx) {
-                taxon_raw = Some(field);
-            }
-            if doi_idx == Some(idx) {
-                doi_raw = Some(field);
-            }
+    for row in records {
+        if row
+            .first()
+            .is_some_and(|cell| cell.trim_start().starts_with('#'))
+        {
+            continue;
         }
-
-        let Some(name) = name else {
+        let Some(name_raw) = row.get(name_idx) else {
             continue;
         };
-        let Some(smiles) = smiles else {
+        let Some(smiles_raw) = row.get(smiles_idx) else {
             continue;
         };
+        let name = name_raw.trim();
+        let smiles = smiles_raw.trim();
         if name.is_empty() || smiles.is_empty() {
             continue;
         }
-        let taxon = taxon_raw.and_then(|v| non_empty(v).map(ToOwned::to_owned));
-        let doi = doi_raw.and_then(normalize_doi);
+        let taxon = taxon_idx
+            .and_then(|idx| row.get(idx))
+            .map(String::as_str)
+            .and_then(|v| non_empty(v.trim()).map(ToOwned::to_owned));
+        let doi = doi_idx
+            .and_then(|idx| row.get(idx))
+            .map(String::as_str)
+            .and_then(|v| normalize_doi(v.trim()));
         out.push(CurationInputRow {
             name: name.into(),
             smiles: smiles.into(),
@@ -105,6 +100,74 @@ pub fn parse_tsv(tsv: &str) -> Result<Vec<CurationInputRow>, CurationError> {
         });
     }
     Ok(out)
+}
+
+/// Parses a curation batch from TSV (or CSV) text.
+///
+/// Kept as the backwards-compatible entry point alongside [`parse_tabular`].
+///
+/// # Errors
+/// [`CurationError::MissingTsvColumn`] if there is no `name` or `smiles`
+/// column. An empty input is not an error: it is an empty batch.
+pub fn parse_tsv(tsv: &str) -> Result<Vec<CurationInputRow>, CurationError> {
+    parse_tabular(tsv)
+}
+
+fn find_col(columns: &[String], aliases: &[&str]) -> Option<usize> {
+    aliases
+        .iter()
+        .find_map(|alias| columns.iter().position(|col| col == alias))
+}
+
+fn parse_records(input: &str, delimiter: char) -> Vec<Vec<String>> {
+    let mut rows = Vec::new();
+    let mut current_row = Vec::new();
+    let mut current_field = String::new();
+    let mut in_quotes = false;
+    let mut at_field_start = true;
+    let mut chars = input.chars();
+
+    while let Some(ch) = chars.next() {
+        if in_quotes {
+            if ch == '"' {
+                if chars.clone().next() == Some('"') {
+                    chars.next();
+                    current_field.push('"');
+                } else {
+                    in_quotes = false;
+                }
+            } else {
+                current_field.push(ch);
+            }
+            continue;
+        }
+
+        if ch == '"' && at_field_start {
+            in_quotes = true;
+            at_field_start = false;
+        } else if ch == delimiter {
+            current_row.push(std::mem::take(&mut current_field));
+            at_field_start = true;
+        } else if matches!(ch, '\r' | '\n') {
+            finish_row(&mut rows, &mut current_row, &mut current_field);
+            at_field_start = true;
+        } else {
+            current_field.push(ch);
+            at_field_start = false;
+        }
+    }
+
+    finish_row(&mut rows, &mut current_row, &mut current_field);
+    rows
+}
+
+fn finish_row(rows: &mut Vec<Vec<String>>, row: &mut Vec<String>, field: &mut String) {
+    row.push(std::mem::take(field));
+    if row.iter().any(|cell| !cell.trim().is_empty()) {
+        rows.push(std::mem::take(row));
+    } else {
+        row.clear();
+    }
 }
 
 /// The key that decides whether two rows are the same finding.

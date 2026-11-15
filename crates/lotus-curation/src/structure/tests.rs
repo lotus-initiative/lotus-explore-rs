@@ -402,3 +402,14 @@ fn strip_stereo_marks_removes_tetrahedral_and_alkene_stereo_cleanly() {
     assert_eq!(strip_stereo_marks("C/C=C\\C"), "CC=CC");
     assert_eq!(strip_stereo_marks("[13C@H](O)(F)Cl"), "[13CH](O)(F)Cl");
 }
+
+#[test]
+fn strip_stereo_marks_removes_cxsmiles_extension_and_stereo() {
+    assert_eq!(
+        strip_stereo_marks("C[C@H](O)[C@@H](C)Cl |&1:1,3|"),
+        "CC(O)C(C)Cl"
+    );
+    assert_eq!(strip_stereo_marks("C/C=C/C |r|"), "CC=CC");
+    assert_eq!(strip_stereo_marks("C[C@H](O)C"), "CC(O)C");
+    assert_eq!(strip_stereo_marks("|raw|"), "|raw|");
+}

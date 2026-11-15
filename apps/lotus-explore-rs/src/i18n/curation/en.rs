@@ -6,7 +6,7 @@ pub(super) const fn heading_add_one_row() -> &'static str {
 }
 
 pub(super) const fn heading_tsv_import() -> &'static str {
-    "TSV import"
+    "TSV / CSV import"
 }
 
 pub(super) const fn heading_queued_rows() -> &'static str {
@@ -46,7 +46,7 @@ pub(super) const fn button_load_example_rows() -> &'static str {
 }
 
 pub(super) const fn button_append_tsv_rows() -> &'static str {
-    "Append TSV rows"
+    "Append rows"
 }
 
 pub(super) const fn button_generate_quickstatements() -> &'static str {
@@ -94,7 +94,7 @@ pub(super) const fn label_new_item() -> &'static str {
 }
 
 pub(super) const fn hint_expected_tsv_headers() -> &'static str {
-    "Expected headers: name, smiles, taxon (or organism), doi"
+    "Expected headers (TSV or CSV): name (or compound_name), smiles, taxon (or organism, species), doi"
 }
 
 pub(super) const fn hint_scroll_curation_results() -> &'static str {
@@ -219,6 +219,10 @@ pub(super) const fn curation_note_new_compound() -> &'static str {
 
 pub(super) const fn curation_note_dependencies_pending() -> &'static str {
     "Prerequisite entities are still unresolved."
+}
+
+pub(super) const fn curation_note_missing_doi() -> &'static str {
+    "No DOI provided: occurrence statement (P703) has no literature reference (P248)."
 }
 
 pub(super) fn curation_pending_taxon(taxon: &str) -> String {

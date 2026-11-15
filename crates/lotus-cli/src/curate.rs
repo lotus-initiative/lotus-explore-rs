@@ -19,9 +19,9 @@ use lotus_curation::escape_quickstatements;
 /// What `curate` does with a set of rows.
 #[derive(Debug, clap::Args)]
 pub struct CurateArgs {
-    /// TSV with `name` and `smiles` columns, and optionally `taxon` and `doi`.
-    /// Reads stdin when omitted or `-`.
-    #[arg(value_name = "TSV")]
+    /// TSV or CSV table with `name` and `smiles` columns, and optionally `taxon`
+    /// and `doi`. Reads stdin when omitted or `-`.
+    #[arg(value_name = "TABLE")]
     pub input: Option<String>,
 
     /// Write the `QuickStatements` here rather than to stdout.

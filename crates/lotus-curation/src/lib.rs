@@ -29,7 +29,7 @@ pub use constants::{
     CURATION_SPARQL_PREFIXES, WD_CHEMICAL_COMPOUND_QID, WD_OCCURS_IN_TAXON_PROP,
     WD_STEREOISOMER_GROUP_QID, WD_TAXON_QID, WD_TYPE_CHEMICAL_ENTITY_QID,
 };
-pub use input::{normalize_doi, parse_tsv, row_uniqueness_key};
+pub use input::{normalize_doi, parse_tabular, parse_tsv, row_uniqueness_key};
 pub use internal::{DependencyResolution, MassResolution, WikidataCompound};
 pub use knowledge::{
     StructureKey, WikidataLookup, creation_statements, look_up, reference_dependency_statements,
@@ -50,6 +50,7 @@ pub use wikidata_query::{
     build_compound_lookup_query, build_occurrence_query, build_occurrence_with_ref_query,
     build_reference_lookup_query, build_single_taxon_lookup_query, build_taxon_lookup_query,
     compound_by_inchikey_query, create_compound_statements, escape_sparql_string,
-    has_occurrence_query, has_occurrence_with_ref_query, is_binomial, normalize_taxon_lookup,
-    property, qid_from_uri, reference_by_doi_query, taxon_by_name_query, taxon_name_candidates,
+    extract_canonical_taxon_name, has_occurrence_query, has_occurrence_with_ref_query, is_binomial,
+    normalize_taxon_lookup, property, qid_from_uri, reference_by_doi_query, taxon_by_name_query,
+    taxon_name_candidates,
 };

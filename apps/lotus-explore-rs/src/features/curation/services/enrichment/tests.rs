@@ -316,3 +316,73 @@ fn pre_resolved_reference_is_used_without_fallback_creation() {
     assert_eq!(qid.as_deref(), Some("Q999"));
     assert!(lines.is_empty(), "got {lines:?}");
 }
+
+#[test]
+fn missing_doi_appends_warning_only_when_taxon_is_present_and_doi_is_absent() {
+    let fixture = Fixture::new();
+    let expected_warn = curation_note_missing_doi(Locale::En);
+    assert_ne!(expected_warn, "");
+    assert_ne!(expected_warn, curation_note_missing_doi(Locale::Fr));
+    assert_ne!(expected_warn, curation_note_missing_doi(Locale::De));
+    assert_ne!(expected_warn, curation_note_missing_doi(Locale::It));
+
+    let no_taxon = fixture.row(None);
+    let (_st, no_taxon_note) = no_taxon.pending_outcome();
+    assert!(
+        !no_taxon_note.contains(expected_warn),
+        "compound-only row needs no DOI warning: {no_taxon_note}"
+    );
+
+    let with_doi = fixture.row_with_doi(Some("Q16521"), Some("Q1234"), Some("10.1/x"));
+    let (_st, with_doi_note) = with_doi.pending_outcome();
+    assert!(
+        !with_doi_note.contains(expected_warn),
+        "row with DOI needs no missing-DOI warning: {with_doi_note}"
+    );
+
+    let without_doi = fixture.row_with_doi(Some("Q16521"), None, None);
+    let (st_new, without_doi_note) = without_doi.pending_outcome();
+    assert_eq!(st_new, CurationStatus::NewCompound);
+    assert!(
+        without_doi_note.contains(expected_warn),
+        "new compound with taxon and no DOI must warn: {without_doi_note}"
+    );
+
+    let complete_existing = WikidataCompound {
+        qid: "Q1503".to_owned(),
+        canonical_smiles: Some(fixture.structure.canonical_smiles.clone()),
+        isomeric_smiles: Some(fixture.structure.isomeric_smiles.clone()),
+        inchi: Some(fixture.structure.inchi.clone()),
+        formula: fixture.structure.formula.clone(),
+        mass: Some(180.16),
+    };
+    let Ok(updated_no_doi) = block_on(update_existing(
+        &without_doi,
+        &complete_existing,
+        &NotRecorded,
+        &Mutex::new(OccurrenceAskCache::default()),
+    )) else {
+        panic!("update_existing unexpectedly failed");
+    };
+    assert_eq!(updated_no_doi.status, CurationStatus::ExistingNeedsUpdates);
+    assert!(
+        updated_no_doi.note.contains(expected_warn),
+        "existing item update with taxon and no DOI must warn: {}",
+        updated_no_doi.note
+    );
+
+    let Ok(updated_with_doi) = block_on(update_existing(
+        &with_doi,
+        &complete_existing,
+        &AlreadyRecorded,
+        &Mutex::new(OccurrenceAskCache::default()),
+    )) else {
+        panic!("update_existing unexpectedly failed");
+    };
+    assert_eq!(updated_with_doi.status, CurationStatus::ExistingComplete);
+    assert!(
+        !updated_with_doi.note.contains(expected_warn),
+        "row with DOI must not warn in update_existing: {}",
+        updated_with_doi.note
+    );
+}

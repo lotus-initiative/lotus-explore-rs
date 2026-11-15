@@ -193,23 +193,23 @@ pub fn TsvImportCard(
     on_import_uploaded_tsv: EventHandler<String>,
     on_import_error: EventHandler<String>,
 ) -> Element {
-    let tsv_schema = r#"{"type":"object","properties":{"tsv":{"type":"string","description":"TSV rows with name, SMILES, taxon, and DOI columns"}},"additionalProperties":true}"#;
+    let tsv_schema = r#"{"type":"object","required":["tsv"],"properties":{"tsv":{"type":"string","description":"TSV or CSV rows with name, SMILES, taxon, and DOI columns"}},"additionalProperties":true}"#;
 
     rsx! {
         form {
             id: "lotus-curation-tsv-form",
             // No `toolautosubmit` here either, for the same reason.
             "toolname": "import_curation_tsv",
-            "tooldescription": "Paste or upload a TSV file of curated compound rows to import into the queue.",
+            "tooldescription": "Paste or upload a TSV or CSV file of curated compound rows to import into the queue.",
             "data-webmcp-id": "lotus-curation-tsv-form",
             "data-webmcp-type": "form",
-            "data-webmcp-name": "LOTUS TSV import form",
-            "data-webmcp-description": "Paste or upload a TSV file of curated compound rows to import into the queue.",
+            "data-webmcp-name": "LOTUS TSV/CSV import form",
+            "data-webmcp-description": "Paste or upload a TSV or CSV file of curated compound rows to import into the queue.",
             "data-webmcp-schema": "{tsv_schema}",
             "data-mcp-id": "lotus-curation-tsv-form",
             "data-mcp-type": "form",
-            "data-mcp-name": "LOTUS TSV import form",
-            "data-mcp-description": "Paste or upload a TSV file of curated compound rows to import into the queue.",
+            "data-mcp-name": "LOTUS TSV/CSV import form",
+            "data-mcp-description": "Paste or upload a TSV or CSV file of curated compound rows to import into the queue.",
             "data-mcp-schema": "{tsv_schema}",
             onsubmit: move |evt: Event<FormData>| {
                 evt.prevent_default();
@@ -220,11 +220,11 @@ pub fn TsvImportCard(
             class: "flex flex-col gap-4 rounded-xl border border-border bg-panel-soft p-4",
             SectionHeading { text: heading_tsv_import(locale).to_string() }
             p { class: "text-ui text-subtle leading-snug", "{hint_expected_tsv_headers(locale)}" }
-            label { class: "text-body font-semibold text-text", r#for: "curation-tsv-input", "TSV" }
+            label { class: "text-body font-semibold text-text", r#for: "curation-tsv-input", "TSV / CSV" }
             textarea {
                 id: "curation-tsv-input",
                 name: "tsv",
-                "toolparamdescription": "TSV rows with name, SMILES, taxon, and DOI columns.",
+                "toolparamdescription": "TSV or CSV rows with name, SMILES, taxon, and DOI columns.",
                 autocomplete: "off",
                 class: "form-textarea mono w-full min-h-[130px] rounded-xl border border-border bg-surface p-2.5 font-mono text-body text-text shadow-xs focus:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                 aria_describedby: "curation-tsv-hint",
@@ -255,7 +255,7 @@ pub fn TsvImportCard(
                     autocomplete: "off",
                     class: "curation-file-input w-full max-w-full cursor-pointer rounded-xl border border-border bg-surface px-3 py-2 text-ui text-muted shadow-xs hover:border-accent/50 hover:bg-bg focus:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-ui file:font-semibold file:text-bg hover:file:bg-accent-2",
                     r#type: "file",
-                    accept: ".tsv,text/tab-separated-values,text/plain",
+                    accept: ".tsv,.csv,text/tab-separated-values,text/csv,text/plain",
                     disabled: processing,
                     onchange: move |evt| {
                         let files = evt.files();

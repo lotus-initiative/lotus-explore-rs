@@ -14,7 +14,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
     match key {
         TextKey::Share => "Partager",
         TextKey::ShareableLink => "Lien partageable",
-        TextKey::TsvFileUpload => "Fichier TSV",
+        TextKey::TsvFileUpload => "Fichier TSV / CSV",
         TextKey::Copy => "Copier",
         TextKey::Copied => "Copié\u{202f}!",
         TextKey::CopyToClipboard => "Copier dans le presse-papiers",

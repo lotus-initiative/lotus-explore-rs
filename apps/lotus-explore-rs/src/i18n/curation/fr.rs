@@ -6,7 +6,7 @@ pub(super) const fn heading_add_one_row() -> &'static str {
 }
 
 pub(super) const fn heading_tsv_import() -> &'static str {
-    "Import TSV"
+    "Import TSV / CSV"
 }
 
 pub(super) const fn heading_queued_rows() -> &'static str {
@@ -46,7 +46,7 @@ pub(super) const fn button_load_example_rows() -> &'static str {
 }
 
 pub(super) const fn button_append_tsv_rows() -> &'static str {
-    "Ajouter les lignes TSV"
+    "Ajouter les lignes"
 }
 
 pub(super) const fn button_generate_quickstatements() -> &'static str {
@@ -94,7 +94,7 @@ pub(super) const fn label_new_item() -> &'static str {
 }
 
 pub(super) const fn hint_expected_tsv_headers() -> &'static str {
-    "En-têtes attendus : name, smiles, taxon (ou organism), doi"
+    "En-têtes attendus (TSV ou CSV) : name (ou compound_name), smiles, taxon (ou organism, species), doi"
 }
 
 pub(super) const fn hint_scroll_curation_results() -> &'static str {
@@ -223,6 +223,10 @@ pub(super) const fn curation_note_new_compound() -> &'static str {
 
 pub(super) const fn curation_note_dependencies_pending() -> &'static str {
     "Les entités préalables ne sont pas encore résolues."
+}
+
+pub(super) const fn curation_note_missing_doi() -> &'static str {
+    "Aucun DOI fourni : la déclaration d'occurrence (P703) n'a pas de référence bibliographique (P248)."
 }
 
 pub(super) fn curation_pending_taxon(taxon: &str) -> String {

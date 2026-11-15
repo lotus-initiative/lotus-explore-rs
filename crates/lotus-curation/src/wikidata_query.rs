@@ -84,7 +84,7 @@ pub fn compound_by_inchikey_query(inchikey: &str) -> String {
            OPTIONAL {{ ?compound wdt:{inchi} ?inchi . }}\n  \
            OPTIONAL {{ ?compound wdt:{formula} ?formula . }}\n  \
            OPTIONAL {{ ?compound wdt:{mass} ?mass . }}\n\
-         }} LIMIT 1",
+         }} ORDER BY ?compound LIMIT 1",
         inchikey_prop = property::INCHIKEY,
         value = escape_sparql_string(inchikey),
         canonical = property::CANONICAL_SMILES,
@@ -101,6 +101,10 @@ pub fn compound_by_inchikey_query(inchikey: &str) -> String {
 /// both written in a spreadsheet and Wikidata stores them under different
 /// properties: a scientific name is `P225`, a common name is `P1843`.
 ///
+/// When `name` carries a botanical/mycological author citation (for example
+/// `"Cortinarius subtortus (Pers.) Fr."`), the stripped canonical name is also
+/// matched because Wikidata `P225` rarely includes author strings.
+///
 /// The item is restricted by `P31`, not by walking the taxonomy: the web client
 /// resolves taxa this way and has for some time, and a second rule here would be
 /// a third answer to "which item is this taxon". A taxon classified only by
@@ -108,36 +112,211 @@ pub fn compound_by_inchikey_query(inchikey: &str) -> String {
 /// difference between the two front-ends.
 #[must_use]
 pub fn taxon_by_name_query(name: &str) -> String {
+    let trimmed = name.trim();
+    let filter_expr = match extract_canonical_taxon_name(trimmed) {
+        Some(canonical) if canonical != trimmed => format!(
+            "LCASE(STR(?taxonName)) = LCASE(\"{canonical_val}\") || LCASE(STR(?taxonName)) = LCASE(\"{raw_val}\")",
+            canonical_val = escape_sparql_string(&canonical),
+            raw_val = escape_sparql_string(trimmed),
+        ),
+        _ => format!(
+            "LCASE(STR(?taxonName)) = LCASE(\"{value}\")",
+            value = escape_sparql_string(trimmed),
+        ),
+    };
     format!(
         "{CURATION_SPARQL_PREFIXES}\n\
          SELECT ?taxon ?taxonName WHERE {{\n  \
            VALUES ?nameProperty {{ wdt:{scientific} wdt:{common} }}\n  \
            ?taxon wdt:P31 wd:{entity} ;\n         \
                  ?nameProperty ?taxonName .\n  \
-           FILTER(LCASE(STR(?taxonName)) = LCASE(\"{value}\"))\n\
-         }} LIMIT 1",
+           FILTER({filter_expr})\n\
+         }} ORDER BY ?taxon LIMIT 1",
         scientific = "P225",
         common = "P1843",
         entity = crate::WD_TAXON_QID,
-        value = escape_sparql_string(name),
     )
 }
 
-/// Whether a taxon name is a binomial, and so can be resolved on its own.
+/// Extracts a canonical binomial or infraspecific scientific name.
 ///
-/// A genus on its own is a valid taxon but an ambiguous search: "Gentiana"
-/// matches hundreds of species, and curating an occurrence against the genus
-/// rather than the species is a data error rather than a near miss. The caller
-/// reports this rather than guessing.
+/// Strips trailing botanical/mycological author citations and normalises
+/// infraspecific rank abbreviations (`ssp.` -> `subsp.`, `forma` -> `f.`).
+/// Returns `None` for bare genera (`"Gentiana"`), uncapitalised genera
+/// (`"gentiana lutea"`), open nomenclature (`"Gentiana sp."`, `"Gentiana cf. lutea"`),
+/// or malformed lowercase trailing words (`"Homo sapiens extra"`).
 #[must_use]
-pub fn is_binomial(name: &str) -> bool {
-    let mut words = name.split_whitespace().filter(|w| !w.is_empty());
-    let (Some(first), Some(second), None) = (words.next(), words.next(), words.next()) else {
+pub fn extract_canonical_taxon_name(name: &str) -> Option<String> {
+    let tokens: Vec<&str> = name.split_whitespace().filter(|w| !w.is_empty()).collect();
+    let first = *tokens.first()?;
+    let mut hybrid = false;
+    let genus_clean = first.strip_prefix('×').map_or(first, |rest| {
+        hybrid = true;
+        rest
+    });
+    if !is_valid_genus(genus_clean) {
+        return None;
+    }
+
+    let mut idx = 1usize;
+    if tokens.get(idx).copied() == Some("×") {
+        hybrid = true;
+        idx += 1;
+    }
+    let epithet_raw = *tokens.get(idx)?;
+    let epithet = epithet_raw.strip_prefix('×').map_or(epithet_raw, |rest| {
+        hybrid = true;
+        rest
+    });
+    if !is_valid_epithet(epithet) {
+        return None;
+    }
+
+    let genus_out = if first.starts_with('×') {
+        first.to_string()
+    } else {
+        genus_clean.to_string()
+    };
+    let base = if hybrid && !genus_out.starts_with('×') {
+        format!("{genus_out} × {epithet}")
+    } else {
+        format!("{genus_out} {epithet}")
+    };
+
+    let rest = tokens.get(idx + 1..).unwrap_or_default();
+    if rest.is_empty() {
+        return Some(base);
+    }
+
+    // Either an infraspecific rank immediately follows the epithet, or an
+    // author citation comes first (possibly followed by an infraspecific rank).
+    if let Some((rank, infra)) = parse_infraspecific_tail(rest) {
+        return Some(format!("{base} {rank} {infra}"));
+    }
+    parse_after_author_citation(&base, rest)
+}
+
+fn is_valid_genus(tok: &str) -> bool {
+    let mut chars = tok.chars();
+    let Some(first) = chars.next() else {
         return false;
     };
-    // A genus is capitalised; a specific epithet is not.
-    first.chars().next().is_some_and(char::is_uppercase)
-        && second.chars().next().is_some_and(char::is_lowercase)
+    first.is_ascii_uppercase()
+        && tok.len() >= 2
+        && chars.all(|c| c.is_ascii_lowercase() || c == '-')
+        && !is_open_nomenclature(tok)
+}
+
+fn is_valid_epithet(tok: &str) -> bool {
+    let mut chars = tok.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    first.is_ascii_lowercase()
+        && chars.all(|c| c.is_ascii_lowercase() || c == '-')
+        && !is_open_nomenclature(tok)
+}
+
+fn is_open_nomenclature(tok: &str) -> bool {
+    matches!(
+        tok.trim_end_matches(',').to_ascii_lowercase().as_str(),
+        "sp" | "sp."
+            | "spp"
+            | "spp."
+            | "cf"
+            | "cf."
+            | "aff"
+            | "aff."
+            | "indet"
+            | "indet."
+            | "sect"
+            | "sect."
+            | "subg"
+            | "subg."
+            | "gr"
+            | "gr."
+            | "agg"
+            | "agg."
+            | "nr"
+            | "nr."
+            | "s.l"
+            | "s.l."
+            | "s.s"
+            | "s.s."
+            | "sensu"
+    )
+}
+
+fn normalize_infraspecific_rank(tok: &str) -> Option<&'static str> {
+    match tok.to_ascii_lowercase().as_str() {
+        "subsp." | "ssp." | "subsp" | "ssp" => Some("subsp."),
+        "var." | "var" => Some("var."),
+        "f.sp." => Some("f. sp."),
+        "f." | "forma" => Some("f."),
+        "subvar." => Some("subvar."),
+        "subf." => Some("subf."),
+        _ => None,
+    }
+}
+
+fn starts_with_author_token(tok: &str, next: Option<&str>) -> bool {
+    tok.starts_with('(')
+        || tok.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+        || (matches!(
+            tok.to_ascii_lowercase().as_str(),
+            "van" | "von" | "de" | "da" | "del" | "du" | "ex" | "et" | "in"
+        ) && next.is_some_and(|n| {
+            n.starts_with('(') || n.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+        }))
+}
+
+fn parse_infraspecific_tail<'a>(rest: &[&'a str]) -> Option<(&'static str, &'a str)> {
+    let first = *rest.first()?;
+    let (rank, infra, after) = if first.eq_ignore_ascii_case("f.")
+        && rest.get(1).is_some_and(|s| s.eq_ignore_ascii_case("sp."))
+    {
+        ("f. sp.", *rest.get(2)?, rest.get(3..).unwrap_or_default())
+    } else {
+        (
+            normalize_infraspecific_rank(first)?,
+            *rest.get(1)?,
+            rest.get(2..).unwrap_or_default(),
+        )
+    };
+    if !is_valid_epithet(infra) {
+        return None;
+    }
+    if after.is_empty() || starts_with_author_token(after.first()?, after.get(1).copied()) {
+        Some((rank, infra))
+    } else {
+        None
+    }
+}
+
+fn parse_after_author_citation(base: &str, rest: &[&str]) -> Option<String> {
+    let first = *rest.first()?;
+    if !starts_with_author_token(first, rest.get(1).copied()) {
+        return None;
+    }
+    for idx in 1..rest.len() {
+        let Some(slice) = rest.get(idx..) else {
+            break;
+        };
+        if let Some((rank, infra)) = parse_infraspecific_tail(slice) {
+            return Some(format!("{base} {rank} {infra}"));
+        }
+    }
+    Some(base.to_string())
+}
+
+/// Whether a taxon name resolves to a species binomial or infraspecific taxon
+/// (with optional botanical/mycological author citation stripped).
+///
+/// A genus on its own (`"Gentiana"`) or open nomenclature (`"Gentiana sp."`) is
+/// ambiguous and reported rather than guessed.
+#[must_use]
+pub fn is_binomial(name: &str) -> bool {
+    extract_canonical_taxon_name(name).is_some()
 }
 
 /// The item for a reference DOI, or `None`.
@@ -150,7 +329,7 @@ pub fn reference_by_doi_query(doi: &str) -> String {
         "{CURATION_SPARQL_PREFIXES}\n\
          SELECT ?ref WHERE {{\n  \
            ?ref wdt:{doi_prop} \"{value}\" .\n\
-         }} LIMIT 1",
+         }} ORDER BY ?ref LIMIT 1",
         doi_prop = property::DOI,
         value = escape_sparql_string(doi),
     )
@@ -161,7 +340,9 @@ pub fn reference_by_doi_query(doi: &str) -> String {
 /// `ASK`, not `SELECT`: the only thing a curator needs is the yes or no, and a
 /// boolean answer is what tells them whether there is anything to submit. A
 /// `SELECT` would return the same row for every compound that matches and
-/// nothing for one that does not, which is the harder shape to read.
+/// nothing for one that does not, which is the harder shape to read. Because
+/// truthy `wdt:P703` triples exclude deprecated-rank statements, deprecated
+/// occurrences do not suppress submission.
 #[must_use]
 pub fn has_occurrence_query(compound_qid: &str, taxon_qid: &str) -> String {
     format!(
@@ -174,7 +355,8 @@ pub fn has_occurrence_query(compound_qid: &str, taxon_qid: &str) -> String {
 }
 
 /// Whether a compound already has an occurrence in a taxon stated in a specific
-/// reference (`P248` on the `P703` statement's reference node).
+/// reference (`P248` on the `P703` statement's reference node), excluding
+/// `wikibase:DeprecatedRank` statements.
 #[must_use]
 pub fn has_occurrence_with_ref_query(compound_qid: &str, taxon_qid: &str, ref_qid: &str) -> String {
     format!(
@@ -182,8 +364,10 @@ pub fn has_occurrence_with_ref_query(compound_qid: &str, taxon_qid: &str, ref_qi
          ASK {{\n  \
            wd:{compound} p:{occurs} ?stmt .\n  \
            ?stmt ps:{occurs} wd:{taxon} ;\n        \
+                 wikibase:rank ?rank ;\n        \
                  prov:wasDerivedFrom ?refnode .\n  \
-           ?refnode pr:P248 wd:{reference} .\n\
+           ?refnode pr:P248 wd:{reference} .\n  \
+           FILTER(?rank != wikibase:DeprecatedRank)\n\
          }}",
         compound = compound_qid,
         occurs = property::OCCURS_IN_TAXON,
@@ -261,7 +445,8 @@ pub fn build_compound_lookup_query(keys: &[String]) -> String {
     )
 }
 
-/// The batched `(compound, taxon)` occurrence query.
+/// The batched `(compound, taxon)` occurrence query (`wdt:P703` excludes
+/// `wikibase:DeprecatedRank` statements via truthy triples).
 #[must_use]
 pub fn build_occurrence_query(pairs: &[(String, String)]) -> String {
     let values = pairs
@@ -284,7 +469,7 @@ pub fn build_occurrence_query(pairs: &[(String, String)]) -> String {
 /// Checks the `prov:wasDerivedFrom / pr:P248` reference node on the reified
 /// `p:P703` statement rather than a direct `wdt:P248` on `?compound`, because
 /// Wikidata records the supporting publication as a reference on the taxon
-/// occurrence statement.
+/// occurrence statement, and excludes `wikibase:DeprecatedRank` statements.
 #[must_use]
 pub fn build_occurrence_with_ref_query(triples: &[(String, String, String)]) -> String {
     let values = triples
@@ -298,8 +483,10 @@ pub fn build_occurrence_with_ref_query(triples: &[(String, String, String)]) -> 
            VALUES (?compound ?taxon ?ref) {{ {values} }}\n  \
            ?compound p:{occurs} ?stmt .\n  \
            ?stmt ps:{occurs} ?taxon ;\n        \
+                 wikibase:rank ?rank ;\n        \
                  prov:wasDerivedFrom ?refnode .\n  \
-           ?refnode pr:P248 ?ref .\n\
+           ?refnode pr:P248 ?ref .\n  \
+           FILTER(?rank != wikibase:DeprecatedRank)\n\
          }}",
         occurs = property::OCCURS_IN_TAXON,
     )
@@ -358,7 +545,7 @@ fn canonicalize_taxon_label(name: &str) -> String {
 }
 
 /// Candidate spellings for a taxon lookup (both the raw trimmed name and its
-/// binomial-capitalised form when they differ).
+/// stripped canonical or binomial-capitalised form when they differ).
 #[must_use]
 pub fn taxon_name_candidates(name: &str) -> Vec<String> {
     let trimmed = name.trim();
@@ -366,12 +553,19 @@ pub fn taxon_name_candidates(name: &str) -> Vec<String> {
         return Vec::new();
     }
 
-    let canonical = canonicalize_taxon_label(trimmed);
-    if canonical == trimmed {
-        vec![trimmed.into()]
-    } else {
-        vec![trimmed.into(), canonical]
+    let mut out = vec![trimmed.to_string()];
+    if let Some(canonical_taxon) = extract_canonical_taxon_name(trimmed) {
+        if canonical_taxon != trimmed {
+            out.push(canonical_taxon);
+        }
+        return out;
     }
+
+    let canonical = canonicalize_taxon_label(trimmed);
+    if canonical != trimmed {
+        out.push(canonical);
+    }
+    out
 }
 
 /// The single-taxon lookup query using `VALUES ?taxonName` over the candidate
@@ -395,7 +589,7 @@ pub fn build_single_taxon_lookup_query(name: &str) -> Option<String> {
            VALUES ?taxonName {{ {values} }}\n  \
            ?taxon wdt:P225 ?taxonName ;\n        \
                   wdt:P31 wd:Q16521 .\n\
-         }} LIMIT 1"
+         }} ORDER BY ?taxon LIMIT 1"
     ))
 }
 

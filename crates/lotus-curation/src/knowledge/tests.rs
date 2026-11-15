@@ -826,14 +826,16 @@ mod networked {
         );
     }
 
-    /// A taxon that is neither a binomial nor a genus is skipped the same way,
-    /// but for a different reason: it is not a name Wikidata resolves by shape.
+    /// Open nomenclature (`Gentiana sp.`), bare genera, lower-case names, and
+    /// arbitrary trailing words are not looked up or created as taxa.
     #[tokio::test]
     async fn a_taxon_that_is_not_binomial_shaped_is_not_looked_up() {
         for name in [
-            "gentiana lutea",             // lower-case genus: not the shape Wikidata stores
-            "Gentiana lutea subsp. alba", // three words
-            "Gentiana",                   // a genus, covered above
+            "gentiana lutea",     // lower-case genus: not the shape Wikidata stores
+            "Gentiana sp.",       // open nomenclature: ambiguous species
+            "Gentiana cf. lutea", // provisional identification
+            "Homo sapiens extra", // non-author trailing lowercase word
+            "Gentiana",           // a genus, covered above
             "  ",
             "",
         ] {
@@ -851,6 +853,73 @@ mod networked {
             );
             assert_eq!(http.call_count(), 2, "{name:?} must not be looked up");
         }
+    }
+
+    #[tokio::test]
+    async fn taxon_with_author_citation_or_infraspecific_rank_is_looked_up_and_stripped() {
+        for name in [
+            "Cortinarius subtortus (Pers.) Fr.",
+            "Gentiana lutea subsp. alba",
+        ] {
+            let mut input = row();
+            input.taxon = Some(name.into());
+            let http = Scripted::new(vec![
+                (200, COMPOUND_FOUND),
+                (200, TAXON_FOUND),
+                (200, REFERENCE_FOUND),
+                (200, ASK_TRUE),
+            ]);
+            let lookup = look_up(&http, &input, &key())
+                .await
+                .expect("author-cited and infraspecific taxa look up");
+            assert_eq!(lookup.taxon_qid.as_deref(), Some("Q16521"));
+            assert_eq!(http.call_count(), 4, "{name:?} triggers a taxon lookup");
+        }
+
+        // When an author-cited taxon is absent, its CREATE statement uses the
+        // canonical binomial rather than embedding the authority string in P225.
+        let mut absent = row();
+        absent.taxon = Some("Cortinarius subtortus (Pers.) Fr.".into());
+        let deps = taxon_dependency_statements(&absent).join("\n");
+        assert!(deps.contains("\"Cortinarius subtortus\""), "{deps}");
+        assert!(!deps.contains("(Pers.)"), "{deps}");
+    }
+
+    #[test]
+    fn to_result_row_notes_missing_doi_only_when_taxon_is_non_empty() {
+        let lookup = WikidataLookup {
+            compound: None,
+            taxon_qid: Some("Q16521".into()),
+            reference_qid: Some("Q100".into()),
+            has_occurrence: None,
+        };
+
+        let ws_row = CurationInputRow {
+            taxon: Some("   ".into()),
+            doi: None,
+            ..row()
+        };
+        let ws_taxon_no_doi = to_result_row(&ws_row, &key(), &lookup);
+        assert!(
+            ws_taxon_no_doi.note.is_empty(),
+            "whitespace-only taxon without DOI emits no taxon or DOI note: {}",
+            ws_taxon_no_doi.note
+        );
+
+        let no_doi_row = CurationInputRow { doi: None, ..row() };
+        let taxon_no_doi = to_result_row(&no_doi_row, &key(), &lookup);
+        assert!(
+            taxon_no_doi.note.contains("no DOI provided"),
+            "binomial taxon without DOI notes missing reference: {}",
+            taxon_no_doi.note
+        );
+
+        let taxon_with_doi = to_result_row(&row(), &key(), &lookup);
+        assert!(
+            !taxon_with_doi.note.contains("no DOI provided"),
+            "binomial taxon with DOI must not warn about missing DOI: {}",
+            taxon_with_doi.note
+        );
     }
 
     /// A compound that comes back without a QID is a parse failure, not an

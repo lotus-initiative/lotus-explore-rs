@@ -224,3 +224,70 @@ fn a_byte_order_mark_does_not_rename_the_first_column() {
         1
     );
 }
+
+#[test]
+fn parse_tabular_accepts_csv_rfc4180_quotes_and_aliases() {
+    let csv = "\u{feff}\"compound_name\",\"isomeric_smiles\",\"source_organism\",\"reference_doi\"\r\n\
+               \"Voatriafricanine A, \"\"alpha\"\"\",CCO,\"Voacanga africana\",https://doi.org/10.1021/acs.jnatprod.1c00812\r\n\
+               \"Taxifolin\",C1=CC(=C(C=C1[C@@H]2[C@H](C(=O)C3=C(C=C(C=C3O2)O)O)O)O)O,Larix decidua,\r\n";
+    let rows = crate::parse_tabular(csv).expect("csv with quotes and aliases parses");
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0].name, "Voatriafricanine A, \"alpha\"");
+    assert_eq!(rows[0].smiles, "CCO");
+    assert_eq!(rows[0].taxon.as_deref(), Some("Voacanga africana"));
+    assert_eq!(rows[0].doi.as_deref(), Some("10.1021/ACS.JNATPROD.1C00812"));
+    assert_eq!(rows[1].taxon.as_deref(), Some("Larix decidua"));
+    assert_eq!(rows[1].doi, None);
+}
+
+#[test]
+fn parse_tabular_keeps_tsv_with_commas_in_headers_or_cells() {
+    let tsv = "name\tsmiles\tnotes, extra\tspecies\n\
+               \"Alpha, beta\"\tCCO\tnote, here\tGentiana lutea\n";
+    let rows = crate::parse_tabular(tsv).expect("tsv with comma in extra header parses");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].name, "Alpha, beta");
+    assert_eq!(rows[0].taxon.as_deref(), Some("Gentiana lutea"));
+}
+
+#[test]
+fn parse_tabular_prefers_canonical_columns_over_aliases() {
+    let csv = "compound_name,name,smiles,taxon,organism\n\
+               Wrong,Right,CCO,Gentiana lutea,Ignored\n";
+    let rows = crate::parse_tabular(csv).expect("canonical headers take priority");
+    assert_eq!(rows[0].name, "Right");
+    assert_eq!(rows[0].taxon.as_deref(), Some("Gentiana lutea"));
+}
+
+#[test]
+fn parse_tabular_distinguishes_quoted_delimiters_in_headers_and_handles_crlf_without_eof_newline() {
+    let tsv = "\"notes, extra\"\tname\tsmiles\r\n\"note, here\"\t\"Camphor, (+)\"\tCCO";
+    let tsv_rows = crate::parse_tabular(tsv).expect("quoted comma inside TSV header");
+    assert_eq!(tsv_rows.len(), 1);
+    assert_eq!(tsv_rows[0].name, "Camphor, (+)");
+
+    let csv = "\"notes\textra\",name,smiles\r\n\"note\there\",\"Camphor, (+)\",CCO";
+    let csv_rows = crate::parse_tabular(csv).expect("quoted tab inside CSV header");
+    assert_eq!(csv_rows.len(), 1);
+    assert_eq!(csv_rows[0].name, "Camphor, (+)");
+}
+
+#[test]
+fn parse_tabular_prefers_tsv_when_header_widths_tie() {
+    let tsv = "name\tsmiles\tnotes,a,b\nCamphor\tCCO\tnote\n";
+    let rows = crate::parse_tabular(tsv).expect("tied header width keeps TSV");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].name, "Camphor");
+}
+
+#[test]
+fn parse_tabular_skips_hash_comment_lines() {
+    let tsv = "compound_number\tname\tsmiles\n\
+               # Example: 1\tSubtortin A\tCCO\n\
+                 # Indented example\tSubtortin B\tCCC\n\
+               2\tSubtortin C\tCCCN\n";
+    let rows = crate::parse_tabular(tsv).expect("comment lines are skipped cleanly");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].name, "Subtortin C");
+    assert_eq!(rows[0].smiles, "CCCN");
+}

@@ -6,7 +6,7 @@ pub(super) const fn heading_add_one_row() -> &'static str {
 }
 
 pub(super) const fn heading_tsv_import() -> &'static str {
-    "TSV-Import"
+    "TSV- / CSV-Import"
 }
 
 pub(super) const fn heading_queued_rows() -> &'static str {
@@ -46,7 +46,7 @@ pub(super) const fn button_load_example_rows() -> &'static str {
 }
 
 pub(super) const fn button_append_tsv_rows() -> &'static str {
-    "TSV-Zeilen anhängen"
+    "Zeilen anhängen"
 }
 
 pub(super) const fn button_generate_quickstatements() -> &'static str {
@@ -94,7 +94,7 @@ pub(super) const fn label_new_item() -> &'static str {
 }
 
 pub(super) const fn hint_expected_tsv_headers() -> &'static str {
-    "Erwartete Header: name, smiles, taxon (oder organism), doi"
+    "Erwartete Header (TSV oder CSV): name (oder compound_name), smiles, taxon (oder organism, species), doi"
 }
 
 pub(super) const fn hint_scroll_curation_results() -> &'static str {
@@ -224,6 +224,10 @@ pub(super) const fn curation_note_new_compound() -> &'static str {
 
 pub(super) const fn curation_note_dependencies_pending() -> &'static str {
     "Vorausgesetzte Entitäten sind noch nicht aufgelöst."
+}
+
+pub(super) const fn curation_note_missing_doi() -> &'static str {
+    "Kein DOI angegeben: Die Vorkommensaussage (P703) enthält keinen Literaturbeleg (P248)."
 }
 
 pub(super) fn curation_pending_taxon(taxon: &str) -> String {

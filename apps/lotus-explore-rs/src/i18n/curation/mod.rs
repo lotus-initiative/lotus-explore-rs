@@ -129,6 +129,7 @@ dispatch!(curation_note_existing_complete);
 dispatch!(curation_note_existing_updates);
 dispatch!(curation_note_new_compound);
 dispatch!(curation_note_dependencies_pending);
+dispatch!(curation_note_missing_doi);
 dispatch!(view_switch_aria);
 dispatch!(view_label_explorer);
 dispatch!(view_label_curation_explorer);

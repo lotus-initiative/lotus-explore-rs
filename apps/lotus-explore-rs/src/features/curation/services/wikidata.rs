@@ -7,7 +7,7 @@ pub(super) use lotus_curation::normalize_taxon_lookup;
 use lotus_curation::{
     build_compound_lookup_query, build_occurrence_query, build_occurrence_with_ref_query,
     build_reference_lookup_query, build_single_taxon_lookup_query, build_taxon_lookup_query,
-    taxon_name_candidates,
+    extract_canonical_taxon_name, taxon_name_candidates,
 };
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -229,15 +229,19 @@ pub async fn resolve_or_create_taxon(
         return Ok((Some(qid.into()), Vec::new()));
     }
 
+    let Some(canonical) = extract_canonical_taxon_name(trimmed) else {
+        return Ok((None, Vec::new()));
+    };
+
     if let Some(qid) = resolve_taxon_qid(trimmed).await? {
         return Ok((Some(qid), Vec::new()));
     }
     let qs = vec![
         "## -- Step: create missing taxon --".into(),
         "CREATE".into(),
-        format!("LAST|Len|\"{}\"", escape_qs_string(trimmed)),
+        format!("LAST|Len|\"{}\"", escape_qs_string(&canonical)),
         format!("LAST|P31|{WD_TAXON_QID}"),
-        format!("LAST|P225|\"{}\"", escape_qs_string(trimmed)),
+        format!("LAST|P225|\"{}\"", escape_qs_string(&canonical)),
     ];
     Ok((None, qs))
 }

@@ -174,9 +174,10 @@ lotus curate --format jsonl < findings.tsv
 lotus curate findings.tsv --output statements.txt
 ```
 
-The input is a TSV with `name` and `smiles` columns, and optionally `taxon` and
-`doi`. Columns are matched by name, so extra columns from a spreadsheet export
-are ignored rather than shifting everything:
+The input is a TSV or CSV table with `name` (or `compound_name`) and `smiles`
+columns, and optionally `taxon` (or `organism`, `species`) and `doi`
+(`reference_doi`). Columns are matched by name, so extra columns from a
+spreadsheet export are ignored rather than shifting everything:
 
 ```tsv
 name    smiles  taxon   doi
@@ -212,9 +213,12 @@ compound that has been in Wikidata for years into every run.
 Because matching is on the InChIKey rather than the SMILES, a compound written
 `CCO` in one row and `OCC` in another is one compound, not two.
 
-A genus on its own is not resolved: "Gentiana" matches hundreds of species, and
-curating an occurrence against the genus rather than a species is a data error.
-The row is reported instead of guessed at.
+A genus on its own (`Gentiana`) or open nomenclature (`Gentiana sp.`) is not
+resolved: it matches hundreds of species, and curating an occurrence against an
+ambiguous taxon is a data error. Author citations such as `(Pers.) Fr.` or `L.`
+are stripped to the canonical binomial or infraspecific name (`subsp.`, `var.`,
+`f.`), while rows without a resolved taxonomic epithet are reported instead of
+guessed at.
 
 ### Offline
 

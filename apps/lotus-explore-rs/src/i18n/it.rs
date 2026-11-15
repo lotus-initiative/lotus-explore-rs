@@ -14,7 +14,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
     match key {
         TextKey::Share => "Condividi",
         TextKey::ShareableLink => "Link condivisibile",
-        TextKey::TsvFileUpload => "File TSV",
+        TextKey::TsvFileUpload => "File TSV / CSV",
         TextKey::Copy => "Copia",
         TextKey::Copied => "Copiato!",
         TextKey::CopyToClipboard => "Copia negli appunti",

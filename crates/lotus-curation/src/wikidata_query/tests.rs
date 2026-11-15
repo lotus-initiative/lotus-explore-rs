@@ -73,16 +73,128 @@ fn a_qid_is_read_from_a_uri_and_nothing_else() {
 fn a_binomial_is_recognised_and_a_genus_is_not() {
     assert!(is_binomial("Gentiana lutea"));
     assert!(is_binomial("Homo sapiens"));
-    // A genus alone is ambiguous: it matches hundreds of species, and
-    // curating an occurrence against it is a data error.
+    assert!(is_binomial("Cortinarius subtortus (Pers.) Fr."));
+    assert!(is_binomial("Salvia rosmarinus Spenn."));
+    assert!(is_binomial("Hypericum elodeoides Choisy"));
+    assert!(is_binomial("Gentiana lutea L. f."));
+    assert!(is_binomial("Gentiana lutea subsp. alba"));
+    assert!(is_binomial("Gentiana lutea ssp. alba (L.) DC."));
+    assert!(is_binomial("Mentha × piperita"));
+    // A genus alone or open nomenclature is ambiguous: curating an
+    // occurrence against it is a data error rather than a near miss.
     assert!(!is_binomial("Gentiana"));
+    assert!(!is_binomial("Gentiana sp."));
+    assert!(!is_binomial("Gentiana spp."));
+    assert!(!is_binomial("Gentiana cf. lutea"));
     assert!(
         !is_binomial("Homo sapiens extra"),
-        "three words is not a binomial"
+        "three words without rank or author is not a binomial"
     );
     assert!(!is_binomial(""), "empty");
     assert!(!is_binomial("   "), "whitespace only");
     assert!(!is_binomial("gentiana lutea"), "the genus is capitalised");
+}
+
+#[test]
+fn extract_canonical_taxon_name_strips_authorities_and_normalizes_ranks() {
+    assert_eq!(
+        extract_canonical_taxon_name("Cortinarius subtortus (Pers.) Fr.").as_deref(),
+        Some("Cortinarius subtortus")
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Salvia rosmarinus Spenn.").as_deref(),
+        Some("Salvia rosmarinus")
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Gentiana lutea ssp. alba (L.) DC.").as_deref(),
+        Some("Gentiana lutea subsp. alba")
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Gentiana lutea var. alba").as_deref(),
+        Some("Gentiana lutea var. alba")
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Gentiana lutea forma alba").as_deref(),
+        Some("Gentiana lutea f. alba")
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Gentiana lutea f. alba").as_deref(),
+        Some("Gentiana lutea f. alba")
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Gentiana lutea subvar. alba").as_deref(),
+        Some("Gentiana lutea subvar. alba")
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Gentiana lutea subf. alba").as_deref(),
+        Some("Gentiana lutea subf. alba")
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Gentiana ciliata L. f.").as_deref(),
+        Some("Gentiana ciliata")
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("×Heucherella tiarelloides").as_deref(),
+        Some("×Heucherella tiarelloides")
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Pseudo-nitzschia seriata").as_deref(),
+        Some("Pseudo-nitzschia seriata")
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Hibiscus rosa-sinensis").as_deref(),
+        Some("Hibiscus rosa-sinensis")
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Solanum tuberosum van Houtte").as_deref(),
+        Some("Solanum tuberosum")
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Salvia officinalis ex (L.) Mill.").as_deref(),
+        Some("Salvia officinalis")
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Fusarium oxysporum f. sp. cubense (E.F.Sm.) W.C.Snyder")
+            .as_deref(),
+        Some("Fusarium oxysporum f. sp. cubense")
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Puccinia graminis f.sp. tritici").as_deref(),
+        Some("Puccinia graminis f. sp. tritici")
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Fusarium oxysporum f. sp."),
+        None
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Fusarium oxysporum f. sp. 123"),
+        None
+    );
+    assert_eq!(
+        extract_canonical_taxon_name("Fusarium oxysporum f. sp. cubense extra"),
+        None
+    );
+    assert_eq!(extract_canonical_taxon_name("Gentiana sp."), None);
+    assert_eq!(extract_canonical_taxon_name("Gentiana sp"), None);
+    assert_eq!(extract_canonical_taxon_name("Gentiana sensu"), None);
+    assert_eq!(extract_canonical_taxon_name("Gentiana 123"), None);
+    assert_eq!(extract_canonical_taxon_name("Gentiana lutea van"), None);
+    assert_eq!(
+        extract_canonical_taxon_name("Gentiana lutea van other"),
+        None
+    );
+
+    assert_eq!(
+        taxon_name_candidates("Gentiana lutea"),
+        vec!["Gentiana lutea".to_string()]
+    );
+    assert_eq!(
+        taxon_name_candidates("Gentiana lutea L."),
+        vec![
+            "Gentiana lutea L.".to_string(),
+            "Gentiana lutea".to_string()
+        ]
+    );
 }
 
 #[test]
@@ -93,6 +205,20 @@ fn the_taxon_query_asks_for_both_name_kinds() {
     assert!(
         query.contains("LCASE"),
         "the match is case-insensitive: {query}"
+    );
+    assert!(
+        !query.contains("||"),
+        "a plain binomial needs only one comparison clause: {query}"
+    );
+
+    let cited = taxon_by_name_query("Cortinarius subtortus (Pers.) Fr.");
+    assert!(
+        cited.contains("\"Cortinarius subtortus\""),
+        "author-stripped canonical binomial is queried too: {cited}"
+    );
+    assert!(
+        cited.contains("||"),
+        "author-cited name queries both stripped and raw forms: {cited}"
     );
 }
 
@@ -362,4 +488,40 @@ fn build_single_taxon_lookup_query_uses_values_without_lcase_filter() {
     assert!(query.contains("wdt:P31 wd:Q16521"));
     assert!(!query.contains("LCASE"));
     assert!(!query.contains("FILTER"));
+    assert!(query.contains("ORDER BY ?taxon LIMIT 1"), "{query}");
+}
+
+#[test]
+fn occurrence_with_ref_queries_exclude_deprecated_rank() {
+    let single = has_occurrence_with_ref_query("Q1", "Q2", "Q3");
+    assert!(
+        single.contains("PREFIX wikibase: <http://wikiba.se/ontology#>"),
+        "{single}"
+    );
+    assert!(single.contains("wikibase:rank ?rank"), "{single}");
+    assert!(
+        single.contains("FILTER(?rank != wikibase:DeprecatedRank)"),
+        "{single}"
+    );
+
+    let batched = build_occurrence_with_ref_query(&[("Q1".into(), "Q2".into(), "Q3".into())]);
+    assert!(
+        batched.contains("PREFIX wikibase: <http://wikiba.se/ontology#>"),
+        "{batched}"
+    );
+    assert!(batched.contains("wikibase:rank ?rank"), "{batched}");
+    assert!(
+        batched.contains("FILTER(?rank != wikibase:DeprecatedRank)"),
+        "{batched}"
+    );
+}
+
+#[test]
+fn limit_one_lookup_queries_have_deterministic_ordering() {
+    assert!(
+        compound_by_inchikey_query("LFQSCWFLJHTTHZ-UHFFFAOYSA-N")
+            .contains("ORDER BY ?compound LIMIT 1")
+    );
+    assert!(taxon_by_name_query("Gentiana lutea").contains("ORDER BY ?taxon LIMIT 1"));
+    assert!(reference_by_doi_query("10.1000/xyz123").contains("ORDER BY ?ref LIMIT 1"));
 }

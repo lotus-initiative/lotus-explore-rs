@@ -124,8 +124,9 @@ with only those attributes is invisible to WebMCP. Keep both, but a new form
 needs the `tool*` attributes to be discoverable, and its `data-webmcp-schema`
 should stay consistent with the real control names --- that schema is what a
 non-browser consumer reads, and when the two disagree the agent sends a property
-no field exists for. (`SEARCH_SCHEMA` declared `formula` while the control is
-`formula_exact`, so a consumer using it had its filter silently dropped.)
+no field exists for. (Historically, `SEARCH_SCHEMA` declared `formula` while the
+control was `formula_exact`, so a consumer using it had its filter silently
+dropped; `SEARCH_SCHEMA` now also exposes `similarity_threshold`.)
 
 `toolautosubmit` is the difference between "an agent can fill this in" and "an
 agent can submit this without you". It is on the search form, which only reads.

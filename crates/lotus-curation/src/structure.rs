@@ -108,16 +108,22 @@ pub fn has_stereo_marks(smiles: &str) -> bool {
 }
 
 /// Strip tetrahedral (`@`, `@@`) and cis/trans (`/`, `\`) stereochemistry
-/// markers from a `SMILES` string so it can be asserted as a non-isomeric
-/// canonical `SMILES` (`P233`).
+/// markers and any trailing CXSMILES (`|...|`) extension from a `SMILES` string
+/// so it can be asserted as a non-isomeric canonical `SMILES` (`P233`).
 ///
 /// Uncharged, non-isotopic carbon stereocentres (`[C@H]`, `[C@@H]`, `[C@]`,
 /// `[C@@]`, `[c@H]`, `[c@@H]`) are only bracketed in `SMILES` because of the `@`
 /// stereo specification, so removing `@` also unbrackets them to bare `C`/`c`
-/// rather than leaving `[CH]` or `[C]`.
+/// rather than leaving `[CH]` or `[C]`. Bracketed heteroatom or isotopic
+/// stereocentres (for example `[S@]` or `[13C@H]`) preserve their brackets and
+/// rely on `RDKit` or microservice canonicalization in online curation.
 #[must_use]
 pub fn strip_stereo_marks(smiles: &str) -> String {
-    let unbracketed = smiles
+    let core = smiles
+        .strip_suffix('|')
+        .and_then(|prefix| prefix.rsplit_once(" |"))
+        .map_or(smiles, |(head, _)| head);
+    let unbracketed = core
         .replace("[C@@H]", "C")
         .replace("[C@H]", "C")
         .replace("[C@@]", "C")

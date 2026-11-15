@@ -81,5 +81,3 @@ the named test fails if it breaks.
 - `escape_quickstatements` does not escape `|`; the app has a second escaper
   with different rules.
 - API taxon and export timeouts answer 502 where OpenAPI documents 504.
-- `is_binomial` accepts `Gentiana sp.`; a name with an author citation is
-  called a bare genus.

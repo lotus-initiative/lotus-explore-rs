@@ -14,7 +14,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
     match key {
         TextKey::Share => "Share",
         TextKey::ShareableLink => "Shareable link",
-        TextKey::TsvFileUpload => "TSV file",
+        TextKey::TsvFileUpload => "TSV / CSV file",
         TextKey::Copy => "Copy",
         TextKey::Copied => "Copied!",
         TextKey::CopyToClipboard => "Copy to clipboard",
