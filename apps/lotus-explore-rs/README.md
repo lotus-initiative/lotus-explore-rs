@@ -147,8 +147,7 @@ ignored and the explorer uses its direct SPARQL path instead.
 
 The client uses typed routes:
 
-- `/` --- Welcome landing page
-- `/search` --- Explore
+- `/` and `/search` --- Explore (the search form)
 - `/curation` --- Curation
 - `/draw` --- Structure editor
 

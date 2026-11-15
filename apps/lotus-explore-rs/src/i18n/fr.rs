@@ -28,11 +28,8 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::LightMode => "Clair",
         TextKey::SkipToResults => "Passer au contenu principal",
         TextKey::PageSubtitle => {
-            "Explorez des données ouvertes liées : entités chimiques, organismes biologiques et littérature scientifique."
+            "Trouvez quels composés sont rapportés dans un organisme, et dans quels articles, d'après les données réunies dans Wikidata par l'initiative LOTUS."
         }
-        TextKey::LandingTitle => "Bienvenue dans l'explorateur LOTUS",
-
-        TextKey::OpenSearch => "Ouvrir la recherche",
 
         TextKey::PageNotFound => "Page introuvable",
         TextKey::PageNotFoundDescription => "La page demandée n'existe pas.",
@@ -82,17 +79,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
             "Ce jeu de résultats a été interrompu : les lignes affichées ne sont pas la réponse complète. Réduisez la recherche pour la terminer."
         }
         TextKey::ErrorHintUnknown => "Erreur inattendue. Réessayer peut aider.",
-        TextKey::WelcomeLeadA => {
-            "Cette application démontre la puissance des données ouvertes liées en reliant des entités chimiques à des organismes biologiques et à la littérature scientifique. "
-        }
 
-        TextKey::WelcomeLeadB => {
-            "Le modèle de données relie les composés, les taxa et les références, qui proviennent de "
-        }
-
-        TextKey::WelcomeLeadC => ", publiés en tant que données ouvertes liées sur ",
-        TextKey::WelcomeLeadD => " et interrogés via SPARQL par ",
-        TextKey::WelcomeLeadE => ".",
         TextKey::ExampleQueryExecute => "Exécuter",
         TextKey::ExampleQueryTaxon | TextKey::DownloadCsvLabel => "Télécharger CSV",
         TextKey::ExampleQueryStructure | TextKey::DownloadJsonLabel => "Télécharger JSON",
@@ -101,9 +88,6 @@ pub const fn fr_t(key: TextKey) -> &'static str {
 
         TextKey::SearchExamples => "Exemples de recherche",
 
-        TextKey::LabelLanguagePolicy => {
-            "Les libellés privilégient 'mul' et utilisent 'en' en repli afin de garantir des résultats comparables."
-        }
         TextKey::AdvancedFilters => "Filtres avancés",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonField => "Nom scientifique ou nom commun du taxon",

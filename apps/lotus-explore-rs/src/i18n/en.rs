@@ -28,10 +28,8 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::LightMode => "Light",
         TextKey::SkipToResults => "Skip to main content",
         TextKey::PageSubtitle => {
-            "Explore linked open data: chemical entities, biological organisms, and scientific literature."
+            "Find which compounds are reported from an organism, in which articles, as recorded in Wikidata by the LOTUS initiative."
         }
-        TextKey::LandingTitle => "Welcome to LOTUS Explorer",
-        TextKey::OpenSearch => "Open search",
 
         TextKey::PageNotFound => "Page not found",
         TextKey::PageNotFoundDescription => "The page you requested does not exist.",
@@ -77,15 +75,6 @@ pub const fn en_t(key: TextKey) -> &'static str {
             "This result set was cut short, so the rows shown are not the whole answer. Narrow the search to finish."
         }
         TextKey::ErrorHintUnknown => "Unexpected error. Retry may help.",
-        TextKey::WelcomeLeadA => {
-            "This app demonstrates the power of linked open data by connecting chemical entities to biological organisms and scientific literature. "
-        }
-        TextKey::WelcomeLeadB => {
-            "The data model links compounds, taxa, and references, sourced from the "
-        }
-        TextKey::WelcomeLeadC => ", published as linked data on ",
-        TextKey::WelcomeLeadD => ", and queried via SPARQL through ",
-        TextKey::WelcomeLeadE => ".",
         TextKey::ExampleQueryExecute => "Execute",
         TextKey::ExampleQueryTaxon | TextKey::DownloadCsvLabel => "Download CSV",
         TextKey::ExampleQueryStructure | TextKey::DownloadJsonLabel => "Download JSON",
@@ -94,9 +83,6 @@ pub const fn en_t(key: TextKey) -> &'static str {
 
         TextKey::SearchExamples => "Search examples",
 
-        TextKey::LabelLanguagePolicy => {
-            "Labels prefer 'mul' and fall back to 'en' so results remain comparable."
-        }
         TextKey::AdvancedFilters => "Advanced filters",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonField => "Taxon scientific or common name",

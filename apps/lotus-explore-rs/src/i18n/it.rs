@@ -28,11 +28,8 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::LightMode => "Chiaro",
         TextKey::SkipToResults => "Vai al contenuto principale",
         TextKey::PageSubtitle => {
-            "Esplora dati aperti collegati: entità chimiche, organismi biologici e letteratura scientifica."
+            "Trova quali composti sono riportati in un organismo, e in quali articoli, secondo i dati raccolti in Wikidata dall'iniziativa LOTUS."
         }
-        TextKey::LandingTitle => "Benvenuti nell'esploratore LOTUS",
-
-        TextKey::OpenSearch => "Apri la ricerca",
 
         TextKey::PageNotFound => "Pagina non trovata",
         TextKey::PageNotFoundDescription => "La pagina richiesta non esiste.",
@@ -80,18 +77,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
             "Questo insieme di risultati è stato interrotto: le righe mostrate non sono la risposta completa. Restringi la ricerca per completarla."
         }
         TextKey::ErrorHintUnknown => "Errore inatteso. Riprova.",
-        TextKey::WelcomeLeadA => {
-            "Questa applicazione dimostra la potenza dei dati aperti collegati, mettendo in relazione entità chimiche, organismi biologici e letteratura scientifica. "
-        }
 
-        TextKey::WelcomeLeadB => {
-            "Il modello di dati collega composti, taxa e riferimenti provenienti da "
-        }
-
-        TextKey::WelcomeLeadC => ", pubblicati come dati aperti collegati su ",
-        TextKey::WelcomeLeadD => " e interrogati tramite SPARQL da ",
-
-        TextKey::WelcomeLeadE => ".",
         TextKey::ExampleQueryExecute => "Esegui",
         TextKey::ExampleQueryTaxon | TextKey::DownloadCsvLabel => "Scarica CSV",
         TextKey::ExampleQueryStructure | TextKey::DownloadJsonLabel => "Scarica JSON",
@@ -99,9 +85,6 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::ExampleApiUrls => "Esempi di URL API",
         TextKey::SearchExamples => "Esempi di ricerca",
 
-        TextKey::LabelLanguagePolicy => {
-            "Le etichette preferiscono 'mul' e ricorrono a 'en' come fallback per mantenere confrontabili i risultati."
-        }
         TextKey::AdvancedFilters => "Filtri avanzati",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonField => "Nome scientifico o comune del taxon",

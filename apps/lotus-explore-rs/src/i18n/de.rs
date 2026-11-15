@@ -28,10 +28,8 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::LightMode => "Hell",
         TextKey::SkipToResults => "Zum Hauptinhalt springen",
         TextKey::PageSubtitle => {
-            "Erkunden Sie verknüpfte offene Daten: chemische Entitäten, biologische Organismen und wissenschaftliche Literatur."
+            "Finden Sie heraus, welche Verbindungen aus einem Organismus beschrieben wurden und in welchen Artikeln, so wie die LOTUS-Initiative es in Wikidata erfasst hat."
         }
-        TextKey::LandingTitle => "Willkommen bei LOTUS Explorer",
-        TextKey::OpenSearch => "Suche öffnen",
 
         TextKey::PageNotFound => "Seite nicht gefunden",
         TextKey::PageNotFoundDescription => "Die angeforderte Seite existiert nicht.",
@@ -79,18 +77,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
             "Diese Ergebnismenge wurde abgebrochen; die angezeigten Zeilen sind nicht die vollständige Antwort. Suche einschränken, um sie abzuschließen."
         }
         TextKey::ErrorHintUnknown => "Unerwarteter Fehler. Ein erneuter Versuch kann helfen.",
-        TextKey::WelcomeLeadA => {
-            "Diese Anwendung veranschaulicht die Leistungsfähigkeit verknüpfter offener Daten, indem sie chemische Entitäten mit biologischen Organismen und wissenschaftlicher Literatur verknüpft. "
-        }
 
-        TextKey::WelcomeLeadB => {
-            "Das Datenmodell verknüpft Verbindungen, Taxa und Referenzen, die aus der "
-        }
-
-        TextKey::WelcomeLeadC => ", veröffentlicht als verknüpfte offene Daten auf ",
-        TextKey::WelcomeLeadD => " und über SPARQL abgefragt durch ",
-
-        TextKey::WelcomeLeadE => ".",
         TextKey::ExampleQueryExecute => "Ausführen",
         TextKey::ExampleQueryTaxon | TextKey::DownloadCsvLabel => "CSV herunterladen",
         TextKey::ExampleQueryStructure | TextKey::DownloadJsonLabel => "JSON herunterladen",
@@ -99,9 +86,6 @@ pub const fn de_t(key: TextKey) -> &'static str {
 
         TextKey::SearchExamples => "Suchbeispiele",
 
-        TextKey::LabelLanguagePolicy => {
-            "Beschriftungen bevorzugen 'mul' und verwenden 'en' als Fallback, damit Ergebnisse vergleichbar bleiben."
-        }
         TextKey::AdvancedFilters => "Erweiterte Filter",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonField => "Wissenschaftlicher oder Trivialname des Taxons",

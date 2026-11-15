@@ -66,17 +66,9 @@ pub fn PageHeader() -> Element {
                 }
             }
             p {
-                // `line-clamp-3`, not 2: German needs three lines down to 320px
-                // (114 chars) and French three down to 360px (108), while English (93
-                // chars) and Italian fit in two, so clamping at two truncated only two of
-                // the four locales. Three is the measured maximum across all four below
-                // 430px: nothing cropped, short locales still two.
-                //
-                // `mb-2`, not `pb-2`: the clamp's `overflow: hidden` cuts at the *padding*
-                // box, so padding below a clamped element opens an 8px band inside the
-                // clip and the next line's ink, starting 4px in, was sliced rather than
-                // ellipsised. A margin sits outside the clip.
-                class: "mt-3 line-clamp-3 break-words mb-2 text-sm leading-6 text-critical-muted sm:max-w-[72ch] sm:line-clamp-none",
+                // Not clamped: this sentence is the only explanation of the app a
+                // first visitor gets, and the header is not sticky on phones.
+                class: "mt-3 break-words mb-2 text-sm leading-6 text-critical-muted sm:max-w-[72ch]",
                 "{t(locale, TextKey::PageSubtitle)}"
             }
         }
