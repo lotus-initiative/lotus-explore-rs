@@ -75,7 +75,7 @@ async fn prepare_query(
     let mut criteria = apply_request(req)?;
     if !criteria.is_searchable() {
         return Err(ApiError::bad_request(
-            "Either taxon or smiles/structure must be provided",
+            "Either taxon, smiles/structure, or reference must be provided",
         ));
     }
 
@@ -90,7 +90,7 @@ async fn prepare_query(
             .request_timeouts
             .fetch_add(1, Ordering::Relaxed);
         log::warn!("event={event} state=timeout phase=taxon");
-        ApiError::upstream("taxon resolution timed out")
+        ApiError::timed_out("taxon resolution timed out")
     })??;
 
     if let Some(qid) = resolved_taxon_qid.as_deref()
@@ -107,7 +107,7 @@ async fn prepare_query(
                 .request_timeouts
                 .fetch_add(1, Ordering::Relaxed);
             log::warn!("event={event} state=timeout phase=inputs");
-            ApiError::upstream("input resolution timed out")
+            ApiError::timed_out("input resolution timed out")
         })??;
 
     let execution_query =
@@ -516,10 +516,20 @@ pub async fn export_file(
     let select_url = export::qlever_export_url(&cached.query, ExportFormat::Csv);
     let http = lotus_search::reqwest_client::ReqwestClient::new()
         .map_err(|e| ApiError::upstream(format!("could not open the export client: {e}")))?;
-    let response = http
-        .get(&select_url, lotus_search::ResponseFormat::Csv.accept())
-        .await
-        .map_err(|e| ApiError::upstream(format!("export fetch failed: {e}")))?;
+    let response = timeout(
+        state.request_timeout,
+        http.get(&select_url, lotus_search::ResponseFormat::Csv.accept()),
+    )
+    .await
+    .map_err(|_| {
+        state
+            .metrics
+            .request_timeouts
+            .fetch_add(1, Ordering::Relaxed);
+        log::warn!("event=export_file state=timeout");
+        ApiError::timed_out("export fetch timed out")
+    })?
+    .map_err(|e| ApiError::from_fetch("export fetch failed", e))?;
     // The inherent `reqwest` method shadows the trait's, so it is converted here.
     let status = response.status().as_u16();
     if !(200..300).contains(&status) {

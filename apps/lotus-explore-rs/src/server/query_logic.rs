@@ -45,16 +45,16 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
         c.structure_threshold = v.clamp(0.05, 1.0);
     }
     if let Some(v) = req.mass_min {
-        c.mass_min = v.max(0.0);
+        c.mass_min = v;
     }
     if let Some(v) = req.mass_max {
-        c.mass_max = v.max(c.mass_min);
+        c.mass_max = v;
     }
     if let Some(v) = req.year_min {
         c.year_min = v;
     }
     if let Some(v) = req.year_max {
-        c.year_max = v.max(c.year_min);
+        c.year_max = v;
     }
 
     let has_formula_input = req
@@ -219,7 +219,7 @@ pub async fn resolve_taxon_with<H: lotus_search::Http>(
             lotus_search::FetchError::Parse(msg) if msg.starts_with("no taxon matched ") => {
                 ApiError::bad_request(format!("Taxon not found: {trimmed}"))
             }
-            other => ApiError::upstream(format!("taxon lookup failed: {other}")),
+            other => ApiError::from_fetch("taxon lookup failed", other),
         })?;
 
     let warning = (!resolution.notes.is_empty()).then(|| {
@@ -253,6 +253,6 @@ pub async fn resolve_search_inputs_with<H: lotus_search::Http>(
             lotus_search::FetchError::Parse(msg) if msg.starts_with("no ") => {
                 ApiError::bad_request(msg)
             }
-            other => ApiError::upstream(format!("input resolution failed: {other}")),
+            other => ApiError::from_fetch("input resolution failed", other),
         })
 }

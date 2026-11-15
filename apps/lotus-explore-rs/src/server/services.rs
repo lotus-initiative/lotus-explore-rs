@@ -8,6 +8,31 @@ use crate::server::{
 use crate::sparql;
 use lotus_model::DatasetStats;
 
+/// Choose between the count query's totals and the exact totals computed from
+/// the displayed rows.
+///
+/// Only falls back when `capped` is `false`, so an uncapped page still gets an
+/// exact total even if the count query fails, whereas a capped page propagates
+/// the failure instead of reporting the truncated sample size as the dataset
+/// total.
+pub fn resolve_count_stats(
+    capped: bool,
+    fallback_stats: DatasetStats,
+    stats_result: Result<DatasetStats, ApiError>,
+) -> Result<DatasetStats, ApiError> {
+    match stats_result {
+        Ok(stats) => Ok(stats),
+        Err(err) if !capped => {
+            log::warn!(
+                "event=search state=count_fallback reason={} include_counts=true capped=false",
+                err.message
+            );
+            Ok(fallback_stats)
+        }
+        Err(err) => Err(err),
+    }
+}
+
 pub async fn build_search_response(
     execution_query: &str,
     limit: usize,
@@ -15,46 +40,32 @@ pub async fn build_search_response(
     resolved_taxon_qid: Option<String>,
     warning: Option<String>,
 ) -> Result<SearchResponse, ApiError> {
-    let display_query = lotus_query::limit_query(execution_query, limit);
+    let display_query = lotus_query::limit_query(execution_query, limit.saturating_add(1));
+    let rows_future = async {
+        let rows_bytes = sparql::execute_sparql_bytes(&display_query)
+            .await
+            .map_err(|e| ApiError::from_fetch("display query failed", e))?;
+        lotus_query::parse_compounds_csv_capped(&rows_bytes, limit)
+            .map_err(|e| ApiError::upstream(format!("display parse failed: {e}")))
+    };
 
     let (rows, stats) = if include_counts {
         let count_query = lotus_query::counts_query(execution_query);
 
-        let rows_future = async {
-            let rows_bytes = sparql::execute_sparql_bytes(&display_query)
-                .await
-                .map_err(|e| ApiError::upstream(format!("display query failed: {e}")))?;
-            lotus_query::parse_compounds_csv(&rows_bytes, limit)
-                .map_err(|e| ApiError::upstream(format!("display parse failed: {e}")))
-        };
         let stats_future = async {
             let count_bytes = sparql::execute_sparql_bytes(&count_query)
                 .await
-                .map_err(|e| ApiError::upstream(format!("count query failed: {e}")))?;
+                .map_err(|e| ApiError::from_fetch("count query failed", e))?;
             lotus_query::parse_counts_csv(&count_bytes)
                 .map_err(|e| ApiError::upstream(format!("count parse failed: {e}")))
         };
 
         let (rows_result, stats_result) = tokio::join!(rows_future, stats_future);
-        let rows = rows_result?;
-        let stats = match stats_result {
-            Ok(stats) => stats,
-            Err(err) => {
-                log::warn!(
-                    "event=search state=count_fallback reason={} include_counts=true",
-                    err.message
-                );
-                DatasetStats::from_entries(&rows)
-            }
-        };
+        let (rows, fallback_stats, capped) = rows_result?;
+        let stats = resolve_count_stats(capped, fallback_stats, stats_result)?;
         (rows, stats)
     } else {
-        let rows_bytes = sparql::execute_sparql_bytes(&display_query)
-            .await
-            .map_err(|e| ApiError::upstream(format!("display query failed: {e}")))?;
-        let rows = lotus_query::parse_compounds_csv(&rows_bytes, limit)
-            .map_err(|e| ApiError::upstream(format!("display parse failed: {e}")))?;
-        let stats = DatasetStats::from_entries(&rows);
+        let (rows, stats, _) = rows_future.await?;
         (rows, stats)
     };
 

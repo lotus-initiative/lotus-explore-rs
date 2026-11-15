@@ -85,6 +85,25 @@ impl ApiError {
             retry_after: None,
         }
     }
+
+    #[must_use]
+    pub(crate) fn timed_out(message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::GATEWAY_TIMEOUT,
+            message: message.into(),
+            retry_after: None,
+        }
+    }
+
+    #[must_use]
+    pub(crate) fn from_fetch(context: &str, err: lotus_search::FetchError) -> Self {
+        match err {
+            err @ lotus_search::FetchError::TimedOut { .. } => {
+                Self::timed_out(format!("{context}: {err}"))
+            }
+            other => Self::upstream(format!("{context}: {other}")),
+        }
+    }
 }
 
 impl SharedApiError {

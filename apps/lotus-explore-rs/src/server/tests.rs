@@ -1276,3 +1276,70 @@ fn the_api_refuses_what_the_shared_validation_refuses() {
         assert_eq!(err.status, StatusCode::BAD_REQUEST, "{what}");
     }
 }
+
+#[test]
+fn apply_request_rejects_inverted_and_negative_mass_and_year_ranges() {
+    for (what, body) in [
+        (
+            "inverted mass range",
+            r#"{"taxon":"Gentiana","mass_min":500.0,"mass_max":100.0}"#,
+        ),
+        (
+            "negative mass minimum",
+            r#"{"taxon":"Gentiana","mass_min":-5.0}"#,
+        ),
+        (
+            "inverted year range",
+            r#"{"taxon":"Gentiana","year_min":2020,"year_max":1990}"#,
+        ),
+    ] {
+        let req: SearchRequest = serde_json::from_str(body).expect("a deserialisable request");
+        let err = apply_request(&req).expect_err(what);
+        assert_eq!(err.status, StatusCode::BAD_REQUEST, "{what}");
+    }
+}
+
+#[tokio::test]
+async fn resolve_taxon_with_maps_endpoint_timeout_to_504() {
+    use lotus_search::testing::Scripted;
+
+    let http = Scripted::new(vec![(429, "Operation timed out. Last operation: Sort")]);
+    let err = resolve_taxon_with(&http, "Gentiana")
+        .await
+        .expect_err("QLever 429 timeout must fail");
+    assert_eq!(
+        err.status,
+        StatusCode::GATEWAY_TIMEOUT,
+        "endpoint timeout must map to 504: {}",
+        err.message
+    );
+}
+
+#[test]
+fn resolve_count_stats_propagates_errors_only_when_capped() {
+    use crate::server::{errors::ApiError, services::resolve_count_stats};
+    use lotus_model::DatasetStats;
+
+    let sample = DatasetStats {
+        n_compounds: 2,
+        n_taxa: 1,
+        n_references: 1,
+        n_entries: 3,
+        n_entries_unique: 3,
+    };
+
+    let uncapped = resolve_count_stats(false, sample.clone(), Err(ApiError::timed_out("timeout")))
+        .expect("uncapped search falls back to exact displayed counts");
+    assert_eq!(
+        uncapped, sample,
+        "uncapped fallback uses exact sample stats"
+    );
+
+    let err = resolve_count_stats(true, sample, Err(ApiError::timed_out("timeout")))
+        .expect_err("capped search must not silently return truncated counts");
+    assert_eq!(
+        err.status,
+        StatusCode::GATEWAY_TIMEOUT,
+        "count query timeout error status must be preserved"
+    );
+}

@@ -270,30 +270,36 @@ pub fn export_cache_put(state: &AppState, key: String, value: ExportUrlResponse)
     }
 }
 
-pub fn search_inflight_cell(
-    state: &AppState,
+fn acquire_inflight_cell<T>(
+    map: &std::sync::Mutex<HashMap<String, Arc<OnceCell<T>>>>,
     key: &str,
-) -> Result<(InFlightSearch, bool), ApiError> {
+    poison_message: &'static str,
+) -> Result<(Arc<OnceCell<T>>, bool), ApiError> {
+    use std::collections::hash_map::Entry;
     // `Mutex::lock` errors only on poison -- a holder thread panicked while
     // holding the guard. That is converted to a 500 rather than unwrapped,
     // because unwrapping aborts the whole process: one poisoned lock would take
     // down every other in-flight request with it.
-    let existing = state
-        .search_inflight
-        .lock()
-        .map_err(|_| ApiError::internal("search inflight mutex poisoned"))?
-        .get(key)
-        .cloned();
-    if let Some(existing) = existing {
-        return Ok((existing, false));
-    }
-    let cell = Arc::new(OnceCell::new());
-    state
-        .search_inflight
-        .lock()
-        .map_err(|_| ApiError::internal("search inflight mutex poisoned"))?
-        .insert(key.to_string(), cell.clone());
-    Ok((cell, true))
+    let mut guard = map.lock().map_err(|_| ApiError::internal(poison_message))?;
+    Ok(match guard.entry(key.to_string()) {
+        Entry::Occupied(entry) => (entry.get().clone(), false),
+        Entry::Vacant(entry) => {
+            let cell = Arc::new(OnceCell::new());
+            entry.insert(cell.clone());
+            (cell, true)
+        }
+    })
+}
+
+pub fn search_inflight_cell(
+    state: &AppState,
+    key: &str,
+) -> Result<(InFlightSearch, bool), ApiError> {
+    acquire_inflight_cell(
+        &state.search_inflight,
+        key,
+        "search inflight mutex poisoned",
+    )
 }
 
 /// Forget a finished in-flight cell, so the next request looks again.
@@ -318,22 +324,11 @@ pub fn export_inflight_cell(
     key: &str,
 ) -> Result<(InFlightExport, bool), ApiError> {
     // As in `search_inflight_cell`: a poisoned lock becomes a typed error.
-    let existing = state
-        .export_inflight
-        .lock()
-        .map_err(|_| ApiError::internal("export inflight mutex poisoned"))?
-        .get(key)
-        .cloned();
-    if let Some(existing) = existing {
-        return Ok((existing, false));
-    }
-    let cell = Arc::new(OnceCell::new());
-    state
-        .export_inflight
-        .lock()
-        .map_err(|_| ApiError::internal("export inflight mutex poisoned"))?
-        .insert(key.to_string(), cell.clone());
-    Ok((cell, true))
+    acquire_inflight_cell(
+        &state.export_inflight,
+        key,
+        "export inflight mutex poisoned",
+    )
 }
 
 /// Forget a finished in-flight cell, so the next request looks again.
