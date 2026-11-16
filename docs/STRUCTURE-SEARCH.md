@@ -5,7 +5,7 @@
 > why the query is shaped this way, what was measured, and which failure each decision
 > avoids.
 
-The structure field is the second free-text field in LOTUS Explore. It takes four
+The structure field is the second free-text field in the LOTUS Explorer. It takes four
 kinds of thing in one box, resolves all four to a Wikidata compound, and then
 searches that compound in one of three ways:
 
@@ -47,6 +47,18 @@ rather than a coincidence: an index scan on one QID against a load-and-score pas
 over every candidate compound. But when the input resolved to nothing, exact has
 no QID to scan, and the closest thing the service can offer is the same molecule —
 an identical fingerprint, which is a similarity search at a cutoff of 1.
+
+### What exact means for a structure
+
+For a name, an `InChIKey` or a QID, exact is one Wikidata compound. For a SMILES
+or a molfile it is whatever the structure service scores at a similarity of 1,
+capped at `STRUCTURE_LOOKUP_LIMIT`: a fingerprint match, which is not an identity
+test. `C[C@H](O)CO` returns the (R), the (S) and the unspecified compound, and the
+carnosol SMILES returns stereoisomers of carnosol alongside it. The interface
+says so on the mode's label, and the similarity cutoff names its measure
+(Tanimoto) and the service (IDSM). Matching a structure on its `InChIKey` instead
+needs an `InChIKey` computed from the input, which the search path does not have
+today; that is room to improve.
 
 ## The four lookups
 

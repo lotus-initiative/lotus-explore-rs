@@ -58,7 +58,7 @@ for the test that runs every example in this file.
 | `--no-replacements`                                                            | Ignore replacement names and what they replaced (`P694`)                    |
 | `--structure`                                                                  | Compound name, InChIKey, Wikidata QID, SMILES, or MDL molfile (V2000/V3000) |
 | `--structure-search`                                                           | `exact` (default), `substructure` or `similarity`                           |
-| `--threshold`                                                                  | Tanimoto cutoff for a similarity search, 0 to 1                             |
+| `--threshold`                                                                  | Tanimoto cutoff for a similarity search, 0 to 1, scored by the IDSM service |
 | `--mass-min`, `--mass-max`                                                     | Molecular mass range, in daltons                                            |
 | `--year-min`, `--year-max`                                                     | Publication year range                                                      |
 | `--formula`                                                                    | Exact molecular formula; subscripts are accepted                            |
@@ -82,7 +82,10 @@ not, and Wikidata stores them under four separate property pairs.
 [TAXON-SEARCH.md](TAXON-SEARCH.md) has the vocabulary, the properties, the
 traversal, and the measured table of what each switch changes.
 
-`--structure-search exact` asks for one compound. Like the web app, `lotus search`
+`--structure-search exact` asks for one compound when the input is a name, an
+InChIKey or a QID. A SMILES or molfile is matched by the IDSM structure service at
+a similarity of 1, which can also return stereoisomers and other close isomers of
+it. Like the web app, `lotus search`
 resolves compound names, InChIKeys, Wikidata QIDs, and exact SMILES/molfiles to
 their Wikidata compound QIDs before running the occurrence query (`--explain`
 stays offline and leaves non-QID inputs unresolved, printing a note on stderr).
@@ -376,7 +379,7 @@ To publish for real:
 
 ```bash
 export ZENODO_TOKEN=your-token-here
-export SOURCE_CODE_URL=https://github.com/lotusnprod/lotus-explore-rs/commit/abc123...
+export SOURCE_CODE_URL=https://github.com/lotus-initiative/lotus-explore-rs/commit/abc123...
 lotus archive --output ./lotus-archive --publish
 ```
 

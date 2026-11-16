@@ -102,7 +102,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::ExampleSets => "Set the field to",
         TextKey::StructureSmilesOrMol => "Structure, compound name or InChIKey",
         TextKey::StructurePlaceholder => "SMILES, a Molfile, a name or an InChIKey",
-        TextKey::Exact => "Exact",
+        TextKey::Exact => "Exact (a pasted structure can also match its stereoisomers)",
         TextKey::Substructure => "Substructure",
         TextKey::Similarity => "Similarity",
         TextKey::StructureSearchMode => "Structure search mode",

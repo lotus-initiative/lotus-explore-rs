@@ -103,7 +103,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::ExampleSets => "Feld auf",
         TextKey::StructureSmilesOrMol => "Struktur, Verbindungsname oder InChIKey",
         TextKey::StructurePlaceholder => "SMILES, ein Molfile, ein Name oder ein InChIKey",
-        TextKey::Exact => "Exakt",
+        TextKey::Exact => "Exakt (eine eingefügte Struktur kann auch ihre Stereoisomere treffen)",
         TextKey::Substructure => "Substruktur",
         TextKey::Similarity => "Ähnlichkeit",
         TextKey::StructureSearchMode => "Struktursuche",

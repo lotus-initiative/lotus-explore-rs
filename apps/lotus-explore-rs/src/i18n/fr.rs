@@ -107,7 +107,9 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::ExampleSets => "Remplir le champ avec",
         TextKey::StructureSmilesOrMol => "Structure, nom de composé ou InChIKey",
         TextKey::StructurePlaceholder => "SMILES, un Molfile, un nom ou un InChIKey",
-        TextKey::Exact => "Exact",
+        TextKey::Exact => {
+            "Exact (une structure collée peut aussi correspondre à ses stéréo-isomères)"
+        }
         TextKey::Substructure => "Sous-structure",
         TextKey::Similarity => "Similarité",
         TextKey::StructureSearchMode => "Recherche par structure",

@@ -31,6 +31,32 @@ fn the_subtitle_says_what_a_search_returns_in_every_locale() {
 }
 
 #[test]
+fn the_structure_modes_say_what_they_compare() {
+    // A pasted structure is resolved by the structure service at a cutoff of
+    // one, which is not an identity test: stereoisomers come back too.
+    assert_eq!(
+        t(Locale::En, TextKey::Exact),
+        "Exact (a pasted structure can also match its stereoisomers)"
+    );
+    assert_eq!(
+        super::threshold_label(Locale::En, 0.85),
+        "Tanimoto similarity (IDSM structure service), at least 0.85"
+    );
+    assert_eq!(
+        super::threshold_label(Locale::Fr, 0.85),
+        "Similarité de Tanimoto (service de structures IDSM), au moins 0.85"
+    );
+    assert_eq!(
+        super::threshold_label(Locale::De, 0.85),
+        "Tanimoto-Ähnlichkeit (Strukturdienst IDSM), mindestens 0.85"
+    );
+    assert_eq!(
+        super::threshold_label(Locale::It, 0.85),
+        "Somiglianza di Tanimoto (servizio di strutture IDSM), almeno 0.85"
+    );
+}
+
+#[test]
 fn tsv_missing_column_messages_are_localized() {
     for locale in [Locale::En, Locale::Fr, Locale::De, Locale::It] {
         let message = msg_tsv_missing_column(locale, "name");

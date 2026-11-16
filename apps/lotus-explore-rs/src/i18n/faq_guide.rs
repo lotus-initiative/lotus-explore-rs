@@ -319,7 +319,7 @@ pub const SECTIONS: &[GuideSection] = &[
                 &["Mode", "The question it answers", "Needs"],
                 &[
                     "Exact (default)",
-                    "This compound, and nothing else",
+                    "This compound. A pasted structure can also match its stereoisomers",
                     "Nothing beyond the QID",
                 ],
                 &[

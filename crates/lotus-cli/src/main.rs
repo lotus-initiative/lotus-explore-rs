@@ -175,11 +175,11 @@ struct SearchArgs {
     #[arg(short, long, default_value = "")]
     structure: String,
 
-    /// How to search: exact (that compound only), substructure, or similarity.
+    /// How to search: exact (that compound; a pasted structure can also match its stereoisomers), substructure, or similarity.
     #[arg(long, value_enum, default_value_t = StructureSearch::Exact)]
     structure_search: StructureSearch,
 
-    /// Tanimoto cutoff for a similarity search, 0 to 1.
+    /// Tanimoto cutoff for a similarity search, 0 to 1, scored by the IDSM structure service.
     #[arg(long, default_value_t = lotus_model::DEFAULT_STRUCTURE_THRESHOLD)]
     threshold: f64,
 
