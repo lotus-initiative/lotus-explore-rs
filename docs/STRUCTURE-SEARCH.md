@@ -222,7 +222,8 @@ seeding bare QIDs directly).
 
 `STRUCTURE_INPUT_EXAMPLES` in `lotus-model` holds one compound, _carnosol_
 ([Q16634054](https://www.wikidata.org/wiki/Q16634054)), as a name, as its
-`InChIKey` and as its isomeric SMILES. The buttons read that constant rather than
+`InChIKey` and as its isomeric SMILES, and one name in another language,
+_amarogentina_ (Italian, [Q3613679](https://www.wikidata.org/wiki/Q3613679)). The buttons read that constant rather than
 keeping their own list, so the test that checks how each one is classified checks
 the same strings a reader can click.
 
@@ -231,3 +232,4 @@ the same strings a reader can click.
 | `carnosol`                    | name       | label, then alias             |
 | `XUSYGBPHQBWGAD-PJSUUKDQSA-N` | `InChIKey` | `P235`                        |
 | the isomeric SMILES           | SMILES     | the service, at a cutoff of 1 |
+| `amarogentina`                | name       | label, then alias             |

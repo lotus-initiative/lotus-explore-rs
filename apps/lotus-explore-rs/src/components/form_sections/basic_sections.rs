@@ -14,9 +14,13 @@ use super::field_examples::FieldExamples;
 use super::shared::{normalized_year_input_max, parse_f64_input, parse_u16_input};
 
 /// Example taxa, as they would be typed: two species and a genus that each
-/// have recorded compounds.
-pub(super) const TAXON_SUGGESTIONS: &[&str] =
-    &["Salvia rosmarinus", "Magnolia officinalis", "Streptomyces"];
+/// have recorded compounds, and a common name (*Gentiana lutea*).
+pub(super) const TAXON_SUGGESTIONS: &[&str] = &[
+    "Salvia rosmarinus",
+    "Magnolia officinalis",
+    "Streptomyces",
+    "bitterwort",
+];
 
 /// The four nomenclatural relationships a taxon search can follow.
 ///

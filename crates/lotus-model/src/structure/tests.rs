@@ -130,17 +130,18 @@ fn the_shorthand_structures_the_field_always_had_stay_structures() {
 }
 
 #[test]
-fn the_examples_are_one_compound_as_a_name_a_key_and_a_structure() {
+fn the_examples_are_a_name_a_key_a_structure_and_a_name_in_another_language() {
     // The buttons exist to show a reader which kind they are typing, so each
     // has to land on a different path -- and the test pins the same strings
     // the buttons fill in.
-    let expected: [(&str, InputKind); 3] = [
+    let expected: [(&str, InputKind); 4] = [
         ("carnosol", InputKind::Name),
         ("XUSYGBPHQBWGAD-PJSUUKDQSA-N", InputKind::InChIKey),
         (
             "CC(C)C1=C(C(=C2C(=C1)[C@@H]3C[C@@H]4[C@@]2(CCCC4(C)C)C(=O)O3)O)O",
             InputKind::Structure,
         ),
+        ("amarogentina", InputKind::Name),
     ];
     assert_eq!(
         STRUCTURE_INPUT_EXAMPLES,

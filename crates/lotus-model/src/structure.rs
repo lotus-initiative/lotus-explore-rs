@@ -91,12 +91,16 @@ pub const REFERENCE_INPUT_EXAMPLES: [&str; 1] = ["10.1021/acs.jnatprod.1c00812"]
 /// * `XUSYGBPHQBWGAD-PJSUUKDQSA-N` — its `InChIKey`, resolved through `P235`.
 /// * its isomeric SMILES — resolved by asking the structure service.
 ///
+/// The last, `amarogentina`, is the Italian name of *amarogentin* (`Q3613679`),
+/// the bitter principle of bitterwort: names are matched in every language.
+///
 /// The list lives here, not in the app, so the test checking their
 /// classification reads the same strings the buttons fill in.
-pub const STRUCTURE_INPUT_EXAMPLES: [&str; 3] = [
+pub const STRUCTURE_INPUT_EXAMPLES: [&str; 4] = [
     "carnosol",
     "XUSYGBPHQBWGAD-PJSUUKDQSA-N",
     "CC(C)C1=C(C(=C2C(=C1)[C@@H]3C[C@@H]4[C@@]2(CCCC4(C)C)C(=O)O3)O)O",
+    "amarogentina",
 ];
 
 /// Whether a string is a Wikidata QID.
