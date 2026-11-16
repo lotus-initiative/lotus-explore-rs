@@ -75,53 +75,28 @@ pub fn looks_like_inchikey(text: &str) -> bool {
         })
 }
 
-/// What the reference field's example buttons offer.
+/// What the reference field's example button offers: a DOI from the *Journal
+/// of Natural Products*, resolved by looking the reference up. It reports two
+/// compounds, *Voatriafricanine A* and *B*.
 ///
-/// * `10.1002/jlac.18360190207` -- a DOI, resolved by looking the reference up.
-///   Reports one compound, *chrysophanol*.
-/// * `10.1021/acs.jnatprod.1C00812` -- a DOI from a different publisher, so the
-///   pair shows the prefix is not what is being matched. Reports two,
-///   *Voatriafricanine A* and *B*, stereoisomers: a reference can report several
-///   compounds, as separate facts about separate items.
-/// * `Q28601559` -- a QID, used without a round trip. Reports three, including
-///   *ethanol*.
-///
-/// These are three different answers, not one compound three ways: a structure
-/// names one thing, a reference names an *occurrence*, and the same compound
-/// appears under several references while one reference reports several compounds.
-///
-/// The list lives here, not in the app, so the test that checks the
-/// classification reads the same strings the buttons fill in.
-pub const REFERENCE_INPUT_EXAMPLES: [&str; 3] = [
-    "10.1002/jlac.18360190207",
-    "10.1021/acs.jnatprod.1C00812",
-    "Q28601559",
-];
+/// The list lives here, not in the app, so a test can read the same strings
+/// the buttons fill in.
+pub const REFERENCE_INPUT_EXAMPLES: [&str; 1] = ["10.1021/acs.jnatprod.1c00812"];
 
-/// What the structure field's example buttons offer.
+/// What the structure field's example buttons offer: *carnosol* (`Q16634054`)
+/// three ways, so a reader sees the kinds of input the field takes and that
+/// they agree.
 ///
-/// * `amarogentina` — a name, resolved through a label or alias lookup.
-/// * `红雀椿素` — a Chinese alias, testing non-ASCII label lookup.
-/// * `DBOVHQOUSDWAPQ-WTONXPSSSA-N` — an `InChIKey`, resolved through `P235`.
-/// * `Q23118` — a QID, confirmed against Wikidata.
-/// * `C[C@H](O)CO` — a SMILES, resolved by asking the structure service.
+/// * `carnosol` — a name, resolved through a label or alias lookup.
+/// * `XUSYGBPHQBWGAD-PJSUUKDQSA-N` — its `InChIKey`, resolved through `P235`.
+/// * its isomeric SMILES — resolved by asking the structure service.
 ///
-/// One of each kind the field accepts, so a reader can tell which is which; the
-/// list lives here, not in the app, so the test checking their classification
-/// reads the same strings the buttons fill in.
-///
-/// The name and the `InChIKey` are the same compound (*amarogentin*, `Q3613679`)
-/// two ways, which shows the alias route and the identifier route agree; the test
-/// below checks both are classified as identifiers, not one as a name.
-///
-/// The stereocentre in the SMILES is deliberate over a simpler chain: it is the
-/// structure a person cannot type from memory.
-pub const STRUCTURE_INPUT_EXAMPLES: [&str; 5] = [
-    "amarogentina",
-    "红雀椿素",
-    "DBOVHQOUSDWAPQ-WTONXPSSSA-N",
-    "Q23118",
-    "C[C@H](O)CO",
+/// The list lives here, not in the app, so the test checking their
+/// classification reads the same strings the buttons fill in.
+pub const STRUCTURE_INPUT_EXAMPLES: [&str; 3] = [
+    "carnosol",
+    "XUSYGBPHQBWGAD-PJSUUKDQSA-N",
+    "CC(C)C1=C(C(=C2C(=C1)[C@@H]3C[C@@H]4[C@@]2(CCCC4(C)C)C(=O)O3)O)O",
 ];
 
 /// Whether a string is a Wikidata QID.

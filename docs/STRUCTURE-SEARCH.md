@@ -208,19 +208,14 @@ seeding bare QIDs directly).
 
 ## The example buttons
 
-`STRUCTURE_INPUT_EXAMPLES` in `lotus-model` holds one of each accepted kind, and the
-buttons read that constant rather than keeping their own list. The test that checks
-each one is classified correctly therefore checks the same strings a reader can
-click, so the two cannot drift apart.
+`STRUCTURE_INPUT_EXAMPLES` in `lotus-model` holds one compound, _carnosol_
+([Q16634054](https://www.wikidata.org/wiki/Q16634054)), as a name, as its
+`InChIKey` and as its isomeric SMILES. The buttons read that constant rather than
+keeping their own list, so the test that checks how each one is classified checks
+the same strings a reader can click.
 
-| Example                       | Kind       | Route                            |
-| ----------------------------- | ---------- | -------------------------------- |
-| `amarogentina`                | name       | label, then alias                |
-| `DBOVHQOUSDWAPQ-WTONXPSSSA-N` | `InChIKey` | `P235`                           |
-| `Q23118`                      | QID        | a `VALUES`, and nothing to match |
-| `C[C@H](O)CO`                 | SMILES     | the service, at a cutoff of 1    |
-
-The first two are the same compound — [Q3613679](https://www.wikidata.org/wiki/Q3613679),
-_amarogentin_ — reached by an alias and by its `InChIKey`. That is the point of
-having both: they exercise the alias fallback and the identifier route, and a
-reader can see that the two agree.
+| Example                       | Kind       | Route                         |
+| ----------------------------- | ---------- | ----------------------------- |
+| `carnosol`                    | name       | label, then alias             |
+| `XUSYGBPHQBWGAD-PJSUUKDQSA-N` | `InChIKey` | `P235`                        |
+| the isomeric SMILES           | SMILES     | the service, at a cutoff of 1 |

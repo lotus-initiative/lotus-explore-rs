@@ -185,7 +185,7 @@ const IDENTIFIERS: [&str; 15] = [
     "P235",
     "P1531",
     // The two example chemistry strings.
-    "DBOVHQOUSDWAPQ-WTONXPSSSA-N",
+    "XUSYGBPHQBWGAD-PJSUUKDQSA-N",
     "C[C@H](O)CO",
     // Standards and browser versions: names, not quantities.
     "4180",

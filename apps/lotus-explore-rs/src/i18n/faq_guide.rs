@@ -299,12 +299,12 @@ pub const SECTIONS: &[GuideSection] = &[
                     "instant",
                 ],
                 &[
-                    "An InChIKey, e.g. DBOVHQOUSDWAPQ-WTONXPSSSA-N",
+                    "An InChIKey, e.g. XUSYGBPHQBWGAD-PJSUUKDQSA-N",
                     "One indexed equality on P235",
                     "one request",
                 ],
                 &[
-                    "A compound name, e.g. amarogentina",
+                    "A compound name, e.g. carnosol",
                     "Its label, then its alias",
                     "two requests",
                 ],

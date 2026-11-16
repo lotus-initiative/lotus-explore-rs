@@ -130,21 +130,23 @@ fn the_shorthand_structures_the_field_always_had_stay_structures() {
 }
 
 #[test]
-fn the_examples_cover_every_kind_of_input_the_field_accepts() {
+fn the_examples_are_one_compound_as_a_name_a_key_and_a_structure() {
     // The buttons exist to show a reader which kind they are typing, so each
     // has to land on a different path -- and the test pins the same strings
     // the buttons fill in.
-    let expected: [(&str, InputKind); 4] = [
-        ("amarogentina", InputKind::Name),
-        ("DBOVHQOUSDWAPQ-WTONXPSSSA-N", InputKind::InChIKey),
-        ("Q23118", InputKind::Qid),
-        ("C[C@H](O)CO", InputKind::Structure),
+    let expected: [(&str, InputKind); 3] = [
+        ("carnosol", InputKind::Name),
+        ("XUSYGBPHQBWGAD-PJSUUKDQSA-N", InputKind::InChIKey),
+        (
+            "CC(C)C1=C(C(=C2C(=C1)[C@@H]3C[C@@H]4[C@@]2(CCCC4(C)C)C(=O)O3)O)O",
+            InputKind::Structure,
+        ),
     ];
+    assert_eq!(
+        STRUCTURE_INPUT_EXAMPLES,
+        expected.map(|(example, _)| example)
+    );
     for (example, kind) in expected {
-        assert!(
-            STRUCTURE_INPUT_EXAMPLES.contains(&example),
-            "{example} is expected to be an example button"
-        );
         assert_eq!(
             classify_structure_input(example),
             kind,
