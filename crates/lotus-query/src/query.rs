@@ -845,6 +845,26 @@ WHERE {{
     )
 }
 
+/// One row when `taxon_qid` has a recorded compound, itself or below it, under
+/// any linked name; none otherwise.
+///
+/// Asked of each taxon sharing a name, so a homonym resolves to the taxon that
+/// has data: `Michelia` is a fossil genus with no compound and a plant genus
+/// with many, and the lookup lists the fossil first.
+#[must_use]
+pub fn taxon_has_compounds_query(taxon_qid: &str) -> String {
+    limit_query(&occurrences_query(&compounds_by_taxon_query(taxon_qid)), 1)
+}
+
+/// Whether a CSV answer holds a row after its header.
+#[must_use]
+pub fn has_data_row(csv: &[u8]) -> bool {
+    csv.split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .nth(1)
+        .is_some()
+}
+
 /// A lookup of taxa by **common** name (`P1843`).
 ///
 /// The fallback for [`taxon_lookup_query`], which it cannot be shaped like. Three

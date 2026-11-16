@@ -181,3 +181,55 @@ fn a_repeat_search_reports_the_same_notice_as_the_first() {
         "both notices, both times"
     );
 }
+
+/// Answers the name lookup with two homonyms, and the compound probe only for
+/// the second.
+#[derive(Clone)]
+struct HomonymRepo;
+
+impl LotusRepository for HomonymRepo {
+    async fn api_search(
+        &self,
+        _: &SearchCriteria,
+        _: usize,
+        _: bool,
+    ) -> Option<Result<SearchResponse, RepositoryError>> {
+        None
+    }
+
+    async fn sparql_body(
+        &self,
+        query: &str,
+    ) -> Result<lotus_search::ResponseBody, RepositoryError> {
+        let csv = if query.contains("wd:Q900012") {
+            "compound,taxon,taxon_name,ref_qid\n1,2,Homonymia viridis,3\n"
+        } else if query.contains("wd:Q900011") {
+            "compound,taxon,taxon_name,ref_qid\n"
+        } else {
+            "taxon,taxon_name\nQ900011,Homonymia\nQ900012,Homonymia\n"
+        };
+        Ok(csv.as_bytes().to_vec().into())
+    }
+}
+
+#[test]
+fn of_two_homonyms_the_one_with_recorded_compounds_is_used() {
+    // `Michelia` is a fossil genus and a plant genus; the lookup lists the
+    // fossil first, which has no compound, so the search returned nothing.
+    let resolution = futures::executor::block_on(resolve(
+        "Homonymia",
+        &HomonymRepo,
+        &mut SearchMetrics::default(),
+    ))
+    .expect("resolves");
+    assert_eq!(resolution.qid.as_deref(), Some("Q900012"));
+    assert_eq!(
+        resolution.warnings,
+        vec![LookupNotice::AmbiguousTaxon {
+            chosen_name: "Homonymia".into(),
+            chosen_qid: "Q900012".into(),
+            candidates: vec!["Homonymia (Q900012)".into(), "Homonymia (Q900011)".into(),],
+        }],
+        "the other taxon is still named, so the reader can pick it"
+    );
+}
