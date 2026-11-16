@@ -393,7 +393,7 @@ pub const SECTIONS: &[GuideSection] = &[
                 &["Limited", "How"],
                 &[
                     "Rows per search",
-                    "Not limited. The table holds every matching row, and the counts are computed from that same set rather than by a separate query.",
+                    "Every matching row, as long as the query service can send them within its time limit; past that, a message says the result is incomplete. The counts are computed from the rows in the table.",
                 ],
                 &[
                     "Rows rendered at once",
@@ -410,10 +410,9 @@ pub const SECTIONS: &[GuideSection] = &[
             ]),
             FaqBlock::Heading("Identifiers"),
             FaqBlock::Text(
-                "A QID is a Wikidata identifier: Q followed by a number, naming one entity \
-                 unambiguously. It is the join key between your query and everything else on the \
-                 graph, and the two hash buttons give you the query and the result set as \
-                 identifiers you can quote and compare between runs.",
+                "A QID is a Wikidata identifier: the letter Q followed by a number, naming one \
+                 item without ambiguity. The two hash buttons give you the query and the result \
+                 set as identifiers you can quote and compare between runs.",
             ),
             FaqBlock::Heading("Filters change the table, not the export"),
             FaqBlock::Text(

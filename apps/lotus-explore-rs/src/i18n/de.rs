@@ -65,7 +65,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
             "Ratenlimit beim vorgelagerten Dienst erreicht. Bitte etwa eine Minute warten und erneut versuchen."
         }
         TextKey::ErrorHintQueryTooExpensive => {
-            "Diese Suche ist zu breit: der Endpunkt hat sie nach 25 Sekunden abgebrochen. Grenzen Sie sie mit Taxon, Massenbereich, Jahr oder Formel ein und führen Sie sie erneut aus."
+            "Diese Suche ist zu breit: Der Abfragedienst hat sie an seinem Zeitlimit abgebrochen. Grenzen Sie sie mit Taxon, Massenbereich, Jahr oder Formel ein und führen Sie sie erneut aus."
         }
         TextKey::ErrorHintBadRequest => {
             "Der Server hat die Anfrage abgelehnt. Bitte Suchparameter prüfen."
