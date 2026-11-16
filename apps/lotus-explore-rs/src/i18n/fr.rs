@@ -34,7 +34,10 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::PageNotFound => "Page introuvable",
         TextKey::PageNotFoundDescription => "La page demandée n'existe pas.",
         TextKey::ReturnHome => "Retour à l'accueil",
-        TextKey::ResolvedTaxon => "Taxon résolu",
+        TextKey::ResolvedTaxon => "Taxon recherché",
+        TextKey::LinkedNamesIncluded => {
+            "Les enregistrements classés sous un nom lié, par exemple un synonyme ou un basionyme, sont inclus."
+        }
         TextKey::DuplicateRowsHint => {
             "Pourquoi certains composés apparaissent-ils plusieurs fois ?"
         }

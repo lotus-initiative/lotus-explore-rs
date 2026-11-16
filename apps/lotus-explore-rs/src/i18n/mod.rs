@@ -107,6 +107,8 @@ pub enum TextKey {
     PageNotFoundDescription,
     ReturnHome,
     ResolvedTaxon,
+    /// Why rows can carry another name than the one searched.
+    LinkedNamesIncluded,
 
     /// Why one compound can appear on several rows. The label on the disclosure.
     DuplicateRowsHint,

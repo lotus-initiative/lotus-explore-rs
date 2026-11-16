@@ -34,7 +34,10 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::PageNotFound => "Pagina non trovata",
         TextKey::PageNotFoundDescription => "La pagina richiesta non esiste.",
         TextKey::ReturnHome => "Torna alla home page",
-        TextKey::ResolvedTaxon => "Taxon risolto",
+        TextKey::ResolvedTaxon => "Taxon cercato",
+        TextKey::LinkedNamesIncluded => {
+            "Sono inclusi i record registrati sotto un nome collegato, ad esempio un sinonimo o un basionimo."
+        }
         TextKey::DuplicateRowsHint => "Perché alcuni composti compaiono più di una volta?",
         TextKey::DuplicateRowsExplain => {
             "Ogni riga è un composto così come un riferimento lo riporta: un composto trovato da tre articoli occupa tre righe che differiscono solo per il riferimento. Le occorrenze sono distinte, i composti no. Il numero più piccolo accanto al conteggio delle righe indica quanti composti distinti contiene il risultato."
