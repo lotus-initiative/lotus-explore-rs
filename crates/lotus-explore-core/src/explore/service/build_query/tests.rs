@@ -21,6 +21,19 @@ fn empty_smiles_and_no_taxon_returns_all_compounds_query() {
 }
 
 #[test]
+fn a_reference_alone_requires_an_occurrence() {
+    // A reference names occurrences. With occurrences optional, the `VALUES ?r`
+    // the filter adds joins every compound that has none, so a reference-only
+    // search returned the whole graph with that reference attached to it.
+    let crit = SearchCriteria {
+        reference: "Q108766178".into(),
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    let q = build_sparql_query(&ResolvedStructure::unresolved(""), &crit, None);
+    assert_eq!(q, lotus_query::all_compounds_query());
+}
+
+#[test]
 fn taxon_qid_only_generates_by_taxon_query() {
     let crit = SearchCriteria {
         taxon: "Gentiana lutea".into(),

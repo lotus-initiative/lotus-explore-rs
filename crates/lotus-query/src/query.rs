@@ -1607,9 +1607,9 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
     // is.
     //
     // It is a `VALUES` and not a `FILTER(?r = wd:Q…)` because that is the
-    // indexed form, and because an unbound `?r` -- a compound with no occurrence,
-    // which a structure search exists to find -- simply fails to join rather than
-    // comparing against an error.
+    // indexed form. It does join a row whose `?r` is unbound -- a compound with
+    // no occurrence -- so the callers pick a base query that requires the
+    // occurrence when a reference is the only constraint.
     //
     // Only a QID is emitted, and only after [`looks_like_reference_qid`] has said
     // the field is one. `wd:` takes an IRI local name, so `{ } . # ;` are syntax

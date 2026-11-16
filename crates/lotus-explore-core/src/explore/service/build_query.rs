@@ -82,7 +82,11 @@ pub fn build_sparql_query(
                 lotus_query::compounds_by_taxon_query_with(qid, &nomenclature)
             }
             Some(_) => lotus_query::all_compounds_query(),
-            None if crit.taxon.trim() == "*" => lotus_query::all_compounds_query(),
+            // `*` asks for an occurrence, and so does a reference: with them
+            // optional, its `VALUES ?r` joins every compound that has none.
+            None if crit.taxon.trim() == "*" || !crit.reference.trim().is_empty() => {
+                lotus_query::all_compounds_query()
+            }
             None => lotus_query::all_compounds_including_untaxonomised_query(),
         };
     }

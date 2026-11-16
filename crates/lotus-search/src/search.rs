@@ -115,6 +115,9 @@ pub fn build_base_query(criteria: &SearchCriteria, qid: Option<&str>) -> String 
         None => match qid {
             Some(qid) if qid != "*" => compounds_by_taxon_query_with(qid, &nomenclature),
             Some(_) => all_compounds_query(),
+            // A reference names occurrences: with them optional, its `VALUES ?r`
+            // joins every compound that has none.
+            None if !criteria.reference.trim().is_empty() => all_compounds_query(),
             None => all_compounds_including_untaxonomised_query(),
         },
     }
