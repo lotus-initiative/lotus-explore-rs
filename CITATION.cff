@@ -5,7 +5,7 @@ title: LOTUS Explorer
 abstract: A linked open data explorer for the LOTUS compound-taxon-reference knowledge graph in Wikidata, queried over SPARQL.
 version: 0.1.0
 license: AGPL-3.0-only
-repository-code: "https://github.com/lotusnprod/lotus-explore-rs"
+repository-code: "https://github.com/lotus-initiative/lotus-explore-rs"
 url: "https://lotus-initiative.github.io/lotus-explore-rs"
 identifiers:
   - type: url

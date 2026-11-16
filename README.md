@@ -1,7 +1,7 @@
 # lotus-explore-rs
 
-[![CI](https://github.com/lotusnprod/lotus-explore-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/lotusnprod/lotus-explore-rs/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/lotusnprod/lotus-explore-rs/graph/badge.svg)](https://codecov.io/gh/lotusnprod/lotus-explore-rs)
+[![CI](https://github.com/lotus-initiative/lotus-explore-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/lotus-initiative/lotus-explore-rs/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/lotus-initiative/lotus-explore-rs/graph/badge.svg)](https://codecov.io/gh/lotus-initiative/lotus-explore-rs)
 
 A linked open data explorer for the [LOTUS](https://doi.org/10.7554/eLife.70780) compound-taxon-reference
 knowledge graph from Wikidata, queried over SPARQL.

@@ -1,6 +1,6 @@
 {
-  "name": "LOTUS Explore-rs",
-  "short_name": "LOTUS-rs",
+  "name": "LOTUS Explorer",
+  "short_name": "LOTUS Explorer",
   "description": "Explore LOTUS with taxon filters, structure search, and Wikidata curation workflows.",
   "start_url": "./",
   "scope": "./",

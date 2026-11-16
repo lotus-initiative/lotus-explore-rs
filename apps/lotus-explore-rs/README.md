@@ -2,7 +2,7 @@
 
 [![AGPL-3.0
 license](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0.html)
-[![CI](https://github.com/lotusnprod/lotus-explore-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/lotusnprod/lotus-explore-rs/actions/workflows/ci.yml)
+[![CI](https://github.com/lotus-initiative/lotus-explore-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/lotus-initiative/lotus-explore-rs/actions/workflows/ci.yml)
 
 `lotus-explore-rs` --- LOTUS Explorer.
 

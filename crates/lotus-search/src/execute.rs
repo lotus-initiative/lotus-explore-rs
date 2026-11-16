@@ -487,7 +487,7 @@ impl QLever {
     const CLIENT_ID: &'static str = concat!(
         "lotus-explore-rs/",
         env!("CARGO_PKG_VERSION"),
-        " (+https://github.com/lotusnprod/lotus-explore-rs)"
+        " (+https://github.com/lotus-initiative/lotus-explore-rs)"
     );
 }
 

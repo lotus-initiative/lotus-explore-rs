@@ -1,4 +1,4 @@
-# LOTUS Explore-rs
+# LOTUS Explorer
 
 > Explore LOTUS with taxon filters, structure search, and Wikidata curation workflows.
 
@@ -7,8 +7,8 @@ root-relative link resolves to the domain root and 404s.
 
 ## Core information
 
-- **Official name**: LOTUS Explore-rs
-- **Short name**: LOTUS-rs
+- **Official name**: LOTUS Explorer
+- **Short name**: LOTUS Explorer
 - **Purpose**: Interactive exploration of chemical entity occurrence data
 - **Data domain**: Natural products, chemical compounds, taxonomy, scientific references
 - **Access model**: Free, web-based, no authentication required
@@ -30,12 +30,12 @@ root-relative link resolves to the domain root and 404s.
 In the repository. These are design and operations notes rather than user
 documentation, and are not served from the site itself.
 
-- [Architecture](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/ARCHITECTURE.md)
-- [Design system](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/DESIGN_SYSTEM.md)
-- [Performance](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/PERFORMANCE.md)
-- [Deployment](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/DEPLOYMENT.md)
-- [Citation](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/CITATION.md)
-- [Curation share links](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/CURATION_SHARE_LINKS.md)
+- [Architecture](https://github.com/lotus-initiative/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/ARCHITECTURE.md)
+- [Design system](https://github.com/lotus-initiative/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/DESIGN_SYSTEM.md)
+- [Performance](https://github.com/lotus-initiative/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/PERFORMANCE.md)
+- [Deployment](https://github.com/lotus-initiative/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/DEPLOYMENT.md)
+- [Citation](https://github.com/lotus-initiative/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/CITATION.md)
+- [Curation share links](https://github.com/lotus-initiative/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/CURATION_SHARE_LINKS.md)
 
 ## Discovery
 
@@ -100,6 +100,6 @@ Wikidata and third-party services and is flagged `untrustedContentHint`.
 ## Project
 
 - [App](https://lotus-initiative.github.io/lotus-explore-rs/)
-- [Repository and source](https://github.com/lotusnprod/lotus-explore-rs)
-- [Issues](https://github.com/lotusnprod/lotus-explore-rs/issues)
-- [Discussions](https://github.com/lotusnprod/lotus-explore-rs/discussions)
+- [Repository and source](https://github.com/lotus-initiative/lotus-explore-rs)
+- [Issues](https://github.com/lotus-initiative/lotus-explore-rs/issues)
+- [Discussions](https://github.com/lotus-initiative/lotus-explore-rs/discussions)

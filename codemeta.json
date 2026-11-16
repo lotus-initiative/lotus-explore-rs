@@ -24,9 +24,9 @@
       "url": "https://doi.org/10.7554/eLife.70780"
     }
   ],
-  "codeRepository": "https://github.com/lotusnprod/lotus-explore-rs",
+  "codeRepository": "https://github.com/lotus-initiative/lotus-explore-rs",
   "contIntegration": [
-    "https://github.com/lotusnprod/lotus-explore-rs/actions"
+    "https://github.com/lotus-initiative/lotus-explore-rs/actions"
   ],
   "datePublished": "2026-09-22",
   "description": "A linked open data explorer for the LOTUS compound-taxon-reference knowledge graph in Wikidata, queried over SPARQL.",
@@ -38,7 +38,7 @@
     "Bioschemas-compliant JSON-LD export",
     "QuickStatements curation for compounds Wikidata is missing"
   ],
-  "issueTracker": "https://github.com/lotusnprod/lotus-explore-rs/issues",
+  "issueTracker": "https://github.com/lotus-initiative/lotus-explore-rs/issues",
   "keywords": [
     "natural products",
     "linked open data",
@@ -59,11 +59,11 @@
     "name": "Rust",
     "url": "https://www.rust-lang.org"
   },
-  "readme": "https://github.com/lotusnprod/lotus-explore-rs/blob/main/README.md",
+  "readme": "https://github.com/lotus-initiative/lotus-explore-rs/blob/main/README.md",
   "relatedLink": [
     "https://lotus-initiative.github.io/lotus-explore-rs",
-    "https://github.com/lotusnprod/lotus-explore-rs/issues",
-    "https://github.com/lotusnprod/lotus-explore-rs/blob/main/CONTRIBUTING.md"
+    "https://github.com/lotus-initiative/lotus-explore-rs/issues",
+    "https://github.com/lotus-initiative/lotus-explore-rs/blob/main/CONTRIBUTING.md"
   ],
   "softwareRequirements": [
     {

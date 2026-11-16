@@ -263,7 +263,7 @@ fn build_sitemap_xml(meta: &Metadata) -> String {
 fn build_ai_catalog(meta: &Metadata) -> Result<String, Box<dyn Error>> {
     let s = &meta.site;
     let base = s.base_url.trim_end_matches('/');
-    let publisher = "lotusnprod";
+    let publisher = "lotus-initiative";
     let catalog = serde_json::json!({
         "specVersion": "1.0",
         "host": {
@@ -515,7 +515,7 @@ fn build_humans_txt(meta: &Metadata) -> String {
         /* Reference: https://specification.website/spec/foundations/ */\n\n\
         /* TEAM */\n\
         \x20 Name: Lotus Initiative contributors\n\
-        \x20 GitHub: https://github.com/lotusnprod\n\
+        \x20 GitHub: https://github.com/lotus-initiative\n\
         \x20 Location: Switzerland\n\
         \x20 Email: Contact via {issues_url}\n\n\
         /* THANKS */\n\

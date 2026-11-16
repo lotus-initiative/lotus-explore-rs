@@ -261,10 +261,10 @@ ARG VCS_REF=unknown
 
 LABEL org.opencontainers.image.title="lotus-explore-rs" \
       org.opencontainers.image.description="LOTUS explorer: the query API and the web client" \
-      org.opencontainers.image.url="https://github.com/lotusnprod/lotus-explore-rs" \
-      org.opencontainers.image.source="https://github.com/lotusnprod/lotus-explore-rs" \
+      org.opencontainers.image.url="https://github.com/lotus-initiative/lotus-explore-rs" \
+      org.opencontainers.image.source="https://github.com/lotus-initiative/lotus-explore-rs" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
-      org.opencontainers.image.vendor="lotusnprod" \
+      org.opencontainers.image.vendor="lotus-initiative" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.version="0.1.0"
 
@@ -306,7 +306,7 @@ ARG VCS_REF=unknown
 
 LABEL org.opencontainers.image.title="lotus-explore-rs-web" \
       org.opencontainers.image.description="The LOTUS explorer web client, without the API" \
-      org.opencontainers.image.source="https://github.com/lotusnprod/lotus-explore-rs" \
+      org.opencontainers.image.source="https://github.com/lotus-initiative/lotus-explore-rs" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.revision="${VCS_REF}"
 
@@ -327,7 +327,7 @@ ARG VCS_REF=unknown
 
 LABEL org.opencontainers.image.title="lotus" \
       org.opencontainers.image.description="Search LOTUS from a terminal, and export the result" \
-      org.opencontainers.image.source="https://github.com/lotusnprod/lotus-explore-rs" \
+      org.opencontainers.image.source="https://github.com/lotus-initiative/lotus-explore-rs" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.revision="${VCS_REF}"
 
