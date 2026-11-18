@@ -505,3 +505,80 @@ fn deploy_workflow_resolves_ketcher_chunks_from_index_html() -> Result<()> {
     );
     Ok(())
 }
+
+/// Running `actions/upload-pages-artifact` and `actions/deploy-pages` in one
+/// job raced the Actions artifact index (`Found 0 artifact(s)`, run
+/// `44295793507` attempt 1) and made "Re-run failed jobs" upload a duplicate
+/// `github-pages` artifact (`Artifact count is 2`, attempt 2). Keep them in
+/// separate jobs sequenced with `needs:`.
+#[test]
+fn deploy_workflow_separates_artifact_upload_from_pages_deploy_job() -> Result<()> {
+    let deploy = read(".github/workflows/deploy.yml")?;
+    let mut in_jobs = false;
+    let mut current_job: Option<(String, Vec<String>)> = None;
+    let mut jobs: Vec<(String, String)> = Vec::new();
+
+    for line in deploy.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        if !line.starts_with(' ') {
+            if let Some((name, body)) = current_job.take() {
+                jobs.push((name, body.join("\n")));
+            }
+            in_jobs = trimmed == "jobs:";
+            continue;
+        }
+        if !in_jobs {
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("  ")
+            && !rest.starts_with(' ')
+            && let Some(name) = rest.trim_end().strip_suffix(':')
+        {
+            if let Some((prev, body)) = current_job.take() {
+                jobs.push((prev, body.join("\n")));
+            }
+            current_job = Some((name.to_owned(), Vec::new()));
+            continue;
+        }
+        if let Some((_, ref mut body)) = current_job {
+            body.push(trimmed.to_owned());
+        }
+    }
+    if let Some((name, body)) = current_job {
+        jobs.push((name, body.join("\n")));
+    }
+
+    let upload_jobs: Vec<&str> = jobs
+        .iter()
+        .filter(|(_, body)| body.contains("actions/upload-pages-artifact"))
+        .map(|(name, _)| name.as_str())
+        .collect();
+    let deploy_jobs: Vec<(&str, &str)> = jobs
+        .iter()
+        .filter(|(_, body)| body.contains("actions/deploy-pages"))
+        .map(|(name, body)| (name.as_str(), body.as_str()))
+        .collect();
+
+    let [upload_job] = upload_jobs.as_slice() else {
+        return Err(format!("expected 1 upload-pages-artifact job, found {upload_jobs:?}").into());
+    };
+    let [(deploy_job, deploy_body)] = deploy_jobs.as_slice() else {
+        return Err(format!("expected 1 deploy-pages job, found {}", deploy_jobs.len()).into());
+    };
+    assert_ne!(
+        upload_job, deploy_job,
+        "upload-pages-artifact and deploy-pages must live in separate jobs so \
+         artifact indexing settles before deploy and re-running deploy never \
+         uploads a duplicate `github-pages` artifact"
+    );
+    assert!(
+        deploy_body
+            .lines()
+            .any(|l| l == format!("needs: {upload_job}")),
+        "job `{deploy_job}` must declare `needs: {upload_job}`"
+    );
+    Ok(())
+}

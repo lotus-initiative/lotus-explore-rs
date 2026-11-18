@@ -7,23 +7,18 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: "pages"
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     # The build fetches ~115 MB and compiles the wasm bundle. Without a ceiling a hung
     # network call holds the job for the six-hour runner limit instead of failing in
     # one where the log says what happened.
     timeout-minutes: 45
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with: { persist-credentials: false, fetch-depth: 1 }
@@ -149,7 +144,6 @@ jobs:
         run: find _final_site -name '.DS_Store*' -delete
 
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
-
         with:
           path: _final_site
           # Defaults to false, which tars the bundle with `--exclude=.[^/]*` and
@@ -157,6 +151,23 @@ jobs:
           # `.git` and `.github` stay excluded regardless.
           include-hidden-files: true
 
+  # Separate job from `build` for two reasons observed in run 44295793507:
+  # 1. Running `deploy-pages` in the same job ~340 ms after `upload-pages-artifact`
+  #    races the Actions artifact index (`No artifacts named "github-pages" were found`).
+  # 2. Re-running a failed single-job deploy re-runs `upload-pages-artifact` in the
+  #    same workflow run, attaching a second `github-pages` artifact that permanently
+  #    fails `deploy-pages` (`Multiple artifacts named "github-pages" ... count is 2`).
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346
         id: deployment
 
