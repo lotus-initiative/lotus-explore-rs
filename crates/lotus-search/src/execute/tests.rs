@@ -325,9 +325,9 @@ fn the_ceiling_is_read_from_the_endpoint_constant() {
     assert_eq!(parsed, Some(30));
 }
 
-// The token half reads `LOTUS_QLEVER_TOKEN`, so only the half that does not is reachable
-// here, pinned because a client that stopped identifying itself is a failure no status
-// code reports.
+// Pinned regardless of environment because a client that stopped identifying itself is
+// a failure no status code reports; `LOTUS_QLEVER_TOKEN` is exercised in clean child
+// processes by `request_headers_follow_lotus_qlever_token_in_the_environment`.
 
 #[test]
 fn every_request_identifies_the_client_first() {
@@ -552,6 +552,65 @@ fn an_empty_or_whitespace_token_is_not_a_token() {
         access_token_from(|_| Some("  secret  ".to_string())).as_deref(),
         Some("secret")
     );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn request_headers_follow_lotus_qlever_token_in_the_environment()
+-> Result<(), Box<dyn std::error::Error>> {
+    const MODE_ENV: &str = "LOTUS_TEST_TOKEN_SUBPROCESS";
+    match std::env::var(MODE_ENV).ok().as_deref() {
+        Some("unset") => {
+            assert_eq!(
+                access_token(),
+                None,
+                "with LOTUS_QLEVER_TOKEN unset, no access token may be synthesized"
+            );
+            assert_eq!(
+                request_headers(),
+                vec![("api-user-agent", QLever::CLIENT_ID.to_string())],
+                "anonymous requests carry only api-user-agent"
+            );
+            return Ok(());
+        }
+        Some("set") => {
+            assert_eq!(
+                access_token().as_deref(),
+                Some("env-secret"),
+                "access_token must read and trim LOTUS_QLEVER_TOKEN from std::env"
+            );
+            assert_eq!(
+                request_headers(),
+                vec![
+                    ("api-user-agent", QLever::CLIENT_ID.to_string()),
+                    (ACCESS_TOKEN_HEADER, "Bearer env-secret".to_string()),
+                ],
+                "authenticated requests append Authorization: Bearer <token>"
+            );
+            return Ok(());
+        }
+        _ => {}
+    }
+
+    let exe = std::env::current_exe()?;
+    let filter = "execute::tests::request_headers_follow_lotus_qlever_token_in_the_environment";
+    for (mode, token) in [("unset", None), ("set", Some("  env-secret  "))] {
+        let mut cmd = std::process::Command::new(&exe);
+        cmd.args([filter, "--exact"]).env(MODE_ENV, mode);
+        if let Some(val) = token {
+            cmd.env("LOTUS_QLEVER_TOKEN", val);
+        } else {
+            cmd.env_remove("LOTUS_QLEVER_TOKEN");
+        }
+        let out = cmd.output()?;
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            out.status.success() && stdout.contains("1 passed;"),
+            "subprocess ({mode}) failed:\nstdout:\n{stdout}\nstderr:\n{stderr}"
+        );
+    }
+    Ok(())
 }
 
 /// WDQS reports a query that outran its time limit as a 500 whose body is the

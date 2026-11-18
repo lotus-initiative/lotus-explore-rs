@@ -112,11 +112,12 @@ pub fn non_empty(s: &str) -> Option<&str> {
     reason = "identify is private; shared with sibling module structure without widening public API"
 )]
 pub fn find_ascii_ci(haystack: &str, needle: &[u8]) -> Option<usize> {
-    let hay = haystack.as_bytes();
-    if needle.is_empty() || hay.len() < needle.len() {
+    if needle.is_empty() {
         return None;
     }
-    hay.windows(needle.len())
+    haystack
+        .as_bytes()
+        .windows(needle.len())
         .position(|w| w.iter().zip(needle).all(|(a, b)| a.eq_ignore_ascii_case(b)))
 }
 
