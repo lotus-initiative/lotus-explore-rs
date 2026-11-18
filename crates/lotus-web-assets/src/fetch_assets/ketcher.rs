@@ -78,8 +78,10 @@ fn is_unsafe_entry_path(relative: &str) -> bool {
 /// The single top-level directory every name in the archive shares, if there is
 /// exactly one.
 ///
-/// Ketcher's release zip nests its whole payload under `standalone/`, which would
-/// otherwise put the editor two levels down. An archive with more than one
+/// Ketcher's release zips up to v3.19 nest their whole payload under
+/// `standalone/`, which would otherwise put the editor two levels down; from
+/// v3.20 the payload sits at the archive root, which has many top-level entries
+/// and so is extracted as it is. An archive with more than one
 /// top-level entry gets nothing stripped: picking one of several is how a file
 /// from the wrong place ends up on disk, so the layout is left as it is.
 fn common_prefix<'a>(names: impl Iterator<Item = &'a str>) -> Option<String> {
