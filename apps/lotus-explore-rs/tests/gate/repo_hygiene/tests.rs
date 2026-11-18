@@ -464,3 +464,44 @@ fn skip_string_literal(bytes: &[u8], i: &mut usize, line: &mut usize) {
         }
     }
 }
+
+/// `fetch-assets` pulls the latest Ketcher release, whose webpack chunks carry
+/// per-release content hashes (`static/js/main.<hash>.js`). Pinning one hash in
+/// `.github/workflows/deploy.yml` passed every local and PR gate while breaking
+/// `Deploy to GitHub Pages` on the next Ketcher release (`f513949`).
+#[test]
+fn deploy_workflow_resolves_ketcher_chunks_from_index_html() -> Result<()> {
+    let deploy = read(".github/workflows/deploy.yml")?;
+    let mut pinned = Vec::new();
+    for (idx, line) in deploy.lines().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('#') {
+            continue;
+        }
+        if let Some((_, after)) = trimmed.split_once("ketcher/static/") {
+            let token = after
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .trim_end_matches('\\');
+            let has_hex_segment = token
+                .split('.')
+                .any(|part| part.len() >= 6 && part.as_bytes().iter().all(u8::is_ascii_hexdigit));
+            if has_hex_segment {
+                pinned.push(format!("line {}: {trimmed}", idx + 1));
+            }
+        }
+    }
+    assert!(
+        pinned.is_empty(),
+        ".github/workflows/deploy.yml pins a hashed Ketcher chunk while `fetch-assets` \
+         fetches `latest`; resolve relative refs from `assets/ketcher/index.html` instead:\n  {}",
+        pinned.join("\n  ")
+    );
+    assert!(
+        deploy.contains("_final_site/assets/ketcher/index.html") && deploy.contains("(src|href)="),
+        ".github/workflows/deploy.yml must verify Ketcher's relative `src`/`href` \
+         references from `_final_site/assets/ketcher/index.html`"
+    );
+    Ok(())
+}

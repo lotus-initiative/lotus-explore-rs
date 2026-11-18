@@ -104,14 +104,25 @@ jobs:
       - name: Verify the third-party assets are exported
         run: |
           for f in assets/ketcher/index.html \
-                   assets/ketcher/static/js/main.e47c48ad.js \
                    assets/vendor/rdkit/RDKit_minimal.js \
                    assets/vendor/rdkit/RDKit_minimal.wasm; do
             test -f "_final_site/$f" || {
               echo "::error::missing $f from the export"; exit 1; }
           done
-          # The editor loads its chunks by relative path, so the directory has to have
-          # travelled whole rather than as a lone entry document.
+          # Ketcher's entry bundle is content-hashed (`static/js/main.<hash>.js`) and
+          # `fetch-assets` pulls the latest release, so resolve the relative `src`/`href`
+          # paths from `ketcher/index.html` itself rather than pinning one release's hash.
+          refs=$({ grep -oE '(src|href)="\./[^"]+"' _final_site/assets/ketcher/index.html || true; } \
+            | sed -E 's/^[a-z]+="//; s/"$//' | sort -u)
+          printf '%s\n' "$refs" | grep -qE '\.js$' || {
+            echo "::error::ketcher/index.html references no relative .js entry bundle"; exit 1; }
+          while IFS= read -r ref; do
+            [ -n "$ref" ] || continue
+            test -f "_final_site/assets/ketcher/${ref#./}" || {
+              echo "::error::ketcher/index.html references $ref, which is missing from the export"; exit 1; }
+          done <<< "$refs"
+          # The editor loads its lazy chunks by relative path too, so the directory has
+          # to have travelled whole rather than only the files named in `index.html`.
           n=$(find _final_site/assets/ketcher -type f | wc -l | tr -d ' ')
           test "$n" -ge 20 || {
             echo "::error::only $n ketcher files exported; expected the whole directory"; exit 1; }
