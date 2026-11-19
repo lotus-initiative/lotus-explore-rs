@@ -21,6 +21,7 @@ fn finding(smiles: &str) -> Finding {
         smiles: smiles.into(),
         taxon: None,
         doi: None,
+        status: None,
     }
 }
 
@@ -31,6 +32,7 @@ fn row(status: &CurationStatus) -> CurationResultRow {
             smiles: "CCO".into(),
             taxon: None,
             doi: None,
+            status: None,
         },
         canonical_smiles: None,
         isomeric_smiles: None,
@@ -287,6 +289,7 @@ async fn curate_row_clears_statements_when_wikidata_lookup_fails() {
         smiles: "CCO".into(),
         taxon: Some("Gentiana lutea".into()),
         doi: Some("10.1000/abc".into()),
+        status: None,
     };
 
     let result = super::curate_row(&dead_http, &input, &converted).await;
@@ -332,6 +335,7 @@ fn an_offline_row_emits_nothing_for_an_unresolved_taxon_or_reference() {
         smiles: "CCO".into(),
         taxon: Some("Gentiana lutea".into()),
         doi: Some("10.1/x".into()),
+        status: None,
     });
 
     assert_eq!(row.quickstatements.len(), 1, "{:?}", row.quickstatements);

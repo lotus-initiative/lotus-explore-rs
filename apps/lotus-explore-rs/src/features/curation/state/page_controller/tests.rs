@@ -22,6 +22,7 @@ fn rows_to_tsv_writes_expected_header_and_cells() {
         smiles: "CCO".into(),
         taxon: Some("Tax\ton".into()),
         doi: Some("10.1/ABC".into()),
+        status: None,
     }];
 
     let tsv = rows_to_tsv(&rows);

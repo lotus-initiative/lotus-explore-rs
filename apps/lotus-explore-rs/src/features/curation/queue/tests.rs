@@ -26,6 +26,7 @@ fn append_unique_rows_skips_existing_and_duplicate_candidates() {
         smiles: "CCO".into(),
         taxon: Some("Taxon".into()),
         doi: Some("10.1/ABC".into()),
+        status: None,
     }];
 
     let outcome = append_unique_rows(
@@ -36,18 +37,21 @@ fn append_unique_rows_skips_existing_and_duplicate_candidates() {
                 smiles: "CCO".into(),
                 taxon: Some("taxon".into()),
                 doi: Some("https://doi.org/10.1/abc".into()),
+                status: None,
             },
             CurationInputRow {
                 name: "B".into(),
                 smiles: "CCN".into(),
                 taxon: None,
                 doi: None,
+                status: None,
             },
             CurationInputRow {
                 name: "B-duplicate-2".into(),
                 smiles: "CCN".into(),
                 taxon: None,
                 doi: None,
+                status: None,
             },
         ],
     );

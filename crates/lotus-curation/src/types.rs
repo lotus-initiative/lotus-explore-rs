@@ -15,6 +15,11 @@ pub struct CurationInputRow {
     pub taxon: Option<String>,
     /// The reference `DOI`, if the row cites one.
     pub doi: Option<String>,
+    /// Optional curation status (e.g., `revised`, `confirmed`, `new`).
+    /// Rows marked `revised` suppress automatic `CREATE` statement emission so
+    /// a curator can deprecate or update the prior Wikidata claim manually.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]

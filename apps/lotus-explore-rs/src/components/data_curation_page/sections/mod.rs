@@ -289,7 +289,7 @@ pub fn QueueRowsCard(
     on_process: EventHandler<()>,
 ) -> Element {
     // `rows.read().clone()` on every render deep-copied the whole
-    // `Vec<CurationInputRow>` — four `String`s plus three `Option<String>` per row
+    // `Vec<CurationInputRow>` — two `String`s plus three `Option<String>` per row
     // — on every re-render for an unrelated reason, and every keystroke in the TSV
     // textarea re-renders this card. The memo copies once per actual change to
     // `rows`, then each render takes a refcount bump, and the read guard is dropped

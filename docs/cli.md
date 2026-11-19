@@ -178,9 +178,13 @@ lotus curate findings.tsv --output statements.txt
 ```
 
 The input is a TSV or CSV table with `name` (or `compound_name`) and `smiles`
-columns, and optionally `taxon` (or `organism`, `species`) and `doi`
-(`reference_doi`). Columns are matched by name, so extra columns from a
-spreadsheet export are ignored rather than shifting everything:
+columns, and optionally `taxon` (or `organism`, `organism_name`, `source_organism`,
+`species`), `doi` (`reference_doi`), and `status`. When `status` is `revised`,
+automatic `CREATE` statement emission is suppressed so a curator can review and
+deprecate or update the superseded claim manually. Columns are matched by name, so
+extra metadata columns (`compound_number`, `inchikey`, `organism_id`, `tissue`,
+`evidence`, `host`, `voucher_or_strain`, `part`; see [`examples/curation_example.tsv`](../examples/curation_example.tsv))
+are ignored cleanly rather than shifting everything:
 
 ```tsv
 name    smiles  taxon   doi

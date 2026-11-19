@@ -1,0 +1,4 @@
+compound_number	compound_name	smiles	inchikey	organism_name	organism_id	tissue	evidence	status	doi
+1	carnosol	CC(C)C1=C(C(=C2C(=C1)[C@@H]3C[C@@H]4[C@@]2(CCCC4(C)C)C(=O)O3)O)O	XUSYGBPHQBWGAD-PJSUUKDQSA-N	Salvia rosmarinus	OTT:108914	aerial parts	isolated	confirmed	10.7554/eLife.70780
+2	Voatriafricanine A	OC12N3C4=C(O)C([C@H](C[C@H]/5[C@@H]6C(OC)=O)C(N([H])C7=C8C=CC=C7)=C8CC6N(C)CC5=C\C)=CC=C4[C@@]19CCN%10C9[C@@]%11(C[C@H]2C[C@H]%12[C@H]%13[C@@]%14(CC(C(OC)=O)=C%15NC%16=CC=CC=C%16[C@@]%15%17CCN([C@@H]%123)C%14%17)CCO%13)CCO[C@H]%11CC%10		Voacanga africana	OTT:568473	bark	isolated	new	10.1021/acs.jnatprod.1c00812
+3	aspirin	CC(=O)Oc1ccccc1C(=O)O	BSYNRYMUTXBXSQ-UHFFFAOYSA-N	Salvia rosmarinus	OTT:108914	leaf	isolated	revised	10.7554/eLife.70780

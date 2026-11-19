@@ -32,6 +32,7 @@ impl Fixture {
                 smiles: "CCO".to_owned(),
                 taxon: None,
                 doi: None,
+                status: None,
             },
             structure: Converted {
                 canonical_smiles: "CCO".to_owned(),

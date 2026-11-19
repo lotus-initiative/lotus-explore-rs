@@ -270,6 +270,13 @@ fn missing_compound_property_statements(
     lines
 }
 
+/// Whether `row` marks a structural or biological revision (`status=revised`).
+fn is_revised_row(row: &CurationInputRow) -> bool {
+    row.status
+        .as_deref()
+        .is_some_and(|s| s.trim().eq_ignore_ascii_case("revised"))
+}
+
 /// The statements a row needs, and what curation concluded about it.
 ///
 /// Empty when the row is already correct, which is the whole point: the answer
@@ -280,8 +287,15 @@ pub fn statements_for(
     converted: &crate::ConvertedStructure,
     lookup: &WikidataLookup,
 ) -> Vec<String> {
-    let mut out = Vec::new();
     let name = escape_quickstatements(row.name.trim());
+    if is_revised_row(row) {
+        return vec![format!(
+            "## {name}\n# marked status=revised: automatic item creation and statement emission are suppressed. \
+             Review the prior Wikidata item and deprecate or update the superseded statement manually."
+        )];
+    }
+
+    let mut out = Vec::new();
     let ref_pending = is_reference_pending(row, lookup);
 
     let Some(compound) = &lookup.compound else {
@@ -425,6 +439,11 @@ pub fn to_result_row(
         // Not "new": the run could not tell, and reporting a compound as new
         // because the identifier was missing is how a duplicate gets made.
         CurationStatus::Error
+    } else if is_revised_row(row) {
+        // Revising a previously reported structure or taxon assignment requires
+        // deprecating or updating the prior claim rather than creating a
+        // duplicate item or statement.
+        CurationStatus::ExistingNeedsUpdates
     } else if deps_pending {
         CurationStatus::PendingDependencies
     } else if lookup.compound.is_some() {
@@ -440,6 +459,11 @@ pub fn to_result_row(
     };
 
     let mut note = String::new();
+    if is_revised_row(row) {
+        note.push_str(
+            "row marked status=revised; manual review required to deprecate or update the superseded Wikidata statement instead of creating a duplicate. ",
+        );
+    }
     if !key.is_known() {
         note.push_str("no InChIKey for this structure; nothing could be looked up. ");
     }

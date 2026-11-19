@@ -64,6 +64,7 @@ mod unit {
             smiles: smiles.into(),
             taxon: taxon.map(std::borrow::ToOwned::to_owned),
             doi: doi.map(std::borrow::ToOwned::to_owned),
+            status: None,
         }
     }
 
@@ -532,6 +533,7 @@ mod networked {
             smiles: "CCO".into(),
             taxon: Some("Gentiana lutea".into()),
             doi: Some("10.1/a".into()),
+            status: None,
         }
     }
 
@@ -991,5 +993,44 @@ mod networked {
              row would carry creation statements for something that may already exist"
         );
         assert!(error.to_string().contains("no results"));
+    }
+
+    #[test]
+    fn status_revised_suppresses_create_and_marks_manual_review() {
+        let mut revised = row();
+        revised.status = Some("Revised".into());
+
+        // Missing compound in Wikidata: must NOT emit CREATE or report NewCompound.
+        let missing_lookup = crate::WikidataLookup::default();
+        let result = to_result_row(&revised, &key(), &missing_lookup);
+        assert_eq!(result.status, CurationStatus::ExistingNeedsUpdates);
+        assert!(result.note.contains("status=revised"), "{}", result.note);
+        assert_eq!(result.quickstatements.len(), 1);
+        assert!(
+            !result.quickstatements[0].contains("CREATE"),
+            "{:?}",
+            result.quickstatements
+        );
+        assert!(
+            result.quickstatements[0].contains("status=revised"),
+            "{:?}",
+            result.quickstatements
+        );
+
+        // Existing compound in Wikidata: still suppresses automatic statements.
+        let existing_lookup = crate::WikidataLookup {
+            compound: Some(crate::WikidataCompound {
+                qid: "Q1".into(),
+                canonical_smiles: Some("CCO".into()),
+                ..crate::WikidataCompound::default()
+            }),
+            taxon_qid: Some("Q16521".into()),
+            reference_qid: Some("Q100".into()),
+            has_occurrence: Some(false),
+        };
+        let existing_res = to_result_row(&revised, &key(), &existing_lookup);
+        assert_eq!(existing_res.status, CurationStatus::ExistingNeedsUpdates);
+        assert_eq!(existing_res.quickstatements.len(), 1);
+        assert!(existing_res.quickstatements[0].starts_with("## "));
     }
 }
