@@ -531,3 +531,32 @@ fn a_value_that_would_break_the_document_is_escaped() {
         "the value must survive escaping: {label_line:?}"
     );
 }
+
+#[test]
+fn write_jsonld_uses_supplied_and_live_rfc3339_timestamps() {
+    let result = SearchResult {
+        query: "SELECT ?c WHERE {}".into(),
+        rows: vec![full_entry()],
+        taxon: None,
+        stats: None,
+        truncated: false,
+    };
+
+    let mut pinned = Vec::new();
+    write_jsonld_at(&mut pinned, &result, "2026-07-08T09:10:11Z").expect("jsonld");
+    let doc: serde_json::Value = serde_json::from_slice(&pinned).expect("valid json");
+    assert_eq!(
+        doc.pointer("/@graph/0/datePublished")
+            .and_then(serde_json::Value::as_str),
+        Some("2026-07-08T09:10:11Z")
+    );
+
+    let mut live = Vec::new();
+    write_jsonld(&mut live, &result).expect("jsonld");
+    let live_doc: serde_json::Value = serde_json::from_slice(&live).expect("valid json");
+    let stamp = live_doc
+        .pointer("/@graph/0/datePublished")
+        .and_then(serde_json::Value::as_str)
+        .expect("datePublished string");
+    chrono::DateTime::parse_from_rfc3339(stamp).expect("RFC 3339 UTC timestamp");
+}

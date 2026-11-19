@@ -389,7 +389,7 @@ pub fn citation_cff(software: &Software) -> String {
     if let Some(paper) = software.paper {
         use std::fmt::Write as _;
         let mut reference = format!(
-            "references:\n  - type: article\n    title: {}\n    journal: eLife\n    year: '{}'\n    doi: {}\n    url: {}\n    authors:\n      - name: \"{}\"",
+            "references:\n  - type: article\n    title: {}\n    journal: eLife\n    year: {}\n    doi: {}\n    url: {}\n    authors:\n      - name: \"{}\"",
             yaml_scalar(paper.title),
             paper.year,
             yaml_scalar(paper.doi),

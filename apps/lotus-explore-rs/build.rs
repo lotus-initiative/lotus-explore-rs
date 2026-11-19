@@ -473,7 +473,7 @@ fn build_llms_txt(meta: &Metadata) -> String {
         - Structured data: JSON-LD in the page head\n\n\
         {webmcp_notes}## Data sources\n\n\
         - [Wikidata Query Service](https://query.wikidata.org/)\n\
-        - [QLever Wikidata endpoint](https://qlever.cs.uni-freiburg.de/wikidata)\n\
+        - [QLever Wikidata endpoint](https://qlever.dev/wikidata)\n\
         - [DOI metadata](https://doi.org/)\n\
         - [LOTUS initiative]({lotus_home_url})\n\n\
         ## Citation\n\n\
@@ -482,7 +482,7 @@ fn build_llms_txt(meta: &Metadata) -> String {
         - [BibTeX]({base}docs/references.bib)\n\n\
         ## Licensing\n\n\
         - App: [AGPL-3.0]({app_license_url})\n\
-        - Data: [CC0 1.0]({data_license_url})\n\n\
+        - Wikidata data: [CC0 1.0]({data_license_url}) (application code is AGPL-3.0; external literature abstracts remain under publisher copyright)\n\n\
         ## Project\n\n\
         - [App]({base_url})\n\
         - [Repository and source]({repo_url})\n\
@@ -537,7 +537,7 @@ fn build_humans_txt(meta: &Metadata) -> String {
         \x20 Curation: TSV import, QuickStatements generation, structure resolution lookup\n\
         \x20 APIs: Wikidata SPARQL, QLever, DOI, RDKit.js, Citation.js, Ketcher\n\
         \x20 License (app): AGPL-3.0 — {app_license_url}\n\
-        \x20 License (data): CC0 1.0 — {data_license_url}\n\n\
+        \x20 License (Wikidata data): CC0 1.0 — {data_license_url}\n\n\
         /* SPECIFICATION COMPLIANCE */\n\
         \x20 SEO: robots.txt, sitemap.xml, structured data, hreflang\n\
         \x20 Accessibility: semantic HTML, ARIA, keyboard navigation, visible focus\n\

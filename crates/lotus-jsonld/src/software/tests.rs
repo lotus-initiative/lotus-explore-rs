@@ -65,6 +65,10 @@ fn the_citation_file_is_valid_cff() {
     // happened to demonstrate the quoting rule, which is why the wrong form
     // survived as long as it did.
     assert!(cff.contains("doi: 10.7554/eLife.70780"), "got: {cff}");
+    assert!(
+        cff.contains("\n    year: 2022\n"),
+        "CFF 1.2.0 requires integer year: {cff}"
+    );
 }
 
 #[test]

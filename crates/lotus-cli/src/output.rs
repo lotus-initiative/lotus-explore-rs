@@ -244,7 +244,15 @@ fn write_rdf<W: Write>(out: &mut W, result: &SearchResult) -> anyhow::Result<()>
 }
 
 fn write_jsonld<W: Write>(out: &mut W, result: &SearchResult) -> anyhow::Result<()> {
-    let generated = format!("{}-01-01T00:00:00Z", crate::current_year());
+    let generated = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    write_jsonld_at(out, result, &generated)
+}
+
+fn write_jsonld_at<W: Write>(
+    out: &mut W,
+    result: &SearchResult,
+    generated: &str,
+) -> anyhow::Result<()> {
     let query_hash = hash(&result.query);
     let result_hash = hash(&serde_json::to_string(&result.rows)?);
 
@@ -264,7 +272,7 @@ fn write_jsonld<W: Write>(out: &mut W, result: &SearchResult) -> anyhow::Result<
                     .stats
                     .as_ref()
                     .map_or(result.rows.len(), |s| s.n_entries),
-                generated: &generated,
+                generated,
             }),
             lotus_jsonld::dataset_jsonld(),
         ],

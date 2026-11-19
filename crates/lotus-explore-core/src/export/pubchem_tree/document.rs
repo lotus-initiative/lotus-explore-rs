@@ -104,7 +104,7 @@ impl<'a, T: TreeNode> FullDocument<'a, T> {
                 "generator": APP_NAME,
                 "source": {
                     "name": "LOTUS",
-                    "url": "https://lotus.nprod.net/",
+                    "url": "https://lotus-initiative.github.io/lotus-explore-rs/",
                     "wikidata_item": "Q104225190",
                     "endpoint": texts.endpoint,
                     "classification": texts.classification,

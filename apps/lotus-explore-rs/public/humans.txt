@@ -27,7 +27,7 @@
   Curation: TSV import, QuickStatements generation, structure resolution lookup
   APIs: Wikidata SPARQL, QLever, DOI, RDKit.js, Citation.js, Ketcher
   License (app): AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
-  License (data): CC0 1.0 — https://creativecommons.org/publicdomain/zero/1.0/
+  License (Wikidata data): CC0 1.0 — https://creativecommons.org/publicdomain/zero/1.0/
 
 /* SPECIFICATION COMPLIANCE */
   SEO: robots.txt, sitemap.xml, structured data, hreflang

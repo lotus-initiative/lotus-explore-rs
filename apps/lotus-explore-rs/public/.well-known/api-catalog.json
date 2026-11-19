@@ -11,10 +11,10 @@
     {
       "name": "QLever SPARQL Endpoint",
       "description": "Fast SPARQL queries over Wikidata with LOTUS data",
-      "url": "https://qlever.cs.uni-freiburg.de/wikidata",
+      "url": "https://qlever.dev/wikidata",
       "protocol": "SPARQL",
       "type": "read-only",
-      "documentation": "https://qlever.cs.uni-freiburg.de/"
+      "documentation": "https://qlever.dev/"
     },
     {
       "name": "DOI Metadata Service",
@@ -38,7 +38,7 @@
       "documentation": "https://www.wikidata.org/wiki/Wikidata:Data_access"
     }
   ],
-  "description": "LOTUS Explore-rs integrates with multiple external data sources. This catalog lists the primary APIs used.",
+  "description": "LOTUS Explorer integrates with multiple external data sources. This catalog lists the primary APIs used.",
   "last_updated": "2026-06-22",
   "contact": "https://github.com/lotus-initiative/lotus-explore-rs/issues"
 }

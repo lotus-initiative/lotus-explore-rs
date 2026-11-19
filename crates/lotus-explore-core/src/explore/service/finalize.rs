@@ -24,12 +24,17 @@ pub struct FinalizedMeta {
 /// `set` carries its own exact counts, so nothing is recomputed: the numbers the
 /// reader sees are the numbers the fetch produced.
 #[must_use]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "single boundary translating SearchOutcome fields into MetadataInputs"
+)]
 pub fn finalize(
     crit: &SearchCriteria,
     qid: Option<&str>,
     set: &ColumnarResultSet,
     direct_download_mode: bool,
     endpoint: SparqlEndpoint,
+    sparql_query: Option<&str>,
     year: u16,
     now: &str,
 ) -> FinalizedMeta {
@@ -46,6 +51,7 @@ pub fn finalize(
             query_hash: &query_hash,
             result_hash: &result_hash,
             endpoint,
+            sparql_query,
             year,
             date_created: now,
         },

@@ -89,8 +89,6 @@ struct DataDownload {
     type_: &'static str,
     #[serde(rename = "encodingFormat")]
     encoding_format: [&'static str; 2],
-    #[serde(rename = "contentUrl")]
-    content_url: String,
 }
 
 #[derive(Serialize)]
@@ -169,8 +167,6 @@ struct DatasetMetadata {
     number_of_records: Option<usize>,
     #[serde(rename = "variableMeasured")]
     variable_measured: &'static [&'static str],
-    #[serde(rename = "variablesMeasured")]
-    variables_measured: &'static [&'static str],
     search_parameters: Value,
     #[serde(
         rename = "chemical_search_service",
@@ -178,6 +174,8 @@ struct DatasetMetadata {
     )]
     chemical_search_service: Option<ChemicalSearchService<'static>>,
     sparql_endpoint: SparqlEndpointInfo,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sparql_query: Option<String>,
     provenance: Provenance,
 }
 
@@ -196,6 +194,8 @@ pub struct MetadataInputs<'a> {
     pub result_hash: &'a str,
     /// The SPARQL endpoint used for this query (Qlever by default, WDQS on fallback)
     pub endpoint: SparqlEndpoint,
+    /// The SPARQL query text that was executed, when available.
+    pub sparql_query: Option<&'a str>,
     /// The current year, which decides whether the year bounds mean anything.
     pub year: u16,
     /// The instant the export was produced, as an ISO-8601 stamp.
@@ -247,7 +247,7 @@ pub fn build_metadata_json(inp: MetadataInputs<'_>) -> String {
                 ),
                 format!(
                     "Chemical compounds from {effective_taxon}. Retrieved via LOTUS \
-                     Knowledge Search with {st} chemical search (SACHEM/IDSM)."
+                     Explorer with {st} chemical search (SACHEM/IDSM)."
                 ),
             )
         },
@@ -262,7 +262,7 @@ pub fn build_metadata_json(inp: MetadataInputs<'_>) -> String {
         Organization {
             type_: "Organization",
             name: "Wikidata",
-            url: "http://www.wikidata.org/",
+            url: "https://www.wikidata.org/",
         },
     ];
     if chem.is_some() {
@@ -363,7 +363,7 @@ pub fn build_metadata_json(inp: MetadataInputs<'_>) -> String {
         conforms_to: Profile::Dataset.id(),
         name: dataset_name,
         description,
-        url: dataset_url.clone(),
+        url: dataset_url,
         identifier: json!([
             {
                 "@type": "PropertyValue",
@@ -405,17 +405,14 @@ pub fn build_metadata_json(inp: MetadataInputs<'_>) -> String {
             DataDownload {
                 type_: "DataDownload",
                 encoding_format: ["text/csv", edam::FORMAT_CSV],
-                content_url: format!("{dataset_url}?format=csv"),
             },
             DataDownload {
                 type_: "DataDownload",
                 encoding_format: ["application/sparql-results+json", edam::FORMAT_JSON],
-                content_url: format!("{dataset_url}?format=json"),
             },
             DataDownload {
                 type_: "DataDownload",
                 encoding_format: ["text/turtle", edam::FORMAT_TURTLE],
-                content_url: format!("{dataset_url}?format=ttl"),
             },
         ],
         included_in_data_catalog: json!({
@@ -427,7 +424,6 @@ pub fn build_metadata_json(inp: MetadataInputs<'_>) -> String {
         measurement_technique: "SPARQL 1.1 over the Wikidata graph",
         number_of_records: inp.number_of_records_override,
         variable_measured: MEASURED_VARIABLES,
-        variables_measured: MEASURED_VARIABLES,
         search_parameters: Value::Object(search_params),
         chemical_search_service,
         sparql_endpoint: {
@@ -438,6 +434,11 @@ pub fn build_metadata_json(inp: MetadataInputs<'_>) -> String {
                 description: description.to_string(),
             }
         },
+        sparql_query: inp
+            .sparql_query
+            .map(str::trim)
+            .filter(|q| !q.is_empty())
+            .map(ToOwned::to_owned),
         provenance: Provenance {
             query_hash: HashInfo {
                 algorithm: "SHA-256",

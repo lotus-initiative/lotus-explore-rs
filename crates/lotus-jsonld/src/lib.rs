@@ -84,7 +84,7 @@ pub fn property_value(
 /// The `Dataset` every result belongs to, given a result set's identity.
 #[must_use]
 pub fn result_dataset_url(name_slug: &str, query_hash: &str) -> String {
-    format!("https://lotus-initiative.github.io/lotus-explore-rs/dataset/{name_slug}/{query_hash}")
+    format!("https://lotus-initiative.github.io/lotus-explore-rs/#dataset/{name_slug}/{query_hash}")
 }
 
 /// The project itself, for a page that describes the software.

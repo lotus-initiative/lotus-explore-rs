@@ -59,15 +59,18 @@ fn the_lotus_source_conforms_on_the_dataset_profile() {
 }
 
 #[test]
-fn a_distribution_points_at_something_that_can_be_fetched() {
-    // The point of the change: no `data:` placeholder, which is indexable and
-    // cannot be downloaded.
+fn a_distribution_declares_format_without_nonexistent_download_urls() {
     let rows = rows();
     let node = result_set_jsonld(&set(&rows, "SELECT ?s WHERE {}"));
     for download in node["distribution"].as_array().expect("an array") {
-        let url = download["contentUrl"].as_str().expect("a url");
-        assert!(url.starts_with("https://"), "got {url}");
-        assert!(!url.starts_with("data:"), "a data: URL cannot be fetched");
+        let obj = download.as_object().expect("DataDownload object");
+        assert_eq!(download["@type"], json!("DataDownload"));
+        assert!(download["encodingFormat"].is_array());
+        assert_eq!(
+            obj.len(),
+            2,
+            "static GitHub Pages host has only @type and encodingFormat, with no live download endpoint: {download}"
+        );
     }
 }
 
@@ -85,7 +88,7 @@ fn a_taxon_name_becomes_a_url_slug() {
     let node = result_set_jsonld(&set(&rows, "SELECT ?s WHERE {}"));
     assert_eq!(
         node["@id"],
-        json!("https://lotus-initiative.github.io/lotus-explore-rs/dataset/gentiana-lutea/abc")
+        json!("https://lotus-initiative.github.io/lotus-explore-rs/#dataset/gentiana-lutea/abc")
     );
 }
 
@@ -103,7 +106,7 @@ fn an_empty_taxon_reads_as_all_organisms() {
     );
     assert_eq!(
         node["@id"],
-        json!("https://lotus-initiative.github.io/lotus-explore-rs/dataset/all-taxa/abc")
+        json!("https://lotus-initiative.github.io/lotus-explore-rs/#dataset/all-taxa/abc")
     );
 }
 
