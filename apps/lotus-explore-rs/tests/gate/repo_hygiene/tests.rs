@@ -406,20 +406,7 @@ fn extract_allow_attributes(src: &str) -> Vec<(usize, String)> {
         }
         // Skip string literals so raw strings in fixtures do not trigger.
         if b == b'"' {
-            i += 1;
-            while let Some(&c) = bytes.get(i) {
-                if c == b'\\' {
-                    i += 2;
-                    continue;
-                }
-                if c == b'\n' {
-                    line += 1;
-                }
-                i += 1;
-                if c == b'"' {
-                    break;
-                }
-            }
+            skip_string_literal(bytes, &mut i, &mut line);
             continue;
         }
         let is_inner =
@@ -436,20 +423,7 @@ fn extract_allow_attributes(src: &str) -> Vec<(usize, String)> {
                     break;
                 };
                 if c == b'"' {
-                    i += 1;
-                    while let Some(&sc) = bytes.get(i) {
-                        if sc == b'\\' {
-                            i += 2;
-                            continue;
-                        }
-                        if sc == b'\n' {
-                            line += 1;
-                        }
-                        i += 1;
-                        if sc == b'"' {
-                            break;
-                        }
-                    }
+                    skip_string_literal(bytes, &mut i, &mut line);
                     continue;
                 }
                 if c == b'[' {
@@ -472,4 +446,139 @@ fn extract_allow_attributes(src: &str) -> Vec<(usize, String)> {
         i += 1;
     }
     out
+}
+
+fn skip_string_literal(bytes: &[u8], i: &mut usize, line: &mut usize) {
+    *i += 1;
+    while let Some(&c) = bytes.get(*i) {
+        if c == b'\\' {
+            *i += 2;
+            continue;
+        }
+        if c == b'\n' {
+            *line += 1;
+        }
+        *i += 1;
+        if c == b'"' {
+            break;
+        }
+    }
+}
+
+/// `fetch-assets` pulls the latest Ketcher release, whose webpack chunks carry
+/// per-release content hashes (`static/js/main.<hash>.js`). Pinning one hash in
+/// `.github/workflows/deploy.yml` passed every local and PR gate while breaking
+/// `Deploy to GitHub Pages` on the next Ketcher release (`f513949`).
+#[test]
+fn deploy_workflow_resolves_ketcher_chunks_from_index_html() -> Result<()> {
+    let deploy = read(".github/workflows/deploy.yml")?;
+    let mut pinned = Vec::new();
+    for (idx, line) in deploy.lines().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('#') {
+            continue;
+        }
+        if let Some((_, after)) = trimmed.split_once("ketcher/static/") {
+            let token = after
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .trim_end_matches('\\');
+            let has_hex_segment = token
+                .split('.')
+                .any(|part| part.len() >= 6 && part.as_bytes().iter().all(u8::is_ascii_hexdigit));
+            if has_hex_segment {
+                pinned.push(format!("line {}: {trimmed}", idx + 1));
+            }
+        }
+    }
+    assert!(
+        pinned.is_empty(),
+        ".github/workflows/deploy.yml pins a hashed Ketcher chunk while `fetch-assets` \
+         fetches `latest`; resolve relative refs from `assets/ketcher/index.html` instead:\n  {}",
+        pinned.join("\n  ")
+    );
+    assert!(
+        deploy.contains("_final_site/assets/ketcher/index.html") && deploy.contains("(src|href)="),
+        ".github/workflows/deploy.yml must verify Ketcher's relative `src`/`href` \
+         references from `_final_site/assets/ketcher/index.html`"
+    );
+    Ok(())
+}
+
+/// Running `actions/upload-pages-artifact` and `actions/deploy-pages` in one
+/// job raced the Actions artifact index (`Found 0 artifact(s)`, run
+/// `44295793507` attempt 1) and made "Re-run failed jobs" upload a duplicate
+/// `github-pages` artifact (`Artifact count is 2`, attempt 2). Keep them in
+/// separate jobs sequenced with `needs:`.
+#[test]
+fn deploy_workflow_separates_artifact_upload_from_pages_deploy_job() -> Result<()> {
+    let deploy = read(".github/workflows/deploy.yml")?;
+    let mut in_jobs = false;
+    let mut current_job: Option<(String, Vec<String>)> = None;
+    let mut jobs: Vec<(String, String)> = Vec::new();
+
+    for line in deploy.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        if !line.starts_with(' ') {
+            if let Some((name, body)) = current_job.take() {
+                jobs.push((name, body.join("\n")));
+            }
+            in_jobs = trimmed == "jobs:";
+            continue;
+        }
+        if !in_jobs {
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("  ")
+            && !rest.starts_with(' ')
+            && let Some(name) = rest.trim_end().strip_suffix(':')
+        {
+            if let Some((prev, body)) = current_job.take() {
+                jobs.push((prev, body.join("\n")));
+            }
+            current_job = Some((name.to_owned(), Vec::new()));
+            continue;
+        }
+        if let Some((_, ref mut body)) = current_job {
+            body.push(trimmed.to_owned());
+        }
+    }
+    if let Some((name, body)) = current_job {
+        jobs.push((name, body.join("\n")));
+    }
+
+    let upload_jobs: Vec<&str> = jobs
+        .iter()
+        .filter(|(_, body)| body.contains("actions/upload-pages-artifact"))
+        .map(|(name, _)| name.as_str())
+        .collect();
+    let deploy_jobs: Vec<(&str, &str)> = jobs
+        .iter()
+        .filter(|(_, body)| body.contains("actions/deploy-pages"))
+        .map(|(name, body)| (name.as_str(), body.as_str()))
+        .collect();
+
+    let [upload_job] = upload_jobs.as_slice() else {
+        return Err(format!("expected 1 upload-pages-artifact job, found {upload_jobs:?}").into());
+    };
+    let [(deploy_job, deploy_body)] = deploy_jobs.as_slice() else {
+        return Err(format!("expected 1 deploy-pages job, found {}", deploy_jobs.len()).into());
+    };
+    assert_ne!(
+        upload_job, deploy_job,
+        "upload-pages-artifact and deploy-pages must live in separate jobs so \
+         artifact indexing settles before deploy and re-running deploy never \
+         uploads a duplicate `github-pages` artifact"
+    );
+    assert!(
+        deploy_body
+            .lines()
+            .any(|l| l == format!("needs: {upload_job}")),
+        "job `{deploy_job}` must declare `needs: {upload_job}`"
+    );
+    Ok(())
 }

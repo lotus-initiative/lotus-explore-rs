@@ -287,6 +287,34 @@ fn the_editor_is_unzipped_with_the_wrapper_directory_removed() {
 }
 
 #[test]
+fn a_flat_archive_is_unzipped_in_place() {
+    // From v3.20 the release zip has no `standalone/` wrapper: the editor's files
+    // sit at the archive root, and must land at the root of the target as well.
+    let dir = temp_dir("ketcher-flat");
+    let bytes = zip_of(&[
+        ("index.html", "<title>Ketcher v3.20.0</title>"),
+        ("iframe.html", "<title>Document</title>"),
+        ("static/js/main.4033e42d.js", "console.log(1)"),
+        ("static/css/main.61e68a08.css", "body{}"),
+        ("static/js/closable.43eac67b.js", "unused"),
+    ]);
+    let mut archive = ZipArchive::new(Cursor::new(bytes)).expect("the fixture is a zip");
+
+    let tally = extract(&mut archive, &dir).unwrap_or_else(|e| panic!("extract: {e}"));
+
+    assert_eq!(tally.extracted, 4, "everything but the unused bundle");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("index.html")).unwrap_or_default(),
+        "<title>Ketcher v3.20.0</title>",
+        "the editor sits at the root"
+    );
+    assert!(dir.join("static/js/main.4033e42d.js").is_file());
+    assert!(dir.join("static/css/main.61e68a08.css").is_file());
+    assert!(!dir.join("static/js/closable.43eac67b.js").exists());
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn unused_entry_bundles_and_macos_junk_are_counted_not_written() {
     let dir = temp_dir("ketcher-skips");
     let bytes = ketcher_style_zip();

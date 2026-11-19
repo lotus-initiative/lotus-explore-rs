@@ -83,6 +83,16 @@ fn a_case_insensitive_search_finds_any_single_byte() {
     // middle stops the match rather than being skipped.
     assert_eq!(find_ascii_ci("Hello World", b"world"), Some(6));
     assert_eq!(find_ascii_ci("Hello World", b"WORLD"), Some(6));
+    assert_eq!(
+        find_ascii_ci("World", b"world"),
+        Some(0),
+        "a needle the full length of the haystack matches at zero"
+    );
+    assert_eq!(
+        find_ascii_ci("World", b"worlx"),
+        None,
+        "a full-length mismatch yields nothing"
+    );
     assert_eq!(find_ascii_ci("Hello World", b"o w"), Some(4));
     assert_eq!(find_ascii_ci("Hello World", b"o_W"), None);
     assert_eq!(
