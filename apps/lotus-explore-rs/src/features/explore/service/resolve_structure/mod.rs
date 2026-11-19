@@ -118,7 +118,7 @@ pub async fn resolve<R: LotusRepository>(
     match found {
         Some(cached) => Ok(StructureResolution {
             resolved: to_resolved(canonical_input, &cached),
-            notices: to_notices(&cached),
+            notices: structure_notices(Some(&cached), canonical_input, claims_a_compound),
         }),
         // A name, an `InChIKey` or a QID matching nothing: a claim about a
         // compound that does not exist. Refused like an unknown taxon name.
@@ -132,7 +132,7 @@ pub async fn resolve<R: LotusRepository>(
         // can turn out wrong.
         None => Ok(StructureResolution {
             resolved: ResolvedStructure::unresolved(canonical_input),
-            notices: Vec::new(),
+            notices: structure_notices(None, canonical_input, claims_a_compound),
         }),
     }
 }
@@ -172,7 +172,7 @@ fn from_cached(
     match entry {
         structure_cache::Cached::Resolved(cached) => Ok(StructureResolution {
             resolved: to_resolved(input, &cached),
-            notices: to_notices(&cached),
+            notices: structure_notices(Some(&cached), input, claims_a_compound),
         }),
         structure_cache::Cached::Unresolved | structure_cache::Cached::Unknown => {
             if claims_a_compound {
@@ -182,11 +182,26 @@ fn from_cached(
             } else {
                 Ok(StructureResolution {
                     resolved: ResolvedStructure::unresolved(input),
-                    notices: Vec::new(),
+                    notices: structure_notices(None, input, claims_a_compound),
                 })
             }
         }
     }
+}
+
+fn structure_notices(
+    cached: Option<&CachedCompound>,
+    input: &str,
+    claims_a_compound: bool,
+) -> Vec<LookupNotice> {
+    let mut notices = cached.map_or_else(Vec::new, to_notices);
+    if !claims_a_compound
+        && !lotus_model::classify_structure(input).is_molfile()
+        && input.contains('.')
+    {
+        notices.push(LookupNotice::SaltOrMixture);
+    }
+    notices
 }
 
 fn to_notices(cached: &CachedCompound) -> Vec<LookupNotice> {

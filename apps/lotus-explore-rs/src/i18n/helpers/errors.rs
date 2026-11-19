@@ -96,6 +96,7 @@ dispatch!(err_element_count_too_high);
 dispatch!(err_element_range_invalid);
 dispatch!(err_similarity_threshold_invalid);
 dispatch!(warn_wdqs_fallback);
+dispatch!(warn_salt_or_mixture);
 
 dispatch!(err_unsupported_format, fmt: &str);
 dispatch!(err_taxon_parse_failed, detail: &str);

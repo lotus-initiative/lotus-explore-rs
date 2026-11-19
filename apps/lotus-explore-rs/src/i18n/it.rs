@@ -191,7 +191,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::FooterArchive => "Archivio",
         TextKey::FooterPrograms => "Programmi",
         TextKey::FooterLicense => "Licenza",
-        TextKey::FooterForData => " per i dati ",
+        TextKey::FooterForData => " per i dati Wikidata ",
         TextKey::FooterForCode => " per il codice",
         TextKey::TableTriplesAria => "Triple composto-taxon-riferimento",
         TextKey::OpenFullSizeDepiction => "Apri la rappresentazione a grandezza naturale",
@@ -201,7 +201,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::OpenInTaxonScholia => "Apri il taxon in Scholia",
         TextKey::OpenInReferenceScholia => "Apri il riferimento in Scholia",
         TextKey::OpenDoi => "Apri DOI",
-        TextKey::Statement => "Dichiarazione",
+        TextKey::Statement => "Dichiarazione · Segnala",
         TextKey::SparqlQuery => "Query SPARQL",
         TextKey::CopySparqlQuery => "Copia query SPARQL",
         TextKey::ShowFailedQuery => {

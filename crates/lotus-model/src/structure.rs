@@ -114,6 +114,13 @@ pub fn looks_like_a_compound_qid(text: &str) -> bool {
     super::looks_like_reference_qid(text)
 }
 
+/// Lowercase letters that never appear in unbracketed SMILES
+/// (outside the organic aromatic subset `b, c, n, o, p, s` and the second
+/// letters of `Cl`/`Br`).
+const fn is_non_smiles_lowercase(ch: char) -> bool {
+    ch.is_lowercase() && !matches!(ch, 'b' | 'c' | 'n' | 'o' | 'p' | 's' | 'l' | 'r')
+}
+
 /// Whether a string is worth handing to the compound-name lookup.
 ///
 /// Stops the name lookup from eating structure input, conservatively in the
@@ -123,22 +130,27 @@ pub fn looks_like_a_compound_qid(text: &str) -> bool {
 /// Three exclusions, same reason -- a chemical name and a structure are written
 /// with different alphabets:
 ///
-/// **Any digit.** `c1ccccc1`, `C[C@H](O)CO`, `CC(=O)Oc1ccccc1C(=O)O`. No
-/// Wikidata label has one, because a label is prose.
+/// **Any SMILES punctuation**: `= @ [ ] # / \ % * $ : .`. Keeping `.` out of
+/// names ensures salt/mixture SMILES (`CCO.O`, `CCN.Cl`) go to the structure route.
 ///
-/// **Any SMILES punctuation**: `= @ [ ] # / \ % * $ :`. Same reason.
+/// **No lowercase letter.** `CC`, `CCC`, QIDs like `Q18216`, and uppercase
+/// `InChIKey`s have none. This exclusion costs all-caps acronyms -- `ATP`,
+/// `GDP` and `NAD` are known compounds and are refused -- and that is the right
+/// way round: a structure silently replaced by a same-spelled item is
+/// undetectable, while a name typed as SMILES is friction the reader can route
+/// around.
 ///
-/// **A run of consecutive uppercase letters.** `CC` and `CCC` are how ethane and
-/// propane get typed in a structure box, and two of this app's example buttons.
-/// This exclusion costs real names -- `ATP`, `GDP` and `NAD` are known compounds
-/// and are refused -- and that is the right way round: a structure silently
-/// replaced by a same-spelled item is undetectable, while a name typed as SMILES
-/// is friction the reader can route around.
+/// **Bare digits without prose.** `c1ccccc1`, `CC1CC1`, and `q18216` stay
+/// structures/QIDs. Digits are accepted in names (`5-fluorouracil`,
+/// `12-O-Methylcarnosic acid`, `1,8-cineole`, `14′-O-sulfocriophylline`) only
+/// when paired with both a separator (` `, `-`, `,`, `−`, `′`, `'`) and at
+/// least one lowercase letter outside unbracketed SMILES (`b`, `c`, `n`, `o`,
+/// `p`, `s`, `l`, `r`).
 ///
 /// Parentheses and `+` *are* allowed, for stereodescriptors: `s-(+)-carvone` and
-/// `(R)-` are real names. That admits a structure like `C(C)`, the one
-/// misclassification that can reach the name lookup, and its cost is bounded: a
-/// lookup matching nothing is reported as "compound not found" rather than
+/// `(−)-epicatechin` are real names. That admits a structure like `C(C)`, the
+/// one misclassification that can reach the name lookup, and its cost is bounded:
+/// a lookup matching nothing is reported as "compound not found" rather than
 /// answered, so the reader learns the input was read as a name instead of getting
 /// a plausible wrong answer. Refusing a structure that looks like a name costs a
 /// round trip; admitting one costs a question the reader must notice.
@@ -148,13 +160,21 @@ pub fn could_be_a_compound_name(text: &str) -> bool {
     if trimmed.is_empty() {
         return false;
     }
-    let all_uppercase_letters = trimmed
-        .chars()
-        .all(|c| c.is_ascii_uppercase() || c == ' ' || c == '-');
-    let alphabet_is_name_shaped = trimmed
-        .chars()
-        .all(|c| c.is_alphabetic() || matches!(c, ' ' | '-' | '.' | ',' | '(' | ')' | '+'));
-    alphabet_is_name_shaped && !all_uppercase_letters
+    let alphabet_is_name_shaped = trimmed.chars().all(|c| {
+        c.is_alphabetic()
+            || c.is_ascii_digit()
+            || matches!(c, ' ' | '-' | ',' | '(' | ')' | '+' | '−' | '′' | '\'')
+    });
+    if !alphabet_is_name_shaped || !trimmed.chars().any(char::is_lowercase) {
+        return false;
+    }
+    if trimmed.chars().any(|c| c.is_ascii_digit()) {
+        return trimmed.chars().any(is_non_smiles_lowercase)
+            && trimmed
+                .chars()
+                .any(|c| matches!(c, ' ' | '-' | ',' | '−' | '′' | '\''));
+    }
+    true
 }
 
 /// Whether this input names a Wikidata compound rather than being a structure.

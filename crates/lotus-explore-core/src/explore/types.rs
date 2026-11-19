@@ -161,6 +161,8 @@ pub enum LookupNotice {
     ApiMessage(String),
     /// Query executed against Wikidata Query Service after a `QLever` fallback.
     WdqsFallback,
+    /// Disconnected SMILES (`.`) likely representing a salt, hydrate, or mixture.
+    SaltOrMixture,
 }
 
 /// Fine-grained validation fault.

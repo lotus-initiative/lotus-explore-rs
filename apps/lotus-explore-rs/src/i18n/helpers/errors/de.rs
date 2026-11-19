@@ -120,6 +120,11 @@ pub fn warn_wdqs_fallback() -> String {
     "Abfrage über Wikidata Query Service ausgeführt (Fallback von QLever).".to_string()
 }
 
+pub fn warn_salt_or_mixture() -> String {
+    "Mehrkomponenten-SMILES erkannt (.); erwägen Sie die Suche nur nach der Stammstruktur ohne Gegenionen oder Lösungsmittel."
+        .to_string()
+}
+
 #[cfg(target_arch = "wasm32")]
 pub fn error_hint_memory() -> &'static str {
     "Ergebnis ist zu groß für den verfügbaren Gerätspeicher."

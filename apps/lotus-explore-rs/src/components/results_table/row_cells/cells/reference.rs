@@ -84,9 +84,10 @@ pub(in crate::components::results_table::row_cells) fn reference_cell(
                         target: "_blank",
                         rel: "noopener noreferrer",
                         class: "inline-flex min-h-7 items-center rounded-full border border-wd-reference/35 bg-surface px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-reference hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28",
-                        // Same rule as the DOI badge above.
-                        aria_label: "{stmt} — {aria_wikidata_statement(locale, stmt)}",
-                        "{stmt}"
+                        // WCAG 2.5.3: visible text matches the accessible name prefix.
+                        title: "{stmt}",
+                        aria_label: "{text.statement} — {aria_wikidata_statement(locale, stmt)}",
+                        "{text.statement}"
                     }
                 }
             }

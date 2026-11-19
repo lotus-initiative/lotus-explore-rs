@@ -185,7 +185,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::FooterArchive => "Archiv",
         TextKey::FooterPrograms => "Programme",
         TextKey::FooterLicense => "Lizenz",
-        TextKey::FooterForData => " für Daten ",
+        TextKey::FooterForData => " für Wikidata-Daten ",
         TextKey::FooterForCode => " für Code",
         TextKey::TableTriplesAria => "Verbindung-Taxon-Referenz-Tripel",
         TextKey::OpenFullSizeDepiction => "Darstellung in voller Größe öffnen",
@@ -195,7 +195,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::OpenInTaxonScholia => "Taxon in Scholia öffnen",
         TextKey::OpenInReferenceScholia => "Referenz in Scholia öffnen",
         TextKey::OpenDoi => "DOI öffnen",
-        TextKey::Statement => "Aussage",
+        TextKey::Statement => "Aussage · Melden",
         TextKey::SparqlQuery => "SPARQL-Abfrage",
         TextKey::CopySparqlQuery => "SPARQL-Abfrage kopieren",
         TextKey::ShowFailedQuery => {

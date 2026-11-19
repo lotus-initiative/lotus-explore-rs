@@ -333,3 +333,21 @@ fn each_reason_the_endpoint_can_give_has_its_own_sentence() {
         "an unknown reason must still produce a message"
     );
 }
+
+#[test]
+fn salt_or_mixture_notice_is_localized_across_all_locales() {
+    let mut rendered = Vec::new();
+    for locale in [Locale::En, Locale::Fr, Locale::De, Locale::It] {
+        let lines = format_taxon_warnings(locale, &[LookupNotice::SaltOrMixture]);
+        assert_eq!(lines.len(), 1);
+        if let Some(line) = lines.first() {
+            assert!(line.contains("(.)"), "{locale:?}: {line}");
+            rendered.push(line.clone());
+        }
+    }
+    for (i, a) in rendered.iter().enumerate() {
+        for b in rendered.iter().skip(i + 1) {
+            assert_ne!(a, b);
+        }
+    }
+}
