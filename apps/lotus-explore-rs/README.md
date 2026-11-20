@@ -113,7 +113,7 @@ cargo run -p lotus-web-assets --bin fetch-assets
 It defaults to the latest Ketcher and RDKit releases and Scholia's `main`
 branch; override with `KETCHER_VERSION`, `RDKIT_VERSION` and `CITATION_JS_REF`
 for a reproducible or mirror-based build. The curation bridges load the files on
-demand. The static `index.html` owns early metadata, CSS and bootstrap
+demand. The static `index.html` owns early metadata, CSS and boot
 discovery; `document_head::CurationScripts` adds the route-specific bridges.
 
 `dx serve` and `dx build` generate and watch Tailwind automatically, so Node.js

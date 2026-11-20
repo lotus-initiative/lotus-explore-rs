@@ -605,8 +605,8 @@ fn build_security_txt(meta: &Metadata) -> String {
 /// the one that sets `rel=canonical`, the manifest link, the stylesheet, the
 /// base path and the Trusted Types policy. Measured against a host that honours
 /// `_headers` (Cloudflare Pages or Netlify), that is an unstyled boot screen
-/// forever: no stylesheet request is ever made, `bootstrap.js` and `webmcp.js`
-/// are never loaded, and with no default policy every `innerHTML` sink in the
+/// forever: no stylesheet request is ever made, `webmcp.js`
+/// is never loaded, and with no default policy every `innerHTML` sink in the
 /// WASM client throws. So the hash is derived, and
 /// `the_csp_carries_the_digest_of_every_inline_script` in `build/tests.rs`
 /// ties the two files together.
@@ -743,7 +743,7 @@ fn build_headers_txt(meta: &Metadata, script_hashes: &str) -> String {
     /*\n\
     \x20 Strict-Transport-Security: max-age=63072000; includeSubDomains; preload\n\
     \x20 X-Frame-Options: DENY\n\
-    \x20 Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' {script_hashes} https://scripts.simpleanalyticscdn.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://qlever.dev https://query.wikidata.org https://query-scholarly.wikidata.org https://www.wikidata.org https://www.simolecule.com https://idsm.elixir-czech.cz https://doi.org https://pubchem.ncbi.nlm.nih.gov https://api.semanticscholar.org https://api.openalex.org; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'\n\
+    \x20 Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' {script_hashes}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://qlever.dev https://query.wikidata.org https://query-scholarly.wikidata.org https://www.wikidata.org https://www.simolecule.com https://idsm.elixir-czech.cz https://doi.org https://pubchem.ncbi.nlm.nih.gov https://api.semanticscholar.org https://api.openalex.org; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'\n\
     \x20 X-Content-Type-Options: nosniff\n\
     \x20 Referrer-Policy: strict-origin-when-cross-origin\n\
     \x20 Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()\n\

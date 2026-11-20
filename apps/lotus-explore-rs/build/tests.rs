@@ -682,3 +682,81 @@ fn the_webmcp_tool_surface_is_loaded_and_names_real_elements() -> Result<(), Box
     }
     Ok(())
 }
+
+#[test]
+fn simple_analytics_uses_nojs_pixel_and_tightened_csp() -> Result<(), Box<dyn Error>> {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let index_html = fs::read_to_string(manifest_dir.join("index.html"))?;
+
+    for forbidden in [
+        "scripts.simpleanalyticscdn.com",
+        "latest.js",
+        "bootstrap.js",
+        "<noscript",
+    ] {
+        assert!(
+            !index_html.contains(forbidden),
+            "index.html must not contain {forbidden}"
+        );
+    }
+    assert!(
+        !manifest_dir.join("public/assets/js/bootstrap.js").exists(),
+        "public/assets/js/bootstrap.js should be removed"
+    );
+
+    let meta = real_metadata()?;
+    let host = hostname(&meta);
+    let expected_src =
+        format!("src=\"https://queue.simpleanalyticscdn.com/noscript.gif?hostname={host}\"");
+    for required in [
+        &expected_src,
+        &"alt=\"\"".to_owned(),
+        &"width=\"1\"".to_owned(),
+        &"height=\"1\"".to_owned(),
+        &"referrerpolicy=\"no-referrer-when-downgrade\"".to_owned(),
+        &"decoding=\"async\"".to_owned(),
+        &"fetchpriority=\"low\"".to_owned(),
+        &"aria-hidden=\"true\"".to_owned(),
+        &"class=\"analytics-pixel\"".to_owned(),
+        &".analytics-pixel {".to_owned(),
+    ] {
+        assert!(
+            index_html.contains(required),
+            "index.html missing required pixel markup/CSS: {required}"
+        );
+    }
+    let pixel_idx = index_html
+        .find(&expected_src)
+        .ok_or_else(|| "missing analytics pixel src".to_owned())?;
+    let body_end = index_html
+        .find("</body>")
+        .ok_or_else(|| "missing </body>".to_owned())?;
+    assert!(
+        pixel_idx < body_end,
+        "analytics pixel must appear before </body>"
+    );
+
+    let hashes = inline_script_hashes(&index_html);
+    let headers = build_headers_txt(&meta, &hashes);
+    assert!(
+        !headers.contains("scripts.simpleanalyticscdn.com"),
+        "_headers CSP must not include scripts.simpleanalyticscdn.com"
+    );
+    assert!(
+        headers.contains("img-src 'self' data: blob: https:"),
+        "_headers CSP must allow https: images for queue.simpleanalyticscdn.com"
+    );
+
+    let snippet =
+        fs::read_to_string(manifest_dir.join("../../docker/snippets/security-headers.conf"))?;
+    assert!(
+        !snippet.contains("scripts.simpleanalyticscdn.com"),
+        "nginx security-headers.conf CSP must not include scripts.simpleanalyticscdn.com"
+    );
+    assert!(
+        snippet.contains("https://queue.simpleanalyticscdn.com")
+            || snippet.contains("img-src 'self' data: blob: https:"),
+        "nginx security-headers.conf img-src must allow https://queue.simpleanalyticscdn.com"
+    );
+    Ok(())
+}
