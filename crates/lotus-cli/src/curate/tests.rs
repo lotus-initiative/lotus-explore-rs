@@ -350,6 +350,39 @@ fn an_offline_row_emits_nothing_for_an_unresolved_taxon_or_reference() {
     );
 }
 
+#[test]
+fn offline_revised_row_suppresses_create_statements() {
+    let row = super::not_checked_row(&Finding {
+        name: "Hyperelodione D".into(),
+        smiles: "C[C@H](O)C".into(),
+        taxon: Some("Hypericum elodeoides".into()),
+        doi: Some("10.1002/anie.202200420".into()),
+        status: Some("revised".into()),
+    });
+
+    assert_eq!(row.status, CurationStatus::ExistingNeedsUpdates);
+    let qs = row.quickstatements.join("\n");
+    assert!(
+        !qs.contains("CREATE"),
+        "offline revised row must not CREATE: {qs}"
+    );
+    assert!(!qs.contains("P703"), "{qs}");
+    assert!(qs.contains("status=revised"), "{qs}");
+    assert!(row.note.contains("status=revised"), "{}", row.note);
+    assert_eq!(row.canonical_smiles.as_deref(), Some("CC(O)C"));
+    assert_eq!(row.isomeric_smiles.as_deref(), Some("C[C@H](O)C"));
+
+    let blank = super::not_checked_row(&Finding {
+        name: "Unknown".into(),
+        smiles: "   ".into(),
+        taxon: None,
+        doi: None,
+        status: Some("revised".into()),
+    });
+    assert!(blank.canonical_smiles.is_none());
+    assert!(blank.isomeric_smiles.is_none());
+}
+
 /// A scratch directory under the temp dir, removed by the caller.
 ///
 /// Hand-rolled rather than a `tempfile` dev-dependency: the earlier session

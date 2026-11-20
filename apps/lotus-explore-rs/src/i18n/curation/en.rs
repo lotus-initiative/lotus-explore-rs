@@ -213,6 +213,10 @@ pub(super) const fn curation_note_existing_updates() -> &'static str {
     "Existing Wikidata entry found: generated update QuickStatements."
 }
 
+pub(super) const fn curation_note_revised() -> &'static str {
+    lotus_curation::REVISED_ROW_NOTE
+}
+
 pub(super) const fn curation_note_new_compound() -> &'static str {
     "No Wikidata entry was found by InChIKey; creation QuickStatements were generated."
 }

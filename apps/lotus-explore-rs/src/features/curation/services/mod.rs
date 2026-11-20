@@ -9,7 +9,7 @@
 use crate::i18n::{
     curation_note_dependencies_pending, curation_note_existing_complete,
     curation_note_existing_updates, curation_note_missing_doi, curation_note_new_compound,
-    curation_pending_reference, curation_pending_taxon,
+    curation_note_revised, curation_pending_reference, curation_pending_taxon,
 };
 use crate::sparql::wdqs_download_query;
 use crate::sparql::{FetchError, QLEVER_WIKIDATA, ResponseFormat};
@@ -21,7 +21,7 @@ pub(super) use lotus_curation::{
     CurationError, CurationInputRow, CurationResultRow, CurationStatus, DependencyResolution,
     MassResolution, WD_CHEMICAL_COMPOUND_QID, WD_OCCURS_IN_TAXON_PROP, WD_STEREOISOMER_GROUP_QID,
     WD_TAXON_QID, WD_TYPE_CHEMICAL_ENTITY_QID, WikidataCompound, escape_quickstatements,
-    normalize_doi,
+    is_revised_row, normalize_doi, revised_row_statement,
 };
 
 mod chemical;

@@ -127,6 +127,7 @@ dispatch!(curation_qs_dev_prereq_hint);
 dispatch!(curation_qs_dev_main_hint);
 dispatch!(curation_note_existing_complete);
 dispatch!(curation_note_existing_updates);
+dispatch!(curation_note_revised);
 dispatch!(curation_note_new_compound);
 dispatch!(curation_note_dependencies_pending);
 dispatch!(curation_note_missing_doi);

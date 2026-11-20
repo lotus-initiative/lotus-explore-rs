@@ -387,3 +387,32 @@ fn missing_doi_appends_warning_only_when_taxon_is_present_and_doi_is_absent() {
         updated_with_doi.note
     );
 }
+
+#[test]
+fn revised_row_suppresses_create_and_occurrence_statements_in_web_enrichment() {
+    let mut fixture = Fixture::new();
+    fixture.input.taxon = Some("Salvia rosmarinus".to_owned());
+    fixture.input.doi = Some("10.1000/revised".to_owned());
+    fixture.input.status = Some("revised".to_owned());
+    assert!(is_revised_row(&fixture.input));
+
+    let novel = revised_result_row(Locale::En, &fixture.input, &fixture.structure, None);
+    assert_eq!(novel.status, CurationStatus::ExistingNeedsUpdates);
+    assert_eq!(novel.wikidata_qid, None);
+    assert_eq!(novel.dependency_blocks, Vec::<String>::new());
+    assert_eq!(novel.quickstatements.len(), 1);
+    let qs = novel.quickstatements.join("\n");
+    assert!(!qs.contains("CREATE"), "must not CREATE on revised: {qs}");
+    assert!(!qs.contains("P703"), "must not emit P703 on revised: {qs}");
+    assert!(qs.contains("status=revised"), "{qs}");
+    assert!(novel.note.contains("status=revised"), "{}", novel.note);
+
+    let existing = revised_result_row(
+        Locale::Fr,
+        &fixture.input,
+        &fixture.structure,
+        Some(Fixture::bare_item()),
+    );
+    assert_eq!(existing.wikidata_qid.as_deref(), Some("Q1503"));
+    assert_ne!(existing.note, novel.note);
+}

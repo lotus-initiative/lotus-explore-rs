@@ -270,11 +270,25 @@ fn missing_compound_property_statements(
     lines
 }
 
+/// Shared note explaining why `status=revised` rows suppress automated writes.
+pub const REVISED_ROW_NOTE: &str = "row marked status=revised; manual review required to deprecate or update the superseded Wikidata statement instead of creating a duplicate.";
+
 /// Whether `row` marks a structural or biological revision (`status=revised`).
-fn is_revised_row(row: &CurationInputRow) -> bool {
+#[must_use]
+pub fn is_revised_row(row: &CurationInputRow) -> bool {
     row.status
         .as_deref()
         .is_some_and(|s| s.trim().eq_ignore_ascii_case("revised"))
+}
+
+/// Comment block emitted in place of `CREATE`/`P703` statements for `status=revised` rows.
+#[must_use]
+pub fn revised_row_statement(row: &CurationInputRow) -> String {
+    let name = escape_quickstatements(row.name.trim());
+    format!(
+        "## {name}\n# marked status=revised: automatic item creation and statement emission are suppressed. \
+         Review the prior Wikidata item and deprecate or update the superseded statement manually."
+    )
 }
 
 /// The statements a row needs, and what curation concluded about it.
@@ -287,14 +301,11 @@ pub fn statements_for(
     converted: &crate::ConvertedStructure,
     lookup: &WikidataLookup,
 ) -> Vec<String> {
-    let name = escape_quickstatements(row.name.trim());
     if is_revised_row(row) {
-        return vec![format!(
-            "## {name}\n# marked status=revised: automatic item creation and statement emission are suppressed. \
-             Review the prior Wikidata item and deprecate or update the superseded statement manually."
-        )];
+        return vec![revised_row_statement(row)];
     }
 
+    let name = escape_quickstatements(row.name.trim());
     let mut out = Vec::new();
     let ref_pending = is_reference_pending(row, lookup);
 
@@ -460,9 +471,8 @@ pub fn to_result_row(
 
     let mut note = String::new();
     if is_revised_row(row) {
-        note.push_str(
-            "row marked status=revised; manual review required to deprecate or update the superseded Wikidata statement instead of creating a duplicate. ",
-        );
+        note.push_str(REVISED_ROW_NOTE);
+        note.push(' ');
     }
     if !key.is_known() {
         note.push_str("no InChIKey for this structure; nothing could be looked up. ");

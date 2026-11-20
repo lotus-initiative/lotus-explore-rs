@@ -219,11 +219,29 @@ async fn curate_row<H: lotus_search::Http>(
 /// reference are not: `P703` and `P248` take items, and offline the taxon and
 /// the DOI were never resolved to one. The note says so.
 fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
-    let name = escape_quickstatements(finding.name.trim());
     let raw_smiles = finding.smiles.trim();
     let canonical = lotus_curation::strip_stereo_marks(raw_smiles);
     let isomeric_smiles =
         lotus_curation::has_stereo_marks(raw_smiles).then(|| raw_smiles.to_string());
+    if lotus_curation::is_revised_row(finding) {
+        return lotus_curation::CurationResultRow {
+            input: finding.clone(),
+            canonical_smiles: (!canonical.is_empty()).then_some(canonical),
+            isomeric_smiles,
+            inchikey: None,
+            inchi: None,
+            formula: None,
+            exact_mass: None,
+            mass_warning: None,
+            wikidata_qid: None,
+            status: lotus_curation::CurationStatus::ExistingNeedsUpdates,
+            note: lotus_curation::REVISED_ROW_NOTE.to_string(),
+            dependency_blocks: Vec::new(),
+            quickstatements: vec![lotus_curation::revised_row_statement(finding)],
+        };
+    }
+
+    let name = escape_quickstatements(finding.name.trim());
     let mut compound_block = format!(
         "## {name}\nCREATE\nLAST|{PROPERTY_NAME}|\"{name}\"\n\
          LAST|P31|{entity_type}\n\
