@@ -1005,6 +1005,11 @@ mod networked {
         let result = to_result_row(&revised, &key(), &missing_lookup);
         assert_eq!(result.status, CurationStatus::ExistingNeedsUpdates);
         assert!(result.note.contains("status=revised"), "{}", result.note);
+        assert!(
+            result.dependency_blocks.is_empty(),
+            "status=revised must suppress dependency CREATE blocks: {:?}",
+            result.dependency_blocks
+        );
         assert_eq!(result.quickstatements.len(), 1);
         assert!(
             !result.quickstatements[0].contains("CREATE"),

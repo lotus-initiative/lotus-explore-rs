@@ -505,11 +505,13 @@ pub fn to_result_row(
     }
 
     let mut dependency_blocks = Vec::new();
-    if taxon_pending {
-        dependency_blocks.extend(taxon_dependency_statements(row));
-    }
-    if ref_pending {
-        dependency_blocks.extend(reference_dependency_statements(row));
+    if !is_revised_row(row) {
+        if taxon_pending {
+            dependency_blocks.extend(taxon_dependency_statements(row));
+        }
+        if ref_pending {
+            dependency_blocks.extend(reference_dependency_statements(row));
+        }
     }
 
     CurationResultRow {

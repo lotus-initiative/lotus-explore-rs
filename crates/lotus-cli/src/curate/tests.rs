@@ -277,6 +277,37 @@ fn collect_report_statements_emits_all_dependencies_before_main_statements() {
 }
 
 #[tokio::test]
+async fn online_revised_row_with_missing_taxon_and_doi_emits_no_create_statements() {
+    let empty_http = lotus_search::testing::Scripted::new(vec![
+        (200, r#"{"results":{"bindings":[]}}"#),
+        (200, r#"{"results":{"bindings":[]}}"#),
+        (200, r#"{"results":{"bindings":[]}}"#),
+    ]);
+    let converted = lotus_curation::ConvertedStructure {
+        inchikey: Some("LFQSCWFLJHTTHZ-UHFFFAOYSA-N".into()),
+        canonical_smiles: Some("CCO".into()),
+        ..lotus_curation::ConvertedStructure::default()
+    };
+    let input = Finding {
+        name: "Hyperelodione D".into(),
+        smiles: "CCO".into(),
+        taxon: Some("Hypericum elodeoides".into()),
+        doi: Some("10.1002/anie.202200420".into()),
+        status: Some("revised".into()),
+    };
+
+    let result = super::curate_row(&empty_http, &input, &converted).await;
+    assert_eq!(result.status, CurationStatus::ExistingNeedsUpdates);
+    assert_eq!(result.dependency_blocks, Vec::<String>::new());
+    let collected = super::collect_report_statements(&[result]);
+    let joined = collected.join("\n");
+    assert!(
+        !joined.contains("CREATE"),
+        "online revised row must not emit CREATE dependency blocks: {joined}"
+    );
+}
+
+#[tokio::test]
 async fn curate_row_clears_statements_when_wikidata_lookup_fails() {
     let dead_http = lotus_search::testing::Scripted::new(vec![(0, "")]);
     let converted = lotus_curation::ConvertedStructure {
