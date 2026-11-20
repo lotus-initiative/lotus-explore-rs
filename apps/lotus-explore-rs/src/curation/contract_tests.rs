@@ -21,6 +21,7 @@ fn input(name: &str, smiles: &str, taxon: Option<&str>, doi: Option<&str>) -> Cu
         smiles: smiles.into(),
         taxon: taxon.map(Into::into),
         doi: doi.map(Into::into),
+        status: None,
     }
 }
 

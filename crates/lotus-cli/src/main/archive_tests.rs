@@ -9,31 +9,33 @@ const VALID_SHA: &str = "0123456789abcdef0123456789abcdef01234567";
 
 #[test]
 fn validate_source_code_url_accepts_https_with_commit_sha() {
-    let url = format!("https://github.com/lotusnprod/lotus-explore-rs/commit/{VALID_SHA}");
+    let url = format!("https://github.com/lotus-initiative/lotus-explore-rs/commit/{VALID_SHA}");
     assert_eq!(validate_source_code_url(&url).expect("url is valid"), url);
 }
 
 #[test]
 fn validate_source_code_url_rejects_http() {
-    let url = format!("http://github.com/lotusnprod/lotus-explore-rs/commit/{VALID_SHA}");
+    let url = format!("http://github.com/lotus-initiative/lotus-explore-rs/commit/{VALID_SHA}");
     assert!(validate_source_code_url(&url).is_err());
 }
 
 #[test]
 fn validate_source_code_url_rejects_missing_commit_suffix() {
-    assert!(validate_source_code_url("https://github.com/lotusnprod/lotus-explore-rs").is_err());
+    assert!(
+        validate_source_code_url("https://github.com/lotus-initiative/lotus-explore-rs").is_err()
+    );
 }
 
 #[test]
 fn validate_source_code_url_rejects_short_sha() {
-    let url = "https://github.com/lotusnprod/lotus-explore-rs/commit/abc123".to_string();
+    let url = "https://github.com/lotus-initiative/lotus-explore-rs/commit/abc123".to_string();
     assert!(validate_source_code_url(&url).is_err());
 }
 
 #[test]
 fn validate_source_code_url_rejects_non_hex_sha() {
     let url = format!(
-        "https://github.com/lotusnprod/lotus-explore-rs/commit/{}",
+        "https://github.com/lotus-initiative/lotus-explore-rs/commit/{}",
         "z".repeat(40)
     );
     assert!(validate_source_code_url(&url).is_err());
@@ -69,7 +71,7 @@ fn parse_deposition_id_rejects_zero() {
 
 #[test]
 fn zenodo_metadata_builds_with_valid_inputs() {
-    let url = format!("https://github.com/lotusnprod/lotus-explore-rs/commit/{VALID_SHA}");
+    let url = format!("https://github.com/lotus-initiative/lotus-explore-rs/commit/{VALID_SHA}");
     let metadata = zenodo_metadata(
         "Test Title",
         "Test Creator",

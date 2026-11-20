@@ -105,12 +105,10 @@ pub fn result_set_jsonld(set: &ResultSet<'_>) -> Value {
             {
                 "@type": "DataDownload",
                 "encodingFormat": ["text/csv", edam::FORMAT_CSV],
-                "contentUrl": format!("{url}?format=csv&query={}", set.query_hash),
             },
             {
                 "@type": "DataDownload",
                 "encodingFormat": ["application/ld+json", edam::FORMAT_JSON_LD],
-                "contentUrl": format!("{url}?format=jsonld&query={}", set.query_hash),
             },
         ],
         "includedInDataCatalog": {
@@ -194,6 +192,7 @@ pub fn dataset_jsonld() -> Value {
             {
                 "@type": "DataDownload",
                 "encodingFormat": ["application/sparql-query", edam::FORMAT_SPARQL],
+                // refquiem: allow(contentUrl) Schema.org download URL for the external Wikidata SPARQL service, independent of offline DataDownload exports.
                 "contentUrl": "https://query.wikidata.org/sparql",
             },
         ],

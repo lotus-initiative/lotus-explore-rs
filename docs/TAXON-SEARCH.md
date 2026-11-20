@@ -109,6 +109,17 @@ a repeat search reproduces the same notice rather than silently losing the
 common-name one — which is the failure that made the notice look unreliable in the
 first place.
 
+### Two taxa with one name
+
+A name can belong to more than one taxon. `Michelia` is a fossil genus
+([Q107310648](https://www.wikidata.org/wiki/Q107310648)) and a plant genus
+([Q15287905](https://www.wikidata.org/wiki/Q15287905)); the lookup lists the
+fossil first and it has no recorded compound. When several taxa carry exactly the
+name that was typed, each is asked in turn for one occurrence
+(`taxon_has_compounds_query`) and the first that has one is used. The notice still
+names every candidate with its QID, and a QID typed into the field skips the
+choice.
+
 ## The other free-text field
 
 The structure field resolves too, and for the same reason: a name typed there

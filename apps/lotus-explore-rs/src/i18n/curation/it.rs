@@ -213,6 +213,10 @@ pub(super) const fn curation_note_existing_updates() -> &'static str {
     "Trovata una voce Wikidata esistente: generati QuickStatements di aggiornamento."
 }
 
+pub(super) const fn curation_note_revised() -> &'static str {
+    "Riga contrassegnata status=revised: è necessaria una revisione manuale per deprecare o aggiornare la dichiarazione Wikidata sostituita invece di creare un duplicato."
+}
+
 pub(super) const fn curation_note_new_compound() -> &'static str {
     "Nessuna voce Wikidata trovata tramite InChIKey; generati QuickStatements di creazione."
 }

@@ -276,7 +276,7 @@ fn StructureSearchOptions() -> Element {
             // On the fieldset, not on each radio: WebMCP describes a radio group as one
             // parameter, and repeating it synthesises a conflicting property that fails
             // schema validation.
-            "toolparamdescription": "How the resolved compound is searched: exact (that compound only), substructure, or similarity.",
+            "toolparamdescription": "How the resolved compound is searched: exact (that compound; a pasted structure can also match its stereoisomers), substructure, or similarity.",
             legend { class: "text-micro font-semibold uppercase tracking-wide text-subtle", "{t(locale, TextKey::StructureSearchMode)}" }
             label { class: "inline-flex items-center gap-1.5 text-ui text-muted",
                 input {

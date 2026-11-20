@@ -1,4 +1,4 @@
-# LOTUS Explore-rs
+# LOTUS Explorer
 
 > Explore LOTUS with taxon filters, structure search, and Wikidata curation workflows.
 
@@ -7,8 +7,8 @@ root-relative link resolves to the domain root and 404s.
 
 ## Core information
 
-- **Official name**: LOTUS Explore-rs
-- **Short name**: LOTUS-rs
+- **Official name**: LOTUS Explorer
+- **Short name**: LOTUS Explorer
 - **Purpose**: Interactive exploration of chemical entity occurrence data
 - **Data domain**: Natural products, chemical compounds, taxonomy, scientific references
 - **Access model**: Free, web-based, no authentication required
@@ -30,12 +30,12 @@ root-relative link resolves to the domain root and 404s.
 In the repository. These are design and operations notes rather than user
 documentation, and are not served from the site itself.
 
-- [Architecture](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/ARCHITECTURE.md)
-- [Design system](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/DESIGN_SYSTEM.md)
-- [Performance](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/PERFORMANCE.md)
-- [Deployment](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/DEPLOYMENT.md)
-- [Citation](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/CITATION.md)
-- [Curation share links](https://github.com/lotusnprod/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/CURATION_SHARE_LINKS.md)
+- [Architecture](https://github.com/lotus-initiative/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/ARCHITECTURE.md)
+- [Design system](https://github.com/lotus-initiative/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/DESIGN_SYSTEM.md)
+- [Performance](https://github.com/lotus-initiative/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/PERFORMANCE.md)
+- [Deployment](https://github.com/lotus-initiative/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/DEPLOYMENT.md)
+- [Citation](https://github.com/lotus-initiative/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/CITATION.md)
+- [Curation share links](https://github.com/lotus-initiative/lotus-explore-rs/blob/main/apps/lotus-explore-rs/docs/CURATION_SHARE_LINKS.md)
 
 ## Discovery
 
@@ -82,7 +82,7 @@ Wikidata and third-party services and is flagged `untrustedContentHint`.
 ## Data sources
 
 - [Wikidata Query Service](https://query.wikidata.org/)
-- [QLever Wikidata endpoint](https://qlever.cs.uni-freiburg.de/wikidata)
+- [QLever Wikidata endpoint](https://qlever.dev/wikidata)
 - [DOI metadata](https://doi.org/)
 - [LOTUS initiative](https://lotus-initiative.github.io)
 
@@ -95,11 +95,11 @@ Wikidata and third-party services and is flagged `untrustedContentHint`.
 ## Licensing
 
 - App: [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html)
-- Data: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)
+- Wikidata data: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (application code is AGPL-3.0; external literature abstracts remain under publisher copyright)
 
 ## Project
 
 - [App](https://lotus-initiative.github.io/lotus-explore-rs/)
-- [Repository and source](https://github.com/lotusnprod/lotus-explore-rs)
-- [Issues](https://github.com/lotusnprod/lotus-explore-rs/issues)
-- [Discussions](https://github.com/lotusnprod/lotus-explore-rs/discussions)
+- [Repository and source](https://github.com/lotus-initiative/lotus-explore-rs)
+- [Issues](https://github.com/lotus-initiative/lotus-explore-rs/issues)
+- [Discussions](https://github.com/lotus-initiative/lotus-explore-rs/discussions)

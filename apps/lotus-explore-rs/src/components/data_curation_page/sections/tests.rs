@@ -19,18 +19,21 @@ fn queue_rows_removal_logic_preserves_other_rows() {
             smiles: "CCO".to_string(),
             taxon: None,
             doi: None,
+            status: None,
         },
         CurationInputRow {
             name: "B".to_string(),
             smiles: "CCN".to_string(),
             taxon: None,
             doi: None,
+            status: None,
         },
         CurationInputRow {
             name: "C".to_string(),
             smiles: "CCC".to_string(),
             taxon: None,
             doi: None,
+            status: None,
         },
     ];
     rows.remove(1);

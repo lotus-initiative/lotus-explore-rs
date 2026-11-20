@@ -86,13 +86,14 @@ fn parsed_json_query_preserves_encoded_ampersands() {
 }
 
 #[test]
-fn root_and_search_are_distinct_routes() {
+fn root_and_search_are_distinct_routes_showing_the_same_view() {
     let landing = "/".parse::<Route>();
     let search = "/search".parse::<Route>();
     assert!(landing.is_ok(), "landing route should parse");
     assert!(search.is_ok(), "search route should parse");
     if let (Ok(landing), Ok(search)) = (landing, search) {
-        assert_eq!(landing.view_key(), "landing");
+        assert_ne!(landing, search);
+        assert_eq!(landing.view_key(), "search");
         assert_eq!(search.view_key(), "search");
     }
 }

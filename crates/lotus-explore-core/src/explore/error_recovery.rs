@@ -202,7 +202,7 @@ fn rate_limit_backoff_ms(attempt: u32) -> u64 {
 #[must_use]
 pub const fn should_clear_state_on_error(error_stage: QueryStage) -> bool {
     match error_stage {
-        QueryStage::TaxonSearch => true, // Everything downstream is invalid
+        QueryStage::TaxonSearch | QueryStage::StructureSearch => true, // Everything downstream is invalid
         QueryStage::ResultsQuery => false, // Keep previous results visible
     }
 }

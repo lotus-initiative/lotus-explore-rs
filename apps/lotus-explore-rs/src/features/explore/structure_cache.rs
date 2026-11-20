@@ -95,9 +95,27 @@ thread_local! {
     static CACHE: RefCell<Cache> = RefCell::new(HashMap::new());
 }
 
+/// Fold case for compound identifiers (`names_a_compound`: names, QIDs,
+/// `InChIKey`s) while preserving exact SMILES case (`c1ccccc1` vs `C1CCCCC1`)
+/// and molfile leading blank header lines.
+fn cache_key(input: &str) -> String {
+    if lotus_model::classify_structure(input).is_molfile() {
+        return input.to_string();
+    }
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    if lotus_model::names_a_compound(trimmed) {
+        trimmed.to_lowercase()
+    } else {
+        trimmed.to_string()
+    }
+}
+
 /// The cached resolution for `input`.
 pub fn lookup(input: &str) -> Cached {
-    let key = input.trim().to_lowercase();
+    let key = cache_key(input);
     if key.is_empty() {
         return Cached::Unknown;
     }
@@ -106,7 +124,7 @@ pub fn lookup(input: &str) -> Cached {
 
 /// Record a resolution, or the absence of one.
 pub fn store(input: &str, resolution: Option<CachedCompound>) {
-    let key = input.trim().to_lowercase();
+    let key = cache_key(input);
     if key.is_empty() {
         return;
     }

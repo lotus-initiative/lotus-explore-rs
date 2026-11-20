@@ -58,7 +58,7 @@ for the test that runs every example in this file.
 | `--no-replacements`                                                            | Ignore replacement names and what they replaced (`P694`)                    |
 | `--structure`                                                                  | Compound name, InChIKey, Wikidata QID, SMILES, or MDL molfile (V2000/V3000) |
 | `--structure-search`                                                           | `exact` (default), `substructure` or `similarity`                           |
-| `--threshold`                                                                  | Tanimoto cutoff for a similarity search, 0 to 1                             |
+| `--threshold`                                                                  | Tanimoto cutoff for a similarity search, 0 to 1, scored by the IDSM service |
 | `--mass-min`, `--mass-max`                                                     | Molecular mass range, in daltons                                            |
 | `--year-min`, `--year-max`                                                     | Publication year range                                                      |
 | `--formula`                                                                    | Exact molecular formula; subscripts are accepted                            |
@@ -82,7 +82,10 @@ not, and Wikidata stores them under four separate property pairs.
 [TAXON-SEARCH.md](TAXON-SEARCH.md) has the vocabulary, the properties, the
 traversal, and the measured table of what each switch changes.
 
-`--structure-search exact` asks for one compound. Like the web app, `lotus search`
+`--structure-search exact` asks for one compound when the input is a name, an
+InChIKey or a QID. A SMILES or molfile is matched by the IDSM structure service at
+a similarity of 1, which can also return stereoisomers and other close isomers of
+it. Like the web app, `lotus search`
 resolves compound names, InChIKeys, Wikidata QIDs, and exact SMILES/molfiles to
 their Wikidata compound QIDs before running the occurrence query (`--explain`
 stays offline and leaves non-QID inputs unresolved, printing a note on stderr).
@@ -97,8 +100,8 @@ Any of the formula filters turns the formula section on by itself: typing
 
 ### Output
 
-`--format` takes `table`, `tsv`, `csv`, `json`, `jsonl`, `jsonld`, `ttl` (legacy) or
-`query`. `ttl` is also spelled `ttl` or `turtle`.
+`--format` takes `table`, `tsv`, `csv`, `json`, `jsonl`, `jsonld`, `ttl`
+(alias for the canonical "rdf" value, also spelled `turtle`), or `query`.
 
 Data goes to stdout and diagnostics to stderr, so redirection captures the data
 and nothing else:
@@ -118,7 +121,7 @@ lotus search --taxon Q21754 --format jsonl | jq -r .name
 - `jsonld` is Bioschemas JSON-LD: a `Dataset` for the result set, the LOTUS
   source, and a `MolecularEntity` per compound. See
   [`lotus-jsonld`](../crates/lotus-jsonld).
-- `ttl` is RDF Turtle, for ingestion into a triple store. It is written from the
+- `ttl` (canonical CLI value "rdf", also aliased as `turtle`) is RDF Turtle, for ingestion into a triple store. It is written from the
   rows already fetched rather than by asking the endpoint to run the `CONSTRUCT`,
   so an export does not fetch the same result a second time just to change its
   syntax. Each occurrence is emitted as the reified chain the endpoint produces --
@@ -175,9 +178,13 @@ lotus curate findings.tsv --output statements.txt
 ```
 
 The input is a TSV or CSV table with `name` (or `compound_name`) and `smiles`
-columns, and optionally `taxon` (or `organism`, `species`) and `doi`
-(`reference_doi`). Columns are matched by name, so extra columns from a
-spreadsheet export are ignored rather than shifting everything:
+columns, and optionally `taxon` (or `organism`, `organism_name`, `source_organism`,
+`species`), `doi` (`reference_doi`), and `status`. When `status` is `revised`,
+automatic `CREATE` statement emission is suppressed so a curator can review and
+deprecate or update the superseded claim manually. Columns are matched by name, so
+extra metadata columns (`compound_number`, `inchikey`, `organism_id`, `tissue`,
+`evidence`, `host`, `voucher_or_strain`, `part`; see [`examples/curation_example.tsv`](../examples/curation_example.tsv))
+are ignored cleanly rather than shifting everything:
 
 ```tsv
 name    smiles  taxon   doi
@@ -198,8 +205,8 @@ A row is reported as one of:
 
 | Status                 | Meaning                                             |
 | ---------------------- | --------------------------------------------------- |
-| `existing_complete`    | Wikidata has the compound and the occurrence        |
-| `existing_updates`     | The compound is there; the occurrence is missing    |
+| `existing_complete`    | Wikidata has the compound and the occurrence                                      |
+| `existing_updates`     | Missing properties or occurrence, or marked `status=revised` for manual review |
 | `new_compound`         | No such item, and statements to create one          |
 | `pending_dependencies` | A taxon or reference the row needs is not there yet |
 | `not_checked`          | Not looked up, so nothing is known                  |
@@ -222,17 +229,20 @@ guessed at.
 
 ### Offline
 
-`--offline` makes no requests at all and reports every row as `not_checked`:
+`--offline` makes no requests at all and reports every row as `not_checked`
+(except rows with `status = revised`, which are marked `existing_updates` with a
+manual-review comment and no `CREATE` block):
 
 ```bash
 lotus curate findings.tsv --offline
 ```
 
-Each row still gets its compound statement, drafted from the SMILES, because
-there is something to read either way; the status says it is a draft. The
-occurrence and the reference are left out, and the row's note says so: `P703`
-and `P248` take Wikidata items, and offline the taxon and the DOI are never
-resolved to one.
+For non-revised rows, each row still gets its compound statement, drafted from
+the SMILES, because there is something to read either way; the status says it
+is a draft. The occurrence and the reference are left out, and the row's note
+says so: `P703` and `P248` take Wikidata items, and offline the taxon and the DOI
+are never resolved to one. Rows with `status = revised` suppress item creation
+and omit `CREATE` blocks cleanly offline as well.
 
 **Nothing is submitted to Wikidata, and there is no flag that would.** The
 output is QuickStatements for a person to read and submit, and the command says
@@ -255,8 +265,9 @@ curation.
 
 Rows that name the same structure, taxon and DOI under different names are one
 finding, because a spreadsheet duplicate is an artefact rather than a second
-thing to curate. The comparison folds case on all three, since `CCO` and `cco`
-are the same molecule.
+thing to curate. The comparison folds case on taxon and DOI while preserving
+SMILES case, because in SMILES lowercase letters encode aromaticity (for
+example, `c1ccccc1` versus `C1CCCCC1`).
 
 ## completions
 
@@ -376,7 +387,7 @@ To publish for real:
 
 ```bash
 export ZENODO_TOKEN=your-token-here
-export SOURCE_CODE_URL=https://github.com/lotusnprod/lotus-explore-rs/commit/abc123...
+export SOURCE_CODE_URL=https://github.com/lotus-initiative/lotus-explore-rs/commit/abc123...
 lotus archive --output ./lotus-archive --publish
 ```
 

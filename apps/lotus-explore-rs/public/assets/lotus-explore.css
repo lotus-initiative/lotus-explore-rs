@@ -7,7 +7,6 @@
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     --spacing: 0.25rem;
     --container-3xl: 48rem;
-    --container-6xl: 72rem;
     --text-sm: 0.875rem;
     --text-sm--line-height: calc(1.25 / 0.875);
     --text-base: 1rem;
@@ -309,9 +308,6 @@
   .mx-0 {
     margin-inline: calc(var(--spacing) * 0);
   }
-  .mx-1 {
-    margin-inline: var(--spacing-1);
-  }
   .mx-auto {
     margin-inline: auto;
   }
@@ -394,12 +390,6 @@
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
-  }
-  .line-clamp-3 {
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
   }
   .block {
     display: block;
@@ -576,9 +566,6 @@
   }
   .max-w-3xl {
     max-width: var(--container-3xl);
-  }
-  .max-w-6xl {
-    max-width: var(--container-6xl);
   }
   .max-w-\[24ch\] {
     max-width: 24ch;
@@ -810,6 +797,9 @@
   }
   .rounded {
     border-radius: 0.25rem;
+  }
+  .rounded-2xl {
+    border-radius: var(--radius-2xl);
   }
   .rounded-full {
     border-radius: calc(infinity * 1px);
@@ -1763,14 +1753,6 @@
       top: calc(var(--spacing) * 0);
     }
   }
-  .sm\:line-clamp-none {
-    @media (width >= 40rem) {
-      overflow: visible;
-      display: block;
-      -webkit-box-orient: horizontal;
-      -webkit-line-clamp: unset;
-    }
-  }
   .sm\:w-\[12ch\] {
     @media (width >= 40rem) {
       width: 12ch;
@@ -2413,6 +2395,15 @@ legend {
     padding-left: 32px;
     padding-right: 32px;
   }
+}
+.analytics-pixel {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 @property --tw-space-y-reverse {
   syntax: "*";

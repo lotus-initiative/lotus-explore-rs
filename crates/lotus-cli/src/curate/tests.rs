@@ -21,6 +21,7 @@ fn finding(smiles: &str) -> Finding {
         smiles: smiles.into(),
         taxon: None,
         doi: None,
+        status: None,
     }
 }
 
@@ -31,6 +32,7 @@ fn row(status: &CurationStatus) -> CurationResultRow {
             smiles: "CCO".into(),
             taxon: None,
             doi: None,
+            status: None,
         },
         canonical_smiles: None,
         isomeric_smiles: None,
@@ -275,6 +277,37 @@ fn collect_report_statements_emits_all_dependencies_before_main_statements() {
 }
 
 #[tokio::test]
+async fn online_revised_row_with_missing_taxon_and_doi_emits_no_create_statements() {
+    let empty_http = lotus_search::testing::Scripted::new(vec![
+        (200, r#"{"results":{"bindings":[]}}"#),
+        (200, r#"{"results":{"bindings":[]}}"#),
+        (200, r#"{"results":{"bindings":[]}}"#),
+    ]);
+    let converted = lotus_curation::ConvertedStructure {
+        inchikey: Some("LFQSCWFLJHTTHZ-UHFFFAOYSA-N".into()),
+        canonical_smiles: Some("CCO".into()),
+        ..lotus_curation::ConvertedStructure::default()
+    };
+    let input = Finding {
+        name: "Hyperelodione D".into(),
+        smiles: "CCO".into(),
+        taxon: Some("Hypericum elodeoides".into()),
+        doi: Some("10.1002/anie.202200420".into()),
+        status: Some("revised".into()),
+    };
+
+    let result = super::curate_row(&empty_http, &input, &converted).await;
+    assert_eq!(result.status, CurationStatus::ExistingNeedsUpdates);
+    assert_eq!(result.dependency_blocks, Vec::<String>::new());
+    let collected = super::collect_report_statements(&[result]);
+    let joined = collected.join("\n");
+    assert!(
+        !joined.contains("CREATE"),
+        "online revised row must not emit CREATE dependency blocks: {joined}"
+    );
+}
+
+#[tokio::test]
 async fn curate_row_clears_statements_when_wikidata_lookup_fails() {
     let dead_http = lotus_search::testing::Scripted::new(vec![(0, "")]);
     let converted = lotus_curation::ConvertedStructure {
@@ -287,6 +320,7 @@ async fn curate_row_clears_statements_when_wikidata_lookup_fails() {
         smiles: "CCO".into(),
         taxon: Some("Gentiana lutea".into()),
         doi: Some("10.1000/abc".into()),
+        status: None,
     };
 
     let result = super::curate_row(&dead_http, &input, &converted).await;
@@ -332,6 +366,7 @@ fn an_offline_row_emits_nothing_for_an_unresolved_taxon_or_reference() {
         smiles: "CCO".into(),
         taxon: Some("Gentiana lutea".into()),
         doi: Some("10.1/x".into()),
+        status: None,
     });
 
     assert_eq!(row.quickstatements.len(), 1, "{:?}", row.quickstatements);
@@ -344,6 +379,39 @@ fn an_offline_row_emits_nothing_for_an_unresolved_taxon_or_reference() {
         "the note must say what was left out: {}",
         row.note
     );
+}
+
+#[test]
+fn offline_revised_row_suppresses_create_statements() {
+    let row = super::not_checked_row(&Finding {
+        name: "Hyperelodione D".into(),
+        smiles: "C[C@H](O)C".into(),
+        taxon: Some("Hypericum elodeoides".into()),
+        doi: Some("10.1002/anie.202200420".into()),
+        status: Some("revised".into()),
+    });
+
+    assert_eq!(row.status, CurationStatus::ExistingNeedsUpdates);
+    let qs = row.quickstatements.join("\n");
+    assert!(
+        !qs.contains("CREATE"),
+        "offline revised row must not CREATE: {qs}"
+    );
+    assert!(!qs.contains("P703"), "{qs}");
+    assert!(qs.contains("status=revised"), "{qs}");
+    assert!(row.note.contains("status=revised"), "{}", row.note);
+    assert_eq!(row.canonical_smiles.as_deref(), Some("CC(O)C"));
+    assert_eq!(row.isomeric_smiles.as_deref(), Some("C[C@H](O)C"));
+
+    let blank = super::not_checked_row(&Finding {
+        name: "Unknown".into(),
+        smiles: "   ".into(),
+        taxon: None,
+        doi: None,
+        status: Some("revised".into()),
+    });
+    assert!(blank.canonical_smiles.is_none());
+    assert!(blank.isomeric_smiles.is_none());
 }
 
 /// A scratch directory under the temp dir, removed by the caller.

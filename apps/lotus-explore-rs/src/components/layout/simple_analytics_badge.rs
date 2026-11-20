@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-//! `SimpleAnalytics` visitor badge, shown as a discreet footer line beside the analytics loader.
+//! `SimpleAnalytics` visitor badge, shown as a discreet footer line alongside the no-JS analytics pixel.
 
 use dioxus::prelude::*;
 

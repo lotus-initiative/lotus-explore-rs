@@ -18,8 +18,20 @@ pub use taxon::taxon_jsonld;
 
 use lotus_model::CompoundEntry;
 
-/// The `@context` every document here shares.
+/// The base `schema.org` `@context` URI.
 pub const CONTEXT: &str = "https://schema.org/";
+
+/// The JSON-LD `@context` shared across exported documents, binding `dct` so
+/// strict JSON-LD 1.1 processors can expand `dct:conformsTo`.
+#[must_use]
+pub fn jsonld_context() -> serde_json::Value {
+    serde_json::json!([
+        CONTEXT,
+        {
+            "dct": "http://purl.org/dc/terms/",
+        },
+    ])
+}
 
 /// Stamps `@context` and `dct:conformsTo` onto a node.
 ///
@@ -35,7 +47,7 @@ pub(crate) fn stamp(mut node: serde_json::Value, profile: Profile) -> serde_json
     // indexing a `Value` panics on a non-object, and this is called on
     // whatever a caller built.
     if let Some(object) = node.as_object_mut() {
-        object.insert("@context".into(), CONTEXT.into());
+        object.insert("@context".into(), jsonld_context());
         object.insert("dct:conformsTo".into(), profile.id().into());
     }
     node
@@ -84,7 +96,7 @@ pub fn property_value(
 /// The `Dataset` every result belongs to, given a result set's identity.
 #[must_use]
 pub fn result_dataset_url(name_slug: &str, query_hash: &str) -> String {
-    format!("https://lotus-initiative.github.io/lotus-explore-rs/dataset/{name_slug}/{query_hash}")
+    format!("https://lotus-initiative.github.io/lotus-explore-rs/#dataset/{name_slug}/{query_hash}")
 }
 
 /// The project itself, for a page that describes the software.

@@ -15,14 +15,27 @@ fn hash_prefix(value: &str) -> &str {
     value.get(..12).unwrap_or(value)
 }
 
+/// Which taxon was searched, in the words it was typed in, and why rows may
+/// carry another name: `Michelia champaca` returns rows under `Magnolia champaca`.
 #[component]
-fn ResolvedTaxonMetaItem(locale: crate::i18n::Locale, qid: Arc<str>) -> Element {
+fn ResolvedTaxonMetaItem(
+    locale: crate::i18n::Locale,
+    qid: Arc<str>,
+    typed: String,
+    linked_names: bool,
+) -> Element {
     rsx! {
         span { class: "flex items-center gap-1.5 flex-wrap min-w-0",
             span { class: "font-semibold text-muted", "{t(locale, TextKey::ResolvedTaxon)}" }
             span { class: "text-subtle", ":" }
+            if !typed.eq_ignore_ascii_case(&qid) {
+                span { class: "italic text-text", "{typed}" }
+            }
             span { class: "font-mono text-subtle", "{qid}" }
             CopyButton { text: qid, title: t(locale, TextKey::CopyTaxonQid), class: "meta-copy", locale }
+            if linked_names {
+                span { class: "text-subtle", "{t(locale, TextKey::LinkedNamesIncluded)}" }
+            }
         }
     }
 }
@@ -105,7 +118,14 @@ pub fn HeaderMetaSection() -> Element {
         if has_meta {
             div { class: "flex flex-wrap items-center gap-2 rounded-xl border border-border bg-panel-soft px-4 py-2.5 text-ui",
                 if let Some(qid) = resolved_qid_value.as_ref() {
-                    ResolvedTaxonMetaItem { locale, qid: qid.clone() }
+                    // The strip is hidden as soon as the criteria change, so while
+                    // it shows, the form still holds what was searched.
+                    ResolvedTaxonMetaItem {
+                        locale,
+                        qid: qid.clone(),
+                        typed: form_ctx.criteria.read().taxon.trim().to_owned(),
+                        linked_names: &**qid != "*" && form_ctx.criteria.read().taxon_names.any(),
+                    }
                 }
                 if let Some(qh) = query_hash_value.as_ref() {
                     QueryHashMetaItem { locale, full_hash: qh.clone() }
@@ -117,3 +137,7 @@ pub fn HeaderMetaSection() -> Element {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "header_meta/tests.rs"]
+mod tests;

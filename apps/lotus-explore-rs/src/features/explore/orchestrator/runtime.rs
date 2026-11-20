@@ -157,6 +157,7 @@ fn build_search_succeeded_action(request: &SearchRequest, outcome: SearchOutcome
         &set,
         request.direct_download(),
         endpoint,
+        (!query.trim().is_empty()).then_some(query.as_str()),
         crate::clock::current_year(),
         &crate::clock::now_iso8601(),
     );

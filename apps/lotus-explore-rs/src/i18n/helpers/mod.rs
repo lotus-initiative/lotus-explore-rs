@@ -12,12 +12,21 @@ mod errors;
 pub use aria::*;
 pub use errors::*;
 
+/// The cutoff, with the measure and the service that computes it.
 pub fn threshold_label(locale: Locale, value: f64) -> String {
     match locale {
-        Locale::En => format!("Threshold: {value:.2}"),
-        Locale::Fr => format!("Seuil: {value:.2}"),
-        Locale::De => format!("Grenzwert: {value:.2}"),
-        Locale::It => format!("Soglia: {value:.2}"),
+        Locale::En => {
+            format!("Tanimoto similarity (IDSM structure service), at least {value:.2}")
+        }
+        Locale::Fr => {
+            format!("Similarité de Tanimoto (service de structures IDSM), au moins {value:.2}")
+        }
+        Locale::De => {
+            format!("Tanimoto-Ähnlichkeit (Strukturdienst IDSM), mindestens {value:.2}")
+        }
+        Locale::It => {
+            format!("Somiglianza di Tanimoto (servizio di strutture IDSM), almeno {value:.2}")
+        }
     }
 }
 

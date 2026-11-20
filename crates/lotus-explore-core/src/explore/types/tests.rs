@@ -93,8 +93,10 @@ fn transport_at_closure_maps_repository_error() {
 #[test]
 fn query_stages_have_stable_keys_and_display_as_them() {
     assert_eq!(QueryStage::TaxonSearch.as_key(), "taxon_search");
+    assert_eq!(QueryStage::StructureSearch.as_key(), "structure_search");
     assert_eq!(QueryStage::ResultsQuery.as_key(), "results_query");
     assert_eq!(QueryStage::TaxonSearch.to_string(), "taxon_search");
+    assert_eq!(QueryStage::StructureSearch.to_string(), "structure_search");
     assert_eq!(
         DomainError::transport(
             QueryStage::ResultsQuery,

@@ -48,6 +48,7 @@ fn download_only_suppresses_stats_and_matches() {
         &set_of(3),
         true,
         SparqlEndpoint::Qlever,
+        None,
         YEAR,
         NOW,
     );
@@ -65,12 +66,26 @@ fn the_counts_come_from_the_set_and_never_disagree_with_it() {
     // the set held 3 is the bug the endpoint's `COUNT` query used to produce.
     let crit = SearchCriteria::up_to_year(YEAR);
     let set = set_of(3);
-    let m = finalize(&crit, None, &set, false, SparqlEndpoint::Qlever, YEAR, NOW);
+    let m = finalize(
+        &crit,
+        None,
+        &set,
+        false,
+        SparqlEndpoint::Qlever,
+        Some("SELECT ?c WHERE {}"),
+        YEAR,
+        NOW,
+    );
 
     assert_eq!(
         record_count(&m),
         Some(3),
         "the record count is the set's own count"
+    );
+    let json: serde_json::Value = serde_json::from_str(&m.metadata_json).expect("metadata is JSON");
+    assert_eq!(
+        json.get("sparql_query").and_then(serde_json::Value::as_str),
+        Some("SELECT ?c WHERE {}")
     );
 }
 
@@ -83,6 +98,7 @@ fn an_empty_search_reports_zero_rather_than_no_answer() {
         &set_of(0),
         false,
         SparqlEndpoint::Qlever,
+        None,
         YEAR,
         NOW,
     );

@@ -82,7 +82,7 @@ refused should not be sent.
 
 Two headers go out with every request:
 
-- **`api-user-agent`** — `lotus-explore-rs/<version> (+https://github.com/lotusnprod/lotus-explore-rs)`.
+- **`api-user-agent`** — `lotus-explore-rs/<version> (+https://github.com/lotus-initiative/lotus-explore-rs)`.
   It is the header QLever names in its own CORS allow-list. The point is not
   politeness theatre: a deployment running this app heavily should be something
   an operator can _contact and raise a limit for_, rather than an anonymous

@@ -71,7 +71,9 @@ pub fn FieldExamples(
                                 // Not `submit`, which a button in a form defaults to:
                                 // every suggestion would run the search.
                                 r#type: "button",
-                                class: "cursor-pointer rounded-full border border-border bg-panel px-2 py-1 text-micro text-subtle hover:border-accent hover:text-text focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                                // `max-w-full break-words`: a SMILES is one long word, and a
+                                // chip wider than a phone would scroll the page sideways.
+                                class: "max-w-full break-words text-left cursor-pointer rounded-2xl border border-border bg-panel px-2 py-1 text-micro text-subtle hover:border-accent hover:text-text focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
                                 // The visible text is the bare value, which out of
                                 // context does not say what it does; this names the action.
                                 "aria-label": "{t(locale, TextKey::ExampleSets)} {value}",

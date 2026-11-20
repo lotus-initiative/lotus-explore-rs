@@ -70,7 +70,7 @@ fn ids_are_css_selector_safe() {
 /// Read from source rather than from a rendered page: the pairing that matters is
 /// two `rsx!` blocks naming the same string, and no unit test here can render the
 /// app. A distinct string per landmark is not enough on its own — the same
-/// `TextKey` reached from two places is exactly the mistake this catches.
+/// translation key reached from two places is exactly the mistake this catches.
 #[test]
 fn no_two_landmarks_share_an_accessible_name() {
     let mut sites: Vec<(String, String)> = Vec::new();
@@ -105,7 +105,7 @@ fn no_two_landmarks_share_an_accessible_name() {
 }
 
 /// Every `role: "region"`/`"main"`/`"banner"`/`"contentinfo"`/`"navigation"`
-/// in `rsx!`, with the `aria-label` or `TextKey` on the same element.
+/// in `rsx!`, with the `aria-label` or translation key on the same element.
 fn collect_landmark_labels(dir: &std::path::Path, out: &mut Vec<(String, String)>) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;

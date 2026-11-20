@@ -115,6 +115,9 @@ pub fn build_base_query(criteria: &SearchCriteria, qid: Option<&str>) -> String 
         None => match qid {
             Some(qid) if qid != "*" => compounds_by_taxon_query_with(qid, &nomenclature),
             Some(_) => all_compounds_query(),
+            // A reference names occurrences: with them optional, its `VALUES ?r`
+            // joins every compound that has none.
+            None if !criteria.reference.trim().is_empty() => all_compounds_query(),
             None => all_compounds_including_untaxonomised_query(),
         },
     }
@@ -229,9 +232,30 @@ pub async fn resolve_taxon<H: Http>(http: &H, input: &str) -> Result<TaxonResolu
         candidates = parse_taxon_csv(fallback_csv.as_bytes())?;
     }
 
-    let Some(chosen) = pick_match(&looked_up, &candidates) else {
+    let Some(mut chosen) = pick_match(&looked_up, &candidates) else {
         return Err(FetchError::Parse(format!("no taxon matched {trimmed:?}")));
     };
+    // Homonyms: use the first that has recorded compounds. A probe that fails
+    // decides nothing, and the first match stays chosen.
+    let homonyms = || {
+        candidates
+            .iter()
+            .filter(|c| c.name.eq_ignore_ascii_case(&looked_up))
+    };
+    if homonyms().count() > 1 {
+        for candidate in homonyms() {
+            let probe = lotus_query::taxon_has_compounds_query(&candidate.qid);
+            if let Ok(answer) =
+                crate::execute_with_fallback(http, &probe, ResponseFormat::Csv).await
+                && answer
+                    .text()
+                    .is_ok_and(|csv| lotus_query::has_data_row(csv.as_bytes()))
+            {
+                chosen.clone_from(&candidate.qid);
+                break;
+            }
+        }
+    }
 
     let mut notes = Vec::new();
     if looked_up != trimmed {

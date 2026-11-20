@@ -27,7 +27,7 @@ use thiserror::Error;
 /// One result row, as column name → cell value.
 pub(crate) type Row = HashMap<Arc<str>, String>;
 
-/// One occurrence triplet from [`COMPOUND_TAXON_REFERENCE_QUERY`], with QIDs
+/// One non-deprecated occurrence triplet from [`COMPOUND_TAXON_REFERENCE_QUERY`], with QIDs
 /// already stripped of their entity IRI prefixes.
 struct TripletRow {
     compound_qid: String,

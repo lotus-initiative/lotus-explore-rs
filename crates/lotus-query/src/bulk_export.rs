@@ -47,6 +47,7 @@ PREFIX ps: <http://www.wikidata.org/prop/statement/>
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX pr: <http://www.wikidata.org/prop/reference/>
 PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
 "
     };
 }
@@ -95,6 +96,8 @@ macro_rules! occurrence_reference {
             "  ?compound wdt:P235 ?inchikey .",
             "  ?compound p:P703 ?statement .",
             "  ?statement ps:P703 ?taxon .",
+            "  ?statement wikibase:rank ?_rank .",
+            "  FILTER(?_rank != wikibase:DeprecatedRank)",
             "  ?statement prov:wasDerivedFrom/pr:P248 ?reference .",
             $($line,)+
         )
@@ -114,6 +117,8 @@ pub const COMPOUND_TAXON_REFERENCE_QUERY: &str = select_distinct!(
     "  ?compound wdt:P235 ?compound_inchikey .",
     "  ?compound p:P703 ?statement .",
     "  ?statement ps:P703 ?taxon .",
+    "  ?statement wikibase:rank ?_rank .",
+    "  FILTER(?_rank != wikibase:DeprecatedRank)",
     "  ?statement prov:wasDerivedFrom/pr:P248 ?reference .",
 );
 
@@ -254,6 +259,8 @@ SELECT ?reference ?doi ?pmid ?pmcid ?title ?date ?journal ?journal_label WHERE {
         SELECT ?statement WHERE {
           ?compound wdt:P235 ?inchikey ;
                     p:P703 ?statement .
+          ?statement wikibase:rank ?_rank .
+          FILTER(?_rank != wikibase:DeprecatedRank)
         }
       }
       ?statement ps:P703 ?taxon ;

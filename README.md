@@ -1,7 +1,7 @@
 # lotus-explore-rs
 
-[![CI](https://github.com/lotusnprod/lotus-explore-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/lotusnprod/lotus-explore-rs/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/lotusnprod/lotus-explore-rs/graph/badge.svg)](https://codecov.io/gh/lotusnprod/lotus-explore-rs)
+[![CI](https://github.com/lotus-initiative/lotus-explore-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/lotus-initiative/lotus-explore-rs/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/lotus-initiative/lotus-explore-rs/graph/badge.svg)](https://codecov.io/gh/lotus-initiative/lotus-explore-rs)
 
 A linked open data explorer for the [LOTUS](https://doi.org/10.7554/eLife.70780) compound-taxon-reference
 knowledge graph from Wikidata, queried over SPARQL.
@@ -115,7 +115,7 @@ conventions, and how to refresh the fixtures.
 ## Documentation
 
 - [`CHANGELOG.md`](CHANGELOG.md) — what changed in each release
-- [`docs/cli.md`](docs/cli.md) — the `lotus` command, every flag, checked against `--help` by a test
+- [`docs/cli.md`](docs/cli.md) — the `lotus` command, every flag, checked against `--help` by a test (`examples/curation_example.tsv` holds a sample curation sheet)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — the crates and their boundaries
 - [`docs/TAXON-SEARCH.md`](docs/TAXON-SEARCH.md) — how a taxon name becomes a QID, and the four nomenclatural relationships
 - [`docs/STRUCTURE-SEARCH.md`](docs/STRUCTURE-SEARCH.md) — how a name, an InChIKey or a QID becomes a compound identity

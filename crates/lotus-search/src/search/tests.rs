@@ -131,6 +131,21 @@ fn a_wildcard_qid_under_any_other_taxon_still_means_every_taxon() {
     );
 }
 
+/// A reference names occurrences, so a reference-only search requires one.
+/// With occurrences optional, the filter's `VALUES ?r` joined every compound
+/// that has none and the search returned the whole graph.
+#[test]
+fn a_reference_alone_requires_an_occurrence() {
+    let criteria = SearchCriteria {
+        reference: "Q108766178".to_string(),
+        ..SearchCriteria::up_to_year(2026)
+    };
+    assert_eq!(
+        build_base_query(&criteria, None),
+        lotus_query::all_compounds_query()
+    );
+}
+
 /// An empty box and `*` are different requests, and the difference has to
 /// survive into the query text.
 ///

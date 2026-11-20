@@ -13,11 +13,14 @@ use lotus_model::taxon_nomenclature::{self, Relation};
 use super::field_examples::FieldExamples;
 use super::shared::{normalized_year_input_max, parse_f64_input, parse_u16_input};
 
-/// Example taxa, as they would be typed. The first is a real QID rather than a
-/// rank, because a rank is not a taxon the endpoint resolves: `Plantae` is a clade
-/// with no compound, so it returns nothing and reads as a broken search.
-pub(super) const TAXON_SUGGESTIONS: &[&str] =
-    &["bitterwort", "Gentianales", "Q178265", "Plantae", "*"];
+/// Example taxa, as they would be typed: two species and a genus that each
+/// have recorded compounds, and a common name (*Gentiana lutea*).
+pub(super) const TAXON_SUGGESTIONS: &[&str] = &[
+    "Salvia rosmarinus",
+    "Magnolia officinalis",
+    "Streptomyces",
+    "bitterwort",
+];
 
 /// The four nomenclatural relationships a taxon search can follow.
 ///

@@ -104,6 +104,7 @@ fn integration_curation_rows_tsv_round_trip_keeps_expected_header() {
         smiles: "CCO".to_string(),
         taxon: Some("Rosa canina".to_string()),
         doi: Some("10.1000/ABC".to_string()),
+        status: None,
     }];
 
     let tsv = rows_to_tsv(&rows);

@@ -30,7 +30,7 @@ pub enum FilterEntity {
 }
 
 impl FilterEntity {
-    /// The group's heading. Already a `TextKey`, because the three names are
+    /// The group's heading. Already a translation key, because the three names are
     /// the same words the table's column headers use.
     pub const fn label(self) -> TextKey {
         match self {

@@ -244,36 +244,47 @@ fn write_rdf<W: Write>(out: &mut W, result: &SearchResult) -> anyhow::Result<()>
 }
 
 fn write_jsonld<W: Write>(out: &mut W, result: &SearchResult) -> anyhow::Result<()> {
-    let generated = format!("{}-01-01T00:00:00Z", crate::current_year());
+    let generated = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    write_jsonld_at(out, result, &generated)
+}
+
+fn write_jsonld_at<W: Write>(
+    out: &mut W,
+    result: &SearchResult,
+    generated: &str,
+) -> anyhow::Result<()> {
     let query_hash = hash(&result.query);
     let result_hash = hash(&serde_json::to_string(&result.rows)?);
 
-    let document = serde_json::json!({
-        "@context": "https://schema.org/",
-        "@graph": [
-            lotus_jsonld::result_set_jsonld(&lotus_jsonld::ResultSet {
-                query: &result.query,
-                taxon: result
-                    .taxon
-                    .as_ref()
-                    .and_then(lotus_search::TaxonResolution::looked_up_name)
-                    .unwrap_or_default(),
-                query_hash: &query_hash,
-                result_hash: &result_hash,
-                total_entries: result
-                    .stats
-                    .as_ref()
-                    .map_or(result.rows.len(), |s| s.n_entries),
-                generated: &generated,
-            }),
-            lotus_jsonld::dataset_jsonld(),
-        ],
-        "mainEntity": result
+    let mut graph = vec![
+        lotus_jsonld::result_set_jsonld(&lotus_jsonld::ResultSet {
+            query: &result.query,
+            taxon: result
+                .taxon
+                .as_ref()
+                .and_then(lotus_search::TaxonResolution::looked_up_name)
+                .unwrap_or_default(),
+            query_hash: &query_hash,
+            result_hash: &result_hash,
+            total_entries: result
+                .stats
+                .as_ref()
+                .map_or(result.rows.len(), |s| s.n_entries),
+            generated,
+        }),
+        lotus_jsonld::dataset_jsonld(),
+    ];
+    graph.extend(
+        result
             .rows
             .iter()
             .map(lotus_jsonld::compound_jsonld)
-            .filter(|v| !v.is_null())
-            .collect::<Vec<_>>(),
+            .filter(|v| !v.is_null()),
+    );
+
+    let document = serde_json::json!({
+        "@context": lotus_jsonld::jsonld_context(),
+        "@graph": graph,
     });
 
     serde_json::to_writer_pretty(&mut *out, &document)?;

@@ -539,7 +539,9 @@ WHERE {{
             WHERE {{
               ?c wdt:P235 ?compound_inchikey .
               ?c p:P703 ?statement_id .
-              ?statement_id ps:P703 ?t .
+              ?statement_id ps:P703 ?t ;
+                            wikibase:rank ?_stmt_rank .
+              FILTER(?_stmt_rank != wikibase:DeprecatedRank)
               ?t wdt:P225 ?taxon_name .
             }}
           }}
@@ -575,7 +577,9 @@ WHERE {{
           ?t wdt:P225 ?taxon_name .
           ?c wdt:P235 ?compound_inchikey ;
              p:P703 ?statement_id .
-          ?statement_id ps:P703 ?t .
+          ?statement_id ps:P703 ?t ;
+                        wikibase:rank ?_stmt_rank .
+          FILTER(?_stmt_rank != wikibase:DeprecatedRank)
         }}
       }}
       ?statement_id prov:wasDerivedFrom ?ref_node .
@@ -610,7 +614,9 @@ WHERE {{
                   WHERE {{
                     ?c wdt:P235 ?_ik ;
                        p:P703 ?statement_id .
-                    ?statement_id ps:P703 ?t .
+                    ?statement_id ps:P703 ?t ;
+                                  wikibase:rank ?_stmt_rank .
+                    FILTER(?_stmt_rank != wikibase:DeprecatedRank)
                     ?t wdt:P225 ?taxon_name .{ancestry}
                   }}
                 }}
@@ -675,7 +681,9 @@ fn seeded_compounds_core(
     let occurrences = format!(
         "?c p:P703 ?statement_id .\
               ?statement_id ps:P703 ?t ;\
+                            wikibase:rank ?_stmt_rank ;\
                             prov:wasDerivedFrom ?ref_node .\
+              FILTER(?_stmt_rank != wikibase:DeprecatedRank) \
               ?ref_node pr:P248 ?r .\
               ?t wdt:P225 ?taxon_name .{ancestry}"
     );
@@ -686,7 +694,9 @@ fn seeded_compounds_core(
           {chemical} \
           ?c p:P703 ?statement_id .\
           ?statement_id ps:P703 ?t ;\
+                        wikibase:rank ?_stmt_rank ;\
                         prov:wasDerivedFrom ?ref_node .\
+          FILTER(?_stmt_rank != wikibase:DeprecatedRank) \
           ?ref_node pr:P248 ?r .\
           ?t wdt:P225 ?taxon_name .
           {{
@@ -845,6 +855,26 @@ WHERE {{
     )
 }
 
+/// One row when `taxon_qid` has a recorded compound, itself or below it, under
+/// any linked name; none otherwise.
+///
+/// Asked of each taxon sharing a name, so a homonym resolves to the taxon that
+/// has data: `Michelia` is a fossil genus with no compound and a plant genus
+/// with many, and the lookup lists the fossil first.
+#[must_use]
+pub fn taxon_has_compounds_query(taxon_qid: &str) -> String {
+    limit_query(&occurrences_query(&compounds_by_taxon_query(taxon_qid)), 1)
+}
+
+/// Whether a CSV answer holds a row after its header.
+#[must_use]
+pub fn has_data_row(csv: &[u8]) -> bool {
+    csv.split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .nth(1)
+        .is_some()
+}
+
 /// A lookup of taxa by **common** name (`P1843`).
 ///
 /// The fallback for [`taxon_lookup_query`], which it cannot be shaped like. Three
@@ -899,12 +929,33 @@ const COMPOUND_NAME_LANGUAGES: [&str; 16] = [
     "mul", "en", "de", "fr", "es", "nl", "it", "pt", "sv", "pl", "ru", "tr", "ja", "zh", "la", "cs",
 ];
 
-/// The `VALUES` rows for `name` under every `COMPOUND_NAME_LANGUAGES` tag.
+fn sentence_case(s: &str) -> String {
+    let mut chars = s.chars();
+    let Some(first) = chars.next() else {
+        return String::new();
+    };
+    let mut out: String = first.to_uppercase().collect();
+    out.push_str(&chars.as_str().to_lowercase());
+    out
+}
+
+/// The `VALUES` rows for `name` (original, lowercase, sentence-case, deduplicated)
+/// under every `COMPOUND_NAME_LANGUAGES` tag.
 fn tagged_name_values(name: &str) -> String {
-    let escaped = escape_sparql_string(name);
-    let rows = COMPOUND_NAME_LANGUAGES
+    let mut variants = Vec::with_capacity(3);
+    for candidate in [name.to_string(), name.to_lowercase(), sentence_case(name)] {
+        if !variants.contains(&candidate) {
+            variants.push(candidate);
+        }
+    }
+    let rows = variants
         .iter()
-        .map(|tag| format!("\"{escaped}\"@{tag}"))
+        .flat_map(|variant| {
+            let escaped = escape_sparql_string(variant);
+            COMPOUND_NAME_LANGUAGES
+                .iter()
+                .map(move |tag| format!("\"{escaped}\"@{tag}"))
+        })
         .collect::<Vec<_>>()
         .join(" ");
     format!("VALUES ?name {{ {rows} }}")
@@ -1238,7 +1289,9 @@ pub fn structure_search_query_with(
     ?c p:P703 ?statement_id .
     {service}
     ?statement_id ps:P703 ?t ;
+                  wikibase:rank ?_stmt_rank ;
                   prov:wasDerivedFrom ?ref_node .
+    FILTER(?_stmt_rank != wikibase:DeprecatedRank)
     ?ref_node pr:P248 ?r .
     ?t wdt:P225 ?taxon_name .
   }}
@@ -1261,7 +1314,9 @@ pub fn structure_search_query_with(
   ?c wdt:P235 ?compound_inchikey .
   ?c p:P703 ?statement_id .
   ?statement_id ps:P703 ?t ;
+                wikibase:rank ?_stmt_rank ;
                 prov:wasDerivedFrom ?ref_node .
+  FILTER(?_stmt_rank != wikibase:DeprecatedRank)
   ?ref_node pr:P248 ?r .
   ?t wdt:P225 ?taxon_name .
   {{
@@ -1403,7 +1458,7 @@ fn format_values_clause(var: &str, qids: &[u32]) -> String {
 #[must_use]
 pub fn compound_dictionary_query(qids: &[u32]) -> String {
     let scope = if qids.len() > DICTIONARY_VALUES_LIMIT {
-        "{\n    SELECT DISTINCT ?c ?compound_inchikey\n    WHERE {\n      ?c wdt:P235 ?compound_inchikey ;\n         p:P703 ?_s .\n    }\n  }"
+        "{\n    SELECT DISTINCT ?c ?compound_inchikey\n    WHERE {\n      ?c wdt:P235 ?compound_inchikey ;\n         p:P703 ?_s .\n      ?_s wikibase:rank ?_sr .\n      FILTER(?_sr != wikibase:DeprecatedRank)\n    }\n  }"
             .to_string()
     } else {
         format!(
@@ -1442,7 +1497,7 @@ pub fn reference_dictionary_query(qids: &[u32]) -> String {
     // the LOTUS `p:P703` statements in an inner `SELECT ?_s` subquery forces QLever
     // to probe `prov:wasDerivedFrom` only for the ~2.99M LOTUS statement nodes.
     let scope = if qids.len() > DICTIONARY_VALUES_LIMIT {
-        "{\n    SELECT DISTINCT ?r\n    WHERE {\n      {\n        SELECT ?_s\n        WHERE {\n          ?_c wdt:P235 ?_ik ;\n              p:P703 ?_s .\n        }\n      }\n      ?_s prov:wasDerivedFrom ?_rn .\n      ?_rn pr:P248 ?r .\n    }\n  }"
+        "{\n    SELECT DISTINCT ?r\n    WHERE {\n      {\n        SELECT ?_s\n        WHERE {\n          ?_c wdt:P235 ?_ik ;\n              p:P703 ?_s .\n          ?_s wikibase:rank ?_sr .\n          FILTER(?_sr != wikibase:DeprecatedRank)\n        }\n      }\n      ?_s prov:wasDerivedFrom ?_rn .\n      ?_rn pr:P248 ?r .\n    }\n  }"
             .to_string()
     } else {
         format_values_clause("?r", qids)
@@ -1607,9 +1662,9 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
     // is.
     //
     // It is a `VALUES` and not a `FILTER(?r = wd:Q…)` because that is the
-    // indexed form, and because an unbound `?r` -- a compound with no occurrence,
-    // which a structure search exists to find -- simply fails to join rather than
-    // comparing against an error.
+    // indexed form. It does join a row whose `?r` is unbound -- a compound with
+    // no occurrence -- so the callers pick a base query that requires the
+    // occurrence when a reference is the only constraint.
     //
     // Only a QID is emitted, and only after [`looks_like_reference_qid`] has said
     // the field is one. `wd:` takes an IRI local name, so `{ } . # ;` are syntax
@@ -1937,3 +1992,7 @@ pub fn escape_structure_literal(structure: &str) -> String {
         format!("\"{quoted}\"")
     }
 }
+
+#[cfg(test)]
+#[path = "query/tests.rs"]
+mod tests;

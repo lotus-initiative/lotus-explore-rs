@@ -5,7 +5,7 @@
 #![allow(clippy::expect_used, clippy::panic)]
 
 use super::{FaqBlock, Labels, SECTIONS, untranslated_notice};
-use crate::i18n::Locale;
+use crate::i18n::{Locale, TextKey, t};
 
 const LOCALES: [Locale; 4] = [Locale::En, Locale::Fr, Locale::De, Locale::It];
 
@@ -185,7 +185,7 @@ const IDENTIFIERS: [&str; 15] = [
     "P235",
     "P1531",
     // The two example chemistry strings.
-    "DBOVHQOUSDWAPQ-WTONXPSSSA-N",
+    "XUSYGBPHQBWGAD-PJSUUKDQSA-N",
     "C[C@H](O)CO",
     // Standards and browser versions: names, not quantities.
     "4180",
@@ -212,6 +212,20 @@ fn guide_strings() -> Vec<(&'static str, &'static str)> {
                     }
                 }
             }
+        }
+    }
+    // The short answers and the two messages about limits are held to the same
+    // rule: the German timeout message said 25 seconds while the others said 30.
+    for locale in LOCALES {
+        for entry in crate::i18n::faq::ENTRIES {
+            out.push((entry.id, entry.question(locale)));
+            out.push((entry.id, entry.answer(locale)));
+        }
+        for key in [
+            TextKey::ErrorHintQueryTooExpensive,
+            TextKey::ErrorHintTruncated,
+        ] {
+            out.push(("error-hint", t(locale, key)));
         }
     }
     out

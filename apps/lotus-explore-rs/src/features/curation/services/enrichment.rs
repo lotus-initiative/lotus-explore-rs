@@ -25,11 +25,12 @@ use super::{
     WD_STEREOISOMER_GROUP_QID, WD_TYPE_CHEMICAL_ENTITY_QID, convert_smiles,
     curation_note_dependencies_pending, curation_note_existing_complete,
     curation_note_existing_updates, curation_note_missing_doi, curation_note_new_compound,
-    curation_pending_reference, curation_pending_taxon, escape_quickstatements,
-    fetch_reference_quickstatements, has_isomeric_smiles, has_undefined_stereo, normalize_doi,
-    normalize_taxon_lookup, qs_canonical_smiles_statement, qs_inchi_statement,
-    qs_inchikey_statement, qs_isomeric_smiles_statement, qs_statement_with_refs,
-    resolve_exact_mass,
+    curation_note_revised, curation_pending_reference, curation_pending_taxon,
+    escape_quickstatements, fetch_reference_quickstatements, has_isomeric_smiles,
+    has_undefined_stereo, is_revised_row, normalize_doi, normalize_taxon_lookup,
+    qs_canonical_smiles_statement, qs_inchi_statement, qs_inchikey_statement,
+    qs_isomeric_smiles_statement, qs_statement_with_refs, resolve_exact_mass,
+    revised_row_statement,
 };
 use crate::features::curation::repositories::CurationKnowledgeRepository;
 use crate::features::curation::services::helpers::{
@@ -91,6 +92,33 @@ pub(super) struct Converted {
     formula: Option<String>,
 }
 
+fn revised_result_row(
+    locale: Locale,
+    input: &CurationInputRow,
+    structure: &Converted,
+    existing: Option<WikidataCompound>,
+) -> CurationResultRow {
+    CurationResultRow {
+        input: input.clone(),
+        canonical_smiles: Some(structure.canonical_smiles.clone()),
+        isomeric_smiles: has_isomeric_smiles(&structure.isomeric_smiles)
+            .then(|| structure.isomeric_smiles.clone()),
+        inchikey: Some(structure.inchikey.clone()),
+        inchi: Some(structure.inchi.clone()),
+        formula: existing
+            .as_ref()
+            .and_then(|c| c.formula.clone())
+            .or_else(|| structure.formula.clone()),
+        exact_mass: existing.as_ref().and_then(|c| c.mass),
+        mass_warning: None,
+        wikidata_qid: existing.map(|c| c.qid),
+        status: CurationStatus::ExistingNeedsUpdates,
+        note: curation_note_revised(locale).to_owned(),
+        dependency_blocks: Vec::new(),
+        quickstatements: vec![revised_row_statement(input)],
+    }
+}
+
 async fn enrich_and_generate(
     locale: Locale,
     input: &CurationInputRow,
@@ -103,6 +131,10 @@ async fn enrich_and_generate(
     let structure = convert_structure(&input.smiles).await?;
     let normalized_doi = input.doi.as_deref().and_then(normalize_doi);
     let existing = prefetched_compounds.get(&structure.inchikey).cloned();
+
+    if is_revised_row(input) {
+        return Ok(revised_result_row(locale, input, &structure, existing));
+    }
 
     let dependencies = resolve_row_dependencies(
         locale,

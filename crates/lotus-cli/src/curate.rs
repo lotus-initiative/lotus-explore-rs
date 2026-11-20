@@ -54,10 +54,12 @@ pub struct CurateArgs {
     /// matched at all, and that conversion is a network call, so a run makes two
     /// or more per row. This skips all of it.
     ///
-    /// Every row is reported as `not_checked`, not as `new`. A row that was never
-    /// looked up has not been shown to be absent, and the difference between
-    /// "I did not look" and "it is not there" is the difference between an honest
-    /// report and a duplicate submission.
+    /// Every non-revised row is reported as `not_checked`, not as `new` (rows
+    /// with `status = revised` report `existing_updates` and suppress `CREATE`
+    /// statements). A row that was never looked up has not been shown to be
+    /// absent, and the difference between "I did not look" and "it is not
+    /// there" is the difference between an honest report and a duplicate
+    /// submission.
     #[arg(long)]
     pub offline: bool,
 }
@@ -219,11 +221,29 @@ async fn curate_row<H: lotus_search::Http>(
 /// reference are not: `P703` and `P248` take items, and offline the taxon and
 /// the DOI were never resolved to one. The note says so.
 fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
-    let name = escape_quickstatements(finding.name.trim());
     let raw_smiles = finding.smiles.trim();
     let canonical = lotus_curation::strip_stereo_marks(raw_smiles);
     let isomeric_smiles =
         lotus_curation::has_stereo_marks(raw_smiles).then(|| raw_smiles.to_string());
+    if lotus_curation::is_revised_row(finding) {
+        return lotus_curation::CurationResultRow {
+            input: finding.clone(),
+            canonical_smiles: (!canonical.is_empty()).then_some(canonical),
+            isomeric_smiles,
+            inchikey: None,
+            inchi: None,
+            formula: None,
+            exact_mass: None,
+            mass_warning: None,
+            wikidata_qid: None,
+            status: lotus_curation::CurationStatus::ExistingNeedsUpdates,
+            note: lotus_curation::REVISED_ROW_NOTE.to_string(),
+            dependency_blocks: Vec::new(),
+            quickstatements: vec![lotus_curation::revised_row_statement(finding)],
+        };
+    }
+
+    let name = escape_quickstatements(finding.name.trim());
     let mut compound_block = format!(
         "## {name}\nCREATE\nLAST|{PROPERTY_NAME}|\"{name}\"\n\
          LAST|P31|{entity_type}\n\

@@ -9,12 +9,12 @@
         "SearchByFormula"
       ],
       "description": "Explore LOTUS with taxon filters, structure search, and Wikidata curation workflows.",
-      "displayName": "LOTUS Explore-rs search",
-      "identifier": "urn:air:lotusnprod:lotus-explore-rs:search",
+      "displayName": "LOTUS Explorer search",
+      "identifier": "urn:air:lotus-initiative:lotus-explore-rs:search",
       "metadata": {
         "appLicense": "https://www.gnu.org/licenses/agpl-3.0.html",
         "dataLicense": "https://creativecommons.org/publicdomain/zero/1.0/",
-        "sourceUrl": "https://github.com/lotusnprod/lotus-explore-rs"
+        "sourceUrl": "https://github.com/lotus-initiative/lotus-explore-rs"
       },
       "representativeQueries": [
         "Find natural products reported for Gentiana lutea",
@@ -38,12 +38,12 @@
         "GenerateQuickStatements"
       ],
       "description": "Import TSV rows, resolve structures and references, and generate QuickStatements for Wikidata curation.",
-      "displayName": "LOTUS Explore-rs Wikidata curation",
-      "identifier": "urn:air:lotusnprod:lotus-explore-rs:curation",
+      "displayName": "LOTUS Explorer Wikidata curation",
+      "identifier": "urn:air:lotus-initiative:lotus-explore-rs:curation",
       "metadata": {
         "appLicense": "https://www.gnu.org/licenses/agpl-3.0.html",
         "dataLicense": "https://creativecommons.org/publicdomain/zero/1.0/",
-        "sourceUrl": "https://github.com/lotusnprod/lotus-explore-rs"
+        "sourceUrl": "https://github.com/lotus-initiative/lotus-explore-rs"
       },
       "representativeQueries": [
         "Curate natural products for a taxon into Wikidata",
@@ -60,7 +60,7 @@
     }
   ],
   "host": {
-    "displayName": "LOTUS Explore-rs",
+    "displayName": "LOTUS Explorer",
     "documentationUrl": "https://lotus-initiative.github.io/lotus-explore-rs/llms.txt",
     "logoUrl": "https://lotus-initiative.github.io/lotus-explore-rs/favicon.svg"
   },

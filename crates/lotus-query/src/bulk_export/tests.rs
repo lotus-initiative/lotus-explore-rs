@@ -23,6 +23,7 @@ PREFIX ps: <http://www.wikidata.org/prop/statement/>
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX pr: <http://www.wikidata.org/prop/reference/>
 PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
 ";
 
 /// Every query as `(query, text before the prefixes, text after them)`.
@@ -37,6 +38,8 @@ SELECT DISTINCT ?compound ?compound_inchikey ?taxon ?reference WHERE {
   ?compound wdt:P235 ?compound_inchikey .
   ?compound p:P703 ?statement .
   ?statement ps:P703 ?taxon .
+  ?statement wikibase:rank ?_rank .
+  FILTER(?_rank != wikibase:DeprecatedRank)
   ?statement prov:wasDerivedFrom/pr:P248 ?reference .
 }",
     ),
@@ -89,6 +92,8 @@ SELECT ?reference ?doi ?pmid ?pmcid ?title ?date ?journal ?journal_label WHERE {
         SELECT ?statement WHERE {
           ?compound wdt:P235 ?inchikey ;
                     p:P703 ?statement .
+          ?statement wikibase:rank ?_rank .
+          FILTER(?_rank != wikibase:DeprecatedRank)
         }
       }
       ?statement ps:P703 ?taxon ;
@@ -195,6 +200,8 @@ SELECT DISTINCT ?reference ?doi WHERE {
   ?compound wdt:P235 ?inchikey .
   ?compound p:P703 ?statement .
   ?statement ps:P703 ?taxon .
+  ?statement wikibase:rank ?_rank .
+  FILTER(?_rank != wikibase:DeprecatedRank)
   ?statement prov:wasDerivedFrom/pr:P248 ?reference .
   ?reference wdt:P356 ?doi .
 }",
@@ -207,6 +214,8 @@ SELECT DISTINCT ?reference ?pmid WHERE {
   ?compound wdt:P235 ?inchikey .
   ?compound p:P703 ?statement .
   ?statement ps:P703 ?taxon .
+  ?statement wikibase:rank ?_rank .
+  FILTER(?_rank != wikibase:DeprecatedRank)
   ?statement prov:wasDerivedFrom/pr:P248 ?reference .
   ?reference wdt:P698 ?pmid .
 }",
@@ -219,6 +228,8 @@ SELECT DISTINCT ?reference ?pmcid WHERE {
   ?compound wdt:P235 ?inchikey .
   ?compound p:P703 ?statement .
   ?statement ps:P703 ?taxon .
+  ?statement wikibase:rank ?_rank .
+  FILTER(?_rank != wikibase:DeprecatedRank)
   ?statement prov:wasDerivedFrom/pr:P248 ?reference .
   ?reference wdt:P932 ?pmcid .
 }",
@@ -231,6 +242,8 @@ SELECT DISTINCT ?reference ?title WHERE {
   ?compound wdt:P235 ?inchikey .
   ?compound p:P703 ?statement .
   ?statement ps:P703 ?taxon .
+  ?statement wikibase:rank ?_rank .
+  FILTER(?_rank != wikibase:DeprecatedRank)
   ?statement prov:wasDerivedFrom/pr:P248 ?reference .
   ?reference wdt:P1476 ?title .
 }",
@@ -243,6 +256,8 @@ SELECT DISTINCT ?reference ?date WHERE {
   ?compound wdt:P235 ?inchikey .
   ?compound p:P703 ?statement .
   ?statement ps:P703 ?taxon .
+  ?statement wikibase:rank ?_rank .
+  FILTER(?_rank != wikibase:DeprecatedRank)
   ?statement prov:wasDerivedFrom/pr:P248 ?reference .
   ?reference wdt:P577 ?date .
 }",
@@ -255,6 +270,8 @@ SELECT DISTINCT ?reference ?journal ?journal_label WHERE {
   ?compound wdt:P235 ?inchikey .
   ?compound p:P703 ?statement .
   ?statement ps:P703 ?taxon .
+  ?statement wikibase:rank ?_rank .
+  FILTER(?_rank != wikibase:DeprecatedRank)
   ?statement prov:wasDerivedFrom/pr:P248 ?reference .
   ?reference wdt:P1433 ?journal .
   ?journal wdt:P1476 ?journal_label .
@@ -329,6 +346,8 @@ SELECT DISTINCT ?compound ?taxon ?reference ?doi WHERE {
   ?compound wdt:P235 ?inchikey .
   ?compound p:P703 ?statement .
   ?statement ps:P703 ?taxon .
+  ?statement wikibase:rank ?_rank .
+  FILTER(?_rank != wikibase:DeprecatedRank)
   ?statement prov:wasDerivedFrom/pr:P248 ?reference .
   ?reference wdt:P356 ?doi .
 }",
@@ -341,6 +360,8 @@ SELECT DISTINCT ?compound ?taxon ?reference ?pmid WHERE {
   ?compound wdt:P235 ?inchikey .
   ?compound p:P703 ?statement .
   ?statement ps:P703 ?taxon .
+  ?statement wikibase:rank ?_rank .
+  FILTER(?_rank != wikibase:DeprecatedRank)
   ?statement prov:wasDerivedFrom/pr:P248 ?reference .
   ?reference wdt:P698 ?pmid .
 }",

@@ -28,16 +28,16 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::LightMode => "Chiaro",
         TextKey::SkipToResults => "Vai al contenuto principale",
         TextKey::PageSubtitle => {
-            "Esplora dati aperti collegati: entità chimiche, organismi biologici e letteratura scientifica."
+            "Trova quali composti sono riportati in un organismo, e in quali articoli, secondo i dati raccolti in Wikidata dall'iniziativa LOTUS."
         }
-        TextKey::LandingTitle => "Benvenuti nell'esploratore LOTUS",
-
-        TextKey::OpenSearch => "Apri la ricerca",
 
         TextKey::PageNotFound => "Pagina non trovata",
         TextKey::PageNotFoundDescription => "La pagina richiesta non esiste.",
         TextKey::ReturnHome => "Torna alla home page",
-        TextKey::ResolvedTaxon => "Taxon risolto",
+        TextKey::ResolvedTaxon => "Taxon cercato",
+        TextKey::LinkedNamesIncluded => {
+            "Sono inclusi i record registrati sotto un nome collegato, ad esempio un sinonimo o un basionimo."
+        }
         TextKey::DuplicateRowsHint => "Perché alcuni composti compaiono più di una volta?",
         TextKey::DuplicateRowsExplain => {
             "Ogni riga è un composto così come un riferimento lo riporta: un composto trovato da tre articoli occupa tre righe che differiscono solo per il riferimento. Le occorrenze sono distinte, i composti no. Il numero più piccolo accanto al conteggio delle righe indica quanti composti distinti contiene il risultato."
@@ -68,7 +68,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
             "Limite di richieste raggiunto sul servizio upstream. Attendi circa un minuto e riprova."
         }
         TextKey::ErrorHintQueryTooExpensive => {
-            "Questa ricerca è troppo ampia: il servizio si è interrotto dopo 30 secondi. Restringila con un taxon, un intervallo di massa, un anno o una formula, poi riesegui la ricerca."
+            "Questa ricerca è troppo ampia: il servizio di interrogazione l'ha interrotta al suo limite di tempo. Restringila con un taxon, un intervallo di massa, un anno o una formula, poi riesegui la ricerca."
         }
         TextKey::ErrorHintBadRequest => {
             "Il server ha rifiutato la richiesta. Controlla i parametri di ricerca."
@@ -80,18 +80,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
             "Questo insieme di risultati è stato interrotto: le righe mostrate non sono la risposta completa. Restringi la ricerca per completarla."
         }
         TextKey::ErrorHintUnknown => "Errore inatteso. Riprova.",
-        TextKey::WelcomeLeadA => {
-            "Questa applicazione dimostra la potenza dei dati aperti collegati, mettendo in relazione entità chimiche, organismi biologici e letteratura scientifica. "
-        }
 
-        TextKey::WelcomeLeadB => {
-            "Il modello di dati collega composti, taxa e riferimenti provenienti da "
-        }
-
-        TextKey::WelcomeLeadC => ", pubblicati come dati aperti collegati su ",
-        TextKey::WelcomeLeadD => " e interrogati tramite SPARQL da ",
-
-        TextKey::WelcomeLeadE => ".",
         TextKey::ExampleQueryExecute => "Esegui",
         TextKey::ExampleQueryTaxon | TextKey::DownloadCsvLabel => "Scarica CSV",
         TextKey::ExampleQueryStructure | TextKey::DownloadJsonLabel => "Scarica JSON",
@@ -99,9 +88,6 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::ExampleApiUrls => "Esempi di URL API",
         TextKey::SearchExamples => "Esempi di ricerca",
 
-        TextKey::LabelLanguagePolicy => {
-            "Le etichette preferiscono 'mul' e ricorrono a 'en' come fallback per mantenere confrontabili i risultati."
-        }
         TextKey::AdvancedFilters => "Filtri avanzati",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonField => "Nome scientifico o comune del taxon",
@@ -120,7 +106,9 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::ExampleSets => "Imposta il campo su",
         TextKey::StructureSmilesOrMol => "Struttura, nome del composto o InChIKey",
         TextKey::StructurePlaceholder => "SMILES, un Molfile, un nome o una chiave InChI",
-        TextKey::Exact => "Esatto",
+        TextKey::Exact => {
+            "Esatto (una struttura incollata può corrispondere anche ai suoi stereoisomeri)"
+        }
         TextKey::Substructure => "Sottostruttura",
         TextKey::Similarity => "Somiglianza",
         TextKey::StructureSearchMode => "Modalità di ricerca per struttura",
@@ -181,6 +169,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         }
         TextKey::NoResults => "Nessun risultato. Prova ad ampliare la ricerca.",
         TextKey::StageTaxonSearch => "risoluzione del taxon",
+        TextKey::StageStructureSearch => "risoluzione della struttura",
         TextKey::StageResultsQuery => "recupero risultati",
         TextKey::DisplayCappedHint => {
             "Per sicurezza di memoria su questo dispositivo vengono mostrate solo le prime righe. I conteggi restano esatti."
@@ -203,7 +192,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::FooterArchive => "Archivio",
         TextKey::FooterPrograms => "Programmi",
         TextKey::FooterLicense => "Licenza",
-        TextKey::FooterForData => " per i dati ",
+        TextKey::FooterForData => " per i dati Wikidata ",
         TextKey::FooterForCode => " per il codice",
         TextKey::TableTriplesAria => "Triple composto-taxon-riferimento",
         TextKey::OpenFullSizeDepiction => "Apri la rappresentazione a grandezza naturale",
@@ -213,7 +202,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::OpenInTaxonScholia => "Apri il taxon in Scholia",
         TextKey::OpenInReferenceScholia => "Apri il riferimento in Scholia",
         TextKey::OpenDoi => "Apri DOI",
-        TextKey::Statement => "Dichiarazione",
+        TextKey::Statement => "Dichiarazione · Segnala",
         TextKey::SparqlQuery => "Query SPARQL",
         TextKey::CopySparqlQuery => "Copia query SPARQL",
         TextKey::ShowFailedQuery => {

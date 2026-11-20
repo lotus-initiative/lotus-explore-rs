@@ -60,7 +60,7 @@ browser.
 Two things are specific to the web build:
 
 - **The document is static HTML.** `index.html` is checked in and owns the early
-  metadata, the stylesheet link, and the bootstrap script. The stylesheet is
+  metadata, the stylesheet link, and the inline boot script. The stylesheet is
   linked at parse time, before the wasm module has booted, which is what stops
   the first paint from flashing an unstyled page.
 - **Every file under `public/` is reachable.** A dev server, and the deployed

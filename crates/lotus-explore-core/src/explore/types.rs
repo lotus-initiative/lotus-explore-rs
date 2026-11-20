@@ -69,6 +69,8 @@ pub enum ErrorKind {
 pub enum QueryStage {
     /// Resolving a taxon name to a QID.
     TaxonSearch,
+    /// Resolving a structure or compound name to Wikidata matches.
+    StructureSearch,
     /// Fetching the compound result rows.
     ResultsQuery,
 }
@@ -79,6 +81,7 @@ impl QueryStage {
     pub const fn as_key(self) -> &'static str {
         match self {
             Self::TaxonSearch => "taxon_search",
+            Self::StructureSearch => "structure_search",
             Self::ResultsQuery => "results_query",
         }
     }
@@ -161,6 +164,8 @@ pub enum LookupNotice {
     ApiMessage(String),
     /// Query executed against Wikidata Query Service after a `QLever` fallback.
     WdqsFallback,
+    /// Disconnected SMILES (`.`) likely representing a salt, hydrate, or mixture.
+    SaltOrMixture,
 }
 
 /// Fine-grained validation fault.

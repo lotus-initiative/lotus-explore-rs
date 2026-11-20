@@ -108,12 +108,12 @@ fn metadata(
         "generator": "LOTUS PubChem Tree Generator",
         "source": {
             "name": "LOTUS",
-            "url": "https://lotus.nprod.net/",
+            "url": "https://lotus-initiative.github.io/lotus-explore-rs/",
             "wikidata_item": "Q104225190",
             "endpoint": source.0,
             "classification": source.1,
         },
-        "license": {"data": "AGPL-3.0-only", "code": "AGPL-3.0-only"},
+        "license": {"data": "CC0-1.0", "code": "AGPL-3.0-only"},
         "constraints": {"root": root},
         "statistics": {"root_nodes": 1, "total_nodes": total},
     })

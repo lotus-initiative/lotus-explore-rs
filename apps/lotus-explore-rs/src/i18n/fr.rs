@@ -28,16 +28,16 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::LightMode => "Clair",
         TextKey::SkipToResults => "Passer au contenu principal",
         TextKey::PageSubtitle => {
-            "Explorez des données ouvertes liées : entités chimiques, organismes biologiques et littérature scientifique."
+            "Trouvez quels composés sont rapportés dans un organisme, et dans quels articles, d'après les données réunies dans Wikidata par l'initiative LOTUS."
         }
-        TextKey::LandingTitle => "Bienvenue dans l'explorateur LOTUS",
-
-        TextKey::OpenSearch => "Ouvrir la recherche",
 
         TextKey::PageNotFound => "Page introuvable",
         TextKey::PageNotFoundDescription => "La page demandée n'existe pas.",
         TextKey::ReturnHome => "Retour à l'accueil",
-        TextKey::ResolvedTaxon => "Taxon résolu",
+        TextKey::ResolvedTaxon => "Taxon recherché",
+        TextKey::LinkedNamesIncluded => {
+            "Les enregistrements classés sous un nom lié, par exemple un synonyme ou un basionyme, sont inclus."
+        }
         TextKey::DuplicateRowsHint => {
             "Pourquoi certains composés apparaissent-ils plusieurs fois ?"
         }
@@ -70,7 +70,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
             "Limite de débit atteinte sur le service amont. Attendez environ une minute puis réessayez."
         }
         TextKey::ErrorHintQueryTooExpensive => {
-            "Cette recherche est trop large : le point d'accès s'est arrêté après 30 secondes. Réduisez-la avec un taxon, une plage de masse, une année ou une formule, puis relancez-la."
+            "Cette recherche est trop large : le service de requête l'a arrêtée à sa limite de temps. Réduisez-la avec un taxon, une plage de masse, une année ou une formule, puis relancez-la."
         }
         TextKey::ErrorHintBadRequest => {
             "Le serveur a rejeté la requête. Vérifiez les paramètres de recherche."
@@ -82,17 +82,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
             "Ce jeu de résultats a été interrompu : les lignes affichées ne sont pas la réponse complète. Réduisez la recherche pour la terminer."
         }
         TextKey::ErrorHintUnknown => "Erreur inattendue. Réessayer peut aider.",
-        TextKey::WelcomeLeadA => {
-            "Cette application démontre la puissance des données ouvertes liées en reliant des entités chimiques à des organismes biologiques et à la littérature scientifique. "
-        }
 
-        TextKey::WelcomeLeadB => {
-            "Le modèle de données relie les composés, les taxa et les références, qui proviennent de "
-        }
-
-        TextKey::WelcomeLeadC => ", publiés en tant que données ouvertes liées sur ",
-        TextKey::WelcomeLeadD => " et interrogés via SPARQL par ",
-        TextKey::WelcomeLeadE => ".",
         TextKey::ExampleQueryExecute => "Exécuter",
         TextKey::ExampleQueryTaxon | TextKey::DownloadCsvLabel => "Télécharger CSV",
         TextKey::ExampleQueryStructure | TextKey::DownloadJsonLabel => "Télécharger JSON",
@@ -101,9 +91,6 @@ pub const fn fr_t(key: TextKey) -> &'static str {
 
         TextKey::SearchExamples => "Exemples de recherche",
 
-        TextKey::LabelLanguagePolicy => {
-            "Les libellés privilégient 'mul' et utilisent 'en' en repli afin de garantir des résultats comparables."
-        }
         TextKey::AdvancedFilters => "Filtres avancés",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonField => "Nom scientifique ou nom commun du taxon",
@@ -120,7 +107,9 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::ExampleSets => "Remplir le champ avec",
         TextKey::StructureSmilesOrMol => "Structure, nom de composé ou InChIKey",
         TextKey::StructurePlaceholder => "SMILES, un Molfile, un nom ou un InChIKey",
-        TextKey::Exact => "Exact",
+        TextKey::Exact => {
+            "Exact (une structure collée peut aussi correspondre à ses stéréo-isomères)"
+        }
         TextKey::Substructure => "Sous-structure",
         TextKey::Similarity => "Similarité",
         TextKey::StructureSearchMode => "Recherche par structure",
@@ -189,6 +178,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         }
         TextKey::NoResults => "Aucun résultat. Essayez une recherche plus large.",
         TextKey::StageTaxonSearch => "résolution du taxon",
+        TextKey::StageStructureSearch => "résolution de la structure",
         TextKey::StageResultsQuery => "récupération des résultats",
         TextKey::DisplayCappedHint => {
             "Affichage des premières lignes uniquement pour préserver la mémoire de l'appareil. Les totaux restent exacts."
@@ -210,7 +200,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::FooterArchive => "Archive",
         TextKey::FooterPrograms => "Programmes",
         TextKey::FooterLicense => "Licence",
-        TextKey::FooterForData => " pour les données ",
+        TextKey::FooterForData => " pour les données Wikidata ",
         TextKey::FooterForCode => " pour le code",
         TextKey::TableTriplesAria => "Triplets composé-taxon-référence",
         TextKey::OpenFullSizeDepiction => "Ouvrir la représentation en taille complète",
@@ -220,7 +210,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::OpenInTaxonScholia => "Ouvrir le taxon dans Scholia",
         TextKey::OpenInReferenceScholia => "Ouvrir la référence dans Scholia",
         TextKey::OpenDoi => "Ouvrir DOI",
-        TextKey::Statement => "Déclaration",
+        TextKey::Statement => "Déclaration · Signaler",
         TextKey::SparqlQuery => "Requête SPARQL",
         TextKey::CopySparqlQuery => "Copier la requête SPARQL",
         TextKey::ShowFailedQuery => "Cette recherche n'a pas abouti — afficher la requête utilisée",

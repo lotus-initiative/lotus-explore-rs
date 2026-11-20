@@ -38,18 +38,21 @@ fn curate_rows_deduplicates_and_preserves_input_order() {
             smiles: "CCO".into(),
             taxon: None,
             doi: None,
+            status: None,
         },
         CurationInputRow {
             name: "dup".into(),
             smiles: "cco".into(),
             taxon: None,
             doi: None,
+            status: None,
         },
         CurationInputRow {
             name: "b".into(),
             smiles: "N".into(),
             taxon: None,
             doi: None,
+            status: None,
         },
     ];
 
