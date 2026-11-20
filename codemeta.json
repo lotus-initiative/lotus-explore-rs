@@ -18,6 +18,98 @@
   "citation": [
     {
       "@type": "ScholarlyArticle",
+      "author": [
+        {
+          "@type": "Person",
+          "familyName": "Rutz",
+          "givenName": "Adriano",
+          "name": "Adriano Rutz"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Sorokina",
+          "givenName": "Maria",
+          "name": "Maria Sorokina"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Galgonek",
+          "givenName": "Jakub",
+          "name": "Jakub Galgonek"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Mietchen",
+          "givenName": "Daniel",
+          "name": "Daniel Mietchen"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Willighagen",
+          "givenName": "Egon",
+          "name": "Egon Willighagen"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Gaudry",
+          "givenName": "Arnaud",
+          "name": "Arnaud Gaudry"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Graham",
+          "givenName": "James G.",
+          "name": "James G. Graham"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Stephan",
+          "givenName": "Ralf",
+          "name": "Ralf Stephan"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Page",
+          "givenName": "Roderic",
+          "name": "Roderic Page"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Vondrášek",
+          "givenName": "Jiří",
+          "name": "Jiří Vondrášek"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Steinbeck",
+          "givenName": "Christoph",
+          "name": "Christoph Steinbeck"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Pauli",
+          "givenName": "Guido F.",
+          "name": "Guido F. Pauli"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Wolfender",
+          "givenName": "Jean-Luc",
+          "name": "Jean-Luc Wolfender"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Bisson",
+          "givenName": "Jonathan",
+          "name": "Jonathan Bisson"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Allard",
+          "givenName": "Pierre-Marie",
+          "name": "Pierre-Marie Allard"
+        }
+      ],
       "datePublished": "2022",
       "identifier": "https://doi.org/10.7554/eLife.70780",
       "name": "The LOTUS initiative for open knowledge management in natural products research",

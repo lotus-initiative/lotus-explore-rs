@@ -31,7 +31,12 @@
     />
     <script type="application/ld+json">
       {
-        "@context": "https://schema.org",
+        "@context": [
+          "https://schema.org/",
+          {
+            "dct": "http://purl.org/dc/terms/"
+          }
+        ],
         "@type": ["WebApplication", "SoftwareApplication"],
         "@id": "https://lotus-initiative.github.io/lotus-explore-rs/",
         "dct:conformsTo": "https://bioschemas.org/profiles/ComputationalTool/1.0-RELEASE",
@@ -64,7 +69,8 @@
           "@type": "ScholarlyArticle",
           "name": "The LOTUS initiative for open knowledge management in natural products research",
           "identifier": "https://doi.org/10.7554/eLife.70780",
-          "url": "https://doi.org/10.7554/eLife.70780"
+          "url": "https://doi.org/10.7554/eLife.70780",
+          "datePublished": "2022"
         }
       }
     </script>

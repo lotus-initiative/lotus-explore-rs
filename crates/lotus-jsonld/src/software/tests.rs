@@ -327,6 +327,14 @@ fn the_lotus_paper_is_a_scholarly_article_keyed_by_its_doi() {
     assert_eq!(node["@type"], "ScholarlyArticle");
     assert_eq!(node["identifier"], "https://doi.org/10.1000/lotus");
     assert_eq!(node["datePublished"], "2026");
+
+    let cm = codemeta(&SOFTWARE);
+    let authors = cm["citation"][0]["author"]
+        .as_array()
+        .expect("eLife paper authors in codemeta citation");
+    assert_eq!(authors.len(), 15);
+    assert_eq!(authors[0]["familyName"], "Rutz");
+    assert_eq!(authors[14]["familyName"], "Allard");
 }
 
 #[test]

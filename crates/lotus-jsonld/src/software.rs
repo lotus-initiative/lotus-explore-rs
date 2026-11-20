@@ -59,6 +59,8 @@ pub struct Software {
     pub paper: Option<Paper>,
 }
 
+const ELIFE_PAPER_DOI: &str = "10.7554/eLife.70780";
+
 /// Authors of the LOTUS initiative eLife paper (`10.7554/eLife.70780`), matching
 /// `public/docs/references.bib`.
 const ELIFE_PAPER_AUTHORS: &[(&str, &str)] = &[
@@ -214,13 +216,27 @@ pub fn software_jsonld(software: &Software) -> Value {
 
 /// The LOTUS paper, as a `ScholarlyArticle` citation.
 fn lotus_paper(paper: &Paper) -> Value {
-    json!({
-        "@type": "ScholarlyArticle",
-        "name": paper.title,
-        "identifier": doi_uri(paper.doi),
-        "url": doi_uri(paper.doi),
-        "datePublished": paper.year.to_string(),
-    })
+    let mut node = serde_json::Map::new();
+    node.insert("@type".into(), json!("ScholarlyArticle"));
+    node.insert("name".into(), json!(paper.title));
+    node.insert("identifier".into(), json!(doi_uri(paper.doi)));
+    node.insert("url".into(), json!(doi_uri(paper.doi)));
+    node.insert("datePublished".into(), json!(paper.year.to_string()));
+    if paper.doi.eq_ignore_ascii_case(ELIFE_PAPER_DOI) {
+        let authors: Vec<Value> = ELIFE_PAPER_AUTHORS
+            .iter()
+            .map(|(family, given)| {
+                json!({
+                    "@type": "Person",
+                    "givenName": given,
+                    "familyName": family,
+                    "name": format!("{given} {family}"),
+                })
+            })
+            .collect();
+        node.insert("author".into(), Value::Array(authors));
+    }
+    Value::Object(node)
 }
 
 /// The `codemeta.json` a repository is indexed by: a document in the
@@ -313,16 +329,7 @@ pub fn codemeta(software: &Software) -> Value {
     // The paper is a separate work from the tool, so it goes in `citation` with
     // its own type rather than being folded into `identifier`.
     if let Some(paper) = software.paper {
-        object.insert(
-            "citation".into(),
-            json!([{
-                "@type": "ScholarlyArticle",
-                "name": paper.title,
-                "identifier": doi_uri(paper.doi),
-                "url": doi_uri(paper.doi),
-                "datePublished": paper.year.to_string(),
-            }]),
-        );
+        object.insert("citation".into(), json!([lotus_paper(&paper)]));
     }
     Value::Object(object)
 }
