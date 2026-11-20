@@ -54,10 +54,12 @@ pub struct CurateArgs {
     /// matched at all, and that conversion is a network call, so a run makes two
     /// or more per row. This skips all of it.
     ///
-    /// Every row is reported as `not_checked`, not as `new`. A row that was never
-    /// looked up has not been shown to be absent, and the difference between
-    /// "I did not look" and "it is not there" is the difference between an honest
-    /// report and a duplicate submission.
+    /// Every non-revised row is reported as `not_checked`, not as `new` (rows
+    /// with `status = revised` report `existing_updates` and suppress `CREATE`
+    /// statements). A row that was never looked up has not been shown to be
+    /// absent, and the difference between "I did not look" and "it is not
+    /// there" is the difference between an honest report and a duplicate
+    /// submission.
     #[arg(long)]
     pub offline: bool,
 }

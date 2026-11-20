@@ -177,7 +177,9 @@ fn every_subcommand_is_documented() {
 #[test]
 fn every_output_format_is_documented() {
     let docs = docs();
-    for format in ["table", "tsv", "csv", "json", "jsonl", "jsonld", "query"] {
+    for format in [
+        "table", "tsv", "csv", "json", "jsonl", "jsonld", "rdf", "query",
+    ] {
         assert!(
             docs.contains(format),
             "the output format {format} is missing from docs/cli.md"

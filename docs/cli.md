@@ -100,8 +100,8 @@ Any of the formula filters turns the formula section on by itself: typing
 
 ### Output
 
-`--format` takes `table`, `tsv`, `csv`, `json`, `jsonl`, `jsonld`, `ttl` (legacy) or
-`query`. `ttl` is also spelled `ttl` or `turtle`.
+`--format` takes `table`, `tsv`, `csv`, `json`, `jsonl`, `jsonld`, `ttl`
+(alias for the canonical "rdf" value, also spelled `turtle`), or `query`.
 
 Data goes to stdout and diagnostics to stderr, so redirection captures the data
 and nothing else:
@@ -121,7 +121,7 @@ lotus search --taxon Q21754 --format jsonl | jq -r .name
 - `jsonld` is Bioschemas JSON-LD: a `Dataset` for the result set, the LOTUS
   source, and a `MolecularEntity` per compound. See
   [`lotus-jsonld`](../crates/lotus-jsonld).
-- `ttl` is RDF Turtle, for ingestion into a triple store. It is written from the
+- `ttl` (canonical CLI value "rdf", also aliased as `turtle`) is RDF Turtle, for ingestion into a triple store. It is written from the
   rows already fetched rather than by asking the endpoint to run the `CONSTRUCT`,
   so an export does not fetch the same result a second time just to change its
   syntax. Each occurrence is emitted as the reified chain the endpoint produces --
@@ -229,17 +229,20 @@ guessed at.
 
 ### Offline
 
-`--offline` makes no requests at all and reports every row as `not_checked`:
+`--offline` makes no requests at all and reports every row as `not_checked`
+(except rows with `status = revised`, which are marked `existing_updates` with a
+manual-review comment and no `CREATE` block):
 
 ```bash
 lotus curate findings.tsv --offline
 ```
 
-Each row still gets its compound statement, drafted from the SMILES, because
-there is something to read either way; the status says it is a draft. The
-occurrence and the reference are left out, and the row's note says so: `P703`
-and `P248` take Wikidata items, and offline the taxon and the DOI are never
-resolved to one.
+For non-revised rows, each row still gets its compound statement, drafted from
+the SMILES, because there is something to read either way; the status says it
+is a draft. The occurrence and the reference are left out, and the row's note
+says so: `P703` and `P248` take Wikidata items, and offline the taxon and the DOI
+are never resolved to one. Rows with `status = revised` suppress item creation
+and omit `CREATE` blocks cleanly offline as well.
 
 **Nothing is submitted to Wikidata, and there is no flag that would.** The
 output is QuickStatements for a person to read and submit, and the command says
