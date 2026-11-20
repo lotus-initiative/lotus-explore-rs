@@ -159,5 +159,6 @@ fn backoff_strategy_grows_exponentially_capped() {
 #[test]
 fn should_clear_state_differs_by_stage() {
     assert!(should_clear_state_on_error(QueryStage::TaxonSearch));
+    assert!(should_clear_state_on_error(QueryStage::StructureSearch));
     assert!(!should_clear_state_on_error(QueryStage::ResultsQuery));
 }

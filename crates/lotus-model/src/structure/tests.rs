@@ -258,6 +258,7 @@ fn numbered_and_unicode_chemical_names_are_offered_to_the_name_lookup() {
         "1,8-cineole",
         "14′-O-sulfocriophylline",
         "14'-O-sulfocriophylline",
+        "(±)-3-carene",
         "(−)-epicatechin",
         "vitamin B12",
         "β-pinene",

@@ -278,7 +278,7 @@ async fn run<R: LotusRepository>(
     let csv = repo.sparql_body(query).await.map_err(|error| {
         let _ = perf::end_timer("LOTUS:structure_resolution", timer);
         DomainError::Transport {
-            stage: QueryStage::TaxonSearch,
+            stage: QueryStage::StructureSearch,
             source: error,
         }
     })?;

@@ -178,6 +178,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         }
         TextKey::NoResults => "Aucun résultat. Essayez une recherche plus large.",
         TextKey::StageTaxonSearch => "résolution du taxon",
+        TextKey::StageStructureSearch => "résolution de la structure",
         TextKey::StageResultsQuery => "récupération des résultats",
         TextKey::DisplayCappedHint => {
             "Affichage des premières lignes uniquement pour préserver la mémoire de l'appareil. Les totaux restent exacts."

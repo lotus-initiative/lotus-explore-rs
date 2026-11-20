@@ -157,6 +157,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::OpenInEndpointTitle => "Open this query in the SPARQL endpoint web interface",
         TextKey::NoResults => "No results. Try broadening your search.",
         TextKey::StageTaxonSearch => "taxon lookup",
+        TextKey::StageStructureSearch => "structure lookup",
         TextKey::StageResultsQuery => "results fetch",
         TextKey::DisplayCappedHint => {
             "Displaying the first rows only for memory safety on this device. Counts remain exact."

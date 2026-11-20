@@ -163,6 +163,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::OpenInEndpointTitle => "Diese Abfrage in der SPARQL-Endpoint-Weboberfläche öffnen",
         TextKey::NoResults => "Keine Ergebnisse. Bitte erweitern Sie die Suche.",
         TextKey::StageTaxonSearch => "Taxon-Auflösung",
+        TextKey::StageStructureSearch => "Strukturauflösung",
         TextKey::StageResultsQuery => "Ergebnisabruf",
         TextKey::DisplayCappedHint => {
             "Aus Speichergründen werden auf diesem Gerät nur die ersten Zeilen angezeigt. Die Gesamtzahlen bleiben exakt."

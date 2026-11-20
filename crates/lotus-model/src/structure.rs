@@ -147,8 +147,8 @@ const fn is_non_smiles_lowercase(ch: char) -> bool {
 /// least one lowercase letter outside unbracketed SMILES (`b`, `c`, `n`, `o`,
 /// `p`, `s`, `l`, `r`).
 ///
-/// Parentheses and `+` *are* allowed, for stereodescriptors: `s-(+)-carvone` and
-/// `(−)-epicatechin` are real names. That admits a structure like `C(C)`, the
+/// Parentheses, `+`, and `±` *are* allowed, for stereodescriptors: `s-(+)-carvone`,
+/// `(±)-3-carene`, and `(−)-epicatechin` are real names. That admits a structure like `C(C)`, the
 /// one misclassification that can reach the name lookup, and its cost is bounded:
 /// a lookup matching nothing is reported as "compound not found" rather than
 /// answered, so the reader learns the input was read as a name instead of getting
@@ -163,7 +163,10 @@ pub fn could_be_a_compound_name(text: &str) -> bool {
     let alphabet_is_name_shaped = trimmed.chars().all(|c| {
         c.is_alphabetic()
             || c.is_ascii_digit()
-            || matches!(c, ' ' | '-' | ',' | '(' | ')' | '+' | '−' | '′' | '\'')
+            || matches!(
+                c,
+                ' ' | '-' | ',' | '(' | ')' | '+' | '±' | '−' | '′' | '\''
+            )
     });
     if !alphabet_is_name_shaped || !trimmed.chars().any(char::is_lowercase) {
         return false;

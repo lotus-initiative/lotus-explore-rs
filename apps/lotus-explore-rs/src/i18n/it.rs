@@ -169,6 +169,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         }
         TextKey::NoResults => "Nessun risultato. Prova ad ampliare la ricerca.",
         TextKey::StageTaxonSearch => "risoluzione del taxon",
+        TextKey::StageStructureSearch => "risoluzione della struttura",
         TextKey::StageResultsQuery => "recupero risultati",
         TextKey::DisplayCappedHint => {
             "Per sicurezza di memoria su questo dispositivo vengono mostrate solo le prime righe. I conteggi restano esatti."

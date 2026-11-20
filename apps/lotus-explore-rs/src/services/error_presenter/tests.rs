@@ -351,3 +351,24 @@ fn salt_or_mixture_notice_is_localized_across_all_locales() {
         }
     }
 }
+
+#[test]
+fn structure_search_stage_has_localized_label_across_locales() {
+    let mut rendered = Vec::new();
+    for locale in [Locale::En, Locale::Fr, Locale::De, Locale::It] {
+        let msg = super::format_domain_error(
+            locale,
+            &DomainError::transport(
+                QueryStage::StructureSearch,
+                RepositoryError::network("timeout"),
+            ),
+        );
+        assert!(!msg.to_lowercase().contains("taxon"), "{locale:?}: {msg}");
+        rendered.push(msg);
+    }
+    for (i, a) in rendered.iter().enumerate() {
+        for b in rendered.iter().skip(i + 1) {
+            assert_ne!(a, b);
+        }
+    }
+}

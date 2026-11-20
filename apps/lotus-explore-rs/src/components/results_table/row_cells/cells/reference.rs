@@ -29,7 +29,29 @@ pub(in crate::components::results_table::row_cells) fn reference_cell(
     }
 
     let doi = prepared.doi.as_deref();
-    let statement_id = prepared.statement_id.as_deref();
+    let statement_target = prepared.statement_id.as_deref().map_or_else(
+        || {
+            let compound_qid = entry.compound_qid.trim();
+            (!compound_qid.is_empty()).then(|| {
+                (
+                    format!("https://www.wikidata.org/wiki/{compound_qid}#P703"),
+                    format!("{compound_qid}#P703"),
+                    format!("{} — {compound_qid}#P703", text.statement),
+                )
+            })
+        },
+        |stmt| {
+            Some((
+                format!("https://www.wikidata.org/entity/statement/{stmt}"),
+                stmt.to_string(),
+                format!(
+                    "{} — {}",
+                    text.statement,
+                    aria_wikidata_statement(locale, stmt)
+                ),
+            ))
+        },
+    );
     rsx! {
         td { "property": "wdt:P248", "typeof": "ScholarlyArticle", "resource": "https://www.wikidata.org/entity/{reference_qid}", class: "min-w-0 px-3 py-2.5 align-middle text-ui shadow-[inset_3px_0_0_var(--footer-wd-reference)]",
             div { class: "flex flex-col gap-1",
@@ -78,15 +100,15 @@ pub(in crate::components::results_table::row_cells) fn reference_cell(
                         "{d}"
                     }
                 }
-                if let Some(stmt) = statement_id {
+                if let Some((stmt_href, stmt_title, stmt_aria)) = statement_target {
                     a {
-                        href: "https://www.wikidata.org/entity/statement/{stmt}",
+                        href: "{stmt_href}",
                         target: "_blank",
                         rel: "noopener noreferrer",
                         class: "inline-flex min-h-7 items-center rounded-full border border-wd-reference/35 bg-surface px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-reference hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28",
                         // WCAG 2.5.3: visible text matches the accessible name prefix.
-                        title: "{stmt}",
-                        aria_label: "{text.statement} — {aria_wikidata_statement(locale, stmt)}",
+                        title: "{stmt_title}",
+                        aria_label: "{stmt_aria}",
                         "{text.statement}"
                     }
                 }

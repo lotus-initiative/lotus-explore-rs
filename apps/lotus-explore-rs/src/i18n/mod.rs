@@ -214,6 +214,7 @@ pub enum TextKey {
     KetcherPreparing,
     // Error stage labels (used in transport error messages)
     StageTaxonSearch,
+    StageStructureSearch,
     StageResultsQuery,
     // Table/export
     DatasetStatistics,

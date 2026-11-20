@@ -275,10 +275,13 @@ fn needs_split_occurrences(query: &str) -> bool {
 }
 
 fn should_use_split_occurrences(query: &str) -> bool {
-    // Only the browser keeps a seed set, so only it can tell an unnarrowed query
-    // is broad from the cache alone.
+    // Only the browser keeps a seed set, and only whole-graph queries should
+    // reuse it here so narrow taxon searches keep per-statement GUIDs even after
+    // a broad search in the same session.
     #[cfg(target_arch = "wasm32")]
-    let seeded_broad = is_unnarrowed_query(query) && crate::cache::has_broad_seed_set();
+    let seeded_broad = !query.contains("wdt:P171*")
+        && is_unnarrowed_query(query)
+        && crate::cache::has_broad_seed_set();
     #[cfg(not(target_arch = "wasm32"))]
     let seeded_broad = false;
     needs_split_occurrences(query) || seeded_broad
