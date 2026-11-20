@@ -545,6 +545,33 @@ fn write_jsonld_uses_supplied_and_live_rfc3339_timestamps() {
     let mut pinned = Vec::new();
     write_jsonld_at(&mut pinned, &result, "2026-07-08T09:10:11Z").expect("jsonld");
     let doc: serde_json::Value = serde_json::from_slice(&pinned).expect("valid json");
+    let root_keys: std::collections::BTreeSet<&str> = doc
+        .as_object()
+        .expect("root object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(
+        root_keys,
+        std::collections::BTreeSet::from(["@context", "@graph"]),
+        "W3C JSON-LD 1.1 default graph must not carry sibling properties on the @graph object"
+    );
+    let graph = doc
+        .get("@graph")
+        .and_then(serde_json::Value::as_array)
+        .expect("@graph array");
+    assert_eq!(
+        graph.len(),
+        3,
+        "ResultSet + LOTUS Dataset + 1 MolecularEntity"
+    );
+    assert_eq!(
+        graph
+            .get(2)
+            .and_then(|node| node.get("@type"))
+            .and_then(serde_json::Value::as_str),
+        Some("MolecularEntity")
+    );
     assert_eq!(
         doc.pointer("/@graph/0/datePublished")
             .and_then(serde_json::Value::as_str),

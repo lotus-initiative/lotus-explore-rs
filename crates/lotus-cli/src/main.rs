@@ -478,23 +478,31 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
                  --explain to run the search that resolves it."
             );
         }
-        // An exact structure search resolves the structure to a compound first, and
-        // that resolution needs the network this flag avoids, so the printed query is
-        // the pre-resolution one. It prints anyway and warns on stderr rather than
-        // refusing, which would remove the flag for its most ordinary use. The taxon
-        // case refuses instead because there the unresolved query is a *different
-        // question* (`P171*` missing entirely), not a different spelling.
+        // An exact structure search resolves a non-QID structure to a compound first,
+        // and that resolution needs the network this flag avoids, so the printed
+        // query is the pre-resolution one. Bare QIDs seed `VALUES ?c` directly.
         let structure = lotus_search::normalize_structure(&criteria.structure);
+        let mut resolved_inputs = lotus_search::ResolvedInputs::default();
         if !structure.is_empty() && criteria.structure_search == SmilesSearchType::Exact {
-            eprintln!(
-                "lotus: this is the query before the structure is resolved. An exact \
-                 structure search resolves {structure:?} to a compound first and runs \
-                 a query seeded on that compound, so this is not the query that will \
-                 run."
-            );
+            if lotus_search::is_qid(&structure) {
+                resolved_inputs
+                    .compounds
+                    .push(structure.to_ascii_uppercase());
+            } else {
+                eprintln!(
+                    "lotus: this is the query before the structure is resolved. An exact \
+                     structure search resolves {structure:?} to a compound first and runs \
+                     a query seeded on that compound, so this is not the query that will \
+                     run."
+                );
+            }
         }
 
-        let query = lotus_search::build_execution_query(&request, resolved.as_deref());
+        let query = lotus_search::build_execution_query_with(
+            &request,
+            resolved.as_deref(),
+            &resolved_inputs,
+        );
         println!("{query}");
         return Ok(ExitCode::SUCCESS);
     }
