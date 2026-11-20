@@ -257,7 +257,7 @@ fn write_jsonld_at<W: Write>(
     let result_hash = hash(&serde_json::to_string(&result.rows)?);
 
     let document = serde_json::json!({
-        "@context": "https://schema.org/",
+        "@context": lotus_jsonld::jsonld_context(),
         "@graph": [
             lotus_jsonld::result_set_jsonld(&lotus_jsonld::ResultSet {
                 query: &result.query,

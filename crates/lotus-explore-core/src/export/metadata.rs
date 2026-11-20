@@ -136,7 +136,7 @@ const MEASURED_VARIABLES: &[&str] = &[
 #[derive(Serialize)]
 struct DatasetMetadata {
     #[serde(rename = "@context")]
-    context: &'static str,
+    context: Value,
     #[serde(rename = "@type")]
     type_: &'static str,
     #[serde(rename = "@id")]
@@ -357,7 +357,7 @@ pub fn build_metadata_json(inp: MetadataInputs<'_>) -> String {
     });
 
     let dataset = DatasetMetadata {
-        context: lotus_jsonld::CONTEXT,
+        context: lotus_jsonld::jsonld_context(),
         type_: Profile::Dataset.rdf_type(),
         id: dataset_url.clone(),
         conforms_to: Profile::Dataset.id(),

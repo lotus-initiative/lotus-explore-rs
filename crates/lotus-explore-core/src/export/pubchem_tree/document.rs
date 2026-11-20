@@ -51,7 +51,7 @@ impl TreeKind {
                 description: "Wikidata-based hierarchical classification of chemical compounds",
                 notes: [
                     "Note: Wikidata P279 (subclass of) relationships are sparse for natural products.",
-                    "Consider using the NPClassifier-based tree (lotus_chemical_tree.json) for better coverage.",
+                    "Consider using the NPClassifier-based tree (lotus_npclassifier_tree.json) for better coverage.",
                     "Descriptor values are strings when single, arrays when multiple values exist (very rare).",
                     "All nodes are sorted alphabetically by Name.",
                 ],
@@ -109,7 +109,7 @@ impl<'a, T: TreeNode> FullDocument<'a, T> {
                     "endpoint": texts.endpoint,
                     "classification": texts.classification,
                 },
-                "license": {"data": "AGPL-3.0-only", "code": "AGPL-3.0-only"},
+                "license": {"data": "CC0-1.0", "code": "AGPL-3.0-only"},
                 "constraints": {"root": texts.root},
                 "statistics": {"root_nodes": tree.len(), "total_nodes": count_nodes(tree)},
             }),

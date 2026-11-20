@@ -33,4 +33,33 @@ references:
     doi: 10.7554/eLife.70780
     url: "https://doi.org/10.7554/eLife.70780"
     authors:
-      - name: "The LOTUS consortium"
+      - family-names: Rutz
+        given-names: Adriano
+      - family-names: Sorokina
+        given-names: Maria
+      - family-names: Galgonek
+        given-names: Jakub
+      - family-names: Mietchen
+        given-names: Daniel
+      - family-names: Willighagen
+        given-names: Egon
+      - family-names: Gaudry
+        given-names: Arnaud
+      - family-names: Graham
+        given-names: James G.
+      - family-names: Stephan
+        given-names: Ralf
+      - family-names: Page
+        given-names: Roderic
+      - family-names: Vondrášek
+        given-names: Jiří
+      - family-names: Steinbeck
+        given-names: Christoph
+      - family-names: Pauli
+        given-names: Guido F.
+      - family-names: Wolfender
+        given-names: Jean-Luc
+      - family-names: Bisson
+        given-names: Jonathan
+      - family-names: Allard
+        given-names: Pierre-Marie

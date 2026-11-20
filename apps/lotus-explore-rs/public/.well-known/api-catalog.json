@@ -11,7 +11,7 @@
     {
       "name": "QLever SPARQL Endpoint",
       "description": "Fast SPARQL queries over Wikidata with LOTUS data",
-      "url": "https://qlever.dev/wikidata",
+      "url": "https://qlever.dev/api/wikidata",
       "protocol": "SPARQL",
       "type": "read-only",
       "documentation": "https://qlever.dev/"
@@ -39,6 +39,6 @@
     }
   ],
   "description": "LOTUS Explorer integrates with multiple external data sources. This catalog lists the primary APIs used.",
-  "last_updated": "2026-06-22",
+  "last_updated": "2026-11-20",
   "contact": "https://github.com/lotus-initiative/lotus-explore-rs/issues"
 }

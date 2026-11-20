@@ -59,6 +59,26 @@ pub struct Software {
     pub paper: Option<Paper>,
 }
 
+/// Authors of the LOTUS initiative eLife paper (`10.7554/eLife.70780`), matching
+/// `public/docs/references.bib`.
+const ELIFE_PAPER_AUTHORS: &[(&str, &str)] = &[
+    ("Rutz", "Adriano"),
+    ("Sorokina", "Maria"),
+    ("Galgonek", "Jakub"),
+    ("Mietchen", "Daniel"),
+    ("Willighagen", "Egon"),
+    ("Gaudry", "Arnaud"),
+    ("Graham", "James G."),
+    ("Stephan", "Ralf"),
+    ("Page", "Roderic"),
+    ("Vondrášek", "Jiří"),
+    ("Steinbeck", "Christoph"),
+    ("Pauli", "Guido F."),
+    ("Wolfender", "Jean-Luc"),
+    ("Bisson", "Jonathan"),
+    ("Allard", "Pierre-Marie"),
+];
+
 /// The LOTUS paper, cited alongside the software.
 #[derive(Debug, Clone, Copy)]
 pub struct Paper {
@@ -274,7 +294,7 @@ pub fn codemeta(software: &Software) -> Value {
     );
     object.insert(
         "developmentStatus".into(),
-        json!("https://www.w3.org/TR/sw-life-cycle/#active-development"),
+        json!("https://www.repostatus.org/#active"),
     );
     object.insert("datePublished".into(), json!(software.date_published));
     // The pages that describe the software, so a registry can show a gallery
@@ -389,13 +409,20 @@ pub fn citation_cff(software: &Software) -> String {
     if let Some(paper) = software.paper {
         use std::fmt::Write as _;
         let mut reference = format!(
-            "references:\n  - type: article\n    title: {}\n    journal: eLife\n    year: {}\n    doi: {}\n    url: {}\n    authors:\n      - name: \"{}\"",
+            "references:\n  - type: article\n    title: {}\n    journal: eLife\n    year: {}\n    doi: {}\n    url: {}\n    authors:",
             yaml_scalar(paper.title),
             paper.year,
             yaml_scalar(paper.doi),
             yaml_scalar(&doi_uri(paper.doi)),
-            "The LOTUS consortium",
         );
+        for (family, given) in ELIFE_PAPER_AUTHORS {
+            let _ = write!(
+                reference,
+                "\n      - family-names: {}\n        given-names: {}",
+                yaml_scalar(family),
+                yaml_scalar(given),
+            );
+        }
         let _ = writeln!(reference);
         fields.push(reference.trim_end().to_string());
     }

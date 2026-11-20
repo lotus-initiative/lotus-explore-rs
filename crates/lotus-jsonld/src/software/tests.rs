@@ -169,6 +169,10 @@ fn the_document_carries_the_pages_that_describe_the_software() {
             .is_some_and(|u| u.ends_with("README.md")),
         "the readme is where a registry shows the description"
     );
+    assert_eq!(
+        document["developmentStatus"],
+        "https://www.repostatus.org/#active"
+    );
     assert!(
         document["relatedLink"]
             .as_array()
@@ -226,6 +230,12 @@ fn the_citation_document_survives_the_mistypings_yaml_allows() {
             "{label} has {expected} items, each on its own line:\n{cff}"
         );
     }
+    assert!(
+        cff.contains("family-names: Rutz")
+            && cff.contains("family-names: Allard")
+            && !cff.contains("references:\n  - type: article\n    title: \"The LOTUS initiative for open knowledge management in natural products research\"\n    journal: eLife\n    year: 2022\n    doi: 10.7554/eLife.70780\n    url: https://doi.org/10.7554/eLife.70780\n    authors:\n      - name: \"The LOTUS consortium\""),
+        "paper reference credits published eLife authors:\n{cff}"
+    );
     assert!(
         cff.lines().all(|l| l.trim_end() == l),
         "no trailing whitespace, so the file diffs cleanly:\n{cff}"

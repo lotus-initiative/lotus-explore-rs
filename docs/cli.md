@@ -205,8 +205,8 @@ A row is reported as one of:
 
 | Status                 | Meaning                                             |
 | ---------------------- | --------------------------------------------------- |
-| `existing_complete`    | Wikidata has the compound and the occurrence        |
-| `existing_updates`     | The compound is there; the occurrence is missing    |
+| `existing_complete`    | Wikidata has the compound and the occurrence                                      |
+| `existing_updates`     | Missing properties or occurrence, or marked `status=revised` for manual review |
 | `new_compound`         | No such item, and statements to create one          |
 | `pending_dependencies` | A taxon or reference the row needs is not there yet |
 | `not_checked`          | Not looked up, so nothing is known                  |
@@ -262,8 +262,9 @@ curation.
 
 Rows that name the same structure, taxon and DOI under different names are one
 finding, because a spreadsheet duplicate is an artefact rather than a second
-thing to curate. The comparison folds case on all three, since `CCO` and `cco`
-are the same molecule.
+thing to curate. The comparison folds case on taxon and DOI while preserving
+SMILES case, because in SMILES lowercase letters encode aromaticity (for
+example, `c1ccccc1` versus `C1CCCCC1`).
 
 ## completions
 

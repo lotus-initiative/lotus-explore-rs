@@ -53,6 +53,10 @@ fn the_lotus_source_conforms_on_the_dataset_profile() {
         "expected zero violations and zero warnings: {issues:?}"
     );
     assert_eq!(
+        node["@context"],
+        json!(["https://schema.org/", {"dct": "http://purl.org/dc/terms/"}])
+    );
+    assert_eq!(
         node["distribution"][0]["encodingFormat"],
         json!(["application/sparql-query", edam::FORMAT_SPARQL])
     );

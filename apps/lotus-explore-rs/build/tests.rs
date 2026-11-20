@@ -399,9 +399,10 @@ fn headers_advertise_absolute_link_relations() -> Result<(), Box<dyn Error>> {
 /// `index_html_agrees_with_base_url`); documentation, where a measurement
 /// of the old host is history; and this directory's own test fixtures, which are
 /// pinned to the real host on purpose.
-const HOST_BEARING_SOURCES: [&str; 8] = [
+const HOST_BEARING_SOURCES: [&str; 9] = [
     "metadata/site-metadata.json",
     "index.html",
+    "docs/CITATION.md",
     "docs/DEPLOYMENT.md",
     // Records measurements taken against the deployed site -- the point of the
     // table is which behaviour the live host has, so the host has to be named.
