@@ -1755,14 +1755,10 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
 
     // The base query's own closing brace becomes the filters' closing brace, so
     // the fragments land in its outermost WHERE rather than in a new block.
-    let Some(without_closing_brace) = trimmed_strip_closing_brace(base) else {
+    let Some(without_closing_brace) = base.trim_end().strip_suffix('}') else {
         return format!("{base}\n{required}{filters}");
     };
     format!("{without_closing_brace}\n{required}{filters}\n}}")
-}
-
-fn trimmed_strip_closing_brace(base: &str) -> Option<&str> {
-    base.trim_end().strip_suffix('}')
 }
 
 /// The formula filter: normalise the formula once, then count elements against
