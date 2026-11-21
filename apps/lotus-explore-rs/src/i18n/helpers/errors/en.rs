@@ -116,6 +116,11 @@ pub fn warn_wdqs_fallback() -> String {
     "Query executed via Wikidata Query Service (QLever fallback).".to_string()
 }
 
+pub fn warn_salt_or_mixture() -> String {
+    "Multi-component SMILES detected (.); consider searching only the main parent structure without counterions or solvents."
+        .to_string()
+}
+
 #[cfg(target_arch = "wasm32")]
 pub fn error_hint_memory() -> &'static str {
     "Result too large for current device memory."

@@ -23,13 +23,28 @@ fn metadata_json_contains_schema_dataset() {
         query_hash: "abc",
         result_hash: "def",
         endpoint: SparqlEndpoint::Qlever,
+        sparql_query: Some("SELECT ?c WHERE {}"),
         year: YEAR,
         date_created: NOW,
     });
     assert!(body.contains("\"@type\": \"Dataset\""));
     assert!(body.contains("\"query_hash\""));
+    assert!(!body.contains("LOTUS Knowledge Search"));
 
     let parsed: Value = serde_json::from_str(&body).expect("valid JSON");
+    assert!(parsed.get("variableMeasured").is_some());
+    let dl_val = at(&parsed, "/distribution/0");
+    let dl = dl_val.as_object().expect("DataDownload object");
+    assert_eq!(
+        dl.len(),
+        2,
+        "DataDownload carries only @type and encodingFormat when offline: {dl:?}"
+    );
+    assert_eq!(
+        at(&parsed, "/provider/1/url"),
+        json!("https://www.wikidata.org/")
+    );
+    assert_eq!(at(&parsed, "/sparql_query"), json!("SELECT ?c WHERE {}"));
     let issues = lotus_jsonld::check(&parsed, lotus_jsonld::Profile::Dataset);
     assert!(
         issues.is_empty(),
@@ -61,6 +76,7 @@ fn metadata_json_shows_wdqs_when_fallback_used() {
         query_hash: "abc",
         result_hash: "def",
         endpoint: SparqlEndpoint::Wdqs,
+        sparql_query: None,
         year: YEAR,
         date_created: NOW,
     });
@@ -79,6 +95,7 @@ fn metadata_json_carries_the_creation_stamp_it_was_given() {
         query_hash: "abc",
         result_hash: "def",
         endpoint: SparqlEndpoint::Qlever,
+        sparql_query: None,
         year: YEAR,
         date_created: NOW,
     });
@@ -97,6 +114,7 @@ fn document(criteria: &SearchCriteria, qid: Option<&str>) -> Value {
         query_hash: "abc",
         result_hash: "def",
         endpoint: SparqlEndpoint::Qlever,
+        sparql_query: None,
         year: YEAR,
         date_created: NOW,
     });

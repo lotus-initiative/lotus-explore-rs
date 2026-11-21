@@ -13,6 +13,7 @@
     - `smiles`
     - `taxon` (optional)
     - `doi` (optional)
+    - `status` (optional; `revised` suppresses automatic `CREATE` emission)
 - `curation_run=true`
   - auto-runs curation after the page loads
 

@@ -5,7 +5,7 @@
 Please report suspected security vulnerabilities through GitHub Security
 Advisories rather than opening a public issue:
 
-https://github.com/lotusnprod/lotus-explore-rs/security/advisories/new
+https://github.com/lotus-initiative/lotus-explore-rs/security/advisories/new
 
 Include steps to reproduce the issue, affected crate(s) or endpoint(s), and any
 relevant configuration or input payloads.

@@ -75,53 +75,32 @@ pub fn looks_like_inchikey(text: &str) -> bool {
         })
 }
 
-/// What the reference field's example buttons offer.
+/// What the reference field's example button offers: a DOI from the *Journal
+/// of Natural Products*, resolved by looking the reference up. It reports two
+/// compounds, *Voatriafricanine A* and *B*.
 ///
-/// * `10.1002/jlac.18360190207` -- a DOI, resolved by looking the reference up.
-///   Reports one compound, *chrysophanol*.
-/// * `10.1021/acs.jnatprod.1C00812` -- a DOI from a different publisher, so the
-///   pair shows the prefix is not what is being matched. Reports two,
-///   *Voatriafricanine A* and *B*, stereoisomers: a reference can report several
-///   compounds, as separate facts about separate items.
-/// * `Q28601559` -- a QID, used without a round trip. Reports three, including
-///   *ethanol*.
-///
-/// These are three different answers, not one compound three ways: a structure
-/// names one thing, a reference names an *occurrence*, and the same compound
-/// appears under several references while one reference reports several compounds.
-///
-/// The list lives here, not in the app, so the test that checks the
-/// classification reads the same strings the buttons fill in.
-pub const REFERENCE_INPUT_EXAMPLES: [&str; 3] = [
-    "10.1002/jlac.18360190207",
-    "10.1021/acs.jnatprod.1C00812",
-    "Q28601559",
-];
+/// The list lives here, not in the app, so a test can read the same strings
+/// the buttons fill in.
+pub const REFERENCE_INPUT_EXAMPLES: [&str; 1] = ["10.1021/acs.jnatprod.1c00812"];
 
-/// What the structure field's example buttons offer.
+/// What the structure field's example buttons offer: *carnosol* (`Q16634054`)
+/// three ways, so a reader sees the kinds of input the field takes and that
+/// they agree.
 ///
-/// * `amarogentina` — a name, resolved through a label or alias lookup.
-/// * `红雀椿素` — a Chinese alias, testing non-ASCII label lookup.
-/// * `DBOVHQOUSDWAPQ-WTONXPSSSA-N` — an `InChIKey`, resolved through `P235`.
-/// * `Q23118` — a QID, confirmed against Wikidata.
-/// * `C[C@H](O)CO` — a SMILES, resolved by asking the structure service.
+/// * `carnosol` — a name, resolved through a label or alias lookup.
+/// * `XUSYGBPHQBWGAD-PJSUUKDQSA-N` — its `InChIKey`, resolved through `P235`.
+/// * its isomeric SMILES — resolved by asking the structure service.
 ///
-/// One of each kind the field accepts, so a reader can tell which is which; the
-/// list lives here, not in the app, so the test checking their classification
-/// reads the same strings the buttons fill in.
+/// The last, `amarogentina`, is the Italian name of *amarogentin* (`Q3613679`),
+/// the bitter principle of bitterwort: names are matched in every language.
 ///
-/// The name and the `InChIKey` are the same compound (*amarogentin*, `Q3613679`)
-/// two ways, which shows the alias route and the identifier route agree; the test
-/// below checks both are classified as identifiers, not one as a name.
-///
-/// The stereocentre in the SMILES is deliberate over a simpler chain: it is the
-/// structure a person cannot type from memory.
-pub const STRUCTURE_INPUT_EXAMPLES: [&str; 5] = [
+/// The list lives here, not in the app, so the test checking their
+/// classification reads the same strings the buttons fill in.
+pub const STRUCTURE_INPUT_EXAMPLES: [&str; 4] = [
+    "carnosol",
+    "XUSYGBPHQBWGAD-PJSUUKDQSA-N",
+    "CC(C)C1=C(C(=C2C(=C1)[C@@H]3C[C@@H]4[C@@]2(CCCC4(C)C)C(=O)O3)O)O",
     "amarogentina",
-    "红雀椿素",
-    "DBOVHQOUSDWAPQ-WTONXPSSSA-N",
-    "Q23118",
-    "C[C@H](O)CO",
 ];
 
 /// Whether a string is a Wikidata QID.
@@ -135,6 +114,13 @@ pub fn looks_like_a_compound_qid(text: &str) -> bool {
     super::looks_like_reference_qid(text)
 }
 
+/// Lowercase letters that never appear in unbracketed SMILES
+/// (outside the organic aromatic subset `b, c, n, o, p, s` and the second
+/// letters of `Cl`/`Br`).
+const fn is_non_smiles_lowercase(ch: char) -> bool {
+    ch.is_lowercase() && !matches!(ch, 'b' | 'c' | 'n' | 'o' | 'p' | 's' | 'l' | 'r')
+}
+
 /// Whether a string is worth handing to the compound-name lookup.
 ///
 /// Stops the name lookup from eating structure input, conservatively in the
@@ -144,22 +130,27 @@ pub fn looks_like_a_compound_qid(text: &str) -> bool {
 /// Three exclusions, same reason -- a chemical name and a structure are written
 /// with different alphabets:
 ///
-/// **Any digit.** `c1ccccc1`, `C[C@H](O)CO`, `CC(=O)Oc1ccccc1C(=O)O`. No
-/// Wikidata label has one, because a label is prose.
+/// **Any SMILES punctuation**: `= @ [ ] # / \ % * $ : .`. Keeping `.` out of
+/// names ensures salt/mixture SMILES (`CCO.O`, `CCN.Cl`) go to the structure route.
 ///
-/// **Any SMILES punctuation**: `= @ [ ] # / \ % * $ :`. Same reason.
+/// **No lowercase letter.** `CC`, `CCC`, QIDs like `Q18216`, and uppercase
+/// `InChIKey`s have none. This exclusion costs all-caps acronyms -- `ATP`,
+/// `GDP` and `NAD` are known compounds and are refused -- and that is the right
+/// way round: a structure silently replaced by a same-spelled item is
+/// undetectable, while a name typed as SMILES is friction the reader can route
+/// around.
 ///
-/// **A run of consecutive uppercase letters.** `CC` and `CCC` are how ethane and
-/// propane get typed in a structure box, and two of this app's example buttons.
-/// This exclusion costs real names -- `ATP`, `GDP` and `NAD` are known compounds
-/// and are refused -- and that is the right way round: a structure silently
-/// replaced by a same-spelled item is undetectable, while a name typed as SMILES
-/// is friction the reader can route around.
+/// **Bare digits without prose.** `c1ccccc1`, `CC1CC1`, and `q18216` stay
+/// structures/QIDs. Digits are accepted in names (`5-fluorouracil`,
+/// `12-O-Methylcarnosic acid`, `1,8-cineole`, `14′-O-sulfocriophylline`) only
+/// when paired with both a separator (` `, `-`, `,`, `−`, `′`, `'`) and at
+/// least one lowercase letter outside unbracketed SMILES (`b`, `c`, `n`, `o`,
+/// `p`, `s`, `l`, `r`).
 ///
-/// Parentheses and `+` *are* allowed, for stereodescriptors: `s-(+)-carvone` and
-/// `(R)-` are real names. That admits a structure like `C(C)`, the one
-/// misclassification that can reach the name lookup, and its cost is bounded: a
-/// lookup matching nothing is reported as "compound not found" rather than
+/// Parentheses, `+`, and `±` *are* allowed, for stereodescriptors: `s-(+)-carvone`,
+/// `(±)-3-carene`, and `(−)-epicatechin` are real names. That admits a structure like `C(C)`, the
+/// one misclassification that can reach the name lookup, and its cost is bounded:
+/// a lookup matching nothing is reported as "compound not found" rather than
 /// answered, so the reader learns the input was read as a name instead of getting
 /// a plausible wrong answer. Refusing a structure that looks like a name costs a
 /// round trip; admitting one costs a question the reader must notice.
@@ -169,13 +160,24 @@ pub fn could_be_a_compound_name(text: &str) -> bool {
     if trimmed.is_empty() {
         return false;
     }
-    let all_uppercase_letters = trimmed
-        .chars()
-        .all(|c| c.is_ascii_uppercase() || c == ' ' || c == '-');
-    let alphabet_is_name_shaped = trimmed
-        .chars()
-        .all(|c| c.is_alphabetic() || matches!(c, ' ' | '-' | '.' | ',' | '(' | ')' | '+'));
-    alphabet_is_name_shaped && !all_uppercase_letters
+    let alphabet_is_name_shaped = trimmed.chars().all(|c| {
+        c.is_alphabetic()
+            || c.is_ascii_digit()
+            || matches!(
+                c,
+                ' ' | '-' | ',' | '(' | ')' | '+' | '±' | '−' | '′' | '\''
+            )
+    });
+    if !alphabet_is_name_shaped || !trimmed.chars().any(char::is_lowercase) {
+        return false;
+    }
+    if trimmed.chars().any(|c| c.is_ascii_digit()) {
+        return trimmed.chars().any(is_non_smiles_lowercase)
+            && trimmed
+                .chars()
+                .any(|c| matches!(c, ' ' | '-' | ',' | '−' | '′' | '\''));
+    }
+    true
 }
 
 /// Whether this input names a Wikidata compound rather than being a structure.

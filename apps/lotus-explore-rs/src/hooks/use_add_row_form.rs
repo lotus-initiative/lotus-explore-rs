@@ -38,6 +38,7 @@ impl AddRowForm {
             smiles,
             taxon: non_empty_trimmed(&self.taxon.read()),
             doi: non_empty_trimmed(&self.doi.read()),
+            status: None,
         };
         if append_unique_rows(&mut rows.write(), vec![row]).skipped > 0 {
             *status.write() = Some(msg_duplicate_row_skipped(locale));

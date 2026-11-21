@@ -31,7 +31,12 @@
     />
     <script type="application/ld+json">
       {
-        "@context": "https://schema.org",
+        "@context": [
+          "https://schema.org/",
+          {
+            "dct": "http://purl.org/dc/terms/"
+          }
+        ],
         "@type": ["WebApplication", "SoftwareApplication"],
         "@id": "https://lotus-initiative.github.io/lotus-explore-rs/",
         "dct:conformsTo": "https://bioschemas.org/profiles/ComputationalTool/1.0-RELEASE",
@@ -64,7 +69,8 @@
           "@type": "ScholarlyArticle",
           "name": "The LOTUS initiative for open knowledge management in natural products research",
           "identifier": "https://doi.org/10.7554/eLife.70780",
-          "url": "https://doi.org/10.7554/eLife.70780"
+          "url": "https://doi.org/10.7554/eLife.70780",
+          "datePublished": "2022"
         }
       }
     </script>
@@ -118,7 +124,6 @@
     <link rel="dns-prefetch" href="https://doi.org" />
     <link rel="dns-prefetch" href="https://www.simolecule.com" />
     <link rel="dns-prefetch" href="https://idsm.elixir-czech.cz" />
-    <link rel="dns-prefetch" href="https://scripts.simpleanalyticscdn.com" />
     <script>
       (function () {
         // First, before anything below touches a sink.
@@ -240,16 +245,10 @@
           css.href = basePath + "assets/lotus-explore.css";
           document.head.appendChild(css);
 
-          var bootstrap = document.createElement("script");
-          bootstrap.src = basePath + "assets/js/bootstrap.js";
-          bootstrap.defer = true;
-          document.head.appendChild(bootstrap);
-
-          // Loaded here, and deferred, for the same reason as bootstrap.js: a
-          // deferred script runs before the WASM module has finished booting, so
-          // the WebMCP tools are registered while the forms they drive do not
-          // exist yet. Anything that inspects the tool surface at document start
-          // -- the Lighthouse `webmcp-*` audits, an agent opening the page --
+          // Deferred so it runs before the WASM module has finished booting and
+          // registers the WebMCP tools while the forms they drive do not exist
+          // yet. Anything that inspects the tool surface at document start --
+          // the Lighthouse `webmcp-*` audits, an agent opening the page --
           // would otherwise see none. The file no-ops where WebMCP is absent.
           var webmcp = document.createElement("script");
           webmcp.src = basePath + "assets/js/webmcp.js";
@@ -349,6 +348,15 @@
       .boot-shell p {
         margin: 0;
       }
+      .analytics-pixel {
+        position: absolute;
+        inset-block-start: 0;
+        inset-inline-start: 0;
+        inline-size: 1px;
+        block-size: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
     </style>
   </head>
   <body>
@@ -360,5 +368,16 @@
         </div>
       </div>
     </div>
+    <img
+      src="https://queue.simpleanalyticscdn.com/noscript.gif?hostname=lotus-initiative.github.io"
+      alt=""
+      width="1"
+      height="1"
+      referrerpolicy="no-referrer-when-downgrade"
+      decoding="async"
+      fetchpriority="low"
+      aria-hidden="true"
+      class="analytics-pixel"
+    />
   </body>
 </html>

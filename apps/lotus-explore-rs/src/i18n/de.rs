@@ -28,15 +28,16 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::LightMode => "Hell",
         TextKey::SkipToResults => "Zum Hauptinhalt springen",
         TextKey::PageSubtitle => {
-            "Erkunden Sie verknüpfte offene Daten: chemische Entitäten, biologische Organismen und wissenschaftliche Literatur."
+            "Finden Sie heraus, welche Verbindungen aus einem Organismus beschrieben wurden und in welchen Artikeln, so wie die LOTUS-Initiative es in Wikidata erfasst hat."
         }
-        TextKey::LandingTitle => "Willkommen bei LOTUS Explorer",
-        TextKey::OpenSearch => "Suche öffnen",
 
         TextKey::PageNotFound => "Seite nicht gefunden",
         TextKey::PageNotFoundDescription => "Die angeforderte Seite existiert nicht.",
         TextKey::ReturnHome => "Zurück zur Startseite",
-        TextKey::ResolvedTaxon => "Aufgelöstes Taxon",
+        TextKey::ResolvedTaxon => "Gesuchtes Taxon",
+        TextKey::LinkedNamesIncluded => {
+            "Einträge unter einem verknüpften Namen, etwa einem Synonym oder Basionym, sind eingeschlossen."
+        }
         TextKey::DuplicateRowsHint => "Warum stehen manche Verbindungen mehrfach in der Liste?",
         TextKey::DuplicateRowsExplain => {
             "Jede Zeile ist eine Verbindung, so wie eine Quelle sie berichtet: Eine in drei Papers gefundene Verbindung belegt drei Zeilen, die sich nur in der Referenz unterscheiden. Die Funde sind verschieden, die Verbindungen nicht. Die kleinere Zahl neben der Zeilenzahl ist die Anzahl verschiedener Verbindungen."
@@ -67,7 +68,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
             "Ratenlimit beim vorgelagerten Dienst erreicht. Bitte etwa eine Minute warten und erneut versuchen."
         }
         TextKey::ErrorHintQueryTooExpensive => {
-            "Diese Suche ist zu breit: der Endpunkt hat sie nach 25 Sekunden abgebrochen. Grenzen Sie sie mit Taxon, Massenbereich, Jahr oder Formel ein und führen Sie sie erneut aus."
+            "Diese Suche ist zu breit: Der Abfragedienst hat sie an seinem Zeitlimit abgebrochen. Grenzen Sie sie mit Taxon, Massenbereich, Jahr oder Formel ein und führen Sie sie erneut aus."
         }
         TextKey::ErrorHintBadRequest => {
             "Der Server hat die Anfrage abgelehnt. Bitte Suchparameter prüfen."
@@ -79,18 +80,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
             "Diese Ergebnismenge wurde abgebrochen; die angezeigten Zeilen sind nicht die vollständige Antwort. Suche einschränken, um sie abzuschließen."
         }
         TextKey::ErrorHintUnknown => "Unerwarteter Fehler. Ein erneuter Versuch kann helfen.",
-        TextKey::WelcomeLeadA => {
-            "Diese Anwendung veranschaulicht die Leistungsfähigkeit verknüpfter offener Daten, indem sie chemische Entitäten mit biologischen Organismen und wissenschaftlicher Literatur verknüpft. "
-        }
 
-        TextKey::WelcomeLeadB => {
-            "Das Datenmodell verknüpft Verbindungen, Taxa und Referenzen, die aus der "
-        }
-
-        TextKey::WelcomeLeadC => ", veröffentlicht als verknüpfte offene Daten auf ",
-        TextKey::WelcomeLeadD => " und über SPARQL abgefragt durch ",
-
-        TextKey::WelcomeLeadE => ".",
         TextKey::ExampleQueryExecute => "Ausführen",
         TextKey::ExampleQueryTaxon | TextKey::DownloadCsvLabel => "CSV herunterladen",
         TextKey::ExampleQueryStructure | TextKey::DownloadJsonLabel => "JSON herunterladen",
@@ -99,9 +89,6 @@ pub const fn de_t(key: TextKey) -> &'static str {
 
         TextKey::SearchExamples => "Suchbeispiele",
 
-        TextKey::LabelLanguagePolicy => {
-            "Beschriftungen bevorzugen 'mul' und verwenden 'en' als Fallback, damit Ergebnisse vergleichbar bleiben."
-        }
         TextKey::AdvancedFilters => "Erweiterte Filter",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonField => "Wissenschaftlicher oder Trivialname des Taxons",
@@ -116,7 +103,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::ExampleSets => "Feld auf",
         TextKey::StructureSmilesOrMol => "Struktur, Verbindungsname oder InChIKey",
         TextKey::StructurePlaceholder => "SMILES, ein Molfile, ein Name oder ein InChIKey",
-        TextKey::Exact => "Exakt",
+        TextKey::Exact => "Exakt (eine eingefügte Struktur kann auch ihre Stereoisomere treffen)",
         TextKey::Substructure => "Substruktur",
         TextKey::Similarity => "Ähnlichkeit",
         TextKey::StructureSearchMode => "Struktursuche",
@@ -176,6 +163,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::OpenInEndpointTitle => "Diese Abfrage in der SPARQL-Endpoint-Weboberfläche öffnen",
         TextKey::NoResults => "Keine Ergebnisse. Bitte erweitern Sie die Suche.",
         TextKey::StageTaxonSearch => "Taxon-Auflösung",
+        TextKey::StageStructureSearch => "Strukturauflösung",
         TextKey::StageResultsQuery => "Ergebnisabruf",
         TextKey::DisplayCappedHint => {
             "Aus Speichergründen werden auf diesem Gerät nur die ersten Zeilen angezeigt. Die Gesamtzahlen bleiben exakt."
@@ -198,7 +186,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::FooterArchive => "Archiv",
         TextKey::FooterPrograms => "Programme",
         TextKey::FooterLicense => "Lizenz",
-        TextKey::FooterForData => " für Daten ",
+        TextKey::FooterForData => " für Wikidata-Daten ",
         TextKey::FooterForCode => " für Code",
         TextKey::TableTriplesAria => "Verbindung-Taxon-Referenz-Tripel",
         TextKey::OpenFullSizeDepiction => "Darstellung in voller Größe öffnen",
@@ -208,7 +196,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::OpenInTaxonScholia => "Taxon in Scholia öffnen",
         TextKey::OpenInReferenceScholia => "Referenz in Scholia öffnen",
         TextKey::OpenDoi => "DOI öffnen",
-        TextKey::Statement => "Aussage",
+        TextKey::Statement => "Aussage · Melden",
         TextKey::SparqlQuery => "SPARQL-Abfrage",
         TextKey::CopySparqlQuery => "SPARQL-Abfrage kopieren",
         TextKey::ShowFailedQuery => {

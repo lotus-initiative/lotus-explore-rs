@@ -18,19 +18,111 @@
   "citation": [
     {
       "@type": "ScholarlyArticle",
+      "author": [
+        {
+          "@type": "Person",
+          "familyName": "Rutz",
+          "givenName": "Adriano",
+          "name": "Adriano Rutz"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Sorokina",
+          "givenName": "Maria",
+          "name": "Maria Sorokina"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Galgonek",
+          "givenName": "Jakub",
+          "name": "Jakub Galgonek"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Mietchen",
+          "givenName": "Daniel",
+          "name": "Daniel Mietchen"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Willighagen",
+          "givenName": "Egon",
+          "name": "Egon Willighagen"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Gaudry",
+          "givenName": "Arnaud",
+          "name": "Arnaud Gaudry"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Graham",
+          "givenName": "James G.",
+          "name": "James G. Graham"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Stephan",
+          "givenName": "Ralf",
+          "name": "Ralf Stephan"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Page",
+          "givenName": "Roderic",
+          "name": "Roderic Page"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Vondrášek",
+          "givenName": "Jiří",
+          "name": "Jiří Vondrášek"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Steinbeck",
+          "givenName": "Christoph",
+          "name": "Christoph Steinbeck"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Pauli",
+          "givenName": "Guido F.",
+          "name": "Guido F. Pauli"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Wolfender",
+          "givenName": "Jean-Luc",
+          "name": "Jean-Luc Wolfender"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Bisson",
+          "givenName": "Jonathan",
+          "name": "Jonathan Bisson"
+        },
+        {
+          "@type": "Person",
+          "familyName": "Allard",
+          "givenName": "Pierre-Marie",
+          "name": "Pierre-Marie Allard"
+        }
+      ],
       "datePublished": "2022",
       "identifier": "https://doi.org/10.7554/eLife.70780",
       "name": "The LOTUS initiative for open knowledge management in natural products research",
       "url": "https://doi.org/10.7554/eLife.70780"
     }
   ],
-  "codeRepository": "https://github.com/lotusnprod/lotus-explore-rs",
+  "codeRepository": "https://github.com/lotus-initiative/lotus-explore-rs",
   "contIntegration": [
-    "https://github.com/lotusnprod/lotus-explore-rs/actions"
+    "https://github.com/lotus-initiative/lotus-explore-rs/actions"
   ],
   "datePublished": "2026-09-22",
   "description": "A linked open data explorer for the LOTUS compound-taxon-reference knowledge graph in Wikidata, queried over SPARQL.",
-  "developmentStatus": "https://www.w3.org/TR/sw-life-cycle/#active-development",
+  "developmentStatus": "https://www.repostatus.org/#active",
   "featureList": [
     "SPARQL search over the LOTUS projection in Wikidata",
     "substructure and similarity structure search",
@@ -38,7 +130,7 @@
     "Bioschemas-compliant JSON-LD export",
     "QuickStatements curation for compounds Wikidata is missing"
   ],
-  "issueTracker": "https://github.com/lotusnprod/lotus-explore-rs/issues",
+  "issueTracker": "https://github.com/lotus-initiative/lotus-explore-rs/issues",
   "keywords": [
     "natural products",
     "linked open data",
@@ -59,11 +151,11 @@
     "name": "Rust",
     "url": "https://www.rust-lang.org"
   },
-  "readme": "https://github.com/lotusnprod/lotus-explore-rs/blob/main/README.md",
+  "readme": "https://github.com/lotus-initiative/lotus-explore-rs/blob/main/README.md",
   "relatedLink": [
     "https://lotus-initiative.github.io/lotus-explore-rs",
-    "https://github.com/lotusnprod/lotus-explore-rs/issues",
-    "https://github.com/lotusnprod/lotus-explore-rs/blob/main/CONTRIBUTING.md"
+    "https://github.com/lotus-initiative/lotus-explore-rs/issues",
+    "https://github.com/lotus-initiative/lotus-explore-rs/blob/main/CONTRIBUTING.md"
   ],
   "softwareRequirements": [
     {

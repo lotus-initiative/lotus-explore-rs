@@ -21,9 +21,9 @@ fn match_with(qid: &str, label: &str, smiles: &str) -> CompoundMatch {
 #[test]
 fn an_unmatched_input_is_remembered_as_unmatched() {
     clear();
-    store("cc", None);
+    store("NoSuchCompound", None);
     assert_eq!(
-        lookup("CC"),
+        lookup("nosuchcompound"),
         Cached::Unresolved,
         "a second search must not pay for the same miss"
     );
@@ -34,8 +34,30 @@ fn an_input_never_looked_up_is_distinguishable_from_a_miss() {
     // The distinction the whole cache exists for: only the second is worth
     // asking about again.
     clear();
-    store("cc", None);
-    assert_eq!(lookup("CCC"), Cached::Unknown);
+    store("NoSuchCompound", None);
+    assert_eq!(lookup("AnotherUnknownCompound"), Cached::Unknown);
+}
+
+#[test]
+fn smiles_cache_keys_preserve_case() {
+    clear();
+    let benzene = pick(&[match_with("Q2270", "benzene", "c1ccccc1")]).expect("one match");
+    store("c1ccccc1", Some(benzene.clone()));
+    assert_eq!(lookup("C1CCCCC1"), Cached::Unknown);
+    store("C1CCCCC1", None);
+    assert_eq!(lookup("C1CCCCC1"), Cached::Unresolved);
+    assert_eq!(lookup("c1ccccc1"), Cached::Resolved(Box::new(benzene)));
+}
+
+#[test]
+fn molfile_cache_key_preserves_leading_blank_lines() {
+    clear();
+    let mol_a = "\n  Mrv\n\n  0  0  0  0  0  0            999 V2000\nM  END";
+    let mol_b = "  Mrv\n\n  0  0  0  0  0  0            999 V2000\nM  END";
+    let cached = pick(&[match_with("Q1", "x", "C")]).expect("one match");
+    store(mol_a, Some(cached.clone()));
+    assert_eq!(lookup(mol_a), Cached::Resolved(Box::new(cached)));
+    assert_eq!(lookup(mol_b), Cached::Unknown);
 }
 
 #[test]

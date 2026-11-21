@@ -30,10 +30,9 @@
 //!   building the same query.
 //!
 //! A reference constrains `?r`, the item the reference *is*, rather than filtering a projected
-//! value, and sits outside the base query's optional block -- so a reference plus no taxon
-//! returns only compounds that reference reported, the `VALUES` being unable to join against
-//! an unbound `?r`. Asserted too, being the one place the two arguments interact rather than
-//! compose.
+//! value. `VALUES ?r` does join a row whose `?r` is unbound, so a reference with no taxon and
+//! no structure requires the occurrence: the one place the two arguments interact rather
+//! than compose. Asserted too.
 
 // The panic lints exist to keep library code free of panics on external input.
 // A test that fails on a bad fixture is reporting, not panicking.
@@ -312,17 +311,14 @@ fn a_wildcard_taxon_requires_an_occurrence_and_an_empty_taxon_does_not() {
             continue;
         }
         let query = query_for(cell);
+        let required = cell.taxon.requires_occurrence() || cell.reference;
         assert_eq!(
             occurrence_is_optional(&query),
-            !cell.taxon.requires_occurrence(),
+            !required,
             "{}: `{}` should {} an occurrence",
             label(cell),
             cell.taxon.text(),
-            if cell.taxon.requires_occurrence() {
-                "require"
-            } else {
-                "make optional"
-            }
+            if required { "require" } else { "make optional" }
         );
     }
 }
@@ -336,7 +332,10 @@ fn a_wildcard_taxon_requires_an_occurrence_and_an_empty_taxon_does_not() {
 /// exist.
 #[test]
 fn an_absent_taxon_makes_one_optional_block_not_one_per_triple() {
-    for cell in MATRIX.iter().filter(|c| c.taxon == TaxonArg::Absent) {
+    for cell in MATRIX
+        .iter()
+        .filter(|c| c.taxon == TaxonArg::Absent && (c.structure || !c.reference))
+    {
         let query = query_for(cell);
         assert!(
             occurrence_is_optional(&query),

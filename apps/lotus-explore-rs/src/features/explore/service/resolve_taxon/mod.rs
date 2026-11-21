@@ -146,6 +146,27 @@ pub async fn resolve<R: LotusRepository>(
         }));
     }
 
+    // Homonyms: put the first that has recorded compounds in front, so it is
+    // the one picked. A probe that fails decides nothing.
+    let is_homonym = |m: &TaxonMatch| m.name.eq_ignore_ascii_case(&sanitized);
+    if matches.iter().filter(|m| is_homonym(m)).count() > 1 {
+        let mut with_compounds = None;
+        for (index, candidate) in matches.iter().enumerate().filter(|(_, m)| is_homonym(m)) {
+            let probe = lotus_query::taxon_has_compounds_query(&candidate.qid);
+            if repo
+                .sparql_body(&probe)
+                .await
+                .is_ok_and(|csv| lotus_query::has_data_row(csv.as_ref()))
+            {
+                with_compounds = Some(index);
+                break;
+            }
+        }
+        if let Some(index) = with_compounds {
+            matches.swap(0, index);
+        }
+    }
+
     let selection = match_selection::pick_best_match(&sanitized, &matches)?;
     let cached = selection.to_cached();
     let warnings = notices(standardized_warning, &cached);

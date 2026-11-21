@@ -61,9 +61,16 @@ pub fn parse_tabular(input: &str) -> Result<Vec<CurationInputRow>, CurationError
         .ok_or(CurationError::MissingTsvColumn("smiles"))?;
     let taxon_idx = find_col(
         &columns,
-        &["taxon", "organism", "source_organism", "species"],
+        &[
+            "taxon",
+            "organism",
+            "organism_name",
+            "source_organism",
+            "species",
+        ],
     );
     let doi_idx = find_col(&columns, &["doi", "reference_doi"]);
+    let status_idx = find_col(&columns, &["status"]);
 
     let mut out = Vec::new();
     for row in records {
@@ -92,11 +99,16 @@ pub fn parse_tabular(input: &str) -> Result<Vec<CurationInputRow>, CurationError
             .and_then(|idx| row.get(idx))
             .map(String::as_str)
             .and_then(|v| normalize_doi(v.trim()));
+        let status = status_idx
+            .and_then(|idx| row.get(idx))
+            .map(String::as_str)
+            .and_then(|v| non_empty(v.trim()).map(ToOwned::to_owned));
         out.push(CurationInputRow {
             name: name.into(),
             smiles: smiles.into(),
             taxon,
             doi,
+            status,
         });
     }
     Ok(out)

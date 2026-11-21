@@ -218,6 +218,10 @@ pub(super) const fn curation_note_existing_updates() -> &'static str {
     "Vorhandener Wikidata-Eintrag gefunden: Update-QuickStatements wurden erstellt."
 }
 
+pub(super) const fn curation_note_revised() -> &'static str {
+    "Zeile als status=revised markiert: manuelle Prüfung erforderlich, um die ersetzte Wikidata-Aussage als veraltet zu markieren oder zu aktualisieren statt ein Duplikat zu erzeugen."
+}
+
 pub(super) const fn curation_note_new_compound() -> &'static str {
     "Kein Wikidata-Eintrag über InChIKey gefunden; Erstellungs-QuickStatements wurden erzeugt."
 }

@@ -156,6 +156,49 @@ async fn a_name_needing_no_rewrite_carries_no_standardised_notice() {
 }
 
 #[tokio::test]
+async fn of_two_homonyms_the_one_with_recorded_compounds_is_used() {
+    // `Michelia` is a fossil genus and a plant genus. The lookup lists the
+    // fossil first, which has no compound, so the search returned nothing.
+    let rows = [
+        (
+            "http://www.wikidata.org/entity/Q107310648",
+            "Michelia",
+            "scientific",
+        ),
+        (
+            "http://www.wikidata.org/entity/Q15287905",
+            "Michelia",
+            "scientific",
+        ),
+    ];
+    let http = Scripted::new(vec![
+        (200, &lookup_csv(&rows)),
+        (200, "compound,taxon,taxon_name,ref_qid\n"),
+        (
+            200,
+            "compound,taxon,taxon_name,ref_qid\n1,2,Magnolia champaca,3\n",
+        ),
+    ]);
+    let resolution = resolve_taxon(&http, "Michelia")
+        .await
+        .expect("the lookup answers");
+    assert_eq!(resolution.qid.as_deref(), Some("Q15287905"));
+    assert_eq!(
+        resolution.notes,
+        vec![TaxonNote::Ambiguous {
+            candidates: vec![
+                "Michelia (Q107310648)".to_string(),
+                "Michelia (Q15287905)".to_string(),
+            ],
+        }],
+        "the alternatives are still named, so the reader can pick the other"
+    );
+    let queries = http.queries();
+    assert!(queries[1].contains("wd:Q107310648") && queries[1].contains("\nLIMIT 1"));
+    assert!(queries[2].contains("wd:Q15287905"));
+}
+
+#[tokio::test]
 async fn several_matches_produce_an_ambiguity_notice_naming_the_alternatives() {
     // More than one match and the first was used. The reader cannot tell from a
     // row of results which taxon was actually searched, so the alternatives are

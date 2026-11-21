@@ -28,15 +28,16 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::LightMode => "Light",
         TextKey::SkipToResults => "Skip to main content",
         TextKey::PageSubtitle => {
-            "Explore linked open data: chemical entities, biological organisms, and scientific literature."
+            "Find which compounds are reported from an organism, in which articles, as recorded in Wikidata by the LOTUS initiative."
         }
-        TextKey::LandingTitle => "Welcome to LOTUS Explorer",
-        TextKey::OpenSearch => "Open search",
 
         TextKey::PageNotFound => "Page not found",
         TextKey::PageNotFoundDescription => "The page you requested does not exist.",
         TextKey::ReturnHome => "Return to the home page",
-        TextKey::ResolvedTaxon => "Resolved taxon",
+        TextKey::ResolvedTaxon => "Searched taxon",
+        TextKey::LinkedNamesIncluded => {
+            "Records filed under a linked name, such as a synonym or a basionym, are included."
+        }
         TextKey::DuplicateRowsHint => "Why are some compounds listed more than once?",
         TextKey::DuplicateRowsExplain => {
             "Each row is one compound as reported by one reference, so a compound found by three papers occupies three rows that differ only in the reference. The occurrences are distinct; the compounds are not. The smaller number beside the row count is how many distinct compounds are in the result."
@@ -67,7 +68,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
             "Rate limit reached on the upstream service. Please wait about a minute and retry."
         }
         TextKey::ErrorHintQueryTooExpensive => {
-            "This search is too broad: the endpoint stopped after 30 seconds. Narrow it with a taxon, a mass range, a year or a formula, then run it again."
+            "This search is too broad: the query service stopped it at its time limit. Narrow it with a taxon, a mass range, a year or a formula, then run it again."
         }
         TextKey::ErrorHintBadRequest => {
             "The server rejected the request. Check your search parameters."
@@ -77,15 +78,6 @@ pub const fn en_t(key: TextKey) -> &'static str {
             "This result set was cut short, so the rows shown are not the whole answer. Narrow the search to finish."
         }
         TextKey::ErrorHintUnknown => "Unexpected error. Retry may help.",
-        TextKey::WelcomeLeadA => {
-            "This app demonstrates the power of linked open data by connecting chemical entities to biological organisms and scientific literature. "
-        }
-        TextKey::WelcomeLeadB => {
-            "The data model links compounds, taxa, and references, sourced from the "
-        }
-        TextKey::WelcomeLeadC => ", published as linked data on ",
-        TextKey::WelcomeLeadD => ", and queried via SPARQL through ",
-        TextKey::WelcomeLeadE => ".",
         TextKey::ExampleQueryExecute => "Execute",
         TextKey::ExampleQueryTaxon | TextKey::DownloadCsvLabel => "Download CSV",
         TextKey::ExampleQueryStructure | TextKey::DownloadJsonLabel => "Download JSON",
@@ -94,9 +86,6 @@ pub const fn en_t(key: TextKey) -> &'static str {
 
         TextKey::SearchExamples => "Search examples",
 
-        TextKey::LabelLanguagePolicy => {
-            "Labels prefer 'mul' and fall back to 'en' so results remain comparable."
-        }
         TextKey::AdvancedFilters => "Advanced filters",
         TextKey::Taxon | TextKey::TaxonCol => "Taxon",
         TextKey::TaxonField => "Taxon scientific or common name",
@@ -113,7 +102,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::ExampleSets => "Set the field to",
         TextKey::StructureSmilesOrMol => "Structure, compound name or InChIKey",
         TextKey::StructurePlaceholder => "SMILES, a Molfile, a name or an InChIKey",
-        TextKey::Exact => "Exact",
+        TextKey::Exact => "Exact (a pasted structure can also match its stereoisomers)",
         TextKey::Substructure => "Substructure",
         TextKey::Similarity => "Similarity",
         TextKey::StructureSearchMode => "Structure search mode",
@@ -168,6 +157,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::OpenInEndpointTitle => "Open this query in the SPARQL endpoint web interface",
         TextKey::NoResults => "No results. Try broadening your search.",
         TextKey::StageTaxonSearch => "taxon lookup",
+        TextKey::StageStructureSearch => "structure lookup",
         TextKey::StageResultsQuery => "results fetch",
         TextKey::DisplayCappedHint => {
             "Displaying the first rows only for memory safety on this device. Counts remain exact."
@@ -190,7 +180,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::FooterArchive => "Archive",
         TextKey::FooterPrograms => "Programs",
         TextKey::FooterLicense => "License",
-        TextKey::FooterForData => " for data ",
+        TextKey::FooterForData => " for Wikidata data ",
         TextKey::FooterForCode => " for code",
         TextKey::TableTriplesAria => "Compound-taxon-reference triples",
         TextKey::OpenFullSizeDepiction => "Open full-size depiction",
@@ -200,7 +190,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::OpenInTaxonScholia => "Open taxon in Scholia",
         TextKey::OpenInReferenceScholia => "Open reference in Scholia",
         TextKey::OpenDoi => "Open DOI",
-        TextKey::Statement => "Statement",
+        TextKey::Statement => "Statement · Report",
         TextKey::SparqlQuery => "SPARQL Query",
         TextKey::CopySparqlQuery => "Copy SPARQL query",
         TextKey::ShowFailedQuery => "This search did not finish — show the query it used",

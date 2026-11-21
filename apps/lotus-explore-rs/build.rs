@@ -263,7 +263,7 @@ fn build_sitemap_xml(meta: &Metadata) -> String {
 fn build_ai_catalog(meta: &Metadata) -> Result<String, Box<dyn Error>> {
     let s = &meta.site;
     let base = s.base_url.trim_end_matches('/');
-    let publisher = "lotusnprod";
+    let publisher = "lotus-initiative";
     let catalog = serde_json::json!({
         "specVersion": "1.0",
         "host": {
@@ -473,7 +473,7 @@ fn build_llms_txt(meta: &Metadata) -> String {
         - Structured data: JSON-LD in the page head\n\n\
         {webmcp_notes}## Data sources\n\n\
         - [Wikidata Query Service](https://query.wikidata.org/)\n\
-        - [QLever Wikidata endpoint](https://qlever.cs.uni-freiburg.de/wikidata)\n\
+        - [QLever Wikidata endpoint](https://qlever.dev/wikidata)\n\
         - [DOI metadata](https://doi.org/)\n\
         - [LOTUS initiative]({lotus_home_url})\n\n\
         ## Citation\n\n\
@@ -482,7 +482,7 @@ fn build_llms_txt(meta: &Metadata) -> String {
         - [BibTeX]({base}docs/references.bib)\n\n\
         ## Licensing\n\n\
         - App: [AGPL-3.0]({app_license_url})\n\
-        - Data: [CC0 1.0]({data_license_url})\n\n\
+        - Wikidata data: [CC0 1.0]({data_license_url}) (application code is AGPL-3.0; external literature abstracts remain under publisher copyright)\n\n\
         ## Project\n\n\
         - [App]({base_url})\n\
         - [Repository and source]({repo_url})\n\
@@ -515,7 +515,7 @@ fn build_humans_txt(meta: &Metadata) -> String {
         /* Reference: https://specification.website/spec/foundations/ */\n\n\
         /* TEAM */\n\
         \x20 Name: Lotus Initiative contributors\n\
-        \x20 GitHub: https://github.com/lotusnprod\n\
+        \x20 GitHub: https://github.com/lotus-initiative\n\
         \x20 Location: Switzerland\n\
         \x20 Email: Contact via {issues_url}\n\n\
         /* THANKS */\n\
@@ -537,7 +537,7 @@ fn build_humans_txt(meta: &Metadata) -> String {
         \x20 Curation: TSV import, QuickStatements generation, structure resolution lookup\n\
         \x20 APIs: Wikidata SPARQL, QLever, DOI, RDKit.js, Citation.js, Ketcher\n\
         \x20 License (app): AGPL-3.0 — {app_license_url}\n\
-        \x20 License (data): CC0 1.0 — {data_license_url}\n\n\
+        \x20 License (Wikidata data): CC0 1.0 — {data_license_url}\n\n\
         /* SPECIFICATION COMPLIANCE */\n\
         \x20 SEO: robots.txt, sitemap.xml, structured data, hreflang\n\
         \x20 Accessibility: semantic HTML, ARIA, keyboard navigation, visible focus\n\
@@ -605,8 +605,8 @@ fn build_security_txt(meta: &Metadata) -> String {
 /// the one that sets `rel=canonical`, the manifest link, the stylesheet, the
 /// base path and the Trusted Types policy. Measured against a host that honours
 /// `_headers` (Cloudflare Pages or Netlify), that is an unstyled boot screen
-/// forever: no stylesheet request is ever made, `bootstrap.js` and `webmcp.js`
-/// are never loaded, and with no default policy every `innerHTML` sink in the
+/// forever: no stylesheet request is ever made, `webmcp.js`
+/// is never loaded, and with no default policy every `innerHTML` sink in the
 /// WASM client throws. So the hash is derived, and
 /// `the_csp_carries_the_digest_of_every_inline_script` in `build/tests.rs`
 /// ties the two files together.
@@ -743,7 +743,7 @@ fn build_headers_txt(meta: &Metadata, script_hashes: &str) -> String {
     /*\n\
     \x20 Strict-Transport-Security: max-age=63072000; includeSubDomains; preload\n\
     \x20 X-Frame-Options: DENY\n\
-    \x20 Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' {script_hashes} https://scripts.simpleanalyticscdn.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://qlever.dev https://query.wikidata.org https://query-scholarly.wikidata.org https://www.wikidata.org https://www.simolecule.com https://idsm.elixir-czech.cz https://doi.org https://pubchem.ncbi.nlm.nih.gov https://api.semanticscholar.org https://api.openalex.org; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'\n\
+    \x20 Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' {script_hashes}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://qlever.dev https://query.wikidata.org https://query-scholarly.wikidata.org https://www.wikidata.org https://www.simolecule.com https://idsm.elixir-czech.cz https://doi.org https://pubchem.ncbi.nlm.nih.gov https://api.semanticscholar.org https://api.openalex.org; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'\n\
     \x20 X-Content-Type-Options: nosniff\n\
     \x20 Referrer-Policy: strict-origin-when-cross-origin\n\
     \x20 Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()\n\

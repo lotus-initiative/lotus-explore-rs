@@ -12,7 +12,7 @@ use crate::i18n::{
     err_taxon_not_found, err_taxon_parse_failed, err_taxon_too_long, err_truncated_by_endpoint,
     err_unsupported_format, err_year_out_of_range, err_year_range_invalid, t,
     warn_ambiguous_compound, warn_ambiguous_taxon, warn_compound_resolved, warn_input_standardized,
-    warn_taxon_common_name, warn_wdqs_fallback,
+    warn_salt_or_mixture, warn_taxon_common_name, warn_wdqs_fallback,
 };
 use crate::repositories::RepositoryError;
 use lotus_explore_core::explore::truncation::{Reason, truncation_reason};
@@ -68,6 +68,7 @@ fn format_taxon_warning(locale: Locale, warning: &LookupNotice) -> String {
         } => warn_ambiguous_compound(locale, chosen_name, chosen_qid, &candidates.join(", ")),
         LookupNotice::ApiMessage(msg) => msg.clone(),
         LookupNotice::WdqsFallback => warn_wdqs_fallback(locale),
+        LookupNotice::SaltOrMixture => warn_salt_or_mixture(locale),
     }
 }
 
@@ -96,6 +97,7 @@ fn format_transport_fault(locale: Locale, stage: QueryStage, source: &Repository
 fn stage_display_label(locale: Locale, stage: QueryStage) -> &'static str {
     match stage {
         QueryStage::TaxonSearch => t(locale, TextKey::StageTaxonSearch),
+        QueryStage::StructureSearch => t(locale, TextKey::StageStructureSearch),
         QueryStage::ResultsQuery => t(locale, TextKey::StageResultsQuery),
     }
 }
@@ -197,23 +199,19 @@ fn format_parse_fault(locale: Locale, fault: &ParseFault) -> String {
     if let Some(reason) = truncated {
         return err_truncated_by_endpoint(locale, Reason::of(reason));
     }
-    match fault {
-        ParseFault::CompoundCsv { details } | ParseFault::TaxonPick { details } => {
-            err_query_stage_failed(
-                locale,
-                stage_display_label(locale, QueryStage::TaxonSearch),
-                &compact_error_text(details),
-            )
-        }
+    let (stage, details) = match fault {
         ParseFault::TaxonCsv { details } => {
-            err_taxon_parse_failed(locale, &compact_error_text(details))
+            return err_taxon_parse_failed(locale, &compact_error_text(details));
         }
-        ParseFault::ResultsCsv { details } => err_query_stage_failed(
-            locale,
-            stage_display_label(locale, QueryStage::ResultsQuery),
-            &compact_error_text(details),
-        ),
-    }
+        ParseFault::CompoundCsv { details } => (QueryStage::StructureSearch, details),
+        ParseFault::TaxonPick { details } => (QueryStage::TaxonSearch, details),
+        ParseFault::ResultsCsv { details } => (QueryStage::ResultsQuery, details),
+    };
+    err_query_stage_failed(
+        locale,
+        stage_display_label(locale, stage),
+        &compact_error_text(details),
+    )
 }
 
 #[cfg(test)]

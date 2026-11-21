@@ -3,7 +3,7 @@
 
 use super::shell::{AppShell, ExplorePage};
 use crate::components::data_curation_page::DataCurationPage;
-use crate::components::landing::{LandingPage, NotFoundPage};
+use crate::components::not_found::NotFoundPage;
 use crate::i18n::Locale;
 use crate::pages::DrawPage;
 use dioxus::prelude::*;
@@ -155,8 +155,8 @@ impl Route {
 
     pub fn view_key(&self) -> &'static str {
         match self {
-            Self::Landing { .. } => "landing",
-            Self::Search { .. } => "search",
+            // `/` is the search form, so the Search tab is the current one there.
+            Self::Landing { .. } | Self::Search { .. } => "search",
             Self::Curation { .. } => "curation",
             Self::Draw { .. } => "draw",
             Self::Faq { .. } => "faq",
@@ -263,7 +263,7 @@ fn without_empty_url_delimiters(href: &str) -> Option<String> {
 #[component]
 pub fn Landing(query: RouteQuery, hash: String) -> Element {
     let _ = (query, hash);
-    rsx! { LandingPage {} }
+    rsx! { ExplorePage {} }
 }
 
 #[component]

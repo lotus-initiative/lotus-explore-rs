@@ -130,21 +130,24 @@ fn the_shorthand_structures_the_field_always_had_stay_structures() {
 }
 
 #[test]
-fn the_examples_cover_every_kind_of_input_the_field_accepts() {
+fn the_examples_are_a_name_a_key_a_structure_and_a_name_in_another_language() {
     // The buttons exist to show a reader which kind they are typing, so each
     // has to land on a different path -- and the test pins the same strings
     // the buttons fill in.
     let expected: [(&str, InputKind); 4] = [
+        ("carnosol", InputKind::Name),
+        ("XUSYGBPHQBWGAD-PJSUUKDQSA-N", InputKind::InChIKey),
+        (
+            "CC(C)C1=C(C(=C2C(=C1)[C@@H]3C[C@@H]4[C@@]2(CCCC4(C)C)C(=O)O3)O)O",
+            InputKind::Structure,
+        ),
         ("amarogentina", InputKind::Name),
-        ("DBOVHQOUSDWAPQ-WTONXPSSSA-N", InputKind::InChIKey),
-        ("Q23118", InputKind::Qid),
-        ("C[C@H](O)CO", InputKind::Structure),
     ];
+    assert_eq!(
+        STRUCTURE_INPUT_EXAMPLES,
+        expected.map(|(example, _)| example)
+    );
     for (example, kind) in expected {
-        assert!(
-            STRUCTURE_INPUT_EXAMPLES.contains(&example),
-            "{example} is expected to be an example button"
-        );
         assert_eq!(
             classify_structure_input(example),
             kind,
@@ -244,4 +247,50 @@ fn a_molfile_with_only_a_terminator_is_smiles() {
         classify_structure("something M  END somewhere"),
         StructureKind::Smiles
     );
+}
+
+#[test]
+fn numbered_and_unicode_chemical_names_are_offered_to_the_name_lookup() {
+    for name in [
+        "5-fluorouracil",
+        "12-O-Methylcarnosic acid",
+        "7-O-Methylrosmanol",
+        "1,8-cineole",
+        "14′-O-sulfocriophylline",
+        "14'-O-sulfocriophylline",
+        "(±)-3-carene",
+        "(−)-epicatechin",
+        "vitamin B12",
+        "β-pinene",
+        "2-methylbutane",
+    ] {
+        assert!(could_be_a_compound_name(name), "{name} should be looked up");
+    }
+}
+
+#[test]
+fn salts_and_smiles_with_digits_stay_structures() {
+    for input in [
+        "CCO.O",
+        "CCN.Cl",
+        "c1ccccc1",
+        "C1CCCCC1",
+        "CC1CC1",
+        "Q18216",
+        "q18216",
+        "a1",
+        "c1ccccc1-c2ccccc2",
+        "b1ccccc1-c2ccccc2",
+        "n1ccccc1-c2ccccc2",
+        "o1cccc1-c2cccc2",
+        "p1ccccc1-c2ccccc2",
+        "s1cccc1-c2cccc2",
+        "Cl-c1ccccc1",
+        "Br-c1ccccc1",
+    ] {
+        assert!(
+            !could_be_a_compound_name(input),
+            "{input} must not go to compound-name lookup"
+        );
+    }
 }

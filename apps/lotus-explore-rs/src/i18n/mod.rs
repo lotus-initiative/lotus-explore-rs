@@ -103,12 +103,12 @@ pub enum TextKey {
     LightMode,
     SkipToResults,
     PageSubtitle,
-    LandingTitle,
-    OpenSearch,
     PageNotFound,
     PageNotFoundDescription,
     ReturnHome,
     ResolvedTaxon,
+    /// Why rows can carry another name than the one searched.
+    LinkedNamesIncluded,
 
     /// Why one compound can appear on several rows. The label on the disclosure.
     DuplicateRowsHint,
@@ -151,18 +151,12 @@ pub enum TextKey {
     ErrorHintParse,
     ErrorHintTruncated,
     ErrorHintUnknown,
-    WelcomeLeadA,
-    WelcomeLeadB,
-    WelcomeLeadC,
-    WelcomeLeadD,
-    WelcomeLeadE,
     ExampleQueryExecute,
     ExampleApiUrls,
     SearchExamples,
     ExampleQueryTaxon,
     ExampleQueryStructure,
     ExampleQueryAdvanced,
-    LabelLanguagePolicy,
     // Search panel
     /// Heading of the collapsed sub-filter disclosure in each entity group.
     AdvancedFilters,
@@ -220,6 +214,7 @@ pub enum TextKey {
     KetcherPreparing,
     // Error stage labels (used in transport error messages)
     StageTaxonSearch,
+    StageStructureSearch,
     StageResultsQuery,
     // Table/export
     DatasetStatistics,

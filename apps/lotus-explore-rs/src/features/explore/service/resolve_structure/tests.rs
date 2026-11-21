@@ -406,3 +406,14 @@ fn molfile_preserves_leading_header_lines_across_lookup_and_cache() {
         "LF follow-up must reuse cached CRLF normalized entry"
     );
 }
+
+#[test]
+fn salt_smiles_emits_salt_or_mixture_notice_even_without_match_and_across_cache() {
+    structure_cache::clear();
+    let repo = StubRepo::new(vec![Ok(csv(""))]);
+    let first = resolve_on("CCO.O", &repo);
+    assert_eq!(first.notices, vec![LookupNotice::SaltOrMixture]);
+    let second = resolve_on("CCO.O", &repo);
+    assert_eq!(second.notices, vec![LookupNotice::SaltOrMixture]);
+    assert_eq!(repo.taken(), 1);
+}

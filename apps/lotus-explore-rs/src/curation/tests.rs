@@ -44,6 +44,7 @@ fn row_key_trims_the_structure_and_folds_taxon_and_doi() {
         smiles: " CCO ".to_string(),
         taxon: Some("  Voacanga africana ".to_string()),
         doi: Some("https://doi.org/10.1000/abc".to_string()),
+        status: None,
     };
     assert_eq!(
         row_uniqueness_key(&row),
@@ -100,12 +101,14 @@ fn curation_share_params_roundtrip_rows() {
             smiles: "CCO".to_string(),
             taxon: Some("Gentiana lutea".to_string()),
             doi: Some("10.1000/ABC".to_string()),
+            status: None,
         },
         CurationInputRow {
             name: "Compound B".to_string(),
             smiles: "C1=CC=CC=C1".to_string(),
             taxon: None,
             doi: None,
+            status: None,
         },
     ];
     let mut params = BTreeMap::new();
@@ -123,6 +126,7 @@ fn curation_share_url_contains_route_and_autorun() {
         smiles: "CCO".to_string(),
         taxon: None,
         doi: None,
+        status: None,
     }];
     let url = build_curation_share_url(&rows, Locale::Fr, true).expect("share url");
     assert!(url.starts_with("/curation?"));
@@ -142,6 +146,7 @@ fn build_quickstatements_bundle_deduplicates_dependencies_and_joins_sections() {
                 smiles: "C".into(),
                 taxon: None,
                 doi: None,
+                status: None,
             },
             canonical_smiles: None,
             isomeric_smiles: None,
@@ -162,6 +167,7 @@ fn build_quickstatements_bundle_deduplicates_dependencies_and_joins_sections() {
                 smiles: "N".into(),
                 taxon: None,
                 doi: None,
+                status: None,
             },
             canonical_smiles: None,
             isomeric_smiles: None,

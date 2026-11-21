@@ -3,9 +3,9 @@
 
 /* TEAM */
   Name: Lotus Initiative contributors
-  GitHub: https://github.com/lotusnprod
+  GitHub: https://github.com/lotus-initiative
   Location: Switzerland
-  Email: Contact via https://github.com/lotusnprod/lotus-explore-rs/issues
+  Email: Contact via https://github.com/lotus-initiative/lotus-explore-rs/issues
 
 /* THANKS */
   LOTUS initiative — https://lotus-initiative.github.io
@@ -15,19 +15,19 @@
   Citation.js — https://citation.js.org/
 
 /* SITE */
-  Product: LOTUS Explore-rs
-  Short name: LOTUS-rs
+  Product: LOTUS Explorer
+  Short name: LOTUS Explorer
   Description: Explore LOTUS with taxon filters, structure search, and Wikidata curation workflows.
   Language: English with French, German, Italian localizations
   Standards: HTML5, CSS3, WebAssembly, WCAG 2.1 AA, JSON-LD
   Components: Rust + Dioxus compiled to WASM
   Infrastructure: GitHub Pages (https://lotus-initiative.github.io/lotus-explore-rs/)
-  Repository: https://github.com/lotusnprod/lotus-explore-rs
+  Repository: https://github.com/lotus-initiative/lotus-explore-rs
   Search inputs: taxon filters, SMILES, Molfile V2000/V3000
   Curation: TSV import, QuickStatements generation, structure resolution lookup
   APIs: Wikidata SPARQL, QLever, DOI, RDKit.js, Citation.js, Ketcher
   License (app): AGPL-3.0 — https://www.gnu.org/licenses/agpl-3.0.html
-  License (data): CC0 1.0 — https://creativecommons.org/publicdomain/zero/1.0/
+  License (Wikidata data): CC0 1.0 — https://creativecommons.org/publicdomain/zero/1.0/
 
 /* SPECIFICATION COMPLIANCE */
   SEO: robots.txt, sitemap.xml, structured data, hreflang

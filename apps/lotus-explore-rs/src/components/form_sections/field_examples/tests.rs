@@ -47,9 +47,7 @@ fn ReferenceSubject() -> Element {
             input { id: "reference-input", "aria-describedby": "reference-input-examples-heading" }
             FieldExamples {
                 target: "reference-input",
-                values: &["10.1002/andp.18280880206",
-                "10.1021/acs.jnatprod.1C00812",
-                "Q28601559",],
+                values: &lotus_model::REFERENCE_INPUT_EXAMPLES,
                 heading: TextKey::Examples,
                 onfill: move |_value: String| {},
             }
@@ -76,8 +74,8 @@ fn the_reference_field_points_at_its_own_examples_heading() {
         "and the group must be labelled by it: {html}"
     );
     assert!(
-        html.contains("10.1021/acs.jnatprod.1C00812"),
-        "the first DOI example is the one that has to be there: {html}"
+        html.contains(">10.1021/acs.jnatprod.1c00812</button>"),
+        "the DOI example is a button: {html}"
     );
 }
 

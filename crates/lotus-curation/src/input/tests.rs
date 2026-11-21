@@ -59,6 +59,7 @@ fn row_key_normalizes_structure_taxon_and_doi() {
         smiles: " CCO ".into(),
         taxon: Some("  Voacanga africana ".into()),
         doi: Some("https://doi.org/10.1000/ABC".into()),
+        status: None,
     };
     assert_eq!(
         row_uniqueness_key(&row),
@@ -77,6 +78,7 @@ fn smiles_that_differ_only_in_case_are_different_findings() {
             smiles: smiles.into(),
             taxon: Some("Gentiana lutea".into()),
             doi: Some("10.1/a".into()),
+            status: None,
         };
         assert_ne!(
             row_uniqueness_key(&row(a)),
@@ -93,12 +95,14 @@ fn a_row_matches_itself_regardless_of_taxon_and_doi_case() {
         smiles: "CCO".into(),
         taxon: Some("Gentiana lutea".into()),
         doi: Some("10.1/a".into()),
+        status: None,
     };
     let shouty = CurationInputRow {
         name: "Also called quercetin".into(),
         smiles: "CCO".into(),
         taxon: Some("GENTIANA LUTEA".into()),
         doi: Some("10.1/A".into()),
+        status: None,
     };
     assert_eq!(
         row_uniqueness_key(&lower),
@@ -290,4 +294,34 @@ fn parse_tabular_skips_hash_comment_lines() {
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].name, "Subtortin C");
     assert_eq!(rows[0].smiles, "CCCN");
+}
+
+#[test]
+fn parse_tabular_reads_status_organism_name_and_bundled_example_tsv() {
+    let example = include_str!("../../../../examples/curation_example.tsv");
+    let rows = crate::parse_tabular(example).expect("example curation TSV parses cleanly");
+    assert_eq!(rows.len(), 3);
+    assert_eq!(rows[0].name, "carnosol");
+    assert_eq!(rows[0].taxon.as_deref(), Some("Salvia rosmarinus"));
+    assert_eq!(rows[0].status.as_deref(), Some("confirmed"));
+    assert_eq!(rows[2].name, "aspirin");
+    assert_eq!(rows[2].status.as_deref(), Some("revised"));
+}
+
+#[test]
+fn parse_tabular_accepts_ten_column_jnp_template() {
+    let tsv = "compound_number\tname\tsmiles\torganism\tstatus\tevidence\thost\tvoucher_or_strain\tpart\tdoi\n\
+               1\tSubtortin A\tCCO\tCortinarius subtortus\tnew\tisolated\t\tGENT-2026-01\tbasidiocarp\thttps://doi.org/10.1021/acs.jnatprod.6c00850\n\
+               2\tCarnosol\tCCC\tSalvia rosmarinus\tknown\tdetected\t\t\troot\t10.1271/bbb1961.47.353\n";
+    let rows = crate::parse_tabular(tsv).expect("10-column JNP template TSV parses cleanly");
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0].name, "Subtortin A");
+    assert_eq!(rows[0].smiles, "CCO");
+    assert_eq!(rows[0].taxon.as_deref(), Some("Cortinarius subtortus"));
+    assert_eq!(rows[0].status.as_deref(), Some("new"));
+    assert_eq!(rows[0].doi.as_deref(), Some("10.1021/ACS.JNATPROD.6C00850"));
+    assert_eq!(rows[1].name, "Carnosol");
+    assert_eq!(rows[1].taxon.as_deref(), Some("Salvia rosmarinus"));
+    assert_eq!(rows[1].status.as_deref(), Some("known"));
+    assert_eq!(rows[1].doi.as_deref(), Some("10.1271/BBB1961.47.353"));
 }

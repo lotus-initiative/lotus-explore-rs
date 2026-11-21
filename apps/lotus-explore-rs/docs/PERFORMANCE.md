@@ -52,7 +52,8 @@ Four things that harness has to do, and what each one costs when it does not:
 
 ## Where the time goes
 
-On `/` at mobile throttling, the LCP element is the welcome paragraph.
+These figures were measured when `/` showed a welcome paragraph instead of the
+search form; that paragraph was the LCP element at mobile throttling.
 Lighthouse attributes 2.6 ms to time-to-first-byte and 146 ms to element render
 delay, so the element itself is cheap. The remaining \~3.4 s sits between first
 paint (751 ms) and the app mounting: the module crossing the link, then

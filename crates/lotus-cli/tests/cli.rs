@@ -600,6 +600,19 @@ fn explain_warns_that_an_exact_structure_query_is_the_unresolved_one() {
 }
 
 #[test]
+fn explain_seeds_bare_compound_qid_without_warning() {
+    let output = lotus()
+        .args(["search", "--structure", "q16634054", "--explain"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8(output.get_output().stdout.clone()).expect("UTF-8");
+    let stderr = String::from_utf8(output.get_output().stderr.clone()).expect("UTF-8");
+    assert!(stdout.contains("VALUES ?c { wd:Q16634054 }"), "{stdout}");
+    assert!(!stdout.contains("sachem:similarCompoundSearch"), "{stdout}");
+    assert_eq!(stderr, "");
+}
+
+#[test]
 fn explain_warns_about_nothing_when_no_structure_needs_resolving() {
     // Exact is the default search type, so the first case is the warning's
     // condition with only the structure missing, and the second is the

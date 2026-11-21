@@ -118,6 +118,11 @@ pub fn warn_wdqs_fallback() -> String {
     "Requête exécutée via Wikidata Query Service (repli depuis QLever).".to_string()
 }
 
+pub fn warn_salt_or_mixture() -> String {
+    "SMILES multi-composants détecté (.) ; envisagez de rechercher uniquement la structure parente sans contre-ions ni solvants."
+        .to_string()
+}
+
 #[cfg(target_arch = "wasm32")]
 pub fn error_hint_memory() -> &'static str {
     "Résultat trop volumineux pour la mémoire de l'appareil."

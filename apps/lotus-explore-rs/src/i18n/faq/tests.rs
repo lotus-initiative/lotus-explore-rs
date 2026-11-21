@@ -226,3 +226,33 @@ fn every_locale_answers_the_same_questions_with_the_same_placeholders() {
         }
     }
 }
+
+#[test]
+fn no_answer_carries_markup_the_page_would_print() {
+    // The page renders an answer as plain text, so a backtick is shown as one.
+    for entry in ENTRIES {
+        for locale in LOCALES {
+            assert!(
+                !entry.question(locale).contains('`') && !entry.answer(locale).contains('`'),
+                "{} has a literal backtick in {locale:?}",
+                entry.id
+            );
+        }
+    }
+}
+
+#[test]
+fn the_answers_about_limits_and_privacy_say_what_the_code_does() {
+    let answer = |id: &str| {
+        ENTRIES
+            .iter()
+            .find(|entry| entry.id == id)
+            .map_or("", |entry| entry.answer(Locale::En))
+    };
+    assert_eq!(
+        answer("how-many-rows"),
+        "Every row that matches, as long as the query service can send them within its time limit. When it cannot, a message says the result is incomplete. The counts above the table are computed from the rows in the table."
+    );
+    assert!(answer("does-anything-leave-my-browser").starts_with("Yes: what you search for."));
+    assert!(answer("what-is-lotus").starts_with("LOTUS is an open collection"));
+}
