@@ -122,31 +122,8 @@ fn application_subcategories(software: &Software) -> Value {
 
 /// The `SoftwareApplication` + Bioschemas `ComputationalTool` document
 /// representing LOTUS Explorer.
-#[allow(
-    clippy::too_many_lines,
-    reason = "single Bioschemas ComputationalTool document with FormalParameter input/output descriptors"
-)]
 #[must_use]
 pub fn software_jsonld(software: &Software) -> Value {
-    let mut object = serde_json::Map::new();
-    object.insert("@type".into(), json!("SoftwareApplication"));
-    object.insert("@id".into(), json!(software.url));
-    object.insert("name".into(), json!(software.name));
-    object.insert("description".into(), json!(software.description));
-    object.insert("url".into(), json!(software.url));
-    object.insert("license".into(), json!(software.license));
-    object.insert("softwareVersion".into(), json!(software.version));
-    object.insert(
-        "applicationCategory".into(),
-        json!(software.application_category),
-    );
-    object.insert(
-        "applicationSubCategory".into(),
-        application_subcategories(software),
-    );
-    object.insert("author".into(), author_organization());
-    object.insert("codeRepository".into(), json!(software.repository));
-    object.insert("programmingLanguage".into(), computer_language(software));
     let mut features: Vec<&str> = software.features.to_vec();
     features.extend([
         edam::OPERATION_DATABASE_SEARCH,
@@ -154,10 +131,21 @@ pub fn software_jsonld(software: &Software) -> Value {
         edam::OPERATION_TAXONOMIC_CLASSIFICATION,
         edam::OPERATION_DATA_RETRIEVAL,
     ]);
-    object.insert("featureList".into(), json!(features));
-    object.insert(
-        "input".into(),
-        json!([
+    let mut node = json!({
+        "@type": "SoftwareApplication",
+        "@id": software.url,
+        "name": software.name,
+        "description": software.description,
+        "url": software.url,
+        "license": software.license,
+        "softwareVersion": software.version,
+        "applicationCategory": software.application_category,
+        "applicationSubCategory": application_subcategories(software),
+        "author": author_organization(),
+        "codeRepository": software.repository,
+        "programmingLanguage": computer_language(software),
+        "featureList": features,
+        "input": [
             {
                 "@type": "FormalParameter",
                 "dct:conformsTo": "https://bioschemas.org/profiles/FormalParameter/1.0-RELEASE",
@@ -176,11 +164,8 @@ pub fn software_jsonld(software: &Software) -> Value {
                 "name": "taxon filter",
                 "additionalType": edam::DATA_TAXONOMIC_CLASSIFICATION,
             },
-        ]),
-    );
-    object.insert(
-        "output".into(),
-        json!([
+        ],
+        "output": [
             {
                 "@type": "FormalParameter",
                 "dct:conformsTo": "https://bioschemas.org/profiles/FormalParameter/1.0-RELEASE",
@@ -199,35 +184,35 @@ pub fn software_jsonld(software: &Software) -> Value {
                     edam::FORMAT_TURTLE,
                 ],
             },
-        ]),
-    );
-    object.insert(
-        "identifier".into(),
-        json!([property_value(
+        ],
+        "identifier": [property_value(
             "repository",
             software.repository,
             "uri",
             "https://identifiers.org/url",
-        )]),
-    );
-    object.insert("sameAs".into(), json!([software.repository]));
-
-    if let Some(paper) = software.paper {
+        )],
+        "sameAs": [software.repository],
+    });
+    if let Some(paper) = software.paper
+        && let Some(object) = node.as_object_mut()
+    {
         object.insert("citation".into(), lotus_paper(&paper));
     }
-
-    crate::stamp(Value::Object(object), Profile::SoftwareApplication)
+    crate::stamp(node, Profile::SoftwareApplication)
 }
 
 /// The LOTUS paper, as a `ScholarlyArticle` citation.
 fn lotus_paper(paper: &Paper) -> Value {
-    let mut node = serde_json::Map::new();
-    node.insert("@type".into(), json!("ScholarlyArticle"));
-    node.insert("name".into(), json!(paper.title));
-    node.insert("identifier".into(), json!(doi_uri(paper.doi)));
-    node.insert("url".into(), json!(doi_uri(paper.doi)));
-    node.insert("datePublished".into(), json!(paper.year.to_string()));
-    if paper.doi.eq_ignore_ascii_case(ELIFE_PAPER_DOI) {
+    let mut node = json!({
+        "@type": "ScholarlyArticle",
+        "name": paper.title,
+        "identifier": doi_uri(paper.doi),
+        "url": doi_uri(paper.doi),
+        "datePublished": paper.year.to_string(),
+    });
+    if paper.doi.eq_ignore_ascii_case(ELIFE_PAPER_DOI)
+        && let Some(object) = node.as_object_mut()
+    {
         let authors: Vec<Value> = ELIFE_PAPER_AUTHORS
             .iter()
             .map(|(family, given)| {
@@ -239,91 +224,67 @@ fn lotus_paper(paper: &Paper) -> Value {
                 })
             })
             .collect();
-        node.insert("author".into(), Value::Array(authors));
+        object.insert("author".into(), Value::Array(authors));
     }
-    Value::Object(node)
+    node
 }
 
 /// The `codemeta.json` a repository is indexed by: a document in the
 /// `CodeMeta` vocabulary, version 2.0.
 #[must_use]
 pub fn codemeta(software: &Software) -> Value {
-    let mut object = serde_json::Map::new();
-    object.insert(
-        "@context".into(),
-        json!("https://doi.org/10.5063/schema/codemeta-2.0"),
-    );
-    object.insert("@type".into(), json!("SoftwareSourceCode"));
-    object.insert("name".into(), json!(software.name));
-    object.insert("description".into(), json!(software.description));
-    object.insert("author".into(), author_organization());
-    object.insert("codeRepository".into(), json!(software.repository));
-    object.insert("issueTracker".into(), json!(software.issue_tracker));
-    object.insert("url".into(), json!(software.url));
-    object.insert("license".into(), json!(software.license_url));
-    object.insert("version".into(), json!(software.version));
-    // A `ComputerLanguage` node rather than a bare string: a registry that
-    // renders the language links it, and the plain form has nothing to link to.
-    object.insert("programmingLanguage".into(), computer_language(software));
-    object.insert("keywords".into(), json!(software.keywords));
-    object.insert("operatingSystem".into(), json!("any"));
-    object.insert(
-        "applicationCategory".into(),
-        json!(software.application_category),
-    );
-    object.insert(
-        "applicationSubCategory".into(),
-        application_subcategories(software),
-    );
-    object.insert(
-        "buildInstructions".into(),
-        json!("cargo build --release -p lotus-cli"),
-    );
-    // The toolchain is a real requirement -- the workspace pins 1.100.0 and uses
-    // edition 2024 -- so it is stated rather than left to be discovered by a
-    // failed build.
-    object.insert(
-        "softwareRequirements".into(),
-        json!([{
+    let mut node = json!({
+        "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+        "@type": "SoftwareSourceCode",
+        "name": software.name,
+        "description": software.description,
+        "author": author_organization(),
+        "codeRepository": software.repository,
+        "issueTracker": software.issue_tracker,
+        "url": software.url,
+        "license": software.license_url,
+        "version": software.version,
+        // A `ComputerLanguage` node rather than a bare string: a registry that
+        // renders the language links it, and the plain form has nothing to link to.
+        "programmingLanguage": computer_language(software),
+        "keywords": software.keywords,
+        "operatingSystem": "any",
+        "applicationCategory": software.application_category,
+        "applicationSubCategory": application_subcategories(software),
+        "buildInstructions": "cargo build --release -p lotus-cli",
+        // The toolchain is a real requirement -- the workspace pins 1.100.0 and uses
+        // edition 2024 -- so it is stated rather than left to be discovered by a
+        // failed build.
+        "softwareRequirements": [{
             "@type": "SoftwareApplication",
             "name": "Rust",
             "version": software.requires_rust,
             "url": software.language_url,
-        }]),
-    );
-    object.insert("featureList".into(), json!(software.features));
-    object.insert(
-        "readme".into(),
-        json!(format!("{}/blob/main/README.md", software.repository)),
-    );
-    object.insert(
-        "contIntegration".into(),
-        json!([format!("{}/actions", software.repository)]),
-    );
-    object.insert(
-        "developmentStatus".into(),
-        json!("https://www.repostatus.org/#active"),
-    );
-    object.insert("datePublished".into(), json!(software.date_published));
-    // The pages that describe the software, so a registry can show a gallery
-    // rather than one bare URL.
-    object.insert(
-        "relatedLink".into(),
-        json!([
+        }],
+        "featureList": software.features,
+        "readme": format!("{}/blob/main/README.md", software.repository),
+        "contIntegration": [format!("{}/actions", software.repository)],
+        "developmentStatus": "https://www.repostatus.org/#active",
+        "datePublished": software.date_published,
+        // The pages that describe the software, so a registry can show a gallery
+        // rather than one bare URL.
+        "relatedLink": [
             software.url,
             software.issue_tracker,
             format!("{}/blob/main/CONTRIBUTING.md", software.repository),
-        ]),
-    );
-    if let Some(doi) = software.doi {
-        object.insert("identifier".into(), json!(doi_uri(doi)));
+        ],
+    });
+    if let Some(object) = node.as_object_mut() {
+        if let Some(doi) = software.doi {
+            object.insert("identifier".into(), json!(doi_uri(doi)));
+        }
+        // The paper is a separate work from the tool, so it goes in `citation` with
+        // its own type rather than being folded into `identifier`.
+        if let Some(paper) = software.paper {
+            object.insert("citation".into(), json!([lotus_paper(&paper)]));
+        }
     }
-    // The paper is a separate work from the tool, so it goes in `citation` with
-    // its own type rather than being folded into `identifier`.
-    if let Some(paper) = software.paper {
-        object.insert("citation".into(), json!([lotus_paper(&paper)]));
-    }
-    Value::Object(object)
+    node
 }
 
 /// A CITATION.cff body, which is what `cffconvert` and GitHub's citation widget
@@ -422,8 +383,7 @@ pub fn citation_cff(software: &Software) -> String {
                 yaml_scalar(given),
             );
         }
-        let _ = writeln!(reference);
-        fields.push(reference.trim_end().to_string());
+        fields.push(reference);
     }
 
     format!("{}\n", fields.join("\n"))

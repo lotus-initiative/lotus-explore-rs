@@ -53,10 +53,22 @@ pub fn result_set_jsonld(set: &ResultSet<'_>) -> Value {
     });
     let url = result_dataset_url(&taxon_slug, set.query_hash);
 
-    let mut node = json!({
+    let description = if set.taxon.is_empty() {
+        format!("{} occurrences", set.total_entries)
+    } else {
+        format!(
+            "{} occurrences in {}",
+            set.total_entries,
+            display_taxon(set.taxon)
+        )
+    };
+
+    crate::stamp(
+        json!({
         "@type": "Dataset",
         "@id": url,
         "name": format!("LOTUS occurrences — {}", display_taxon(set.taxon)),
+        "description": description,
         "url": url,
         "identifier": [
             // A checksum of the result, which is what it is. Rejected as a second
@@ -99,23 +111,9 @@ pub fn result_set_jsonld(set: &ResultSet<'_>) -> Value {
             },
         ],
         "includedInDataCatalog": data_catalog(),
-    });
-
-    if let Some(object) = node.as_object_mut() {
-        object.insert(
-            "description".into(),
-            json!(format!(
-                "{} occurrences{}",
-                set.total_entries,
-                if set.taxon.is_empty() {
-                    String::new()
-                } else {
-                    format!(" in {}", display_taxon(set.taxon))
-                }
-            )),
-        );
-    }
-    crate::stamp(node, Profile::Dataset)
+        }),
+        Profile::Dataset,
+    )
 }
 
 /// The `LOTUS` knowledge graph itself, as a `Dataset` in its own right.
@@ -211,11 +209,11 @@ fn data_catalog() -> Value {
     })
 }
 
-fn display_taxon(taxon: &str) -> String {
+fn display_taxon(taxon: &str) -> &str {
     if taxon.is_empty() || taxon == "*" {
-        "all organisms".to_string()
+        "all organisms"
     } else {
-        taxon.to_string()
+        taxon
     }
 }
 
