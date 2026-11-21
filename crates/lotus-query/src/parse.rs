@@ -155,13 +155,9 @@ pub fn parse_compounds_csv_capped(
     // the server API, where the payload is the endpoint's whole answer rather than
     // a page of it.
     let count = set.row_count();
-    let capped = if max_rows == usize::MAX {
-        count
-    } else {
-        max_rows
-    };
-    let mut rows = Vec::with_capacity(count.min(2048));
-    for row in 0..count.min(capped) {
+    let limit = count.min(max_rows);
+    let mut rows = Vec::with_capacity(limit.min(2048));
+    for row in 0..limit {
         if let Some(entry) = set.entry(row) {
             rows.push(entry);
         }
