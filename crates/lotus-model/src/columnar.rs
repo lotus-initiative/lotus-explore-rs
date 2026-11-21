@@ -1197,13 +1197,10 @@ impl ColumnarResultSet {
         if !spec.compound.trim().is_empty() {
             let needle = folded(&spec.compound);
             let mut buffer = [0u8; QID_BUFFER];
-            let mut mask = Bitmask::with_len(self.compounds.len());
-            for slot in 0..self.compounds.len() {
-                let id = slot_to_id(slot);
+            plan.compound = Some(build_mask(self.compounds.len(), |slot, id| {
                 // The QID arm renders through the reusable stack buffer rather than
                 // allocating a String per compound per keystroke.
-                let hit = self
-                    .compound_names
+                self.compound_names
                     .get(slot)
                     .is_some_and(|n| contains_folded(n, &needle))
                     || self
@@ -1221,17 +1218,13 @@ impl ColumnarResultSet {
                     || self
                         .compounds
                         .get(id)
-                        .is_some_and(|numeric| qid_matches(numeric, &needle, &mut buffer));
-                if hit {
-                    mask.insert(id);
-                }
-            }
-            plan.compound = Some(mask);
+                        .is_some_and(|numeric| qid_matches(numeric, &needle, &mut buffer))
+            }));
         }
 
         if !spec.formula.trim().is_empty() {
             let needle = folded(&spec.formula);
-            plan.formula = Some(self.mask_compounds(|slot, _id| {
+            plan.formula = Some(build_mask(self.compounds.len(), |slot, _id| {
                 self.compound_formulas
                     .get(slot)
                     .is_some_and(|f| contains_folded(f, &needle))
@@ -1239,39 +1232,30 @@ impl ColumnarResultSet {
         }
 
         if let Some(range) = spec.mass {
-            plan.mass =
-                Some(self.mask_compounds(|_slot, id| range.accepts(self.compound_mass(id))));
+            plan.mass = Some(build_mask(self.compounds.len(), |_slot, id| {
+                range.accepts(self.compound_mass(id))
+            }));
         }
 
         if !spec.taxon.trim().is_empty() {
             let needle = folded(&spec.taxon);
             let mut buffer = [0u8; QID_BUFFER];
-            let mut mask = Bitmask::with_len(self.taxa.len());
-            for slot in 0..self.taxa.len() {
-                let id = slot_to_id(slot);
-                if self
-                    .taxa
+            plan.taxon = Some(build_mask(self.taxa.len(), |slot, id| {
+                self.taxa
                     .get(id)
                     .is_some_and(|numeric| qid_matches(numeric, &needle, &mut buffer))
                     || self
                         .taxon_names
                         .get(slot)
                         .is_some_and(|n| contains_folded(n, &needle))
-                {
-                    mask.insert(id);
-                }
-            }
-            plan.taxon = Some(mask);
+            }));
         }
 
         if !spec.reference.trim().is_empty() {
             let needle = folded(&spec.reference);
             let mut buffer = [0u8; QID_BUFFER];
-            let mut mask = Bitmask::with_len(self.references.len());
-            for slot in 0..self.references.len() {
-                let id = slot_to_id(slot);
-                if self
-                    .references
+            plan.reference = Some(build_mask(self.references.len(), |slot, id| {
+                self.references
                     .get(id)
                     .is_some_and(|numeric| qid_matches(numeric, &needle, &mut buffer))
                     || self
@@ -1282,40 +1266,31 @@ impl ColumnarResultSet {
                         .reference_dois
                         .get(slot)
                         .is_some_and(|d| contains_folded(d, &needle))
-                {
-                    mask.insert(id);
-                }
-            }
-            plan.reference = Some(mask);
+            }));
         }
 
         if let Some(range) = spec.year {
-            let mut mask = Bitmask::with_len(self.references.len());
-            for slot in 0..self.references.len() {
-                let id = slot_to_id(slot);
+            plan.year = Some(build_mask(self.references.len(), |_slot, id| {
                 // An absent year never matches: an unknown year is not a recent
                 // one, and the same rule the mass range follows.
-                if range.accepts(self.reference_year(id).map(f64::from)) {
-                    mask.insert(id);
-                }
-            }
-            plan.year = Some(mask);
+                range.accepts(self.reference_year(id).map(f64::from))
+            }));
         }
 
         plan
     }
+}
 
-    /// A bitmap over the compound dictionary, from a per-compound predicate.
-    fn mask_compounds(&self, keep: impl Fn(usize, u32) -> bool) -> Bitmask {
-        let mut mask = Bitmask::with_len(self.compounds.len());
-        for slot in 0..self.compounds.len() {
-            let id = slot_to_id(slot);
-            if keep(slot, id) {
-                mask.insert(id);
-            }
+/// A bitmap over `len` dictionary slots, from a per-entry predicate.
+fn build_mask(len: usize, mut keep: impl FnMut(usize, u32) -> bool) -> Bitmask {
+    let mut mask = Bitmask::with_len(len);
+    for slot in 0..len {
+        let id = slot_to_id(slot);
+        if keep(slot, id) {
+            mask.insert(id);
         }
-        mask
     }
+    mask
 }
 
 /// Intern an entity URI as a numeric QID, without allocating.
