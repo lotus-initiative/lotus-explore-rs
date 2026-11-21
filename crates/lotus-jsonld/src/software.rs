@@ -102,6 +102,24 @@ fn author_organization() -> Value {
     })
 }
 
+fn computer_language(software: &Software) -> Value {
+    json!({
+        "@type": "ComputerLanguage",
+        "name": software.language,
+        "url": software.language_url,
+    })
+}
+
+fn application_subcategories(software: &Software) -> Value {
+    json!([
+        software.application_subcategory,
+        edam::TOPIC_CHEMINFORMATICS,
+        edam::TOPIC_SMALL_MOLECULES,
+        edam::TOPIC_METABOLOMICS,
+        edam::TOPIC_TAXONOMY,
+    ])
+}
+
 /// The `SoftwareApplication` + Bioschemas `ComputationalTool` document
 /// representing LOTUS Explorer.
 #[allow(
@@ -124,24 +142,11 @@ pub fn software_jsonld(software: &Software) -> Value {
     );
     object.insert(
         "applicationSubCategory".into(),
-        json!([
-            software.application_subcategory,
-            edam::TOPIC_CHEMINFORMATICS,
-            edam::TOPIC_SMALL_MOLECULES,
-            edam::TOPIC_METABOLOMICS,
-            edam::TOPIC_TAXONOMY,
-        ]),
+        application_subcategories(software),
     );
     object.insert("author".into(), author_organization());
     object.insert("codeRepository".into(), json!(software.repository));
-    object.insert(
-        "programmingLanguage".into(),
-        json!({
-            "@type": "ComputerLanguage",
-            "name": software.language,
-            "url": software.language_url,
-        }),
-    );
+    object.insert("programmingLanguage".into(), computer_language(software));
     let mut features: Vec<&str> = software.features.to_vec();
     features.extend([
         edam::OPERATION_DATABASE_SEARCH,
@@ -259,14 +264,7 @@ pub fn codemeta(software: &Software) -> Value {
     object.insert("version".into(), json!(software.version));
     // A `ComputerLanguage` node rather than a bare string: a registry that
     // renders the language links it, and the plain form has nothing to link to.
-    object.insert(
-        "programmingLanguage".into(),
-        json!({
-            "@type": "ComputerLanguage",
-            "name": software.language,
-            "url": software.language_url,
-        }),
-    );
+    object.insert("programmingLanguage".into(), computer_language(software));
     object.insert("keywords".into(), json!(software.keywords));
     object.insert("operatingSystem".into(), json!("any"));
     object.insert(
@@ -275,13 +273,7 @@ pub fn codemeta(software: &Software) -> Value {
     );
     object.insert(
         "applicationSubCategory".into(),
-        json!([
-            software.application_subcategory,
-            edam::TOPIC_CHEMINFORMATICS,
-            edam::TOPIC_SMALL_MOLECULES,
-            edam::TOPIC_METABOLOMICS,
-            edam::TOPIC_TAXONOMY,
-        ]),
+        application_subcategories(software),
     );
     object.insert(
         "buildInstructions".into(),

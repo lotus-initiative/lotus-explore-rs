@@ -78,27 +78,14 @@ pub fn result_set_jsonld(set: &ResultSet<'_>) -> Value {
             edam::TOPIC_METABOLOMICS,
             edam::TOPIC_TAXONOMY,
         ],
-        "about": [
-            { "@type": "DefinedTerm", "@id": edam::TOPIC_SMALL_MOLECULES, "name": "Small molecules" },
-            { "@type": "DefinedTerm", "@id": edam::TOPIC_CHEMINFORMATICS, "name": "Cheminformatics" },
-            { "@type": "DefinedTerm", "@id": edam::TOPIC_METABOLOMICS, "name": "Metabolomics" },
-            { "@type": "DefinedTerm", "@id": edam::TOPIC_TAXONOMY, "name": "Taxonomy" },
-        ],
+        "about": edam_topics(),
         "license": "https://creativecommons.org/publicdomain/zero/1.0/",
         "creator": { "@type": "Organization", "name": "LOTUS Initiative" },
         "version": SOFTWARE.version,
         "datePublished": set.generated,
-        "variableMeasured": [
-            "compound name", "compound SMILES", "InChIKey", "molecular mass",
-            "molecular formula", "taxon name", "reference title", "reference DOI"
-        ],
+        "variableMeasured": measured_variables(),
         "measurementTechnique": "SPARQL 1.1 over the Wikidata graph",
-        "citation": {
-            "@type": "ScholarlyArticle",
-            "name": "The LOTUS initiative for open knowledge management in natural products research",
-            "identifier": doi_uri("10.7554/eLife.70780"),
-            "url": doi_uri("10.7554/eLife.70780"),
-        },
+        "citation": lotus_citation(),
         // The query is the reproducibility record: it is what re-derives this
         // set, and a reader can paste it into any SPARQL endpoint.
         "distribution": [
@@ -111,12 +98,7 @@ pub fn result_set_jsonld(set: &ResultSet<'_>) -> Value {
                 "encodingFormat": ["application/ld+json", edam::FORMAT_JSON_LD],
             },
         ],
-        "includedInDataCatalog": {
-            "@type": "DataCatalog",
-            "@id": "https://lotus-initiative.github.io/lotus-explore-rs",
-            "name": "LOTUS",
-            "url": "https://lotus-initiative.github.io/lotus-explore-rs",
-        },
+        "includedInDataCatalog": data_catalog(),
     });
 
     if let Some(object) = node.as_object_mut() {
@@ -164,29 +146,16 @@ pub fn dataset_jsonld() -> Value {
             edam::TOPIC_METABOLOMICS,
             edam::TOPIC_TAXONOMY,
         ],
-        "about": [
-            { "@type": "DefinedTerm", "@id": edam::TOPIC_SMALL_MOLECULES, "name": "Small molecules" },
-            { "@type": "DefinedTerm", "@id": edam::TOPIC_CHEMINFORMATICS, "name": "Cheminformatics" },
-            { "@type": "DefinedTerm", "@id": edam::TOPIC_METABOLOMICS, "name": "Metabolomics" },
-            { "@type": "DefinedTerm", "@id": edam::TOPIC_TAXONOMY, "name": "Taxonomy" },
-        ],
+        "about": edam_topics(),
         "license": "https://creativecommons.org/publicdomain/zero/1.0/",
         "version": SOFTWARE.version,
         "datePublished": SOFTWARE.date_published,
         "creator": { "@type": "Organization", "name": "LOTUS Initiative" },
-        "variableMeasured": [
-            "compound name", "compound SMILES", "InChIKey", "molecular mass",
-            "molecular formula", "taxon name", "reference title", "reference DOI"
-        ],
+        "variableMeasured": measured_variables(),
         "measurementTechnique": "SPARQL 1.1 over the Wikidata graph",
         // The paper that describes the knowledge base, which is also what a
         // reader of this dataset should be pointed at.
-        "citation": {
-            "@type": "ScholarlyArticle",
-            "name": "The LOTUS initiative for open knowledge management in natural products research",
-            "identifier": doi_uri("10.7554/eLife.70780"),
-            "url": doi_uri("10.7554/eLife.70780"),
-        },
+        "citation": lotus_citation(),
         "sameAs": [wikidata_uri("Q104225190")],
         "distribution": [
             {
@@ -196,15 +165,50 @@ pub fn dataset_jsonld() -> Value {
                 "contentUrl": "https://query.wikidata.org/sparql",
             },
         ],
-        "includedInDataCatalog": {
-            "@type": "DataCatalog",
-            "@id": "https://lotus-initiative.github.io/lotus-explore-rs",
-            "name": "LOTUS",
-            "url": "https://lotus-initiative.github.io/lotus-explore-rs",
-        },
+        "includedInDataCatalog": data_catalog(),
         }),
         Profile::Dataset,
     )
+}
+
+fn edam_topics() -> Value {
+    json!([
+        { "@type": "DefinedTerm", "@id": edam::TOPIC_SMALL_MOLECULES, "name": "Small molecules" },
+        { "@type": "DefinedTerm", "@id": edam::TOPIC_CHEMINFORMATICS, "name": "Cheminformatics" },
+        { "@type": "DefinedTerm", "@id": edam::TOPIC_METABOLOMICS, "name": "Metabolomics" },
+        { "@type": "DefinedTerm", "@id": edam::TOPIC_TAXONOMY, "name": "Taxonomy" },
+    ])
+}
+
+fn measured_variables() -> Value {
+    json!([
+        "compound name",
+        "compound SMILES",
+        "InChIKey",
+        "molecular mass",
+        "molecular formula",
+        "taxon name",
+        "reference title",
+        "reference DOI"
+    ])
+}
+
+fn lotus_citation() -> Value {
+    json!({
+        "@type": "ScholarlyArticle",
+        "name": "The LOTUS initiative for open knowledge management in natural products research",
+        "identifier": doi_uri("10.7554/eLife.70780"),
+        "url": doi_uri("10.7554/eLife.70780"),
+    })
+}
+
+fn data_catalog() -> Value {
+    json!({
+        "@type": "DataCatalog",
+        "@id": "https://lotus-initiative.github.io/lotus-explore-rs",
+        "name": "LOTUS",
+        "url": "https://lotus-initiative.github.io/lotus-explore-rs",
+    })
 }
 
 fn display_taxon(taxon: &str) -> String {
