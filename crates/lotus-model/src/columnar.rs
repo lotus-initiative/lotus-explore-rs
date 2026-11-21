@@ -1523,7 +1523,10 @@ impl ColumnarBuilder {
                         ParsedStatement::Absent => StatementId::Absent,
                         ParsedStatement::Uuid(bytes) => StatementId::Uuid(bytes),
                         ParsedStatement::Other => {
-                            StatementId::Other(self.intern_statement_fallback(cell))
+                            // No slot, and no prediction: the id comes from the interning table.
+                            // This column is a plain id -> string map rather than a slot-keyed one,
+                            // because a row's statement id has to name a value, not occupy a position.
+                            StatementId::Other(self.set.statement_fallbacks.intern_text(cell))
                         }
                     }
                 });
@@ -1645,7 +1648,7 @@ impl ColumnarBuilder {
     /// counted loop rather than `while`, so that a wrong slot count leaves the
     /// columns the wrong length instead of never ending.
     fn grow_compounds(&mut self) {
-        let first = self.compound_slots();
+        let first = self.set.compound_masses.len();
         for next in first..self.set.compounds.len() {
             self.set.compound_names.set(next, None);
             self.set.compound_inchikeys.set(next, None);
@@ -1653,11 +1656,6 @@ impl ColumnarBuilder {
             self.set.compound_formulas.set(next, None);
             self.set.compound_masses.push(NO_MASS);
         }
-    }
-
-    /// How many compound slots have been filled.
-    const fn compound_slots(&self) -> usize {
-        self.set.compound_masses.len()
     }
 
     /// Make sure the reference columns cover every interned reference.
@@ -1668,14 +1666,6 @@ impl ColumnarBuilder {
             self.set.reference_dois.set(next, None);
             self.set.reference_years.push(None);
         }
-    }
-
-    /// Intern the text of a statement that is not in the `{QID}-{UUID}` form.
-    fn intern_statement_fallback(&mut self, text: &str) -> u32 {
-        // No slot, and no prediction: the id comes from the interning table. This
-        // column is a plain id -> string map rather than a slot-keyed one, because
-        // a row's statement id has to name a value, not occupy a position.
-        self.set.statement_fallbacks.intern_text(text)
     }
 
     /// Take the statistics and produce the set.
