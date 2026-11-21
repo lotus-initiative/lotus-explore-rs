@@ -179,6 +179,13 @@ fn strip_utf8_bom(bytes: &[u8]) -> &[u8] {
     bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(bytes)
 }
 
+fn open_csv_reader(bytes: &[u8]) -> csv::Reader<&[u8]> {
+    csv::ReaderBuilder::new()
+        .has_headers(true)
+        .flexible(true)
+        .from_reader(strip_utf8_bom(bytes))
+}
+
 /// Read the single-row `COUNT` result.
 ///
 /// A reported `n_entries_unique` of zero means the count subquery did not
@@ -189,10 +196,7 @@ fn strip_utf8_bom(bytes: &[u8]) -> &[u8] {
 /// Returns [`ParseError`] if the payload has no data row, because there
 /// is then nothing to fall back on: a total cannot be invented.
 pub fn parse_counts_csv(bytes: &[u8]) -> Result<DatasetStats, ParseError> {
-    let mut reader = csv::ReaderBuilder::new()
-        .has_headers(true)
-        .flexible(true)
-        .from_reader(strip_utf8_bom(bytes));
+    let mut reader = open_csv_reader(bytes);
 
     let headers = reader.headers().map_err(ParseError::new)?.clone();
     let index = |name: &str| headers.iter().position(|h| h == name);
@@ -237,10 +241,7 @@ pub fn parse_counts_csv(bytes: &[u8]) -> Result<DatasetStats, ParseError> {
 /// # Errors
 /// Returns [`ParseError`] if the payload cannot be read as CSV.
 pub fn parse_taxon_csv(bytes: &[u8]) -> Result<Vec<TaxonMatch>, ParseError> {
-    let mut reader = csv::ReaderBuilder::new()
-        .has_headers(true)
-        .flexible(true)
-        .from_reader(strip_utf8_bom(bytes));
+    let mut reader = open_csv_reader(bytes);
 
     let headers = reader.headers().map_err(ParseError::new)?.clone();
     let qid_at = headers.iter().position(|h| h == "taxon");
@@ -251,11 +252,7 @@ pub fn parse_taxon_csv(bytes: &[u8]) -> Result<Vec<TaxonMatch>, ParseError> {
     for record in reader.records() {
         let record = record.map_err(ParseError::new)?;
         let qid = normalize_qid(record.get(qid_at.unwrap_or(usize::MAX)).unwrap_or(""));
-        let name = record
-            .get(name_at.unwrap_or(usize::MAX))
-            .unwrap_or("")
-            .trim()
-            .to_string();
+        let name = text_field(&record, name_at);
         if !qid.is_empty() && !name.is_empty() {
             matches.push(TaxonMatch {
                 qid,
@@ -297,10 +294,7 @@ pub struct ReferenceMatch {
 /// # Errors
 /// Returns [`ParseError`] if the payload cannot be read as CSV.
 pub fn parse_reference_lookup_csv(bytes: &[u8]) -> Result<Vec<ReferenceMatch>, ParseError> {
-    let mut reader = csv::ReaderBuilder::new()
-        .has_headers(true)
-        .flexible(true)
-        .from_reader(strip_utf8_bom(bytes));
+    let mut reader = open_csv_reader(bytes);
     let headers = reader.headers().map_err(ParseError::new)?.clone();
     let at = headers.iter().position(|h| h.trim() == "ref");
 
@@ -338,10 +332,7 @@ pub struct CompoundMatch {
 /// # Errors
 /// Returns [`ParseError`] if the payload cannot be read as CSV.
 pub fn parse_compound_lookup_csv(bytes: &[u8]) -> Result<Vec<CompoundMatch>, ParseError> {
-    let mut reader = csv::ReaderBuilder::new()
-        .has_headers(true)
-        .flexible(true)
-        .from_reader(strip_utf8_bom(bytes));
+    let mut reader = open_csv_reader(bytes);
 
     let headers = reader.headers().map_err(ParseError::new)?.clone();
     let qid_at = headers.iter().position(|h| h == "compound_qid");

@@ -1184,19 +1184,7 @@ WHERE {{
 /// senses of the English lexeme, which are not compounds.
 #[must_use]
 pub fn compound_label_query(name: &str) -> String {
-    format!(
-        "{PREFIXES}
-SELECT DISTINCT (xsd:integer(STRAFTER(STR(?compound), \"Q\")) AS ?compound_qid) ?compound_label ?canonical_smiles ?matched_by
-WHERE {{
-  {values}
-  ?compound rdfs:label ?name .
-  ?compound wdt:P235 ?_inchikey .
-  FILTER(STRSTARTS(STR(?compound), \"http://www.wikidata.org/entity/Q\"))
-{COMPOUND_LOOKUP_PROPERTIES}
-  BIND(\"label\" AS ?matched_by)
-}}",
-        values = tagged_name_values(name),
-    )
+    compound_name_lookup_query(PREFIXES, "rdfs:label", "label", name)
 }
 
 /// Look a compound up by alias (`skos:altLabel`), on the terms of
@@ -1209,16 +1197,25 @@ WHERE {{
 /// **times out** where each alone answers in under half a second.
 #[must_use]
 pub fn compound_alias_query(name: &str) -> String {
+    compound_name_lookup_query(PREFIXES_WITH_SKOS, "skos:altLabel", "alias", name)
+}
+
+fn compound_name_lookup_query(
+    prefixes: &str,
+    predicate: &str,
+    matched_by: &str,
+    name: &str,
+) -> String {
     format!(
-        "{PREFIXES_WITH_SKOS}
+        "{prefixes}
 SELECT DISTINCT (xsd:integer(STRAFTER(STR(?compound), \"Q\")) AS ?compound_qid) ?compound_label ?canonical_smiles ?matched_by
 WHERE {{
   {values}
-  ?compound skos:altLabel ?name .
+  ?compound {predicate} ?name .
   ?compound wdt:P235 ?_inchikey .
   FILTER(STRSTARTS(STR(?compound), \"http://www.wikidata.org/entity/Q\"))
 {COMPOUND_LOOKUP_PROPERTIES}
-  BIND(\"alias\" AS ?matched_by)
+  BIND(\"{matched_by}\" AS ?matched_by)
 }}",
         values = tagged_name_values(name),
     )
