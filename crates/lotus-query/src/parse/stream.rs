@@ -518,8 +518,7 @@ fn truncation_notice(tail: &[u8]) -> Option<&'static str> {
     // The reason is on its own line after the prose, and is worth keeping: it is
     // the only account of *why* the answer stopped, and "timed out" and "cancelled"
     // read very differently to someone whose query keeps dying.
-    let lines: Vec<&str> = text.lines().map(str::trim).collect();
-    lines.iter().find_map(|line| {
+    text.lines().map(str::trim).find_map(|line| {
         let line = line.strip_suffix('.').unwrap_or(line);
         TRUNCATION_REASONS
             .iter()

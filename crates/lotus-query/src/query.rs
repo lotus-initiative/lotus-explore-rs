@@ -188,7 +188,7 @@ PREFIX wdt:    <http://www.wikidata.org/prop/direct/>
 PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
 ";
 
-/// The names `select_clause` projects, in order.
+/// The names [`SELECT_CLAUSE`] projects, in order.
 ///
 /// The parser finds its columns by name, so this list and the projection must be the
 /// same list. They were kept in step by hand and by nothing else, across two files: a
@@ -239,9 +239,7 @@ pub const SELECT_COLUMNS: [&str; 15] = [
 /// Statement and reference-node URIs are projected directly without `STRAFTER`
 /// so `QLever` never materialises dynamic `LocalVocab` strings; the streaming
 /// parser strips their prefixes in `O(1)` on arrival.
-#[must_use]
-fn select_clause() -> String {
-    r#"
+const SELECT_CLAUSE: &str = r#"
 SELECT
   (xsd:integer(STRAFTER(STR(?c), "Q")) AS ?compound)
   ?compoundLabel
@@ -258,9 +256,7 @@ SELECT
   ?ref_doi
   (YEAR(?ref_date) AS ?ref_year)
   ?statement_id
-"#
-    .to_string()
-}
+"#;
 
 /// Reference metadata: the title, DOI and date of the citing reference.
 ///
@@ -503,7 +499,7 @@ fn compounds_query_with_closure(
 
     format!(
         "{PREFIXES}
-{}
+{SELECT_CLAUSE}
 WHERE {{
   {{
     SELECT *
@@ -518,15 +514,14 @@ WHERE {{
       {COMPOUND_PROPERTIES}
     }}
   }}
-}}",
-        select_clause(),
+}}"
     )
 }
 
 fn all_required_compounds_query_body() -> String {
     format!(
         "{PREFIXES}
-{}
+{SELECT_CLAUSE}
 WHERE {{
   {{
     SELECT *
@@ -553,15 +548,14 @@ WHERE {{
     }}
   }}
   {REFERENCE_METADATA}
-}}",
-        select_clause(),
+}}"
     )
 }
 
 fn taxon_compounds_query_body(ancestry: &str) -> String {
     format!(
         "{PREFIXES}
-{}
+{SELECT_CLAUSE}
 WHERE {{
   {{
     SELECT *
@@ -588,15 +582,14 @@ WHERE {{
     }}
   }}
   {REFERENCE_METADATA}
-}}",
-        select_clause(),
+}}"
     )
 }
 
 fn optional_compounds_query_body(chemical: &str, ancestry: &str) -> String {
     format!(
         "{PREFIXES}
-{}
+{SELECT_CLAUSE}
 WHERE {{
   {{
     SELECT *
@@ -631,8 +624,7 @@ WHERE {{
     }}
   }}
   {COMPOUND_PROPERTIES}
-}}",
-        select_clause(),
+}}"
     )
 }
 
@@ -758,12 +750,13 @@ fn seeded_compounds_core(
 /// appear in `?_s ps:P703 ?t` across all of Wikidata (`56,806` pairs total, `O(1)` independent
 /// of clade size and cached across queries by `QLever`).
 fn nomenclature_path(nomenclature: Nomenclature) -> Option<String> {
-    let mut alternatives: Vec<String> = Vec::new();
-    for (property, _) in nomenclature.properties() {
-        alternatives.push(property.to_string());
-    }
-    if alternatives.is_empty() {
+    let props = nomenclature.properties();
+    if props.is_empty() {
         return None;
+    }
+    let mut alternatives: Vec<String> = Vec::with_capacity(props.len() * 2);
+    for &(property, _) in &props {
+        alternatives.push(property.to_string());
     }
     // The inverses are appended afterwards, each with its own `^`.
     //
@@ -771,7 +764,7 @@ fn nomenclature_path(nomenclature: Nomenclature) -> Option<String> {
     // that follows it, so that reads as "inverse of a, or b" and later properties are read
     // forwards only. The expansion still returns rows, so the query looks fine and returns a
     // different set -- the worst shape a query bug can take.
-    for (property, _) in nomenclature.properties() {
+    for &(property, _) in &props {
         alternatives.push(format!("^{property}"));
     }
     Some(format!("({})", alternatives.join("|")))
@@ -1389,11 +1382,10 @@ pub fn structure_search_query_with(
 
     format!(
         "{PREFIXES_WITH_STRUCTURE}
-{}
+{SELECT_CLAUSE}
 WHERE {{
 {body}
-}}",
-        select_clause(),
+}}"
     )
 }
 
@@ -1485,11 +1477,10 @@ SELECT
 /// reference-node URIs.
 #[must_use]
 pub fn occurrences_query(base: &str) -> String {
-    let full_select = select_clause();
-    if !base.contains(&full_select) {
+    if !base.contains(SELECT_CLAUSE) {
         return base.to_string();
     }
-    base.replacen(&full_select, OCCURRENCES_SELECT, 1)
+    base.replacen(SELECT_CLAUSE, OCCURRENCES_SELECT, 1)
         .replace(REFERENCE_METADATA, "")
         .replace(COMPOUND_PROPERTIES, "")
         .replace(

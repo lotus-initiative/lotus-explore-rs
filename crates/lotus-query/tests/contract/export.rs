@@ -810,7 +810,7 @@ fn occurrence_is_optional(query: &str) -> bool {
     !occurrence_block(query).is_empty()
 }
 
-/// The variable names `select_clause` actually projects, in order.
+/// The variable names `SELECT_CLAUSE` actually projects, in order.
 ///
 /// Read out of the query text rather than compared against a stored copy of it,
 /// because a stored copy is a second thing to forget. Each projected item is one
