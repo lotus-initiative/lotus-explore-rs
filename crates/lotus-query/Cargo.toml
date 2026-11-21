@@ -11,7 +11,7 @@ categories = ["science", "web-programming"]
 publish = false
 
 [dependencies]
-csv = "1.4"
+csv = { workspace = true }
 lotus-model = { workspace = true }
 thiserror = { workspace = true }
 

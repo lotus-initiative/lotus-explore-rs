@@ -41,15 +41,7 @@ path = "src/healthcheck.rs"
 # It is a host-only binary -- three bins, no library, nothing depends on it -- so
 # naming `default-tls` costs nothing in wasm size. It is here to be explicit about
 # the one thing it does need, which is a TLS backend.
-reqwest = {
-  version = "0.13",
-  default-features = false,
-  features = [
-    "default-tls",
-    "blocking",
-    "gzip",
-  ]
-}
+reqwest = { workspace = true, features = ["blocking", "default-tls", "gzip"] }
 serde_json = { workspace = true }
 # Only this crate uses `zip`, and nothing depends on this crate, so a workspace
 # entry for it would be a second place to update for a single consumer.

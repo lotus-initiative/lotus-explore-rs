@@ -65,7 +65,7 @@ sha2 = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 axum = { workspace = true, optional = true }
-clap = { workspace = true, features = ["env"], optional = true }
+clap = { workspace = true, optional = true }
 flate2 = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["default-tls", "gzip"] }
 tempfile = { workspace = true }
