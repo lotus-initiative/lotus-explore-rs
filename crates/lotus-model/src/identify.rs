@@ -18,7 +18,22 @@ const WIKIDATA_ENTITY_BASE_HTTPS: &str = "https://www.wikidata.org/entity/";
 /// use the result as a key without a second check.
 #[must_use]
 pub fn normalize_qid(value: &str) -> String {
-    let trimmed = value.trim();
+    strip_qid_digits(value).map_or_else(String::new, |digits| format!("Q{digits}"))
+}
+
+/// Extract the ASCII digit slice of a Wikidata QID, URI, or typed integer projection.
+///
+/// Returns `None` for non-QIDs, blank nodes, or empty inputs without allocating.
+#[allow(
+    unreachable_pub,
+    reason = "identify is private; shared with sibling module columnar without widening public API"
+)]
+#[must_use]
+pub fn strip_qid_digits(raw: &str) -> Option<&str> {
+    let trimmed = raw.trim();
+    // Both schemes, because Wikidata serves `http` and a mirror or a pasted
+    // fixture can carry `https`, and dropping the second would turn a row that
+    // used to render into a dropped one.
     let stripped = trimmed
         .strip_prefix(WIKIDATA_ENTITY_BASE)
         .or_else(|| trimmed.strip_prefix(WIKIDATA_ENTITY_BASE_HTTPS))
@@ -32,23 +47,8 @@ pub fn normalize_qid(value: &str) -> String {
         .trim_matches('"');
     // A bare number is how the `xsd:integer(STRAFTER(STR(?c), "Q"))` projection
     // renders, and how some exports write it.
-    let Some(candidate) = lexical.strip_prefix('Q') else {
-        return numeric_to_qid(lexical);
-    };
-
-    if !candidate.is_empty() && candidate.bytes().all(|b| b.is_ascii_digit()) {
-        lexical.to_string()
-    } else {
-        String::new()
-    }
-}
-
-fn numeric_to_qid(lexical: &str) -> String {
-    if !lexical.is_empty() && lexical.bytes().all(|b| b.is_ascii_digit()) {
-        format!("Q{lexical}")
-    } else {
-        String::new()
-    }
+    let digits = lexical.strip_prefix('Q').unwrap_or(lexical);
+    (!digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit())).then_some(digits)
 }
 
 /// Canonicalise a DOI: strip a `doi.org/` prefix and upper-case the rest.

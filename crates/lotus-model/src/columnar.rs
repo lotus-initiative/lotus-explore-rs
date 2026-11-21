@@ -79,7 +79,7 @@
 //!   *after* has not happened, so `n_entries` is the endpoint's `COUNT(*)` and not
 //!   a lower bound on it.
 
-use super::{CompoundEntry, DatasetStats, WIKIDATA_ENTITY_BASE, WIKIDATA_STATEMENT_BASE};
+use super::{CompoundEntry, DatasetStats, WIKIDATA_STATEMENT_BASE};
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -100,9 +100,6 @@ fn next_generation() -> u64 {
 ///
 /// Handed out rather than interned, so no dictionary entry can hold it.
 pub const NO_VALUE: u32 = u32::MAX;
-
-/// The `https` form of [`WIKIDATA_ENTITY_BASE`], which a mirror can serve.
-const WIKIDATA_ENTITY_BASE_HTTPS: &str = "https://www.wikidata.org/entity/";
 
 /// The largest bare QID text this module renders into a stack buffer.
 ///
@@ -374,12 +371,7 @@ impl SparseStrings {
         {
             return *existing;
         }
-        let id = value
-            .and_then(|v| {
-                let trimmed = v.trim();
-                (!trimmed.is_empty()).then_some(trimmed)
-            })
-            .map_or(NO_VALUE, |v| self.intern(v));
+        let id = non_empty(value).map_or(NO_VALUE, |v| self.intern(v));
         if slot >= self.ids.len() {
             self.ids.resize(slot + 1, NO_VALUE);
         }
@@ -1349,28 +1341,7 @@ fn lookup_slot(dictionary: &QidDictionary, raw: &str) -> Option<usize> {
 }
 
 fn parse_qid_number(raw: &str) -> Option<u32> {
-    let trimmed = raw.trim();
-    // Both schemes, because Wikidata serves `http` and a mirror or a pasted
-    // fixture can carry `https`, and dropping the second would turn a row that
-    // used to render into a dropped one.
-    let stripped = trimmed
-        .strip_prefix(WIKIDATA_ENTITY_BASE)
-        .or_else(|| trimmed.strip_prefix(WIKIDATA_ENTITY_BASE_HTTPS))
-        .unwrap_or(trimmed);
-    // Drop the `"…"^^<…#integer>` wrapper some projections render, then any
-    // quotes still on the ends.
-    let lexical = stripped
-        .split("^^")
-        .next()
-        .unwrap_or(stripped)
-        .trim_matches('"');
-
-    if let Some(digits) = lexical.strip_prefix('Q') {
-        return parse_numeric_qid(digits);
-    }
-    // A bare integer is how `xsd:integer(STRAFTER(STR(?c), "Q"))` renders a QID,
-    // and how a plain-number projection renders one.
-    parse_numeric_qid(lexical)
+    super::identify::strip_qid_digits(raw).and_then(parse_numeric_qid)
 }
 
 /// The number a run of ASCII digits names, or `None` if it is not one.
@@ -1475,23 +1446,13 @@ impl ColumnarBuilder {
     /// Every distinct compound QID interned so far that has not yet been
     /// seeded from a previous set, in first-seen order.
     pub fn compound_qids(&self) -> impl Iterator<Item = u32> + '_ {
-        self.set
-            .compounds
-            .numeric_ids()
-            .enumerate()
-            .filter(|&(slot, _)| !self.seeded_compounds.contains(slot_to_id(slot)))
-            .map(|(_, qid)| qid)
+        unseeded_qids(&self.set.compounds, &self.seeded_compounds)
     }
 
     /// Every distinct reference QID interned so far that has not yet been
     /// seeded from a previous set, in first-seen order.
     pub fn reference_qids(&self) -> impl Iterator<Item = u32> + '_ {
-        self.set
-            .references
-            .numeric_ids()
-            .enumerate()
-            .filter(|&(slot, _)| !self.seeded_references.contains(slot_to_id(slot)))
-            .map(|(_, qid)| qid)
+        unseeded_qids(&self.set.references, &self.seeded_references)
     }
 
     /// Pre-populate compound and reference metadata for any entity already
@@ -1569,7 +1530,7 @@ impl ColumnarBuilder {
         let taxon_id = intern_qid(&mut self.set.taxa, row.taxon_qid).map_or(NO_VALUE, |id| {
             self.set
                 .taxon_names
-                .set(id as usize, present(row.taxon_name));
+                .set(id as usize, super::non_empty(row.taxon_name));
             id
         });
         let reference_id =
@@ -1599,7 +1560,7 @@ impl ColumnarBuilder {
         // cannot go in `references` -- that is a `QidDictionary` of u32s. A
         // `SparseStrings` keyed by row keeps the 64-hex hash interned instead of
         // copied per row, the same way `statement_fallbacks` does.
-        if let Some(node) = present(row.reference_node) {
+        if let Some(node) = super::non_empty(row.reference_node) {
             self.set.reference_node_hashes.set(row_index, Some(node));
         }
         self.set.reference_ids.push(reference_id);
@@ -1623,7 +1584,9 @@ impl ColumnarBuilder {
         }
         let taxon_slot = lookup_slot(&self.set.taxa, row.taxon_qid);
         if let Some(slot) = taxon_slot {
-            self.set.taxon_names.set(slot, present(row.taxon_name));
+            self.set
+                .taxon_names
+                .set(slot, super::non_empty(row.taxon_name));
         }
         let reference_slot = lookup_slot(&self.set.references, row.reference_qid);
         if let Some(slot) = reference_slot {
@@ -1648,7 +1611,7 @@ impl ColumnarBuilder {
     }
 
     fn populate_compound(&mut self, compound_slot: usize, row: RawRow<'_>) {
-        if let Some(name) = present(row.name) {
+        if let Some(name) = super::non_empty(row.name) {
             self.set.compound_names.set(compound_slot, Some(name));
         }
         if let Some(key) = non_empty(row.inchikey) {
@@ -1782,15 +1745,21 @@ impl ColumnarBuilder {
     }
 }
 
-/// A trimmed, non-empty optional string.
-fn non_empty(value: Option<&str>) -> Option<&str> {
-    value.and_then(present)
+/// Every distinct QID in `dict` whose slot is not yet marked in `seeded`, in
+/// first-seen order.
+fn unseeded_qids<'a>(
+    dict: &'a QidDictionary,
+    seeded: &'a Bitmask,
+) -> impl Iterator<Item = u32> + 'a {
+    dict.numeric_ids()
+        .enumerate()
+        .filter(|&(slot, _)| !seeded.contains(slot_to_id(slot)))
+        .map(|(_, qid)| qid)
 }
 
-/// A trimmed, non-empty string, or `None`.
-fn present(value: &str) -> Option<&str> {
-    let trimmed = value.trim();
-    (!trimmed.is_empty()).then_some(trimmed)
+/// A trimmed, non-empty optional string.
+fn non_empty(value: Option<&str>) -> Option<&str> {
+    value.and_then(super::non_empty)
 }
 
 /// The characters of `text` under Unicode lowercasing.

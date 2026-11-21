@@ -192,11 +192,7 @@ pub fn could_be_a_compound_name(text: &str) -> bool {
 /// never a fallback to the structure service.
 #[must_use]
 pub fn names_a_compound(text: &str) -> bool {
-    let trimmed = text.trim();
-    !trimmed.is_empty()
-        && (looks_like_a_compound_qid(trimmed)
-            || looks_like_inchikey(trimmed)
-            || could_be_a_compound_name(trimmed))
+    classify_structure_input(text) != InputKind::Structure
 }
 
 #[cfg(test)]
