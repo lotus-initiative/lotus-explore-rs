@@ -88,7 +88,7 @@ compound". One `VALUES` turns the second into the first, with the input quoted b
 
 The `InChIKey` route is the cheapest of the three by a wide margin — one indexed
 equality on a value that is unique in practice, against a name lookup's `VALUES`
-over fifteen language tags plus a fallback query behind it.
+over sixteen language tags and casing variants plus a fallback query behind it.
 
 An `InChIKey` and a QID each stop at their own query. An `InChIKey` names one
 compound by construction, and a QID names one outright, so if neither is known a
@@ -130,8 +130,8 @@ Measured, not stylistic. QLever will not push a `VALUES` down into both arms of 
 | -------------------------------------------------- | ------------------------------------- |
 | `compound_by_qid_query`                            | instant — one `VALUES`                |
 | `compound_inchikey_query`                          | ~0.2s                                 |
-| `compound_label_query`                             | ~0.15s                                |
-| `compound_alias_query`                             | ~0.14s                                |
+| `compound_label_query`                             | ~0.2–0.5s (~0.75s on WDQS)            |
+| `compound_alias_query`                             | ~0.2–0.4s (~0.74s on WDQS)            |
 | `structure_compound_lookup_query`                  | one service call, capped at `LIMIT 5` |
 | label `UNION` alias                                | **times out**                         |
 | `FILTER(LCASE(STR(?label)) = …)` over `rdfs:label` | **times out**                         |
@@ -140,16 +140,32 @@ Measured, not stylistic. QLever will not push a `VALUES` down into both arms of 
 So the two are separate requests, and the label query is a `VALUES` over
 language-tagged literals rather than a filter on lexical forms. A label _is_
 language-tagged, so the tag has to be part of the match rather than discarded from
-it. `COMPOUND_NAME_LANGUAGES` is the resulting list of fifteen tags.
+it. `COMPOUND_NAME_LANGUAGES` is the resulting list of sixteen tags.
+
+Because SPARQL literal equality is also case-sensitive (`"comphene"@en` does not
+match `"Comphene"@en` on `Q416775`), `compound_label_query` and
+`compound_alias_query` expand deduplicated casing variants of the input across
+`COMPOUND_NAME_LANGUAGES`: the verbatim input, lowercase, sentence case
+(capitalizing the first alphabetic character so stereodescriptors like
+`(+)-camphene` become `(+)-Camphene`), title case (`citric acid` -> `Citric
+Acid`), and hyphen-stem case (`β-carotin` -> `β-Carotin`). Uncased scripts collapse
+to one variant. `SELECT DISTINCT` collapses multiple tag/case hits per compound,
+and `lotus_search::resolve_structure` deduplicates QIDs in first-seen order.
 
 ### What that language list costs
 
-A compound name in one of the remaining ~285 tags will not resolve. This is a real
+A compound name in one of the remaining ~284 tags will not resolve. This is a real
 limitation and it is not hidden: a short list, in one place, with the reason beside
 it. The alternative — a lexical-form filter — times out, so the choice is between a
 list covering most names and no name lookup at all.
 
-Two further guards on the name routes:
+Three further guards on the name routes:
+
+`?compound wdt:P235 ?_inchikey .` restricts matches to chemical entities carrying
+an `InChIKey` (matching the main result queries). Without it, capitalized
+variants of common names (`Aspirin`, `Caffeine`, `Morphine`, `Taxol`) match trade
+names, scholarly articles, songs, bands, or disambiguation pages, and shadow
+chemical `skos:altLabel` hits (such as `Taxol` -> paclitaxel `Q423762`).
 
 `STRSTARTS(…, "…/entity/Q")` keeps lexemes out. `?compound rdfs:label "aspirin"@en`
 also matches three senses of the English lexeme, which are not compounds.

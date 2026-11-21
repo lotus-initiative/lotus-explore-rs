@@ -419,6 +419,181 @@ fn a_compound_name_lookup_escapes_its_literal() {
     assert!(query.contains(r#""Gentiana \"lutea\" \\ x"@en"#), "{query}");
 }
 
+fn values_name_entries(query: &str) -> Vec<String> {
+    let (_, after) = query
+        .split_once("VALUES ?name { ")
+        .expect("query must contain VALUES ?name");
+    let (block, _) = after
+        .split_once(" }\n")
+        .expect("VALUES ?name block must end on its line");
+    let mut entries = Vec::new();
+    let mut current = String::new();
+    let mut in_quotes = false;
+    let mut escaped = false;
+    for ch in block.chars() {
+        if escaped {
+            current.push(ch);
+            escaped = false;
+        } else if ch == '\\' && in_quotes {
+            current.push(ch);
+            escaped = true;
+        } else if ch == '"' {
+            in_quotes = !in_quotes;
+            current.push(ch);
+        } else if ch == ' ' && !in_quotes {
+            if !current.is_empty() {
+                entries.push(std::mem::take(&mut current));
+            }
+        } else {
+            current.push(ch);
+        }
+    }
+    if !current.is_empty() {
+        entries.push(current);
+    }
+    entries
+}
+
+#[test]
+fn compound_name_lookups_expand_case_variants_and_require_inchikey() {
+    for query in [
+        compound_label_query("comphene"),
+        compound_alias_query("comphene"),
+    ] {
+        assert!(
+            query.contains("SELECT DISTINCT "),
+            "multiple tags/cases must collapse per compound:\n{query}"
+        );
+        assert!(
+            query.contains("?compound wdt:P235 ?_inchikey ."),
+            "name lookup must stay restricted to chemical items with P235:\n{query}"
+        );
+        let entries = values_name_entries(&query);
+        assert_eq!(
+            entries.len(),
+            32,
+            "single word yields 2 case variants across 16 tags:\n{entries:?}"
+        );
+        for expected in [
+            "\"comphene\"@en",
+            "\"Comphene\"@en",
+            "\"comphene\"@de",
+            "\"Comphene\"@de",
+        ] {
+            assert!(
+                entries.iter().any(|entry| entry == expected),
+                "missing {expected} in:\n{query}"
+            );
+        }
+    }
+
+    let capitalized = compound_label_query("Comphene");
+    let capitalized_entries = values_name_entries(&capitalized);
+    assert_eq!(
+        capitalized_entries.len(),
+        32,
+        "capitalized input yields exact + lowercase variants across 16 tags:\n{capitalized_entries:?}"
+    );
+    assert!(
+        capitalized_entries.iter().any(|e| e == "\"Comphene\"@en")
+            && capitalized_entries.iter().any(|e| e == "\"comphene\"@en"),
+        "capitalized input must keep verbatim and lowercase variants:\n{capitalized}"
+    );
+}
+
+#[test]
+fn compound_name_case_variants_cover_mixed_multiword_punctuated_hyphenated_and_cjk() {
+    let mixed = compound_label_query("N-acetyl-D-glucosamine");
+    let mixed_entries = values_name_entries(&mixed);
+    assert_eq!(
+        mixed_entries.len(),
+        80,
+        "mixed-case hyphenated input yields 5 variants across 16 tags:\n{mixed_entries:?}"
+    );
+    for expected in [
+        "\"N-acetyl-D-glucosamine\"@en",
+        "\"n-acetyl-d-glucosamine\"@en",
+        "\"N-acetyl-d-glucosamine\"@en",
+        "\"N-Acetyl-D-Glucosamine\"@en",
+        "\"n-acetyl-d-Glucosamine\"@en",
+    ] {
+        assert!(
+            mixed_entries.iter().any(|e| e == expected),
+            "missing {expected} in:\n{mixed}"
+        );
+    }
+
+    let punctuated = compound_label_query("(+)-camphene");
+    let punctuated_entries = values_name_entries(&punctuated);
+    assert_eq!(
+        punctuated_entries.len(),
+        32,
+        "leading punctuation yields 2 variants across 16 tags:\n{punctuated_entries:?}"
+    );
+    assert!(
+        punctuated_entries
+            .iter()
+            .any(|e| e == "\"(+)-camphene\"@en")
+            && punctuated_entries
+                .iter()
+                .any(|e| e == "\"(+)-Camphene\"@en"),
+        "must capitalize first alphabetic character after punctuation:\n{punctuated}"
+    );
+
+    let multiword = compound_label_query("citric acid");
+    let multiword_entries = values_name_entries(&multiword);
+    assert_eq!(
+        multiword_entries.len(),
+        48,
+        "two-word input yields 3 variants across 16 tags:\n{multiword_entries:?}"
+    );
+    for expected in [
+        "\"citric acid\"@en",
+        "\"Citric acid\"@en",
+        "\"Citric Acid\"@en",
+    ] {
+        assert!(
+            multiword_entries.iter().any(|e| e == expected),
+            "missing {expected} in:\n{multiword}"
+        );
+    }
+
+    let hyphenated = compound_label_query("β-carotin");
+    let hyphenated_entries = values_name_entries(&hyphenated);
+    assert_eq!(
+        hyphenated_entries.len(),
+        64,
+        "hyphenated prefix input yields 4 variants across 16 tags:\n{hyphenated_entries:?}"
+    );
+    for expected in [
+        "\"β-carotin\"@de",
+        "\"Β-carotin\"@de",
+        "\"Β-Carotin\"@de",
+        "\"β-Carotin\"@de",
+    ] {
+        assert!(
+            hyphenated_entries.iter().any(|e| e == expected),
+            "missing {expected} in:\n{hyphenated}"
+        );
+    }
+
+    let cjk = compound_label_query("红雀椿素");
+    let cjk_entries = values_name_entries(&cjk);
+    assert_eq!(
+        cjk_entries.len(),
+        16,
+        "uncased script collapses to 1 variant across 16 tags:\n{cjk_entries:?}"
+    );
+    assert_eq!(
+        cjk_entries
+            .iter()
+            .filter(|e| *e == "\"红雀椿素\"@zh")
+            .count(),
+        1,
+        "uncased variant must not be duplicated:\n{cjk}"
+    );
+}
+
 #[test]
 fn a_common_name_lookup_escapes_its_literal() {
     // The name goes inside a FILTER now, where a quote would end the string.

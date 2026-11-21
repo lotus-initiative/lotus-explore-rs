@@ -86,7 +86,7 @@ Before the main result query is built, human-typed strings are resolved to QIDs:
   - Dispatched by shape (`lotus-model::structure` / `lotus-model::identify`):
     1. QID (`Q18216`) -> `compound_by_qid_query` (in web app) or direct QID seed (in CLI).
     2. InChIKey (`BSYNRYMUTXBXSQ-UHFFFAOYSA-N`) -> `compound_inchikey_query` (`wdt:P235`).
-    3. Plausible chemical name (`aspirin`) -> `compound_label_query` (`rdfs:label` across 16 language tags), then `compound_alias_query` (`skos:altLabel`).
+    3. Plausible chemical name (`aspirin`) -> `compound_label_query` (`rdfs:label` across 16 language tags and deduplicated casing variants, guarded by `wdt:P235` and `SELECT DISTINCT`), then `compound_alias_query` (`skos:altLabel`).
     4. SMILES or V2000/V3000 molfile -> `structure_compound_lookup_query` (IDSM Sachem similarity at cutoff `1.0`).
   - See [`docs/STRUCTURE-SEARCH.md`](STRUCTURE-SEARCH.md).
 - **Reference (`reference_by_doi_query` / `reference_by_qid_query`):**

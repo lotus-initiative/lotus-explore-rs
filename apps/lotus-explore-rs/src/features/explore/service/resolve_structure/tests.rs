@@ -412,8 +412,54 @@ fn salt_smiles_emits_salt_or_mixture_notice_even_without_match_and_across_cache(
     structure_cache::clear();
     let repo = StubRepo::new(vec![Ok(csv(""))]);
     let first = resolve_on("CCO.O", &repo);
-    assert_eq!(first.notices, vec![LookupNotice::SaltOrMixture]);
+    assert_eq!(
+        first.notices,
+        vec![LookupNotice::SaltOrMixture],
+        "salt SMILES must emit SaltOrMixture notice on first lookup"
+    );
     let second = resolve_on("CCO.O", &repo);
-    assert_eq!(second.notices, vec![LookupNotice::SaltOrMixture]);
-    assert_eq!(repo.taken(), 1);
+    assert_eq!(
+        second.notices,
+        vec![LookupNotice::SaltOrMixture],
+        "salt SMILES must emit SaltOrMixture notice from cache"
+    );
+    assert_eq!(repo.taken(), 1, "cached salt lookup must not repeat query");
+}
+
+#[test]
+fn lowercased_compound_name_sends_case_variants_with_p235_and_reuses_cache_across_cases() {
+    structure_cache::clear();
+    let repo = StubRepo::new(vec![
+        Ok(csv("")),
+        Ok(csv("416775,camphene,CC1(C2CCC(C2)C1=C)C")),
+    ]);
+
+    let first = resolve_on("comphene", &repo);
+    assert_eq!(
+        first.resolved.compound.as_deref(),
+        Some("Q416775"),
+        "comphene must resolve via alias fallback"
+    );
+    assert_eq!(repo.taken(), 2, "label miss falls back to alias query");
+    for query in queries(&repo) {
+        assert!(
+            query.contains("\"comphene\"@en") && query.contains("\"Comphene\"@en"),
+            "outgoing query must include case variants:\n{query}"
+        );
+        assert!(
+            query.contains("wdt:P235"),
+            "outgoing query must constrain matches with wdt:P235:\n{query}"
+        );
+    }
+
+    let second = resolve_on("Comphene", &repo);
+    assert_eq!(
+        second, first,
+        "capitalized follow-up must reuse cached resolution"
+    );
+    assert_eq!(
+        repo.taken(),
+        2,
+        "cached resolution must avoid further network queries"
+    );
 }

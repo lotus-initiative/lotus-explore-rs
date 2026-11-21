@@ -755,23 +755,20 @@ pub async fn resolve_structure<H: Http>(
         // to send the same query a second time to read it.
         let by_key = lookup_compounds(http, &compound_inchikey_query(trimmed)).await?;
         canonical = first_canonical_smiles(&by_key);
-        compounds.extend(by_key.into_iter().map(|c| c.qid));
+        push_unique_qids(&mut compounds, by_key);
     } else if lotus_model::could_be_a_compound_name(trimmed) {
         let by_label = lookup_compounds(http, &compound_label_query(trimmed)).await?;
         canonical = first_canonical_smiles(&by_label);
-        compounds.extend(by_label.into_iter().map(|c| c.qid));
+        push_unique_qids(&mut compounds, by_label);
         if compounds.is_empty() {
             let by_alias = lookup_compounds(http, &compound_alias_query(trimmed)).await?;
             canonical = first_canonical_smiles(&by_alias);
-            compounds.extend(by_alias.into_iter().map(|c| c.qid));
+            push_unique_qids(&mut compounds, by_alias);
         }
     } else {
-        compounds.extend(
-            lookup_compounds(http, &structure_compound_lookup_query(&normalized))
-                .await?
-                .into_iter()
-                .map(|c| c.qid),
-        );
+        let by_structure =
+            lookup_compounds(http, &structure_compound_lookup_query(&normalized)).await?;
+        push_unique_qids(&mut compounds, by_structure);
     }
 
     Ok(StructureResolution {
@@ -779,6 +776,18 @@ pub async fn resolve_structure<H: Http>(
         smiles: canonical.unwrap_or_else(|| normalized.clone()),
         looked_up: normalized,
     })
+}
+
+/// Append distinct compound QIDs in first-seen order.
+///
+/// Multiple language tags, casing variants, or SMILES rows can return the same compound more than
+/// once; keeping duplicates would emit repeated QIDs in `VALUES ?c { ... }`.
+fn push_unique_qids(target: &mut Vec<String>, matches: Vec<lotus_query::CompoundMatch>) {
+    for found in matches {
+        if !target.contains(&found.qid) {
+            target.push(found.qid);
+        }
+    }
 }
 
 /// The first canonical SMILES a compound lookup found, skipping rows without one.

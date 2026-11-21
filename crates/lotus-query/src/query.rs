@@ -921,44 +921,90 @@ WHERE {{
 ///
 /// A `rdfs:label` or `skos:altLabel` is language-tagged, so matching one means matching the
 /// tag too -- see [`compound_label_query`] for why that cannot be worked around. A list
-/// rather than a wildcard, a deliberate trade: these are the languages a chemical name is
-/// most likely typed in, and a name in one of the remaining ~280 will not resolve.
+/// rather than a wildcard, a deliberate trade: these are the sixteen languages a chemical
+/// name is most likely typed in, and a name in one of the remaining ~280 will not resolve.
 ///
 /// Ordered roughly by how much chemistry is published in each, so truncating costs least.
 const COMPOUND_NAME_LANGUAGES: [&str; 16] = [
     "mul", "en", "de", "fr", "es", "nl", "it", "pt", "sv", "pl", "ru", "tr", "ja", "zh", "la", "cs",
 ];
 
-fn sentence_case(s: &str) -> String {
-    let mut chars = s.chars();
-    let Some(first) = chars.next() else {
-        return String::new();
-    };
-    let mut out: String = first.to_uppercase().collect();
-    out.push_str(&chars.as_str().to_lowercase());
+/// Uppercase the first alphabetic character in an already-lowercased name.
+///
+/// Keeps leading stereochemical or locant punctuation intact (`"(+)-camphene"` ->
+/// `"(+)-Camphene"`).
+fn capitalize_first_alphabetic(lower: &str) -> String {
+    let mut out = String::with_capacity(lower.len());
+    let mut done = false;
+    for ch in lower.chars() {
+        if !done && ch.is_alphabetic() {
+            out.extend(ch.to_uppercase());
+            done = true;
+        } else {
+            out.push(ch);
+        }
+    }
     out
 }
 
-/// The `VALUES` rows for `name` (original, lowercase, sentence-case, deduplicated)
-/// under every `COMPOUND_NAME_LANGUAGES` tag.
-fn tagged_name_values(name: &str) -> String {
-    let mut variants = Vec::with_capacity(3);
-    for candidate in [name.to_string(), name.to_lowercase(), sentence_case(name)] {
+/// Title-case every alphabetic segment in an already-lowercased name.
+///
+/// Capitalizes after spaces, hyphens, and punctuation (`"citric acid"` -> `"Citric Acid"`,
+/// `"l-menthol"` -> `"L-Menthol"`).
+fn title_case_segments(lower: &str) -> String {
+    let mut out = String::with_capacity(lower.len());
+    let mut at_start = true;
+    for ch in lower.chars() {
+        if ch.is_alphabetic() {
+            if at_start {
+                out.extend(ch.to_uppercase());
+                at_start = false;
+            } else {
+                out.push(ch);
+            }
+        } else {
+            out.push(ch);
+            at_start = true;
+        }
+    }
+    out
+}
+
+/// Deduplicated casing variants of a compound name for exact-literal `VALUES` lookup.
+///
+/// Preserves the verbatim input first, then adds lowercase, sentence case, title case, and
+/// (for hyphenated names with a lowercase locant/prefix such as `β-carotin` or
+/// `trans-resveratrol`) hyphen-stem case. Non-cased scripts collapse to a single variant.
+fn name_case_variants(name: &str) -> Vec<String> {
+    let mut variants = Vec::new();
+    let mut push_unique = |candidate: String| {
         if !variants.contains(&candidate) {
             variants.push(candidate);
         }
+    };
+
+    push_unique(name.to_owned());
+    let lower = name.to_lowercase();
+    push_unique(lower.clone());
+    push_unique(capitalize_first_alphabetic(&lower));
+    push_unique(title_case_segments(&lower));
+    if let Some((prefix, rest)) = lower.rsplit_once('-') {
+        push_unique(format!("{prefix}-{}", capitalize_first_alphabetic(rest)));
     }
-    let rows = variants
-        .iter()
-        .flat_map(|variant| {
-            let escaped = escape_sparql_string(variant);
-            COMPOUND_NAME_LANGUAGES
-                .iter()
-                .map(move |tag| format!("\"{escaped}\"@{tag}"))
-        })
-        .collect::<Vec<_>>()
-        .join(" ");
-    format!("VALUES ?name {{ {rows} }}")
+    variants
+}
+
+/// The `VALUES` rows for `name`'s casing variants under every `COMPOUND_NAME_LANGUAGES` tag.
+fn tagged_name_values(name: &str) -> String {
+    let variants = name_case_variants(name);
+    let mut rows = Vec::new();
+    for variant in &variants {
+        let escaped = escape_sparql_string(variant);
+        for tag in COMPOUND_NAME_LANGUAGES {
+            rows.push(format!("\"{escaped}\"@{tag}"));
+        }
+    }
+    format!("VALUES ?name {{ {} }}", rows.join(" "))
 }
 
 /// Label (`@mul` preferred over `@en`) and SMILES (`P2017` preferred over `P233`)
@@ -1092,8 +1138,8 @@ WHERE {{
 /// The one unambiguous identifier route: an `InChIKey`'s shape is fixed by the standard, so
 /// a structure string cannot be mistaken for a name. Also the easiest of the three
 /// name-ish lookups by a wide margin -- one indexed equality on a value unique in practice,
-/// against a name lookup's `VALUES` over fifteen language tags with a fallback query behind
-/// it. Measured ~0.2s on `QLever`.
+/// against a name lookup's `VALUES` over sixteen language tags (and casing variants) with a
+/// fallback query behind it. Measured ~0.2s on `QLever`.
 ///
 /// `P2017` / `P233` SMILES comes back alongside. An exact search does not need it, but
 /// substructure and similarity ask about *other* compounds, and this is the structure they
@@ -1121,22 +1167,30 @@ WHERE {{
 /// - `FILTER(LCASE(STR(?label)) = ...)` -- a scan of 17.9M labels. **Times out.**
 /// - `?label ql:contains-word "..."` -- accepted by `QLever`, but the text index is not
 ///   loaded here, so it silently returns nothing.
-/// - `VALUES ?name { "aspirin"@en ... }` -- index-served, **~0.15s**. This one.
+/// - `VALUES ?name { "aspirin"@en "Aspirin"@en ... }` -- index-served, **~0.15–0.5s**. This one.
 ///
-/// Hence the language tag is enumerated rather than discarded, which is why
-/// `COMPOUND_NAME_LANGUAGES` exists.
+/// Hence the language tag and common casing variants are enumerated in `VALUES` rather than
+/// discarded with `LCASE`, which is why `COMPOUND_NAME_LANGUAGES` and `name_case_variants` exist.
 ///
-/// `?compound_qid` is projected as an integer so the CSV carries a bare `Q…`, and
+/// `?compound wdt:P235 ?_inchikey .` restricts matches to items carrying an `InChIKey` (the same
+/// chemical-entity discriminator used by the main result queries), preventing capitalized names
+/// such as `"Aspirin"`, `"Caffeine"`, `"Morphine"`, or `"Taxol"` from resolving to trade names,
+/// scholarly articles, bands, songs, or disambiguation pages -- and letting `Taxol` fall through
+/// to [`compound_alias_query`] where `paclitaxel` (`Q423762`) carries it as `skos:altLabel`.
+///
+/// `SELECT DISTINCT` collapses rows when several language tags or casing variants match the same
+/// compound, `?compound_qid` is projected as an integer so the CSV carries a bare `Q…`, and
 /// `STRSTARTS` keeps lexemes out: `?compound rdfs:label "aspirin"@en` also matches three
 /// senses of the English lexeme, which are not compounds.
 #[must_use]
 pub fn compound_label_query(name: &str) -> String {
     format!(
         "{PREFIXES}
-SELECT (xsd:integer(STRAFTER(STR(?compound), \"Q\")) AS ?compound_qid) ?compound_label ?canonical_smiles ?matched_by
+SELECT DISTINCT (xsd:integer(STRAFTER(STR(?compound), \"Q\")) AS ?compound_qid) ?compound_label ?canonical_smiles ?matched_by
 WHERE {{
   {values}
   ?compound rdfs:label ?name .
+  ?compound wdt:P235 ?_inchikey .
   FILTER(STRSTARTS(STR(?compound), \"http://www.wikidata.org/entity/Q\"))
 {COMPOUND_LOOKUP_PROPERTIES}
   BIND(\"label\" AS ?matched_by)
@@ -1146,20 +1200,22 @@ WHERE {{
 }
 
 /// Look a compound up by alias (`skos:altLabel`), on the terms of
-/// [`compound_label_query`].
+/// [`compound_label_query`] (expanding casing variants via `VALUES`, requiring `wdt:P235`, and
+/// projecting `SELECT DISTINCT`).
 ///
 /// A separate query rather than a `UNION` with the label one, and the reason is
 /// measured rather than stylistic: `QLever` will not push a `VALUES` down into both
 /// arms of a union, so it scans each property instead. `label UNION altLabel`
-/// **times out** where each alone answers in under a quarter of a second.
+/// **times out** where each alone answers in under half a second.
 #[must_use]
 pub fn compound_alias_query(name: &str) -> String {
     format!(
         "{PREFIXES_WITH_SKOS}
-SELECT (xsd:integer(STRAFTER(STR(?compound), \"Q\")) AS ?compound_qid) ?compound_label ?canonical_smiles ?matched_by
+SELECT DISTINCT (xsd:integer(STRAFTER(STR(?compound), \"Q\")) AS ?compound_qid) ?compound_label ?canonical_smiles ?matched_by
 WHERE {{
   {values}
   ?compound skos:altLabel ?name .
+  ?compound wdt:P235 ?_inchikey .
   FILTER(STRSTARTS(STR(?compound), \"http://www.wikidata.org/entity/Q\"))
 {COMPOUND_LOOKUP_PROPERTIES}
   BIND(\"alias\" AS ?matched_by)

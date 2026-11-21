@@ -59,6 +59,18 @@ the named test fails if it breaks.
   URL encoding, and cache keys (do not `.trim()` a Molfile).
 - `RowExporter` omits empty CSV cells when emitting JSON bindings; token-budget
   error extraction parses multi-digit durations (`> 30s`).
+- `compound_label_query` and `compound_alias_query` enumerate deduplicated
+  casing variants (`name_case_variants`) across `COMPOUND_NAME_LANGUAGES` in
+  `VALUES ?name { ... }` instead of `LCASE(STR(...))` (which scans 17.9M labels
+  and times out), use `SELECT DISTINCT`, and require `?compound wdt:P235
+  ?_inchikey .` so capitalized names do not resolve to trade names, scholarly
+  articles, songs, or disambiguation pages (or shadow chemical `skos:altLabel`
+  matches such as `Taxol`). `lotus_search::resolve_structure` deduplicates QIDs
+  in first-seen order. Tests:
+  `compound_name_lookups_expand_case_variants_and_require_inchikey`,
+  `compound_name_case_variants_cover_mixed_multiword_punctuated_hyphenated_and_cjk`,
+  `compound_name_lookup_sends_case_variants_and_inchikey_guard_and_dedups_qids`,
+  `lowercased_compound_name_sends_case_variants_with_p235_and_reuses_cache_across_cases`.
 
 ## Server and exports
 

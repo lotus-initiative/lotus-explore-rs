@@ -393,3 +393,46 @@ async fn resolve_structure_preserves_molfile_leading_blank_lines() {
         http.queries()
     );
 }
+
+#[tokio::test]
+async fn compound_name_lookup_sends_case_variants_and_inchikey_guard_and_dedups_qids() {
+    let empty = "compound_qid,compound_label,canonical_smiles,matched_by\n";
+    let alias_hit = format!("{empty}416775,camphene,CC1(C2CCC(C2)C1=C)C,alias\n");
+    let http = Scripted::new(vec![(200, empty), (200, &alias_hit)]);
+
+    let resolution = resolve_structure(&http, "comphene")
+        .await
+        .expect("lowercased alias resolves");
+    assert_eq!(
+        resolution.compounds,
+        vec!["Q416775".to_string()],
+        "comphene must resolve via Comphene alias to Q416775"
+    );
+
+    let sent = http.queries();
+    assert_eq!(sent.len(), 2, "label miss falls through to alias lookup");
+    for query in &sent {
+        assert!(
+            query.contains("\"comphene\"@en") && query.contains("\"Comphene\"@en"),
+            "outgoing query must enumerate both case variants:\n{query}"
+        );
+        assert!(
+            query.contains("SELECT DISTINCT ") && query.contains("wdt:P235"),
+            "outgoing query must use SELECT DISTINCT and wdt:P235:\n{query}"
+        );
+    }
+
+    let dup_rows = "compound_qid,compound_label,canonical_smiles,matched_by\n\
+                    416775,camphene,CC1(C2CCC(C2)C1=C)C,label\n\
+                    416775,camphene,C=C1C2CCC(C2)C1(C)C,label\n\
+                    18216,aspirin,CC(=O)OC1=CC=CC=C1C(=O)O,label\n";
+    let dup_http = Scripted::new(vec![(200, dup_rows)]);
+    let deduped = resolve_structure(&dup_http, "camphene")
+        .await
+        .expect("duplicate QID rows resolve");
+    assert_eq!(
+        deduped.compounds,
+        vec!["Q416775".to_string(), "Q18216".to_string()],
+        "duplicate compound QIDs must be deduplicated in first-seen order"
+    );
+}
