@@ -634,7 +634,7 @@ pub struct RawRow<'a> {
 ///
 /// Built by [`ColumnarBuilder::build`]; there is no other way to make one, so a
 /// set always has its statistics computed and its dictionaries consistent.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ColumnarResultSet {
     compound_ids: Vec<u32>,
     taxon_ids: Vec<u32>,
@@ -657,6 +657,12 @@ pub struct ColumnarResultSet {
     reference_node_hashes: SparseStrings,
     stats: DatasetStats,
     /// Identifies this set, so it can be compared without being traversed.
+    ///
+    /// [`Default`] leaves this at **zero**, not one from the counter: every empty
+    /// set means the same thing, and the reducer builds one to reset state, so a
+    /// counter would make a freshly reset state look changed and re-render the
+    /// table for nothing. Zero is not an id [`ColumnarBuilder::build`] hands out,
+    /// so an empty set never equals a real one.
     generation: u64,
 }
 
@@ -682,46 +688,7 @@ impl PartialEq for ColumnarResultSet {
 /// would cost eight bytes of padding per compound.
 const NO_MASS: f64 = f64::NAN;
 
-impl Default for ColumnarResultSet {
-    /// The empty set.
-    ///
-    /// Generation **zero**, not one from the counter: every empty set means the same
-    /// thing, and the reducer builds one to reset state, so a counter would make a
-    /// freshly reset state look changed and re-render the table for nothing. Zero
-    /// is not an id [`ColumnarBuilder::build`] hands out, so an empty set never
-    /// equals a real one.
-    fn default() -> Self {
-        Self::empty_fields()
-    }
-}
-
 impl ColumnarResultSet {
-    /// Every field at its default, with no identity stamped on it.
-    fn empty_fields() -> Self {
-        Self {
-            compound_ids: Vec::new(),
-            taxon_ids: Vec::new(),
-            reference_ids: Vec::new(),
-            statements: Vec::new(),
-            compounds: QidDictionary::new(),
-            compound_names: SparseStrings::new(),
-            compound_inchikeys: SparseStrings::new(),
-            compound_smiles: SparseStrings::new(),
-            compound_masses: Vec::new(),
-            compound_formulas: SparseStrings::new(),
-            taxa: QidDictionary::new(),
-            taxon_names: SparseStrings::new(),
-            references: QidDictionary::new(),
-            reference_titles: SparseStrings::new(),
-            reference_dois: SparseStrings::new(),
-            reference_years: Vec::new(),
-            statement_fallbacks: SparseStrings::new(),
-            reference_node_hashes: SparseStrings::new(),
-            stats: DatasetStats::default(),
-            generation: 0,
-        }
-    }
-
     /// Build a set from rows that already exist as [`CompoundEntry`] values.
     ///
     /// For the CLI, for tests, and for anything holding a page rather than a

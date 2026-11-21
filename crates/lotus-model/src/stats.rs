@@ -62,17 +62,6 @@ pub enum SmilesSearchType {
     Similarity,
 }
 
-impl SmilesSearchType {
-    /// Whether answering this one requires the structure service.
-    ///
-    /// Exact does not, and the query is built accordingly. The single place that says
-    /// so, so builder and panel cannot pick differently.
-    #[must_use]
-    pub const fn needs_structure_service(self) -> bool {
-        !matches!(self, Self::Exact)
-    }
-}
-
 /// The Tanimoto cutoff a similarity search uses when the reader does not set one.
 ///
 /// 1.0 means an identical fingerprint: the same molecule. A default below that
@@ -82,6 +71,15 @@ impl SmilesSearchType {
 pub const DEFAULT_STRUCTURE_THRESHOLD: f64 = 1.0;
 
 impl SmilesSearchType {
+    /// Whether answering this one requires the structure service.
+    ///
+    /// Exact does not, and the query is built accordingly. The single place that says
+    /// so, so builder and panel cannot pick differently.
+    #[must_use]
+    pub const fn needs_structure_service(self) -> bool {
+        !matches!(self, Self::Exact)
+    }
+
     /// The spelling used in URLs, JSON and on the command line.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
@@ -98,9 +96,10 @@ impl SmilesSearchType {
     /// rather than failing a search over a bad URL parameter.
     #[must_use]
     pub fn parse(s: &str) -> Self {
-        if s.trim().eq_ignore_ascii_case("substructure") {
+        let s = s.trim();
+        if s.eq_ignore_ascii_case("substructure") {
             Self::Substructure
-        } else if s.trim().eq_ignore_ascii_case("similarity") {
+        } else if s.eq_ignore_ascii_case("similarity") {
             Self::Similarity
         } else {
             Self::Exact
@@ -134,10 +133,13 @@ impl ElementState {
     /// Infallible, like [`SmilesSearchType::parse`].
     #[must_use]
     pub fn parse(s: &str) -> Self {
-        match s.trim().to_ascii_lowercase().as_str() {
-            "required" => Self::Required,
-            "excluded" => Self::Excluded,
-            _ => Self::Allowed,
+        let s = s.trim();
+        if s.eq_ignore_ascii_case("required") {
+            Self::Required
+        } else if s.eq_ignore_ascii_case("excluded") {
+            Self::Excluded
+        } else {
+            Self::Allowed
         }
     }
 }

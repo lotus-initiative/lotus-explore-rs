@@ -86,9 +86,10 @@ pub fn validate_criteria(criteria: &SearchCriteria, year_max: u16) -> Result<(),
     // The `--explain` path resolves nothing by design, so a DOI printed into
     // that query becomes an IRI no endpoint can answer. That path guards itself
     // and refuses, the same way it refuses an unresolvable taxon name.
-    if !criteria.reference.trim().is_empty()
-        && !super::looks_like_reference_qid(criteria.reference.trim())
-        && !super::looks_like_doi(criteria.reference.trim())
+    let reference = criteria.reference.trim();
+    if !reference.is_empty()
+        && !super::looks_like_reference_qid(reference)
+        && !super::looks_like_doi(reference)
     {
         return Err(ValidationError::ReferenceNotAIdentifier);
     }
@@ -153,10 +154,7 @@ fn validate_structure(structure: &str) -> Result<(), ValidationError> {
     }
     // A single lowercase letter is a typo — a dropped `1` in `C1CC1`, a stray `c`
     // — and the endpoint would answer with an unhelpful parse error.
-    if trimmed.chars().count() == 1
-        && super::classify_structure(trimmed) == super::StructureKind::Smiles
-        && trimmed.starts_with(|c: char| c.is_ascii_lowercase())
-    {
+    if trimmed.len() == 1 && trimmed.starts_with(|c: char| c.is_ascii_lowercase()) {
         return Err(ValidationError::StructureNotAMolecule);
     }
     Ok(())
