@@ -124,6 +124,21 @@ fn builds_compound_taxon_graph_with_deduplicated_corroboration_weights() {
         0,
         "no reference vertices in CompoundTaxon"
     );
+    assert_eq!(
+        model.available_kind_count(NodeKind::Compound),
+        2,
+        "two distinct compounds in filtered rows"
+    );
+    assert_eq!(
+        model.available_kind_count(NodeKind::Taxon),
+        2,
+        "two distinct taxa in filtered rows"
+    );
+    assert_eq!(
+        model.available_kind_count(NodeKind::Reference),
+        3,
+        "all three distinct references remain reported via available_kind_count"
+    );
 
     let c1 = model
         .index_of(NodeKey::new(NodeKind::Compound, 1))
@@ -271,6 +286,8 @@ fn structure_only_rows_yield_no_occurrence_edges_reason() {
         Some(GraphEmptyReason::NoOccurrenceEdges),
         "must explain that rows lack occurrence links"
     );
+    assert_eq!(model.available_kind_count(NodeKind::Compound), 2);
+    assert_eq!(model.available_kind_count(NodeKind::Taxon), 0);
 
     let no_rows = build_graph(&set, &[], GraphProjection::Auto, GraphScope::default());
     assert_eq!(
@@ -278,6 +295,7 @@ fn structure_only_rows_yield_no_occurrence_edges_reason() {
         Some(GraphEmptyReason::NoRows),
         "empty row slice must yield NoRows"
     );
+    assert_eq!(no_rows.available_kind_count(NodeKind::Compound), 0);
 }
 
 #[test]
@@ -603,4 +621,66 @@ fn search_all_nodes_matches_inchikey_doi_and_handles_empty_edges() {
         search_all_nodes(&set, &[], "Pinene", 10).is_empty(),
         "empty rows returns empty"
     );
+}
+
+#[test]
+fn graph_projection_kind_membership_omission_and_toggle_cover_all_axes() {
+    assert!(GraphProjection::Auto.includes_kind(NodeKind::Compound));
+    assert!(GraphProjection::Auto.includes_kind(NodeKind::Taxon));
+    assert!(GraphProjection::Auto.includes_kind(NodeKind::Reference));
+    assert_eq!(GraphProjection::Auto.omitted_kind(), None);
+    assert_eq!(
+        GraphProjection::toggle_kind(GraphProjection::Auto, NodeKind::Compound),
+        None
+    );
+
+    assert!(GraphProjection::Tripartite.includes_kind(NodeKind::Compound));
+    assert!(GraphProjection::Tripartite.includes_kind(NodeKind::Taxon));
+    assert!(GraphProjection::Tripartite.includes_kind(NodeKind::Reference));
+    assert_eq!(GraphProjection::Tripartite.omitted_kind(), None);
+    assert_eq!(
+        GraphProjection::toggle_kind(GraphProjection::Tripartite, NodeKind::Reference),
+        Some(GraphProjection::CompoundTaxon)
+    );
+    assert_eq!(
+        GraphProjection::toggle_kind(GraphProjection::Tripartite, NodeKind::Taxon),
+        Some(GraphProjection::CompoundReference)
+    );
+    assert_eq!(
+        GraphProjection::toggle_kind(GraphProjection::Tripartite, NodeKind::Compound),
+        Some(GraphProjection::TaxonReference)
+    );
+
+    let pairs = [
+        (
+            GraphProjection::CompoundTaxon,
+            NodeKind::Compound,
+            NodeKind::Taxon,
+            NodeKind::Reference,
+        ),
+        (
+            GraphProjection::CompoundReference,
+            NodeKind::Compound,
+            NodeKind::Reference,
+            NodeKind::Taxon,
+        ),
+        (
+            GraphProjection::TaxonReference,
+            NodeKind::Taxon,
+            NodeKind::Reference,
+            NodeKind::Compound,
+        ),
+    ];
+    for (proj, a, b, omitted) in pairs {
+        assert!(proj.includes_kind(a));
+        assert!(proj.includes_kind(b));
+        assert!(!proj.includes_kind(omitted));
+        assert_eq!(proj.omitted_kind(), Some(omitted));
+        assert_eq!(
+            GraphProjection::toggle_kind(proj, omitted),
+            Some(GraphProjection::Tripartite)
+        );
+        assert_eq!(GraphProjection::toggle_kind(proj, a), None);
+        assert_eq!(GraphProjection::toggle_kind(proj, b), None);
+    }
 }

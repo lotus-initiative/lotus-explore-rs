@@ -112,6 +112,49 @@ impl GraphProjection {
             _ => None,
         }
     }
+
+    /// Whether vertices of `kind` participate in this projection.
+    #[must_use]
+    pub const fn includes_kind(self, kind: NodeKind) -> bool {
+        match self {
+            Self::Auto | Self::Tripartite => true,
+            Self::CompoundTaxon => !matches!(kind, NodeKind::Reference),
+            Self::CompoundReference => !matches!(kind, NodeKind::Taxon),
+            Self::TaxonReference => !matches!(kind, NodeKind::Compound),
+        }
+    }
+
+    /// The single entity kind omitted by a 2-type projection, or `None` when
+    /// all three kinds participate.
+    #[must_use]
+    pub const fn omitted_kind(self) -> Option<NodeKind> {
+        match self {
+            Self::Auto | Self::Tripartite => None,
+            Self::CompoundTaxon => Some(NodeKind::Reference),
+            Self::CompoundReference => Some(NodeKind::Taxon),
+            Self::TaxonReference => Some(NodeKind::Compound),
+        }
+    }
+
+    /// Next projection when the user toggles `kind` from a resolved `effective`
+    /// projection.
+    ///
+    /// Returns `None` when `effective` already shows only two entity types and
+    /// `kind` is one of them (a graph needs at least two entity types).
+    #[must_use]
+    pub const fn toggle_kind(effective: Self, kind: NodeKind) -> Option<Self> {
+        if !effective.includes_kind(kind) {
+            return Some(Self::Tripartite);
+        }
+        if matches!(effective, Self::Tripartite) {
+            return Some(match kind {
+                NodeKind::Reference => Self::CompoundTaxon,
+                NodeKind::Taxon => Self::CompoundReference,
+                NodeKind::Compound => Self::TaxonReference,
+            });
+        }
+        None
+    }
 }
 
 /// Which subset of the filtered graph is projected for rendering.
@@ -244,6 +287,17 @@ pub struct GraphModel {
     pub top_hubs: Vec<usize>,
     /// Counts of retained vertices per [`NodeKind`] (`[Compound, Taxon, Reference]`).
     pub kind_counts: [usize; 3],
+    /// Counts of distinct entities per [`NodeKind`] across all filtered rows
+    /// before projection or overview capping.
+    pub available_kind_counts: [usize; 3],
+}
+
+const fn slot_count(counts: [usize; 3], kind: NodeKind) -> usize {
+    match kind {
+        NodeKind::Compound => counts[0],
+        NodeKind::Taxon => counts[1],
+        NodeKind::Reference => counts[2],
+    }
 }
 
 impl GraphModel {
@@ -310,11 +364,14 @@ impl GraphModel {
     /// Number of retained vertices of a given [`NodeKind`].
     #[must_use]
     pub const fn kind_count(&self, kind: NodeKind) -> usize {
-        match kind {
-            NodeKind::Compound => self.kind_counts[0],
-            NodeKind::Taxon => self.kind_counts[1],
-            NodeKind::Reference => self.kind_counts[2],
-        }
+        slot_count(self.kind_counts, kind)
+    }
+
+    /// Number of distinct entities of `kind` present across the filtered rows
+    /// before projection or overview capping.
+    #[must_use]
+    pub const fn available_kind_count(&self, kind: NodeKind) -> usize {
+        slot_count(self.available_kind_counts, kind)
     }
 
     /// Direct neighbors of `node_idx` sorted by descending edge weight, then degree, then key.

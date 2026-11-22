@@ -75,23 +75,39 @@ pub fn build_graph(
     projection: GraphProjection,
     scope: GraphScope,
 ) -> GraphModel {
-    let (node_stats, kind_counts) = collect_node_stats(set, rows);
-    let effective_projection =
-        resolve_projection(projection, kind_counts[0], kind_counts[1], kind_counts[2]);
+    let (node_stats, available_kind_counts) = collect_node_stats(set, rows);
+    let effective_projection = resolve_projection(
+        projection,
+        available_kind_counts[0],
+        available_kind_counts[1],
+        available_kind_counts[2],
+    );
 
     if rows.is_empty() {
-        return empty_graph(effective_projection, GraphEmptyReason::NoRows);
+        return empty_graph(
+            effective_projection,
+            GraphEmptyReason::NoRows,
+            available_kind_counts,
+        );
     }
 
     if let GraphScope::Ego { center, .. } = scope
         && !node_stats.contains_key(&center)
     {
-        return empty_graph(effective_projection, GraphEmptyReason::CenterNotInRows);
+        return empty_graph(
+            effective_projection,
+            GraphEmptyReason::CenterNotInRows,
+            available_kind_counts,
+        );
     }
 
     let edge_map = aggregate_edges(set, rows, effective_projection);
     if edge_map.is_empty() {
-        return empty_graph(effective_projection, GraphEmptyReason::NoOccurrenceEdges);
+        return empty_graph(
+            effective_projection,
+            GraphEmptyReason::NoOccurrenceEdges,
+            available_kind_counts,
+        );
     }
 
     let degree_map = compute_degrees(&edge_map);
@@ -134,6 +150,7 @@ pub fn build_graph(
         empty_reason: None,
         top_hubs,
         kind_counts: out_kind_counts,
+        available_kind_counts,
     }
 }
 
@@ -207,6 +224,7 @@ pub fn pivot_criteria_for_node(
 const fn empty_graph(
     effective_projection: GraphProjection,
     reason: GraphEmptyReason,
+    available_kind_counts: [usize; 3],
 ) -> GraphModel {
     GraphModel {
         nodes: Vec::new(),
@@ -218,6 +236,7 @@ const fn empty_graph(
         empty_reason: Some(reason),
         top_hubs: Vec::new(),
         kind_counts: [0; 3],
+        available_kind_counts,
     }
 }
 
