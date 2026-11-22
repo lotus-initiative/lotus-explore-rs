@@ -10,6 +10,23 @@ keywords = ["bioinformatics", "lotus", "sparql", "wikidata"]
 categories = ["science", "web-programming"]
 publish = false
 
+[features]
+default = ["reqwest"]
+# `reqwest` is the only place this workspace knows about HTTP. With the feature
+# off the crate still builds, and the search is testable against a two-method
+# trait instead -- which is how `tests/search_pipeline.rs` runs with no network.
+#
+# `futures` is optional because the only wasm code that uses it is the streaming
+# response reader, and that lives in `reqwest_client` behind this feature. Declared
+# unconditionally it was an unused dependency in a `--no-default-features` build,
+# which `./mk check-wasm-search` runs -- the "pure half" that has to compile with no
+# HTTP stack at all is the whole point of that task.
+# `gloo-timers` likewise: the stall watchdog it times is part of the same reader.
+reqwest = ["dep:futures", "dep:gloo-timers", "dep:reqwest"]
+# A scripted transport, for the crates above that need to test a query without
+# a network. Off by default: a test double is not part of a consumer's API.
+testing = []
+
 [dependencies]
 bytes = "1.12"
 lotus-model = { workspace = true }
@@ -57,23 +74,6 @@ js-sys = { workspace = true }
 reqwest = { workspace = true, features = ["stream"], optional = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
-
-[features]
-default = ["reqwest"]
-# `reqwest` is the only place this workspace knows about HTTP. With the feature
-# off the crate still builds, and the search is testable against a two-method
-# trait instead -- which is how `tests/search_pipeline.rs` runs with no network.
-#
-# `futures` is optional because the only wasm code that uses it is the streaming
-# response reader, and that lives in `reqwest_client` behind this feature. Declared
-# unconditionally it was an unused dependency in a `--no-default-features` build,
-# which `./mk check-wasm-search` runs -- the "pure half" that has to compile with no
-# HTTP stack at all is the whole point of that task.
-# `gloo-timers` likewise: the stall watchdog it times is part of the same reader.
-reqwest = ["dep:futures", "dep:gloo-timers", "dep:reqwest"]
-# A scripted transport, for the crates above that need to test a query without
-# a network. Off by default: a test double is not part of a consumer's API.
-testing = []
 
 [lints]
 workspace = true

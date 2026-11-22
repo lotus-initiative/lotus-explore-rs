@@ -2,7 +2,8 @@ name: Nightly
 
 on:
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '0 2 * * 1-6'
+    - cron: '0 2 * * 0'
   workflow_dispatch:
 
 permissions:
@@ -17,10 +18,10 @@ env:
   GITHUB_TOKEN: ${{ github.token }} # binstall rate limits
 
 jobs:
-  nightly:
-    name: ./mk ci-nightly
+  nightly-checks:
+    name: ./mk ci-nightly-checks
     runs-on: ubuntu-latest
-    timeout-minutes: 360 # full mutation testing of a large workspace takes hours
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -32,6 +33,109 @@ jobs:
         uses: $/.github/actions/setup
         with:
           tier: nightly
+          save-cache: "true"
 
-      - name: Run nightly gates
-        run: ./mk ci-nightly
+      - name: Run nightly non-mutation sweeps
+        run: ./mk ci-nightly-checks
+
+  mutants-plan:
+    name: Plan nightly mutants
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+      base: ${{ steps.plan.outputs.base }}
+      mutants: ${{ steps.plan.outputs.mutants }}
+      shards: ${{ steps.plan.outputs.shards }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup
+        uses: $/.github/actions/setup
+        with:
+          tier: ci
+          save-cache: "false"
+
+      - name: Compute nightly mutant shards
+        id: plan
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          dow="$(date -u +%u)"
+          if [ "$EVENT_NAME" = "schedule" ] && [ -z "$(git log --since='24 hours ago' --oneline -n 1 2>/dev/null)" ]; then
+            echo "Idle 24h on scheduled run; skipping mutation testing"
+            {
+              echo "mode=affected"
+              echo "base="
+              echo "mutants=0"
+              echo "shards=0"
+              echo "matrix=[]"
+            } >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mode="full"
+          base=""
+          if [ "$EVENT_NAME" = "schedule" ] && [ "$dow" != "7" ]; then
+            base="$(git rev-list -n 1 --before='26 hours ago' HEAD 2>/dev/null || true)"
+            if [ -n "$base" ]; then
+              mode="affected"
+            fi
+          fi
+          if [ "$mode" = "affected" ]; then
+            plan="$(./mk mutants-plan --mode affected --base "$base")"
+          else
+            plan="$(./mk mutants-plan --mode full)"
+          fi
+          echo "$plan"
+          mutants="$(jq -r '.mutants' <<<"$plan")"
+          shards="$(jq -r '.shards' <<<"$plan")"
+          matrix="$(jq -c '[range(0; .shards)]' <<<"$plan")"
+          {
+            echo "mode=$mode"
+            echo "base=$base"
+            echo "mutants=$mutants"
+            echo "shards=$shards"
+            echo "matrix=$matrix"
+          } >>"$GITHUB_OUTPUT"
+
+  mutants-shard:
+    name: ./mk mutants (${{ matrix.shard }})
+    needs: [mutants-plan, nightly-checks]
+    if: ${{ needs.mutants-plan.outputs.mutants != '0' && needs.mutants-plan.outputs.shards != '0' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJson(needs.mutants-plan.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup
+        uses: $/.github/actions/setup
+        with:
+          tier: ci
+          save-cache: "false"
+
+      - name: Run nightly mutation shard
+        env:
+          MUTANTS_IN_PLACE: "1"
+          MODE: ${{ needs.mutants-plan.outputs.mode }}
+          BASE: ${{ needs.mutants-plan.outputs.base }}
+          SHARD: ${{ matrix.shard }}
+          TOTAL: ${{ needs.mutants-plan.outputs.shards }}
+        run: |
+          if [ "$MODE" = "affected" ] && [ -n "$BASE" ]; then
+            ./mk mutants-affected "$BASE" --shard "$SHARD/$TOTAL" --sharding slice --baseline=skip --timeout "${MUTANTS_TIMEOUT:-120}"
+          else
+            ./mk mutants --shard "$SHARD/$TOTAL" --sharding slice --baseline=skip --timeout "${MUTANTS_TIMEOUT:-120}"
+          fi

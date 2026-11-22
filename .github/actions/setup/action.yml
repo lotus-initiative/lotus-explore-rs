@@ -8,6 +8,9 @@ inputs:
   cache:
     description: Restore and save the Cargo cache (disable for release builds)
     default: "true"
+  save-cache:
+    description: Save Cargo and pinned tool caches (disable in parallel matrix shards)
+    default: "true"
 
 runs:
   using: composite
@@ -19,6 +22,25 @@ runs:
     - name: Cache Cargo
       if: inputs.cache == 'true'
       uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      with:
+        shared-key: rusti-graben
+        save-if: ${{ inputs.save-cache }}
+
+    - name: Cache pinned tools
+      if: inputs.cache == 'true' && inputs.save-cache == 'true'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cargo/mk-tools
+        key: ${{ runner.os }}-mk-tools-${{ inputs.tier }}-${{ hashFiles('mk.versions', 'mk.local') }}
+        restore-keys: ${{ runner.os }}-mk-tools-${{ inputs.tier }}-
+
+    - name: Restore pinned tools
+      if: inputs.cache == 'true' && inputs.save-cache != 'true'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cargo/mk-tools
+        key: ${{ runner.os }}-mk-tools-${{ inputs.tier }}-${{ hashFiles('mk.versions', 'mk.local') }}
+        restore-keys: ${{ runner.os }}-mk-tools-${{ inputs.tier }}-
 
     - name: Install cargo-binstall
       uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3

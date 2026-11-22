@@ -2,10 +2,6 @@
 # Everything here belongs to this repository; mk and mk.versions are standard
 # and kept in sync by the template's scripts/adopt.sh.
 #
-# Prepend Cargo's bin directory so tools installed/pinned there (for example
-# tombi 1.9.9) take precedence over system/Homebrew versions on PATH.
-export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
-#
 # LOCAL_CI_GATES=(task ...)       cargo-make tasks added to ./mk ci (shown as local:task)
 # LOCAL_NIGHTLY_GATES=(task ...)  cargo-make tasks added to ./mk ci-nightly
 # LOCAL_OVERRIDES=(gate=task ...) standard gates run as this repository's own cargo-make

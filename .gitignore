@@ -38,3 +38,4 @@ GEMINI.md
 lcov.info
 /mutants.out*/
 .DS_Store
+mutants.out*/

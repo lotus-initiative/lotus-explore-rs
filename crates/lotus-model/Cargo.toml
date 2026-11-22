@@ -10,6 +10,25 @@ keywords = ["bioinformatics", "lotus", "natural-products"]
 categories = ["science"]
 publish = false
 
+[features]
+# Storage reporting, read by `lotus-query/tests/bench.rs` and nothing else.
+#
+# Behind a feature so that it is absent from the default build: both functions
+# exist to be *read*, reporting a breakdown of a set's own storage so an
+# optimisation has something to aim at.
+#
+# The feature does not keep them out of mutation testing. cargo-mutants mutates
+# the source without evaluating `cfg`, so with the feature off every mutant of
+# them built, passed and was reported missed -- ~78 survivors no test could reach.
+# The dev-dependency above turns it on for this crate's own tests, where
+# `src/columnar/tests.rs` pins both figures to exact bytes.
+diagnostics = []
+
+# The shared test fixtures in `src/testing.rs`, for this crate's integration
+# tests and for `lotus-query`'s. Off by default: a fixture is not part of a
+# consumer's API, and it costs mutants to ship one.
+testing = []
+
 [dependencies]
 # `FxHashMap` for the dictionaries. The standard `HashMap` hashes with SipHash,
 # which is a deliberate choice against hash-flooding and costs roughly an order of
@@ -32,25 +51,6 @@ thiserror = { workspace = true }
 #
 # `diagnostics` too, for the reason given at the feature below.
 lotus-model = { workspace = true, features = ["diagnostics", "testing"] }
-
-[features]
-# Storage reporting, read by `lotus-query/tests/bench.rs` and nothing else.
-#
-# Behind a feature so that it is absent from the default build: both functions
-# exist to be *read*, reporting a breakdown of a set's own storage so an
-# optimisation has something to aim at.
-#
-# The feature does not keep them out of mutation testing. cargo-mutants mutates
-# the source without evaluating `cfg`, so with the feature off every mutant of
-# them built, passed and was reported missed -- ~78 survivors no test could reach.
-# The dev-dependency above turns it on for this crate's own tests, where
-# `src/columnar/tests.rs` pins both figures to exact bytes.
-diagnostics = []
-
-# The shared test fixtures in `src/testing.rs`, for this crate's integration
-# tests and for `lotus-query`'s. Off by default: a fixture is not part of a
-# consumer's API, and it costs mutants to ship one.
-testing = []
 
 [lints]
 workspace = true

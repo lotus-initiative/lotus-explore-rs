@@ -139,3 +139,8 @@ test_tool = "nextest"
 # the tests: cargo-mutants reports a build failure as unviable rather than caught.
 
 timeout_multiplier = 1.5
+
+# Skip gitignored target artifacts (~5-10x faster working-tree copies) and cap
+# denied lints during mutation so non-fatal diagnostics do not mask real mutants.
+gitignore = true
+cap_lints = true

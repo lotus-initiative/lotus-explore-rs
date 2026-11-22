@@ -18,8 +18,8 @@ env:
   GITHUB_TOKEN: ${{ github.token }} # binstall rate limits
 
 jobs:
-  ci:
-    name: ./mk ci
+  ci-core:
+    name: ./mk ci-core
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -33,9 +33,10 @@ jobs:
         uses: $/.github/actions/setup
         with:
           tier: ci
+          save-cache: "true"
 
-      - name: Run blocking gates
-        run: ./mk ci
+      - name: Run blocking non-mutation gates
+        run: ./mk ci-core
 
       # nextest writes a JUnit report (see .config/nextest.toml), so a failure names its test.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v4
@@ -45,6 +46,76 @@ jobs:
           path: target/nextest/ci/
           if-no-files-found: ignore
           retention-days: 14
+
+  mutants-plan:
+    name: Plan diff mutants
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      mutants: ${{ steps.plan.outputs.mutants }}
+      shards: ${{ steps.plan.outputs.shards }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup
+        uses: $/.github/actions/setup
+        with:
+          tier: ci
+          save-cache: "false"
+
+      - name: Compute diff mutant shards
+        id: plan
+        run: |
+          plan="$(./mk mutants-plan --mode diff)"
+          echo "$plan"
+          mutants="$(jq -r '.mutants' <<<"$plan")"
+          shards="$(jq -r '.shards' <<<"$plan")"
+          matrix="$(jq -c '[range(0; .shards)]' <<<"$plan")"
+          {
+            echo "mutants=$mutants"
+            echo "shards=$shards"
+            echo "matrix=$matrix"
+          } >>"$GITHUB_OUTPUT"
+
+  mutants-diff:
+    name: ./mk mutants-diff (${{ matrix.shard }})
+    needs: [ci-core, mutants-plan]
+    if: ${{ needs.mutants-plan.outputs.mutants != '0' && needs.mutants-plan.outputs.shards != '0' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJson(needs.mutants-plan.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup
+        uses: $/.github/actions/setup
+        with:
+          tier: ci
+          save-cache: "false"
+
+      - name: Run diff mutation shard
+        env:
+          MUTANTS_IN_PLACE: "1"
+          SHARD: ${{ matrix.shard }}
+          TOTAL: ${{ needs.mutants-plan.outputs.shards }}
+        run: |
+          if [ "$TOTAL" -gt 1 ]; then
+            ./mk mutants-diff --shard "$SHARD/$TOTAL" --sharding slice --baseline=skip --timeout "${MUTANTS_TIMEOUT:-120}"
+          else
+            ./mk mutants-diff
+          fi
 
   # Repository jobs beyond the standard gate: they need fetched assets, a `dx`
   # build or Docker, so they are not part of `./mk ci`.

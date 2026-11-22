@@ -11,6 +11,27 @@ categories = ["science", "wasm", "web-programming"]
 build = "build.rs"
 publish = false
 
+[features]
+# A native window, for `dx serve --desktop`. Off by default so a plain
+# `cargo check` does not pull a WebView toolchain onto a machine that only ever
+# runs the browser build.
+# The native renderer. Turning off `dioxus/web` alongside turning on
+# `dioxus/desktop` is what makes the swap legal: leaving `web` on would give the
+# crate two launchers and the build would fail with a duplicate `main`.
+desktop = ["dep:dioxus-desktop", "dep:dirs", "dep:tracing-subscriber", "dioxus/desktop"]
+
+server = [
+  "dep:axum",
+  "dep:clap",
+  "dep:flate2",
+  "dep:tokio",
+  "dep:tower-http",
+  "dep:tracing",
+  "dep:tracing-subscriber",
+  "dep:utoipa",
+  "dep:utoipa-swagger-ui",
+]
+
 [[bin]]
 name = "lotus-explore-rs"
 path = "src/main.rs"
@@ -83,27 +104,6 @@ js-sys = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 web-sys = { workspace = true }
-
-[features]
-# A native window, for `dx serve --desktop`. Off by default so a plain
-# `cargo check` does not pull a WebView toolchain onto a machine that only ever
-# runs the browser build.
-# The native renderer. Turning off `dioxus/web` alongside turning on
-# `dioxus/desktop` is what makes the swap legal: leaving `web` on would give the
-# crate two launchers and the build would fail with a duplicate `main`.
-desktop = ["dep:dioxus-desktop", "dep:dirs", "dep:tracing-subscriber", "dioxus/desktop"]
-
-server = [
-  "dep:axum",
-  "dep:clap",
-  "dep:flate2",
-  "dep:tokio",
-  "dep:tower-http",
-  "dep:tracing",
-  "dep:tracing-subscriber",
-  "dep:utoipa",
-  "dep:utoipa-swagger-ui",
-]
 
 [lints]
 workspace = true
