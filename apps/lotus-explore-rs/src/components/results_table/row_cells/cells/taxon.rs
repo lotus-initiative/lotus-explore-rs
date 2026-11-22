@@ -55,7 +55,7 @@ pub(in crate::components::results_table::row_cells) fn taxon_cell(
                     // WCAG 2.5.3: keep the visible "{qid} • Scholia" text in the accessible
                     // name, then add what the link does.
                     aria_label: "{taxon_qid} • Scholia — {t(locale, TextKey::OpenInTaxonScholia)}",
-                    class: "inline-flex min-h-7 items-center rounded-full border border-wd-taxon/35 bg-surface px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-taxon hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28",
+                    class: "inline-flex min-h-7 items-center rounded-full border border-wd-taxon/35 bg-surface px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-taxon hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     "{taxon_qid} • Scholia"
                 }
             }

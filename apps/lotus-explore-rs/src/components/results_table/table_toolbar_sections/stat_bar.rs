@@ -128,7 +128,7 @@ pub fn StatBar() -> Element {
                         "{t(locale, TextKey::DuplicateRowsHint)}"
                     }
                     p {
-                        class: "mx-auto mt-1 max-w-[60ch] text-center text-sm leading-relaxed text-muted",
+                        class: "mx-auto mt-1 max-w-[60ch] text-center text-body leading-relaxed text-muted",
                         "{t(locale, TextKey::DuplicateRowsExplain)}"
                     }
                 }

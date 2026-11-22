@@ -351,9 +351,9 @@ fn shell(locale: crate::i18n::Locale, mut ketcher_ready: Signal<bool>, frame: El
             class: "flex w-full flex-col gap-3",
             div {
                 class: "flex flex-col gap-3 p-4",
-                p { class: "text-micro text-subtle px-1",
+                p { class: "max-w-[70ch] text-body leading-relaxed text-muted px-1",
                     "{t(locale, TextKey::KetcherHintA)}"
-                    strong { class: "text-muted", "{t(locale, TextKey::KetcherSummary)}" }
+                    strong { class: "text-text", "{t(locale, TextKey::KetcherSummary)}" }
                     "{t(locale, TextKey::KetcherHintB)}"
                     em { "{t(locale, TextKey::EditCopyDaylightSmiles)}" }
                     "{t(locale, TextKey::KetcherHintC)}"
@@ -365,10 +365,10 @@ fn shell(locale: crate::i18n::Locale, mut ketcher_ready: Signal<bool>, frame: El
                 } else {
                     button {
                         r#type: "button",
-                        class: "flex min-h-[420px] w-full flex-1 cursor-pointer items-center justify-center border-0 bg-bg text-center hover:bg-panel-soft focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 focus-visible:rounded",
+                        class: "flex min-h-[420px] w-full flex-1 cursor-pointer items-center justify-center rounded-xl border-0 bg-bg text-center hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         onclick: move |_| ketcher_ready.set(true),
                         em {
-                            class: "text-micro text-subtle",
+                            class: "text-body text-muted",
                             "{t(locale, TextKey::KetcherClickToLoad)}"
                         }
                     }

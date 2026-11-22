@@ -26,9 +26,9 @@ pub fn SearchButton(
             disabled: loading,
             r#type: "submit",
             class: if is_dirty {
-                "w-full inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 rounded-xl border border-border bg-accent text-bg font-semibold shadow-xs ring-2 ring-accent/40 hover:bg-accent-2 active:bg-accent-2 min-h-[40px] gap-2 px-3.5 py-2 text-ui active:scale-[0.98]"
+                "w-full inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl border border-border bg-accent text-bg font-semibold shadow-xs ring-2 ring-accent/40 hover:bg-accent-2 active:bg-accent-2 min-h-[40px] gap-2 px-3.5 py-2 text-ui active:scale-[0.98]"
             } else {
-                "w-full inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 rounded-xl bg-accent text-bg font-semibold shadow-xs hover:bg-accent-2 active:bg-accent-2 min-h-[40px] gap-2 px-3.5 py-2 text-ui active:scale-[0.98]"
+                "w-full inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl bg-accent text-bg font-semibold shadow-xs hover:bg-accent-2 active:bg-accent-2 min-h-[40px] gap-2 px-3.5 py-2 text-ui active:scale-[0.98]"
             },
             // No `aria_label`: the visible text is the accessible name, and a
             // second name that can drift from it is a WCAG 2.5.3 failure.
@@ -65,7 +65,7 @@ pub fn ResetFiltersButton(
             // The secondary variant, verbatim as every other secondary button in
             // the app spells it. `w-full` because this sits in a grid cell that
             // sizes to content on wide screens and to the panel on narrow ones.
-            class: "w-full inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-[40px] gap-2 px-3.5 py-2 text-ui active:scale-[0.98] disabled:opacity-100 disabled:bg-panel-soft disabled:text-muted disabled:cursor-not-allowed",
+            class: "w-full inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-[40px] gap-2 px-3.5 py-2 text-ui active:scale-[0.98] disabled:opacity-100 disabled:bg-panel-soft disabled:text-muted disabled:cursor-not-allowed",
             // No `aria_label`: the visible text is the accessible name, and a
             // second name that can drift from it is a WCAG 2.5.3 failure. The
             // label says what it does, which is what a label is for.

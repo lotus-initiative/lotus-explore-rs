@@ -117,7 +117,7 @@ pub fn ResultsTable() -> Element {
                      Button {
                          r#type: "button",
                          label: t(locale, TextKey::ViewInNetwork).to_string(),
-                         class: "inline-flex shrink-0 items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-panel-soft active:bg-bg min-h-[34px] gap-1.5 px-3 py-1.5 text-ui active:scale-[0.98]",
+                         class: "inline-flex shrink-0 items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-panel-soft active:bg-bg min-h-[34px] gap-1.5 px-3 py-1.5 text-ui active:scale-[0.98]",
                          onclick: move |_| Route::navigate_to_view("network"),
                      }
                  }

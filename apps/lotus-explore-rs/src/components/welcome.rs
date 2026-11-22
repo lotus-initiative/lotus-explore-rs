@@ -22,9 +22,9 @@ pub fn SearchExamples() -> Element {
                         class: "flex flex-col gap-3 pb-4 sm:pb-6",
                         h2 { class: "text-body font-semibold text-text", "{t(locale, TextKey::SearchExamples)}" }
                         details {
-                            class: "group overflow-hidden",
+                            class: "group",
                             summary {
-                                class: "flex w-full min-w-0 cursor-pointer select-none items-center gap-2 px-3 py-2 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                                class: "flex w-full min-w-0 cursor-pointer select-none items-center gap-2 rounded-xl group-open:rounded-b-none px-3 py-2 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                                 span {
                                     class: "inline-block text-subtle transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] group-open:rotate-90",
                                     aria_hidden: "true",
@@ -100,7 +100,7 @@ fn DownloadExampleRow(
                 readonly: true,
                 value: "{absolute}",
                 aria_label: "{format}",
-                class: "min-w-0 flex-1 truncate rounded-xl border border-border bg-surface px-2.5 py-1 font-mono text-ui text-muted shadow-xs focus:outline-none focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                class: "min-w-0 flex-1 truncate rounded-xl border border-border bg-surface px-2.5 py-1 font-mono text-body text-muted shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
             }
             CopyButton { text: absolute.clone(), locale }
         }

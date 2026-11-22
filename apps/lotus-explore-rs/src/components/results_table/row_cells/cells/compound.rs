@@ -41,7 +41,7 @@ pub(in crate::components::results_table::row_cells) fn compound_cell(
                     // WCAG 2.5.3: keep the visible "{qid} • Scholia" text in the accessible
                     // name, then add what the link does.
                     aria_label: "{compound_qid} • Scholia — {t(locale, TextKey::OpenInCompoundScholia)}",
-                    class: "inline-flex min-h-7 items-center rounded-full border border-wd-compound/35 bg-surface px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-compound hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28",
+                    class: "inline-flex min-h-7 items-center rounded-full border border-wd-compound/35 bg-surface px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-compound hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     "{compound_qid} • Scholia"
                 }
                 if let Some(ik) = entry.inchikey.as_deref() {
@@ -53,7 +53,7 @@ pub(in crate::components::results_table::row_cells) fn compound_cell(
                         target: "_blank",
                         rel: "noopener noreferrer",
                         aria_label: "{aria_search_inchikey(locale, ik)}",
-                        class: "inline-flex min-h-7 max-w-full break-all items-center rounded-full border border-wd-compound/35 bg-surface px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-compound hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28",
+                        class: "inline-flex min-h-7 max-w-full break-all items-center rounded-full border border-wd-compound/35 bg-surface px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-compound hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         "{ik}"
                     }
                 }

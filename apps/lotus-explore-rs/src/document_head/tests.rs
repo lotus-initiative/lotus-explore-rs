@@ -104,3 +104,19 @@ fn the_compiled_sheet_carries_custom_utilities_and_typography_scale() {
         );
     }
 }
+
+#[test]
+fn body_type_scale_starts_at_16px_and_high_contrast_deepens_borders() {
+    assert!(
+        THEME_SOURCE.contains("--fs-body: clamp(1rem,"),
+        "body fluid scale must floor at 1rem (16px)"
+    );
+    assert!(
+        !THEME_SOURCE.contains("--border: #7a879a"),
+        "prefers-contrast: more in light theme must darken border, not lighten it"
+    );
+    assert!(
+        THEME_SOURCE.contains("--border: #334155;"),
+        "prefers-contrast: more in light theme should strengthen border contrast"
+    );
+}

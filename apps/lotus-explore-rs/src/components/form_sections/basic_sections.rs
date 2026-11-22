@@ -133,7 +133,7 @@ pub fn TaxonInput() -> Element {
                 // The examples are a described group of buttons, not a hint in the
                 // placeholder, so the input points at them by name.
                 "aria-describedby": "taxon-input-examples-heading",
-                class: "resize-field w-full min-h-9 rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                class: "resize-field w-full min-h-9 rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                 list: "taxon-suggestions",
                 oninput: move |e| ctx.update(FormAction::Taxon(e.value())),
                 onkeydown: move |e| {
@@ -186,9 +186,9 @@ pub fn TaxonNomenclatureFilters() -> Element {
             role: "group",
             aria_labelledby: "taxon-nomenclature-heading",
             class: "flex flex-col gap-1",
-            p {
+            span {
                 id: "taxon-nomenclature-heading",
-                class: "text-micro font-semibold uppercase tracking-wide text-subtle",
+                class: "block text-micro font-semibold uppercase tracking-wide text-subtle",
                 "{t(locale, TextKey::TaxonNomenclature)}"
             }
             for (toggle, is_on) in NomenclatureToggle::ALL.into_iter().zip(nomenclature) {
@@ -224,7 +224,7 @@ pub fn MassRangeInput() -> Element {
             role: "group",
             aria_labelledby: "mass-range-label",
             class: "flex flex-col gap-1.5",
-            p { id: "mass-range-label", class: "text-micro font-semibold uppercase tracking-wide text-subtle", "{t(locale, TextKey::MolecularMass)}" }
+            span { id: "mass-range-label", class: "block text-micro font-semibold uppercase tracking-wide text-subtle", "{t(locale, TextKey::MolecularMass)}" }
             div { class: "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2",
                 div { class: "flex min-w-0 flex-col gap-0.5",
                     label {
@@ -242,7 +242,7 @@ pub fn MassRangeInput() -> Element {
                         max: "10000",
                         step: "1",
                         value: "{min_value}",
-                        class: "resize-field w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                        class: "resize-field w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         oninput: move |e| {
                             if let Some(v) = parse_f64_input(&e.value()) {
                                 ctx.update(FormAction::MassMin(v));
@@ -267,7 +267,7 @@ pub fn MassRangeInput() -> Element {
                         max: "10000",
                         step: "1",
                         value: "{max_value}",
-                        class: "resize-field w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                        class: "resize-field w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         oninput: move |e| {
                             if let Some(v) = parse_f64_input(&e.value()) {
                                 ctx.update(FormAction::MassMax(v));
@@ -293,7 +293,7 @@ pub fn YearRangeInput() -> Element {
             role: "group",
             aria_labelledby: "year-range-label",
             class: "flex flex-col gap-1.5",
-            p { id: "year-range-label", class: "text-micro font-semibold uppercase tracking-wide text-subtle", "{t(locale, TextKey::PublicationYear)}" }
+            span { id: "year-range-label", class: "block text-micro font-semibold uppercase tracking-wide text-subtle", "{t(locale, TextKey::PublicationYear)}" }
             div { class: "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2",
                 div { class: "flex min-w-0 flex-col gap-0.5",
                     label {
@@ -311,7 +311,7 @@ pub fn YearRangeInput() -> Element {
                         max: "{current}",
                         step: "1",
                         value: "{min_value}",
-                        class: "resize-field w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                        class: "resize-field w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         oninput: move |e| {
                             if let Some(v) = parse_u16_input(&e.value()) {
                                 ctx.update(FormAction::YearMin(v));
@@ -336,7 +336,7 @@ pub fn YearRangeInput() -> Element {
                         max: "{current}",
                         step: "1",
                         value: "{max_value}",
-                        class: "resize-field w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                        class: "resize-field w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         oninput: move |e| {
                             if let Some(v) = parse_u16_input(&e.value()) {
                                 ctx.update(FormAction::YearMax(v));

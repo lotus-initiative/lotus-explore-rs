@@ -493,7 +493,7 @@ fn GraphEmptyReasonNotice(
         Some(GraphEmptyReason::CenterNotInRows) => t(locale, TextKey::GraphCenterNotInRows),
         Some(GraphEmptyReason::NoRows) | None => t(locale, TextKey::NoResults),
     };
-    let btn_class = "inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-1.5 text-ui font-semibold text-text shadow-xs hover:bg-panel-soft focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 min-h-[34px]";
+    let btn_class = "inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-1.5 text-ui font-semibold text-text shadow-xs hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 min-h-[34px]";
 
     rsx! {
         div {

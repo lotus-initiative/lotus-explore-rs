@@ -131,11 +131,11 @@ fn QueryDisplay(query: std::sync::Arc<str>) -> Element {
             id: "query-display",
             class: "query-display w-full max-w-none px-0 pt-3",
             details {
-                class: "group overflow-hidden rounded-xl border border-border bg-panel-soft",
+                class: "group rounded-xl border border-border bg-panel-soft",
                 summary {
                     // scroll-mt keeps the row clear of the sticky header when a tap
                     // focuses it; without it the browser scrolls it under the bar.
-                    class: "flex w-auto min-w-0 scroll-mt-16 cursor-pointer select-none items-center gap-2 px-3 py-2 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                    class: "flex w-auto min-w-0 scroll-mt-16 cursor-pointer select-none items-center gap-2 rounded-xl group-open:rounded-b-none px-3 py-2 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     span {
                         class: "inline-block text-subtle transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] group-open:rotate-90",
                         aria_hidden: "true",
@@ -146,7 +146,7 @@ fn QueryDisplay(query: std::sync::Arc<str>) -> Element {
                 div {
                     class: "flex w-full min-w-0 flex-col gap-2 border-t border-border p-3 sm:p-4",
                     p {
-                        class: "mx-0 mt-0 mb-0 text-ui leading-relaxed text-muted",
+                        class: "mx-0 mt-0 mb-0 text-body leading-relaxed text-muted",
                         "{t(locale, TextKey::FailedQueryReconstructed)}"
                     }
                     CopyButton {

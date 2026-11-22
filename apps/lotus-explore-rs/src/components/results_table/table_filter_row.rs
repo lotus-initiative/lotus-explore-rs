@@ -117,7 +117,7 @@ fn ColumnFilterCell(
                     aria_label: "{name}",
                     value: "{filters.text(column)}",
                     oninput: move |e| on_text.call((column, e.value())),
-                    class: "filter-field resize-field min-h-7 w-full min-w-0 rounded-lg border border-border bg-surface px-1.5 py-1 text-ui text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                    class: "filter-field resize-field min-h-7 w-full min-w-0 rounded-lg border border-border bg-surface px-1.5 py-1 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                 }
             } else {
                 RangeFilter {
@@ -170,7 +170,7 @@ fn RangeFilter(
                 aria_label: "{name} {t(locale, TextKey::Min)}",
                 value: "{min.map_or_else(String::new, format_bound)}",
                 oninput: move |e| on_bound.call((column, Bound::Min, parse_bound(&e.value()))),
-                class: "filter-field resize-field min-h-7 tabular-nums w-full min-w-0 rounded-lg border border-border bg-surface px-1 py-1 text-micro text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                class: "filter-field resize-field min-h-7 tabular-nums w-full min-w-0 rounded-lg border border-border bg-surface px-1 py-1 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
             }
             span { aria_hidden: "true", class: "text-subtle", "-" }
             input {
@@ -183,7 +183,7 @@ fn RangeFilter(
                 aria_label: "{name} {t(locale, TextKey::Max)}",
                 value: "{max.map_or_else(String::new, format_bound)}",
                 oninput: move |e| on_bound.call((column, Bound::Max, parse_bound(&e.value()))),
-                class: "filter-field resize-field min-h-7 tabular-nums w-full min-w-0 rounded-lg border border-border bg-surface px-1 py-1 text-micro text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                class: "filter-field resize-field min-h-7 tabular-nums w-full min-w-0 rounded-lg border border-border bg-surface px-1 py-1 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
             }
         }
     }

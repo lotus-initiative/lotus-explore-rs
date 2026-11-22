@@ -32,7 +32,7 @@ pub fn NotFoundPage() -> Element {
                 }
                 Link {
                     to: NavigationTarget::Internal(home_target.navigation_string()),
-                    class: "inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl bg-accent px-3.5 py-2 text-ui font-semibold text-bg no-underline shadow-xs transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] hover:bg-accent-2 active:bg-accent-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 cursor-pointer",
+                    class: "inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl bg-accent px-3.5 py-2 text-ui font-semibold text-bg no-underline shadow-xs transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] hover:bg-accent-2 active:bg-accent-2 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 cursor-pointer",
                     "{t(locale, TextKey::ReturnHome)}"
                 }
             }

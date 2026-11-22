@@ -124,10 +124,10 @@ fn AdvancedFilters(
 
     rsx! {
         details {
-            class: "group overflow-hidden rounded-xl border border-shell-border bg-panel-soft",
+            class: "group rounded-xl border border-shell-border bg-panel-soft",
             summary {
                 id: "{summary_id}",
-                class: "flex w-auto min-w-0 cursor-pointer select-none items-center gap-1.5 px-2 py-1.5 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                class: "flex w-auto min-w-0 cursor-pointer select-none items-center gap-1.5 rounded-xl group-open:rounded-b-none px-2 py-1.5 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                 span { class: "{entity.accent_class()}", "{t(locale, TextKey::AdvancedFilters)}" }
                 span {
                     class: "inline-block text-subtle transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] group-open:rotate-90",

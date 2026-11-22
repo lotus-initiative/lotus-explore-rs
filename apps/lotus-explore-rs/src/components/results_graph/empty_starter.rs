@@ -153,14 +153,14 @@ pub(super) fn NetworkEmptyStarter(on_run: EventHandler<lotus_model::SearchCriter
                         r#type: "search",
                         value: "{query_text}",
                         placeholder: "{t(locale, TextKey::NetworkQuickSearchPlaceholder)}",
-                        class: "min-w-0 flex-1 rounded-xl border border-border bg-surface px-3 py-2 text-body text-text shadow-xs placeholder:text-subtle focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                        class: "min-w-0 flex-1 rounded-xl border border-border bg-surface px-3 py-2 text-body text-text shadow-xs placeholder:text-subtle focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         oninput: move |evt| query_text.set(evt.value()),
                     }
                     Button {
                         r#type: "submit",
                         disabled: !can_submit,
                         label: t(locale, TextKey::NetworkQuickSearchSubmit).to_string(),
-                        class: "inline-flex shrink-0 items-center justify-center rounded-xl bg-primary px-4 py-2 text-body font-semibold text-white shadow-xs transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-55 min-h-[40px]",
+                        class: "inline-flex shrink-0 items-center justify-center rounded-xl bg-primary px-4 py-2 text-body font-semibold text-white shadow-xs transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-55 min-h-[40px]",
                     }
                 }
             }
@@ -175,7 +175,7 @@ pub(super) fn NetworkEmptyStarter(on_run: EventHandler<lotus_model::SearchCriter
                 Button {
                     r#type: "button",
                     label: t(locale, TextKey::OpenAdvancedSearch).to_string(),
-                    class: "inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3.5 py-2 text-ui font-semibold text-text shadow-xs hover:bg-panel-soft focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 min-h-[36px]",
+                    class: "inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3.5 py-2 text-ui font-semibold text-text shadow-xs hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 min-h-[36px]",
                     onclick: move |_| Route::navigate_to_view("search"),
                 }
             }
@@ -197,7 +197,7 @@ fn StarterCard(
     rsx! {
         button {
             r#type: "button",
-            class: "group flex w-full cursor-pointer flex-col items-start gap-2 rounded-xl border border-panel-border bg-panel p-4 text-left shadow-xs transition-colors duration-150 hover:border-border hover:bg-panel-soft focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+            class: "group flex w-full cursor-pointer flex-col items-start gap-2 rounded-xl border border-panel-border bg-panel p-4 text-left shadow-xs transition-colors duration-150 hover:border-border hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
             onclick: move |_| {
                 on_run.call(starter.to_criteria(crate::clock::current_year()));
             },
@@ -209,7 +209,7 @@ fn StarterCard(
                     EntityShapeIcon { kind: starter.kind }
                 }
             }
-            p { class: "m-0 text-ui leading-snug text-muted", "{desc}" }
+            p { class: "m-0 text-body leading-relaxed text-muted", "{desc}" }
         }
     }
 }

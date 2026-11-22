@@ -47,7 +47,7 @@ fn SortableColumnHeader(
                 r#type: "button",
                 aria_label: "{sort_aria}",
                 title: "{sort_aria}",
-                class: "inline-flex w-full min-w-0 items-center gap-1.5 border-0 bg-transparent p-0 text-inherit hover:text-accent focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 active:scale-[0.98]",
+                class: "inline-flex w-full min-w-0 items-center gap-1.5 border-0 bg-transparent p-0 text-inherit hover:text-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 active:scale-[0.98]",
                 onclick: move |_| on_toggle.call(header.col),
                 span { class: "block min-w-0 whitespace-nowrap leading-tight", "{label_text}" }
                 span {

@@ -98,7 +98,7 @@ pub(super) fn GraphCanvasStage(
                     role: "img",
                     tabindex: "0",
                     aria_label: "{canvas_aria}",
-                    class: "lotus-graph-canvas cursor-grab focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28",
+                    class: "lotus-graph-canvas cursor-grab focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     onkeydown: move |evt| {
                         match evt.key() {
                             Key::Character(ref ch) if ch == "+" || ch == "=" => {
@@ -135,7 +135,7 @@ pub(super) fn GraphCanvasStage(
                         Button {
                             r#type: "button",
                             label: t(locale, TextKey::GraphBackToOverview).to_string(),
-                            class: "inline-flex items-center justify-center rounded-lg border border-border bg-surface px-2.5 py-1 text-micro font-semibold text-text hover:bg-panel-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
+                            class: "inline-flex items-center justify-center rounded-lg border border-border bg-surface px-2.5 py-1 text-micro font-semibold text-text hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                             onclick: move |_| on_back_to_overview.call(()),
                         }
                     }
@@ -158,7 +158,7 @@ pub(super) fn GraphCanvasStage(
                                 | QueryPhase::Rendering
                         ) && rows_so_far.is_some()
                         {
-                            p { class: "m-0 text-ui text-muted tabular-nums",
+                            p { class: "m-0 text-body text-muted tabular-nums",
                                 "{rows_so_far_text(locale, rows_so_far.unwrap_or(0))}"
                             }
                         }
@@ -175,7 +175,7 @@ pub(super) fn GraphCanvasStage(
                     LegendPill { kind: NodeKind::Taxon, count: model.kind_counts[1], locale }
                     LegendPill { kind: NodeKind::Reference, count: model.kind_counts[2], locale }
                 }
-                p { class: "m-0 text-micro text-subtle",
+                p { class: "m-0 text-body text-subtle",
                     "{t(locale, TextKey::GraphCanvasHint)}"
                 }
             }
@@ -227,9 +227,9 @@ fn CapPresetButton(
 ) -> Element {
     let label = format_count(locale, preset);
     let class = if active {
-        "inline-flex cursor-pointer items-center rounded-lg border border-accent bg-primary px-2 py-0.5 text-micro font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        "inline-flex cursor-pointer items-center rounded-lg border border-accent bg-primary px-2 py-0.5 text-micro font-semibold text-white focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
     } else {
-        "inline-flex cursor-pointer items-center rounded-lg border border-border bg-surface px-2 py-0.5 text-micro font-semibold text-text hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        "inline-flex cursor-pointer items-center rounded-lg border border-border bg-surface px-2 py-0.5 text-micro font-semibold text-text hover:bg-panel focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
     };
     let pressed = if active {
         String::from("true")

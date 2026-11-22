@@ -27,7 +27,7 @@ fn ElemStateSelect(
                 id: "{select_id}",
                 name: "{select_id}",
                 autocomplete: "off",
-                class: "w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                class: "w-full rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                 aria_label: "{label} {t(locale, TextKey::ElementRequirement)}",
                 value: "{value.as_str()}",
                 onchange: move |e| on_change.call(e.value().parse::<ElementState>().unwrap_or_default()),
@@ -54,7 +54,7 @@ fn NumPair(
 
     rsx! {
         div { class: "flex flex-col gap-1.5 rounded-xl border border-shell-border bg-shell-raised p-1.5",
-            p { class: "text-micro text-subtle", "{label}" }
+            span { class: "block text-micro text-subtle", "{label}" }
             div { class: "formula-minmax-grid",
                 div { class: "flex flex-col gap-0.5",
                     label { class: "text-micro font-semibold uppercase tracking-wide text-subtle", r#for: "{min_id}", "{t(locale, TextKey::MinCount)}" }
@@ -63,7 +63,7 @@ fn NumPair(
                         id: "{min_id}",
                         name: "{min_id}",
                         autocomplete: "off",
-                        class: "resize-field tabular-nums w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                        class: "resize-field tabular-nums w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         min: "0",
                         max: "10000",
                         aria_label: "{label} {t(locale, TextKey::MinCountAria)}",
@@ -82,7 +82,7 @@ fn NumPair(
                         id: "{max_id}",
                         name: "{max_id}",
                         autocomplete: "off",
-                        class: "resize-field tabular-nums w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                        class: "resize-field tabular-nums w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         min: "0",
                         max: "10000",
                         aria_label: "{label} {t(locale, TextKey::MaxCountAria)}",
@@ -154,7 +154,7 @@ pub fn FormulaSection() -> Element {
                             name: "formula_exact",
                             "toolparamdescription": "Exact molecular formula filter, e.g. C7H5O5N.",
                             r#type: "text",
-                            class: "resize-field w-full min-h-9 rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                            class: "resize-field w-full min-h-9 rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                             autocomplete: "off",
                             spellcheck: "false",
                             placeholder: "C15H10O5",

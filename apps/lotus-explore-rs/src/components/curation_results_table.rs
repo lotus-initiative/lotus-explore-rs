@@ -116,12 +116,12 @@ pub fn CurationResultsTable(locale: Locale, rows: Arc<[CurationResultRow]>) -> E
             StatusSummaryBadges { locale, rows: rows.clone() }
             p {
                 id: scroll_hint_id,
-                class: "inline-flex items-center gap-2 text-micro text-muted",
+                class: "inline-flex items-center gap-2 text-body text-muted",
                 span { class: "text-sm font-bold text-accent", aria_hidden: "true", "↔" }
                 "{hint_scroll_curation_results(locale)}"
             }
             div {
-                class: "w-full overflow-x-auto rounded-xl border border-shell-border bg-shell-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
+                class: "w-full overflow-x-auto rounded-xl border border-shell-border bg-shell-raised focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                 role: "region",
                 tabindex: "0",
                 aria_label: "{crate::i18n::heading_results(locale)}",

@@ -52,7 +52,7 @@ pub fn ShareNotice(shareable_url: Memo<Option<Arc<str>>>) -> Element {
                 r#type: "text",
                 readonly: true,
                 value: "{share}",
-                class: "min-w-0 flex-1 truncate font-mono w-full rounded-xl border border-border bg-surface px-2 py-1.5 text-body text-text shadow-xs focus-visible:outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+                class: "min-w-0 flex-1 truncate font-mono w-full rounded-xl border border-border bg-surface px-2 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
             }
             CopyButton {
                 text: Arc::<str>::from(share.clone()),
@@ -121,14 +121,14 @@ pub fn ErrorNotice() -> Element {
                 Button {
                     r#type: "button",
                     label: t(locale, TextKey::Retry).to_string(),
-                    class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-[34px] gap-1.5 px-3 py-1.5 text-ui active:scale-[0.98]",
+                    class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-[34px] gap-1.5 px-3 py-1.5 text-ui active:scale-[0.98]",
                     onclick: move |_| retry_interactions.retry(),
                 }
             }
             button {
                 r#type: "button",
                 aria_label: "{t(locale, TextKey::DismissError)}",
-                class: "notice-dismiss flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-xl text-base font-bold text-subtle hover:bg-danger/15 hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/40 focus-visible:ring-offset-1",
+                class: "notice-dismiss flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-xl text-base font-bold text-subtle hover:bg-danger/15 hover:text-danger focus-visible:outline-2 focus-visible:outline-danger focus-visible:outline-offset-2",
                 onclick: move |_| interactions.dismiss_error(),
                 span { aria_hidden: "true", "×" }
             }

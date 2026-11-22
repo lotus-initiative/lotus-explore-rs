@@ -314,13 +314,13 @@ video {
 /* Typography scale — fluid sizes consumed by the --text-* utilities above and by
    component CSS (var(--fs-body), var(--fs-ui), ...). */
 :root {
-  --fs-ui: clamp(0.7rem, 0.68rem + 0.11vw, 0.76rem);
-  --fs-micro: var(--fs-ui);
-  --fs-body: clamp(0.875rem, 0.85rem + 0.15vw, 1rem);
-  --fs-2: clamp(1rem, 0.95rem + 0.2vw, 1.125rem);
-  --fs-3: clamp(1.125rem, 1rem + 0.4vw, 1.375rem);
-  --fs-4: clamp(1.375rem, 1.15rem + 0.6vw, 1.625rem);
-  --fs-stat: clamp(1rem, 0.95rem + 0.36vw, 1.15rem);
+  --fs-micro: clamp(0.75rem, 0.74rem + 0.08vw, 0.8125rem);
+  --fs-ui: clamp(0.875rem, 0.85rem + 0.12vw, 0.9375rem);
+  --fs-body: clamp(1rem, 0.98rem + 0.1vw, 1.0625rem);
+  --fs-2: clamp(1.125rem, 1.05rem + 0.25vw, 1.25rem);
+  --fs-3: clamp(1.25rem, 1.1rem + 0.45vw, 1.5rem);
+  --fs-4: clamp(1.5rem, 1.25rem + 0.65vw, 1.875rem);
+  --fs-stat: clamp(1.125rem, 1rem + 0.35vw, 1.25rem);
 }
 
 /* Base styles */
@@ -330,7 +330,8 @@ body {
   font-family: var(--font-sans, sans-serif);
   font-size: var(--fs-body);
   line-height: 1.6;
-  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: 100svh;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   font-optical-sizing: auto;
   text-rendering: optimizeLegibility;
@@ -381,6 +382,7 @@ legend {
   flex-direction: column;
   min-height: 100dvh;
   min-height: 100svh;
+  padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px);
 }
 
 /* Desktop layout: main content side by side */
@@ -483,8 +485,8 @@ legend {
    ======================================== */
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -493,11 +495,17 @@ legend {
 
 ::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text3);
+}
+
+.results-table-scroll,
+:where([tabindex="0"]) {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
 @utility brand-logo {
@@ -709,11 +717,11 @@ legend {
   input,
   select,
   textarea,
+  summary,
   [tabindex]
 ):focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-  border-radius: var(--radius-xs);
+  outline: 2px solid var(--accent);
+  outline-offset: var(--focus-ring-offset);
 }
 
 /* Consistent active/pressed state for interactive elements */
@@ -722,14 +730,31 @@ legend {
   transition: transform 50ms ease;
 }
 
-/* Focus-visible for UI crate components (SegmentedControl, NoticeBar) that use inline styles */
+/* Range inputs keep a crisp track even when given a 44px touch target height */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 0.5rem;
+  border-radius: 0.75rem;
+  background: var(--border-soft);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  margin-top: -0.25rem;
+}
+
+input[type="range"]::-moz-range-track {
+  height: 0.5rem;
+  border-radius: 0.75rem;
+  background: var(--border-soft);
+}
+
+/* Focus-visible for UI crate components (SegmentedControl, NoticeBar) */
 [role="group"] button:focus-visible,
 .notice-bar:focus-visible,
 .notice-bar [role="button"]:focus-visible,
 .notice-bar input:focus-visible,
 .notice-bar button:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
+  outline: 2px solid var(--accent);
+  outline-offset: var(--focus-ring-offset);
   border-radius: var(--radius-xs);
 }
 
@@ -756,13 +781,21 @@ legend {
 
 @media (prefers-contrast: more) {
   :root {
-    --border: #7a879a;
-    --text3: #334155;
+    --border: #334155;
+    --border-soft: #64748b;
+    --text: #000000;
+    --text2: #111827;
+    --text3: #1e293b;
+    --accent: #064080;
   }
 
   :is([data-theme="dark"], :root:not([data-theme="light"])) {
-    --border: #94a3b8;
-    --text3: #cbd5e1;
+    --border: #cbd5e1;
+    --border-soft: #64748b;
+    --text: #ffffff;
+    --text2: #f1f5f9;
+    --text3: #e2e8f0;
+    --accent: #b3d4ff;
   }
 }
 
@@ -804,8 +837,7 @@ legend {
 
 @media (min-width: 1024px) {
   .results-wrap {
-    padding-left: 32px;
-    padding-right: 32px;
+    padding-inline: 32px;
   }
 }
 

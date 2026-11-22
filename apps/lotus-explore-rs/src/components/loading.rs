@@ -44,11 +44,11 @@ pub fn LoadingState() -> Element {
             ) && rows_so_far.is_some()
             {
                 p {
-                    class: "max-w-[36ch] text-ui text-subtle tabular-nums",
+                    class: "max-w-[36ch] text-body text-subtle tabular-nums",
                     "{rows_so_far_text(locale, rows_so_far.unwrap_or(0))}",
                 }
             } else {
-                p { class: "max-w-[36ch] text-ui text-subtle", "{t(locale, TextKey::LoadingHint)}" }
+                p { class: "max-w-[36ch] text-body text-subtle", "{t(locale, TextKey::LoadingHint)}" }
             }
         }
     }
@@ -66,7 +66,7 @@ pub fn DownloadDispatchState() -> Element {
             class: "flex flex-col items-center justify-center gap-3 p-12 text-center text-muted",
             LotusLoader {}
             p { class: "max-w-[28ch] text-body text-text", "{t(locale, TextKey::PreparingDownload)}" }
-            p { class: "max-w-[36ch] text-ui text-subtle", "{t(locale, TextKey::ExampleApiUrls)}" }
+            p { class: "max-w-[36ch] text-body text-subtle", "{t(locale, TextKey::ExampleApiUrls)}" }
         }
     }
 }
@@ -87,7 +87,7 @@ pub fn DownloadOnlyState() -> Element {
             Button {
                 r#type: "button",
                 label: t(locale, TextKey::RunSearch).to_string(),
-                class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-[34px] gap-1.5 px-3 py-1.5 text-ui active:scale-[0.98]",
+                class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-[34px] gap-1.5 px-3 py-1.5 text-ui active:scale-[0.98]",
                 onclick: move |_| interactions.preview(),
             }
         }

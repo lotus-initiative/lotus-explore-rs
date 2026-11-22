@@ -66,7 +66,7 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
                 }
 
                 p {
-                    class: "mt-3 text-body leading-relaxed text-muted",
+                    class: "mt-3 max-w-[68ch] text-body leading-relaxed text-muted",
                     "{chrome.intro}"
                 }
 
@@ -100,7 +100,7 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
                         class: "mt-8 scroll-mt-24 text-subtitle font-semibold text-text",
                         "{category.label(locale)}"
                     }
-                    dl { class: "mt-3 flex flex-col gap-5",
+                    dl { class: "mt-3 flex max-w-[68ch] flex-col gap-5",
                         for entry in entries {
                             div { class: "min-w-0",
                                 // Term and description, so "copy the definition" and
@@ -131,7 +131,7 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
                     "{reference_heading}"
                 }
                 p {
-                    class: "mt-2 text-body leading-relaxed text-muted",
+                    class: "mt-2 max-w-[68ch] text-body leading-relaxed text-muted",
                     "{reference_intro}"
                 }
 
@@ -140,9 +140,9 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
                     div {
                         class: "mt-4 rounded-lg border border-border bg-surface p-4",
                         role: "note",
-                        p { class: "text-body font-semibold text-text", "{label}" }
+                        p { class: "max-w-[68ch] text-body font-semibold text-text", "{label}" }
                         p {
-                            class: "mt-1 text-body leading-relaxed text-muted",
+                            class: "mt-1 max-w-[68ch] text-body leading-relaxed text-muted",
                             "{detail}"
                         }
                     }
@@ -163,7 +163,7 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
                                 div { "{section.title(locale)}" }
                                 // Stands alone when collapsed, so a summary not a teaser.
                                 p {
-                                    class: "mt-1 text-sm font-normal leading-relaxed text-muted",
+                                    class: "mt-1 max-w-[68ch] text-body font-normal leading-relaxed text-muted",
                                     "{section.summary(locale)}"
                                 }
                             }
@@ -207,7 +207,7 @@ fn render_block(block: FaqBlock, first: bool) -> Element {
             h4 { class: "mt-5 text-body font-semibold text-text", "{text}" }
         },
         FaqBlock::Text(text) => rsx! {
-            p { class: "{top} text-body leading-relaxed text-muted", "{text}" }
+            p { class: "{top} max-w-[68ch] text-body leading-relaxed text-muted", "{text}" }
         },
         FaqBlock::Table(rows) => {
             // A real table with a real header row, not a grid of divs: the only
@@ -265,7 +265,7 @@ fn render_block(block: FaqBlock, first: bool) -> Element {
             // documentation caveat would be worse than saying nothing.
             div { class: "{top} rounded-lg border border-border bg-surface px-3 py-2",
                 role: "note",
-                p { class: "text-sm leading-relaxed text-muted", "{text}" }
+                p { class: "max-w-[68ch] text-body leading-relaxed text-muted", "{text}" }
             }
         },
     }
