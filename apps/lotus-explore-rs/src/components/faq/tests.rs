@@ -135,3 +135,29 @@ fn the_anchor_helpers_agree_on_the_same_ids() {
     assert_eq!(category_anchor(FaqCategory::Results), "faq-results");
     assert_eq!(category_anchor(FaqCategory::Export), "faq-export");
 }
+
+#[test]
+fn faq_tables_are_keyboard_scrollable_with_accessible_labels() {
+    use super::FaqPage;
+    use crate::app::routes::RouteQuery;
+    use crate::i18n::Locale;
+    use dioxus::prelude::*;
+
+    #[component]
+    fn Subject() -> Element {
+        use_context_provider(|| Signal::new(Locale::En));
+        rsx! { FaqPage { query: RouteQuery::default(), hash: String::new() } }
+    }
+
+    let mut dom = VirtualDom::new(Subject);
+    dom.rebuild_in_place();
+    let html = dioxus_ssr::render(&dom);
+    assert!(
+        html.contains("overflow-x-auto"),
+        "expected FAQ table wrappers:\n{html}"
+    );
+    assert!(
+        html.contains(r#"tabindex="0""#) && html.contains(r#"role="group""#),
+        "FAQ table scroll containers must be keyboard focusable:\n{html}"
+    );
+}

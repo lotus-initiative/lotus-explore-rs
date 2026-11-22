@@ -12,8 +12,8 @@ use crate::i18n::{
     col_name, curation_qs_dev_label, curation_qs_dev_main_hint, curation_qs_dev_prereq_hint,
     heading_add_one_row, heading_queued_rows, heading_quickstatements,
     heading_quickstatements_dependencies, heading_tsv_import, hint_expected_tsv_headers,
-    msg_delay_advice, msg_two_step_hint, placeholder_doi_optional, placeholder_molecule_name,
-    placeholder_taxon_optional, t,
+    hint_scroll_curation_results, msg_delay_advice, msg_two_step_hint, placeholder_doi_optional,
+    placeholder_molecule_name, placeholder_taxon_optional, t,
 };
 use crate::ui::prelude::{NoticeBar, NoticeTone};
 use crate::upload::{extract_blob_from_file_data, read_blob_string};
@@ -313,13 +313,17 @@ pub fn QueueRowsCard(
                     onclick: Some(EventHandler::new(move |_: Event<MouseData>| on_process.call(()))),
                 }
             }
+            p { class: "inline-flex items-center gap-2 text-body text-muted lg:hidden",
+                span { class: "text-sm font-bold text-accent", aria_hidden: "true", "↔" }
+                "{hint_scroll_curation_results(locale)}"
+            }
             div {
                 class: "w-full overflow-x-auto rounded-xl border border-shell-border focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                 role: "region",
                 tabindex: "0",
                 aria_label: "{heading_queued_rows(locale)}",
                 table {
-                     class: "curation-queued-table w-full min-w-max table-auto border-collapse text-ui",
+                     class: "curation-queued-table w-full min-w-[760px] table-auto border-collapse text-ui",
                     caption { class: "sr-only", "{heading_queued_rows(locale)}" }
 
                     thead {
@@ -360,7 +364,7 @@ pub fn QueueRowsCard(
                                     }
                                     td { class: "border-b border-panel-border px-3 py-2.5 align-top text-ui text-text min-w-[3ch] font-mono text-micro", "{idx + 1}" }
                                     td { class: "border-b border-panel-border px-3 py-2.5 align-top text-ui text-text", "{row.name}" }
-                                    td { class: "border-b border-panel-border px-3 py-2.5 align-top text-ui text-text min-w-[220px]", "{row.smiles}" }
+                                    td { class: "border-b border-panel-border px-3 py-2.5 align-top text-ui text-text min-w-[220px] max-w-[260px] break-all font-mono text-micro", "{row.smiles}" }
                                     td { class: "border-b border-panel-border px-3 py-2.5 align-top text-ui text-text", "{row.taxon.as_deref().unwrap_or(\"\")}" }
                                     td { class: "border-b border-panel-border px-3 py-2.5 align-top text-ui text-text font-mono text-micro", "{row.doi.as_deref().unwrap_or(\"\")}" }
                                 }

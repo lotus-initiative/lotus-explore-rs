@@ -86,3 +86,25 @@ fn the_reconstruction_is_disclosed_rather_than_claimed() {
         "the query is rebuilt from the criteria, and the reader is told so"
     );
 }
+
+#[test]
+fn the_failed_query_pre_is_focusable_and_labelled() {
+    const SOURCE: &str = include_str!("../results_viewport.rs");
+    let display = SOURCE
+        .split_once("fn QueryDisplay")
+        .expect("QueryDisplay is defined")
+        .1;
+
+    assert!(
+        display.contains(r#"id: "failed-query-summary""#),
+        "summary needs a stable id for aria_labelledby"
+    );
+    assert!(
+        display.contains(r#"tabindex: "0""#),
+        "scrollable <pre> must be keyboard focusable"
+    );
+    assert!(
+        display.contains(r#"aria_labelledby: "failed-query-summary""#),
+        "scrollable <pre> must carry an accessible name"
+    );
+}

@@ -48,8 +48,9 @@ pub(super) fn VirtualizedResultsTable(table_view_model: Memo<TableViewModel>) ->
             // `aria-labelledby` instead of a second `aria-label` for the same reason:
             // one name, from the caption that already carries it.
             tabindex: "0",
-             class: "results-table-scroll scrollbar-hidden-x w-full max-w-none rounded-xl border border-shell-border bg-shell-raised",
-             onscroll: on_scroll,
+            aria_labelledby: "results-table-caption",
+            class: "results-table-scroll w-full max-w-none rounded-xl border border-shell-border bg-shell-raised focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+            onscroll: on_scroll,
 
             table {
                 // No `aria-label`: the caption below names the table, and an
@@ -59,16 +60,16 @@ pub(super) fn VirtualizedResultsTable(table_view_model: Memo<TableViewModel>) ->
                 // on a narrow viewport. It sits about 50px above the widest
                 // breakpoint's sum, which is the slack the table had before the
                 // filter row needed room in the mass and year columns.
-                class: "w-full min-w-[1500px] table-auto border-collapse text-ui",
-                caption { class: "sr-only", "{t(locale, TextKey::TableTriplesAria)}" }
+                class: "w-full min-w-[1620px] table-auto border-collapse text-ui",
+                caption { id: "results-table-caption", class: "sr-only", "{t(locale, TextKey::TableTriplesAria)}" }
                 colgroup {
                     col { class: "w-[50px] sm:w-[50px] lg:w-[50px] min-w-[50px] max-w-[50px]" }
                     col { class: "w-[26ch] sm:w-[28ch] lg:w-[30ch]" }
-                    col { class: "w-[16ch] sm:w-[16ch] lg:w-[16ch]" }
+                    col { class: "w-[18ch] sm:w-[18ch] lg:w-[18ch]" }
                     col { class: "w-[12ch] sm:w-[12ch] lg:w-[12ch]" }
                     col { class: "w-[22ch] sm:w-[24ch] lg:w-[26ch]" }
                     col { class: "w-[24ch] sm:w-[26ch] lg:w-[28ch]" }
-                    col { class: "w-[13ch] sm:w-[13ch] lg:w-[13ch]" }
+                    col { class: "w-[18ch] sm:w-[18ch] lg:w-[18ch]" }
                 }
                 thead {
                     class: "sticky top-0 z-2",

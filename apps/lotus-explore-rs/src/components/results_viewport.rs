@@ -133,6 +133,7 @@ fn QueryDisplay(query: std::sync::Arc<str>) -> Element {
             details {
                 class: "group rounded-xl border border-border bg-panel-soft",
                 summary {
+                    id: "failed-query-summary",
                     // scroll-mt keeps the row clear of the sticky header when a tap
                     // focuses it; without it the browser scrolls it under the bar.
                     class: "flex w-auto min-w-0 scroll-mt-16 cursor-pointer select-none items-center gap-2 rounded-xl group-open:rounded-b-none px-3 py-2 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
@@ -155,7 +156,9 @@ fn QueryDisplay(query: std::sync::Arc<str>) -> Element {
                         locale,
                     }
                     pre {
-                        class: "m-0 max-h-96 overflow-y-auto whitespace-pre-wrap break-all rounded-xl border border-border bg-surface p-4 font-mono text-ui text-text",
+                        tabindex: "0",
+                        aria_labelledby: "failed-query-summary",
+                        class: "m-0 max-h-96 overflow-auto whitespace-pre rounded-xl border border-border bg-surface p-4 font-mono text-ui text-text focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         code { class: "block p-0", "{query}" }
                     }
                 }

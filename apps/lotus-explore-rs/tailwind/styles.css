@@ -545,13 +545,6 @@ legend {
   contain: layout paint;
 }
 
-@utility scrollbar-hidden-x {
-  &::-webkit-scrollbar {
-    width: 6px;
-    height: 0;
-  }
-}
-
 /* A number field in the results table's filter row, without its spin buttons.
 
    `appearance: none` is the Firefox spelling; WebKit still draws its own pair

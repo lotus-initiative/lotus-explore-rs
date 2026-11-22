@@ -472,12 +472,6 @@
     width: var(--spacing-6);
     height: var(--spacing-6);
   }
-  .scrollbar-hidden-x {
-    &::-webkit-scrollbar {
-      width: 6px;
-      height: 0;
-    }
-  }
   .h-2 {
     height: var(--spacing-2);
   }
@@ -574,14 +568,11 @@
   .w-\[12ch\] {
     width: 12ch;
   }
-  .w-\[13ch\] {
-    width: 13ch;
-  }
   .w-\[14ch\] {
     width: 14ch;
   }
-  .w-\[16ch\] {
-    width: 16ch;
+  .w-\[18ch\] {
+    width: 18ch;
   }
   .w-\[22ch\] {
     width: 22ch;
@@ -649,6 +640,9 @@
   .max-w-\[72ch\] {
     max-width: 72ch;
   }
+  .max-w-\[260px\] {
+    max-width: 260px;
+  }
   .max-w-\[1600px\] {
     max-width: 1600px;
   }
@@ -706,8 +700,14 @@
   .min-w-\[220px\] {
     min-width: 220px;
   }
+  .min-w-\[760px\] {
+    min-width: 760px;
+  }
   .min-w-\[1500px\] {
     min-width: 1500px;
+  }
+  .min-w-\[1620px\] {
+    min-width: 1620px;
   }
   .min-w-max {
     min-width: max-content;
@@ -864,6 +864,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .overflow-auto {
+    overflow: auto;
   }
   .overflow-hidden {
     overflow: hidden;
@@ -1320,11 +1323,11 @@
   .whitespace-nowrap {
     white-space: nowrap;
   }
+  .whitespace-pre {
+    white-space: pre;
+  }
   .whitespace-pre-line {
     white-space: pre-line;
-  }
-  .whitespace-pre-wrap {
-    white-space: pre-wrap;
   }
   .text-accent {
     color: var(--color-accent);
@@ -1865,14 +1868,9 @@
       width: 12ch;
     }
   }
-  .sm\:w-\[13ch\] {
+  .sm\:w-\[18ch\] {
     @media (width >= 40rem) {
-      width: 13ch;
-    }
-  }
-  .sm\:w-\[16ch\] {
-    @media (width >= 40rem) {
-      width: 16ch;
+      width: 18ch;
     }
   }
   .sm\:w-\[24ch\] {
@@ -2041,6 +2039,11 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
+  .lg\:hidden {
+    @media (width >= 64rem) {
+      display: none;
+    }
+  }
   .lg\:max-h-\[660px\] {
     @media (width >= 64rem) {
       max-height: 660px;
@@ -2051,14 +2054,9 @@
       width: 12ch;
     }
   }
-  .lg\:w-\[13ch\] {
+  .lg\:w-\[18ch\] {
     @media (width >= 64rem) {
-      width: 13ch;
-    }
-  }
-  .lg\:w-\[16ch\] {
-    @media (width >= 64rem) {
-      width: 16ch;
+      width: 18ch;
     }
   }
   .lg\:w-\[26ch\] {

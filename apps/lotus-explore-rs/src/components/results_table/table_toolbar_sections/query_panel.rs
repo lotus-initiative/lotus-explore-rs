@@ -38,7 +38,9 @@ pub fn QueryPanel() -> Element {
                             locale,
                         }
                         pre {
-                            class: "m-0 max-h-96 overflow-y-auto whitespace-pre-wrap break-all rounded-xl border border-border bg-surface p-4 font-mono text-ui text-text",
+                            tabindex: "0",
+                            aria_label: "{t(locale, TextKey::SparqlQuery)}",
+                            class: "m-0 max-h-96 overflow-auto whitespace-pre rounded-xl border border-border bg-surface p-4 font-mono text-ui text-text focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                             "{q.as_ref()}"
                         }
                     }

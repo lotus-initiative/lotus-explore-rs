@@ -221,7 +221,11 @@ fn render_block(block: FaqBlock, first: bool) -> Element {
                 .copied()
                 .unwrap_or_default();
             rsx! {
-                div { class: "mt-4 overflow-x-auto",
+                div {
+                    class: "mt-4 overflow-x-auto rounded-lg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                    tabindex: "0",
+                    role: "group",
+                    aria_label: "{caption}",
                     table { class: "w-full min-w-[36rem] border-collapse text-left text-sm",
                         caption { class: "sr-only", "{caption}" }
                         thead {
