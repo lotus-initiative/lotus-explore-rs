@@ -144,26 +144,24 @@ pub(super) fn GraphToolbar(
                         }
                     }
 
-                    div { class: "flex items-center rounded-full border border-border bg-surface p-0.5 shadow-xs",
-                        SegmentedControl {
-                            aria_label: t(locale, TextKey::GraphViewModeAria),
-                            selected_value: mode_value,
-                            dark: dark_mode,
-                            wrap: false,
-                            items: vec![
-                                SegmentedControlItem {
-                                    label: t(locale, TextKey::GraphMode3d),
-                                    value: "3d",
-                                },
-                                SegmentedControlItem {
-                                    label: t(locale, TextKey::GraphMode2d),
-                                    value: "2d",
-                                },
-                            ],
-                            on_select: move |val: String| {
-                                on_mode_change.call(val != "2d");
+                    SegmentedControl {
+                        aria_label: t(locale, TextKey::GraphViewModeAria),
+                        selected_value: mode_value,
+                        dark: dark_mode,
+                        wrap: false,
+                        items: vec![
+                            SegmentedControlItem {
+                                label: t(locale, TextKey::GraphMode3d),
+                                value: "3d",
                             },
-                        }
+                            SegmentedControlItem {
+                                label: t(locale, TextKey::GraphMode2d),
+                                value: "2d",
+                            },
+                        ],
+                        on_select: move |val: String| {
+                            on_mode_change.call(val != "2d");
+                        },
                     }
                 }
             }

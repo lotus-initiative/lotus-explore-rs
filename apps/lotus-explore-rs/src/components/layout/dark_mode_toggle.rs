@@ -27,7 +27,7 @@ pub fn DarkModeToggle() -> Element {
 
     rsx! {
         button {
-            class: "theme-toggle inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-surface px-3 py-2 text-muted shadow-xs hover:border-accent/50 hover:bg-bg hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
+            class: "theme-toggle inline-flex min-h-[44px] min-w-[44px] cursor-pointer items-center gap-2 rounded-full border border-border bg-surface px-3 py-2 text-muted shadow-xs hover:border-accent/50 hover:bg-bg hover:text-text focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
             r#type: "button",
             role: "switch",
             "aria-label": t(locale, TextKey::DarkModeToggle),

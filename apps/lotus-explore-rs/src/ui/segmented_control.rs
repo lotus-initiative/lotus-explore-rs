@@ -55,9 +55,9 @@ pub fn SegmentedControl(props: SegmentedControlProps) -> Element {
             // where a missing attribute would fall back to the contents.
             aria_label: if props.aria_label.is_empty() { None } else { Some(props.aria_label) },
             class: if wrap {
-                "inline-flex flex-wrap items-center gap-1 shrink-0"
+                "flex max-w-full flex-wrap items-center gap-1.5"
             } else {
-                "inline-flex items-center gap-1 shrink-0"
+                "inline-flex max-w-full flex-wrap items-center gap-1.5"
             },
             for item in &props.items {
                 SegmentedButton {
@@ -95,14 +95,14 @@ fn SegmentedButton(props: SegmentedButtonProps) -> Element {
 
     let class = if active {
         if stretch {
-            "inline-flex flex-1 min-w-max items-center justify-center px-5 py-1.5 text-ui leading-none font-semibold rounded-full border border-accent bg-accent text-bg shadow-xs transition-transform duration-150 hover:bg-accent-2 active:bg-accent-2 active:scale-[0.98] min-h-[40px] whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2"
+            "inline-flex flex-1 min-w-max items-center justify-center px-3.5 sm:px-4 py-2 text-ui leading-snug font-semibold rounded-full border border-accent bg-accent text-bg shadow-xs transition-transform duration-150 hover:bg-accent-2 active:bg-accent-2 active:scale-[0.98] min-h-[44px] min-w-[44px] whitespace-nowrap cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
         } else {
-            "inline-flex flex-none items-center justify-center px-5 py-1.5 text-ui leading-none font-semibold rounded-full border border-accent bg-accent text-bg shadow-xs transition-transform duration-150 hover:bg-accent-2 active:bg-accent-2 active:scale-[0.98] min-h-[40px] whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2"
+            "inline-flex flex-none items-center justify-center px-3.5 sm:px-4 py-2 text-ui leading-snug font-semibold rounded-full border border-accent bg-accent text-bg shadow-xs transition-transform duration-150 hover:bg-accent-2 active:bg-accent-2 active:scale-[0.98] min-h-[44px] min-w-[44px] whitespace-nowrap cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
         }
     } else if stretch {
-        "inline-flex flex-1 min-w-max items-center justify-center px-5 py-1.5 text-ui leading-none font-semibold rounded-full border border-border bg-surface text-text hover:bg-bg transition-transform duration-150 active:scale-[0.98] min-h-[40px] whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2"
+        "inline-flex flex-1 min-w-max items-center justify-center px-3.5 sm:px-4 py-2 text-ui leading-snug font-semibold rounded-full border border-border bg-surface text-text hover:bg-bg transition-transform duration-150 active:scale-[0.98] min-h-[44px] min-w-[44px] whitespace-nowrap cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
     } else {
-        "inline-flex flex-none items-center justify-center px-5 py-1.5 text-ui leading-none font-semibold rounded-full border border-border bg-surface text-text hover:bg-bg transition-transform duration-150 active:scale-[0.98] min-h-[40px] whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2"
+        "inline-flex flex-none items-center justify-center px-3.5 sm:px-4 py-2 text-ui leading-snug font-semibold rounded-full border border-border bg-surface text-text hover:bg-bg transition-transform duration-150 active:scale-[0.98] min-h-[44px] min-w-[44px] whitespace-nowrap cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
     };
 
     rsx! {

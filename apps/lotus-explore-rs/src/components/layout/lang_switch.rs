@@ -22,7 +22,7 @@ pub fn LangSwitch() -> Element {
 
     rsx! {
         nav {
-            class: "lang-switch inline-flex items-center rounded-full overflow-hidden border border-border bg-surface shadow-xs",
+            class: "lang-switch max-w-full",
             // The landmark owns the name; the group inside it does not repeat
             // it. Two nested elements with the same accessible name are
             // announced twice.

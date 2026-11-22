@@ -121,7 +121,7 @@ pub(super) fn NetworkEmptyStarter(on_run: EventHandler<lotus_model::SearchCriter
                         class: "text-ui font-semibold text-text",
                         "{t(locale, TextKey::NetworkQuickSearchLabel)}"
                     }
-                    div { class: "flex items-center rounded-full border border-border bg-surface p-0.5 shadow-xs",
+                    div { class: "min-w-0 max-w-full",
                         SegmentedControl {
                             aria_label: t(locale, TextKey::NetworkQuickSearchKindLabel),
                             selected_value: kind_to_value(*selected_kind.read()),

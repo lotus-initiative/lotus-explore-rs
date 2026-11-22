@@ -24,7 +24,7 @@ pub fn ViewSwitch() -> Element {
     let dark_mode = ctx.state.read().dark_mode;
 
     rsx! {
-        nav { class: "view-switch flex flex-wrap items-center rounded-full overflow-hidden border border-border bg-surface shadow-xs", aria_label: "{view_switch_aria(locale)}",
+        nav { class: "view-switch max-w-full", aria_label: "{view_switch_aria(locale)}",
             SegmentedControl {
                 aria_label: "",
                 selected_value: route.view_key(),

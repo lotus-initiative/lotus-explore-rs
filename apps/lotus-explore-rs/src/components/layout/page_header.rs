@@ -24,14 +24,11 @@ pub fn PageHeader() -> Element {
     rsx! {
         header {
              // Phones get a static header: at 390px the wrapped nav plus subtitle
-             // reached ~278px, which a sticky bar would keep over 40% of the
-             // viewport for the whole session.
-             class: "z-3 bg-shell-chrome px-4 sm:sticky sm:top-0 sm:mx-2 sm:mt-2 sm:rounded-t-xl sm:px-8",
+             // would otherwise keep over 40% of the viewport sticky for the whole session.
+             class: "z-3 bg-shell-chrome px-4 py-3 sm:sticky sm:top-0 sm:mx-2 sm:mt-2 sm:rounded-t-xl sm:px-8 sm:py-3.5",
 
             div {
-                // Phones: brand on its own row, nav on a scrollable row below.
-                // sm and up: the original single wrapped row.
-                class: "flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-4",
+                class: "flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-4",
                 div {
                     class: "flex min-w-0 items-start gap-3",
                     div {
@@ -44,31 +41,35 @@ pub fn PageHeader() -> Element {
                     div {
                         class: "min-w-0 max-w-full",
                     h1 { id: PAGE_TITLE_ID,
-                        class: "text-display font-bold min-w-0 break-words overflow-hidden",
+                        class: "text-display font-bold min-w-0 break-words",
                         Link {
                              to: NavigationTarget::Internal(home.navigation_string()),
 
                             // `text-accent` on the chrome plane is 5.64:1 light / 7.78:1 dark,
                             // so the hover keeps 4.5:1 contrast.
-                            class: "break-words text-text no-underline hover:text-accent",
+                            class: "inline-flex min-h-[44px] items-center rounded-lg break-words text-text no-underline hover:text-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                             "{t(locale, TextKey::PageTitle)}"
                         }
                     }
                     }
                 }
                 div {
-                    // One scrollable row on phones; squeezed groups would clip
-                    // their own labels.
-                    class: "flex max-w-full min-w-0 flex-nowrap items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&>*]:shrink-0 sm:flex-wrap sm:justify-end sm:overflow-visible sm:pb-0",
+                    // Wrap cleanly across narrow viewports so every route tab, language button,
+                    // and theme switch remains visible, reachable, and unclipped without
+                    // horizontal scrolling.
+                    class: "flex max-w-full min-w-0 flex-wrap items-center gap-2 sm:justify-end sm:gap-3",
                     ViewSwitch {}
-                    LangSwitch {}
-                    DarkModeToggle {}
+                    div {
+                        class: "flex max-w-full flex-wrap items-center gap-2",
+                        LangSwitch {}
+                        DarkModeToggle {}
+                    }
                 }
             }
             p {
                 // Not clamped: this sentence is the only explanation of the app a
                 // first visitor gets, and the header is not sticky on phones.
-                class: "mt-3 break-words mb-2 text-sm leading-6 text-critical-muted sm:max-w-[72ch]",
+                class: "mt-2.5 mb-0 break-words text-body leading-relaxed text-critical-muted sm:max-w-[72ch]",
                 "{t(locale, TextKey::PageSubtitle)}"
             }
         }

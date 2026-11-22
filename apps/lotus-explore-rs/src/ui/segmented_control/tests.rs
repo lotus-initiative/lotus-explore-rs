@@ -18,13 +18,13 @@
 fn item_classes() -> Vec<&'static str> {
     vec![
         // active, stretched
-        "inline-flex flex-1 min-w-max items-center justify-center px-5 py-1.5 text-ui leading-none font-semibold rounded-full border border-accent bg-accent text-bg shadow-xs transition-transform duration-150 hover:bg-accent-2 active:bg-accent-2 active:scale-[0.98] min-h-[40px] whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+        "inline-flex flex-1 min-w-max items-center justify-center px-3.5 sm:px-4 py-2 text-ui leading-snug font-semibold rounded-full border border-accent bg-accent text-bg shadow-xs transition-transform duration-150 hover:bg-accent-2 active:bg-accent-2 active:scale-[0.98] min-h-[44px] min-w-[44px] whitespace-nowrap cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
         // active, not stretched
-        "inline-flex flex-none items-center justify-center px-5 py-1.5 text-ui leading-none font-semibold rounded-full border border-accent bg-accent text-bg shadow-xs transition-transform duration-150 hover:bg-accent-2 active:bg-accent-2 active:scale-[0.98] min-h-[40px] whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+        "inline-flex flex-none items-center justify-center px-3.5 sm:px-4 py-2 text-ui leading-snug font-semibold rounded-full border border-accent bg-accent text-bg shadow-xs transition-transform duration-150 hover:bg-accent-2 active:bg-accent-2 active:scale-[0.98] min-h-[44px] min-w-[44px] whitespace-nowrap cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
         // inactive, stretched
-        "inline-flex flex-1 min-w-max items-center justify-center px-5 py-1.5 text-ui leading-none font-semibold rounded-full border border-border bg-surface text-text hover:bg-bg transition-transform duration-150 active:scale-[0.98] min-h-[40px] whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+        "inline-flex flex-1 min-w-max items-center justify-center px-3.5 sm:px-4 py-2 text-ui leading-snug font-semibold rounded-full border border-border bg-surface text-text hover:bg-bg transition-transform duration-150 active:scale-[0.98] min-h-[44px] min-w-[44px] whitespace-nowrap cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
         // inactive, not stretched
-        "inline-flex flex-none items-center justify-center px-5 py-1.5 text-ui leading-none font-semibold rounded-full border border-border bg-surface text-text hover:bg-bg transition-transform duration-150 active:scale-[0.98] min-h-[40px] whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2",
+        "inline-flex flex-none items-center justify-center px-3.5 sm:px-4 py-2 text-ui leading-snug font-semibold rounded-full border border-border bg-surface text-text hover:bg-bg transition-transform duration-150 active:scale-[0.98] min-h-[44px] min-w-[44px] whitespace-nowrap cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
     ]
 }
 
@@ -138,6 +138,10 @@ fn the_class_strings_are_the_ones_the_component_actually_renders() {
             source.contains(class),
             "this class string is no longer in the component, so the guard above is \
              checking something that is not rendered: {class}"
+        );
+        assert!(
+            class.contains("min-h-[44px]") && class.contains("min-w-[44px]"),
+            "every segmented control button must meet 44x44 touch target minimums: {class}"
         );
     }
 }
