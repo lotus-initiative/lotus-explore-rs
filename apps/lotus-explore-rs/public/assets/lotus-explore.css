@@ -1840,6 +1840,11 @@
       margin-top: var(--spacing-2);
     }
   }
+  .sm\:ml-auto {
+    @media (width >= 40rem) {
+      margin-left: auto;
+    }
+  }
   .sm\:min-h-\[420px\] {
     @media (width >= 40rem) {
       min-height: 420px;
@@ -1885,9 +1890,19 @@
       min-width: 280px;
     }
   }
+  .sm\:flex-1 {
+    @media (width >= 40rem) {
+      flex: 1;
+    }
+  }
   .sm\:flex-\[1_1_280px\] {
     @media (width >= 40rem) {
       flex: 1 1 280px;
+    }
+  }
+  .sm\:basis-auto {
+    @media (width >= 40rem) {
+      flex-basis: auto;
     }
   }
   .sm\:grid-cols-2 {

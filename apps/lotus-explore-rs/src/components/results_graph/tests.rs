@@ -311,6 +311,8 @@ fn loaded_network_workspace_exposes_accessible_canvas_controls_and_top_hubs() {
     assert!(html.contains(t(Locale::En, TextKey::GraphResetView)));
     assert!(html.contains(t(Locale::En, TextKey::GraphDownloadPng)));
     assert!(html.contains(t(Locale::En, TextKey::TopConnectedEntities)));
+    assert!(html.contains(r#"id="graph-projection-select""#));
+    assert!(html.contains("min-w-0 max-w-full"));
 }
 
 #[test]

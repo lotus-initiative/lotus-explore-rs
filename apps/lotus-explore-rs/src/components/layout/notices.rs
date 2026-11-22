@@ -46,7 +46,7 @@ pub fn ShareNotice(shareable_url: Memo<Option<Arc<str>>>) -> Element {
                 "{t(locale, TextKey::ShareableLink)}"
             }
             div {
-                class: "flex w-full min-w-0 flex-1 items-center gap-2",
+                class: "flex basis-full min-w-0 items-center gap-2 sm:basis-auto sm:flex-1",
                 input {
                     id: share_input_id,
                     name: "share_url",
@@ -54,7 +54,7 @@ pub fn ShareNotice(shareable_url: Memo<Option<Arc<str>>>) -> Element {
                     r#type: "text",
                     readonly: true,
                     value: "{share}",
-                    class: "min-h-[44px] min-w-[140px] flex-1 truncate font-mono w-full rounded-xl border border-border bg-surface px-2.5 py-2 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                    class: "min-h-[44px] min-w-0 flex-1 truncate font-mono w-full rounded-xl border border-border bg-surface px-2.5 py-2 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                 }
                 CopyButton {
                     text: Arc::<str>::from(share.clone()),

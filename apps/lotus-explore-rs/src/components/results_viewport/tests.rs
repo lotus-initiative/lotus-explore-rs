@@ -107,4 +107,8 @@ fn the_failed_query_pre_is_focusable_and_labelled() {
         display.contains(r#"aria_labelledby: "failed-query-summary""#),
         "scrollable <pre> must carry an accessible name"
     );
+    assert!(
+        display.contains("max-w-[68ch]"),
+        "failed-query notice prose must stay within readable line measure"
+    );
 }

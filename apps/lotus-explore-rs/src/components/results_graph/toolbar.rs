@@ -118,8 +118,8 @@ pub(super) fn GraphToolbar(
                     onclick: move |_| Route::navigate_to_view("search"),
                 }
 
-                div { class: "ml-auto flex flex-wrap items-center gap-2",
-                    div { class: "flex items-center gap-1.5",
+                div { class: "flex max-w-full min-w-0 flex-wrap items-center gap-2 sm:ml-auto",
+                    div { class: "flex max-w-full min-w-0 flex-wrap items-center gap-1.5",
                         label {
                             r#for: "graph-projection-select",
                             class: "text-ui font-semibold text-muted",
@@ -128,7 +128,7 @@ pub(super) fn GraphToolbar(
                         select {
                             id: "graph-projection-select",
                             value: "{projection.as_str()}",
-                            class: "min-h-[44px] cursor-pointer rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body font-semibold text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                            class: "min-h-[44px] min-w-0 max-w-full cursor-pointer rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body font-semibold text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                             onchange: move |evt| {
                                 if let Some(next) = GraphProjection::parse(&evt.value()) {
                                     on_projection_change.call(next);

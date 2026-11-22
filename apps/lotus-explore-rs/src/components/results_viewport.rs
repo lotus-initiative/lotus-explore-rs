@@ -147,7 +147,7 @@ fn QueryDisplay(query: std::sync::Arc<str>) -> Element {
                 div {
                     class: "flex w-full min-w-0 flex-col gap-2 border-t border-border p-3 sm:p-4",
                     p {
-                        class: "mx-0 mt-0 mb-0 text-body leading-relaxed text-muted",
+                        class: "mx-0 mt-0 mb-0 max-w-[68ch] text-body leading-relaxed text-muted",
                         "{t(locale, TextKey::FailedQueryReconstructed)}"
                     }
                     CopyButton {
