@@ -396,3 +396,243 @@ fn each_search_type_spelling_parses_to_its_mode() {
         );
     }
 }
+
+#[test]
+fn graph_view_defaults_parse_and_serialize_empty() {
+    let empty = QueryParams::new();
+    let parsed = parse_graph_view_from_params(&empty);
+    assert_eq!(parsed, GraphViewParams::default());
+    assert_eq!(parsed.effective_selected(), None);
+    assert!(graph_view_query_params(&parsed).is_empty());
+}
+
+#[test]
+fn graph_view_projection_mode_and_paused_round_trip() {
+    use crate::graph::GraphProjection;
+
+    for proj in [
+        GraphProjection::CompoundTaxon,
+        GraphProjection::CompoundReference,
+        GraphProjection::TaxonReference,
+        GraphProjection::Tripartite,
+    ] {
+        let view = GraphViewParams {
+            projection: proj,
+            ..GraphViewParams::default()
+        };
+        let params = graph_view_query_params(&view);
+        assert_eq!(
+            params.get("projection").map(String::as_str),
+            Some(proj.as_str())
+        );
+        assert_eq!(parse_graph_view_from_params(&params), view);
+    }
+
+    let auto_explicit = QueryParams::from([("projection".to_owned(), "auto".to_owned())]);
+    assert_eq!(
+        parse_graph_view_from_params(&auto_explicit).projection,
+        GraphProjection::Auto
+    );
+    let invalid_proj = QueryParams::from([("projection".to_owned(), "bogus".to_owned())]);
+    assert_eq!(
+        parse_graph_view_from_params(&invalid_proj).projection,
+        GraphProjection::Auto
+    );
+
+    for (raw_mode, expected_3d) in [
+        ("2d", false),
+        (" 2D ", false),
+        ("3d", true),
+        ("other", true),
+    ] {
+        let params = QueryParams::from([("mode".to_owned(), raw_mode.to_owned())]);
+        assert_eq!(parse_graph_view_from_params(&params).is_3d, expected_3d);
+    }
+
+    let mode_2d_paused = GraphViewParams {
+        is_3d: false,
+        paused: true,
+        ..GraphViewParams::default()
+    };
+    let encoded = graph_view_query_params(&mode_2d_paused);
+    assert_eq!(encoded.get("mode").map(String::as_str), Some("2d"));
+    assert_eq!(encoded.get("paused").map(String::as_str), Some("true"));
+    assert_eq!(parse_graph_view_from_params(&encoded), mode_2d_paused);
+
+    let paused_false = QueryParams::from([("paused".to_owned(), "false".to_owned())]);
+    assert!(!parse_graph_view_from_params(&paused_false).paused);
+    let paused_one = QueryParams::from([("paused".to_owned(), "1".to_owned())]);
+    assert!(parse_graph_view_from_params(&paused_one).paused);
+}
+
+#[test]
+fn graph_view_scope_bounds_clamp_and_ignore_invalid() {
+    use crate::graph::{
+        DEFAULT_EGO_MAX_NEIGHBORS, DEFAULT_MAX_NODES, GraphScope, NodeKey, NodeKind,
+    };
+
+    for (raw, expected) in [
+        ("1", 1),
+        ("1000", 1_000),
+        ("50000", MAX_OVERVIEW_NODES_LIMIT),
+        ("50001", MAX_OVERVIEW_NODES_LIMIT),
+        ("0", DEFAULT_MAX_NODES),
+        ("abc", DEFAULT_MAX_NODES),
+    ] {
+        let params = QueryParams::from([
+            ("max_nodes".to_owned(), raw.to_owned()),
+            ("max_neighbors".to_owned(), "77".to_owned()),
+        ]);
+        assert_eq!(
+            parse_graph_view_from_params(&params).scope,
+            GraphScope::Overview {
+                max_nodes: expected
+            },
+            "raw max_nodes={raw}"
+        );
+    }
+
+    let center = NodeKey::new(NodeKind::Compound, 121_802);
+    for (raw, expected) in [
+        ("1", 1),
+        ("120", 120),
+        ("10000", MAX_EGO_NEIGHBORS_LIMIT),
+        ("10001", MAX_EGO_NEIGHBORS_LIMIT),
+        ("0", DEFAULT_EGO_MAX_NEIGHBORS),
+        ("abc", DEFAULT_EGO_MAX_NEIGHBORS),
+    ] {
+        let params = QueryParams::from([
+            ("focus".to_owned(), center.to_url_token()),
+            ("max_nodes".to_owned(), "1000".to_owned()),
+            ("max_neighbors".to_owned(), raw.to_owned()),
+        ]);
+        assert_eq!(
+            parse_graph_view_from_params(&params).scope,
+            GraphScope::Ego {
+                center,
+                max_neighbors: expected
+            },
+            "raw max_neighbors={raw}"
+        );
+    }
+}
+
+#[test]
+fn graph_view_selection_rules_round_trip() {
+    use crate::graph::{DEFAULT_EGO_MAX_NEIGHBORS, GraphScope, NodeKey, NodeKind};
+
+    let center = NodeKey::new(NodeKind::Compound, 121_802);
+    let other = NodeKey::new(NodeKind::Taxon, 158_572);
+
+    let overview_sel = GraphViewParams {
+        scope: GraphScope::Overview { max_nodes: 1_000 },
+        selected: Some(other),
+        ..GraphViewParams::default()
+    };
+    let overview_encoded = graph_view_query_params(&overview_sel);
+    assert_eq!(
+        overview_encoded.get("max_nodes").map(String::as_str),
+        Some("1000")
+    );
+    assert_eq!(
+        overview_encoded.get("selected").map(String::as_str),
+        Some("taxon-Q158572")
+    );
+    assert_eq!(
+        parse_graph_view_from_params(&overview_encoded),
+        overview_sel
+    );
+    assert_eq!(overview_sel.effective_selected(), Some(other));
+
+    let ego_same_sel = GraphViewParams {
+        scope: GraphScope::Ego {
+            center,
+            max_neighbors: DEFAULT_EGO_MAX_NEIGHBORS,
+        },
+        selected: Some(center),
+        ..GraphViewParams::default()
+    };
+    let ego_same_encoded = graph_view_query_params(&ego_same_sel);
+    assert_eq!(
+        ego_same_encoded.get("focus").map(String::as_str),
+        Some("compound-Q121802")
+    );
+    assert!(!ego_same_encoded.contains_key("max_neighbors"));
+    assert!(!ego_same_encoded.contains_key("selected"));
+    let reparsed_ego = parse_graph_view_from_params(&ego_same_encoded);
+    assert_eq!(reparsed_ego.selected, None);
+    assert_eq!(reparsed_ego.effective_selected(), Some(center));
+
+    let ego_distinct_sel = GraphViewParams {
+        scope: GraphScope::Ego {
+            center,
+            max_neighbors: 120,
+        },
+        selected: Some(other),
+        ..GraphViewParams::default()
+    };
+    let ego_distinct_encoded = graph_view_query_params(&ego_distinct_sel);
+    assert_eq!(
+        ego_distinct_encoded
+            .get("max_neighbors")
+            .map(String::as_str),
+        Some("120")
+    );
+    assert_eq!(
+        ego_distinct_encoded.get("selected").map(String::as_str),
+        Some("taxon-Q158572")
+    );
+    assert_eq!(
+        parse_graph_view_from_params(&ego_distinct_encoded),
+        ego_distinct_sel
+    );
+    assert_eq!(ego_distinct_sel.effective_selected(), Some(other));
+
+    let invalid_sel = QueryParams::from([("selected".to_owned(), "bad".to_owned())]);
+    assert_eq!(parse_graph_view_from_params(&invalid_sel).selected, None);
+}
+
+#[test]
+fn network_shareable_url_round_trips_criteria_and_viz_params() {
+    use crate::graph::{GraphProjection, GraphScope, NodeKey, NodeKind};
+
+    let crit = SearchCriteria {
+        taxon: "Gentiana lutea".into(),
+        ..SearchCriteria::up_to_year(2026)
+    };
+    let view = GraphViewParams {
+        projection: GraphProjection::Tripartite,
+        scope: GraphScope::Ego {
+            center: NodeKey::new(NodeKind::Compound, 100),
+            max_neighbors: 120,
+        },
+        is_3d: false,
+        paused: true,
+        selected: Some(NodeKey::new(NodeKind::Taxon, 2000)),
+    };
+
+    let url = build_network_shareable_url(&crit, 2026, &view).expect("non-empty criteria");
+    assert_eq!(
+        url,
+        "/network?execute=true&focus=compound-Q100&max_neighbors=120&mode=2d&paused=true&projection=tripartite&selected=taxon-Q2000&taxon=Gentiana%20lutea"
+    );
+
+    let params = parse_query_string(url.trim_start_matches("/network"));
+    assert_eq!(parse_criteria_from_params(&params, 2026), crit);
+    assert!(parse_startup_action_from_params(&params).direct_execute);
+    assert_eq!(parse_graph_view_from_params(&params), view);
+
+    let empty = SearchCriteria::up_to_year(2026);
+    assert_eq!(build_network_shareable_url(&empty, 2026, &view), None);
+
+    let no_exec = network_query_params(&crit, 2026, &view, false);
+    assert!(!no_exec.contains_key("execute"));
+    assert_eq!(
+        no_exec.get("taxon").map(String::as_str),
+        Some("Gentiana lutea")
+    );
+    assert_eq!(
+        no_exec.get("projection").map(String::as_str),
+        Some("tripartite")
+    );
+}

@@ -684,3 +684,50 @@ fn graph_projection_kind_membership_omission_and_toggle_cover_all_axes() {
         assert_eq!(GraphProjection::toggle_kind(proj, b), None);
     }
 }
+
+#[test]
+fn node_kind_and_node_key_url_tokens_round_trip_and_reject_invalid() {
+    for kind in [NodeKind::Compound, NodeKind::Taxon, NodeKind::Reference] {
+        let tag = kind.as_str();
+        assert_eq!(NodeKind::parse(tag), Some(kind));
+        assert_eq!(
+            NodeKind::parse(&format!(" {} ", tag.to_ascii_uppercase())),
+            Some(kind)
+        );
+
+        let key = NodeKey::new(kind, 121_802);
+        let token = key.to_url_token();
+        assert_eq!(token, format!("{tag}-Q121802"));
+        assert_eq!(NodeKey::parse_url_token(&token), Some(key));
+    }
+
+    assert_eq!(NodeKind::parse("unknown"), None);
+    assert_eq!(
+        NodeKey::parse_url_token("taxon:q158572"),
+        Some(NodeKey::new(NodeKind::Taxon, 158_572))
+    );
+    assert_eq!(
+        NodeKey::parse_url_token("reference-Q99"),
+        Some(NodeKey::new(NodeKind::Reference, 99))
+    );
+    assert_eq!(
+        GraphProjection::parse("TRIPARTITE"),
+        Some(GraphProjection::Tripartite)
+    );
+
+    for bad in [
+        "compound-Q0",
+        "compound-Q+123",
+        "compound-Q",
+        "compound-121802",
+        "unknown-Q1",
+        "Q121802",
+        "",
+    ] {
+        assert_eq!(
+            NodeKey::parse_url_token(bad),
+            None,
+            "invalid token '{bad}' must return None"
+        );
+    }
+}

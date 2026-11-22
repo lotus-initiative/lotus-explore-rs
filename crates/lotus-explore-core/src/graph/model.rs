@@ -46,6 +46,31 @@ impl NodeKind {
             Self::Reference => 2,
         }
     }
+
+    /// Stable string tag used in URL parameters and controls.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Compound => "compound",
+            Self::Taxon => "taxon",
+            Self::Reference => "reference",
+        }
+    }
+
+    /// Parse an entity kind from its string tag (trimmed, ASCII case-insensitive).
+    #[must_use]
+    pub fn parse(raw: &str) -> Option<Self> {
+        let trimmed = raw.trim();
+        if trimmed.eq_ignore_ascii_case("compound") {
+            Some(Self::Compound)
+        } else if trimmed.eq_ignore_ascii_case("taxon") {
+            Some(Self::Taxon)
+        } else if trimmed.eq_ignore_ascii_case("reference") {
+            Some(Self::Reference)
+        } else {
+            None
+        }
+    }
 }
 
 /// Compact vertex identifier backed by the entity class and numeric Wikidata QID.
@@ -68,6 +93,28 @@ impl NodeKey {
     #[must_use]
     pub fn qid_text(self) -> String {
         lotus_model::qid_text(self.qid)
+    }
+
+    /// Format this key as an unescaped URL query token (for example `compound-Q121802`).
+    #[must_use]
+    pub fn to_url_token(self) -> String {
+        format!("{}-{}", self.kind.as_str(), self.qid_text())
+    }
+
+    /// Parse a URL query token such as `compound-Q121802` or `taxon:q158572`.
+    #[must_use]
+    pub fn parse_url_token(raw: &str) -> Option<Self> {
+        let (kind_raw, qid_raw) = raw.split_once('-').or_else(|| raw.split_once(':'))?;
+        let kind = NodeKind::parse(kind_raw)?;
+        let qid_trimmed = qid_raw.trim();
+        let digits = qid_trimmed
+            .strip_prefix('Q')
+            .or_else(|| qid_trimmed.strip_prefix('q'))?;
+        if !digits.bytes().all(|b| b.is_ascii_digit()) {
+            return None;
+        }
+        let qid = digits.parse::<u32>().ok().filter(|&n| n > 0)?;
+        Some(Self::new(kind, qid))
     }
 }
 
@@ -103,7 +150,7 @@ impl GraphProjection {
     /// Parse a projection from its string tag.
     #[must_use]
     pub fn parse(raw: &str) -> Option<Self> {
-        match raw.trim() {
+        match raw.trim().to_ascii_lowercase().as_str() {
             "auto" => Some(Self::Auto),
             "compound_taxon" => Some(Self::CompoundTaxon),
             "compound_reference" => Some(Self::CompoundReference),

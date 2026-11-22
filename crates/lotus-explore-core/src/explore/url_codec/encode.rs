@@ -8,10 +8,31 @@ use lotus_search::SearchCriteria;
 #[must_use]
 pub fn build_shareable_url(criteria: &SearchCriteria, year: u16) -> Option<String> {
     let params = super::criteria_query_params(criteria, year);
+    build_route_url("/search", &params)
+}
+
+/// Build a shareable `/network?execute=true&...` URL combining search criteria
+/// and graph visualization parameters, or `None` when the criteria are all defaults.
+#[must_use]
+pub fn build_network_shareable_url(
+    criteria: &SearchCriteria,
+    year: u16,
+    view: &super::GraphViewParams,
+) -> Option<String> {
+    let params = super::network_query_params(criteria, year, view, true);
+    if !params.contains_key("execute") {
+        return None;
+    }
+    build_route_url("/network", &params)
+}
+
+fn build_route_url(path: &str, params: &super::QueryParams) -> Option<String> {
     if params.is_empty() {
         return None;
     }
-    let mut out = String::from("/search?");
+    let mut out = String::with_capacity(path.len() + 1);
+    out.push_str(path);
+    out.push('?');
     append_query_pairs(
         &mut out,
         params.iter().map(|(k, v)| (k.as_str(), v.as_str())),
