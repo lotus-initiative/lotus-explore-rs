@@ -85,7 +85,7 @@ fn render_curation_result_cells(locale: Locale, row: &CurationResultRow) -> Elem
         td { class: "border-b border-panel-border px-3 py-2.5 align-top text-ui text-text",
             if let Some(qid) = row.wikidata_qid.as_deref() {
                 a {
-                    class: "font-mono text-micro text-wd-compound underline break-all",
+                    class: "inline-flex min-h-[44px] min-w-[44px] items-center font-mono text-micro text-wd-compound underline break-all",
                     href: "https://www.wikidata.org/wiki/{qid}",
                     target: "_blank",
                     rel: "noopener noreferrer",

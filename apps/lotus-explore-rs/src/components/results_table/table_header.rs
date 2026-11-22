@@ -17,8 +17,8 @@ pub fn TableHeader(current_sort: SortState, on_sort_toggle: EventHandler<SortCol
             class: "border-b border-shell-border bg-shell-raised text-left text-muted",
             th {
                 scope: "col",
-                class: "px-3 sm:px-4 py-3 text-ui font-bold whitespace-nowrap select-none",
-                span { "{t(locale, TextKey::Structure)}" }
+                class: "px-3 sm:px-4 py-2.5 text-ui font-bold whitespace-nowrap select-none",
+                span { class: "inline-flex min-h-[44px] items-center", "{t(locale, TextKey::Structure)}" }
             }
             for header in headers {
                 SortableColumnHeader {
@@ -42,12 +42,12 @@ fn SortableColumnHeader(
         th {
             scope: "col",
             aria_sort: "{header.aria_sort}",
-            class: "px-3 sm:px-4 py-3 text-ui font-bold whitespace-nowrap select-none",
+            class: "px-3 sm:px-4 py-1 text-ui font-bold whitespace-nowrap select-none",
             button {
                 r#type: "button",
                 aria_label: "{sort_aria}",
                 title: "{sort_aria}",
-                class: "inline-flex w-full min-w-0 items-center gap-1.5 border-0 bg-transparent p-0 text-inherit hover:text-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 active:scale-[0.98]",
+                class: "inline-flex min-h-[44px] w-full min-w-0 items-center gap-1.5 rounded-lg border-0 bg-transparent px-0 py-2 text-inherit hover:text-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 active:scale-[0.98]",
                 onclick: move |_| on_toggle.call(header.col),
                 span { class: "block min-w-0 whitespace-nowrap leading-tight", "{label_text}" }
                 span {

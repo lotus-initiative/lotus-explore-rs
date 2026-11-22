@@ -24,7 +24,7 @@ pub fn SearchExamples() -> Element {
                         details {
                             class: "group",
                             summary {
-                                class: "flex w-full min-w-0 cursor-pointer select-none items-center gap-2 rounded-xl group-open:rounded-b-none px-3 py-2 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                                class: "flex w-full min-w-0 min-h-[44px] cursor-pointer select-none items-center gap-2 rounded-xl group-open:rounded-b-none px-3 py-2 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                                 span {
                                     class: "inline-block text-subtle transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] group-open:rotate-90",
                                     aria_hidden: "true",
@@ -87,22 +87,25 @@ fn DownloadExampleRow(
     let absolute = Arc::<str>::from(absolute);
     rsx! {
         div {
-            class: "flex items-center gap-2 rounded-xl border border-shell-border bg-shell-page p-2 text-ui",
+            class: "flex flex-col gap-2 rounded-xl border border-shell-border bg-shell-page p-2.5 text-ui sm:flex-row sm:items-center",
             span {
-                class: "shrink-0 rounded-full bg-accent/12 px-2 py-0.5 text-micro font-semibold text-accent",
+                class: "self-start shrink-0 rounded-full bg-accent/12 px-2.5 py-1 text-micro font-semibold text-accent sm:self-auto",
                 "{format}"
             }
-            input {
-                id: "{id}",
-                name: "{name}",
-                r#type: "text",
-                autocomplete: "off",
-                readonly: true,
-                value: "{absolute}",
-                aria_label: "{format}",
-                class: "min-w-0 flex-1 truncate rounded-xl border border-border bg-surface px-2.5 py-1 font-mono text-body text-muted shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+            div {
+                class: "flex min-w-0 flex-1 items-center gap-2",
+                input {
+                    id: "{id}",
+                    name: "{name}",
+                    r#type: "text",
+                    autocomplete: "off",
+                    readonly: true,
+                    value: "{absolute}",
+                    aria_label: "{format}",
+                    class: "min-h-[44px] min-w-0 flex-1 truncate rounded-xl border border-border bg-surface px-2.5 py-2 font-mono text-body text-muted shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                }
+                CopyButton { text: absolute.clone(), locale }
             }
-            CopyButton { text: absolute.clone(), locale }
         }
     }
 }

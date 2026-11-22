@@ -23,7 +23,7 @@ pub fn QueryPanel() -> Element {
                     summary {
                         // scroll-mt keeps the row clear of the sticky header when a
                         // tap focuses it; without it the browser scrolls it under the bar.
-                        class: "flex w-auto min-w-0 scroll-mt-16 cursor-pointer select-none items-center gap-2 rounded-xl group-open:rounded-b-none px-3 py-2 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                        class: "flex w-auto min-w-0 min-h-[44px] scroll-mt-16 cursor-pointer select-none items-center gap-2 rounded-xl group-open:rounded-b-none px-3 py-2 text-ui font-semibold text-muted hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         span {
                             class: "inline-block text-subtle transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] group-open:rotate-90",
                             aria_hidden: "true",

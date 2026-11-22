@@ -188,7 +188,7 @@ fn HubButtonRow(
         li {
             button {
                 r#type: "button",
-                class: "flex w-full cursor-pointer items-center gap-2 rounded-xl border border-panel-border bg-surface px-2.5 py-2 text-left transition-colors hover:border-border hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                class: "flex min-h-[44px] w-full cursor-pointer items-center gap-2 rounded-xl border border-panel-border bg-surface px-3 py-2 text-left transition-colors hover:border-border hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                 onclick: move |_| on_pick.call(hub_idx),
                 EntityShapeIcon { kind: node.key.kind }
                 span { class: label_cls, "{node.label}" }
@@ -269,7 +269,7 @@ fn SelectedNodeView(
                 Button {
                     r#type: "button",
                     label: t(locale, TextKey::CloseInspector).to_string(),
-                    class: "inline-flex items-center justify-center rounded-lg border border-border bg-surface px-2 py-1 text-micro font-semibold text-text hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                    class: "inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-border bg-surface px-3 py-2 text-ui font-semibold text-text hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     onclick: move |_| on_clear.call(()),
                 }
             }
@@ -336,13 +336,13 @@ fn SelectedNodeView(
                 }
             }
 
-            div { class: "flex flex-wrap items-center gap-1.5",
+            div { class: "flex flex-wrap items-center gap-2",
                 a {
                     href: "{wd_href}",
                     target: "_blank",
                     rel: "noopener noreferrer",
                     aria_label: "{qid} · Wikidata — {t(locale, TextKey::OpenInWikidata)}",
-                    class: "inline-flex min-h-7 items-center rounded-full border border-border bg-surface px-2.5 py-0.5 text-micro font-semibold text-text hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                    class: "inline-flex min-h-[44px] min-w-[44px] items-center rounded-full border border-border bg-surface px-3 py-2 text-micro font-semibold text-text hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     "{qid} · Wikidata"
                 }
                 a {
@@ -350,7 +350,7 @@ fn SelectedNodeView(
                     target: "_blank",
                     rel: "noopener noreferrer",
                     aria_label: "{qid} · Scholia — {scholia_aria}",
-                    class: "inline-flex min-h-7 items-center rounded-full border border-border bg-surface px-2.5 py-0.5 text-micro font-semibold text-text hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                    class: "inline-flex min-h-[44px] min-w-[44px] items-center rounded-full border border-border bg-surface px-3 py-2 text-micro font-semibold text-text hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     "{qid} · Scholia"
                 }
                 if let Some(ref d) = doi {
@@ -359,7 +359,7 @@ fn SelectedNodeView(
                         target: "_blank",
                         rel: "noopener noreferrer",
                         aria_label: "{d} — {t(locale, TextKey::OpenDoi)}",
-                        class: "inline-flex min-h-7 items-center rounded-full border border-stat-reference-border bg-surface px-2.5 py-0.5 text-micro font-semibold text-text-wd-reference hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                        class: "inline-flex min-h-[44px] min-w-[44px] items-center rounded-full border border-stat-reference-border bg-surface px-3 py-2 text-micro font-semibold text-text-wd-reference hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         "{d}"
                     }
                 }
@@ -369,7 +369,7 @@ fn SelectedNodeView(
                 Button {
                     r#type: "button",
                     label: t(locale, TextKey::ExploreInLotus).to_string(),
-                    class: "inline-flex w-full items-center justify-center rounded-xl bg-primary px-3 py-2 text-ui font-semibold text-white shadow-xs hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 min-h-[36px]",
+                    class: "inline-flex w-full items-center justify-center rounded-xl bg-primary px-3 py-2 text-ui font-semibold text-white shadow-xs hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 min-h-[44px]",
                     onclick: move |_| on_pivot.call((node.key.kind, qid_for_pivot.clone())),
                 }
                 div { class: "grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1",
@@ -377,21 +377,21 @@ fn SelectedNodeView(
                         Button {
                             r#type: "button",
                             label: t(locale, TextKey::GraphBackToOverview).to_string(),
-                            class: "inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-1.5 text-ui font-semibold text-text shadow-xs hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 min-h-[34px]",
+                            class: "inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-ui font-semibold text-text shadow-xs hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 min-h-[44px]",
                             onclick: move |_| on_back_to_overview.call(()),
                         }
                     } else {
                         Button {
                             r#type: "button",
                             label: t(locale, TextKey::FocusNeighborhood).to_string(),
-                            class: "inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-1.5 text-ui font-semibold text-text shadow-xs hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 min-h-[34px]",
+                            class: "inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-ui font-semibold text-text shadow-xs hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 min-h-[44px]",
                             onclick: move |_| on_focus_ego.call(node.key),
                         }
                     }
                     Button {
                         r#type: "button",
                         label: t(locale, TextKey::FilterTableToEntity).to_string(),
-                        class: "inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-1.5 text-ui font-semibold text-text shadow-xs hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 min-h-[34px]",
+                        class: "inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-ui font-semibold text-text shadow-xs hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 min-h-[44px]",
                         onclick: move |_| {
                             let f = table_filter_for_node(&node_for_filter, &set_for_filter);
                             on_filter_table.call(f);
@@ -447,7 +447,7 @@ fn NeighborRowButton(
         li {
             button {
                 r#type: "button",
-                class: "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-ui hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                class: "flex min-h-[44px] w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-ui hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                 onclick: move |_| on_pick.call(neighbor_idx),
                 EntityShapeIcon { kind: neighbor.key.kind }
                 span { class: label_cls, "{neighbor.label}" }

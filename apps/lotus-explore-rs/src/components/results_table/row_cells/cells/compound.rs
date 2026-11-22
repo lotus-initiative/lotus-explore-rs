@@ -26,14 +26,14 @@ pub(in crate::components::results_table::row_cells) fn compound_cell(
                     href: "https://www.wikidata.org/entity/{compound_qid}",
                     target: "_blank",
                     rel: "noopener noreferrer",
-                    class: "min-h-6 break-words hyphens-auto line-clamp-2 font-semibold leading-snug hover:underline text-wd-compound",
-                    "{prepared.display_name}"
+                    class: "inline-flex min-h-[44px] items-center py-1 break-words hyphens-auto font-semibold leading-snug hover:underline text-wd-compound",
+                    span { class: "line-clamp-2", "{prepared.display_name}" }
                 }
                 if let Some(smiles) = entry.smiles.as_deref() {
                     span { "property": "smiles wdt:P233", "content": "{smiles}", class: "sr-only" }
                 }
             }
-            div { class: "mt-1 flex flex-wrap items-center gap-1 max-w-[30ch]",
+            div { class: "mt-1 flex flex-wrap items-center gap-2 max-w-[30ch]",
                 a {
                     href: "https://scholia.toolforge.org/chemical/{compound_qid}",
                     target: "_blank",
@@ -41,7 +41,7 @@ pub(in crate::components::results_table::row_cells) fn compound_cell(
                     // WCAG 2.5.3: keep the visible "{qid} • Scholia" text in the accessible
                     // name, then add what the link does.
                     aria_label: "{compound_qid} • Scholia — {t(locale, TextKey::OpenInCompoundScholia)}",
-                    class: "inline-flex min-h-7 items-center rounded-full border border-wd-compound/35 bg-surface px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-compound hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                    class: "inline-flex min-h-[44px] min-w-[44px] items-center rounded-full border border-wd-compound/35 bg-surface px-3 py-2 text-micro font-semibold uppercase tracking-wide text-wd-compound hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     "{compound_qid} • Scholia"
                 }
                 if let Some(ik) = entry.inchikey.as_deref() {
@@ -53,7 +53,7 @@ pub(in crate::components::results_table::row_cells) fn compound_cell(
                         target: "_blank",
                         rel: "noopener noreferrer",
                         aria_label: "{aria_search_inchikey(locale, ik)}",
-                        class: "inline-flex min-h-7 max-w-full break-all items-center rounded-full border border-wd-compound/35 bg-surface px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-compound hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                        class: "inline-flex min-h-[44px] min-w-[44px] max-w-full break-all items-center rounded-full border border-wd-compound/35 bg-surface px-3 py-2 text-micro font-semibold uppercase tracking-wide text-wd-compound hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         "{ik}"
                     }
                 }

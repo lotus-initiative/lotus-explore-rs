@@ -193,7 +193,7 @@ fn ReferenceInput() -> Element {
                 value: "{reference.read()}",
                 list: "reference-suggestions",
                 oninput: move |e| ctx.update(FormAction::Reference(e.value())),
-                class: "font-mono w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                class: "min-h-[44px] font-mono w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
             }
             datalist { id: "reference-suggestions",
                 for item in REFERENCE_SUGGESTIONS {
@@ -278,14 +278,14 @@ fn StructureSearchOptions() -> Element {
             // schema validation.
             "toolparamdescription": "How the resolved compound is searched: exact (that compound; a pasted structure can also match its stereoisomers), substructure, or similarity.",
             legend { class: "text-micro font-semibold uppercase tracking-wide text-subtle", "{t(locale, TextKey::StructureSearchMode)}" }
-            label { class: "inline-flex items-center gap-1.5 text-ui text-muted",
+            label { class: "flex min-h-[44px] cursor-pointer items-center gap-2.5 py-2 text-ui text-muted",
                 input {
                     r#type: "radio",
                     id: "smiles-search-type-exact",
                     name: "stype",
                     value: "exact",
                     autocomplete: "off",
-                    class: "accent-accent h-4 w-4 cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                    class: "accent-accent size-6 shrink-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     checked: smiles_search_type == SmilesSearchType::Exact,
                     onchange: move |_| {
                         ctx.update(FormAction::SmilesSearchType(SmilesSearchType::Exact));
@@ -293,14 +293,14 @@ fn StructureSearchOptions() -> Element {
                 }
                 "{t(locale, TextKey::Exact)}"
             }
-            label { class: "inline-flex items-center gap-1.5 text-ui text-muted",
+            label { class: "flex min-h-[44px] cursor-pointer items-center gap-2.5 py-2 text-ui text-muted",
                 input {
                     r#type: "radio",
                     id: "smiles-search-type-substructure",
                     name: "stype",
                     value: "substructure",
                     autocomplete: "off",
-                    class: "accent-accent h-4 w-4 cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                    class: "accent-accent size-6 shrink-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     checked: smiles_search_type == SmilesSearchType::Substructure,
                     onchange: move |_| {
                         ctx.update(FormAction::SmilesSearchType(SmilesSearchType::Substructure));
@@ -308,14 +308,14 @@ fn StructureSearchOptions() -> Element {
                 }
                 "{t(locale, TextKey::Substructure)}"
             }
-            label { class: "inline-flex items-center gap-1.5 text-ui text-muted",
+            label { class: "flex min-h-[44px] cursor-pointer items-center gap-2.5 py-2 text-ui text-muted",
                 input {
                     r#type: "radio",
                     id: "smiles-search-type-similarity",
                     name: "stype",
                     value: "similarity",
                     autocomplete: "off",
-                    class: "accent-accent h-4 w-4 cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                    class: "accent-accent size-6 shrink-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     checked: smiles_search_type == SmilesSearchType::Similarity,
                     onchange: move |_| {
                         ctx.update(FormAction::SmilesSearchType(SmilesSearchType::Similarity));
@@ -342,7 +342,7 @@ fn StructureSearchOptions() -> Element {
                         aria_valuemin: "0",
                         aria_valuemax: "1",
                         aria_valuenow: "{similarity_threshold}",
-                        class: "w-full accent-accent cursor-pointer appearance-none h-2 bg-border rounded-xl focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                        class: "min-h-[44px] w-full bg-transparent accent-accent cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         oninput: move |e| {
                             if let Ok(v) = e.value().parse::<f64>() {
                                 ctx.update(FormAction::SimilarityThreshold(v));

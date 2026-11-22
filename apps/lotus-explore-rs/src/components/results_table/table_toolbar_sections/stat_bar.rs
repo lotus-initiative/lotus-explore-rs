@@ -124,7 +124,7 @@ pub fn StatBar() -> Element {
                 details {
                     class: "flex w-full min-w-0 basis-full justify-center",
                     summary {
-                        class: "mx-auto cursor-pointer list-none text-center text-sm text-muted underline decoration-dotted underline-offset-4 marker:content-none",
+                        class: "mx-auto inline-flex min-h-[44px] items-center px-2 cursor-pointer list-none text-center text-ui text-muted underline decoration-dotted underline-offset-4 marker:content-none",
                         "{t(locale, TextKey::DuplicateRowsHint)}"
                     }
                     p {

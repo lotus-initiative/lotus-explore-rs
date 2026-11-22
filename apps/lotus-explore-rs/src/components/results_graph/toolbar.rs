@@ -80,7 +80,7 @@ pub(super) fn GraphToolbar(
     let download_png_label = t(locale, TextKey::GraphDownloadPng).to_string();
     let pause_label_owned = pause_label.to_string();
     let summary = criteria_summary(&criteria);
-    let btn_class = "inline-flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface px-2.5 py-1.5 text-ui font-semibold text-text shadow-xs hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[34px]";
+    let btn_class = "inline-flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-ui font-semibold text-text shadow-xs hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[44px] min-w-[44px]";
 
     rsx! {
         nav {
@@ -128,7 +128,7 @@ pub(super) fn GraphToolbar(
                         select {
                             id: "graph-projection-select",
                             value: "{projection.as_str()}",
-                            class: "min-h-[34px] cursor-pointer rounded-xl border border-border bg-surface px-2.5 py-1 text-body font-semibold text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                            class: "min-h-[44px] cursor-pointer rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body font-semibold text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                             onchange: move |evt| {
                                 if let Some(next) = GraphProjection::parse(&evt.value()) {
                                     on_projection_change.call(next);
@@ -178,7 +178,7 @@ pub(super) fn GraphToolbar(
                         r#type: "search",
                         value: "{finder_query}",
                         placeholder: "{t(locale, TextKey::GraphNodeSearchPlaceholder)}",
-                        class: "min-h-[34px] w-full rounded-xl border border-border bg-surface px-3 py-1 text-body text-text shadow-xs placeholder:text-subtle focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                        class: "min-h-[44px] w-full rounded-xl border border-border bg-surface px-3 py-1.5 text-body text-text shadow-xs placeholder:text-subtle focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         oninput: move |evt| finder_query.set(evt.value()),
                     }
                     if !matches.is_empty() {
@@ -200,7 +200,7 @@ pub(super) fn GraphToolbar(
                     }
                 }
 
-                div { class: "flex flex-wrap items-center gap-1.5 ml-auto",
+                div { class: "flex flex-wrap items-center gap-2 ml-auto",
                     Button {
                         r#type: "button",
                         disabled: !has_graph,
@@ -261,7 +261,7 @@ fn FinderResultItem(
         li {
             button {
                 r#type: "button",
-                class: "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-ui hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                class: "flex min-h-[44px] w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-ui hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                 onclick: move |_| on_pick.call(item.key),
                 EntityShapeIcon { kind: item.key.kind }
                 span { class: label_class, "{item.label}" }

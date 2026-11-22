@@ -278,7 +278,7 @@ fn panel(
             iframe {
                 src: "{url}",
                 title: "{t(locale, TextKey::KetcherIframeTitle)}",
-                class: "min-h-[420px] w-full flex-1 border-0 bg-surface",
+                class: "min-h-[300px] sm:min-h-[420px] w-full flex-1 border-0 bg-surface",
                 allow: "fullscreen",
                 referrerpolicy: "no-referrer",
             }
@@ -309,7 +309,7 @@ fn panel(
                 // in the user's browser.
                 src: "about:blank",
                 title: "{t(locale, TextKey::KetcherIframeTitle)}",
-                class: "min-h-[420px] w-full flex-1 border-0 bg-surface",
+                class: "min-h-[300px] sm:min-h-[420px] w-full flex-1 border-0 bg-surface",
                 allow: "fullscreen",
                 onload: move |_| {
                     // Only the first. Writing the document into the frame loads a
@@ -365,7 +365,7 @@ fn shell(locale: crate::i18n::Locale, mut ketcher_ready: Signal<bool>, frame: El
                 } else {
                     button {
                         r#type: "button",
-                        class: "flex min-h-[420px] w-full flex-1 cursor-pointer items-center justify-center rounded-xl border-0 bg-bg text-center hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                        class: "flex min-h-[300px] sm:min-h-[420px] w-full flex-1 cursor-pointer items-center justify-center rounded-xl border-0 bg-bg text-center hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         onclick: move |_| ketcher_ready.set(true),
                         em {
                             class: "text-body text-muted",

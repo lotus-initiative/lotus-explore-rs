@@ -61,8 +61,8 @@ pub(in crate::components::results_table::row_cells) fn reference_cell(
                         href: "https://www.wikidata.org/entity/{reference_qid}",
                         target: "_blank",
                         rel: "noopener noreferrer",
-                        class: "min-h-6 break-words line-clamp-2 font-semibold leading-snug hover:underline text-wd-reference",
-                        "{full_title}"
+                        class: "inline-flex min-h-[44px] items-center py-1 break-words font-semibold leading-snug hover:underline text-wd-reference",
+                        span { class: "line-clamp-2", "{full_title}" }
                     }
                 } else {
                     a {
@@ -70,12 +70,12 @@ pub(in crate::components::results_table::row_cells) fn reference_cell(
                         href: "https://www.wikidata.org/entity/{reference_qid}",
                         target: "_blank",
                         rel: "noopener noreferrer",
-                        class: "min-h-6 break-words line-clamp-2 font-semibold leading-snug hover:underline text-wd-reference",
-                        "{reference_qid}"
+                        class: "inline-flex min-h-[44px] items-center py-1 break-words font-semibold leading-snug hover:underline text-wd-reference",
+                        span { class: "line-clamp-2", "{reference_qid}" }
                     }
                 }
             }
-            div { class: "mt-1 flex flex-wrap items-center gap-1",
+            div { class: "mt-1 flex flex-wrap items-center gap-2",
                 a {
                     href: "https://scholia.toolforge.org/work/{reference_qid}",
                     target: "_blank",
@@ -83,7 +83,7 @@ pub(in crate::components::results_table::row_cells) fn reference_cell(
                     // WCAG 2.5.3: keep the visible "{qid} • Scholia" text in the accessible
                     // name, then add what the link does.
                     aria_label: "{reference_qid} • Scholia — {t(locale, TextKey::OpenInReferenceScholia)}",
-                    class: "inline-flex min-h-7 items-center rounded-full border border-wd-reference/35 bg-surface px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-reference hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                    class: "inline-flex min-h-[44px] min-w-[44px] items-center rounded-full border border-wd-reference/35 bg-surface px-3 py-2 text-micro font-semibold uppercase tracking-wide text-wd-reference hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     "{reference_qid} • Scholia"
                 }
                 if let Some(d) = doi {
@@ -93,7 +93,7 @@ pub(in crate::components::results_table::row_cells) fn reference_cell(
                         href: "https://doi.org/{d}",
                         target: "_blank",
                         rel: "noopener noreferrer",
-                        class: "inline-flex min-h-7 items-center rounded-full border border-wd-reference/35 bg-surface px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-reference hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                        class: "inline-flex min-h-[44px] min-w-[44px] items-center rounded-full border border-wd-reference/35 bg-surface px-3 py-2 text-micro font-semibold uppercase tracking-wide text-wd-reference hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         // WCAG 2.5.3: the visible DOI text stays in the
                         // accessible name, then what the link does.
                         aria_label: "{d} — {text.open_doi}",
@@ -105,7 +105,7 @@ pub(in crate::components::results_table::row_cells) fn reference_cell(
                         href: "{stmt_href}",
                         target: "_blank",
                         rel: "noopener noreferrer",
-                        class: "inline-flex min-h-7 items-center rounded-full border border-wd-reference/35 bg-surface px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-wd-reference hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                        class: "inline-flex min-h-[44px] min-w-[44px] items-center rounded-full border border-wd-reference/35 bg-surface px-3 py-2 text-micro font-semibold uppercase tracking-wide text-wd-reference hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         // WCAG 2.5.3: visible text matches the accessible name prefix.
                         title: "{stmt_title}",
                         aria_label: "{stmt_aria}",

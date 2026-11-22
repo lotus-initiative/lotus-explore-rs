@@ -35,7 +35,7 @@ pub fn FilterStatus(shown: usize) -> Element {
                 }
                 button {
                     r#type: "button",
-                    class: "cursor-pointer rounded-full border border-border bg-panel px-2.5 py-1 text-ui font-semibold text-muted hover:border-accent hover:text-text focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                    class: "min-h-[44px] min-w-[44px] cursor-pointer rounded-full border border-border bg-panel px-3.5 py-2 text-ui font-semibold text-muted hover:border-accent hover:text-text focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     onclick: move |_| {
                         interactions.clear_filters();
                     },

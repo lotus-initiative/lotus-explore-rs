@@ -135,7 +135,7 @@ pub(super) fn GraphCanvasStage(
                         Button {
                             r#type: "button",
                             label: t(locale, TextKey::GraphBackToOverview).to_string(),
-                            class: "inline-flex items-center justify-center rounded-lg border border-border bg-surface px-2.5 py-1 text-micro font-semibold text-text hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                            class: "inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-border bg-surface px-3 py-2 text-ui font-semibold text-text hover:bg-panel-soft focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                             onclick: move |_| on_back_to_overview.call(()),
                         }
                     }
@@ -185,7 +185,7 @@ pub(super) fn GraphCanvasStage(
                     span { class: "text-muted tabular-nums",
                         "{t(locale, TextKey::GraphCappedNoticePrefix)} {format_count(locale, model.nodes.len())} / {format_count(locale, model.total_distinct_nodes)} {t(locale, TextKey::GraphCappedNoticeSuffix)}"
                     }
-                    div { class: "flex flex-wrap items-center gap-1.5",
+                    div { class: "flex flex-wrap items-center gap-2",
                         span { class: "text-micro font-semibold text-subtle",
                             "{t(locale, TextKey::GraphNodeLimitLabel)}"
                         }
@@ -227,9 +227,9 @@ fn CapPresetButton(
 ) -> Element {
     let label = format_count(locale, preset);
     let class = if active {
-        "inline-flex cursor-pointer items-center rounded-lg border border-accent bg-primary px-2 py-0.5 text-micro font-semibold text-white focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+        "inline-flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-lg border border-accent bg-primary px-3 py-2 text-ui font-semibold text-white focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
     } else {
-        "inline-flex cursor-pointer items-center rounded-lg border border-border bg-surface px-2 py-0.5 text-micro font-semibold text-text hover:bg-panel focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+        "inline-flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-lg border border-border bg-surface px-3 py-2 text-ui font-semibold text-text hover:bg-panel focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
     };
     let pressed = if active {
         String::from("true")

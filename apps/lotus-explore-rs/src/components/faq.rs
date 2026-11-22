@@ -81,12 +81,12 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
                     // the dots stay pinned to the container's padding edge, drifting
                     // apart as the row narrows until on a phone the dots touch the text.
                     // Four short links read better inline than bulleted anyway.
-                    ul { class: "mt-2 flex list-none flex-wrap items-baseline gap-x-4 gap-y-1 text-body",
+                    ul { class: "mt-2 flex list-none flex-wrap items-baseline gap-x-3 gap-y-2 text-body",
                         for (category, _) in questions_by_category.iter() {
                             li {
                                 a {
                                     href: "#{category_anchor(*category)}",
-                                    class: "text-body text-accent underline",
+                                    class: "inline-flex min-h-[44px] items-center px-1.5 text-body text-accent underline",
                                     "{category.label(locale)}"
                                 }
                             }
@@ -159,7 +159,7 @@ pub fn FaqPage(query: RouteQuery, hash: String) -> Element {
                             id: "{section.id}",
                             open: false,
                             summary {
-                                class: "cursor-pointer list-none px-4 py-3 text-body font-semibold text-text marker:content-none",
+                                class: "min-h-[44px] cursor-pointer list-none rounded-xl px-4 py-3 text-body font-semibold text-text marker:content-none",
                                 div { "{section.title(locale)}" }
                                 // Stands alone when collapsed, so a summary not a teaser.
                                 p {

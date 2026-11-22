@@ -133,7 +133,7 @@ pub fn TaxonInput() -> Element {
                 // The examples are a described group of buttons, not a hint in the
                 // placeholder, so the input points at them by name.
                 "aria-describedby": "taxon-input-examples-heading",
-                class: "resize-field w-full min-h-9 rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                class: "resize-field w-full min-h-[44px] rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                 list: "taxon-suggestions",
                 oninput: move |e| ctx.update(FormAction::Taxon(e.value())),
                 onkeydown: move |e| {
@@ -194,14 +194,14 @@ pub fn TaxonNomenclatureFilters() -> Element {
             for (toggle, is_on) in NomenclatureToggle::ALL.into_iter().zip(nomenclature) {
                 label {
                     key: "{toggle.key()}",
-                    class: "flex cursor-pointer items-start gap-1.5 text-ui text-muted",
+                    class: "flex min-h-[44px] cursor-pointer items-center gap-2.5 py-2 text-ui text-muted",
                     input {
                         r#type: "checkbox",
                         id: "taxon-{toggle.key()}-input",
                         name: "taxon_{toggle.key()}",
                         "toolparamdescription": "{toggle.description()}",
                         autocomplete: "off",
-                        class: "accent-accent mt-0.5 cursor-pointer",
+                        class: "accent-accent size-6 shrink-0 cursor-pointer",
                         checked: *is_on.read(),
                         onchange: move |e| ctx.update(FormAction::TaxonNomenclature { relation: toggle.relation(), on: e.checked() }),
                     }
@@ -242,7 +242,7 @@ pub fn MassRangeInput() -> Element {
                         max: "10000",
                         step: "1",
                         value: "{min_value}",
-                        class: "resize-field w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                        class: "resize-field w-full min-h-[44px] rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         oninput: move |e| {
                             if let Some(v) = parse_f64_input(&e.value()) {
                                 ctx.update(FormAction::MassMin(v));
@@ -267,7 +267,7 @@ pub fn MassRangeInput() -> Element {
                         max: "10000",
                         step: "1",
                         value: "{max_value}",
-                        class: "resize-field w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                        class: "resize-field w-full min-h-[44px] rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         oninput: move |e| {
                             if let Some(v) = parse_f64_input(&e.value()) {
                                 ctx.update(FormAction::MassMax(v));
@@ -311,7 +311,7 @@ pub fn YearRangeInput() -> Element {
                         max: "{current}",
                         step: "1",
                         value: "{min_value}",
-                        class: "resize-field w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                        class: "resize-field w-full min-h-[44px] rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         oninput: move |e| {
                             if let Some(v) = parse_u16_input(&e.value()) {
                                 ctx.update(FormAction::YearMin(v));
@@ -336,7 +336,7 @@ pub fn YearRangeInput() -> Element {
                         max: "{current}",
                         step: "1",
                         value: "{max_value}",
-                        class: "resize-field w-full min-h-8 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                        class: "resize-field w-full min-h-[44px] rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         oninput: move |e| {
                             if let Some(v) = parse_u16_input(&e.value()) {
                                 ctx.update(FormAction::YearMax(v));

@@ -60,7 +60,7 @@ pub fn FieldExamples(
                 "{t(locale, heading)}"
             }
             div {
-                class: "flex flex-wrap gap-1.5",
+                class: "flex flex-wrap gap-2",
                 for value in values.iter() {
                     {
                         let value = (*value).to_owned();
@@ -73,7 +73,7 @@ pub fn FieldExamples(
                                 r#type: "button",
                                 // `max-w-full break-words`: a SMILES is one long word, and a
                                 // chip wider than a phone would scroll the page sideways.
-                                class: "max-w-full break-words text-left cursor-pointer rounded-2xl border border-border bg-panel px-2 py-1 text-micro text-subtle hover:border-accent hover:text-text focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                                class: "max-w-full min-h-[44px] min-w-[44px] break-words text-left cursor-pointer rounded-2xl border border-border bg-panel px-3 py-2 text-ui text-subtle hover:border-accent hover:text-text focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                                 // The visible text is the bare value, which out of
                                 // context does not say what it does; this names the action.
                                 "aria-label": "{t(locale, TextKey::ExampleSets)} {value}",

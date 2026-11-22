@@ -50,7 +50,7 @@ fn with_pointer(class: &str) -> String {
 
 #[component]
 pub fn Button(props: ButtonProps) -> Element {
-    let default_class = "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl bg-accent text-bg font-semibold shadow-xs hover:bg-accent-2 active:bg-accent-2 min-h-[40px] gap-2 px-3.5 py-2 text-ui active:scale-[0.98] cursor-pointer";
+    let default_class = "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl bg-accent text-bg font-semibold shadow-xs hover:bg-accent-2 active:bg-accent-2 min-h-[44px] min-w-[44px] gap-2 px-3.5 py-2 text-ui active:scale-[0.98] cursor-pointer";
     let class = with_pointer(props.class.as_deref().unwrap_or(default_class));
     // Only the attributes that were given. An empty `aria-label=""` is not the
     // absence of a label: it overrides the visible text as the accessible name,

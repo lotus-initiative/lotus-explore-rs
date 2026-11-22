@@ -635,7 +635,8 @@ legend {
 
 .lotus-graph-stage {
   position: relative;
-  height: 440px;
+  height: clamp(320px, 55dvh, 440px);
+  height: clamp(320px, 55svh, 440px);
 }
 
 @media (min-width: 640px) {

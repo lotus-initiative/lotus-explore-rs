@@ -30,13 +30,13 @@ pub fn ShareBar(locale: Locale, share: Arc<str>) -> Element {
     rsx! {
         div { class: "flex flex-col gap-2 p-3 rounded-xl border border-shell-border bg-shell-raised", role: "status",
             span { class: "text-ui font-semibold text-muted", "{t(locale, TextKey::Share)}" }
-            div { class: "flex flex-col gap-2",
+            div { class: "flex flex-col gap-2 sm:flex-row sm:items-center",
                 input {
                     id: "curation-share-url-field",
                     name: "share_url",
                     autocomplete: "off",
                     aria_label: "{t(locale, TextKey::CopyShareableLink)}",
-                    class: "w-full font-mono rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                    class: "min-h-[44px] min-w-0 flex-1 w-full font-mono rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     r#type: "text",
                     readonly: true,
                     value: "{share_url}",
@@ -44,6 +44,7 @@ pub fn ShareBar(locale: Locale, share: Arc<str>) -> Element {
                 CopyButton {
                     text: copy_text,
                     title: t(locale, TextKey::CopyShareableLink),
+                    class: "shrink-0 self-start sm:self-auto",
                     locale,
                 }
             }
@@ -109,7 +110,7 @@ pub fn AddRowCard(
                     name: "name",
                     "toolparamdescription": "Compound name.",
                     autocomplete: "off",
-                    class: "form-input w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                    class: "form-input min-h-[44px] w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     r#type: "text",
                     placeholder: "{placeholder_molecule_name(locale)}",
                     value: "{form.name}",
@@ -125,7 +126,7 @@ pub fn AddRowCard(
                     name: "smiles",
                     "toolparamdescription": "SMILES representation of the structure.",
                     autocomplete: "off",
-                    class: "form-input w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                    class: "form-input min-h-[44px] w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     r#type: "text",
                     placeholder: "SMILES",
                     value: "{form.smiles}",
@@ -141,7 +142,7 @@ pub fn AddRowCard(
                     name: "taxon",
                     "toolparamdescription": "Taxon name or identifier the compound was reported for.",
                     autocomplete: "off",
-                    class: "form-input w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                    class: "form-input min-h-[44px] w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     r#type: "text",
                     placeholder: "{placeholder_taxon_optional(locale)}",
                     value: "{form.taxon}",
@@ -155,7 +156,7 @@ pub fn AddRowCard(
                     name: "doi",
                     "toolparamdescription": "Optional DOI of the source publication.",
                     autocomplete: "off",
-                    class: "form-input w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
+                    class: "form-input min-h-[44px] w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                     r#type: "text",
                     placeholder: "{placeholder_doi_optional(locale)}",
                     value: "{form.doi}",
@@ -166,7 +167,7 @@ pub fn AddRowCard(
                 Button {
                     r#type: "submit",
                     label: button_add_row(locale).to_string(),
-                    class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl bg-accent text-bg font-semibold shadow-xs hover:bg-accent-2 active:bg-accent-2 min-h-[34px] gap-1.5 px-3 py-1.5 text-ui active:scale-[0.98]",
+                    class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl bg-accent text-bg font-semibold shadow-xs hover:bg-accent-2 active:bg-accent-2 min-h-[44px] min-w-[44px] gap-1.5 px-3.5 py-2 text-ui active:scale-[0.98]",
                     onclick: Some(EventHandler::new(move |evt: Event<MouseData>| {
                         evt.prevent_default();
                         on_add_row.call(());
@@ -174,7 +175,7 @@ pub fn AddRowCard(
                 }
                 Button {
                     label: button_load_example_rows(locale).to_string(),
-                    class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-[34px] gap-1.5 px-3 py-1.5 text-ui active:scale-[0.98] disabled:opacity-100 disabled:bg-panel-soft disabled:text-muted disabled:cursor-not-allowed",
+                    class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-[44px] min-w-[44px] gap-1.5 px-3.5 py-2 text-ui active:scale-[0.98] disabled:opacity-100 disabled:bg-panel-soft disabled:text-muted disabled:cursor-not-allowed",
                     disabled: processing,
                     onclick: Some(EventHandler::new(move |_: Event<MouseData>| on_load_examples.call(()))),
                 }
@@ -237,7 +238,7 @@ pub fn TsvImportCard(
             div { class: "flex flex-wrap items-center gap-2.5",
                 Button {
                     label: button_append_tsv_rows(locale).to_string(),
-                    class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-[34px] gap-1.5 px-3 py-1.5 text-ui active:scale-[0.98] disabled:opacity-100 disabled:bg-panel-soft disabled:text-muted disabled:cursor-not-allowed",
+                    class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-[44px] min-w-[44px] gap-1.5 px-3.5 py-2 text-ui active:scale-[0.98] disabled:opacity-100 disabled:bg-panel-soft disabled:text-muted disabled:cursor-not-allowed",
                     disabled: processing || !has_tsv_input,
                     onclick: Some(EventHandler::new(move |_: Event<MouseData>| on_parse_tsv.call(()))),
                 }
@@ -253,7 +254,7 @@ pub fn TsvImportCard(
                     name: "tsv_file",
                     "toolparamdescription": "Upload a TSV file instead of pasting. An agent cannot set a file input, so it should use the tsv property instead.",
                     autocomplete: "off",
-                    class: "curation-file-input w-full max-w-full cursor-pointer rounded-xl border border-border bg-surface px-3 py-2 text-body text-muted shadow-xs hover:border-accent/50 hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-ui file:font-semibold file:text-bg hover:file:bg-accent-2",
+                    class: "curation-file-input min-h-[44px] w-full max-w-full cursor-pointer rounded-xl border border-border bg-surface px-3 py-2 text-body text-muted shadow-xs hover:border-accent/50 hover:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-ui file:font-semibold file:text-bg hover:file:bg-accent-2",
                     r#type: "file",
                     accept: ".tsv,.csv,text/tab-separated-values,text/csv,text/plain",
                     disabled: processing,
@@ -308,7 +309,7 @@ pub fn QueueRowsCard(
                     } else {
                         button_generate_quickstatements(locale).to_string()
                     },
-                    class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl bg-accent text-bg font-semibold shadow-xs hover:bg-accent-2 active:bg-accent-2 min-h-[34px] gap-1.5 px-3 py-1.5 text-ui active:scale-[0.98] disabled:opacity-100 disabled:bg-accent/30 disabled:text-bg/60 disabled:cursor-not-allowed",
+                    class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl bg-accent text-bg font-semibold shadow-xs hover:bg-accent-2 active:bg-accent-2 min-h-[44px] min-w-[44px] gap-1.5 px-3.5 py-2 text-ui active:scale-[0.98] disabled:opacity-100 disabled:bg-accent/30 disabled:text-bg/60 disabled:cursor-not-allowed",
                     disabled: processing,
                     onclick: Some(EventHandler::new(move |_: Event<MouseData>| on_process.call(()))),
                 }
@@ -353,7 +354,7 @@ pub fn QueueRowsCard(
                                     td { class: "border-b border-panel-border px-3 py-2.5 align-top text-ui text-text w-[110px] min-w-[110px]",
                                         Button {
                                             label: button_remove(locale).to_string(),
-                                            class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl border border-danger/35 bg-danger/10 text-danger font-semibold hover:bg-danger/15 active:bg-danger/20 min-h-[34px] gap-1.5 px-3 py-1.5 text-ui active:scale-[0.98]",
+                                            class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl border border-danger/35 bg-danger/10 text-danger font-semibold hover:bg-danger/15 active:bg-danger/20 min-h-[44px] min-w-[44px] gap-1.5 px-3.5 py-2 text-ui active:scale-[0.98]",
                                             onclick: Some(EventHandler::new(move |_: Event<MouseData>| {
                                                 let row_count = rows.read().len();
                                                 if idx < row_count {
@@ -403,7 +404,7 @@ pub fn QuickStatementsCard(
                         href: "{qs_dependency_link}",
                         target: "_blank",
                         rel: "noopener noreferrer",
-                        class: "font-medium text-accent underline",
+                        class: "inline-flex min-h-[44px] items-center font-medium text-accent underline",
                         "{curation_qs_dev_label(locale)}"
                     }
                     " - {curation_qs_dev_prereq_hint(locale)}"
@@ -426,7 +427,7 @@ pub fn QuickStatementsCard(
                 }
                 Button {
                     label: button_second_pass(locale).to_string(),
-                    class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-[34px] gap-1.5 px-3 py-1.5 text-ui active:scale-[0.98] disabled:opacity-100 disabled:bg-panel-soft disabled:text-muted disabled:cursor-not-allowed",
+                    class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-[44px] min-w-[44px] gap-1.5 px-3.5 py-2 text-ui active:scale-[0.98] disabled:opacity-100 disabled:bg-panel-soft disabled:text-muted disabled:cursor-not-allowed",
                     disabled: processing,
                     onclick: Some(EventHandler::new(move |_: Event<MouseData>| on_second_pass.call(()))),
                 }
@@ -438,7 +439,7 @@ pub fn QuickStatementsCard(
                         href: "{qs_main_link}",
                         target: "_blank",
                         rel: "noopener noreferrer",
-                        class: "font-medium text-accent underline",
+                        class: "inline-flex min-h-[44px] items-center font-medium text-accent underline",
                         "{curation_qs_dev_label(locale)}"
                     }
                     " - {curation_qs_dev_main_hint(locale)}"
