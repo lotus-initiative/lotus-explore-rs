@@ -2,6 +2,10 @@
 # Suppress an intentional mention with `// refquiem: allow(name)` or
 # `<!-- refquiem: allow(name) -->` (unused markers fail the gate).
 
+# Schema.org `"contentUrl"` in `dataset_jsonld` is unrelated to the deleted
+# `metadata::DataDownload` serde rename (see `docs/DEBT.md`). Configured here
+# instead of an inline marker so `--base` branch runs do not reject it as unused.
+allow = ["contentUrl"]
 scan-commented-code = true
 
 [changed]
