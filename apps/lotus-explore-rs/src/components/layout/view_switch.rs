@@ -1,19 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! View-switcher nav component (Search / Curation / Structure editor).
+//! View-switcher nav component (Search / Network / Curation / Structure editor / FAQ).
 //! Reads the active route and `use_locale()` for labels — zero props required.
 
 use crate::app::routes::Route;
 use crate::hooks::use_locale;
 use crate::i18n::faq::faq_nav_label;
 use crate::i18n::{
-    view_label_curation_explorer, view_label_draw, view_label_explorer, view_switch_aria,
+    view_label_curation_explorer, view_label_draw, view_label_explorer, view_label_network,
+    view_switch_aria,
 };
 use crate::state::use_app_state_context;
 use crate::ui::prelude::{SegmentedControl, SegmentedControlItem};
 use dioxus::prelude::*;
 
-/// Three-button view switcher.
+/// Five-button view switcher.
 #[component]
 pub fn ViewSwitch() -> Element {
     let ctx = use_app_state_context();
@@ -34,6 +35,10 @@ pub fn ViewSwitch() -> Element {
                     SegmentedControlItem {
                         label: view_label_explorer(locale),
                         value: "search",
+                    },
+                    SegmentedControlItem {
+                        label: view_label_network(locale),
+                        value: "network",
                     },
                     SegmentedControlItem {
                         label: view_label_curation_explorer(locale),

@@ -26,6 +26,7 @@ pub mod form_sections;
 pub mod layout;
 pub mod loading;
 pub mod not_found;
+pub mod results_graph;
 pub mod results_table;
 pub mod results_viewport;
 pub mod search_panel;

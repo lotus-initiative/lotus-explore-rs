@@ -7,4 +7,5 @@ mod render;
 mod row_text;
 
 pub(super) use prepared::PreparedRow;
+pub use prepared::depict_url_for_smiles;
 pub(super) use render::{ResultsRowsWindow, row_text};

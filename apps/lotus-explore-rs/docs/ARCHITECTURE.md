@@ -14,7 +14,7 @@ application is split across two crates:
   owns the framework-free Explore state machine (`ExploreState`, `ExploreAction`,
   `reduce_mut`), URL query parameter encoding/decoding (`CriteriaQueryDto`),
   client-side columnar filtering (`ColumnFilters`) and sorting (`SortColumn`,
-  `SortDir`, `SortState`), table memory budgets (`table_budget.rs`), query
+  `SortDir`, `SortState`), graph projection and node search (`graph/`), table memory budgets (`table_budget.rs`), query
   construction (`explore::service::build_query::build_sparql_query`), REST API
   DTOs (`api/`), and the bulk export / PubChem tree / archive pipelines.
 - **[`apps/lotus-explore-rs`](../README.md)** owns the Dioxus UI components and
@@ -30,8 +30,9 @@ application is split across two crates:
 ```text
 src/
   app/                  Application bootstrap, shell, and routes
-  pages/                Top-level views, including Ketcher structure editor (`draw_page.rs`, `ketcher_panel.rs`)
+  pages/                Top-level views, including Ketcher structure editor (`draw_page.rs`, `ketcher_panel.rs`) and `/network` (`network_page.rs`)
   components/           Rendering-only Dioxus UI components
+    results_graph/      WebGL2 network graph workspace, JS bridge, and entity inspector
     results_table/      Virtualized results table, column headers, and 2D SVG/canvas depictions
     ...
   features/

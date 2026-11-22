@@ -43,7 +43,7 @@ body,
 
 img,
 svg,
-canvas,
+canvas:not(.lotus-graph-canvas),
 video {
   max-width: 100%;
   height: auto;
@@ -504,6 +504,18 @@ legend {
   }
 }
 
+@keyframes lotus-bloom {
+  0%,
+  100% {
+    opacity: 0.62;
+    transform: translateY(0) scale(0.985);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-6px) scale(1.015);
+  }
+}
+
 /* ========================================
    SCROLLBAR (webkit-specific, not in Tailwind)
    ======================================== */
@@ -631,6 +643,97 @@ legend {
   animation: spin 0.75s linear infinite;
 }
 
+.lotus-loader {
+  display: block;
+}
+
+.lotus-loader-outer {
+  fill: var(--text3);
+  opacity: 0.42;
+}
+
+.lotus-loader-petal {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: lotus-bloom 2.4s ease-in-out infinite;
+}
+
+.lotus-loader-compound {
+  animation-delay: 0s;
+}
+
+.lotus-loader-taxon {
+  animation-delay: 0.4s;
+}
+
+.lotus-loader-reference {
+  animation-delay: 0.8s;
+}
+
+.lotus-graph-stage {
+  position: relative;
+  height: 440px;
+}
+
+@media (min-width: 640px) {
+  .lotus-graph-stage {
+    height: 520px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lotus-graph-stage {
+    height: 600px;
+  }
+}
+
+.lotus-graph-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+}
+
+.lotus-graph-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.lotus-graph-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  line-height: 1.15;
+  font-weight: 600;
+  color: var(--text);
+  text-shadow:
+    0 0 4px rgb(255 255 255 / 95%),
+    0 1px 2px rgb(255 255 255 / 92%);
+  user-select: none;
+}
+
+:is([data-theme="dark"], :root:not([data-theme="light"])) .lotus-graph-label {
+  text-shadow:
+    0 0 5px rgb(10 15 25 / 96%),
+    0 1px 2px rgb(10 15 25 / 94%);
+}
+
+.lotus-graph-label.is-taxon {
+  font-style: italic;
+}
+
+.lotus-graph-label.is-active {
+  font-weight: 700;
+  color: var(--accent);
+}
+
 /* ========================================
    FOCUS-VISIBLE SAFETY NET (zero-specificity :where)
    ======================================== */
@@ -680,6 +783,12 @@ legend {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .lotus-loader-petal {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
 

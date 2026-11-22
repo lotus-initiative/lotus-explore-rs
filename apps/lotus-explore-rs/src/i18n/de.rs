@@ -208,5 +208,88 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::StaleResults => {
             "Ihre Suchkriterien haben sich geändert. Führen Sie die Suche erneut aus, um Ergebnisse zu sehen."
         }
+        TextKey::ViewInNetwork => "Im Netzwerk ansehen",
+        TextKey::NetworkStarterHeading => "LOTUS-Wissensgraph erkunden",
+        TextKey::NetworkStarterSubtitle => {
+            "Öffnen Sie direkt eine interaktive Verbindung–Taxon–Referenz-Konstellation oder starten Sie unten eine Schnellsuche."
+        }
+        TextKey::NetworkQuickSearchLabel => "Schnellsuche nach Entität",
+        TextKey::NetworkQuickSearchPlaceholder => "Taxon, Verbindung-QID/SMILES oder DOI/QID…",
+        TextKey::NetworkQuickSearchSubmit => "Graph erkunden",
+        TextKey::NetworkQuickSearchKindLabel => "Entitätstyp",
+        TextKey::NetworkStarterTitleBetaSitosterol => "β-Sitosterol",
+        TextKey::NetworkStarterDescBetaSitosterol => {
+            "Verbreitetes Phytosterol (Q121802) über dokumentierte Pflanzentaxa"
+        }
+        TextKey::NetworkStarterTitleGentianaGenus => "Gentiana (Gattung)",
+        TextKey::NetworkStarterDescGentianaGenus => {
+            "Alpen-Enziane: Secoiridoide, Xanthone und Taxa"
+        }
+        TextKey::NetworkStarterTitleGentianaLutea => "Gentiana-lutea-Literatur",
+        TextKey::NetworkStarterDescGentianaLutea => {
+            "Gelber Enzian (Q158572): Verbindungen verknüpft mit Primärartikeln"
+        }
+        TextKey::NetworkStarterTitleIndole => "Indol-Substruktur",
+        TextKey::NetworkStarterDescIndole => "Verbindungen mit Indolring über biologische Taxa",
+        TextKey::OpenAdvancedSearch => "Erweiterte Suche & Filter öffnen",
+        TextKey::PreviousSearch => "Vorherige Suche",
+        TextKey::TableAndFilters => "Tabelle / Filter bearbeiten",
+        TextKey::GraphProjectionLabel => "Projektion",
+        TextKey::ProjectionAuto => "Auto",
+        TextKey::ProjectionCompoundTaxon => "Verbindungen ↔ Taxa",
+        TextKey::ProjectionCompoundReference => "Verbindungen ↔ Referenzen",
+        TextKey::ProjectionTaxonReference => "Taxa ↔ Referenzen",
+        TextKey::ProjectionTripartite => "Alle drei",
+        TextKey::GraphNodeSearchLabel => "Entität im Graph finden",
+        TextKey::GraphNodeSearchPlaceholder => "Knoten finden (Taste /)…",
+        TextKey::GraphZoomIn => "Zoom +",
+        TextKey::GraphZoomOut => "Zoom −",
+        TextKey::GraphResetView => "Ansicht zurücksetzen",
+        TextKey::GraphPauseMotion => "Bewegung pausieren",
+        TextKey::GraphResumeMotion => "Bewegung fortsetzen",
+        TextKey::GraphDownloadPng => "PNG herunterladen",
+        TextKey::GraphNodeLimitLabel => "Knotenlimit",
+        TextKey::NetworkWorkspaceRegionAria => "Interaktiver LOTUS-Netzwerkbereich",
+        TextKey::NetworkControlsNavAria => "Netzwerkgraph-Steuerung",
+        TextKey::NetworkInspectorRegionAria => "Entitätsinspektor und verknüpfte Nachbarn",
+        TextKey::GraphCanvasAriaPrefix => "Interaktives LOTUS Verbindung–Taxon–Referenz-Netzwerk",
+        TextKey::GraphCanvasHint => {
+            "Ziehen zum Drehen/Verschieben · Scrollen zum Zoomen · Knoten anklicken · Tasten: + − 0 Esc"
+        }
+        TextKey::GraphLegendAria => "Legende der Graphentitäten",
+        TextKey::GraphBackToOverview => "Zurück zur Übersicht",
+        TextKey::GraphEgoBadgePrefix => "Fokussierte Nachbarschaft:",
+        TextKey::GraphCappedNoticePrefix => "Zeige Top",
+        TextKey::GraphCappedNoticeSuffix => {
+            "verknüpfte Knoten — nutzen Sie die Suche, um jede Entität zu fokussieren."
+        }
+        TextKey::GraphNoOccurrenceEdges => {
+            "Diese Ergebnisse enthalten keine Taxon- oder Referenz-Verknüpfungen für eine Netzwerkansicht."
+        }
+        TextKey::GraphCenterNotInRows => {
+            "Die fokussierte Entität wird von den aktuellen Tabellenfiltern ausgeschlossen."
+        }
+        TextKey::GraphWebglUnavailable => {
+            "WebGL2 ist hier nicht verfügbar; nutzen Sie den Inspektor für Top-Hubs und Nachbarn."
+        }
+        TextKey::GraphPngSaved => "PNG-Schnappschuss gespeichert:",
+        TextKey::GraphContextLost => "WebGL2-Kontext pausiert; wird wiederhergestellt…",
+        TextKey::TopConnectedEntities => "Meistverknüpfte Entitäten",
+        TextKey::FocusNeighborhood => "Nachbarschaft fokussieren",
+        TextKey::FilterTableToEntity => "Tabelle darauf filtern",
+        TextKey::ExploreInLotus => "In LOTUS erkunden",
+        TextKey::LinkedEntities => "Verknüpfte Entitäten",
+        TextKey::CloseInspector => "Inspektor schließen",
+        TextKey::NodeDegreeLabel => "Links",
+        TextKey::NodeOccurrencesLabel => "Vorkommen",
+        TextKey::GraphCorroborationRefs => "Refs",
+        TextKey::GraphCorroborationTaxa => "Taxa",
+        TextKey::GraphCorroborationCompounds => "Verbindungen",
+        TextKey::GraphSmilesLabel => "SMILES",
+        TextKey::CopySmiles => "SMILES kopieren",
+        TextKey::GraphActiveFilters => "Tabellenfilter aktiv",
+        TextKey::GraphMode3d => "3D",
+        TextKey::GraphMode2d => "2D",
+        TextKey::GraphViewModeAria => "Graph-Dimensionsmodus",
     }
 }

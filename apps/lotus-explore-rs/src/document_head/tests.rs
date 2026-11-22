@@ -91,6 +91,8 @@ fn the_compiled_sheet_carries_custom_utilities_and_typography_scale() {
     for class in [
         ".spinner-lg",
         ".spinner-sm",
+        ".lotus-loader",
+        ".lotus-graph-canvas",
         ".filter-field",
         ".resize-field",
         ".results-table-scroll",

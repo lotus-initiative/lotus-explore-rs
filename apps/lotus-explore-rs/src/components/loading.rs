@@ -12,6 +12,9 @@ use crate::ui::prelude::{NoticeBar, NoticeTone};
 use dioxus::prelude::*;
 use lotus_explore_core::explore::types::QueryPhase;
 
+pub mod lotus_loader;
+pub use lotus_loader::LotusLoader;
+
 /// Spinner overlay shown while a query is in-flight.
 /// Subscribes to `query_phase` independently so phase-text updates do not
 /// propagate to `ResultsViewport` or its siblings.
@@ -29,7 +32,7 @@ pub fn LoadingState() -> Element {
             aria_live: "polite",
             aria_busy: "true",
             class: "flex flex-col items-center justify-center gap-3 p-12 text-center text-muted",
-            div { class: "spinner-lg", "aria-hidden": "true" }
+            LotusLoader {}
             p { class: "max-w-[28ch] text-body text-text", "{query_phase_text(locale, query_phase)}" }
             // Shown once there is a count to display and kept visible while the
             // dictionary streams join and the table prepares to render.
@@ -61,7 +64,7 @@ pub fn DownloadDispatchState() -> Element {
             aria_live: "polite",
             aria_busy: "true",
             class: "flex flex-col items-center justify-center gap-3 p-12 text-center text-muted",
-            div { class: "spinner-lg", "aria-hidden": "true" }
+            LotusLoader {}
             p { class: "max-w-[28ch] text-body text-text", "{t(locale, TextKey::PreparingDownload)}" }
             p { class: "max-w-[36ch] text-ui text-subtle", "{t(locale, TextKey::ExampleApiUrls)}" }
         }

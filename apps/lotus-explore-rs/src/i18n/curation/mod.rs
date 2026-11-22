@@ -133,6 +133,7 @@ dispatch!(curation_note_dependencies_pending);
 dispatch!(curation_note_missing_doi);
 dispatch!(view_switch_aria);
 dispatch!(view_label_explorer);
+dispatch!(view_label_network);
 dispatch!(view_label_curation_explorer);
 dispatch!(view_label_draw);
 

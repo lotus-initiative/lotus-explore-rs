@@ -220,5 +220,90 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::StaleResults => {
             "Vos critères de recherche ont changé. Relancez la recherche pour voir les résultats correspondants."
         }
+        TextKey::ViewInNetwork => "Voir en réseau",
+        TextKey::NetworkStarterHeading => "Explorer le graphe de connaissances LOTUS",
+        TextKey::NetworkStarterSubtitle => {
+            "Ouvrez une constellation composé–taxon–référence interactive, ou lancez une recherche rapide ci-dessous."
+        }
+        TextKey::NetworkQuickSearchLabel => "Recherche rapide d'entité",
+        TextKey::NetworkQuickSearchPlaceholder => "Taxon, QID/SMILES de composé ou DOI/QID…",
+        TextKey::NetworkQuickSearchSubmit => "Explorer le graphe",
+        TextKey::NetworkQuickSearchKindLabel => "Type d'entité",
+        TextKey::NetworkStarterTitleBetaSitosterol => "β-Sitostérol",
+        TextKey::NetworkStarterDescBetaSitosterol => {
+            "Phytostérol courant (Q121802) dans les taxons végétaux rapportés"
+        }
+        TextKey::NetworkStarterTitleGentianaGenus => "Gentiana (genre)",
+        TextKey::NetworkStarterDescGentianaGenus => {
+            "Gentianes alpines : séco-iridoïdes, xanthones et taxons"
+        }
+        TextKey::NetworkStarterTitleGentianaLutea => "Littérature sur Gentiana lutea",
+        TextKey::NetworkStarterDescGentianaLutea => {
+            "Composés de la gentiane jaune (Q158572) reliés aux articles sources"
+        }
+        TextKey::NetworkStarterTitleIndole => "Sous-structure indole",
+        TextKey::NetworkStarterDescIndole => {
+            "Composés portant un cycle indole à travers les taxons"
+        }
+        TextKey::OpenAdvancedSearch => "Ouvrir la recherche avancée et les filtres",
+        TextKey::PreviousSearch => "Recherche précédente",
+        TextKey::TableAndFilters => "Tableau / Modifier les filtres",
+        TextKey::GraphProjectionLabel => "Projection",
+        TextKey::ProjectionAuto => "Auto",
+        TextKey::ProjectionCompoundTaxon => "Composés ↔ Taxons",
+        TextKey::ProjectionCompoundReference => "Composés ↔ Références",
+        TextKey::ProjectionTaxonReference => "Taxons ↔ Références",
+        TextKey::ProjectionTripartite => "Les trois",
+        TextKey::GraphNodeSearchLabel => "Chercher une entité dans le graphe",
+        TextKey::GraphNodeSearchPlaceholder => "Trouver un nœud (touche /)…",
+        TextKey::GraphZoomIn => "Zoom +",
+        TextKey::GraphZoomOut => "Zoom −",
+        TextKey::GraphResetView => "Réinitialiser la vue",
+        TextKey::GraphPauseMotion => "Mettre en pause",
+        TextKey::GraphResumeMotion => "Reprendre",
+        TextKey::GraphDownloadPng => "Télécharger PNG",
+        TextKey::GraphNodeLimitLabel => "Limite de nœuds",
+        TextKey::NetworkWorkspaceRegionAria => "Espace réseau interactif LOTUS",
+        TextKey::NetworkControlsNavAria => "Contrôles du graphe réseau",
+        TextKey::NetworkInspectorRegionAria => "Inspecteur d'entité et voisins liés",
+        TextKey::GraphCanvasAriaPrefix => "Réseau interactif composé–taxon–référence LOTUS",
+        TextKey::GraphCanvasHint => {
+            "Glisser pour pivoter/déplacer · Molette pour zoomer · Cliquer un nœud · Touches : + − 0 Esc"
+        }
+        TextKey::GraphLegendAria => "Légende des entités du graphe",
+        TextKey::GraphBackToOverview => "Retour à la vue d'ensemble",
+        TextKey::GraphEgoBadgePrefix => "Voisinage ciblé :",
+        TextKey::GraphCappedNoticePrefix => "Affichage des",
+        TextKey::GraphCappedNoticeSuffix => {
+            "nœuds les plus connectés — utilisez la recherche pour cibler toute entité."
+        }
+        TextKey::GraphNoOccurrenceEdges => {
+            "Ces résultats ne contiennent aucun lien d'occurrence taxon ou référence à projeter en réseau."
+        }
+        TextKey::GraphCenterNotInRows => {
+            "L'entité ciblée est exclue par les filtres actuels du tableau."
+        }
+        TextKey::GraphWebglUnavailable => {
+            "WebGL2 est indisponible ici ; parcourez les entités principales dans l'inspecteur."
+        }
+        TextKey::GraphPngSaved => "Capture PNG enregistrée :",
+        TextKey::GraphContextLost => "Contexte WebGL2 interrompu ; restauration…",
+        TextKey::TopConnectedEntities => "Entités les plus connectées",
+        TextKey::FocusNeighborhood => "Cibler le voisinage",
+        TextKey::FilterTableToEntity => "Filtrer le tableau sur ceci",
+        TextKey::ExploreInLotus => "Explorer dans LOTUS",
+        TextKey::LinkedEntities => "Entités liées",
+        TextKey::CloseInspector => "Fermer l'inspecteur",
+        TextKey::NodeDegreeLabel => "Liens",
+        TextKey::NodeOccurrencesLabel => "Occurrences",
+        TextKey::GraphCorroborationRefs => "réfs",
+        TextKey::GraphCorroborationTaxa => "taxons",
+        TextKey::GraphCorroborationCompounds => "composés",
+        TextKey::GraphSmilesLabel => "SMILES",
+        TextKey::CopySmiles => "Copier SMILES",
+        TextKey::GraphActiveFilters => "Filtres du tableau actifs",
+        TextKey::GraphMode3d => "3D",
+        TextKey::GraphMode2d => "2D",
+        TextKey::GraphViewModeAria => "Mode de dimension du graphe",
     }
 }

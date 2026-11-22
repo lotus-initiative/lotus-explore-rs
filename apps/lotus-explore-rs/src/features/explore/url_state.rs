@@ -50,7 +50,7 @@ fn deployment_base_path(pathname: &str) -> String {
     if path.is_empty() {
         return String::new();
     }
-    for suffix in ["/search", "/curation", "/draw", "/faq"] {
+    for suffix in ["/search", "/network", "/curation", "/draw", "/faq"] {
         if let Some(base) = path.strip_suffix(suffix) {
             return base.to_string();
         }

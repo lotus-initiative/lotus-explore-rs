@@ -233,6 +233,7 @@ COPY --from=wasm-builder /build/target/dx/lotus-explore-rs/release/web/public /
 # redirect would cost a round trip before the first paint.
 COPY --from=wasm-builder /build/target/dx/lotus-explore-rs/release/web/public/index.html /404.html
 COPY --from=wasm-builder /build/target/dx/lotus-explore-rs/release/web/public/index.html /search/index.html
+COPY --from=wasm-builder /build/target/dx/lotus-explore-rs/release/web/public/index.html /network/index.html
 COPY --from=wasm-builder /build/target/dx/lotus-explore-rs/release/web/public/index.html /curation/index.html
 COPY --from=wasm-builder /build/target/dx/lotus-explore-rs/release/web/public/index.html /draw/index.html
 COPY --from=wasm-builder /build/target/dx/lotus-explore-rs/release/web/public/index.html /faq/index.html

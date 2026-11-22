@@ -3,6 +3,12 @@
 //! The tests for `loading`, in their own file.
 
 use super::*;
+use crate::features::explore::interactions::ExploreInteractions;
+use crate::features::explore::orchestrator::SearchTaskController;
+use crate::repositories::HybridRepository;
+use crate::state::{FormCriteriaContext, ResultsContext};
+use lotus_explore_core::explore::search_state::ExploreState;
+use lotus_model::SearchCriteria;
 
 #[test]
 fn the_progress_line_counts_in_the_locales_own_way() {
@@ -43,4 +49,89 @@ fn preparing_phase_uses_generic_loading_title() {
         query_phase_text(Locale::En, QueryPhase::PreparingQuery),
         query_phase_text(Locale::En, QueryPhase::Idle)
     );
+}
+
+fn render_with_contexts(component: fn() -> Element) -> String {
+    let mut dom = VirtualDom::new(component);
+    dom.rebuild_in_place();
+    dioxus_ssr::render(&dom)
+}
+
+#[component]
+fn LoaderSubject() -> Element {
+    rsx! { LotusLoader {} }
+}
+
+#[component]
+fn LoadingStateSubject() -> Element {
+    use_context_provider(|| Signal::new(Locale::En));
+    let explore = use_signal(ExploreState::default);
+    let criteria = use_signal(|| SearchCriteria::up_to_year(2026));
+    let baseline = use_signal(|| SearchCriteria::up_to_year(2026));
+    let form = FormCriteriaContext::new(criteria, baseline);
+    let interactions = ExploreInteractions::new(
+        criteria,
+        form,
+        explore,
+        SearchTaskController::new(),
+        HybridRepository,
+    );
+    use_context_provider(|| ResultsContext::new(explore));
+    use_context_provider(|| form);
+    use_context_provider(|| interactions);
+    rsx! { LoadingState {} }
+}
+
+#[component]
+fn DownloadDispatchSubject() -> Element {
+    use_context_provider(|| Signal::new(Locale::En));
+    rsx! { DownloadDispatchState {} }
+}
+
+#[test]
+fn lotus_loader_renders_flower_only_svg_with_entity_tokens() {
+    let html = render_with_contexts(LoaderSubject);
+    assert!(
+        html.contains("<svg") && html.contains("lotus-loader"),
+        "LotusLoader must render inline SVG:\n{html}"
+    );
+    assert!(
+        !html.contains("<text"),
+        "LotusLoader must omit any <text> / wordmark:\n{html}"
+    );
+    assert!(
+        html.contains("aria-hidden=\"true\""),
+        "LotusLoader SVG must be decorative (aria-hidden=true):\n{html}"
+    );
+    for token in [
+        "var(--footer-wd-compound)",
+        "var(--footer-wd-taxon)",
+        "var(--footer-wd-reference)",
+    ] {
+        assert!(
+            html.contains(token),
+            "LotusLoader missing entity color token {token}:\n{html}"
+        );
+    }
+}
+
+#[test]
+fn loading_and_download_dispatch_states_use_lotus_loader() {
+    for (name, render_fn) in [
+        ("LoadingState", LoadingStateSubject as fn() -> Element),
+        (
+            "DownloadDispatchState",
+            DownloadDispatchSubject as fn() -> Element,
+        ),
+    ] {
+        let html = render_with_contexts(render_fn);
+        assert!(
+            html.contains("lotus-loader"),
+            "{name} must render LotusLoader:\n{html}"
+        );
+        assert!(
+            !html.contains("spinner-lg"),
+            "{name} must no longer render generic spinner-lg:\n{html}"
+        );
+    }
 }

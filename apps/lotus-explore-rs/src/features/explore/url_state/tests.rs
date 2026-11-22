@@ -9,7 +9,7 @@ use super::{deployment_base_path, theme_chrome_color, theme_icon_href};
 ///
 /// Looped because the per-route version read like coverage while being a
 /// list that fell out of date: adding a route never touched it.
-const ROUTES: [&str; 4] = ["/search", "/curation", "/draw", "/faq"];
+const ROUTES: [&str; 5] = ["/search", "/network", "/curation", "/draw", "/faq"];
 
 #[test]
 fn deployment_base_path_preserves_repository_prefix() {

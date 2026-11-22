@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
+use crate::app::routes::Route;
+use crate::components::ui::Button;
 use crate::features::explore::selectors::{use_result_arc_selector, use_result_selector};
 use crate::i18n::{TextKey, t};
 use crate::state::use_results_context;
@@ -23,6 +25,7 @@ mod toolbar;
 mod virtualization_controller;
 mod virtualized_table;
 
+pub use row_cells::depict_url_for_smiles;
 use table_toolbar_sections::FilterStatus;
 use table_view_model::{apply_sort_and_filters, prepare_table_state};
 use toolbar::ResultsToolbar;
@@ -107,7 +110,17 @@ pub fn ResultsTable() -> Element {
                     }
                 }
              } else {
-                 FilterStatus { shown }
+                 div { class: "flex w-full min-w-0 flex-wrap items-center justify-between gap-2 pt-2",
+                     div { class: "min-w-0 flex-1",
+                         FilterStatus { shown }
+                     }
+                     Button {
+                         r#type: "button",
+                         label: t(locale, TextKey::ViewInNetwork).to_string(),
+                         class: "inline-flex shrink-0 items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-panel-soft active:bg-bg min-h-[34px] gap-1.5 px-3 py-1.5 text-ui active:scale-[0.98]",
+                         onclick: move |_| Route::navigate_to_view("network"),
+                     }
+                 }
                  div { class: "results-table-container min-h-0 w-full mt-3 px-0",
                      VirtualizedResultsTable { table_view_model }
                  }

@@ -18,6 +18,7 @@ root-relative link resolves to the domain root and 404s.
 ## Features
 
 - Search by taxon filters and structure input (SMILES or Molfile V2000/V3000)
+- Explore results as an interactive compound-taxon-reference network at https://lotus-initiative.github.io/lotus-explore-rs/network
 - Draw a structure in the embedded Ketcher editor, then copy Daylight SMILES or MOL V3000 back into search
 - Filter by mass range, publication year, and formula presence
 - Browse taxonomy and references for each result

@@ -5,7 +5,7 @@ use super::shell::{AppShell, ExplorePage};
 use crate::components::data_curation_page::DataCurationPage;
 use crate::components::not_found::NotFoundPage;
 use crate::i18n::Locale;
-use crate::pages::DrawPage;
+use crate::pages::{DrawPage, NetworkPage};
 use dioxus::prelude::*;
 use dioxus::router::routable::FromQuery;
 use std::collections::BTreeMap;
@@ -73,7 +73,7 @@ pub use route_table::Route;
     reason = "the `Routable` derive's generated impls read as unreachable since Rust 1.100"
 )]
 mod route_table {
-    use super::{AppShell, Curation, Draw, Faq, Landing, NotFound, RouteQuery, Search};
+    use super::{AppShell, Curation, Draw, Faq, Landing, Network, NotFound, RouteQuery, Search};
     use dioxus::prelude::*;
 
     #[derive(Clone, Debug, PartialEq, Eq, Routable)]
@@ -85,6 +85,9 @@ mod route_table {
 
         #[route("/search?:..query#:hash")]
         Search { query: RouteQuery, hash: String },
+
+        #[route("/network?:..query#:hash")]
+        Network { query: RouteQuery, hash: String },
 
         #[route("/curation?:..query#:hash")]
         Curation { query: RouteQuery, hash: String },
@@ -112,6 +115,7 @@ impl Route {
         match self {
             Self::Landing { query, .. }
             | Self::Search { query, .. }
+            | Self::Network { query, .. }
             | Self::Curation { query, .. }
             | Self::Draw { query, .. }
             | Self::Faq { query, .. } => query.clone(),
@@ -123,6 +127,7 @@ impl Route {
         let path = match self {
             Self::Landing { .. } => "/".to_string(),
             Self::Search { .. } => "/search".to_string(),
+            Self::Network { .. } => "/network".to_string(),
             Self::Curation { .. } => "/curation".to_string(),
             Self::Draw { .. } => "/draw".to_string(),
             Self::Faq { .. } => "/faq".to_string(),
@@ -146,6 +151,7 @@ impl Route {
         match self {
             Self::Landing { hash, .. }
             | Self::Search { hash, .. }
+            | Self::Network { hash, .. }
             | Self::Curation { hash, .. }
             | Self::Draw { hash, .. }
             | Self::Faq { hash, .. } => hash,
@@ -157,6 +163,7 @@ impl Route {
         match self {
             // `/` is the search form, so the Search tab is the current one there.
             Self::Landing { .. } | Self::Search { .. } => "search",
+            Self::Network { .. } => "network",
             Self::Curation { .. } => "curation",
             Self::Draw { .. } => "draw",
             Self::Faq { .. } => "faq",
@@ -180,6 +187,7 @@ impl Route {
         let hash = String::new();
         match view {
             "search" => Self::Search { query, hash },
+            "network" => Self::Network { query, hash },
             "curation" => Self::Curation { query, hash },
             "draw" => Self::Draw { query, hash },
             "faq" => Self::Faq { query, hash },
@@ -212,10 +220,23 @@ impl Route {
         match self {
             Self::Landing { .. } => Self::Landing { query, hash },
             Self::Search { .. } => Self::Search { query, hash },
+            Self::Network { .. } => Self::Network { query, hash },
             Self::Curation { .. } => Self::Curation { query, hash },
             Self::Draw { .. } => Self::Draw { query, hash },
             Self::Faq { .. } => Self::Faq { query, hash },
             Self::NotFound { segments } => Self::NotFound { segments },
+        }
+    }
+
+    /// Navigate to another top-level view (`"search"`, `"network"`, …) while
+    /// preserving global query parameters when a Dioxus router is mounted.
+    pub fn navigate_to_view(view: &str) {
+        if let Some(router) = try_consume_context::<dioxus::router::RouterContext>() {
+            let current: Self = router.current();
+            let target = current.clone().with_view(view);
+            if target != current {
+                let _ = router.push(NavigationTarget::Internal(target.navigation_string()));
+            }
         }
     }
 }
@@ -270,6 +291,12 @@ pub fn Landing(query: RouteQuery, hash: String) -> Element {
 pub fn Search(query: RouteQuery, hash: String) -> Element {
     let _ = (query, hash);
     rsx! { ExplorePage {} }
+}
+
+#[component]
+pub fn Network(query: RouteQuery, hash: String) -> Element {
+    let _ = (query, hash);
+    rsx! { NetworkPage {} }
 }
 
 #[component]

@@ -58,6 +58,18 @@ pub fn CurationScripts() -> Element {
     }
 }
 
+/// Injects the lazy WebGL2 graph module into `<head>` only when `/network` mounts.
+///
+/// Self-hosted with zero third-party dependencies and `defer`red so `/search`
+/// incurs zero WebGL bytes while both Web and Desktop bundles embed the module
+/// via `asset!`.
+#[component]
+pub fn GraphScripts() -> Element {
+    rsx! {
+        document::Script { src: asset!("/public/assets/js/graph/lotus-graph-gl.js"), defer: true, "type": "text/javascript" }
+    }
+}
+
 /// The global the `RDKit` bridge reads the wasm module's URL from.
 ///
 /// A `locateFile` callback, not a `src`, because the loader looks the module up

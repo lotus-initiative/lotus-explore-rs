@@ -55,10 +55,29 @@ fn navigation_strings_omit_empty_query_delimiters() {
     assert_ne!(search, route);
     assert_eq!(search.navigation_string(), "/search");
     assert_eq!(
+        route.clone().with_view("network").navigation_string(),
+        "/network"
+    );
+    assert_eq!(
         route.clone().with_view("curation").navigation_string(),
         "/curation"
     );
     assert_eq!(route.with_view("draw").navigation_string(), "/draw");
+}
+
+#[test]
+fn the_network_route_parses_and_preserves_preferences() {
+    let parsed =
+        "/network?taxon=Gentiana&execute=true&lang=fr&dark_mode=true#graph".parse::<Route>();
+    assert!(parsed.is_ok(), "network route should parse");
+    if let Ok(route) = parsed {
+        assert_eq!(route.view_key(), "network");
+        assert_eq!(route.hash(), "graph");
+        let back = route.with_view("search");
+        assert_eq!(back.view_key(), "search");
+        assert_eq!(back.query_string(), "dark_mode=true&lang=fr");
+        assert_eq!(back.hash(), "");
+    }
 }
 
 #[test]

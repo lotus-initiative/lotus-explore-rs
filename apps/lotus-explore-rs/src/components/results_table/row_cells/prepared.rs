@@ -40,7 +40,12 @@ fn normalized_display_name(entry: &CompoundEntry) -> Arc<str> {
 }
 
 fn depict_url_cached(entry: &CompoundEntry) -> Option<Arc<str>> {
-    let smiles = entry.smiles.as_deref()?.trim();
+    entry.smiles.as_deref().and_then(depict_url_for_smiles)
+}
+
+/// Build a 2D stereo-annotated CDK Depict SVG URL for a SMILES string.
+pub fn depict_url_for_smiles(smiles: &str) -> Option<Arc<str>> {
+    let smiles = smiles.trim();
     if smiles.is_empty() || smiles.contains('\n') {
         return None;
     }

@@ -250,6 +250,10 @@ pub(super) const fn view_label_explorer() -> &'static str {
     "Suche"
 }
 
+pub(super) const fn view_label_network() -> &'static str {
+    "Netzwerk"
+}
+
 pub(super) const fn view_label_curation_explorer() -> &'static str {
     "Kuratierung"
 }

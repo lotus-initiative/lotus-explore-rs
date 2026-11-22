@@ -25,10 +25,32 @@ use super::super::upload::sanitize_filename;
 /// Returns a message if the download directory cannot be determined or the file
 /// cannot be written.
 pub fn download_text(content: &str, filename: &str) -> Result<PathBuf, String> {
+    download_bytes(content.as_bytes(), filename)
+}
+
+/// Write raw `bytes` to a file in the user's download directory.
+///
+/// # Errors
+/// Returns a message if the download directory cannot be determined or the file
+/// cannot be written.
+pub fn download_bytes(bytes: &[u8], filename: &str) -> Result<PathBuf, String> {
     let dir = download_dir().ok_or_else(|| {
         "no download directory could be determined; set LOTUS_DOWNLOAD_DIR".to_string()
     })?;
-    download_text_in(&dir, content, filename)
+    download_bytes_in(&dir, bytes, filename)
+}
+
+/// Decode a `data:image/png;base64,...` URL and write the PNG into the user's
+/// download directory.
+///
+/// # Errors
+/// Returns a message if the data URL is malformed or the file cannot be written.
+pub fn save_png_data_url(data_url: &str, filename: &str) -> Result<PathBuf, String> {
+    let encoded = data_url
+        .strip_prefix("data:image/png;base64,")
+        .ok_or_else(|| "expected a base64 PNG data URL".to_string())?;
+    let bytes = decode_base64(encoded)?;
+    download_bytes(&bytes, filename)
 }
 
 /// [`download_text`], writing into a directory the caller chose.
@@ -36,6 +58,14 @@ pub fn download_text(content: &str, filename: &str) -> Result<PathBuf, String> {
 /// Split out so the write path can be tested without touching the process
 /// environment, which is shared state and unsafe to mutate from a parallel test.
 pub fn download_text_in(dir: &Path, content: &str, filename: &str) -> Result<PathBuf, String> {
+    download_bytes_in(dir, content.as_bytes(), filename)
+}
+
+/// [`download_bytes`], writing into a directory the caller chose.
+///
+/// # Errors
+/// Returns a message if writing fails.
+pub fn download_bytes_in(dir: &Path, bytes: &[u8], filename: &str) -> Result<PathBuf, String> {
     // `sanitize_filename` strips path separators, so the name cannot escape `dir`.
     let name = sanitize_filename(filename);
     let name = if name.is_empty() {
@@ -45,13 +75,38 @@ pub fn download_text_in(dir: &Path, content: &str, filename: &str) -> Result<Pat
     };
 
     let path = unique_path(dir, &name);
-    std::fs::write(&path, content)
-        .map_err(|e| format!("failed to write {}: {e}", path.display()))?;
+    std::fs::write(&path, bytes).map_err(|e| format!("failed to write {}: {e}", path.display()))?;
     log::info!(
         "event=download phase=write state=success path={}",
         path.display()
     );
     Ok(path)
+}
+
+fn decode_base64(input: &str) -> Result<Vec<u8>, String> {
+    let mut out = Vec::with_capacity((input.len() / 4) * 3);
+    let mut acc = 0u32;
+    let mut bits = 0u8;
+    for byte in input.bytes() {
+        if byte.is_ascii_whitespace() || byte == b'=' {
+            continue;
+        }
+        let val = match byte {
+            b'A'..=b'Z' => byte - b'A',
+            b'a'..=b'z' => byte - b'a' + 26,
+            b'0'..=b'9' => byte - b'0' + 52,
+            b'+' => 62,
+            b'/' => 63,
+            _ => return Err(format!("invalid base64 byte: {byte}")),
+        };
+        acc = (acc << 6) | u32::from(val);
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push(u8::try_from((acc >> bits) & 0xff).unwrap_or(0));
+        }
+    }
+    Ok(out)
 }
 
 /// Where an export should be written.

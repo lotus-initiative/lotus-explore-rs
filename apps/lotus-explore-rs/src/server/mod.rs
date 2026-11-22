@@ -98,12 +98,17 @@ pub fn build_router(max_body_bytes: usize, config: &AppConfig, state: AppState) 
     // Optionally serve the Dioxus WASM build output as static files.
     if let Some(public_dir) = &config.public_dir {
         let route_index = |route: &str| {
-            get_service(
-                ServeFile::new(public_dir.join(route).join("index.html")).precompressed_br(),
-            )
+            let candidate = public_dir.join(route).join("index.html");
+            let file = if candidate.exists() {
+                candidate
+            } else {
+                public_dir.join("index.html")
+            };
+            get_service(ServeFile::new(file).precompressed_br())
         };
         router = router
             .route("/search", route_index("search"))
+            .route("/network", route_index("network"))
             .route("/curation", route_index("curation"))
             .route("/draw", route_index("draw"))
             .route("/faq", route_index("faq"))

@@ -15,7 +15,7 @@ use lotus_search::SearchCriteria;
 mod local_file;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use local_file::open_externally;
+pub use local_file::{open_externally, save_png_data_url};
 #[cfg(target_arch = "wasm32")]
 mod file_sink;
 #[cfg(not(target_arch = "wasm32"))]

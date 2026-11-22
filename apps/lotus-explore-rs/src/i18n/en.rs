@@ -200,5 +200,90 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::StaleResults => {
             "Your search criteria changed. Run the search again to see results for them."
         }
+        TextKey::ViewInNetwork => "View in Network",
+        TextKey::NetworkStarterHeading => "Explore the LOTUS knowledge graph",
+        TextKey::NetworkStarterSubtitle => {
+            "Jump straight into an interactive compound–taxon–reference constellation, or run a quick entity lookup below."
+        }
+        TextKey::NetworkQuickSearchLabel => "Quick entity search",
+        TextKey::NetworkQuickSearchPlaceholder => "Taxon, compound QID/SMILES, or DOI/QID…",
+        TextKey::NetworkQuickSearchSubmit => "Explore graph",
+        TextKey::NetworkQuickSearchKindLabel => "Entity type",
+        TextKey::NetworkStarterTitleBetaSitosterol => "β-Sitosterol",
+        TextKey::NetworkStarterDescBetaSitosterol => {
+            "Ubiquitous phytosterol (Q121802) across reported plant taxa"
+        }
+        TextKey::NetworkStarterTitleGentianaGenus => "Gentiana (genus)",
+        TextKey::NetworkStarterDescGentianaGenus => {
+            "Alpine gentians: secoiridoids, xanthones, and taxa"
+        }
+        TextKey::NetworkStarterTitleGentianaLutea => "Gentiana lutea literature",
+        TextKey::NetworkStarterDescGentianaLutea => {
+            "Yellow gentian (Q158572) compounds linked to primary articles"
+        }
+        TextKey::NetworkStarterTitleIndole => "Indole substructure",
+        TextKey::NetworkStarterDescIndole => {
+            "Compounds bearing an indole ring across biological taxa"
+        }
+        TextKey::OpenAdvancedSearch => "Open advanced search & filters",
+        TextKey::PreviousSearch => "Previous search",
+        TextKey::TableAndFilters => "Table / Edit filters",
+        TextKey::GraphProjectionLabel => "Projection",
+        TextKey::ProjectionAuto => "Auto",
+        TextKey::ProjectionCompoundTaxon => "Compounds ↔ Taxa",
+        TextKey::ProjectionCompoundReference => "Compounds ↔ References",
+        TextKey::ProjectionTaxonReference => "Taxa ↔ References",
+        TextKey::ProjectionTripartite => "All three",
+        TextKey::GraphNodeSearchLabel => "Find entity in graph",
+        TextKey::GraphNodeSearchPlaceholder => "Find node (press /)…",
+        TextKey::GraphZoomIn => "Zoom +",
+        TextKey::GraphZoomOut => "Zoom −",
+        TextKey::GraphResetView => "Reset view",
+        TextKey::GraphPauseMotion => "Pause motion",
+        TextKey::GraphResumeMotion => "Resume motion",
+        TextKey::GraphDownloadPng => "Download PNG",
+        TextKey::GraphNodeLimitLabel => "Node cap",
+        TextKey::NetworkWorkspaceRegionAria => "Interactive LOTUS network workspace",
+        TextKey::NetworkControlsNavAria => "Network graph controls",
+        TextKey::NetworkInspectorRegionAria => "Entity inspector and linked neighbors",
+        TextKey::GraphCanvasAriaPrefix => "Interactive LOTUS compound–taxon–reference network",
+        TextKey::GraphCanvasHint => {
+            "Drag to orbit or pan · Scroll to zoom · Click a node to inspect · Keys: + − 0 Esc"
+        }
+        TextKey::GraphLegendAria => "Graph entity legend",
+        TextKey::GraphBackToOverview => "Back to overview",
+        TextKey::GraphEgoBadgePrefix => "Focused neighborhood:",
+        TextKey::GraphCappedNoticePrefix => "Showing top",
+        TextKey::GraphCappedNoticeSuffix => {
+            "connected nodes from filtered results — use Find entity to focus any item."
+        }
+        TextKey::GraphNoOccurrenceEdges => {
+            "These results have no taxon or reference occurrence links to project as a network."
+        }
+        TextKey::GraphCenterNotInRows => {
+            "The focused entity is excluded by the current table filters."
+        }
+        TextKey::GraphWebglUnavailable => {
+            "WebGL2 is unavailable in this environment; browse top hubs and linked entities in the inspector."
+        }
+        TextKey::GraphPngSaved => "Saved PNG snapshot:",
+        TextKey::GraphContextLost => "WebGL2 context paused; restoring…",
+        TextKey::TopConnectedEntities => "Top connected entities",
+        TextKey::FocusNeighborhood => "Focus neighborhood",
+        TextKey::FilterTableToEntity => "Filter table to this",
+        TextKey::ExploreInLotus => "Explore in LOTUS",
+        TextKey::LinkedEntities => "Linked entities",
+        TextKey::CloseInspector => "Close inspector",
+        TextKey::NodeDegreeLabel => "Links",
+        TextKey::NodeOccurrencesLabel => "Occurrences",
+        TextKey::GraphCorroborationRefs => "refs",
+        TextKey::GraphCorroborationTaxa => "taxa",
+        TextKey::GraphCorroborationCompounds => "compounds",
+        TextKey::GraphSmilesLabel => "SMILES",
+        TextKey::CopySmiles => "Copy SMILES",
+        TextKey::GraphActiveFilters => "Table filters active",
+        TextKey::GraphMode3d => "3D",
+        TextKey::GraphMode2d => "2D",
+        TextKey::GraphViewModeAria => "Graph dimension mode",
     }
 }

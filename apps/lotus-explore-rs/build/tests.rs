@@ -520,7 +520,7 @@ fn generated_metadata_list_covers_everything_the_script_writes() {
 /// compiler between them. `/faq` was rendered and linked from the nav and still
 /// 404'd on a cold load, because it was missing from all three and from the
 /// prefix-derivation list besides.
-const CLIENT_ROUTES: [&str; 4] = ["/search", "/curation", "/draw", "/faq"];
+const CLIENT_ROUTES: [&str; 5] = ["/search", "/network", "/curation", "/draw", "/faq"];
 
 fn repo_file(relative: &str) -> Result<String, Box<dyn Error>> {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

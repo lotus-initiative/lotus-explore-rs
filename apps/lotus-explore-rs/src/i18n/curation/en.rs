@@ -245,6 +245,10 @@ pub(super) const fn view_label_explorer() -> &'static str {
     "Search"
 }
 
+pub(super) const fn view_label_network() -> &'static str {
+    "Network"
+}
+
 pub(super) const fn view_label_curation_explorer() -> &'static str {
     "Curation"
 }

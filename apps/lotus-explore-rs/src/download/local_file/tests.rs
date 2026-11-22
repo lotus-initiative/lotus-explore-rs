@@ -7,7 +7,7 @@
 
 use std::path::PathBuf;
 
-use super::{download_text_in, unique_path};
+use super::{decode_base64, download_bytes_in, download_text_in, save_png_data_url, unique_path};
 
 fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("lotus-local-file-{}-{name}", std::process::id()));
@@ -105,4 +105,29 @@ fn only_web_urls_are_handed_to_the_system_opener() {
         let err = super::open_externally(bad).expect_err("should refuse");
         assert!(err.contains("non-http"), "{bad:?} was not refused: {err}");
     }
+}
+
+#[test]
+fn base64_png_decoding_and_byte_writes_handle_valid_and_invalid_inputs() {
+    let dir = scratch("bytes");
+    let decoded = decode_base64("iVBORw0KGgo=").expect("valid base64");
+    assert_eq!(
+        decoded, b"\x89PNG\r\n\x1a\n",
+        "PNG header must decode cleanly"
+    );
+    let written = download_bytes_in(&dir, &decoded, "network.png").expect("write png bytes");
+    assert_eq!(
+        std::fs::read(&written).expect("read png"),
+        b"\x89PNG\r\n\x1a\n",
+        "written bytes must match input"
+    );
+    assert!(
+        decode_base64("bad!").is_err(),
+        "invalid base64 byte must return Err"
+    );
+    assert!(
+        save_png_data_url("data:text/plain;base64,QQ==", "x.png").is_err(),
+        "non-PNG data URL must be rejected"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
 }

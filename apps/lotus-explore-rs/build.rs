@@ -238,6 +238,11 @@ fn build_sitemap_xml(meta: &Metadata) -> String {
     <priority>0.9</priority>
   </url>
   <url>
+    <loc>{base}/network/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>{base}/curation/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -447,6 +452,7 @@ fn build_llms_txt(meta: &Metadata) -> String {
         - **Machine interface**: A WebMCP tool surface, see Discovery\n\n\
         ## Features\n\n\
         - Search by taxon filters and structure input (SMILES or Molfile V2000/V3000)\n\
+        - Explore results as an interactive compound-taxon-reference network at {base}network\n\
         - Draw a structure in the embedded Ketcher editor, then copy Daylight SMILES or MOL V3000 back into search\n\
         - Filter by mass range, publication year, and formula presence\n\
         - Browse taxonomy and references for each result\n\
