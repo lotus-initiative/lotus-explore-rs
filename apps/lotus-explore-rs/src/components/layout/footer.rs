@@ -13,24 +13,31 @@ use crate::hooks::use_locale;
 use crate::i18n::{Locale, TextKey, t};
 use dioxus::prelude::*;
 
+const FOOTER_PAIR_CLASS: &str = "flex flex-col gap-3 py-1 border-b border-border last:border-b-0 sm:flex-row sm:items-start sm:gap-x-6 sm:gap-y-0";
+const FOOTER_GROUP_CLASS: &str =
+    "flex flex-wrap items-start gap-2 py-0.5 sm:flex-[1_1_280px] sm:min-w-[280px]";
+const FOOTER_BADGE_BASE: &str = "inline-flex items-center font-bold uppercase tracking-[0.06em] leading-normal px-2 py-1 rounded-xl border border-current/30 border-l-4 border-current bg-current/14 min-h-[36px] text-ui shrink-0 mt-1";
+const FOOTER_UL_CLASS: &str =
+    "flex flex-1 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 list-none m-0 p-0";
+const FOOTER_LINK_BASE: &str = "no-underline text-ui leading-snug min-h-[44px] min-w-[44px] inline-flex items-center px-2.5 py-2 rounded-xl hover:underline hover:bg-current/8 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 font-medium";
+
 #[component]
 pub fn Footer() -> Element {
     let locale = use_locale();
     rsx! {
         div {
-            class: "flex flex-col gap-3 py-1 border-b border-border last:border-b-0 sm:flex-row sm:items-start sm:gap-x-6 sm:gap-y-0",
+            class: FOOTER_PAIR_CLASS,
             div {
-                class: "flex items-center gap-2 py-0.5 sm:flex-[1_1_280px] sm:min-w-[280px] flex-nowrap",
+                class: FOOTER_GROUP_CLASS,
                 span {
-                    class: "inline-flex items-center font-bold uppercase tracking-[0.06em] whitespace-nowrap leading-normal px-2 py-1 rounded-xl border border-current/30 border-l-4 border-current bg-current/14 min-h-[34px] text-sm max-[480px]:whitespace-normal max-[480px]:text-micro max-[480px]:px-1.5 max-[480px]:py-[2px] max-[480px]:min-h-0 shrink-0 text-wd-compound",
+                    class: "{FOOTER_BADGE_BASE} text-wd-compound",
                     "{t(locale, TextKey::FooterArchive)}"
                 }
                 ul {
-                    class: "flex items-center gap-x-2.5 list-none m-0 p-0 min-w-0 overflow-x-auto whitespace-nowrap pb-1 scrollbar-hidden-x flex-nowrap",
+                    class: FOOTER_UL_CLASS,
                     li {
-                        class: "shrink-0",
                         a {
-                            class: "no-underline text-ui leading-[1.45] min-h-[34px] inline-flex items-center px-2 py-1 rounded-xl hover:underline hover:bg-current/8 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 max-[480px]:px-1.5 max-[480px]:py-[3px] max-[480px]:text-micro max-[480px]:min-h-[32px] font-medium text-wd-compound",
+                            class: "{FOOTER_LINK_BASE} text-wd-compound",
                             href: "https://doi.org/10.5281/zenodo.5794106",
                             target: "_blank",
                             rel: "noopener noreferrer",
@@ -42,19 +49,18 @@ pub fn Footer() -> Element {
             FooterCitationRow { locale }
         }
         div {
-            class: "flex flex-col gap-3 py-1 border-b border-border last:border-b-0 sm:flex-row sm:items-start sm:gap-x-6 sm:gap-y-0",
+            class: FOOTER_PAIR_CLASS,
             div {
-                class: "flex items-center gap-2 py-0.5 sm:flex-[1_1_280px] sm:min-w-[280px] flex-nowrap",
+                class: FOOTER_GROUP_CLASS,
                 span {
-                    class: "inline-flex items-center font-bold uppercase tracking-[0.06em] whitespace-nowrap leading-normal px-2 py-1 rounded-xl border border-current/30 border-l-4 border-current bg-current/14 min-h-[34px] text-sm max-[480px]:whitespace-normal max-[480px]:text-micro max-[480px]:px-1.5 max-[480px]:py-[2px] max-[480px]:min-h-0 shrink-0 text-wd-taxon",
+                    class: "{FOOTER_BADGE_BASE} text-wd-taxon",
                     "{t(locale, TextKey::FooterCode)}"
                 }
                 ul {
-                    class: "flex items-center gap-x-2.5 list-none m-0 p-0 min-w-0 overflow-x-auto whitespace-nowrap pb-1 scrollbar-hidden-x flex-nowrap",
+                    class: FOOTER_UL_CLASS,
                     li {
-                        class: "shrink-0",
                         a {
-                            class: "no-underline text-ui leading-[1.45] min-h-[34px] inline-flex items-center px-2 py-1 rounded-xl hover:underline hover:bg-current/8 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 max-[480px]:px-1.5 max-[480px]:py-[3px] max-[480px]:text-micro max-[480px]:min-h-[32px] font-medium text-wd-taxon",
+                            class: "{FOOTER_LINK_BASE} text-wd-taxon",
                             href: env!("CARGO_PKG_REPOSITORY"),
                             target: "_blank",
                             rel: "noopener noreferrer",
@@ -64,17 +70,16 @@ pub fn Footer() -> Element {
                 }
             }
             div {
-                class: "flex items-center gap-2 py-0.5 sm:flex-[1_1_280px] sm:min-w-[280px] flex-nowrap",
+                class: FOOTER_GROUP_CLASS,
                 span {
-                    class: "inline-flex items-center font-bold uppercase tracking-[0.06em] whitespace-nowrap leading-normal px-2 py-1 rounded-xl border border-current/30 border-l-4 border-current bg-current/14 min-h-[34px] text-sm max-[480px]:whitespace-normal max-[480px]:text-micro max-[480px]:px-1.5 max-[480px]:py-[2px] max-[480px]:min-h-0 shrink-0 text-wd-taxon",
+                    class: "{FOOTER_BADGE_BASE} text-wd-taxon",
                     "{t(locale, TextKey::FooterData)}"
                 }
                 ul {
-                    class: "flex items-center gap-x-2.5 list-none m-0 p-0 min-w-0 overflow-x-auto whitespace-nowrap pb-1 scrollbar-hidden-x flex-nowrap",
+                    class: FOOTER_UL_CLASS,
                     li {
-                        class: "shrink-0",
                         a {
-                            class: "no-underline text-ui leading-[1.45] min-h-[34px] inline-flex items-center px-2 py-1 rounded-xl hover:underline hover:bg-current/8 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 max-[480px]:px-1.5 max-[480px]:py-[3px] max-[480px]:text-micro max-[480px]:min-h-[32px] font-medium text-wd-taxon",
+                            class: "{FOOTER_LINK_BASE} text-wd-taxon",
                             href: "https://www.wikidata.org/wiki/Q104225190",
                             target: "_blank",
                             rel: "noopener noreferrer",
@@ -82,9 +87,8 @@ pub fn Footer() -> Element {
                         }
                     }
                     li {
-                        class: "shrink-0",
                         a {
-                            class: "no-underline text-ui leading-[1.45] min-h-[34px] inline-flex items-center px-2 py-1 rounded-xl hover:underline hover:bg-current/8 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 max-[480px]:px-1.5 max-[480px]:py-[3px] max-[480px]:text-micro max-[480px]:min-h-[32px] font-medium text-wd-taxon",
+                            class: "{FOOTER_LINK_BASE} text-wd-taxon",
                             href: "https://www.wikidata.org/",
                             target: "_blank",
                             rel: "noopener noreferrer",
@@ -95,19 +99,18 @@ pub fn Footer() -> Element {
             }
         }
         div {
-            class: "flex flex-col gap-3 py-1 border-b border-border last:border-b-0 sm:flex-row sm:items-start sm:gap-x-6 sm:gap-y-0",
+            class: FOOTER_PAIR_CLASS,
             div {
-                class: "flex items-center gap-2 py-0.5 sm:flex-[1_1_280px] sm:min-w-[280px] flex-nowrap",
+                class: FOOTER_GROUP_CLASS,
                 span {
-                    class: "inline-flex items-center font-bold uppercase tracking-[0.06em] whitespace-nowrap leading-normal px-2 py-1 rounded-xl border border-current/30 border-l-4 border-current bg-current/14 min-h-[34px] text-sm max-[480px]:whitespace-normal max-[480px]:text-micro max-[480px]:px-1.5 max-[480px]:py-[2px] max-[480px]:min-h-0 shrink-0 text-wd-reference",
+                    class: "{FOOTER_BADGE_BASE} text-wd-reference",
                     "{t(locale, TextKey::FooterPrograms)}"
                 }
                 ul {
-                    class: "flex items-center gap-x-2.5 list-none m-0 p-0 min-w-0 overflow-x-auto whitespace-nowrap pb-1 scrollbar-hidden-x flex-nowrap",
+                    class: FOOTER_UL_CLASS,
                     li {
-                        class: "shrink-0",
                         a {
-                            class: "no-underline text-ui leading-[1.45] min-h-[34px] inline-flex items-center px-2 py-1 rounded-xl hover:underline hover:bg-current/8 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 max-[480px]:px-1.5 max-[480px]:py-[3px] max-[480px]:text-micro max-[480px]:min-h-[32px] font-medium text-wd-reference",
+                            class: "{FOOTER_LINK_BASE} text-wd-reference",
                             href: "https://github.com/cdk/depict",
                             target: "_blank",
                             rel: "noopener noreferrer",
@@ -115,9 +118,8 @@ pub fn Footer() -> Element {
                         }
                     }
                     li {
-                        class: "shrink-0",
                         a {
-                            class: "no-underline text-ui leading-[1.45] min-h-[34px] inline-flex items-center px-2 py-1 rounded-xl hover:underline hover:bg-current/8 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 max-[480px]:px-1.5 max-[480px]:py-[3px] max-[480px]:text-micro max-[480px]:min-h-[32px] font-medium text-wd-reference",
+                            class: "{FOOTER_LINK_BASE} text-wd-reference",
                             href: "https://citation.js.org",
                             target: "_blank",
                             rel: "noopener noreferrer",
@@ -125,9 +127,8 @@ pub fn Footer() -> Element {
                         }
                     }
                     li {
-                        class: "shrink-0",
                         a {
-                            class: "no-underline text-ui leading-[1.45] min-h-[34px] inline-flex items-center px-2 py-1 rounded-xl hover:underline hover:bg-current/8 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 max-[480px]:px-1.5 max-[480px]:py-[3px] max-[480px]:text-micro max-[480px]:min-h-[32px] font-medium text-wd-reference",
+                            class: "{FOOTER_LINK_BASE} text-wd-reference",
                             href: "https://lifescience.opensource.epam.com/ketcher",
                             target: "_blank",
                             rel: "noopener noreferrer",
@@ -135,9 +136,8 @@ pub fn Footer() -> Element {
                         }
                     }
                     li {
-                        class: "shrink-0",
                         a {
-                            class: "no-underline text-ui leading-[1.45] min-h-[34px] inline-flex items-center px-2 py-1 rounded-xl hover:underline hover:bg-current/8 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 max-[480px]:px-1.5 max-[480px]:py-[3px] max-[480px]:text-micro max-[480px]:min-h-[32px] font-medium text-wd-reference",
+                            class: "{FOOTER_LINK_BASE} text-wd-reference",
                             href: "https://qlever.dev/wikidata",
                             target: "_blank",
                             rel: "noopener noreferrer",
@@ -145,9 +145,8 @@ pub fn Footer() -> Element {
                         }
                     }
                     li {
-                        class: "shrink-0",
                         a {
-                            class: "no-underline text-ui leading-[1.45] min-h-[34px] inline-flex items-center px-2 py-1 rounded-xl hover:underline hover:bg-current/8 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 max-[480px]:px-1.5 max-[480px]:py-[3px] max-[480px]:text-micro max-[480px]:min-h-[32px] font-medium text-wd-reference",
+                            class: "{FOOTER_LINK_BASE} text-wd-reference",
                             href: "https://www.rdkitjs.com",
                             target: "_blank",
                             rel: "noopener noreferrer",
@@ -155,9 +154,8 @@ pub fn Footer() -> Element {
                         }
                     }
                     li {
-                        class: "shrink-0",
                         a {
-                            class: "no-underline text-ui leading-[1.45] min-h-[34px] inline-flex items-center px-2 py-1 rounded-xl hover:underline hover:bg-current/8 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 max-[480px]:px-1.5 max-[480px]:py-[3px] max-[480px]:text-micro max-[480px]:min-h-[32px] font-medium text-wd-reference",
+                            class: "{FOOTER_LINK_BASE} text-wd-reference",
                             href: "https://doi.org/10.1186/s13321-018-0282-y",
                             target: "_blank",
                             rel: "noopener noreferrer",
@@ -175,17 +173,16 @@ pub fn Footer() -> Element {
 fn FooterCitationRow(locale: Locale) -> Element {
     rsx! {
         div {
-            class: "flex items-center gap-2 py-0.5 sm:flex-[1_1_280px] sm:min-w-[280px] flex-nowrap",
+            class: FOOTER_GROUP_CLASS,
             span {
-                class: "inline-flex items-center font-bold uppercase tracking-[0.06em] whitespace-nowrap leading-normal px-2 py-1 rounded-xl border border-current/30 border-l-4 border-current bg-current/14 min-h-[34px] text-sm max-[480px]:whitespace-normal max-[480px]:text-micro max-[480px]:px-1.5 max-[480px]:py-[2px] max-[480px]:min-h-0 shrink-0 text-wd-compound",
+                class: "{FOOTER_BADGE_BASE} text-wd-compound",
                 "{t(locale, TextKey::FooterCitation)}"
             }
             ul {
-                class: "flex items-center gap-x-2.5 list-none m-0 p-0 min-w-0 overflow-x-auto whitespace-nowrap pb-1 scrollbar-hidden-x flex-nowrap",
+                class: FOOTER_UL_CLASS,
                 li {
-                    class: "shrink-0",
                     a {
-                        class: "no-underline text-ui leading-[1.45] min-h-[34px] inline-flex items-center px-2 py-1 rounded-xl hover:underline hover:bg-current/8 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 max-[480px]:px-1.5 max-[480px]:py-[3px] max-[480px]:text-micro max-[480px]:min-h-[32px] font-medium text-wd-compound",
+                        class: "{FOOTER_LINK_BASE} text-wd-compound",
                         href: "https://doi.org/10.7554/eLife.70780",
                         target: "_blank",
                         rel: "noopener noreferrer",
@@ -193,9 +190,8 @@ fn FooterCitationRow(locale: Locale) -> Element {
                     }
                 }
                 li {
-                    class: "shrink-0",
                     a {
-                        class: "no-underline text-ui leading-[1.45] min-h-[34px] inline-flex items-center px-2 py-1 rounded-xl hover:underline hover:bg-current/8 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 max-[480px]:px-1.5 max-[480px]:py-[3px] max-[480px]:text-micro max-[480px]:min-h-[32px] font-medium text-wd-compound",
+                        class: "{FOOTER_LINK_BASE} text-wd-compound",
                         href: asset!("/public/docs/references.bib"),
                         download: "references.bib",
                         "BibTeX"
@@ -210,38 +206,38 @@ fn FooterCitationRow(locale: Locale) -> Element {
 fn FooterLicenseRow(locale: Locale) -> Element {
     rsx! {
         div {
-            class: "flex items-center gap-2 py-0.5 sm:flex-[1_1_280px] sm:min-w-[280px] flex-nowrap",
+            class: FOOTER_GROUP_CLASS,
             span {
-                class: "inline-flex items-center font-bold uppercase tracking-[0.06em] whitespace-nowrap leading-normal px-2 py-1 rounded-xl border border-current/30 border-l-4 border-current bg-current/14 min-h-[34px] text-sm max-[480px]:whitespace-normal max-[480px]:text-micro max-[480px]:px-1.5 max-[480px]:py-[2px] max-[480px]:min-h-0 shrink-0 text-wd-entries",
+                class: "{FOOTER_BADGE_BASE} text-wd-entries",
                 "{t(locale, TextKey::FooterLicense)}"
             }
             ul {
-                class: "flex items-center gap-x-2.5 list-none m-0 p-0 min-w-0 overflow-x-auto whitespace-nowrap pb-1 scrollbar-hidden-x flex-nowrap",
+                class: FOOTER_UL_CLASS,
                 li {
-                    class: "shrink-0",
+                    class: "inline-flex flex-wrap items-center gap-x-1",
                     a {
-                        class: "no-underline text-ui leading-[1.45] min-h-[34px] inline-flex items-center px-2 py-1 rounded-xl hover:underline hover:bg-current/8 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 max-[480px]:px-1.5 max-[480px]:py-[3px] max-[480px]:text-micro max-[480px]:min-h-[32px] font-medium text-wd-entries",
+                        class: "{FOOTER_LINK_BASE} text-wd-entries",
                         href: "https://creativecommons.org/publicdomain/zero/1.0/",
                         target: "_blank",
                         rel: "noopener noreferrer",
                         "CC0 1.0"
                     }
                     span {
-                        class: "text-subtle whitespace-nowrap text-micro",
+                        class: "text-subtle text-ui",
                         "({t(locale, TextKey::FooterForData)})"
                     }
                 }
                 li {
-                    class: "shrink-0",
+                    class: "inline-flex flex-wrap items-center gap-x-1",
                     a {
-                        class: "no-underline text-ui leading-[1.45] min-h-[34px] inline-flex items-center px-2 py-1 rounded-xl hover:underline hover:bg-current/8 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-accent/28 focus-visible:ring-offset-2 max-[480px]:px-1.5 max-[480px]:py-[3px] max-[480px]:text-micro max-[480px]:min-h-[32px] font-medium text-wd-entries",
+                        class: "{FOOTER_LINK_BASE} text-wd-entries",
                         href: "https://www.gnu.org/licenses/agpl-3.0.html",
                         target: "_blank",
                         rel: "noopener noreferrer",
                         "AGPL-3.0"
                     }
                     span {
-                        class: "text-subtle whitespace-nowrap text-micro",
+                        class: "text-subtle text-ui",
                         "({t(locale, TextKey::FooterForCode)})"
                     }
                 }
@@ -249,3 +245,7 @@ fn FooterLicenseRow(locale: Locale) -> Element {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "footer/tests.rs"]
+mod tests;
