@@ -760,3 +760,19 @@ fn simple_analytics_uses_nojs_pixel_and_tightened_csp() -> Result<(), Box<dyn Er
     );
     Ok(())
 }
+
+#[test]
+fn unknown_routes_resolve_wasm_loader_and_root_fallback() -> Result<(), Box<dyn Error>> {
+    let html = fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("index.html"))?;
+    for required in [
+        r#"script[src*="/assets/"], script[src*="/wasm/"]"#,
+        r#".replace(/\/\.\//g, "/")"#,
+        r#"setAssetBase("/");"#,
+    ] {
+        assert!(
+            html.contains(required),
+            "index.html missing unknown-route asset base fallback `{required}`"
+        );
+    }
+    Ok(())
+}

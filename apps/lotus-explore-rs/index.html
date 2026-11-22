@@ -261,11 +261,20 @@
           window.addEventListener(
             "DOMContentLoaded",
             function () {
-              var loader = document.querySelector('script[src*="/assets/"]');
-              if (!loader) return;
-              var source = loader.getAttribute("src") || "";
-              var marker = source.indexOf("assets/");
-              if (marker >= 0) setAssetBase(source.slice(0, marker));
+              var loader = document.querySelector(
+                'script[src*="/assets/"], script[src*="/wasm/"]',
+              );
+              if (loader) {
+                var source = loader.getAttribute("src") || "";
+                var marker = source.indexOf("assets/");
+                if (marker < 0) marker = source.indexOf("wasm/");
+                if (marker >= 0) {
+                  var prefix = source.slice(0, marker).replace(/\/\.\//g, "/");
+                  setAssetBase(prefix.endsWith("/") ? prefix : prefix + "/");
+                  return;
+                }
+              }
+              setAssetBase("/");
             },
             { once: true },
           );
