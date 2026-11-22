@@ -56,7 +56,7 @@ pub fn DataCurationPage() -> Element {
                 sr_only: true,
                 text: crate::i18n::view_label_curation_explorer(locale).to_string(),
             }
-            div { class: "w-full rounded-xl border border-shell-border bg-shell-raised overflow-hidden",
+            div { class: "w-full rounded-xl border border-shell-border bg-shell-raised overflow-x-clip",
                 div { class: "page-body flex flex-col gap-4 px-4 pb-4 pt-5 sm:px-6 sm:pb-6 sm:pt-6",
                     div {
                         class: "grid grid-cols-1 gap-4 lg:grid-cols-2 w-full min-h-[200px]",

@@ -200,3 +200,32 @@ fn preference_updates_preserve_route_metadata() {
     );
     assert_eq!(route.hash(), "main-panel");
 }
+
+#[test]
+fn every_route_has_a_unique_localized_document_title() {
+    use std::collections::HashSet;
+
+    let sample_routes = [
+        "/",
+        "/search",
+        "/network",
+        "/curation",
+        "/draw",
+        "/faq",
+        "/does-not-exist",
+    ];
+    for locale in [Locale::En, Locale::Fr] {
+        let mut seen = HashSet::new();
+        for raw in sample_routes {
+            if let Ok(route) = raw.parse::<Route>() {
+                let title = route.document_title(locale);
+                assert!(!title.trim().is_empty(), "empty title for {raw}");
+                assert!(
+                    seen.insert(title.clone()),
+                    "duplicate title '{title}' for {raw} in {locale:?}"
+                );
+            }
+        }
+        assert_eq!(seen.len(), sample_routes.len());
+    }
+}

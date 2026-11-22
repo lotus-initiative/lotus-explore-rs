@@ -171,6 +171,32 @@ impl Route {
         }
     }
 
+    /// Unique localized page title for `<title>` on the active route.
+    pub fn document_title(&self, locale: Locale) -> String {
+        let base = crate::i18n::t(locale, crate::i18n::TextKey::PageTitle);
+        match self {
+            Self::Landing { .. } => base.to_owned(),
+            Self::Search { .. } => {
+                format!("{} — {base}", crate::i18n::view_label_explorer(locale))
+            }
+            Self::Network { .. } => {
+                format!("{} — {base}", crate::i18n::view_label_network(locale))
+            }
+            Self::Curation { .. } => format!(
+                "{} — {base}",
+                crate::i18n::view_label_curation_explorer(locale)
+            ),
+            Self::Draw { .. } => format!("{} — {base}", crate::i18n::view_label_draw(locale)),
+            Self::Faq { .. } => format!("{} — {base}", crate::i18n::faq::faq_nav_label(locale)),
+            Self::NotFound { .. } => {
+                format!(
+                    "{} — {base}",
+                    crate::i18n::t(locale, crate::i18n::TextKey::PageNotFound)
+                )
+            }
+        }
+    }
+
     fn page_query(&self) -> RouteQuery {
         let current = self.query_value();
         let mut query = RouteQuery::default();

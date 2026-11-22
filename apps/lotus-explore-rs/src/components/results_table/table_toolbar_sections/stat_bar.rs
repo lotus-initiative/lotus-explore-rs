@@ -173,7 +173,7 @@ pub fn CappedRowsNotice() -> Element {
                 class: "mt-2 flex items-center gap-2 rounded-xl border border-warning/35 bg-warning/10 p-2.5 text-ui font-medium text-warning shadow-xs",
                 role: "status",
                 aria_live: "polite",
-                span { class: "text-sm font-bold", "⚠️" },
+                span { class: "text-sm font-bold", aria_hidden: "true", "⚠️" },
                 span { "{t(locale, TextKey::DisplayCappedHint)}" }
             }
         }

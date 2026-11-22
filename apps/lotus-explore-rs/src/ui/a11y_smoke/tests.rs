@@ -159,3 +159,14 @@ fn collect_landmark_labels(dir: &std::path::Path, out: &mut Vec<(String, String)
 }
 
 const LANDMARK_ROLES: [&str; 5] = ["region", "main", "banner", "contentinfo", "navigation"];
+
+#[test]
+fn app_shell_places_page_header_outside_main_landmark() {
+    let shell = include_str!("../../app/shell.rs");
+    let header_pos = shell.find("PageHeader {}");
+    let main_pos = shell.find("main {");
+    assert!(
+        matches!((header_pos, main_pos), (Some(h), Some(m)) if h < m),
+        "PageHeader must sit before <main> so <header> stays a top-level banner landmark and the skip link bypasses navigation"
+    );
+}

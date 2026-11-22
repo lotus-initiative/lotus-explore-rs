@@ -390,9 +390,7 @@ pub fn DownloadActionsGroup() -> Element {
                     locale,
                 }
             } else if signals.notice.read().is_some() {
-                li {
-                    DownloadNotice { notice: signals.notice }
-                }
+                DownloadNotice { notice: signals.notice }
             }
             if export_available {
                 ul {

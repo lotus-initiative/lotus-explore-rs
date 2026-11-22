@@ -18,7 +18,7 @@ pub fn NetworkPage() -> Element {
             class: "w-full max-w-none px-4 pt-3 sm:px-6 lg:px-8",
             aria_labelledby: "network-page-heading",
             h2 { class: "sr-only", id: "network-page-heading", "{view_label_network(locale)}" }
-            div { class: "w-full rounded-xl border border-shell-border bg-shell-raised p-4 sm:p-5 overflow-hidden",
+            div { class: "w-full rounded-xl border border-shell-border bg-shell-raised p-4 sm:p-5 overflow-x-clip",
                 ResultsGraphWorkspace {}
             }
         }

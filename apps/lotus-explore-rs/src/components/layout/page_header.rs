@@ -26,7 +26,7 @@ pub fn PageHeader() -> Element {
              // Phones get a static header: at 390px the wrapped nav plus subtitle
              // reached ~278px, which a sticky bar would keep over 40% of the
              // viewport for the whole session.
-             class: "z-3 bg-shell-chrome rounded-t-xl px-4 sm:sticky sm:top-0 sm:px-8",
+             class: "z-3 bg-shell-chrome px-4 sm:sticky sm:top-0 sm:mx-2 sm:mt-2 sm:rounded-t-xl sm:px-8",
 
             div {
                 // Phones: brand on its own row, nav on a scrollable row below.

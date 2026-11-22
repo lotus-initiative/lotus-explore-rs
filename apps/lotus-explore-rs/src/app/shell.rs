@@ -198,6 +198,15 @@ fn AppRuntimeEffects() -> Element {
         ));
     });
 
+    use_effect(move || {
+        let route = router().current::<Route>();
+        let current_locale = *locale.read();
+        let title = route.document_title(current_locale);
+        if let Ok(title_json) = serde_json::to_string(&title) {
+            document::eval(&format!("document.title = {title_json};"));
+        }
+    });
+
     #[cfg(target_arch = "wasm32")]
     use_effect(|| {
         if let Some(doc) = web_sys::window().and_then(|window| window.document())
@@ -225,6 +234,7 @@ pub fn AppShell() -> Element {
         }
         div {
             class: "app-shell bg-shell-page",
+            PageHeader {}
             div {
                 class: "app-layout",
                 main {
@@ -233,7 +243,6 @@ pub fn AppShell() -> Element {
 
                     tabindex: "-1",
                     aria_labelledby: PAGE_TITLE_ID,
-                    PageHeader {}
                     Outlet::<Route> {}
                 }
             }
@@ -266,7 +275,7 @@ pub(crate) fn ExplorePage() -> Element {
         section {
             class: "w-full max-w-none px-4 pt-3 sm:px-6 lg:px-8",
             h2 { class: "sr-only", id: "search-page-heading", "{t(locale, TextKey::Search)}" }
-            div { class: "w-full rounded-xl border border-shell-border bg-shell-raised overflow-hidden",
+            div { class: "w-full rounded-xl border border-shell-border bg-shell-raised overflow-x-clip",
                 div { class: "page-body flex min-h-0 flex-col gap-4 px-4 pb-4 pt-5 sm:px-6 sm:pb-6 sm:pt-6",
                     LookupNotice {}
                     ErrorNotice {}

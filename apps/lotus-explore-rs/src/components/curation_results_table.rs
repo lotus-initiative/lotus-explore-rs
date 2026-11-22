@@ -117,7 +117,7 @@ pub fn CurationResultsTable(locale: Locale, rows: Arc<[CurationResultRow]>) -> E
             p {
                 id: scroll_hint_id,
                 class: "inline-flex items-center gap-2 text-micro text-muted",
-                span { class: "text-sm font-bold text-accent", "↔" }
+                span { class: "text-sm font-bold text-accent", aria_hidden: "true", "↔" }
                 "{hint_scroll_curation_results(locale)}"
             }
             div {
