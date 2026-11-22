@@ -11,10 +11,15 @@ retries, the server, or exports. Each entry there was a shipped bug.
 ## Commands
 
 - `./mk setup` — install pinned gate tools (including `dx`). `./mk setup-extra` adds optional audit/dev tools (`cargo-udeps`, `cargo-geiger`, `cargo-msrv`, `cargo-edit`, `cargo-bloat`).
-- `./mk check` — fmt, tombi, typos, clippy. Seconds when warm.
-- `./mk test-fast -E 'test(name)'` — one test. `./mk test-fast` — all, nextest.
+- `./mk check [-p <crate>]` — fmt, tombi, typos, clippy (optionally scoped). Seconds when warm.
+- `./mk check-changed` — inner loop scoped to affected packages + reverse-dependents.
+- `./mk test-fast -E 'test(name)'` — one test. `./mk test-fast [-p <crate>]` — nextest (no doctests).
+- `./mk test-changed` — nextest scoped to affected packages.
 - `./mk test` — nextest over default, `server` and `desktop` builds, plus doctests.
+- `./mk mutants-diff [--iterate]` — mutation testing on touched Rust files (`--iterate` retries remaining survivors).
+- `./mk mutants-affected [base]` / `./mk mutants-plan [--mode diff|affected|full]` — downstream-affected mutation sweep / JSON shard plan.
 - `./mk gate` — pre-push: everything above plus licence headers and wasm32 checks.
+- `./mk ci-fast` / `./mk ci-core` — local pre-push gate / blocking PR gates excluding `mutants-diff`.
 - `./mk ci` — full gate, what CI runs. `./mk --list` for every task.
 - `./mk local:metadata` checks `CITATION.cff`/`codemeta.json`;
   `./mk metadata-write` regenerates them from `crates/lotus-jsonld`.
@@ -24,11 +29,10 @@ Cold `./mk gate` is about 5 minutes. Cargo must be able to write `~/.cargo`.
 
 ## Verify cheaply, in this order
 
-1. `cargo clippy -p <crate> --all-targets` (add `--features server`, or
-   `--target wasm32-unknown-unknown`, when the code is behind them).
-2. `cargo nextest run -p <crate> -E 'test(<name>)'`.
-3. `cargo nextest run --workspace`.
-4. `./mk gate`, then `./mk ci` before calling the work done.
+1. `./mk check -p <crate>` (or `cargo clippy -p <crate> --all-targets --features server` / `--target wasm32-unknown-unknown` when behind features/targets).
+2. `./mk test-fast -p <crate> -E 'test(<name>)'` (or `./mk test-changed`).
+3. `./mk mutants-diff --iterate` when touching code in `MUTANTS_PACKAGES`.
+4. `./mk gate` (or `./mk ci-fast`), then `./mk ci` before calling the work done.
 
 ## Where things live
 
