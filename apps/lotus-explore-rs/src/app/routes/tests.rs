@@ -229,3 +229,60 @@ fn every_route_has_a_unique_localized_document_title() {
         assert_eq!(seen.len(), sample_routes.len());
     }
 }
+
+#[test]
+fn with_network_query_preserves_preferences_and_replaces_stale_params() {
+    use lotus_explore_core::explore::url_codec::QueryParams;
+
+    let parsed = "/network?taxon=OldTaxon&focus=compound-Q1&max_neighbors=50&lang=fr&dark_mode=true&api_base=https%3A%2F%2Fexample.org#graph"
+        .parse::<Route>();
+    assert!(parsed.is_ok(), "network route should parse");
+    if let Ok(route) = parsed {
+        let params = QueryParams::from([
+            ("execute".to_owned(), "true".to_owned()),
+            ("mode".to_owned(), "2d".to_owned()),
+            ("taxon".to_owned(), "Gentiana".to_owned()),
+        ]);
+        let updated = route.with_network_query(&params);
+        assert_eq!(updated.view_key(), "network");
+        assert_eq!(updated.hash(), "graph");
+        assert_eq!(
+            updated.navigation_string(),
+            "/network?api_base=https%3A%2F%2Fexample.org&dark_mode=true&execute=true&lang=fr&mode=2d&taxon=Gentiana#graph"
+        );
+
+        let cleared = updated.with_network_query(&QueryParams::new());
+        assert_eq!(
+            cleared.navigation_string(),
+            "/network?api_base=https%3A%2F%2Fexample.org&dark_mode=true&lang=fr#graph"
+        );
+    }
+}
+
+#[test]
+fn network_route_exposes_all_search_and_viz_params() {
+    let parsed = "/network?taxon=Gentiana&execute=true&projection=tripartite&mode=2d&paused=true&focus=compound-Q100&max_neighbors=120&selected=taxon-Q2000"
+        .parse::<Route>();
+    assert!(parsed.is_ok(), "network route should parse");
+    if let Ok(route) = parsed {
+        let query = route.query_value();
+        let params = query.params();
+        assert_eq!(params.get("taxon").map(String::as_str), Some("Gentiana"));
+        assert_eq!(params.get("execute").map(String::as_str), Some("true"));
+        assert_eq!(
+            params.get("projection").map(String::as_str),
+            Some("tripartite")
+        );
+        assert_eq!(params.get("mode").map(String::as_str), Some("2d"));
+        assert_eq!(params.get("paused").map(String::as_str), Some("true"));
+        assert_eq!(
+            params.get("focus").map(String::as_str),
+            Some("compound-Q100")
+        );
+        assert_eq!(params.get("max_neighbors").map(String::as_str), Some("120"));
+        assert_eq!(
+            params.get("selected").map(String::as_str),
+            Some("taxon-Q2000")
+        );
+    }
+}

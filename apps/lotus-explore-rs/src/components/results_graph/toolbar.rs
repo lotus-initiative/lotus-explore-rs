@@ -17,8 +17,7 @@ use std::sync::Arc;
 /// DOM id of the node-finder search input (targeted by the `/` shortcut).
 pub(super) const NODE_FINDER_INPUT_ID: &str = "graph-node-finder";
 
-const PROJECTIONS: [GraphProjection; 5] = [
-    GraphProjection::Auto,
+const PROJECTIONS: [GraphProjection; 4] = [
     GraphProjection::CompoundTaxon,
     GraphProjection::CompoundReference,
     GraphProjection::TaxonReference,
@@ -32,7 +31,6 @@ pub(super) fn GraphToolbar(
     filters: ColumnFilters,
     set_arc: Arc<lotus_model::ColumnarResultSet>,
     filtered_rows: Arc<Vec<u32>>,
-    projection: GraphProjection,
     effective_projection: GraphProjection,
     is_3d: bool,
     paused: bool,
@@ -127,7 +125,7 @@ pub(super) fn GraphToolbar(
                         }
                         select {
                             id: "graph-projection-select",
-                            value: "{projection.as_str()}",
+                            value: "{effective_projection.as_str()}",
                             class: "min-h-[44px] min-w-0 max-w-full cursor-pointer rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body font-semibold text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                             onchange: move |evt| {
                                 if let Some(next) = GraphProjection::parse(&evt.value()) {
@@ -137,12 +135,8 @@ pub(super) fn GraphToolbar(
                             for proj in PROJECTIONS {
                                 option {
                                     value: "{proj.as_str()}",
-                                    selected: proj == projection,
-                                    if proj == GraphProjection::Auto {
-                                        "{t(locale, TextKey::ProjectionAuto)} ({projection_label(locale, effective_projection)})"
-                                    } else {
-                                        "{projection_label(locale, proj)}"
-                                    }
+                                    selected: proj == effective_projection,
+                                    "{projection_label(locale, proj)}"
                                 }
                             }
                         }

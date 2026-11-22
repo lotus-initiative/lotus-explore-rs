@@ -148,6 +148,7 @@ ignored and the explorer uses its direct SPARQL path instead.
 The client uses typed routes:
 
 - `/` and `/search` --- Explore (the search form)
+- `/network` --- Network graph
 - `/curation` --- Curation
 - `/draw` --- Structure editor
 
@@ -159,6 +160,16 @@ URL-driven execution and exports:
 - `?download=true&format=ttl` --- download RDF (Turtle). `format=rdf` still works, for links made before the rename.
 
 When both `download` and `execute` are present, `download` takes priority.
+
+`/network` combines the search query parameters (with `execute=true` when results are active) and visualization state:
+
+- `?projection=compound_taxon|compound_reference|taxon_reference|tripartite` --- active entity projection (omitted when `auto`)
+- `?mode=2d` --- 2D view mode (omitted for default 3D)
+- `?paused=true` --- pause layout motion
+- `?max_nodes=<n>` --- overview node cap (up to `50000`, omitted for default `5000`)
+- `?focus=<kind>-Q<id>` --- 1-hop ego neighborhood center (`compound-Q121802`, `taxon-Q158572`, `reference-Q...`)
+- `?max_neighbors=<n>` --- ego neighbor cap when `focus` is set (up to `10000`, omitted for default `500`)
+- `?selected=<kind>-Q<id>` --- selected node in the inspector (omitted when equal to `focus`)
 
 ## Archive
 

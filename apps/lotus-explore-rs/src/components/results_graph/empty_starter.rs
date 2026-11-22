@@ -66,22 +66,6 @@ fn starter_copy_keys(starter: &NetworkStarter) -> (TextKey, TextKey) {
     }
 }
 
-fn kind_from_value(value: &str) -> NodeKind {
-    match value {
-        "compound" => NodeKind::Compound,
-        "reference" => NodeKind::Reference,
-        _ => NodeKind::Taxon,
-    }
-}
-
-const fn kind_to_value(kind: NodeKind) -> &'static str {
-    match kind {
-        NodeKind::Compound => "compound",
-        NodeKind::Taxon => "taxon",
-        NodeKind::Reference => "reference",
-    }
-}
-
 /// Interactive starter workspace rendered when no result set has been loaded yet.
 #[component]
 pub(super) fn NetworkEmptyStarter(on_run: EventHandler<lotus_model::SearchCriteria>) -> Element {
@@ -124,7 +108,7 @@ pub(super) fn NetworkEmptyStarter(on_run: EventHandler<lotus_model::SearchCriter
                     div { class: "min-w-0 max-w-full",
                         SegmentedControl {
                             aria_label: t(locale, TextKey::NetworkQuickSearchKindLabel),
-                            selected_value: kind_to_value(*selected_kind.read()),
+                            selected_value: selected_kind.read().as_str(),
                             dark: dark_mode,
                             wrap: true,
                             items: vec![
@@ -142,7 +126,7 @@ pub(super) fn NetworkEmptyStarter(on_run: EventHandler<lotus_model::SearchCriter
                                 },
                             ],
                             on_select: move |value: String| {
-                                selected_kind.set(kind_from_value(&value));
+                                selected_kind.set(NodeKind::parse(&value).unwrap_or(NodeKind::Taxon));
                             },
                         }
                     }

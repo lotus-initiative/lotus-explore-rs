@@ -42,6 +42,10 @@ impl RouteQuery {
         self.params.get(key).map(String::as_str)
     }
 
+    pub fn params(&self) -> &BTreeMap<String, String> {
+        &self.params
+    }
+
     fn set(&mut self, key: &str, value: &str) {
         self.params.insert(key.to_string(), value.to_string());
     }
@@ -239,6 +243,51 @@ impl Route {
             query.remove("dark_mode");
         }
         self.with_query_and_hash(query)
+    }
+
+    /// Replace `/network` search + visualization query parameters while preserving
+    /// global page preferences (`lang`, `dark_mode`, `api_base`) and hash.
+    pub fn with_network_query(
+        self,
+        params: &lotus_explore_core::explore::url_codec::QueryParams,
+    ) -> Self {
+        let mut query = self.page_query();
+        for (key, value) in params {
+            query.set(key, value);
+        }
+        let hash = self.hash().to_string();
+        Self::Network { query, hash }
+    }
+
+    /// Read the active router route's decoded query parameters, if a router is mounted.
+    pub fn current_query_params() -> Option<lotus_explore_core::explore::url_codec::QueryParams> {
+        let router = try_consume_context::<dioxus::router::RouterContext>()?;
+        let current: Self = router.current();
+        Some(current.query_value().params().clone())
+    }
+
+    /// Synchronize the `/network` URL query parameters via `router.replace`,
+    /// deduplicating identical serialized targets so repeated effect runs stay idempotent.
+    pub fn sync_network_query(
+        params: &lotus_explore_core::explore::url_codec::QueryParams,
+        last_synced: &mut Option<String>,
+    ) {
+        let Some(router) = try_consume_context::<dioxus::router::RouterContext>() else {
+            return;
+        };
+        let current: Self = router.current();
+        if !matches!(current, Self::Network { .. }) {
+            return;
+        }
+        let target = current.clone().with_network_query(params);
+        let nav = target.navigation_string();
+        if last_synced.as_deref() == Some(nav.as_str()) {
+            return;
+        }
+        *last_synced = Some(nav.clone());
+        if target != current {
+            let _ = router.replace(NavigationTarget::Internal(nav));
+        }
     }
 
     fn with_query_and_hash(self, query: RouteQuery) -> Self {

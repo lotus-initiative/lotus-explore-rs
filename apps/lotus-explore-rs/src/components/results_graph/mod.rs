@@ -7,13 +7,17 @@
 //! or 1-hop ego focusing.
 
 use crate::app::routes::Route;
-use crate::components::layout::notices::{ErrorNotice, LookupNotice};
+use crate::components::layout::notices::{ErrorNotice, LookupNotice, ShareNotice};
 use crate::components::loading::LoadingState;
 use crate::components::ui::Button;
-use crate::features::explore::ExploreUiState;
 use crate::features::explore::interactions::{ExploreInteractions, use_explore_interactions};
 use crate::features::explore::selectors::{
     use_lifecycle_selector, use_result_arc_selector, use_result_selector,
+};
+use crate::features::explore::url_state::read_url_query_params;
+use crate::features::explore::{
+    ExploreUiState, GraphViewParams, build_network_shareable_url, network_query_params,
+    parse_graph_view_from_params,
 };
 use crate::i18n::{TextKey, t};
 use crate::state::{
@@ -26,6 +30,8 @@ use lotus_explore_core::graph::{
     DEFAULT_EGO_MAX_NEIGHBORS, GraphEmptyReason, GraphModel, GraphProjection, GraphScope, NodeKey,
     NodeKind, build_graph, pivot_criteria_for_node,
 };
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::Arc;
 
 mod bridge;
@@ -43,9 +49,18 @@ use history::PivotHistory;
 use inspector::GraphInspector;
 use toolbar::{GraphToolbar, NODE_FINDER_INPUT_ID};
 
+fn initial_graph_view_params() -> GraphViewParams {
+    let params = Route::current_query_params().unwrap_or_else(read_url_query_params);
+    parse_graph_view_from_params(&params)
+}
+
+fn resolve_selected_index(model: &GraphModel, selected_key: Option<NodeKey>) -> Option<usize> {
+    selected_key.and_then(|key| model.index_of(key))
+}
+
 /// Full interactive network workspace mounted inside [`crate::pages::NetworkPage`].
 #[component]
-pub fn ResultsGraphWorkspace() -> Element {
+pub fn ResultsGraphWorkspace(#[props(default)] initial_view: Option<GraphViewParams>) -> Element {
     let locale = crate::hooks::use_locale();
     let app_state = use_app_state_context().state;
     let dark_mode = app_state.read().dark_mode;
@@ -53,18 +68,20 @@ pub fn ResultsGraphWorkspace() -> Element {
     let form = use_form_criteria_context();
     let interactions = use_explore_interactions();
 
+    let initial = use_hook(move || initial_view.unwrap_or_else(initial_graph_view_params));
+    let last_synced_url = use_hook(|| Rc::new(RefCell::new(None::<String>)));
+
     let script_ready = use_signal(|| false);
     let gl_ready = use_signal(|| false);
     let mounted = use_signal(|| false);
     let webgl_unavailable = use_signal(|| false);
     let context_lost = use_signal(|| false);
     let png_notice = use_signal(|| Option::<String>::None);
-    let projection = use_signal(GraphProjection::default);
-    let mut scope = use_signal(GraphScope::default);
-    let mut is_3d = use_signal(|| true);
-    let mut paused = use_signal(|| false);
-    let selected_idx = use_signal(|| Option::<usize>::None);
-    let last_selected_key = use_signal(|| Option::<NodeKey>::None);
+    let projection = use_signal(move || initial.projection);
+    let mut scope = use_signal(move || initial.scope);
+    let mut is_3d = use_signal(move || initial.is_3d);
+    let mut paused = use_signal(move || initial.paused);
+    let last_selected_key = use_signal(move || initial.effective_selected());
     let had_rendered_graph = use_signal(|| false);
     let mut pivot_history = use_signal(PivotHistory::new);
 
@@ -95,6 +112,44 @@ pub fn ResultsGraphWorkspace() -> Element {
         Arc::new(model)
     });
 
+    let current_view_params = use_memo(move || {
+        let model = graph_model.read();
+        let has_data = model.empty_reason.is_none() && !model.nodes.is_empty();
+        let selected_key = *last_selected_key.read();
+        let selected = if has_data {
+            selected_key.filter(|&key| model.index_of(key).is_some())
+        } else {
+            selected_key
+        };
+        GraphViewParams {
+            projection: *projection.read(),
+            scope: *scope.read(),
+            is_3d: *is_3d.read(),
+            paused: *paused.read(),
+            selected,
+        }
+    });
+
+    let shareable_url = use_memo(move || {
+        build_network_shareable_url(&form.criteria.read(), &current_view_params.read())
+            .map(Arc::<str>::from)
+    });
+
+    use_effect(move || {
+        let snap = *ui_state.read();
+        let searched_ever =
+            *searched_once_sig.read() || snap.searched_once || snap.loading || snap.has_entries;
+        if !searched_ever {
+            return;
+        }
+        let criteria_guard = form.criteria.read();
+        let view = *current_view_params.read();
+        let params = network_query_params(&criteria_guard, &view, true);
+        if let Ok(mut guard) = last_synced_url.try_borrow_mut() {
+            Route::sync_network_query(&params, &mut guard);
+        }
+    });
+
     let ui_snap = *ui_state.read();
     let phase = ContentPhase::from(LifecycleBooleans {
         loading: ui_snap.loading,
@@ -107,6 +162,7 @@ pub fn ResultsGraphWorkspace() -> Element {
     let current_model = graph_model.read().clone();
     let has_renderable_graph =
         current_model.empty_reason.is_none() && !current_model.nodes.is_empty();
+    let resolved_selected_idx = resolve_selected_index(&current_model, *last_selected_key.read());
     let searched_ever = *searched_once_sig.read() || ui_snap.searched_once;
     let is_loading = ui_snap.loading;
     let show_canvas = has_renderable_graph || (is_loading && *had_rendered_graph.read());
@@ -115,7 +171,6 @@ pub fn ResultsGraphWorkspace() -> Element {
         app_state,
         ui_state,
         graph_model,
-        scope,
         is_3d,
         paused,
         script_ready,
@@ -124,7 +179,6 @@ pub fn ResultsGraphWorkspace() -> Element {
         webgl_unavailable,
         context_lost,
         png_notice,
-        selected_idx,
         last_selected_key,
         had_rendered_graph,
     });
@@ -132,7 +186,6 @@ pub fn ResultsGraphWorkspace() -> Element {
     let runner = SearchRunnerSignals {
         form,
         pivot_history,
-        selected_idx,
         last_selected_key,
         scope,
     };
@@ -172,7 +225,6 @@ pub fn ResultsGraphWorkspace() -> Element {
                     filters: filters.read().clone(),
                     set_arc: set_arc.read().0.clone(),
                     filtered_rows: filtered_rows.read().clone(),
-                    projection: *projection.read(),
                     effective_projection: current_model.effective_projection,
                     is_3d: *is_3d.read(),
                     paused: *paused.read(),
@@ -187,7 +239,7 @@ pub fn ResultsGraphWorkspace() -> Element {
                     on_clear_filters: move |()| clear_filters_interactions.clear_filters(),
                     on_projection_change: move |next| apply_projection_change(next, projection, scope),
                     on_mode_change: move |next_3d| is_3d.set(next_3d),
-                    on_focus_node: move |key| focus_ego_scope(key, selected_idx, last_selected_key, scope),
+                    on_focus_node: move |key| focus_ego_scope(key, last_selected_key, scope),
                     on_zoom: bridge::zoom_graph,
                     on_reset_view: move |()| bridge::reset_graph_view(),
                     on_toggle_pause: move |()| {
@@ -195,6 +247,10 @@ pub fn ResultsGraphWorkspace() -> Element {
                         paused.set(next);
                     },
                     on_export_png: move |()| bridge::trigger_export_png(),
+                }
+
+                if searched_ever {
+                    ShareNotice { shareable_url }
                 }
 
                 if matches!(phase, ContentPhase::Stale) {
@@ -216,7 +272,7 @@ pub fn ResultsGraphWorkspace() -> Element {
                             on_zoom: bridge::zoom_graph,
                             on_reset_view: move |()| bridge::reset_graph_view(),
                             on_clear_selection: move |()| {
-                                select_node_from_ui(None, graph_model, selected_idx, last_selected_key);
+                                select_node_from_ui(None, graph_model, last_selected_key);
                             },
                             on_back_to_overview: move |()| scope.set(GraphScope::default()),
                             on_change_max_nodes: move |max_nodes| {
@@ -230,12 +286,12 @@ pub fn ResultsGraphWorkspace() -> Element {
                             model: current_model,
                             set_arc: set_arc.read().0.clone(),
                             scope: *scope.read(),
-                            selected_idx: *selected_idx.read(),
+                            selected_idx: resolved_selected_idx,
                             on_select: move |idx| {
-                                select_node_from_ui(idx, graph_model, selected_idx, last_selected_key);
+                                select_node_from_ui(idx, graph_model, last_selected_key);
                             },
                             on_focus_ego: move |key| {
-                                focus_ego_scope(key, selected_idx, last_selected_key, scope);
+                                focus_ego_scope(key, last_selected_key, scope);
                             },
                             on_back_to_overview: move |()| scope.set(GraphScope::default()),
                             on_filter_table: move |new_filters: ColumnFilters| {
@@ -267,7 +323,6 @@ pub fn ResultsGraphWorkspace() -> Element {
 struct SearchRunnerSignals {
     form: FormCriteriaContext,
     pivot_history: Signal<PivotHistory>,
-    selected_idx: Signal<Option<usize>>,
     last_selected_key: Signal<Option<NodeKey>>,
     scope: Signal<GraphScope>,
 }
@@ -282,7 +337,6 @@ fn run_search_criteria(
         let prev = runner.form.criteria.peek().clone();
         runner.pivot_history.write().push(prev);
     }
-    runner.selected_idx.set(None);
     runner.last_selected_key.set(None);
     runner.scope.set(GraphScope::default());
     let mut criteria_sig = runner.form.criteria;
@@ -293,10 +347,8 @@ fn run_search_criteria(
 fn select_node_from_ui(
     idx: Option<usize>,
     graph_model: Memo<Arc<GraphModel>>,
-    mut selected_idx: Signal<Option<usize>>,
     mut last_selected_key: Signal<Option<NodeKey>>,
 ) {
-    selected_idx.set(idx);
     let key = idx.and_then(|i| graph_model.peek().nodes.get(i).map(|n| n.key));
     last_selected_key.set(key);
     bridge::push_select_node(idx);
@@ -319,11 +371,9 @@ fn apply_projection_change(
 
 fn focus_ego_scope(
     key: NodeKey,
-    mut selected_idx: Signal<Option<usize>>,
     mut last_selected_key: Signal<Option<NodeKey>>,
     mut scope: Signal<GraphScope>,
 ) {
-    selected_idx.set(Some(0));
     last_selected_key.set(Some(key));
     scope.set(GraphScope::Ego {
         center: key,
@@ -336,7 +386,6 @@ struct GraphBridgeEffects {
     app_state: Signal<crate::app_state::AppState>,
     ui_state: Memo<ExploreUiState>,
     graph_model: Memo<Arc<GraphModel>>,
-    scope: Signal<GraphScope>,
     is_3d: Signal<bool>,
     paused: Signal<bool>,
     script_ready: Signal<bool>,
@@ -345,7 +394,6 @@ struct GraphBridgeEffects {
     webgl_unavailable: Signal<bool>,
     context_lost: Signal<bool>,
     png_notice: Signal<Option<String>>,
-    selected_idx: Signal<Option<usize>>,
     last_selected_key: Signal<Option<NodeKey>>,
     had_rendered_graph: Signal<bool>,
 }
@@ -364,7 +412,6 @@ fn attach_bridge_listener(ctx: &GraphBridgeEffects) {
         mut webgl_unavailable,
         mut context_lost,
         png_notice,
-        mut selected_idx,
         mut last_selected_key,
         ..
     } = *ctx;
@@ -387,7 +434,6 @@ fn attach_bridge_listener(ctx: &GraphBridgeEffects) {
                         gl_ready.set(false);
                     }
                     GraphEvent::Select(idx) => {
-                        selected_idx.set(idx);
                         let key = idx.and_then(|i| graph_model.peek().nodes.get(i).map(|n| n.key));
                         last_selected_key.set(key);
                     }
@@ -408,13 +454,11 @@ fn attach_bridge_mount_and_sync(ctx: &GraphBridgeEffects) {
         app_state,
         ui_state,
         graph_model,
-        scope,
         is_3d,
         paused,
         script_ready,
         mut gl_ready,
         mut mounted,
-        mut selected_idx,
         last_selected_key,
         mut had_rendered_graph,
         ..
@@ -475,16 +519,7 @@ fn attach_bridge_mount_and_sync(ctx: &GraphBridgeEffects) {
         }
         let payload = model.to_payload();
         bridge::push_graph_payload(&payload);
-        let next_sel = if matches!(*scope.peek(), GraphScope::Ego { .. }) {
-            Some(0)
-        } else if let Some(prev_key) = *last_selected_key.peek() {
-            model.index_of(prev_key)
-        } else {
-            None
-        };
-        if *selected_idx.peek() != next_sel {
-            selected_idx.set(next_sel);
-        }
+        let next_sel = resolve_selected_index(&model, *last_selected_key.peek());
         bridge::push_select_node(next_sel);
     });
 }

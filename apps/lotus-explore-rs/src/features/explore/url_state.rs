@@ -7,8 +7,9 @@ use lotus_model::SearchCriteria;
 use std::collections::BTreeMap;
 
 pub use lotus_explore_core::explore::url_codec::{
-    InitialDownloadState, is_true_flag,
+    GraphViewParams, InitialDownloadState, is_true_flag,
     parse_criteria_from_params as parse_criteria_from_params_with_year,
+    parse_graph_view_from_params,
 };
 
 /// The app-facing startup state: the core's pure parse result plus the locale
@@ -32,6 +33,33 @@ pub fn build_shareable_url(criteria: &SearchCriteria) -> Option<String> {
     lotus_explore_core::explore::url_codec::build_shareable_url(
         criteria,
         crate::clock::current_year(),
+    )
+}
+
+/// Build a shareable `/network?...` URL with the year the adapter owns.
+pub fn build_network_shareable_url(
+    criteria: &SearchCriteria,
+    view: &GraphViewParams,
+) -> Option<String> {
+    lotus_explore_core::explore::url_codec::build_network_shareable_url(
+        criteria,
+        crate::clock::current_year(),
+        view,
+    )
+}
+
+/// Combine criteria, optional `execute=true`, and visualization parameters using
+/// the adapter's clock.
+pub fn network_query_params(
+    criteria: &SearchCriteria,
+    view: &GraphViewParams,
+    execute: bool,
+) -> QueryParams {
+    lotus_explore_core::explore::url_codec::network_query_params(
+        criteria,
+        crate::clock::current_year(),
+        view,
+        execute,
     )
 }
 

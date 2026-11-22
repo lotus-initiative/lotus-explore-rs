@@ -14,12 +14,14 @@ use crate::app_state::AppState;
 use crate::components::results_table::ResultsTable;
 use crate::features::explore::interactions::ExploreInteractions;
 use crate::features::explore::orchestrator::SearchTaskController;
+use crate::features::explore::{GraphViewParams, parse_graph_view_from_params};
 use crate::i18n::{Locale, TextKey, t};
 use crate::repositories::HybridRepository;
 use crate::state::{AppStateContext, FormCriteriaContext, ResultsContext};
 use lotus_explore_core::explore::actions::ExploreAction;
 use lotus_explore_core::explore::command::SearchCommand;
 use lotus_explore_core::explore::search_state::{ExploreState, reduce_mut};
+use lotus_explore_core::explore::url_codec::QueryParams;
 use lotus_explore_core::export::metadata::SparqlEndpoint;
 use lotus_explore_core::graph::{
     DEFAULT_MAX_NODES, GraphEmptyReason, GraphModel, GraphProjection, GraphScope, NodeKind,
@@ -76,6 +78,19 @@ fn render_dom<P: Clone + 'static>(component: fn(P) -> Element, props: P) -> Stri
 struct WorkspaceHarnessProps {
     set: Arc<ColumnarResultSet>,
     searched: bool,
+    criteria: SearchCriteria,
+    initial_view: Option<GraphViewParams>,
+}
+
+impl WorkspaceHarnessProps {
+    fn simple(set: Arc<ColumnarResultSet>, searched: bool) -> Self {
+        Self {
+            set,
+            searched,
+            criteria: SearchCriteria::up_to_year(2026),
+            initial_view: None,
+        }
+    }
 }
 
 fn seeded_explore_state(set: &Arc<ColumnarResultSet>, searched: bool) -> ExploreState {
@@ -111,8 +126,8 @@ fn WorkspaceHarness(props: WorkspaceHarnessProps) -> Element {
     let locale_sig = use_signal(|| Locale::En);
     let app_state_sig = use_signal(AppState::default);
     let explore = use_signal(|| seeded_explore_state(&props.set, props.searched));
-    let criteria = use_signal(|| SearchCriteria::up_to_year(2026));
-    let baseline = use_signal(|| SearchCriteria::up_to_year(2026));
+    let criteria = use_signal(|| props.criteria.clone());
+    let baseline = use_signal(|| props.criteria.clone());
     let form = FormCriteriaContext::new(criteria, baseline);
     let interactions = ExploreInteractions::new(
         criteria,
@@ -128,7 +143,7 @@ fn WorkspaceHarness(props: WorkspaceHarnessProps) -> Element {
     use_context_provider(|| ResultsContext::new(explore));
     use_context_provider(|| form);
     use_context_provider(|| interactions);
-    rsx! { ResultsGraphWorkspace {} }
+    rsx! { ResultsGraphWorkspace { initial_view: props.initial_view } }
 }
 
 #[component]
@@ -277,10 +292,7 @@ fn parse_graph_event_decodes_all_bridge_variants() {
 fn bare_network_workspace_renders_starter_cards_without_canvas_or_auto_query() {
     let html = render_dom(
         WorkspaceHarness,
-        WorkspaceHarnessProps {
-            set: Arc::new(ColumnarResultSet::default()),
-            searched: false,
-        },
+        WorkspaceHarnessProps::simple(Arc::new(ColumnarResultSet::default()), false),
     );
     assert!(html.contains(t(Locale::En, TextKey::NetworkStarterHeading)));
     assert!(html.contains(t(Locale::En, TextKey::NetworkStarterTitleBetaSitosterol)));
@@ -331,13 +343,7 @@ fn assert_no_redundant_titles(html: &str) {
 #[test]
 fn loaded_network_workspace_exposes_accessible_canvas_controls_and_top_hubs() {
     let set = Arc::new(sample_result_set(4));
-    let html = render_dom(
-        WorkspaceHarness,
-        WorkspaceHarnessProps {
-            set,
-            searched: true,
-        },
-    );
+    let html = render_dom(WorkspaceHarness, WorkspaceHarnessProps::simple(set, true));
     assert!(html.contains(r#"id="lotus-network-canvas""#));
     assert!(html.contains("lotus-graph-canvas"));
     assert!(html.contains(r#"role="img""#));
@@ -353,8 +359,32 @@ fn loaded_network_workspace_exposes_accessible_canvas_controls_and_top_hubs() {
     assert!(!html.contains(r#"title="*""#));
     assert_no_redundant_titles(&html);
     assert!(
-        html.contains("Auto (Compounds ↔ Taxa)"),
-        "Auto option must expose the resolved 2-type view:\n{html}"
+        !html.contains("Auto (") && !html.contains(r#"value="auto""#),
+        "duplicated Auto option must be removed from graph view selector:\n{html}"
+    );
+    for proj_val in [
+        "compound_taxon",
+        "compound_reference",
+        "taxon_reference",
+        "tripartite",
+    ] {
+        assert!(
+            html.contains(&format!(r#"value="{proj_val}""#)),
+            "missing projection option {proj_val} in:\n{html}"
+        );
+    }
+    let (_, after_select) = html
+        .split_once(r#"id="graph-projection-select""#)
+        .expect("projection select element");
+    let (select_html, _) = after_select
+        .split_once("</select>")
+        .expect("closing select");
+    assert_eq!(
+        select_html
+            .matches(t(Locale::En, TextKey::ProjectionCompoundTaxon))
+            .count(),
+        1,
+        "Compounds ↔ Taxa must appear once in selector, not duplicated with Auto:\n{select_html}"
     );
     assert!(
         html.contains(r#"aria-pressed="true""#) && html.contains(r#"aria-pressed="false""#),
@@ -461,13 +491,7 @@ fn structure_only_rows_without_occurrences_show_honest_empty_reason() {
         Some(GraphEmptyReason::NoOccurrenceEdges)
     );
 
-    let html = render_dom(
-        WorkspaceHarness,
-        WorkspaceHarnessProps {
-            set,
-            searched: true,
-        },
-    );
+    let html = render_dom(WorkspaceHarness, WorkspaceHarnessProps::simple(set, true));
     assert!(html.contains(t(Locale::En, TextKey::GraphNoOccurrenceEdges)));
     assert!(html.contains(t(Locale::En, TextKey::TableAndFilters)));
     assert!(!html.contains(CANVAS_ID));
@@ -477,20 +501,14 @@ fn structure_only_rows_without_occurrences_show_honest_empty_reason() {
 fn search_results_table_exposes_view_in_network_only_when_non_empty_and_never_loads_webgl_js() {
     let non_empty_html = render_dom(
         TableHarness,
-        WorkspaceHarnessProps {
-            set: Arc::new(sample_result_set(2)),
-            searched: true,
-        },
+        WorkspaceHarnessProps::simple(Arc::new(sample_result_set(2)), true),
     );
     assert!(non_empty_html.contains(t(Locale::En, TextKey::ViewInNetwork)));
     assert!(!non_empty_html.contains("lotus-graph-gl.js"));
 
     let empty_html = render_dom(
         TableHarness,
-        WorkspaceHarnessProps {
-            set: Arc::new(ColumnarResultSet::default()),
-            searched: true,
-        },
+        WorkspaceHarnessProps::simple(Arc::new(ColumnarResultSet::default()), true),
     );
     assert!(!empty_html.contains(t(Locale::En, TextKey::ViewInNetwork)));
     assert!(!empty_html.contains("lotus-graph-gl.js"));
@@ -555,5 +573,94 @@ fn copy_button_retains_distinct_title_and_aria_label() {
     assert!(
         html.contains(r#"aria-label="Copy shareable link""#),
         "{html}"
+    );
+}
+
+#[test]
+fn network_workspace_renders_shareable_url_and_hydrates_all_viz_params() {
+    let set = Arc::new(sample_result_set(4));
+    let criteria = SearchCriteria {
+        taxon: "Gentiana lutea".into(),
+        ..SearchCriteria::up_to_year(2026)
+    };
+    let params = QueryParams::from([
+        ("projection".to_owned(), "tripartite".to_owned()),
+        ("mode".to_owned(), "2d".to_owned()),
+        ("paused".to_owned(), "true".to_owned()),
+        ("focus".to_owned(), "compound-Q100".to_owned()),
+        ("max_neighbors".to_owned(), "120".to_owned()),
+        ("selected".to_owned(), "taxon-Q2000".to_owned()),
+    ]);
+    let initial_view = Some(parse_graph_view_from_params(&params));
+
+    let html = render_dom(
+        WorkspaceHarness,
+        WorkspaceHarnessProps {
+            set,
+            searched: true,
+            criteria,
+            initial_view,
+        },
+    );
+    assert!(
+        html.contains(
+            "/network?execute=true&#38;focus=compound-Q100&#38;max_neighbors=120&#38;mode=2d&#38;paused=true&#38;projection=tripartite&#38;selected=taxon-Q2000&#38;taxon=Gentiana%20lutea"
+        ),
+        "ShareNotice must render the complete /network shareable URL:\n{html}"
+    );
+    assert!(
+        html.contains(t(Locale::En, TextKey::GraphResumeMotion))
+            && html.contains(r#"aria-pressed="true""#),
+        "paused=true must hydrate Resume motion button state:\n{html}"
+    );
+    assert!(
+        html.contains(t(Locale::En, TextKey::GraphEgoBadgePrefix)),
+        "focus must render the ego badge:\n{html}"
+    );
+    assert!(
+        html.contains(t(Locale::En, TextKey::CloseInspector))
+            && html.contains("Q2000")
+            && html.contains("Gentiana sp0"),
+        "selected=taxon-Q2000 must hydrate SelectedNodeView in GraphInspector:\n{html}"
+    );
+    assert!(
+        !html.contains("Showing 2 types"),
+        "projection=tripartite must show all 3 entity types:\n{html}"
+    );
+}
+
+#[test]
+fn network_workspace_hydrates_overview_cap_and_selected_from_url_params() {
+    let set = Arc::new(sample_result_set(5));
+    let criteria = SearchCriteria {
+        taxon: "Gentiana".into(),
+        ..SearchCriteria::up_to_year(2026)
+    };
+    let params = QueryParams::from([
+        ("max_nodes".to_owned(), "1000".to_owned()),
+        ("selected".to_owned(), "compound-Q101".to_owned()),
+    ]);
+    let initial_view = Some(parse_graph_view_from_params(&params));
+
+    let html = render_dom(
+        WorkspaceHarness,
+        WorkspaceHarnessProps {
+            set,
+            searched: true,
+            criteria,
+            initial_view,
+        },
+    );
+    assert!(
+        html.contains(
+            "/network?execute=true&#38;max_nodes=1000&#38;selected=compound-Q101&#38;taxon=Gentiana"
+        ),
+        "ShareNotice must expose max_nodes and selected in /network URL:\n{html}"
+    );
+    assert!(
+        html.contains(t(Locale::En, TextKey::CloseInspector))
+            && html.contains("Q101")
+            && html.contains("Compound-1"),
+        "selected=compound-Q101 must render SelectedNodeView for Compound-1:\n{html}"
     );
 }
