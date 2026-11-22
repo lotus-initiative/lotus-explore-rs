@@ -3,7 +3,7 @@
 //! The tests for `search`, in their own file.
 
 use super::{build_base_query, is_ambiguous, is_qid, standardize_taxon_name};
-use lotus_model::{SearchCriteria, TaxonMatch, TaxonNameSource};
+use lotus_model::{SearchCriteria, SmilesSearchType, TaxonMatch, TaxonNameSource};
 
 /// Underscores become spaces and the genus is capitalised, because taxon names
 /// arrive from spreadsheets in both shapes.
@@ -193,5 +193,28 @@ fn an_empty_box_and_a_wildcard_are_not_the_same_request() {
         optional(&blank),
         "an empty box constrains no taxon, which includes having no occurrence to \
          name -- a required join would quietly exclude untaxonomised compounds"
+    );
+}
+
+#[test]
+fn a_structure_search_with_wildcard_qid_requires_occurrence_without_biota_closure() {
+    let criteria = SearchCriteria {
+        taxon: "*".to_string(),
+        structure: "c1ccc2[nH]ccc2c1".to_string(),
+        structure_search: SmilesSearchType::Substructure,
+        ..SearchCriteria::up_to_year(2026)
+    };
+    let q = build_base_query(&criteria, Some("*"));
+    assert!(
+        q.contains("sachem:substructureSearch"),
+        "expected substructure search:\n{q}"
+    );
+    assert!(
+        q.contains("?c p:P703 ?statement_id .") && !q.contains("OPTIONAL {\n    ?c p:P703"),
+        "wildcard QID substructure search must require an occurrence:\n{q}"
+    );
+    assert!(
+        !q.contains("Q2382443") && !q.contains("P171*"),
+        "wildcard QID must not rewrite to Biota P171* closure:\n{q}"
     );
 }

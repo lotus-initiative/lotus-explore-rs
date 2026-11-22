@@ -59,6 +59,15 @@ fn occurrence_queries_exclude_deprecated_p703_statements() {
     );
     assert!(structure_with_taxon.contains("FILTER(?_stmt_rank != wikibase:DeprecatedRank)"));
 
+    let structure_with_wildcard = structure_search_query_with(
+        "CC(=O)O",
+        lotus_model::SmilesSearchType::Substructure,
+        0.8,
+        Some("*"),
+        &Nomenclature::ALL_ON,
+    );
+    assert!(structure_with_wildcard.contains("FILTER(?_stmt_rank != wikibase:DeprecatedRank)"));
+
     let all_q = all_required_compounds_query_body();
     assert!(all_q.contains("FILTER(?_stmt_rank != wikibase:DeprecatedRank)"));
 

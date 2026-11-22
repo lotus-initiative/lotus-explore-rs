@@ -463,3 +463,25 @@ fn lowercased_compound_name_sends_case_variants_with_p235_and_reuses_cache_acros
         "cached resolution must avoid further network queries"
     );
 }
+
+#[test]
+fn raw_smiles_keeps_user_structure_even_when_canonical_smiles_differs_and_passthrough_preserves_notices()
+ {
+    structure_cache::clear();
+    let repo = StubRepo::new(vec![Ok(csv(
+        "Q82870769,(1-²H)-1H-Indole,[2H]N1C=CC2=CC=CC=C21",
+    ))]);
+    let resolved = resolve_on("c1ccc2[nH]ccc2c1", &repo);
+    assert_eq!(resolved.resolved.compound.as_deref(), Some("Q82870769"));
+    assert_eq!(resolved.resolved.compounds, vec!["Q82870769"]);
+    assert_eq!(
+        resolved.resolved.structure, "c1ccc2[nH]ccc2c1",
+        "raw SMILES must never be replaced by a matched item's different canonical SMILES"
+    );
+
+    let pass = passthrough_structure(" CCO.O ");
+    assert_eq!(pass.resolved.compound, None);
+    assert_eq!(pass.resolved.compounds, Vec::<String>::new());
+    assert_eq!(pass.resolved.structure, "CCO.O");
+    assert_eq!(pass.notices, vec![LookupNotice::SaltOrMixture]);
+}

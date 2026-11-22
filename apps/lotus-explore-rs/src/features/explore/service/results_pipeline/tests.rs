@@ -137,3 +137,72 @@ fn interactive_pipeline_fetches_rows_and_counts() {
         assert_eq!(outcome.set.stats().n_entries_unique, 2);
     });
 }
+
+#[test]
+fn substructure_smiles_with_wildcard_skips_identity_lookup_and_omits_biota_closure() {
+    use lotus_explore_core::explore::types::LookupNotice;
+    use lotus_explore_core::graph::NETWORK_STARTERS;
+    use std::cell::RefCell;
+
+    let indole = NETWORK_STARTERS
+        .iter()
+        .find(|s| s.id == "indole_substructure")
+        .expect("indole_substructure starter");
+    let criteria = indole.to_criteria(crate::clock::current_year());
+    let normalized = criteria.structure.clone();
+
+    futures::executor::block_on(async {
+        let dl_request = SearchRequest::new(criteria.clone(), SearchCommand::StartupDownload);
+        let dl_repo = MockRepository::sparql_error("identity lookup must not run");
+        let mut dl_metrics = SearchMetrics::default();
+        let dl_outcome = execute(
+            &dl_request,
+            &normalized,
+            &dl_repo,
+            &mut dl_metrics,
+            |_| {},
+            |_| {},
+            true,
+        )
+        .await
+        .expect("substructure raw SMILES must not hit network during planning");
+        assert!(dl_outcome.query.contains("?c p:P703 ?statement_id ."));
+        assert!(!dl_outcome.query.contains("OPTIONAL {\n    ?c p:P703"));
+        assert!(!dl_outcome.query.contains("Q2382443") && !dl_outcome.query.contains("P171*"));
+
+        let request = SearchRequest::new(criteria, SearchCommand::Interactive);
+        let repo = MockRepository::sparql_only(
+            b"compound,compoundLabel,taxon,ref_qid\nQ319541,1H-indole,Q158572,Q20\n".to_vec(),
+        );
+        let phases = RefCell::new(Vec::new());
+        let mut metrics = SearchMetrics::default();
+
+        let outcome = execute(
+            &request,
+            &normalized,
+            &repo,
+            &mut metrics,
+            |phase| phases.borrow_mut().push(phase),
+            |_| {},
+            false,
+        )
+        .await
+        .expect("interactive substructure search succeeds");
+
+        assert!(
+            !phases.borrow().contains(&QueryPhase::ResolvingStructure),
+            "raw SMILES substructure search must skip ResolvingStructure phase: {:?}",
+            phases.borrow()
+        );
+        assert!(
+            !outcome.warnings.iter().any(|n| matches!(
+                n,
+                LookupNotice::CompoundResolved { .. } | LookupNotice::AmbiguousCompound { .. }
+            )),
+            "must not emit CompoundResolved/AmbiguousCompound notices: {:?}",
+            outcome.warnings
+        );
+        assert!(outcome.query.contains("?c p:P703 ?statement_id ."));
+        assert!(!outcome.query.contains("Q2382443") && !outcome.query.contains("P171*"));
+    });
+}

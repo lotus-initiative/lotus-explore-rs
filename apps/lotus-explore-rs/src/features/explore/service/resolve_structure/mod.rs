@@ -74,6 +74,28 @@ pub struct StructureResolution {
     pub notices: Vec<LookupNotice>,
 }
 
+/// Normalize a raw structure (SMILES or Molfile) without hitting the endpoint for
+/// compound-identity lookup, preserving local notices such as [`LookupNotice::SaltOrMixture`].
+///
+/// Used when the search mode is `Substructure` or `Similarity` and the input
+/// is already a structure (`!names_a_compound`), where an extra cutoff-1.0
+/// identity query adds an unnecessary IDSM round trip and emits misleading
+/// exact-compound notices.
+#[must_use]
+pub fn passthrough_structure(input: &str) -> StructureResolution {
+    let normalized = lotus_search::normalize_structure(input);
+    if normalized.trim().is_empty() {
+        return StructureResolution {
+            resolved: ResolvedStructure::unresolved(""),
+            notices: Vec::new(),
+        };
+    }
+    StructureResolution {
+        resolved: ResolvedStructure::unresolved(&normalized),
+        notices: structure_notices(None, &normalized, false),
+    }
+}
+
 /// Resolve the structure field.
 ///
 /// Everything is resolved to a Wikidata compound first, including a structure,
@@ -117,7 +139,7 @@ pub async fn resolve<R: LotusRepository>(
 
     match found {
         Some(cached) => Ok(StructureResolution {
-            resolved: to_resolved(canonical_input, &cached),
+            resolved: to_resolved(canonical_input, &cached, claims_a_compound),
             notices: structure_notices(Some(&cached), canonical_input, claims_a_compound),
         }),
         // A name, an `InChIKey` or a QID matching nothing: a claim about a
@@ -138,7 +160,7 @@ pub async fn resolve<R: LotusRepository>(
 }
 
 /// The compound and the structure to search, given what was matched.
-fn to_resolved(input: &str, cached: &CachedCompound) -> ResolvedStructure {
+fn to_resolved(input: &str, cached: &CachedCompound, claims_a_compound: bool) -> ResolvedStructure {
     ResolvedStructure {
         compound: Some(cached.qid.clone()),
         // Every match, not just the one named above. See `ResolvedStructure`.
@@ -147,13 +169,14 @@ fn to_resolved(input: &str, cached: &CachedCompound) -> ResolvedStructure {
         } else {
             cached.all_qids.clone()
         },
-        // The compound's own structure. Otherwise the input stands, which for a
-        // name is the text that named the compound -- the structure service
-        // says so itself, which is the right place for it to surface.
-        structure: if cached.canonical_smiles.is_empty() {
-            input.to_owned()
-        } else {
+        // When the reader typed a compound name, QID, or InChIKey, use its
+        // canonical SMILES for substructure/similarity searches. When the
+        // reader supplied a SMILES/Molfile directly, keep their exact input so
+        // an ambiguous cutoff-1 lookup never substitutes another isomer's SMILES.
+        structure: if claims_a_compound && !cached.canonical_smiles.is_empty() {
             cached.canonical_smiles.clone()
+        } else {
+            input.to_owned()
         },
     }
 }
@@ -171,7 +194,7 @@ fn from_cached(
 ) -> Result<StructureResolution, DomainError> {
     match entry {
         structure_cache::Cached::Resolved(cached) => Ok(StructureResolution {
-            resolved: to_resolved(input, &cached),
+            resolved: to_resolved(input, &cached, claims_a_compound),
             notices: structure_notices(Some(&cached), input, claims_a_compound),
         }),
         structure_cache::Cached::Unresolved | structure_cache::Cached::Unknown => {

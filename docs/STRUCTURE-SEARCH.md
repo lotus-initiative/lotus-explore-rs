@@ -18,9 +18,12 @@ searches that compound in one of three ways:
 
 ## Resolution first, then the mode
 
-The order is the whole design. **Every** input is resolved to a compound before
-anything is searched, a structure included, because the default mode needs a QID
-and a structure is not one. Only then does the mode decide what happens:
+In `Exact` mode (the default) and for every compound name, `InChIKey`, or QID,
+the input is resolved to a Wikidata compound before anything is searched, because
+the exact route needs a QID and a structure is not one. Only raw SMILES or
+Molfiles in `Substructure` or `Similarity` mode go straight to the structure
+service in the web pipeline without an extra identity lookup. Then the mode
+decides what happens:
 
 | Mode                | Question                            | Route                                         |
 | ------------------- | ----------------------------------- | --------------------------------------------- |

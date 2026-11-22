@@ -91,15 +91,21 @@ pub(super) async fn build_execution_plan<R: LotusRepository>(
 
     let taxon_resolution = resolve_taxon::resolve(taxon, repo, metrics).await?;
 
-    // The structure field is resolved like the taxon field, for the same reason:
-    // whatever is typed here should find the compound it names. It runs for every
-    // input, a structure included, because two of the three modes need a QID —
-    // which is why it happens before the query is built rather than inside it.
+    // Names, QIDs, and InChIKeys resolve in every mode so substructure and
+    // similarity searches can hand the compound's canonical SMILES to IDSM.
+    // Raw SMILES/Molfiles in Exact mode also resolve so an indexed compound can
+    // take the fast `VALUES ?c` route; in Substructure/Similarity mode a raw
+    // structure goes straight to IDSM without an extra identity round trip or
+    // misleading exact-compound notices.
     let structure_resolution = if normalized_smiles.trim().is_empty() {
         StructureResolution {
             resolved: ResolvedStructure::unresolved(""),
             notices: Vec::new(),
         }
+    } else if request.criteria().structure_search != lotus_model::SmilesSearchType::Exact
+        && !lotus_model::names_a_compound(normalized_smiles.trim())
+    {
+        resolve_structure::passthrough_structure(normalized_smiles)
     } else {
         on_phase(QueryPhase::ResolvingStructure);
         resolve_structure::resolve(normalized_smiles, repo, metrics).await?

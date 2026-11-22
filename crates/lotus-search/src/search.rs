@@ -82,21 +82,13 @@ pub fn normalize_structure(value: &str) -> String {
 pub fn build_base_query(criteria: &SearchCriteria, qid: Option<&str>) -> String {
     let nomenclature = Nomenclature::from(criteria);
     match StructurePlan::for_request(criteria) {
-        Some(plan) => {
-            let taxon = match qid {
-                // The wildcard has no Wikidata entity of its own, so it filters
-                // on the root taxon, from which `P171*` reaches everything.
-                Some("*") => Some("Q2382443"),
-                other => other,
-            };
-            structure_search_query_with(
-                &plan.structure,
-                plan.search,
-                plan.threshold,
-                taxon,
-                &nomenclature,
-            )
-        }
+        Some(plan) => structure_search_query_with(
+            &plan.structure,
+            plan.search,
+            plan.threshold,
+            qid,
+            &nomenclature,
+        ),
         // Nothing given is not the same request as `*`: nothing given means "no constraint I
         // can apply", including compounds with no organism recorded, while `*` explicitly
         // asks for everything with an occurrence and keeps requiring one. Sending both to

@@ -93,16 +93,13 @@ pub fn build_sparql_query(
 
     // The mode is used as asked for, molfiles included: the similarity service
     // was measured accepting a multi-line CTAB, so the format does not decide it.
-    let taxon_for_sachem = match taxon_qid {
-        Some("*") => Some("Q2382443"),
-        Some(qid) => Some(qid),
-        None => None,
-    };
+    // `Some("*")` passes straight through so `structure_search_query_with`
+    // requires an occurrence without expanding a `P171*` closure over Biota.
     lotus_query::structure_search_query_with(
         structure,
         crit.structure_search,
         crit.structure_threshold,
-        taxon_for_sachem,
+        taxon_qid,
         &nomenclature,
     )
 }

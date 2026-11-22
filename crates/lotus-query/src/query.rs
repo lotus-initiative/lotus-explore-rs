@@ -1222,6 +1222,8 @@ WHERE {{
 ///
 /// Without `taxon_qid` the occurrence triple is optional, so a compound with no occurrence
 /// data is still returned -- structure search is how such compounds are found at all.
+/// With `Some("*")` occurrences are required across any taxon without expanding the Biota
+/// ancestry closure.
 #[must_use]
 pub fn structure_search_query(
     structure: &str,
@@ -1313,9 +1315,12 @@ pub fn structure_search_query_with(
 ) -> String {
     let service = idsm_service_clause(structure, search, threshold);
 
-    // With a taxon, the service runs in its own subquery so that `QLever` can
-    // pre-filter before enriching, and the occurrence triple is *required* —
-    // a match outside the requested taxon should not come back.
+    // With a taxon (or `"*"`, meaning any taxon with a recorded occurrence),
+    // the service runs in its own subquery so that `QLever` can pre-filter
+    // before enriching, and the occurrence triple is *required* — a match
+    // outside the requested scope should not come back. For `"*"` no `P171*`
+    // Biota closure is emitted, since `ps:P703` already constrains to recorded
+    // taxon occurrences directly (~2.7s vs ~16s+ on indole substructure).
     //
     // Without one, the service joins the body directly and the occurrence
     // triple is `OPTIONAL`: a structure search is how a compound with no
@@ -1348,6 +1353,14 @@ pub fn structure_search_query_with(
             )
         },
         |qid| {
+            let taxon_filter = if qid == "*" {
+                String::new()
+            } else {
+                format!(
+                    "\n  {{\n    SELECT DISTINCT ?t\n    WHERE {{\n      {}\n    }}\n  }}",
+                    taxon_ancestry_pattern(qid, *nomenclature)
+                )
+            };
             format!(
                 "
   {{
@@ -1364,18 +1377,11 @@ pub fn structure_search_query_with(
                 prov:wasDerivedFrom ?ref_node .
   FILTER(?_stmt_rank != wikibase:DeprecatedRank)
   ?ref_node pr:P248 ?r .
-  ?t wdt:P225 ?taxon_name .
-  {{
-    SELECT DISTINCT ?t
-    WHERE {{
-      {}
-    }}
-  }}
+  ?t wdt:P225 ?taxon_name .{taxon_filter}
 
   {REFERENCE_METADATA}
   {COMPOUND_PROPERTIES}
-",
-                taxon_ancestry_pattern(qid, *nomenclature)
+"
             )
         },
     );

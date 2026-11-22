@@ -227,6 +227,33 @@ fn an_exact_search_filters_by_a_real_taxon_and_not_by_the_wildcard() {
 }
 
 #[test]
+fn a_wildcard_taxon_substructure_search_requires_occurrence_without_biota_closure() {
+    let crit = SearchCriteria {
+        taxon: "*".into(),
+        structure: "c1ccc2[nH]ccc2c1".into(),
+        structure_search: SmilesSearchType::Substructure,
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    let q = build_sparql_query(
+        &ResolvedStructure::unresolved("c1ccc2[nH]ccc2c1"),
+        &crit,
+        Some("*"),
+    );
+    assert!(
+        q.contains("sachem:substructureSearch"),
+        "expected substructure search:\n{q}"
+    );
+    assert!(
+        q.contains("?c p:P703 ?statement_id .") && !q.contains("OPTIONAL {\n    ?c p:P703"),
+        "wildcard taxon substructure search must require an occurrence:\n{q}"
+    );
+    assert!(
+        !q.contains("Q2382443") && !q.contains("P171*"),
+        "wildcard taxon must not rewrite to Biota P171* closure:\n{q}"
+    );
+}
+
+#[test]
 fn server_filters_are_the_query_crates_filters() {
     let crit = SearchCriteria {
         mass_min: 100.0,

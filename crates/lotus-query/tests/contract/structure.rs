@@ -54,6 +54,37 @@ fn a_structure_search_with_a_taxon_requires_the_occurrence() {
 }
 
 #[test]
+fn a_structure_search_with_wildcard_taxon_requires_occurrence_without_biota_closure() {
+    let query = structure_search_query_with(
+        "c1ccc2[nH]ccc2c1",
+        SmilesSearchType::Substructure,
+        0.8,
+        Some("*"),
+        &Nomenclature::ALL_ON,
+    );
+    assert!(
+        query.contains("SELECT DISTINCT ?c"),
+        "the service is pre-filtered:\n{query}"
+    );
+    assert!(
+        query.contains("?c p:P703 ?statement_id ."),
+        "wildcard taxon requires recorded occurrences:\n{query}"
+    );
+    assert!(
+        !query.contains("OPTIONAL {\n    ?c p:P703"),
+        "wildcard taxon must not leave occurrences optional:\n{query}"
+    );
+    assert!(
+        query.contains("FILTER(?_stmt_rank != wikibase:DeprecatedRank)"),
+        "deprecated P703 statements must be excluded:\n{query}"
+    );
+    assert!(
+        !query.contains("Q2382443") && !query.contains("P171*"),
+        "wildcard taxon must not expand a Biota P171* closure:\n{query}"
+    );
+}
+
+#[test]
 fn similarity_and_substructure_ask_the_service_for_different_things() {
     let sim = structure_search_query("CCO", SmilesSearchType::Similarity, 0.75, None);
     assert!(sim.contains("sachem:similarCompoundSearch"));
