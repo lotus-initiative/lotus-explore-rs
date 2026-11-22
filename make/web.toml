@@ -220,6 +220,20 @@ set -euo pipefail
 exec bash "make/scripts/verify-bundle.sh"
 """
 
+# Optional browser check against the built web bundle: checks horizontal overflow,
+# viewport bounds, touch targets, typography scale, scrollable regions, landmarks,
+# and WCAG 2.2 AA rules via axe-core across phones through desktop in light/dark.
+# Requires `playwright-core` and `axe-core` supplied outside the repo via
+# `LOTUS_A11Y_NODE_PATH` (or `NODE_PATH`).
+[tasks."web-a11y"]
+cwd = "${REPO_ROOT}"
+description = "Run optional Playwright + axe-core responsive and accessibility audit on the built web bundle."
+script = """
+#!/usr/bin/env bash
+set -euo pipefail
+exec node "make/scripts/web-a11y-audit.mjs" "$@"
+"""
+
 [tasks."cli"]
 cwd = "${REPO_ROOT}"
 description = "Run the lotus CLI. Arguments after -- are passed straight through."
