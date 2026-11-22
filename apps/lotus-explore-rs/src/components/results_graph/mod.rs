@@ -59,7 +59,7 @@ pub fn ResultsGraphWorkspace() -> Element {
     let webgl_unavailable = use_signal(|| false);
     let context_lost = use_signal(|| false);
     let png_notice = use_signal(|| Option::<String>::None);
-    let mut projection = use_signal(GraphProjection::default);
+    let projection = use_signal(GraphProjection::default);
     let mut scope = use_signal(GraphScope::default);
     let mut is_3d = use_signal(|| true);
     let mut paused = use_signal(|| false);
@@ -173,6 +173,7 @@ pub fn ResultsGraphWorkspace() -> Element {
                     set_arc: set_arc.read().0.clone(),
                     filtered_rows: filtered_rows.read().clone(),
                     projection: *projection.read(),
+                    effective_projection: current_model.effective_projection,
                     is_3d: *is_3d.read(),
                     paused: *paused.read(),
                     can_go_back: !pivot_history.read().is_empty(),
@@ -184,7 +185,7 @@ pub fn ResultsGraphWorkspace() -> Element {
                         }
                     },
                     on_clear_filters: move |()| clear_filters_interactions.clear_filters(),
-                    on_projection_change: move |next| projection.set(next),
+                    on_projection_change: move |next| apply_projection_change(next, projection, scope),
                     on_mode_change: move |next_3d| is_3d.set(next_3d),
                     on_focus_node: move |key| focus_ego_scope(key, selected_idx, last_selected_key, scope),
                     on_zoom: bridge::zoom_graph,
@@ -220,6 +221,9 @@ pub fn ResultsGraphWorkspace() -> Element {
                             on_back_to_overview: move |()| scope.set(GraphScope::default()),
                             on_change_max_nodes: move |max_nodes| {
                                 scope.set(GraphScope::Overview { max_nodes });
+                            },
+                            on_projection_change: move |next| {
+                                apply_projection_change(next, projection, scope);
                             },
                         }
                         GraphInspector {
@@ -296,6 +300,21 @@ fn select_node_from_ui(
     let key = idx.and_then(|i| graph_model.peek().nodes.get(i).map(|n| n.key));
     last_selected_key.set(key);
     bridge::push_select_node(idx);
+}
+
+fn apply_projection_change(
+    next: GraphProjection,
+    mut projection: Signal<GraphProjection>,
+    mut scope: Signal<GraphScope>,
+) {
+    let current_scope = *scope.peek();
+    if let GraphScope::Ego { center, .. } = current_scope
+        && next != GraphProjection::Auto
+        && !next.includes_kind(center.kind)
+    {
+        scope.set(GraphScope::default());
+    }
+    projection.set(next);
 }
 
 fn focus_ego_scope(

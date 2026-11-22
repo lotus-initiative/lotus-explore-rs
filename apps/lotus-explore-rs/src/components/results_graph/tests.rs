@@ -190,6 +190,7 @@ fn StageAndInspectorHarness(props: SelectedInspectorHarnessProps) -> Element {
                 on_clear_selection: move |()| {},
                 on_back_to_overview: move |()| {},
                 on_change_max_nodes: move |_| {},
+                on_projection_change: move |_| {},
             }
             GraphInspector {
                 model: props.model,
@@ -291,6 +292,42 @@ fn bare_network_workspace_renders_starter_cards_without_canvas_or_auto_query() {
     assert!(!html.contains(CANVAS_ID));
 }
 
+fn strip_html_tags(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut in_tag = false;
+    for ch in raw.chars() {
+        match ch {
+            '<' => in_tag = true,
+            '>' => in_tag = false,
+            _ if !in_tag => out.push(ch),
+            _ => {}
+        }
+    }
+    out
+}
+
+fn assert_no_redundant_titles(html: &str) {
+    let mut rest = html;
+    while let Some((before, after_attr)) = rest.split_once(" title=\"") {
+        let Some((title_val, after_quote)) = after_attr.split_once('"') else {
+            break;
+        };
+        let tag_open = before.rsplit_once('<').map_or(before, |(_, tail)| tail);
+        let tag_name = tag_open.split_whitespace().next().unwrap_or("");
+        if let Some((_, inner_rest)) = after_quote.split_once('>') {
+            let close_tag = format!("</{tag_name}>");
+            if let Some((inner, _)) = inner_rest.split_once(&close_tag) {
+                let text = strip_html_tags(inner);
+                assert!(
+                    !text.trim().eq_ignore_ascii_case(title_val.trim()),
+                    "redundant title=\"{title_val}\" matches element text \"{text}\""
+                );
+            }
+        }
+        rest = after_quote;
+    }
+}
+
 #[test]
 fn loaded_network_workspace_exposes_accessible_canvas_controls_and_top_hubs() {
     let set = Arc::new(sample_result_set(4));
@@ -313,6 +350,24 @@ fn loaded_network_workspace_exposes_accessible_canvas_controls_and_top_hubs() {
     assert!(html.contains(t(Locale::En, TextKey::TopConnectedEntities)));
     assert!(html.contains(r#"id="graph-projection-select""#));
     assert!(html.contains("min-w-0 max-w-full"));
+    assert!(!html.contains(r#"title="*""#));
+    assert_no_redundant_titles(&html);
+    assert!(
+        html.contains("Auto (Compounds ↔ Taxa)"),
+        "Auto option must expose the resolved 2-type view:\n{html}"
+    );
+    assert!(
+        html.contains(r#"aria-pressed="true""#) && html.contains(r#"aria-pressed="false""#),
+        "legend must expose interactive active/hidden entity toggles:\n{html}"
+    );
+    assert!(
+        html.contains("Reference</span><span>2</span>"),
+        "hidden Reference pill must show available count (2) at full contrast rather than 0:\n{html}"
+    );
+    assert!(
+        html.contains("Showing 2 types for clarity (2 refs weight the links)"),
+        "legend must explain why 2 types are shown and how to add the 3rd:\n{html}"
+    );
 }
 
 #[test]
@@ -344,6 +399,9 @@ fn inspector_renders_selected_compound_cdk_depict_and_cap_and_ego_controls() {
     assert!(html_overview.contains("https://www.simolecule.com/cdkdepict/depict/cow/svg?smi="));
     assert!(html_overview.contains("annotate=cip"));
     assert!(html_overview.contains(t(Locale::En, TextKey::CopySmiles)));
+    assert!(!html_overview.contains(r#"title="Copy SMILES""#));
+    assert!(!html_overview.contains(r#"aria-label="Copy SMILES""#));
+    assert_no_redundant_titles(&html_overview);
     assert!(html_overview.contains(t(Locale::En, TextKey::ExploreInLotus)));
     assert!(html_overview.contains(t(Locale::En, TextKey::GraphCappedNoticePrefix)));
     assert!(html_overview.contains(t(Locale::En, TextKey::ProjectionCompoundTaxon)));
@@ -441,4 +499,61 @@ fn search_results_table_exposes_view_in_network_only_when_non_empty_and_never_lo
 #[test]
 fn default_max_nodes_constant_matches_spec() {
     assert_eq!(DEFAULT_MAX_NODES, 5_000);
+}
+
+#[test]
+fn tripartite_projection_marks_all_three_legend_pills_active_without_two_type_note() {
+    let set = Arc::new(sample_result_set(4));
+    let rows: Vec<u32> = (0..4).collect();
+    let model = Arc::new(build_graph(
+        &set,
+        &rows,
+        GraphProjection::Tripartite,
+        GraphScope::default(),
+    ));
+    let html = render_dom(
+        StageAndInspectorHarness,
+        SelectedInspectorHarnessProps {
+            model,
+            set,
+            scope: GraphScope::default(),
+            selected: None,
+        },
+    );
+    assert_eq!(
+        html.matches(r#"aria-pressed="true""#).count(),
+        3,
+        "all three entity toggles must be pressed in Tripartite mode:\n{html}"
+    );
+    assert!(
+        !html.contains(r#"aria-pressed="false""#),
+        "no entity toggle should be unpressed in Tripartite mode:\n{html}"
+    );
+    assert!(
+        !html.contains("Showing 2 types"),
+        "2-type note must not appear when all 3 types are shown:\n{html}"
+    );
+}
+
+#[test]
+fn copy_button_retains_distinct_title_and_aria_label() {
+    #[component]
+    fn CopyHarness() -> Element {
+        rsx! {
+            crate::components::copy_button::CopyButton {
+                text: Arc::<str>::from("https://lotus.nprod.net/"),
+                title: "Copy shareable link",
+                locale: Locale::En,
+            }
+        }
+    }
+
+    let mut dom = VirtualDom::new(CopyHarness);
+    dom.rebuild_in_place();
+    let html = dioxus_ssr::render(&dom);
+    assert!(html.contains(r#"title="Copy shareable link""#), "{html}");
+    assert!(
+        html.contains(r#"aria-label="Copy shareable link""#),
+        "{html}"
+    );
 }

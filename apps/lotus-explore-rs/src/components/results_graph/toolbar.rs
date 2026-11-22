@@ -33,6 +33,7 @@ pub(super) fn GraphToolbar(
     set_arc: Arc<lotus_model::ColumnarResultSet>,
     filtered_rows: Arc<Vec<u32>>,
     projection: GraphProjection,
+    effective_projection: GraphProjection,
     is_3d: bool,
     paused: bool,
     can_go_back: bool,
@@ -89,7 +90,6 @@ pub(super) fn GraphToolbar(
             div { class: "flex flex-wrap items-center gap-2",
                 span {
                     class: "inline-flex max-w-[28ch] items-center truncate rounded-full border border-panel-border bg-panel-soft px-2.5 py-1 text-ui font-semibold text-text",
-                    title: "{summary}",
                     "{summary}"
                 }
                 if filters.is_active() {
@@ -138,7 +138,11 @@ pub(super) fn GraphToolbar(
                                 option {
                                     value: "{proj.as_str()}",
                                     selected: proj == projection,
-                                    "{projection_label(locale, proj)}"
+                                    if proj == GraphProjection::Auto {
+                                        "{t(locale, TextKey::ProjectionAuto)} ({projection_label(locale, effective_projection)})"
+                                    } else {
+                                        "{projection_label(locale, proj)}"
+                                    }
                                 }
                             }
                         }

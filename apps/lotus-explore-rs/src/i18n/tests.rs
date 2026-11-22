@@ -2,7 +2,10 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for `i18n`, in their own file.
 
-use super::{Locale, TextKey, err_truncated_by_endpoint, msg_tsv_missing_column, t};
+use super::{
+    Locale, TextKey, aria_graph_kind_toggle, err_truncated_by_endpoint, graph_two_type_note,
+    msg_tsv_missing_column, t,
+};
 use lotus_explore_core::explore::truncation::Reason;
 
 #[test]
@@ -102,6 +105,44 @@ fn every_truncation_reason_is_translated_in_every_locale() {
     for (i, a) in rendered.iter().enumerate() {
         for b in rendered.iter().skip(i + 1) {
             assert_ne!(a, b, "two locales render the same truncation message");
+        }
+    }
+}
+
+#[test]
+fn graph_two_type_note_and_legend_toggle_aria_are_localized_and_label_in_name() {
+    const LOCALES: [Locale; 4] = [Locale::En, Locale::Fr, Locale::De, Locale::It];
+
+    let mut single_notes = Vec::new();
+    let mut multi_notes = Vec::new();
+    for locale in LOCALES {
+        let single = graph_two_type_note(locale, "Reference", 1, "1", "refs");
+        let multi = graph_two_type_note(locale, "Reference", 4, "4", "refs");
+        assert!(single.contains("Reference"), "{locale:?}: {single}");
+        assert!(
+            multi.contains("4 refs") && multi.contains("Reference"),
+            "{locale:?}: {multi}"
+        );
+        assert!(
+            !single.contains('—') && !multi.contains('—'),
+            "{locale:?} must not use em dashes"
+        );
+        single_notes.push(single);
+        multi_notes.push(multi);
+
+        for (active, can_toggle) in [(true, true), (true, false), (false, true), (false, false)] {
+            let aria = aria_graph_kind_toggle(locale, "Reference", "4", active, can_toggle);
+            assert!(
+                aria.starts_with("Reference 4"),
+                "WCAG Label in Name broken for {locale:?}: {aria}"
+            );
+        }
+    }
+
+    for i in 0..LOCALES.len() {
+        for j in (i + 1)..LOCALES.len() {
+            assert_ne!(single_notes.get(i), single_notes.get(j));
+            assert_ne!(multi_notes.get(i), multi_notes.get(j));
         }
     }
 }

@@ -26,12 +26,13 @@ pub fn CopyButton(
     } else {
         title
     };
+    let redundant_title = title_attr.trim().eq_ignore_ascii_case(label_attr.trim());
 
     rsx! {
         Button {
             r#type: "button",
-            title: Some(title_attr.to_string()),
-            aria_label: Some(title_attr.to_string()),
+            title: (!redundant_title).then(|| title_attr.to_string()),
+            aria_label: (!redundant_title).then(|| title_attr.to_string()),
             class: "inline-flex items-center justify-center font-sans select-none transition-transform duration-150 ease-[cubic-bezier(.4,0,.2,1)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 rounded-xl border border-border bg-surface text-text font-semibold shadow-xs hover:bg-bg active:bg-bg min-h-[44px] min-w-[44px] gap-1.5 px-3.5 py-2 text-ui active:scale-[0.98] {class}",
             onclick: move |_| {
                 copy_to_clipboard(text.as_ref());

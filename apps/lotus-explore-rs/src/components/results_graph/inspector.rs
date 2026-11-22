@@ -108,7 +108,7 @@ pub(super) fn GraphInspector(
         aside {
             role: "region",
             aria_label: "{t(locale, TextKey::NetworkInspectorRegionAria)}",
-            class: "flex min-w-0 flex-col gap-3 rounded-xl border border-panel-border bg-panel p-4 shadow-xs lg:max-h-[660px] lg:overflow-y-auto",
+            class: "flex min-w-0 flex-col gap-3 rounded-xl border border-panel-border bg-panel p-4 shadow-xs lotus-graph-inspector",
             p {
                 role: "status",
                 aria_live: "polite",

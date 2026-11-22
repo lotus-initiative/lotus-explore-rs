@@ -728,6 +728,9 @@
   .animate-spin {
     animation: var(--animate-spin);
   }
+  .cursor-default {
+    cursor: default;
+  }
   .cursor-grab {
     cursor: grab;
   }
@@ -898,6 +901,10 @@
   .border-l-4 {
     border-left-style: var(--tw-border-style);
     border-left-width: 4px;
+  }
+  .border-dashed {
+    --tw-border-style: dashed;
+    border-style: dashed;
   }
   .border-accent {
     border-color: var(--color-accent);
@@ -1391,6 +1398,9 @@
   .accent-accent {
     accent-color: var(--color-accent);
   }
+  .opacity-60 {
+    opacity: 60%;
+  }
   .opacity-80 {
     opacity: 80%;
   }
@@ -1716,6 +1726,13 @@
       }
     }
   }
+  .hover\:opacity-90 {
+    &:hover {
+      @media (hover: hover) {
+        opacity: 90%;
+      }
+    }
+  }
   .hover\:file\:bg-accent-2 {
     &:hover {
       @media (hover: hover) {
@@ -1843,11 +1860,6 @@
   .sm\:ml-auto {
     @media (width >= 40rem) {
       margin-left: auto;
-    }
-  }
-  .sm\:min-h-\[420px\] {
-    @media (width >= 40rem) {
-      min-height: 420px;
     }
   }
   .sm\:w-\[12ch\] {
@@ -2046,11 +2058,6 @@
       display: none;
     }
   }
-  .lg\:max-h-\[660px\] {
-    @media (width >= 64rem) {
-      max-height: 660px;
-    }
-  }
   .lg\:w-\[12ch\] {
     @media (width >= 64rem) {
       width: 12ch;
@@ -2099,11 +2106,6 @@
   .lg\:grid-cols-\[minmax\(0\,1fr\)_360px\] {
     @media (width >= 64rem) {
       grid-template-columns: minmax(0,1fr) 360px;
-    }
-  }
-  .lg\:overflow-y-auto {
-    @media (width >= 64rem) {
-      overflow-y: auto;
     }
   }
   .lg\:px-8 {
@@ -2511,17 +2513,45 @@ legend {
 }
 .lotus-graph-stage {
   position: relative;
-  height: clamp(320px, 55dvh, 440px);
-  height: clamp(320px, 55svh, 440px);
+  height: clamp(420px, 64dvh, 640px);
+  height: clamp(420px, 64svh, 640px);
 }
 @media (min-width: 640px) {
   .lotus-graph-stage {
-    height: 520px;
+    height: clamp(560px, 70dvh, 860px);
+    height: clamp(560px, 70svh, 860px);
   }
 }
 @media (min-width: 1024px) {
   .lotus-graph-stage {
-    height: 600px;
+    height: clamp(680px, 76dvh, 1120px);
+    height: clamp(680px, 76svh, 1120px);
+    min-height: 480px;
+    resize: vertical;
+  }
+  .lotus-graph-inspector {
+    max-height: clamp(740px, 82dvh, 1180px);
+    max-height: clamp(740px, 82svh, 1180px);
+    overflow-y: auto;
+  }
+}
+.lotus-ketcher-frame {
+  height: clamp(460px, 68dvh, 720px);
+  height: clamp(460px, 68svh, 720px);
+  min-height: 460px;
+}
+@media (min-width: 640px) {
+  .lotus-ketcher-frame {
+    height: clamp(620px, 74dvh, 960px);
+    height: clamp(620px, 74svh, 960px);
+    min-height: 620px;
+  }
+}
+@media (min-width: 1024px) {
+  .lotus-ketcher-frame {
+    height: clamp(720px, 78dvh, 1160px);
+    height: clamp(720px, 78svh, 1160px);
+    min-height: 720px;
   }
 }
 .lotus-graph-canvas {

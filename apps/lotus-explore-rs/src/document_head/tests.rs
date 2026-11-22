@@ -92,7 +92,10 @@ fn the_compiled_sheet_carries_custom_utilities_and_typography_scale() {
         ".spinner-lg",
         ".spinner-sm",
         ".lotus-loader",
+        ".lotus-graph-stage",
+        ".lotus-graph-inspector",
         ".lotus-graph-canvas",
+        ".lotus-ketcher-frame",
         ".filter-field",
         ".resize-field",
         ".results-table-scroll",
@@ -101,6 +104,23 @@ fn the_compiled_sheet_carries_custom_utilities_and_typography_scale() {
         assert!(
             COMPILED_SHEET.contains(class),
             "expected compiled lotus-explore.css to contain {class}; run `./mk web-css`"
+        );
+    }
+}
+
+#[test]
+fn graph_stage_and_ketcher_frame_use_responsive_viewport_heights() {
+    for selector in [".lotus-graph-stage", ".lotus-ketcher-frame"] {
+        let body = THEME_SOURCE
+            .split_once(selector)
+            .map_or_default(|(_, rest)| rest);
+        assert!(
+            !body.is_empty(),
+            "missing {selector} in tailwind/styles.css"
+        );
+        assert!(
+            body.contains("clamp(") && body.contains("svh"),
+            "{selector} should size against the viewport via clamp(..., svh, ...)"
         );
     }
 }

@@ -635,19 +635,51 @@ legend {
 
 .lotus-graph-stage {
   position: relative;
-  height: clamp(320px, 55dvh, 440px);
-  height: clamp(320px, 55svh, 440px);
+  height: clamp(420px, 64dvh, 640px);
+  height: clamp(420px, 64svh, 640px);
 }
 
 @media (min-width: 640px) {
   .lotus-graph-stage {
-    height: 520px;
+    height: clamp(560px, 70dvh, 860px);
+    height: clamp(560px, 70svh, 860px);
   }
 }
 
 @media (min-width: 1024px) {
   .lotus-graph-stage {
-    height: 600px;
+    height: clamp(680px, 76dvh, 1120px);
+    height: clamp(680px, 76svh, 1120px);
+    min-height: 480px;
+    resize: vertical;
+  }
+
+  .lotus-graph-inspector {
+    max-height: clamp(740px, 82dvh, 1180px);
+    max-height: clamp(740px, 82svh, 1180px);
+    overflow-y: auto;
+  }
+}
+
+.lotus-ketcher-frame {
+  height: clamp(460px, 68dvh, 720px);
+  height: clamp(460px, 68svh, 720px);
+  min-height: 460px;
+}
+
+@media (min-width: 640px) {
+  .lotus-ketcher-frame {
+    height: clamp(620px, 74dvh, 960px);
+    height: clamp(620px, 74svh, 960px);
+    min-height: 620px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lotus-ketcher-frame {
+    height: clamp(720px, 78dvh, 1160px);
+    height: clamp(720px, 78svh, 1160px);
+    min-height: 720px;
   }
 }
 
