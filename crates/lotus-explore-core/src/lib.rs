@@ -29,6 +29,8 @@ pub mod explore;
 pub mod export;
 /// Client-side narrowing of an already-fetched result set.
 pub mod filters;
+/// Network graph projection over a columnar result set.
+pub mod graph;
 /// The transport boundary: what the domain asks a host to do.
 pub mod ports;
 /// How the results table is ordered.
