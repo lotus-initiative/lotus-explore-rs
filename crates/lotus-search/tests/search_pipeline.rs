@@ -350,7 +350,7 @@ async fn a_gone_endpoint_is_retried_and_then_falls_back_to_wikidata() {
         vec![
             "https://qlever.dev/api/wikidata",
             "https://qlever.dev/api/wikidata",
-            "https://query.wikidata.org/sparql",
+            "https://query-next.wikidata.org/sparql",
             "https://qlever.dev/api/wikidata",
         ],
         "the rows query retried then fell back; the count query is independent"
@@ -413,10 +413,10 @@ async fn a_dropped_connection_falls_back_to_wikidata() {
         vec![
             "https://qlever.dev/api/wikidata",
             "https://qlever.dev/api/wikidata",
-            "https://query.wikidata.org/sparql",
+            "https://query-next.wikidata.org/sparql",
             "https://qlever.dev/api/wikidata",
             "https://qlever.dev/api/wikidata",
-            "https://query.wikidata.org/sparql",
+            "https://query-next.wikidata.org/sparql",
         ]
     );
 }

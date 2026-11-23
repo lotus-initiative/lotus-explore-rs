@@ -82,7 +82,7 @@ Wikidata and third-party services and is flagged `untrustedContentHint`.
 
 ## Data sources
 
-- [Wikidata Query Service](https://query.wikidata.org/)
+- [Wikidata Query Service](https://query-next.wikidata.org/)
 - [QLever Wikidata endpoint](https://qlever.dev/wikidata)
 - [DOI metadata](https://doi.org/)
 - [LOTUS initiative](https://lotus-initiative.github.io)

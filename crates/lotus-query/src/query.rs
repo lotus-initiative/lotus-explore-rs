@@ -1958,7 +1958,7 @@ pub enum FallbackService {
 #[must_use]
 pub fn wdqs_fallback(query: &str) -> (FallbackService, String) {
     const SCHOLARLY_REF: &str = "
-  SERVICE <https://query-scholarly.wikidata.org/sparql> {
+  SERVICE <https://query-scholarly-next.wikidata.org/sparql> {
     OPTIONAL { ?r wdt:P1476 ?ref_title. }
     OPTIONAL { ?r wdt:P356 ?ref_doi. }
     OPTIONAL { ?r wdt:P577 ?ref_date. }

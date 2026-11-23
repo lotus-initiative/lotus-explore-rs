@@ -339,7 +339,7 @@ async fn send_response<H: Http>(
     format: ResponseFormat,
 ) -> Result<H::Response, FetchError> {
     let body = form_body(endpoint, query);
-    let headers = request_headers();
+    let headers = request_headers(endpoint);
     let response = http
         .post_form(endpoint, format.accept(), body, &headers)
         .await?;
@@ -353,14 +353,14 @@ async fn send_response<H: Http>(
         let response = response.bytes().await.map_err(|_| FetchError::Empty);
         let wdqs_timeout = response
             .as_ref()
-            .is_ok_and(|bytes| status >= 500 && is_wdqs_query_timeout(bytes));
+            .is_ok_and(|bytes| is_wdqs_query_timeout(status, bytes));
         let message = response.map_or_else(|_| String::new(), |bytes| compact(&bytes));
-        // 429 is the endpoint cancelling a query that outran its time limit, so
-        // it becomes its own error rather than a status the retry loop weighs.
-        // See `FetchError::TimedOut` for the measurement behind that. WDQS says
-        // the same thing as a 500 carrying the Java timeout, which `compact`
-        // would reduce to the echoed query, so it is read from the raw body.
-        if status == 429 || wdqs_timeout {
+        // QLever answers a query timeout with 429 ("Operation timed out"), while
+        // WDQS v2's REST Gateway reserves 429 for request-rate throttling and
+        // reports query deadlines as 504 JSON (`gateway_timeout` /
+        // `backend_timeout`). Legacy Blazegraph overrides report 5xx with Java's
+        // `TimeoutException`.
+        if is_qlever_query_timeout(endpoint, status, &message) || wdqs_timeout {
             return Err(FetchError::TimedOut {
                 budget: query_budget(endpoint),
                 message,
@@ -484,11 +484,7 @@ impl QLever {
     /// How a client is named to `QLever`, which is what makes a heavy user
     /// contactable instead of anonymous. Sent as `api-user-agent`, the header
     /// `QLever` names in its own CORS allow-list.
-    const CLIENT_ID: &'static str = concat!(
-        "lotus-explore-rs/",
-        env!("CARGO_PKG_VERSION"),
-        " (+https://github.com/lotus-initiative/lotus-explore-rs)"
-    );
+    const CLIENT_ID: &'static str = crate::CLIENT_ID;
 }
 
 /// The header `QLever` reads an access token from.
@@ -505,28 +501,27 @@ impl QLever {
 /// than a 403 and reads as a bug in the client.
 const ACCESS_TOKEN_HEADER: &str = "Authorization";
 
-/// Headers sent with every `QLever` request.
+/// Headers sent with every SPARQL POST request.
 ///
-/// Two, both about being a good citizen rather than function:
-///
-/// - **`api-user-agent`** identifies the client. `QLever` allows it explicitly, so a
-///   deployment running this app heavily is something an operator can reach and raise a
-///   limit for, instead of an anonymous address that eventually gets blocked.
-/// - **`Authorization: Bearer <token>`**, only when a token is set: the way to ask for
-///   more than the anonymous budget, and the answer to "this workload is legitimately
-///   heavy" -- a token, not a faster retry loop. Read per request rather than cached so a
+/// - **`api-user-agent`** identifies the client on both `QLever` and WDQS v2
+///   (whose CORS allow-list permits `Api-User-Agent`), so an operator can reach
+///   the maintainer instead of blocking an anonymous address.
+/// - **`Authorization: Bearer <token>`**, only for `QLever` hosts when
+///   `LOTUS_QLEVER_TOKEN` is set. Sending a `QLever` token to WDQS v2 fails at
+///   Wikimedia's REST Gateway with HTTP 401 (`invalid_token`), because the
+///   gateway expects a Wikimedia JWT. Read per request rather than cached so a
 ///   token rotates without restarting the process.
 ///
-/// The token is the *only* way past the ceiling, and it is worth being exact about
-/// what it buys. `Server::verifyUserSubmittedQueryTimeout` compares the submitted
-/// `timeout` against the server's configured default and refuses anything larger
-/// with a 403 unless the token checks out; there is no parameter that separates
-/// computation from transfer. A token therefore raises the budget for the request
-/// as a whole, which is the only lever there is for a query whose rows take longer
-/// to send than to compute.
-fn request_headers() -> Vec<(&'static str, String)> {
+/// The token is the *only* way past `QLever`'s ceiling, and it is worth being exact
+/// about what it buys. `Server::verifyUserSubmittedQueryTimeout` compares the
+/// submitted `timeout` against the server's configured default and refuses
+/// anything larger with a 403 unless the token checks out; there is no parameter
+/// that separates computation from transfer.
+fn request_headers(endpoint: &str) -> Vec<(&'static str, String)> {
     let mut headers = vec![("api-user-agent", QLever::CLIENT_ID.to_string())];
-    if let Some(token) = access_token() {
+    if endpoint.contains(QLever::HOST)
+        && let Some(token) = access_token()
+    {
         headers.push((ACCESS_TOKEN_HEADER, format!("Bearer {token}")));
     }
     headers
@@ -638,11 +633,34 @@ pub async fn execute_streaming_with_fallback<H: Http>(
     with_fallback(http, query, format, execute_streaming).await
 }
 
+/// Whether a `429` came from `QLever` cancelling a query that outran its time
+/// budget rather than reverse-proxy / REST Gateway rate limiting.
+fn is_qlever_query_timeout(endpoint: &str, status: u16, message: &str) -> bool {
+    status == 429 && endpoint.contains(QLever::HOST) && !is_rate_limit_message(message)
+}
+
+fn is_rate_limit_message(message: &str) -> bool {
+    let lower = message.to_ascii_lowercase();
+    lower.contains("too many") || lower.contains("rate limit")
+}
+
 /// Whether an error body is WDQS reporting that the query outran its time
-/// limit: Blazegraph's stack trace names `java.util.concurrent.TimeoutException`.
-fn is_wdqs_query_timeout(body: &[u8]) -> bool {
-    const NEEDLE: &[u8] = b"java.util.concurrent.TimeoutException";
-    body.windows(NEEDLE.len()).any(|window| window == NEEDLE)
+/// limit: either WDQS v2 (`wdqs-proxy` 504 with `gateway_timeout` /
+/// `backend_timeout`) or legacy Blazegraph (5xx carrying
+/// `java.util.concurrent.TimeoutException`).
+fn is_wdqs_query_timeout(status: u16, body: &[u8]) -> bool {
+    const BLAZEGRAPH_TIMEOUT: &[u8] = b"java.util.concurrent.TimeoutException";
+    const PROXY_GATEWAY_TIMEOUT: &[u8] = b"gateway_timeout";
+    const PROXY_BACKEND_TIMEOUT: &[u8] = b"backend_timeout";
+    (status >= 500 && has_bytes(body, BLAZEGRAPH_TIMEOUT))
+        || (status == 504
+            && (has_bytes(body, PROXY_GATEWAY_TIMEOUT) || has_bytes(body, PROXY_BACKEND_TIMEOUT)))
+}
+
+fn has_bytes(haystack: &[u8], needle: &[u8]) -> bool {
+    haystack
+        .windows(needle.len())
+        .any(|window| window == needle)
 }
 
 const fn is_success(status: u16) -> bool {
@@ -650,11 +668,12 @@ const fn is_success(status: u16) -> bool {
 }
 
 /// Reduce an error body to one line, preferring the endpoint's own `exception`
-/// field over an HTML gateway page.
+/// or `wdqs-proxy` `message` field over an HTML gateway page.
 fn compact(body: &[u8]) -> String {
     const MAX: usize = 240;
     let text = String::from_utf8_lossy(body);
     let line = json_exception(&text)
+        .or_else(|| json_string_field(&text, "message"))
         .or_else(|| html_title(&text))
         .or_else(|| {
             text.lines()
@@ -695,10 +714,16 @@ pub fn html_title(text: &str) -> Option<&str> {
     (!title.is_empty()).then_some(title)
 }
 
-/// Pull `"exception": "…"` out of `QLever`'s error format. Hand-rolled, because
-/// the alternative is a JSON dependency for one field of one error path.
+/// Pull `"exception": "…"` out of `QLever`'s error format.
 fn json_exception(text: &str) -> Option<&str> {
-    let rest = text.split_once("\"exception\"")?.1.trim_start();
+    json_string_field(text, "exception")
+}
+
+/// Pull `"<key>": "…"` out of a JSON error body. Hand-rolled, because the
+/// alternative is a JSON dependency for one field of one error path.
+fn json_string_field<'a>(text: &'a str, key: &str) -> Option<&'a str> {
+    let needle = format!("\"{key}\"");
+    let rest = text.split_once(&needle)?.1.trim_start();
     let rest = rest.strip_prefix(':')?.trim_start();
     let rest = rest.strip_prefix('"')?;
 

@@ -60,6 +60,10 @@ fn the_lotus_source_conforms_on_the_dataset_profile() {
         node["distribution"][0]["encodingFormat"],
         json!(["application/sparql-query", edam::FORMAT_SPARQL])
     );
+    assert_eq!(
+        node["distribution"][0]["contentUrl"],
+        json!("https://query-next.wikidata.org/sparql")
+    );
 }
 
 #[test]

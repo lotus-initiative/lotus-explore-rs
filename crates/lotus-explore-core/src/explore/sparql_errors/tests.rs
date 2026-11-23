@@ -87,6 +87,15 @@ fn each_recognised_phrase_classifies_on_its_own() {
             "line 3: mismatched input 'AS'",
             SparqlErrorClass::QuerySyntax,
         ),
+        ("parse_error", SparqlErrorClass::QuerySyntax),
+        (
+            "Query parse error encountered at line 1, column 1.",
+            SparqlErrorClass::QuerySyntax,
+        ),
+        (
+            "Not supported: wikibase:mwapi",
+            SparqlErrorClass::QuerySyntax,
+        ),
         ("No results", SparqlErrorClass::NoResults),
         ("something else entirely", SparqlErrorClass::Unknown),
     ] {

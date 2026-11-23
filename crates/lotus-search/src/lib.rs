@@ -64,9 +64,17 @@ pub use lotus_model::*;
 /// `QLever`'s Wikidata endpoint. Faster than WDQS, and the default.
 pub const QLEVER_WIKIDATA: &str = "https://qlever.dev/api/wikidata";
 
-/// The Wikidata Query Service, used when `QLever` is unreachable.
-pub const WDQS_WIKIDATA: &str = "https://query.wikidata.org/sparql";
+/// The Wikidata Query Service (v2, `QLever`-backed), used when `QLever` is unreachable.
+pub const WDQS_WIKIDATA: &str = "https://query-next.wikidata.org/sparql";
 
-/// WDQS's scholarly subgraph, which carries the reference properties P1476, P356
-/// and P577 that the main endpoint serves poorly.
-pub const WDQS_SCHOLARLY: &str = "https://query-scholarly.wikidata.org/sparql";
+/// WDQS v2's scholarly subgraph, which carries the reference properties P1476, P356
+/// and P577 that the main endpoint does not host locally.
+pub const WDQS_SCHOLARLY: &str = "https://query-scholarly-next.wikidata.org/sparql";
+
+/// How this client identifies itself to `QLever` (`api-user-agent`) and native
+/// HTTP targets including Wikimedia's REST Gateway (`User-Agent`).
+pub(crate) const CLIENT_ID: &str = concat!(
+    "lotus-explore-rs/",
+    env!("CARGO_PKG_VERSION"),
+    " (+https://github.com/lotus-initiative/lotus-explore-rs)"
+);

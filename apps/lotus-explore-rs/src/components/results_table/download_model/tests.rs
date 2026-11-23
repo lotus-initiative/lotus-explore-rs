@@ -146,7 +146,7 @@ fn toolbar_model_encodes_query_for_wdqs_ui_link_when_endpoint_is_wdqs() {
 
     let url = model.ui_url.expect("query link should be present");
     let encoded = lotus_model::percent_encode(query);
-    assert!(url.starts_with("https://query.wikidata.org?query="));
+    assert!(url.starts_with("https://query-next.wikidata.org/#"));
     assert!(url.contains(encoded.as_ref()));
 }
 

@@ -49,7 +49,12 @@ carries as [`FetchError::TimedOut`] rather than as a status:
 
 A `WDQS` fallback is refused for this class on purpose. `WDQS` will run the same
 expensive query; falling back would answer the same question twice, on two
-public endpoints, for no gain.
+public endpoints, for no gain. (On WDQS v2's `wdqs-proxy`, query timeouts
+arrive as HTTP `504` `gateway_timeout` / `backend_timeout` rather than `429`,
+which Wikimedia's REST Gateway reserves for request-rate limits; `lotus-search`
+maps both `QLever` 429 timeouts and WDQS v2 504 timeouts to `FetchError::TimedOut`
+while leaving WDQS v2 429 rate limits as `FetchError::Http { status: 429 }`, and
+never sends `LOTUS_QLEVER_TOKEN` in `Authorization: Bearer` to WDQS v2.)
 
 ## Ask for less than the endpoint's ceiling
 

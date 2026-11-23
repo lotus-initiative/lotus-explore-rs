@@ -161,7 +161,7 @@ pub fn dataset_jsonld() -> Value {
                 "encodingFormat": ["application/sparql-query", edam::FORMAT_SPARQL],
                 // Schema.org download URL for the external Wikidata SPARQL service,
                 // independent of offline DataDownload exports.
-                "contentUrl": "https://query.wikidata.org/sparql",
+                "contentUrl": "https://query-next.wikidata.org/sparql",
             },
         ],
         "includedInDataCatalog": data_catalog(),

@@ -26,4 +26,16 @@ fn normalize_base_rejects_sparql_endpoints() {
         normalize_api_base("https://query.wikidata.org/sparql"),
         None
     );
+    assert_eq!(
+        normalize_api_base("https://query-next.wikidata.org/sparql"),
+        None
+    );
+    assert_eq!(
+        normalize_api_base("https://query-scholarly.wikidata.org/sparql"),
+        None
+    );
+    assert_eq!(
+        normalize_api_base("https://query-scholarly-next.wikidata.org/sparql"),
+        None
+    );
 }

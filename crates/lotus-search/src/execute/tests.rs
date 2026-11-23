@@ -46,8 +46,12 @@ fn a_query_is_form_encoded() {
 #[test]
 fn the_services_are_the_three_public_endpoints() {
     assert!(Service::Qlever.url().contains("qlever"));
-    assert!(Service::Wdqs.url().contains("query.wikidata.org"));
-    assert!(Service::Scholarly.url().contains("query-scholarly"));
+    assert!(Service::Wdqs.url().contains("query-next.wikidata.org"));
+    assert!(
+        Service::Scholarly
+            .url()
+            .contains("query-scholarly-next.wikidata.org")
+    );
 }
 
 #[test]
@@ -331,19 +335,21 @@ fn the_ceiling_is_read_from_the_endpoint_constant() {
 
 #[test]
 fn every_request_identifies_the_client_first() {
-    let headers = request_headers();
-    assert_eq!(
-        headers
-            .first()
-            .map(|&(name, ref value)| (name, value.as_str())),
-        Some(("api-user-agent", QLever::CLIENT_ID)),
-        "the user agent is unconditional and comes first, so a reader of the \
-         headers can rely on it being there"
-    );
-    assert!(
-        headers.len() <= 2,
-        "the only other header is the optional token, so there are at most two: {headers:?}"
-    );
+    for endpoint in [QLEVER_WIKIDATA, WDQS_WIKIDATA, WDQS_SCHOLARLY] {
+        let headers = request_headers(endpoint);
+        assert_eq!(
+            headers
+                .first()
+                .map(|&(name, ref value)| (name, value.as_str())),
+            Some(("api-user-agent", QLever::CLIENT_ID)),
+            "the user agent is unconditional and comes first, so a reader of the \
+             headers can rely on it being there"
+        );
+        assert!(
+            headers.len() <= 2,
+            "the only other header is the optional token, so there are at most two: {headers:?}"
+        );
+    }
 }
 
 /// The token header is spelled the way the server reads it.
@@ -566,11 +572,13 @@ fn request_headers_follow_lotus_qlever_token_in_the_environment()
                 None,
                 "with LOTUS_QLEVER_TOKEN unset, no access token may be synthesized"
             );
-            assert_eq!(
-                request_headers(),
-                vec![("api-user-agent", QLever::CLIENT_ID.to_string())],
-                "anonymous requests carry only api-user-agent"
-            );
+            for endpoint in [QLEVER_WIKIDATA, WDQS_WIKIDATA, WDQS_SCHOLARLY] {
+                assert_eq!(
+                    request_headers(endpoint),
+                    vec![("api-user-agent", QLever::CLIENT_ID.to_string())],
+                    "anonymous requests carry only api-user-agent ({endpoint})"
+                );
+            }
             return Ok(());
         }
         Some("set") => {
@@ -580,13 +588,20 @@ fn request_headers_follow_lotus_qlever_token_in_the_environment()
                 "access_token must read and trim LOTUS_QLEVER_TOKEN from std::env"
             );
             assert_eq!(
-                request_headers(),
+                request_headers(QLEVER_WIKIDATA),
                 vec![
                     ("api-user-agent", QLever::CLIENT_ID.to_string()),
                     (ACCESS_TOKEN_HEADER, "Bearer env-secret".to_string()),
                 ],
-                "authenticated requests append Authorization: Bearer <token>"
+                "authenticated QLever requests append Authorization: Bearer <token>"
             );
+            for wdqs_endpoint in [WDQS_WIKIDATA, WDQS_SCHOLARLY] {
+                assert_eq!(
+                    request_headers(wdqs_endpoint),
+                    vec![("api-user-agent", QLever::CLIENT_ID.to_string())],
+                    "WDQS v2 REST Gateway rejects non-JWT Bearer tokens with 401: {wdqs_endpoint}"
+                );
+            }
             return Ok(());
         }
         _ => {}
@@ -692,5 +707,141 @@ fn authenticated_budget_above_30s_is_not_clamped_and_zero_is_refused() {
         .as_deref(),
         Some("30s"),
         "authenticated requests still fall back to default budget when timeout parses to zero"
+    );
+}
+
+#[tokio::test]
+async fn wdqs_v2_504_proxy_timeouts_are_timed_out_and_not_retried() {
+    for (error_type, msg) in [
+        ("gateway_timeout", "Query exceeded its deadline."),
+        (
+            "backend_timeout",
+            "The backend did not answer within the read timeout.",
+        ),
+    ] {
+        let body = format!(r#"{{"errorType":"{error_type}","message":"{msg}"}}"#);
+        let http = crate::testing::Scripted::new(vec![(504, &body), (200, "never sent")]);
+
+        let result = execute(
+            &http,
+            Endpoint::new(Service::Wdqs),
+            "SELECT ?x WHERE { ?x ?p ?o }",
+            ResponseFormat::Csv,
+        )
+        .await;
+
+        assert!(
+            matches!(result, Err(FetchError::TimedOut { ref message, .. }) if message == msg),
+            "WDQS v2 {error_type} 504 must map to FetchError::TimedOut: {result:?}"
+        );
+        assert_eq!(http.queries().len(), 1, "query timeout must not retry");
+    }
+}
+
+#[tokio::test]
+async fn non_timeout_504_and_non_504_gateway_timeout_are_http_and_retried_when_5xx() {
+    // Plain CDN/Envoy 504 HTML page (no wdqs-proxy JSON marker) is a transient 504, retried once.
+    let http = crate::testing::Scripted::new(vec![
+        (504, "<html><title>504 Gateway Timeout</title></html>"),
+        (200, "x\n1\n"),
+    ]);
+    let ok = execute(
+        &http,
+        Endpoint::new(Service::Wdqs),
+        "SELECT ?x WHERE { ?x ?p ?o }",
+        ResponseFormat::Csv,
+    )
+    .await;
+    assert!(ok.is_ok(), "HTML 504 must retry: {ok:?}");
+    assert_eq!(http.queries().len(), 2);
+
+    // 500 carrying gateway_timeout is still treated as a 500 server error (only 504 carries proxy timeouts).
+    let http = crate::testing::Scripted::new(vec![
+        (
+            500,
+            r#"{"errorType":"gateway_timeout","message":"unexpected"}"#,
+        ),
+        (200, "x\n1\n"),
+    ]);
+    let ok = execute(
+        &http,
+        Endpoint::new(Service::Wdqs),
+        "SELECT ?x WHERE { ?x ?p ?o }",
+        ResponseFormat::Csv,
+    )
+    .await;
+    assert!(
+        ok.is_ok(),
+        "500 without TimeoutException must retry: {ok:?}"
+    );
+    assert_eq!(http.queries().len(), 2);
+
+    // 499 carrying Java TimeoutException is not a 5xx WDQS timeout.
+    let http = crate::testing::Scripted::new(vec![(499, "java.util.concurrent.TimeoutException")]);
+    let err = execute(
+        &http,
+        Endpoint::new(Service::Wdqs),
+        "SELECT ?x WHERE { ?x ?p ?o }",
+        ResponseFormat::Csv,
+    )
+    .await;
+    assert!(matches!(err, Err(FetchError::Http { status: 499, .. })));
+}
+
+#[tokio::test]
+async fn wdqs_v2_429_rate_limit_is_http_429_not_timed_out() {
+    for body in ["Too Many Requests", "Rate limit exceeded", "Quota exceeded"] {
+        let http = crate::testing::Scripted::new(vec![(429, body)]);
+        let result = execute(
+            &http,
+            Endpoint::new(Service::Wdqs),
+            "SELECT ?x WHERE { ?x ?p ?o }",
+            ResponseFormat::Csv,
+        )
+        .await;
+        assert!(
+            matches!(result, Err(FetchError::Http { status: 429, .. })),
+            "WDQS v2 429 ({body:?}) must be FetchError::Http 429, not TimedOut: {result:?}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn qlever_429_distinguishes_query_timeout_from_proxy_rate_limit() {
+    for rate_limit_body in ["429 Too Many Requests", "Rate limit exceeded"] {
+        let http = crate::testing::Scripted::new(vec![(429, rate_limit_body)]);
+        let result = execute(
+            &http,
+            Endpoint::new(Service::Qlever),
+            "SELECT ?x WHERE { ?x ?p ?o }",
+            ResponseFormat::Csv,
+        )
+        .await;
+        assert!(
+            matches!(result, Err(FetchError::Http { status: 429, .. })),
+            "QLever reverse-proxy 429 ({rate_limit_body:?}) must be Http 429: {result:?}"
+        );
+    }
+
+    let http = crate::testing::Scripted::new(vec![(429, r#"{"exception":"Operation timed out"}"#)]);
+    let result = execute(
+        &http,
+        Endpoint::new(Service::Qlever),
+        "SELECT ?x WHERE { ?x ?p ?o }",
+        ResponseFormat::Csv,
+    )
+    .await;
+    assert!(
+        matches!(result, Err(FetchError::TimedOut { .. })),
+        "QLever 429 query timeout must remain FetchError::TimedOut: {result:?}"
+    );
+}
+
+#[test]
+fn compact_reads_wdqs_proxy_json_message() {
+    let body = br#"{"errorType":"federation_error","message":"Endpoint https://query-scholarly.wikidata.org/sparql is not allowed for query federation.","details":{"rejectedEndpoint":"https://query-scholarly.wikidata.org/sparql"}}"#;
+    assert_eq!(
+        compact(body),
+        "Endpoint https://query-scholarly.wikidata.org/sparql is not allowed for query federation."
     );
 }

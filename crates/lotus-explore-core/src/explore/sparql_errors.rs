@@ -22,6 +22,9 @@ pub fn classify_sparql_error_text(message: &str) -> SparqlErrorClass {
         || normalized.contains("malformed")
         || normalized.contains("invalid sparql query")
         || normalized.contains("mismatched input")
+        || normalized.contains("parse_error")
+        || normalized.contains("query parse error")
+        || normalized.contains("not supported:")
     {
         return SparqlErrorClass::QuerySyntax;
     }

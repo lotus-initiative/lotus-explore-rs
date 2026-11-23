@@ -50,7 +50,12 @@ fn normalize_api_base(value: &str) -> Option<String> {
 
 fn is_sparql_endpoint(value: &str) -> bool {
     let value = value.to_ascii_lowercase();
-    value.contains("qlever") || value.contains("query.wikidata.org") || value.ends_with("/wikidata")
+    value.contains("qlever")
+        || value.contains("query.wikidata.org")
+        || value.contains("query-next.wikidata.org")
+        || value.contains("query-scholarly.wikidata.org")
+        || value.contains("query-scholarly-next.wikidata.org")
+        || value.ends_with("/wikidata")
 }
 
 #[cfg(target_arch = "wasm32")]

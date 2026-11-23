@@ -37,11 +37,15 @@ the named test fails if it breaks.
   uses it. Assert position, not presence (`counts_query`, `occurrences_query`).
 - `lotus_search::search` asks for `LIMIT n + 1`; `truncated` is exact. When the
   count query fails on a truncated page, `stats` is `None`, not page counts.
-- A query that ran out of time is never retried, on either endpoint: QLever
-  429 and WDQS 5xx with `java.util.concurrent.TimeoutException` both become
-  `FetchError::TimedOut`; the app maps that to 429 "…time limit…", classified
-  `QueryTooExpensive`. A 4xx is a rate limit only if it says "too many" or
-  "rate limit".
+- A query that ran out of time is never retried, on either endpoint: `QLever`
+  429 (`Operation timed out`), WDQS v2 504 (`gateway_timeout` /
+  `backend_timeout` in `wdqs-proxy`), and legacy WDQS 5xx with
+  `java.util.concurrent.TimeoutException` all become `FetchError::TimedOut`;
+  the app maps that to 429 "…time limit…", classified `QueryTooExpensive`. A
+  429 from WDQS v2's REST Gateway (or a 4xx saying "too many" / "rate limit")
+  is a rate limit (`FetchError::Http { status: 429, .. }`), never `TimedOut`.
+  Never send `LOTUS_QLEVER_TOKEN` in `Authorization: Bearer` to non-QLever
+  endpoints (Wikimedia's REST Gateway rejects non-JWT tokens with HTTP 401).
 - The native HTTP client has an idle `read_timeout` (`CONNECTION_IDLE_TIMEOUT`,
   90 s) and no total `timeout`; long streams are legitimate. The idle deadline
   covers waiting for headers, so it stays above WDQS's 60 s limit. Streamed

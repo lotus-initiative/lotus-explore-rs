@@ -150,11 +150,25 @@ fn rate_limit_refusal_distinguishes_proxy_429_from_query_timeout() {
         "nginx 429 Too Many Requests must be retried in-place with backoff"
     );
     assert!(
+        is_rate_limit_refusal(&FetchError::Http {
+            status: 429,
+            message: "Too Many Requests".into(),
+        }),
+        "HTTP 429 rate-limit refusal must be retried in-place with backoff"
+    );
+    assert!(
         !is_rate_limit_refusal(&FetchError::TimedOut {
             budget: Some("30s".into()),
             message: "Operation timed out. Last operation: Sort on ?r".into(),
         }),
         "QLever 30s query timeout must never be retried as a rate limit"
+    );
+    assert!(
+        !is_rate_limit_refusal(&FetchError::TimedOut {
+            budget: None,
+            message: "Query exceeded its deadline.".into(),
+        }),
+        "WDQS v2 504 timeout must never be retried as a rate limit"
     );
     assert!(
         !is_rate_limit_refusal(&FetchError::Http {
@@ -163,6 +177,25 @@ fn rate_limit_refusal_distinguishes_proxy_429_from_query_timeout() {
         }),
         "non-429 status is not a rate-limit refusal"
     );
+}
+
+#[test]
+fn prepare_wdqs_fallback_query_routes_scholarly_and_main_queries() {
+    reset_wdqs_fallback_flag();
+    let doi_query = lotus_query::reference_by_doi_query("10.1000/xyz");
+    let (endpoint, rewritten) = prepare_wdqs_fallback_query(&doi_query);
+    assert_eq!(endpoint, crate::sparql::WDQS_SCHOLARLY);
+    assert_eq!(rewritten, doi_query);
+
+    reset_wdqs_fallback_flag();
+    let taxon_query = lotus_query::compounds_by_taxon_query("Q16521");
+    let (endpoint, rewritten) = prepare_wdqs_fallback_query(&taxon_query);
+    assert_eq!(endpoint, crate::sparql::WDQS_WIKIDATA);
+    assert!(
+        rewritten.contains("SERVICE <https://query-scholarly-next.wikidata.org/sparql>"),
+        "{rewritten}"
+    );
+    reset_wdqs_fallback_flag();
 }
 
 /// A query that ran out of time must reach the retry planner as too expensive,

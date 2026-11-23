@@ -478,7 +478,7 @@ fn build_llms_txt(meta: &Metadata) -> String {
         - [sitemap.xml]({base}sitemap.xml)\n\
         - Structured data: JSON-LD in the page head\n\n\
         {webmcp_notes}## Data sources\n\n\
-        - [Wikidata Query Service](https://query.wikidata.org/)\n\
+        - [Wikidata Query Service](https://query-next.wikidata.org/)\n\
         - [QLever Wikidata endpoint](https://qlever.dev/wikidata)\n\
         - [DOI metadata](https://doi.org/)\n\
         - [LOTUS initiative]({lotus_home_url})\n\n\
@@ -749,7 +749,7 @@ fn build_headers_txt(meta: &Metadata, script_hashes: &str) -> String {
     /*\n\
     \x20 Strict-Transport-Security: max-age=63072000; includeSubDomains; preload\n\
     \x20 X-Frame-Options: DENY\n\
-    \x20 Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' {script_hashes}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://qlever.dev https://query.wikidata.org https://query-scholarly.wikidata.org https://www.wikidata.org https://www.simolecule.com https://idsm.elixir-czech.cz https://doi.org https://pubchem.ncbi.nlm.nih.gov https://api.semanticscholar.org https://api.openalex.org; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'\n\
+    \x20 Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' {script_hashes}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://qlever.dev https://query-next.wikidata.org https://query-scholarly-next.wikidata.org https://www.wikidata.org https://www.simolecule.com https://idsm.elixir-czech.cz https://doi.org https://pubchem.ncbi.nlm.nih.gov https://api.semanticscholar.org https://api.openalex.org; worker-src 'self' blob:; object-src 'none'; frame-ancestors 'none'\n\
     \x20 X-Content-Type-Options: nosniff\n\
     \x20 Referrer-Policy: strict-origin-when-cross-origin\n\
     \x20 Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()\n\

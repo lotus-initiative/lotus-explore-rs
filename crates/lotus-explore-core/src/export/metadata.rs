@@ -16,7 +16,7 @@ pub const APP_URL: &str = env!("CARGO_PKG_REPOSITORY");
 /// The endpoint the searches normally run against.
 pub const QLEVER_ENDPOINT: &str = "https://qlever.dev/api/wikidata";
 /// The endpoint the searches fall back to.
-pub const WDQS_ENDPOINT: &str = "https://query.wikidata.org/sparql";
+pub const WDQS_ENDPOINT: &str = "https://query-next.wikidata.org/sparql";
 
 /// Represents the SPARQL endpoint used for a query.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]

@@ -5,8 +5,8 @@
 use crate::api;
 use crate::api::SearchResponse;
 use crate::repositories::{LotusRepository, RepositoryError};
-use crate::sparql::transform_query_for_wdqs;
-use crate::sparql::{self, FetchError, ResponseFormat, WDQS_WIKIDATA};
+use crate::sparql::wdqs_download_query;
+use crate::sparql::{self, FetchError, ResponseFormat};
 use lotus_model::ColumnarResultSet;
 use lotus_search::SearchCriteria;
 use std::cell::RefCell;
@@ -81,11 +81,11 @@ fn mark_wdqs_fallback_used(query: String) {
 
 /// Rewrite `query` for the WDQS endpoint and record that WDQS fallback applied.
 /// This is the single source of truth for the "prepare a query for WDQS
-/// fallback" step, shared by the body / tempfile execution paths.
-fn prepare_wdqs_fallback_query(query: &str) -> String {
-    let wdqs_query = transform_query_for_wdqs(query);
+/// fallback" step, shared by the body / tempfile / chunked execution paths.
+fn prepare_wdqs_fallback_query(query: &str) -> (&'static str, String) {
+    let (endpoint, wdqs_query) = wdqs_download_query(query);
     mark_wdqs_fallback_used(wdqs_query.clone());
-    wdqs_query
+    (endpoint, wdqs_query)
 }
 
 /// Zero-size, `Copy` production repository.
@@ -123,8 +123,8 @@ impl LotusRepository for HybridRepository {
         match with_rate_limit_backoff(|| sparql::execute_sparql_body(query)).await {
             Err(err) if is_qlever_unavailable(&err) => {
                 log::warn!("event=qlever_unavailable action=fallback_wdqs_scholarly");
-                let wdqs_query = prepare_wdqs_fallback_query(query);
-                sparql::execute_sparql_body_at(&wdqs_query, WDQS_WIKIDATA)
+                let (endpoint, wdqs_query) = prepare_wdqs_fallback_query(query);
+                sparql::execute_sparql_body_at(&wdqs_query, endpoint)
                     .await
                     .map_err(map_fetch_error)
             }
@@ -160,8 +160,8 @@ impl LotusRepository for HybridRepository {
         match with_rate_limit_backoff(|| sparql::execute_sparql_tempfile(query)).await {
             Err(err) if is_qlever_unavailable(&err) => {
                 log::warn!("event=qlever_unavailable action=fallback_wdqs_scholarly");
-                let wdqs_query = prepare_wdqs_fallback_query(query);
-                sparql::execute_sparql_tempfile_at(&wdqs_query, WDQS_WIKIDATA)
+                let (endpoint, wdqs_query) = prepare_wdqs_fallback_query(query);
+                sparql::execute_sparql_tempfile_at(&wdqs_query, endpoint)
                     .await
                     .map_err(map_fetch_error)
             }
@@ -292,15 +292,17 @@ fn should_use_split_occurrences(query: &str) -> bool {
 const RATE_LIMIT_BACKOFFS_MS: &[u32] = &[2_000, 4_000, 6_000];
 
 /// True when a `429` came from reverse-proxy request-rate throttling
-/// (`429 Too Many Requests`) rather than `QLever` cancelling a query that
-/// exceeded its 30s execution budget (`Operation timed out`).
+/// (`429 Too Many Requests`) rather than a query exceeding its execution budget.
 fn is_rate_limit_refusal(err: &FetchError) -> bool {
     match err {
-        FetchError::TimedOut { message, .. }
-        | FetchError::Http {
+        FetchError::TimedOut { message, .. } => {
+            let lower = message.to_ascii_lowercase();
+            lower.contains("too many") || lower.contains("rate limit")
+        }
+        FetchError::Http {
             status: 429,
             message,
-        } => !message.contains("timed out"),
+        } => !message.to_ascii_lowercase().contains("timed out"),
         _ => false,
     }
 }
@@ -347,8 +349,8 @@ async fn open_chunks_with_wdqs_fallback(
         Ok(chunks) => Ok(chunks),
         Err(err) if is_qlever_unavailable(&err) => {
             log::warn!("event=qlever_unavailable action=fallback_wdqs_scholarly");
-            let wdqs_query = prepare_wdqs_fallback_query(full_query);
-            sparql::execute_sparql_chunks_at(&wdqs_query, WDQS_WIKIDATA, ResponseFormat::Csv)
+            let (endpoint, wdqs_query) = prepare_wdqs_fallback_query(full_query);
+            sparql::execute_sparql_chunks_at(&wdqs_query, endpoint, ResponseFormat::Csv)
                 .await
                 .map_err(map_fetch_error)
         }

@@ -152,7 +152,7 @@ fn wdqs_fallback_routes_doi_lookups_to_scholarly_and_rewrites_main_reference_met
     let (service, rewritten_main) = wdqs_fallback(&taxon_query);
     assert_eq!(service, FallbackService::Main);
     assert!(
-        rewritten_main.contains("SERVICE <https://query-scholarly.wikidata.org/sparql>"),
+        rewritten_main.contains("SERVICE <https://query-scholarly-next.wikidata.org/sparql>"),
         "{rewritten_main}"
     );
     assert!(!rewritten_main.contains("?_ref_source"), "{rewritten_main}");

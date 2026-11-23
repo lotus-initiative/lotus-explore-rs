@@ -237,6 +237,8 @@ async function setupInterception(context) {
     } else if (
       url.includes("qlever.dev") ||
       url.includes("query.wikidata.org") ||
+      url.includes("query-next.wikidata.org") ||
+      url.includes("query-scholarly-next.wikidata.org") ||
       url.includes("idsm.elixir-czech.cz")
     ) {
       await route.fulfill({ status: 429, contentType: "text/plain", body: "Simulated 429" });

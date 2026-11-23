@@ -72,8 +72,8 @@ fn classify_http_error(status: u16, body: &str) -> TransportFailureKind {
         //
         // "time limit" is how `lotus_search::FetchError::TimedOut` words it, and
         // that error is a 429 by the time it reaches here whichever endpoint
-        // reported the timeout -- WDQS's message is the echoed query, not QLever's
-        // "Operation timed out".
+        // reported the timeout -- WDQS v2's `gateway_timeout`/`backend_timeout`
+        // or Blazegraph's echoed query, not QLever's "Operation timed out".
         return if body.contains("timed out") || body.contains("time limit") {
             TransportFailureKind::QueryTooExpensive
         } else {

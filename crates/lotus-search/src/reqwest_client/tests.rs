@@ -226,6 +226,27 @@ async fn the_status_and_text_are_what_the_server_sent() {
 }
 
 #[tokio::test]
+async fn native_requests_send_a_user_agent_header() {
+    let (url, server) = serve_once(&["HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok"]).await;
+    let client = ReqwestClient::new().expect("a client");
+
+    let response = client
+        .post_form(&url, "text/csv", "query=ASK%7B%7D".to_owned(), &[])
+        .await
+        .expect("a response");
+
+    assert_eq!(HttpResponse::status(&response), 200);
+    let request = server.await.expect("the server finished");
+    let expected = format!("user-agent: {}\r\n", crate::CLIENT_ID);
+    assert!(
+        request
+            .to_ascii_lowercase()
+            .contains(&expected.to_ascii_lowercase()),
+        "native HTTP client must identify itself via User-Agent for WDQS v2: {request}"
+    );
+}
+
+#[tokio::test]
 async fn the_bytes_are_what_the_server_sent() {
     let (url, server) = serve_once(&["HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello"]).await;
     let client = ReqwestClient::new().expect("a client");

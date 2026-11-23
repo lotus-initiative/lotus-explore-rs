@@ -7,7 +7,7 @@ use lotus_query::ExportFormat as DownloadFormat;
 use lotus_search::SearchCriteria;
 
 const QLEVER_UI: &str = "https://qlever.dev/wikidata";
-const WDQS_UI: &str = "https://query.wikidata.org";
+const WDQS_UI: &str = "https://query-next.wikidata.org";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub(super) enum SparqlEndpointUI {
@@ -149,7 +149,7 @@ pub(super) fn build_download_toolbar_model_with_endpoint(
         ),
         metadata_filename: build_metadata_filename(criteria, query_hash, result_hash, year, now),
         sparql_endpoint_ui: endpoint,
-        ui_url: build_sparql_ui_url(sparql_query, endpoint),
+        ui_url: sparql_query.map(|query| build_sparql_ui_url(query, endpoint)),
     }
 }
 
@@ -175,12 +175,12 @@ fn build_metadata_filename(
 }
 
 #[must_use]
-fn build_sparql_ui_url(sparql_query: Option<&str>, endpoint: SparqlEndpointUI) -> Option<String> {
-    let base_url = match endpoint {
-        SparqlEndpointUI::Qlever => QLEVER_UI,
-        SparqlEndpointUI::Wdqs => WDQS_UI,
-    };
-    sparql_query.map(|query| format!("{base_url}?query={}", lotus_model::percent_encode(query)))
+fn build_sparql_ui_url(query: &str, endpoint: SparqlEndpointUI) -> String {
+    let encoded = lotus_model::percent_encode(query);
+    match endpoint {
+        SparqlEndpointUI::Qlever => format!("{QLEVER_UI}?query={encoded}"),
+        SparqlEndpointUI::Wdqs => format!("{WDQS_UI}/#{encoded}"),
+    }
 }
 
 #[cfg(test)]

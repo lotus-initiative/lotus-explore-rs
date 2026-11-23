@@ -398,6 +398,9 @@ pub(crate) const CONNECTION_IDLE_TIMEOUT: std::time::Duration = std::time::Durat
 fn native_builder(idle: std::time::Duration) -> reqwest::ClientBuilder {
     use std::time::Duration;
     reqwest::Client::builder()
+        // Wikimedia's REST Gateway rejects native requests without a `User-Agent`
+        // header with HTTP 403 (`T400119`); wasm builds inherit the browser's header.
+        .user_agent(crate::CLIENT_ID)
         .connect_timeout(Duration::from_secs(8))
         .read_timeout(idle)
         .pool_idle_timeout(Duration::from_secs(90))

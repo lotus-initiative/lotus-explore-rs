@@ -11,8 +11,8 @@
 //! are the only place the app names `reqwest`.
 //!
 //! They fail loudly rather than falling back, so choosing to try `WDQS` after a
-//! failure stays the caller's decision. The two WDQS helpers at the bottom are
-//! the exception: they resolve a query to the service that should answer it,
+//! failure stays the caller's decision. The WDQS helper at the bottom is
+//! the exception: it resolves a query to the service that should answer it,
 //! which is routing rather than transport.
 
 use lotus_search::reqwest_client::ReqwestClient;
@@ -216,12 +216,6 @@ pub fn wdqs_download_query(query: &str) -> (&'static str, String) {
         lotus_query::FallbackService::Main => WDQS_WIKIDATA,
     };
     (url, rewritten)
-}
-
-/// Rewrite a query so `WDQS` answers it, keeping the main endpoint.
-#[must_use]
-pub fn transform_query_for_wdqs(query: &str) -> String {
-    wdqs_download_query(query).1
 }
 
 /// Run a query on a named endpoint, asking for a specific representation.

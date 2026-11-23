@@ -130,7 +130,7 @@ rewriters on top of any base query:
 3. **`counts_query(&base)` (CLI / API totals):**
    Strips `COMPOUND_PROPERTIES` and `REFERENCE_METADATA` (re-binding `?ref_date` when year-filtered) and wraps the query in `COUNT(*)` / `COUNT(DISTINCT ...)`.
 4. **`construct_from_select(&base)` and `wdqs_fallback(&base)`:**
-   Rewrites a `SELECT` into a `CONSTRUCT` graph for RDF exports, or moves `REFERENCE_METADATA` into `SERVICE <https://query-scholarly.wikidata.org/sparql>` when falling back from QLever to WDQS.
+   Rewrites a `SELECT` into a `CONSTRUCT` graph for RDF exports, or moves `REFERENCE_METADATA` into `SERVICE <https://query-scholarly-next.wikidata.org/sparql>` when falling back from QLever to WDQS v2.
 
 > **Important invariant:** Because `counts_query` and `occurrences_query` strip
 > `COMPOUND_PROPERTIES` and `REFERENCE_METADATA` by literal substring match, any
