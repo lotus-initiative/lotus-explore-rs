@@ -27,6 +27,17 @@ use std::time::Duration;
 
 const MAX_RETRIES: u32 = 3;
 
+struct RunFinishGuard {
+    controller: SearchTaskController,
+    run_id: u64,
+}
+
+impl Drop for RunFinishGuard {
+    fn drop(&mut self) {
+        self.controller.finish(self.run_id);
+    }
+}
+
 /// Validate input, dispatch `SearchRequested`, then spawn `do_search`.
 // `task_controller` is a cheap `Rc<RefCell<…>>` handle consumed as part of
 // the argument bundle (callers hold it by `Clone` and pass it down, matching
@@ -56,9 +67,15 @@ pub fn start_search<R: LotusRepository>(
     let request = dispatch_search_request(explore, request);
     let coordinator = SearchLifecycleCoordinator::new(explore);
     let completion_controller = task_controller.clone();
-    let task = spawn(async move {
+    // Spawn on `ScopeId::ROOT` so navigating between `/search` and `/network`
+    // while a query is in flight never silently cancels the task and strands
+    // `loading == true` / `active == Some(...)`.
+    let task = dioxus_core::spawn_forever(async move {
+        let _finish_guard = RunFinishGuard {
+            controller: completion_controller,
+            run_id,
+        };
         execute_search_with_retries(request, repo, coordinator).await;
-        completion_controller.finish(run_id);
     });
     task_controller.replace_in_flight(task);
 }
@@ -186,8 +203,7 @@ async fn delay_for(backoff: Duration) {
 
     #[cfg(target_arch = "wasm32")]
     {
-        let millis = u32::try_from(backoff.as_millis()).unwrap_or(u32::MAX);
-        gloo_timers::future::TimeoutFuture::new(millis).await;
+        lotus_search::reqwest_client::sleep_wall_clock(backoff).await;
     }
 
     #[cfg(not(target_arch = "wasm32"))]

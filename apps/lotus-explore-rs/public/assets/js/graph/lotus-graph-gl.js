@@ -1250,6 +1250,32 @@ void main() {
         emit({ type: "contextrestored" });
       }, listenerOpts);
 
+      document.addEventListener(
+        "visibilitychange",
+        () => {
+          if (document.hidden) {
+            state.pointer.down = false;
+            return;
+          }
+          if (!state.destroyed && !state.contextLost) {
+            if (state.rafId) {
+              window.cancelAnimationFrame(state.rafId);
+              state.rafId = 0;
+            }
+            resizeCanvas();
+            scheduleFrame();
+          }
+        },
+        listenerOpts
+      );
+      window.addEventListener(
+        "blur",
+        () => {
+          state.pointer.down = false;
+        },
+        listenerOpts
+      );
+
       bindInputEvents(state.canvas, state.abortController ? state.abortController.signal : null);
       ensureLabelPool();
       resizeCanvas();

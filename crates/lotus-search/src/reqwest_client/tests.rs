@@ -403,5 +403,232 @@ fn idle_bounded_client(idle: Duration) -> ReqwestClient {
 /// the slowest endpoint's own limit (WDQS: 60 s), or a slow first byte is cut.
 #[test]
 fn the_idle_deadline_outlasts_the_slowest_endpoints_time_limit() {
-    assert!(CONNECTION_IDLE_TIMEOUT > Duration::from_secs(60));
+    assert!(
+        CONNECTION_IDLE_TIMEOUT > Duration::from_secs(60),
+        "idle deadline must exceed WDQS's 60s query limit"
+    );
+}
+
+#[test]
+fn yield_schedule_never_yields_with_zero_buffered_bytes() {
+    let schedule = YieldSchedule::new(1_000);
+    assert!(
+        !schedule.should_yield(10_000, false),
+        "visible stream with no buffered bytes since last yield must not yield"
+    );
+    assert!(
+        !schedule.should_yield(10_000, true),
+        "hidden stream with no buffered bytes since last yield must not yield"
+    );
+}
+
+#[test]
+fn yield_schedule_visible_cadence_uses_16ms_or_256kib_cap() {
+    let mut schedule = YieldSchedule::new(1_000);
+    schedule.record_bytes(1);
+    assert!(
+        !schedule.should_yield(900, false),
+        "backward clock jump must not trigger an immediate yield"
+    );
+    assert!(
+        !schedule.should_yield(1_015, false),
+        "visible stream must not yield before 16ms and before 256 KiB"
+    );
+    assert!(
+        schedule.should_yield(1_016, false),
+        "visible stream must yield at the exact 16ms boundary"
+    );
+    assert!(
+        schedule.should_yield(1_017, false),
+        "visible stream must yield past 16ms"
+    );
+
+    schedule.mark_yielded(2_000);
+    assert!(
+        !schedule.should_yield(2_500, false),
+        "mark_yielded must reset byte counter so zero bytes never yields"
+    );
+    schedule.record_bytes(1);
+    assert!(
+        !schedule.should_yield(2_015, false),
+        "mark_yielded must advance last_yield_ms to 2_000"
+    );
+    assert!(
+        schedule.should_yield(2_016, false),
+        "visible stream must yield 16ms after mark_yielded"
+    );
+
+    let mut coarsened_clock = YieldSchedule::new(5_000);
+    coarsened_clock.record_bytes(100);
+    coarsened_clock.record_bytes(262_043);
+    assert!(
+        !coarsened_clock.should_yield(5_000, false),
+        "262_143 bytes at 0ms elapsed stays just under the 256 KiB fallback cap"
+    );
+    coarsened_clock.record_bytes(1);
+    assert!(
+        coarsened_clock.should_yield(5_000, false),
+        "262_144 bytes at 0ms elapsed must trigger the coarsened-clock fallback"
+    );
+    coarsened_clock.record_bytes(1);
+    assert!(
+        coarsened_clock.should_yield(5_000, false),
+        "262_145 bytes at 0ms elapsed stays past the 256 KiB fallback cap"
+    );
+    coarsened_clock.record_bytes(usize::MAX);
+    assert!(
+        coarsened_clock.should_yield(5_000, false),
+        "byte accumulation must saturate instead of wrapping back to zero"
+    );
+}
+
+#[test]
+fn yield_schedule_hidden_cadence_uses_100ms_or_1mib_cap() {
+    let mut schedule = YieldSchedule::new(1_000);
+    schedule.record_bytes(262_144);
+    assert!(
+        !schedule.should_yield(1_016, true),
+        "hidden stream must ignore visible 16ms/256 KiB thresholds"
+    );
+    assert!(
+        !schedule.should_yield(1_099, true),
+        "hidden stream must not yield at 99ms when under 1 MiB"
+    );
+    assert!(
+        schedule.should_yield(1_100, true),
+        "hidden stream must yield at exact 100ms"
+    );
+    assert!(
+        schedule.should_yield(1_101, true),
+        "hidden stream must yield past 100ms"
+    );
+
+    let mut hidden_bytes = YieldSchedule::new(3_000);
+    hidden_bytes.record_bytes(1_048_575);
+    assert!(
+        !hidden_bytes.should_yield(3_000, true),
+        "1_048_575 bytes stays just below the 1 MiB hidden fallback cap"
+    );
+    hidden_bytes.record_bytes(1);
+    assert!(
+        hidden_bytes.should_yield(3_000, true),
+        "1_048_576 bytes must trigger the hidden 1 MiB fallback cap"
+    );
+    hidden_bytes.record_bytes(1);
+    assert!(
+        hidden_bytes.should_yield(3_000, true),
+        "1_048_577 bytes stays past the hidden 1 MiB fallback cap"
+    );
+}
+
+#[test]
+fn duration_millis_u32_converts_and_saturates_at_u32_max() {
+    assert_eq!(
+        duration_millis_u32(Duration::ZERO),
+        0,
+        "zero duration maps to 0 ms"
+    );
+    assert_eq!(
+        duration_millis_u32(Duration::from_secs(45)),
+        45_000,
+        "45s maps to 45_000 ms"
+    );
+    assert_eq!(
+        duration_millis_u32(Duration::from_millis(u64::from(u32::MAX) + 5)),
+        u32::MAX,
+        "durations past u32::MAX ms must saturate to u32::MAX"
+    );
+}
+
+#[test]
+fn deadline_tracker_tracks_remaining_and_one_shot_resume_grace() {
+    assert_eq!(
+        RESUME_GRACE_MS, 2_000,
+        "resume grace must stay 2_000 ms so buffered chunks settle before timing out"
+    );
+
+    let mut tracker = DeadlineTracker::new(1_000, Duration::from_millis(500), RESUME_GRACE_MS);
+    assert_eq!(
+        tracker.remaining_on_resume(1_200),
+        300,
+        "resuming 200ms into a 500ms budget leaves 300ms"
+    );
+    assert_eq!(
+        tracker.remaining_on_resume(1_499),
+        1,
+        "resuming 1ms before the deadline leaves 1ms without arming grace"
+    );
+    assert_eq!(
+        tracker.remaining_on_resume(1_500),
+        RESUME_GRACE_MS,
+        "resuming right at an expired deadline arms the one-shot 2s grace"
+    );
+    assert_eq!(
+        tracker.remaining_on_resume(2_000),
+        1_500,
+        "resuming mid-grace counts down from the grace deadline"
+    );
+    assert_eq!(
+        tracker.remaining_on_resume(3_499),
+        1,
+        "1ms before grace expiry leaves 1ms"
+    );
+    assert_eq!(
+        tracker.remaining_on_resume(3_500),
+        0,
+        "reaching grace expiry returns 0"
+    );
+    assert_eq!(
+        tracker.remaining_on_resume(5_000),
+        0,
+        "grace window must never re-arm after expiring"
+    );
+
+    let mut expired = DeadlineTracker::new(1_000, Duration::from_millis(500), RESUME_GRACE_MS);
+    assert_eq!(
+        expired.remaining_on_resume(2_000),
+        RESUME_GRACE_MS,
+        "resuming past the deadline grants one full grace window from resume time"
+    );
+    assert_eq!(
+        expired.remaining_on_resume(3_999),
+        1,
+        "1ms left in grace from resume time"
+    );
+    assert_eq!(
+        expired.remaining_on_resume(4_000),
+        0,
+        "grace expires at resume_time + grace_ms"
+    );
+
+    let mut no_grace = DeadlineTracker::new(1_000, Duration::from_millis(500), 0);
+    assert_eq!(
+        no_grace.remaining_on_resume(1_499),
+        1,
+        "zero-grace wait still preserves remaining time before deadline"
+    );
+    assert_eq!(
+        no_grace.remaining_on_resume(1_500),
+        0,
+        "zero-grace wait expires immediately at the deadline"
+    );
+    assert_eq!(
+        no_grace.remaining_on_resume(2_000),
+        0,
+        "zero-grace wait expires immediately past the deadline"
+    );
+
+    let mut backwards_clock = DeadlineTracker::new(10_000_000_000, Duration::from_millis(500), 0);
+    assert_eq!(
+        backwards_clock.remaining_on_resume(0),
+        u32::MAX,
+        "large backward clock jump saturates remaining wait to u32::MAX"
+    );
+
+    let mut saturating_start = DeadlineTracker::new(u64::MAX - 10, Duration::from_millis(100), 0);
+    assert_eq!(
+        saturating_start.remaining_on_resume(u64::MAX - 5),
+        5,
+        "deadline addition must saturate instead of wrapping at u64::MAX"
+    );
 }

@@ -664,3 +664,39 @@ fn network_workspace_hydrates_overview_cap_and_selected_from_url_params() {
         "selected=compound-Q101 must render SelectedNodeView for Compound-1:\n{html}"
     );
 }
+
+#[test]
+fn graph_renderer_recovers_frames_and_clears_drag_on_visibility_and_blur() {
+    let app_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let graph_js =
+        std::fs::read_to_string(app_dir.join("public/assets/js/graph/lotus-graph-gl.js"))
+            .expect("read lotus-graph-gl.js");
+    assert!(
+        graph_js.contains(r#""visibilitychange""#)
+            && graph_js.contains("resizeCanvas();")
+            && graph_js.contains("scheduleFrame();"),
+        "lotus-graph-gl.js must re-measure and reschedule frames when returning visible"
+    );
+    assert!(
+        graph_js.contains(r#""blur""#) && graph_js.contains("state.pointer.down = false"),
+        "lotus-graph-gl.js must clear stuck pointer drag state on hide and window blur"
+    );
+}
+
+#[test]
+fn browser_streaming_and_yield_paths_never_use_zero_delay_set_timeout() {
+    let app_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let repo_files = [
+        app_dir.join("src/repositories/hybrid.rs"),
+        app_dir.join("src/upload.rs"),
+        app_dir.join("../../crates/lotus-search/src/reqwest_client/wasm.rs"),
+    ];
+    for path in repo_files {
+        let source = std::fs::read_to_string(&path).expect("read browser async source");
+        assert!(
+            !source.contains("TimeoutFuture::new(0)"),
+            "{} must yield via MessageChannel (`yield_to_browser`) instead of `TimeoutFuture::new(0)`",
+            path.display()
+        );
+    }
+}

@@ -55,14 +55,13 @@ impl Http for ReqwestClient {
         accept: &str,
         body: String,
     ) -> Result<reqwest::Response, FetchError> {
-        self.0
+        let request = self
+            .0
             .post(endpoint)
             .header("Accept", accept)
             .header("Content-Type", "application/x-www-form-urlencoded")
-            .body(body)
-            .send()
-            .await
-            .map_err(|e| FetchError::Network(e.to_string()))
+            .body(body);
+        send_request(request).await
     }
 
     async fn post_form(
@@ -86,30 +85,22 @@ impl Http for ReqwestClient {
         for (name, value) in headers {
             request = request.header(*name, value);
         }
-        request
-            .send()
-            .await
-            .map_err(|e| FetchError::Network(e.to_string()))
+        send_request(request).await
     }
 
     async fn post_json(&self, url: &str, body: String) -> Result<reqwest::Response, FetchError> {
-        self.0
+        let request = self
+            .0
             .post(url)
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
-            .body(body)
-            .send()
-            .await
-            .map_err(|e| FetchError::Network(e.to_string()))
+            .body(body);
+        send_request(request).await
     }
 
     async fn get(&self, url: &str, accept: &str) -> Result<reqwest::Response, FetchError> {
-        self.0
-            .get(url)
-            .header("Accept", accept)
-            .send()
-            .await
-            .map_err(|e| FetchError::Network(e.to_string()))
+        let request = self.0.get(url).header("Accept", accept);
+        send_request(request).await
     }
 }
 
@@ -119,15 +110,11 @@ impl HttpResponse for reqwest::Response {
     }
 
     async fn bytes(self) -> Result<ResponseBody, FetchError> {
-        self.bytes()
-            .await
-            .map_err(|e| FetchError::Network(e.to_string()))
+        read_bytes(self).await
     }
 
     async fn text(self) -> Result<String, FetchError> {
-        self.text()
-            .await
-            .map_err(|e| FetchError::Network(e.to_string()))
+        read_text(self).await
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -144,11 +131,7 @@ impl HttpResponse for reqwest::Response {
             // `bytes_stream` is the browser's `ReadableStream` underneath, so the
             // body arrives already decompressed and in pieces. That is exactly
             // what is wanted: the decompressed payload is never in one piece.
-            Ok(Box::new(wasm::WasmChunks {
-                inner: Box::pin(self.bytes_stream()),
-                progress: ReadProgress::default(),
-                bytes_since_yield: 0,
-            }))
+            Ok(Box::new(wasm::WasmChunks::new(self)))
         }
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -241,12 +224,140 @@ impl BodyChunks for NativeChunks {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+async fn send_request(request: reqwest::RequestBuilder) -> Result<reqwest::Response, FetchError> {
+    request
+        .send()
+        .await
+        .map_err(|e| FetchError::Network(e.to_string()))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn read_bytes(response: reqwest::Response) -> Result<ResponseBody, FetchError> {
+    response
+        .bytes()
+        .await
+        .map_err(|e| FetchError::Network(e.to_string()))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn read_text(response: reqwest::Response) -> Result<String, FetchError> {
+    response
+        .text()
+        .await
+        .map_err(|e| FetchError::Network(e.to_string()))
+}
+
 // The browser's half lives in its own file because it is never compiled into a
 // native test binary, so `.cargo/mutants.toml` can exclude it by path instead of
 // by line number.
 #[cfg(target_arch = "wasm32")]
 #[path = "reqwest_client/wasm.rs"]
 mod wasm;
+
+#[cfg(target_arch = "wasm32")]
+use wasm::{read_bytes, read_text, send_request};
+
+#[cfg(target_arch = "wasm32")]
+pub use wasm::{sleep_wall_clock, wait_deadline, yield_to_browser};
+
+#[cfg(any(target_arch = "wasm32", test))]
+const VISIBLE_YIELD_INTERVAL_MS: u64 = 16;
+
+#[cfg(any(target_arch = "wasm32", test))]
+const VISIBLE_YIELD_BYTES: usize = 262_144;
+
+#[cfg(any(target_arch = "wasm32", test))]
+const HIDDEN_YIELD_INTERVAL_MS: u64 = 100;
+
+#[cfg(any(target_arch = "wasm32", test))]
+const HIDDEN_YIELD_BYTES: usize = 1_048_576;
+
+#[cfg(any(target_arch = "wasm32", test))]
+const RESUME_GRACE_MS: u32 = 2_000;
+
+/// Cadence tracker deciding when browser chunk reading should yield a macrotask
+/// so paint/input stay responsive when visible without throttling to timer rates
+/// when hidden.
+#[cfg(any(target_arch = "wasm32", test))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct YieldSchedule {
+    last_yield_ms: u64,
+    bytes_since_yield: usize,
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+impl YieldSchedule {
+    const fn new(now_ms: u64) -> Self {
+        Self {
+            last_yield_ms: now_ms,
+            bytes_since_yield: 0,
+        }
+    }
+
+    const fn record_bytes(&mut self, bytes: usize) {
+        self.bytes_since_yield = self.bytes_since_yield.saturating_add(bytes);
+    }
+
+    const fn should_yield(&self, now_ms: u64, hidden: bool) -> bool {
+        if self.bytes_since_yield == 0 {
+            return false;
+        }
+        let (interval_ms, byte_cap) = if hidden {
+            (HIDDEN_YIELD_INTERVAL_MS, HIDDEN_YIELD_BYTES)
+        } else {
+            (VISIBLE_YIELD_INTERVAL_MS, VISIBLE_YIELD_BYTES)
+        };
+        now_ms.saturating_sub(self.last_yield_ms) >= interval_ms
+            || self.bytes_since_yield >= byte_cap
+    }
+
+    const fn mark_yielded(&mut self, now_ms: u64) {
+        self.bytes_since_yield = 0;
+        self.last_yield_ms = now_ms;
+    }
+}
+
+/// Convert a [`Duration`](std::time::Duration) into whole milliseconds,
+/// saturating at `u32::MAX` for `gloo_timers`.
+#[cfg(any(target_arch = "wasm32", test))]
+fn duration_millis_u32(duration: std::time::Duration) -> u32 {
+    u32::try_from(duration.as_millis()).unwrap_or(u32::MAX)
+}
+
+/// Wall-clock deadline tracker across browser background throttling or sleep,
+/// with an optional one-shot foreground grace window on resume.
+#[cfg(any(target_arch = "wasm32", test))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct DeadlineTracker {
+    deadline_ms: u64,
+    resume_grace_ms: u32,
+    grace_armed: bool,
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+impl DeadlineTracker {
+    fn new(now_ms: u64, duration: std::time::Duration, resume_grace_ms: u32) -> Self {
+        Self {
+            deadline_ms: now_ms.saturating_add(u64::from(duration_millis_u32(duration))),
+            resume_grace_ms,
+            grace_armed: false,
+        }
+    }
+
+    fn remaining_on_resume(&mut self, now_ms: u64) -> u32 {
+        let remaining = self.deadline_ms.saturating_sub(now_ms);
+        if remaining > 0 {
+            return u32::try_from(remaining).unwrap_or(u32::MAX);
+        }
+        if self.grace_armed || self.resume_grace_ms == 0 {
+            return 0;
+        }
+        self.grace_armed = true;
+        self.deadline_ms = now_ms.saturating_add(u64::from(self.resume_grace_ms));
+        self.resume_grace_ms
+    }
+}
 
 fn build() -> Result<reqwest::Client, String> {
     #[cfg(target_arch = "wasm32")]
@@ -266,14 +377,13 @@ fn build() -> Result<reqwest::Client, String> {
     }
 }
 
-/// How long the native client lets a connection go without a byte, headers
+/// How long the client lets a connection go without a byte, headers
 /// included.
 ///
 /// Longer than any endpoint's own time limit -- WDQS computes for up to 60 s
 /// before its first byte -- so a slow but legitimate answer is not cut off.
 /// A streamed body has its own, shorter watchdog in [`STREAM_STALL_TIMEOUT`];
 /// this is the backstop for everything else.
-#[cfg(not(target_arch = "wasm32"))]
 pub(crate) const CONNECTION_IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(90);
 
 /// The native client, bounded by how long the connection may sit idle.

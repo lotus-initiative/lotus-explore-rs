@@ -308,7 +308,8 @@ fn is_rate_limit_refusal(err: &FetchError) -> bool {
 #[allow(clippy::unused_async)]
 async fn sleep_ms(ms: u32) {
     #[cfg(target_arch = "wasm32")]
-    gloo_timers::future::TimeoutFuture::new(ms).await;
+    lotus_search::reqwest_client::sleep_wall_clock(std::time::Duration::from_millis(u64::from(ms)))
+        .await;
     #[cfg(not(target_arch = "wasm32"))]
     std::thread::sleep(std::time::Duration::from_millis(u64::from(ms)));
 }
@@ -390,7 +391,7 @@ where
     });
     #[cfg(target_arch = "wasm32")]
     {
-        gloo_timers::future::TimeoutFuture::new(0).await;
+        lotus_search::reqwest_client::yield_to_browser().await;
         crate::cache::seed_reader_from_cache(&mut reader);
     }
     lotus_search::enrich_columnar_reader(
@@ -407,7 +408,7 @@ where
         if let Some(extra) = reader.take_extra_entities() {
             crate::cache::store_extra_seed_set(std::sync::Arc::new(extra));
         }
-        gloo_timers::future::TimeoutFuture::new(0).await;
+        lotus_search::reqwest_client::yield_to_browser().await;
     }
     reader
         .finish()

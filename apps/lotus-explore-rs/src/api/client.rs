@@ -7,8 +7,9 @@ use lotus_explore_core::api::error::ApiClientError;
 use lotus_search::SearchCriteria;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
-#[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
+
+const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub async fn search(
     criteria: &SearchCriteria,
@@ -69,7 +70,7 @@ fn build_http_client() -> Result<reqwest::Client, String> {
     {
         reqwest::Client::builder()
             .connect_timeout(Duration::from_secs(5))
-            .timeout(Duration::from_secs(30))
+            .timeout(API_REQUEST_TIMEOUT)
             .pool_idle_timeout(Duration::from_mins(1))
             .pool_max_idle_per_host(8)
             .tcp_keepalive(Duration::from_secs(30))
@@ -106,6 +107,25 @@ fn resolve_api_url(base: &str, url: &str) -> String {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+async fn with_api_timeout<T, E, F>(
+    fut: F,
+    map_err: impl FnOnce(E) -> ApiClientError,
+) -> Result<T, ApiClientError>
+where
+    F: std::future::Future<Output = Result<T, E>>,
+{
+    let timeout = lotus_search::reqwest_client::wait_deadline(API_REQUEST_TIMEOUT);
+    futures::pin_mut!(fut);
+    futures::pin_mut!(timeout);
+    match futures::future::select(fut, timeout).await {
+        futures::future::Either::Left((res, _timeout)) => res.map_err(map_err),
+        futures::future::Either::Right(((), _fut)) => {
+            Err(ApiClientError::Network("API request timed out".to_string()))
+        }
+    }
+}
+
 async fn post_json<Req, Res>(base: &str, path: &str, body: &Req) -> Result<Res, ApiClientError>
 where
     Req: Serialize + ?Sized + Sync,
@@ -113,6 +133,12 @@ where
 {
     let url = format!("{}{}", base.trim_end_matches('/'), path);
     let client = http_client()?;
+    #[cfg(target_arch = "wasm32")]
+    let response = with_api_timeout(client.post(url).json(body).send(), |e| {
+        ApiClientError::Network(e.to_string())
+    })
+    .await?;
+    #[cfg(not(target_arch = "wasm32"))]
     let response = client
         .post(url)
         .json(body)
@@ -122,14 +148,29 @@ where
 
     let status = response.status();
     if !status.is_success() {
+        #[cfg(target_arch = "wasm32")]
+        let body = with_api_timeout(response.text(), |e| ApiClientError::Network(e.to_string()))
+            .await
+            .unwrap_or_default();
+        #[cfg(not(target_arch = "wasm32"))]
         let body = response.text().await.unwrap_or_default();
         return Err(ApiClientError::Http(status.as_u16(), body));
     }
 
-    response
-        .json::<Res>()
+    #[cfg(target_arch = "wasm32")]
+    {
+        with_api_timeout(response.json::<Res>(), |e| {
+            ApiClientError::Parse(e.to_string())
+        })
         .await
-        .map_err(|e| ApiClientError::Parse(e.to_string()))
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        response
+            .json::<Res>()
+            .await
+            .map_err(|e| ApiClientError::Parse(e.to_string()))
+    }
 }
 
 #[cfg(test)]

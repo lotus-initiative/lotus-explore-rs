@@ -46,6 +46,15 @@ the named test fails if it breaks.
   90 s) and no total `timeout`; long streams are legitimate. The idle deadline
   covers waiting for headers, so it stays above WDQS's 60 s limit. Streamed
   bodies also have their own 45 s stall watchdog.
+- On `wasm32`, never yield with `TimeoutFuture::new(0)` / `setTimeout(0)` in
+  streaming, split-query steps, or uploads (`crates/lotus-search/src/reqwest_client/wasm.rs`,
+  `hybrid.rs`, `upload.rs`): Firefox clamps background timers to >= 1 s (and
+  up to 10 s under budget throttling), stalling streams until QLever times out.
+  Use `lotus_search::reqwest_client::yield_to_browser` (`MessageChannel`)
+  gated by `YieldSchedule`, bound browser `send`/`bytes`/`text` with
+  `wait_deadline` (`CONNECTION_IDLE_TIMEOUT`, never `RequestBuilder::timeout`),
+  and spawn app-wide search tasks via `spawn_forever` so route/component
+  unmounts do not cancel the task and leave `loading == true`.
 - Every surface validates with `lotus_model::validate_criteria`: CLI,
   `lotus_search::search`, and the API's `apply_request`.
 - Formula fields reach the API only when `formula_enabled`.

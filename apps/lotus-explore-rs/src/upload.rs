@@ -6,8 +6,6 @@
 //! the stub has to keep the signature the wasm half has.
 
 #[cfg(target_arch = "wasm32")]
-use gloo_timers::future::TimeoutFuture;
-#[cfg(target_arch = "wasm32")]
 use js_sys::{Array, Uint8Array};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
@@ -163,7 +161,7 @@ impl UploadBlobLines {
         self.buffer.extend_from_slice(&chunk_bytes);
         self.offset = end;
         // Yield so the UI stays responsive between chunks.
-        TimeoutFuture::new(0).await;
+        lotus_search::reqwest_client::yield_to_browser().await;
         Ok(())
     }
 }
@@ -423,9 +421,8 @@ pub async fn submit_download_form(endpoint: &str, fields: &[(&str, &str)]) -> Re
         .map_err(|e| format!("failed to submit form: {e:?}"))?;
     let _ = body.remove_child(&form);
 
-    // Awaited only to advance the microtask queue so the submit takes effect.
-    #[allow(clippy::ignored_unit_patterns)]
-    let _ = TimeoutFuture::new(0).await;
+    // Awaited only to yield one browser turn so the submit takes effect.
+    lotus_search::reqwest_client::yield_to_browser().await;
     Ok(())
 }
 
