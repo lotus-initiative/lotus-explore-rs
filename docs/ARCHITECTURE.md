@@ -1,7 +1,7 @@
 # Architecture
 
 The repository is a workspace of nine crates: seven library/tooling crates, one
-CLI binary (`lotus-cli`), and one web/desktop/server application
+CLI binary (`lotus-cli`), and one web/server application
 (`apps/lotus-explore-rs`). The arrangement is not a preference: it is what keeps
 the same query from being written three times, and it is checkable in CI.
 
@@ -17,7 +17,7 @@ the same query from being written three times, and it is checkable in CI.
 | [`lotus-explore-core`](../crates/lotus-explore-core/README.md) | App core     | Framework-free `ExploreState` reducer, `CriteriaQueryDto` URL codec, client filter/sort, exports | `lotus-model`, `lotus-query`, `lotus-search` |
 | `lotus-web-assets`                                             | Build tool   | Vendors Ketcher, RDKit, and Citation.js into `public/assets/vendor`; injects WASM preload links  | *(none)*                                     |
 | [`lotus-cli`](../crates/lotus-cli/README.md)                   | Front end    | The `lotus` binary (`search`, `curate`, `export`, `export-pubchem-tree`, `archive`)              | all shared crates above                      |
-| [`apps/lotus-explore-rs`](../apps/lotus-explore-rs/README.md)  | Front end    | Dioxus web client (WASM), optional Axum HTTP API (`--features server`), optional desktop window  | all shared crates above                      |
+| [`apps/lotus-explore-rs`](../apps/lotus-explore-rs/README.md)  | Front end    | Dioxus web client (WASM), optional Axum HTTP API (`--features server`)                          | all shared crates above                      |
 
 The arrows all point inward. `lotus-model` depends on no other crate in the
 workspace, which is why it holds the foundational vocabulary that everything
@@ -96,7 +96,7 @@ Before the main result query is built, human-typed strings are resolved to QIDs:
 
 Both `lotus_search::build_execution_query_with` (used by the CLI and server) and
 `lotus_explore_core::explore::service::build_query::build_sparql_query` (used by
-the web/desktop app) call the same builders in `crates/lotus-query/src/query.rs`
+the web app) call the same builders in `crates/lotus-query/src/query.rs`
 to produce one of **six base 15-column `SELECT` queries**:
 
 | Base shape | Builder in `crates/lotus-query/src/query.rs` | Inner helper | Occurrence (`p:P703`) |
@@ -293,7 +293,7 @@ Three data-movement tools share the same home in
 All three are target-agnostic: they take an `Http` trait implementor and an
 `Endpoint`, return bytes/strings in memory, and do no file I/O themselves. The CLI
 (`crates/lotus-cli/src/main.rs`) is the native wrapper that writes those bytes to
-disk and, for `archive`, optionally publishes to Zenodo via `zenodo-rs`. The web
+disk and, for `archive`, optionally publishes to Zenodo via its REST client. The web
 app and the API `/v1/export` endpoint do not invoke these full-graph exporters;
 per-query browser and server exports stream through `lotus-query`
 (`CsvColumnarReader` and `RowExporter`).

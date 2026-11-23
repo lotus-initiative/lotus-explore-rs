@@ -105,15 +105,12 @@ FROM rust:${RUST_VERSION}-slim-trixie AS builder
 # a binary the kernel cannot execute.
 COPY --from=platform /musl-target /tmp/musl-target
 
-# `curl` is here because `utoipa-swagger-ui`'s build script downloads the Swagger UI
-# assets at compile time and its only fallback is the `curl` binary. That is a
-# build-time network fetch inside the image build, and it fails the build rather
-# than producing a server with no docs endpoint -- the right way round, but it does
-# mean the image build is not hermetic.
+# `ca-certificates`, `pkg-config`, `libssl-dev`, and `musl-tools` support building
+# the server binary and static musl CLI/healthcheck binaries.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl pkg-config libssl-dev musl-tools \
+      ca-certificates pkg-config libssl-dev musl-tools \
     && rm -rf /var/lib/apt/lists/*
 
 

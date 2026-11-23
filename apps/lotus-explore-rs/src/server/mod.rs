@@ -5,6 +5,7 @@
 mod config;
 mod errors;
 mod handlers;
+mod logging;
 mod query_logic;
 mod services;
 mod state;
@@ -14,7 +15,7 @@ mod types;
 mod tests;
 
 use axum::{
-    Router,
+    Json, Router,
     body::Body,
     extract::DefaultBodyLimit,
     http::{HeaderName, HeaderValue, StatusCode, header},
@@ -27,11 +28,8 @@ use tower_http::{
     compression::CompressionLayer,
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
     services::{ServeDir, ServeFile},
-    trace::{DefaultMakeSpan, DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer},
 };
-use tracing::Level;
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
 
 use crate::server::{
     config::{AppConfig, build_cors_layer},
@@ -75,24 +73,22 @@ async fn api_not_found() -> StatusCode {
     StatusCode::NOT_FOUND
 }
 
+async fn openapi_json() -> Json<utoipa::openapi::OpenApi> {
+    Json(ApiDoc::openapi())
+}
+
 pub fn build_router(max_body_bytes: usize, config: &AppConfig, state: AppState) -> Router {
     let mut router = Router::new()
         .route("/health", get(health))
         .route("/metrics", get(metrics))
+        .route("/openapi.json", get(openapi_json))
         .route("/v1/search", post(search))
         .route("/v1/export-url", post(export_urls))
         .route("/v1/export-file/{cache_key}/{format}", get(export_file))
         .route("/v1/{*path}", any(api_not_found))
-        .merge(SwaggerUi::new("/docs").url("/openapi.json", ApiDoc::openapi()))
         .with_state(state)
         .layer(DefaultBodyLimit::max(max_body_bytes))
-        .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
-                .on_request(DefaultOnRequest::new().level(Level::DEBUG))
-                .on_response(DefaultOnResponse::new().level(Level::INFO))
-                .on_failure(DefaultOnFailure::new().level(Level::WARN)),
-        )
+        .layer(middleware::from_fn(log_request))
         .layer(PropagateRequestIdLayer::new(X_REQUEST_ID));
 
     // Optionally serve the Dioxus WASM build output as static files.
@@ -126,6 +122,25 @@ pub fn build_router(max_body_bytes: usize, config: &AppConfig, state: AppState) 
         .layer(middleware::from_fn(add_security_headers))
 }
 
+async fn log_request(req: axum::http::Request<Body>, next: Next) -> Response {
+    let method = req.method().clone();
+    let path = req.uri().path().to_owned();
+    let started = std::time::Instant::now();
+    let response = next.run(req).await;
+    let status = response.status().as_u16();
+    let elapsed_ms = started.elapsed().as_millis();
+    if response.status().is_server_error() {
+        log::warn!(
+            "event=http method={method} path={path} status={status} elapsed_ms={elapsed_ms}"
+        );
+    } else {
+        log::info!(
+            "event=http method={method} path={path} status={status} elapsed_ms={elapsed_ms}"
+        );
+    }
+    response
+}
+
 async fn add_security_headers(req: axum::http::Request<Body>, next: Next) -> Response {
     let mut response = next.run(req).await;
     response.headers_mut().insert(
@@ -141,12 +156,7 @@ async fn add_security_headers(req: axum::http::Request<Body>, next: Next) -> Res
 
 /// Entry point for the in-package native API server.
 pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
-    let _ = tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_writer(std::io::stderr)
-        .try_init();
+    logging::init();
 
     let config = config::AppConfig::from_env().map_err(std::io::Error::other)?;
     let state = state::AppState::new(&config);

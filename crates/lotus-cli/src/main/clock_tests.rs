@@ -2,9 +2,9 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The clock and flag helpers of the CLI, in their own file.
 //!
-//! The calendar arithmetic is `chrono`'s: a hand-written civil-date conversion
-//! used to live here and got 1 March 1970 wrong, which is what these tests no
-//! longer need to guard.
+//! The calendar arithmetic lives in `lotus_model::utc`: a hand-written civil-date
+//! conversion used to live here and got 1 March 1970 wrong, which is what
+//! `lotus_model::utc`'s tests now guard directly.
 
 #![allow(clippy::expect_used)]
 
@@ -108,7 +108,7 @@ fn an_instant_is_stamped_to_the_second() {
         (1_700_000_000, "2023-11-14T22:13:20Z"),
         (-1, "1969-12-31T23:59:59Z"),
     ] {
-        let instant = chrono::DateTime::from_timestamp(seconds, 0).expect("in range");
+        let instant = lotus_model::utc::UtcDateTime::from_unix_seconds(seconds);
         assert_eq!(iso_utc(instant), expected, "{seconds}s");
     }
 }
@@ -118,6 +118,6 @@ fn the_clock_stamp_is_a_parseable_recent_instant() {
     let now = now_iso_utc();
     assert_eq!(now.len(), "1970-01-01T00:00:00Z".len(), "got {now:?}");
     let parsed = super::parse_iso_utc(&now).expect("now_iso_utc parses as RFC 3339");
-    let year = u16::try_from(chrono::Datelike::year(&parsed)).expect("a recent year fits");
+    let year = u16::try_from(parsed.year).expect("a recent year fits");
     assert!((2020..=2100).contains(&year), "got {now:?}");
 }

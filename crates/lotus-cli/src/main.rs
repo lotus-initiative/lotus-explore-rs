@@ -32,6 +32,7 @@ use lotus_model::SmilesSearchType;
 
 mod curate;
 mod output;
+mod zenodo;
 
 use crate::output::{Format, write_rows};
 
@@ -691,42 +692,43 @@ fn validate_source_code_url(url: &str) -> anyhow::Result<String> {
     Ok(url.to_string())
 }
 
-/// Build the Zenodo `DepositMetadataUpdate` for a LOTUS archive.
+/// Build the Zenodo `DepositMetadata` for a LOTUS archive.
 fn zenodo_metadata(
     title: &str,
     creator: &str,
-    publication_date: chrono::NaiveDate,
+    publication_date: lotus_model::utc::UtcDateTime,
     source_code_url: &str,
-) -> anyhow::Result<zenodo_rs::DepositMetadataUpdate> {
-    let metadata = zenodo_rs::DepositMetadataUpdate::builder()
-        .title(title)
-        .upload_type(zenodo_rs::UploadType::Dataset)
-        .publication_date(publication_date)
-        .description_html(
+) -> zenodo::DepositMetadata {
+    zenodo::DepositMetadata {
+        title: title.to_string(),
+        upload_type: "dataset",
+        publication_date: publication_date.format_date(),
+        description_html:
             "<p>InChIKey-deduplicated Wikidata SMILES for chemical structures with P703 \
              (found in taxon), fetched from QLever. Isomeric P2017 values take \
              precedence over canonical P233 values. The archive includes source \
-             statements and query provenance.</p>",
-        )
-        .creator_named(creator)
-        .access_right(zenodo_rs::AccessRight::Open)
-        .license("cc-by-4.0")
-        .keyword("LOTUS")
-        .keyword("Wikidata")
-        .keyword("SMILES")
-        .related_identifier(
-            zenodo_rs::RelatedIdentifier::builder()
-                .identifier(source_code_url)
-                .relation("isDerivedFrom")
-                .scheme("url")
-                .resource_type("software")
-                .build()
-                .map_err(|e| anyhow::anyhow!("build related identifier: {e}"))?,
-        )
-        .community_identifier("the-lotus-initiative")
-        .build()
-        .map_err(|e| anyhow::anyhow!("build Zenodo metadata: {e}"))?;
-    Ok(metadata)
+             statements and query provenance.</p>"
+                .to_string(),
+        creators: vec![zenodo::Creator {
+            name: creator.to_string(),
+        }],
+        access_right: "open",
+        license: "cc-by-4.0",
+        keywords: vec![
+            "LOTUS".to_string(),
+            "Wikidata".to_string(),
+            "SMILES".to_string(),
+        ],
+        related_identifiers: vec![zenodo::RelatedIdentifier {
+            identifier: source_code_url.to_string(),
+            relation: "isDerivedFrom",
+            scheme: "url",
+            resource_type: "software",
+        }],
+        communities: vec![zenodo::Community {
+            identifier: "the-lotus-initiative",
+        }],
+    }
 }
 
 /// Run the Wikidata archive: fetch, deduplicate, package as tar.gz, and
@@ -761,15 +763,11 @@ async fn archive(args: ArchiveArgs) -> anyhow::Result<ExitCode> {
 
     if args.publish {
         let root_id = root_deposition_id()?;
-        let title = format!("LOTUS Wikidata SMILES — {}", fetched_at.date_naive());
+        let title = format!("LOTUS Wikidata SMILES — {}", fetched_at.format_date());
         if args.dry_run {
             // Validate the metadata + upload plan without contacting Zenodo.
-            let _metadata = zenodo_metadata(
-                &title,
-                &args.creator,
-                fetched_at.date_naive(),
-                &source_code_url_env()?,
-            )?;
+            let _metadata =
+                zenodo_metadata(&title, &args.creator, fetched_at, &source_code_url_env()?);
             eprintln!(
                 "{}",
                 dry_run_zenodo(&archive_path, &manifest_path, &checksums_path, root_id)?
@@ -778,7 +776,7 @@ async fn archive(args: ArchiveArgs) -> anyhow::Result<ExitCode> {
             Box::pin(publish_to_zenodo(
                 &title,
                 &args.creator,
-                fetched_at.date_naive(),
+                fetched_at,
                 root_id,
                 &archive_path,
                 &manifest_path,
@@ -793,10 +791,10 @@ async fn archive(args: ArchiveArgs) -> anyhow::Result<ExitCode> {
 
 /// The archive's file name, stamped with the fetch time so successive Zenodo
 /// versions do not share one name.
-fn archive_filename(fetched_at: chrono::DateTime<chrono::Utc>) -> String {
+fn archive_filename(fetched_at: lotus_model::utc::UtcDateTime) -> String {
     format!(
         "lotus-wikidata-smiles-{}.tar.gz",
-        fetched_at.format("%Y%m%dT%H%M%SZ")
+        fetched_at.format_compact_utc()
     )
 }
 
@@ -824,7 +822,7 @@ fn write_archive_files(
 }
 
 /// Resolve the root deposition ID from `ZENODO_ROOT_DEPOSITION_ID`, if set.
-fn root_deposition_id() -> anyhow::Result<Option<zenodo_rs::DepositionId>> {
+fn root_deposition_id() -> anyhow::Result<Option<zenodo::DepositionId>> {
     match std::env::var("ZENODO_ROOT_DEPOSITION_ID") {
         Ok(value) => parse_deposition_id(&value),
         Err(std::env::VarError::NotPresent) => Ok(None),
@@ -833,14 +831,14 @@ fn root_deposition_id() -> anyhow::Result<Option<zenodo_rs::DepositionId>> {
 }
 
 /// Parse a raw string as a Zenodo root deposition ID.
-fn parse_deposition_id(value: &str) -> anyhow::Result<Option<zenodo_rs::DepositionId>> {
+fn parse_deposition_id(value: &str) -> anyhow::Result<Option<zenodo::DepositionId>> {
     let id: u64 = value
         .parse()
         .map_err(|_| anyhow::anyhow!("ZENODO_ROOT_DEPOSITION_ID is not a valid deposition ID"))?;
     if id == 0 {
         anyhow::bail!("ZENODO_ROOT_DEPOSITION_ID must be non-zero");
     }
-    Ok(Some(zenodo_rs::DepositionId(id)))
+    Ok(Some(zenodo::DepositionId(id)))
 }
 
 /// Validate the Zenodo metadata + upload plan without writing to disk or
@@ -852,7 +850,7 @@ fn dry_run_zenodo(
     archive_path: &std::path::Path,
     manifest_path: &std::path::Path,
     checksums_path: &std::path::Path,
-    root_id: Option<zenodo_rs::DepositionId>,
+    root_id: Option<zenodo::DepositionId>,
 ) -> anyhow::Result<String> {
     // An error, not a message: a dry run that cannot build its plan has found
     // the problem it exists to find, and a script checking the exit status must
@@ -874,54 +872,25 @@ fn dry_run_zenodo(
 async fn publish_to_zenodo(
     title: &str,
     creator: &str,
-    publication_date: chrono::NaiveDate,
-    root_id: Option<zenodo_rs::DepositionId>,
+    publication_date: lotus_model::utc::UtcDateTime,
+    root_id: Option<zenodo::DepositionId>,
     archive_path: &std::path::Path,
     manifest_path: &std::path::Path,
     checksums_path: &std::path::Path,
 ) -> anyhow::Result<()> {
     let source_code_url = source_code_url_env()?;
-    let metadata = zenodo_metadata(title, creator, publication_date, &source_code_url)?;
+    let metadata = zenodo_metadata(title, creator, publication_date, &source_code_url);
     let upload_specs = archive_upload_paths(archive_path, manifest_path, checksums_path)?;
 
-    let published = if let Ok(client) = zenodo_rs::ZenodoClient::from_sandbox_env() {
-        eprintln!("lotus: publishing to Zenodo sandbox (ZENODO_SANDBOX_TOKEN)");
-        Box::pin(publish_archive(&client, root_id, &metadata, upload_specs)).await
-    } else {
-        let client = zenodo_rs::ZenodoClient::from_env()
-            .map_err(|e| anyhow::anyhow!("read ZENODO_TOKEN: {e}"))?;
-        eprintln!("lotus: publishing to Zenodo production (ZENODO_TOKEN)");
-        Box::pin(publish_archive(&client, root_id, &metadata, upload_specs)).await
-    }?;
+    let (client, target_label) = zenodo::ZenodoClient::from_env_or_sandbox()?;
+    eprintln!("lotus: publishing to {target_label}");
+    let published = Box::pin(client.publish_dataset(root_id, &metadata, &upload_specs)).await?;
 
-    let record_id = published.record.id;
-    eprintln!("lotus: published to Zenodo, record ID: {}", record_id.0);
+    eprintln!(
+        "lotus: published to Zenodo, record ID: {}",
+        published.record_id.0
+    );
     Ok(())
-}
-
-/// Run the publish workflow (ensure draft, upload, publish) for one client and
-/// one set of args, branching on whether a root deposition ID is present.
-async fn publish_archive(
-    client: &zenodo_rs::ZenodoClient,
-    root_id: Option<zenodo_rs::DepositionId>,
-    metadata: &zenodo_rs::DepositMetadataUpdate,
-    upload_specs: Vec<zenodo_rs::UploadSpec>,
-) -> Result<zenodo_rs::PublishedRecord, anyhow::Error> {
-    if let Some(root_id) = root_id {
-        let draft = client
-            .ensure_editable_draft(root_id)
-            .await
-            .map_err(|e| anyhow::anyhow!("ensure editable draft: {e}"))?;
-        client
-            .publish_dataset(draft.id, metadata, upload_specs)
-            .await
-            .map_err(|e| anyhow::anyhow!("publish to Zenodo: {e}"))
-    } else {
-        client
-            .create_and_publish_dataset(metadata, upload_specs)
-            .await
-            .map_err(|e| anyhow::anyhow!("create and publish to Zenodo: {e}"))
-    }
 }
 
 fn apply_ranges(
@@ -987,10 +956,9 @@ fn apply_ranges(
 /// that it stays pure; a binary is where a clock belongs.
 #[must_use]
 pub fn current_year() -> u16 {
-    use chrono::Datelike;
     // A clock outside u16's years saturates rather than wrapping to a
     // plausible-looking year.
-    u16::try_from(utc_now().year()).unwrap_or(u16::MAX)
+    u16::try_from(utc_now().year).unwrap_or(u16::MAX)
 }
 
 /// The current UTC time as an ISO-8601 stamp (`YYYY-MM-DDTHH:MM:SSZ`), for the
@@ -1000,17 +968,20 @@ pub fn now_iso_utc() -> String {
     iso_utc(utc_now())
 }
 
-/// `chrono`'s `clock` feature is off in this workspace, so the system clock is
-/// read through `SystemTime`, which `chrono` converts with `std` alone.
-fn utc_now() -> chrono::DateTime<chrono::Utc> {
-    std::time::SystemTime::now().into()
+/// Reads the system clock via `std::time::SystemTime` and converts via
+/// [`lotus_model::utc::UtcDateTime::from_unix_seconds`].
+fn utc_now() -> lotus_model::utc::UtcDateTime {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs().cast_signed());
+    lotus_model::utc::UtcDateTime::from_unix_seconds(secs)
 }
 
 /// An instant as an ISO-8601 UTC stamp (`YYYY-MM-DDTHH:MM:SSZ`): whole seconds,
 /// and `Z` rather than `+00:00`, which is what the metadata documents carry.
 #[must_use]
-pub fn iso_utc(instant: chrono::DateTime<chrono::Utc>) -> String {
-    instant.format("%Y-%m-%dT%H:%M:%SZ").to_string()
+pub fn iso_utc(instant: lotus_model::utc::UtcDateTime) -> String {
+    instant.format_iso_utc()
 }
 ///
 /// `--formula` and `--carbon` both filter by formula, and only the first sets
@@ -1031,12 +1002,11 @@ fn flags_ask_for_formula(criteria: &lotus_model::SearchCriteria) -> bool {
         || criteria.i_state != ElementState::Allowed
 }
 
-/// Parse an ISO-8601 UTC timestamp (`YYYY-MM-DDTHH:MM:SSZ`) into a `DateTime`.
+/// Parse an ISO-8601 UTC timestamp (`YYYY-MM-DDTHH:MM:SSZ`) into a `UtcDateTime`.
 ///
-/// The archive needs a `DateTime` for the filename, and `--now` arrives as text.
-fn parse_iso_utc(s: &str) -> anyhow::Result<chrono::DateTime<chrono::Utc>> {
-    chrono::DateTime::parse_from_rfc3339(s)
-        .map(|dt| dt.with_timezone(&chrono::Utc))
+/// The archive needs a `UtcDateTime` for the filename, and `--now` arrives as text.
+fn parse_iso_utc(s: &str) -> anyhow::Result<lotus_model::utc::UtcDateTime> {
+    lotus_model::utc::UtcDateTime::parse_rfc3339_utc(s)
         .map_err(|e| anyhow::anyhow!("--now must be an ISO-8601 UTC timestamp: {e}"))
 }
 
@@ -1048,13 +1018,13 @@ fn source_code_url_env() -> anyhow::Result<String> {
     validate_source_code_url(&url)
 }
 
-/// Build `UploadSpec`s from three file paths for the Zenodo upload.
+/// Build `UploadFile`s from three file paths for the Zenodo upload.
 fn archive_upload_paths(
     archive: &std::path::Path,
     manifest: &std::path::Path,
     checksums: &std::path::Path,
-) -> anyhow::Result<Vec<zenodo_rs::UploadSpec>> {
-    let specs = zenodo_rs::UploadSpec::from_named_paths([
+) -> anyhow::Result<Vec<zenodo::UploadFile>> {
+    let specs = zenodo::prepare_uploads([
         (
             archive.file_name().map_or_else(
                 || "lotus-wikidata-smiles.tar.gz".to_string(),

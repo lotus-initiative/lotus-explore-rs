@@ -119,57 +119,6 @@ jobs:
 
   # Repository jobs beyond the standard gate: they need fetched assets, a `dx`
   # build or Docker, so they are not part of `./mk ci`.
-  # The desktop build: the one target nothing else builds. Every desktop-only bug so
-  # far -- an unstyled window, a no-op download, a 404 for the toolkit -- compiled
-  # cleanly, because no other job enabled the feature.
-  #
-  # It needs the WebKitGTK build dependencies, the fetched assets and a `dx` build,
-  # so it cannot run on a checkout that has not fetched them and it is not in
-  # `./mk ci`.
-  desktop:
-    name: Desktop build
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-        with: { persist-credentials: false, fetch-depth: 1 }
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.8
-        with: { shared-key: ci }
-      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
-        with: { toolchain: 1.100.0, components: clippy }
-
-      # `dioxus-desktop` reaches WebKitGTK through `wry`, whose `*-sys` crates shell out
-      # to `pkg-config` at build time, and `tao` links `libxdo` for window dragging.
-      # Without these the job dies in `glib-sys`/`gobject-sys` or at link time with
-      # `unable to find library -lxdo`, before compiling any of our code -- the same
-      # shape of failure as a missing asset, and equally unrelated to the change
-      # under test.
-      #
-      # `ripgrep` is here for `verify-bundle`, which reads Ketcher's own `src`/`href`
-      # references out of its index.html. It is not on the runner by default, and
-      # without it the task fails on its last check.
-      - name: Install the WebKitGTK build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev \
-            libayatana-appindicator3-dev librsvg2-dev libxdo-dev \
-            ripgrep
-
-      # The crate is `dioxus-cli`, not `dx`: `dx` is the binary it installs and is not
-      # published to crates.io, so `dx@0.7.10` failed to resolve. The version
-      # matches the `dioxus` dependency.
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
-        with:
-          tool: |
-            cargo-binstall
-            cargo-make
-            cargo-nextest
-            dioxus-cli
-
-      - name: Build the desktop app and verify the bundle
-        run: ./mk desktop
-
   # Container images. Built, not pushed: there is no registry and no release yet,
   # and pushing is deferred with the rest of the release tooling. What this proves
   # is that the Dockerfile still builds, that the layer cache works, and that the

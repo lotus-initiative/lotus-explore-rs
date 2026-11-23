@@ -25,10 +25,7 @@ fn a_web_url_is_relative_so_it_survives_a_subpath() {
     }
 }
 
-/// A desktop build is the opposite case: the resolver only serves out of the
-/// bundle for a path that starts with `/assets/`, and the document is served
-/// at `.../index.html`, so a relative URL would land under the document's own
-/// path.
+/// Rooted asset path variant (`/assets/...`) for non-subpath hosts.
 #[test]
 fn a_native_url_is_rooted_under_assets() {
     for (bundled, expected) in [

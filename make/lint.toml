@@ -6,29 +6,18 @@ cwd = "${REPO_ROOT}"
 description = "Clippy over the whole workspace, all targets, all features, warnings denied."
 script = "cargo clippy --workspace --all-targets --all-features --locked -- -D warnings"
 
-# The app is three programs: a browser client, a native window and an HTTP API.
-# `--workspace --all-features` covers the first two but the third is behind a
-# feature that changes which `main` is compiled, and `--all-features` compiles
-# `server` and `desktop` together, which is a build nobody ships. Each of the two
-# native programs is therefore linted on its own, the same way it is tested.
-#
-# Not belt-and-braces: `--features server` sat broken on main while a
-# workspace-wide clippy passed, because the API had a renamed request field its
-# own tests still used and nothing compiled it.
+# The app is two programs: a browser client and an HTTP API.
+# `--workspace --all-features` compiles `server` on top of the browser crate;
+# checking `server` on its own mirrors what the server build ships.
 [tasks."lint-native-builds"]
 cwd = "${REPO_ROOT}"
-description = "Clippy the server and desktop builds separately, warnings denied."
-dependencies = ["lint-server", "lint-desktop"]
+description = "Clippy the server build on its own, warnings denied."
+dependencies = ["lint-server"]
 
 [tasks."lint-server"]
 cwd = "${REPO_ROOT}"
 description = "Clippy the app's HTTP API build, warnings denied."
 script = "cargo clippy --workspace --features lotus-explore-rs/server --locked -- -D warnings"
-
-[tasks."lint-desktop"]
-cwd = "${REPO_ROOT}"
-description = "Clippy the app's native-window build, warnings denied."
-script = "cargo clippy --workspace --features lotus-explore-rs/desktop --locked -- -D warnings"
 
 # Per-package WASM clippy.
 #
@@ -64,16 +53,13 @@ cwd = "${REPO_ROOT}"
 description = "Clippy the browser build for wasm32, warnings denied."
 script = "cargo clippy --target wasm32-unknown-unknown -p lotus-explore-rs --locked -- -D warnings"
 
-# Every feature combination in the workspace, 16 of them.
+# Every feature combination in the workspace, 8 of them.
 #
-# This was scoped to the library crates on the assumption that `dioxus` and
-# `utoipa` would make the powerset explode. It does not: no feature in this
-# workspace enables another except the app's `server`/`desktop` pair. So the whole
-# workspace is checked, which is also the only version that would catch a feature
-# in a crate someone forgot to think of as a library.
+# No feature in this workspace enables another, so the powerset stays small
+# and checks every crate including the app.
 [tasks."feature-powerset"]
 cwd = "${REPO_ROOT}"
-description = "Check every feature combination in the workspace (16 of them)."
+description = "Check every feature combination in the workspace."
 script = "cargo hack check --workspace --feature-powerset --locked"
 
 # The unsafe audit. `unsafe_code = "forbid"` in the workspace lints covers this

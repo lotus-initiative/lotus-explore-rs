@@ -319,7 +319,7 @@ impl YieldSchedule {
 }
 
 /// Convert a [`Duration`](std::time::Duration) into whole milliseconds,
-/// saturating at `u32::MAX` for `gloo_timers`.
+/// saturating at `u32::MAX` for browser `setTimeout`.
 #[cfg(any(target_arch = "wasm32", test))]
 fn duration_millis_u32(duration: std::time::Duration) -> u32 {
     u32::try_from(duration.as_millis()).unwrap_or(u32::MAX)

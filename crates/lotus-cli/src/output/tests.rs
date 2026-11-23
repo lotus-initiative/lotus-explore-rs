@@ -585,5 +585,5 @@ fn write_jsonld_uses_supplied_and_live_rfc3339_timestamps() {
         .pointer("/@graph/0/datePublished")
         .and_then(serde_json::Value::as_str)
         .expect("datePublished string");
-    chrono::DateTime::parse_from_rfc3339(stamp).expect("RFC 3339 UTC timestamp");
+    lotus_model::utc::UtcDateTime::parse_rfc3339_utc(stamp).expect("RFC 3339 UTC timestamp");
 }

@@ -43,11 +43,10 @@ fn validate_source_code_url_rejects_non_hex_sha() {
 
 #[test]
 fn parse_iso_utc_parses_valid_rfc3339() {
-    use chrono::Datelike;
     let dt = parse_iso_utc("2025-01-15T12:30:00Z").expect("valid RFC3339");
-    assert_eq!(dt.year(), 2025);
-    assert_eq!(dt.month(), 1);
-    assert_eq!(dt.day(), 15);
+    assert_eq!(dt.year, 2025);
+    assert_eq!(dt.month, 1);
+    assert_eq!(dt.day, 15);
 }
 
 #[test]
@@ -72,18 +71,21 @@ fn parse_deposition_id_rejects_zero() {
 #[test]
 fn zenodo_metadata_builds_with_valid_inputs() {
     let url = format!("https://github.com/lotus-initiative/lotus-explore-rs/commit/{VALID_SHA}");
-    let metadata = zenodo_metadata(
-        "Test Title",
-        "Test Creator",
-        chrono::NaiveDate::from_ymd_opt(2025, 1, 15).expect("valid date"),
-        &url,
-    )
-    .expect("valid metadata");
+    let date = lotus_model::utc::UtcDateTime {
+        year: 2025,
+        month: 1,
+        day: 15,
+        hour: 0,
+        minute: 0,
+        second: 0,
+    };
+    let metadata = zenodo_metadata("Test Title", "Test Creator", date, &url);
     assert_eq!(metadata.title, "Test Title".to_string());
     assert_eq!(metadata.creators.len(), 1);
-    assert_eq!(metadata.upload_type, zenodo_rs::UploadType::Dataset);
-    assert_eq!(metadata.access_right, zenodo_rs::AccessRight::Open);
-    assert_eq!(metadata.license, Some("cc-by-4.0".to_string()));
+    assert_eq!(metadata.upload_type, "dataset");
+    assert_eq!(metadata.access_right, "open");
+    assert_eq!(metadata.license, "cc-by-4.0");
+    assert_eq!(metadata.publication_date, "2025-01-15");
     assert_eq!(metadata.keywords.len(), 3);
     assert_eq!(metadata.related_identifiers.len(), 1);
     assert!(
@@ -142,16 +144,16 @@ fn archive_upload_paths_names_each_upload_after_its_file() {
         std::path::Path::new("out/SUMS"),
     )
     .expect("three distinct names");
-    let uploaded: Vec<(&str, String)> = specs
+    let uploaded: Vec<(&str, &std::path::Path)> = specs
         .iter()
-        .map(|spec| (spec.filename.as_str(), format!("{:?}", spec.source)))
+        .map(|spec| (spec.filename.as_str(), spec.path.as_path()))
         .collect();
     assert_eq!(
         uploaded,
         vec![
-            ("a.tar.gz", "Path(\"out/a.tar.gz\")".to_string()),
-            ("m.json", "Path(\"out/m.json\")".to_string()),
-            ("SUMS", "Path(\"out/SUMS\")".to_string()),
+            ("a.tar.gz", std::path::Path::new("out/a.tar.gz")),
+            ("m.json", std::path::Path::new("out/m.json")),
+            ("SUMS", std::path::Path::new("out/SUMS")),
         ]
     );
 }
@@ -169,13 +171,8 @@ fn a_dry_run_states_the_plan_for_a_first_record_and_for_a_new_version() {
          initial Zenodo record"
     );
     assert_eq!(
-        dry_run_zenodo(
-            archive,
-            manifest,
-            checksums,
-            Some(zenodo_rs::DepositionId(42))
-        )
-        .expect("a valid plan"),
+        dry_run_zenodo(archive, manifest, checksums, Some(zenodo::DepositionId(42)))
+            .expect("a valid plan"),
         "lotus: Zenodo dry run OK — metadata valid, 3 files ready, plan: publish a new \
          version from deposition 42"
     );
@@ -230,5 +227,43 @@ fn the_checksums_file_names_the_archive_that_was_written() {
         sums.lines()
             .any(|line| line.ends_with(&format!("  {written}"))),
         "SHA256SUMS does not name {written}:\n{sums}"
+    );
+}
+
+#[tokio::test]
+async fn archive_rejects_invalid_now_before_contacting_sparql() {
+    let err = archive(ArchiveArgs {
+        output: None,
+        dry_run: false,
+        publish: false,
+        creator: "The LOTUS Initiative".to_string(),
+        now: Some("not-a-timestamp".to_string()),
+    })
+    .await
+    .expect_err("invalid --now must fail before making HTTP requests");
+    assert!(
+        err.to_string().contains("invalid"),
+        "unexpected error: {err}"
+    );
+}
+
+#[tokio::test]
+async fn publish_to_zenodo_rejects_bad_env_or_duplicate_uploads_offline() {
+    let fetched_at = parse_iso_utc("2025-01-15T12:30:05Z").expect("valid RFC3339");
+    let err = publish_to_zenodo(
+        "LOTUS Wikidata SMILES — 2025-01-15",
+        "The LOTUS Initiative",
+        fetched_at,
+        None,
+        std::path::Path::new("one/same"),
+        std::path::Path::new("two/same"),
+        std::path::Path::new("out/SUMS"),
+    )
+    .await
+    .expect_err("missing SOURCE_CODE_URL or colliding upload names must fail offline");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("SOURCE_CODE_URL") || msg.contains("duplicate upload filename"),
+        "unexpected error: {msg}"
     );
 }

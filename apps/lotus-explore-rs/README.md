@@ -61,20 +61,7 @@ Environment variables:
 
 See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full architectural
 overview, and [`../../docs/FRONTENDS.md`](../../docs/FRONTENDS.md) for how the
-web, desktop and CLI front ends differ from each other.
-
-### Running as a desktop app
-
-```bash
-./mk web-dev-desktop   # from the repo root
-```
-
-The desktop build reuses these components unchanged; what differs is that `dx`
-embeds only the assets that Rust names in an `asset!` call, not the whole
-`public/` tree. Anything the app loads at runtime by composing its own URL ---
-RDKit, Ketcher --- is therefore absent from the bundle. See
-[`docs/FRONTENDS.md`](../../docs/FRONTENDS.md) for the details and the known
-consequences.
+web, CLI and HTTP API front ends differ from each other.
 
 ## Development testing
 

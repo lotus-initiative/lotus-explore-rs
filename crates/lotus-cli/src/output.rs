@@ -244,7 +244,7 @@ fn write_rdf<W: Write>(out: &mut W, result: &SearchResult) -> anyhow::Result<()>
 }
 
 fn write_jsonld<W: Write>(out: &mut W, result: &SearchResult) -> anyhow::Result<()> {
-    let generated = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let generated = crate::now_iso_utc();
     write_jsonld_at(out, result, &generated)
 }
 

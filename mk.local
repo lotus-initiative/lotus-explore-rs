@@ -16,13 +16,12 @@
 
 # dx builds the release wasm bundle in check-wasm (check-wasm-build).
 LOCAL_CARGO_TOOLS=(cargo-make@0.37.24 cargo-nextest@0.9.151 dioxus-cli@0.7.10:dx)
-# clippy --all-features compiles the desktop WebView, which links WebKitGTK.
-LOCAL_SYSTEM_PACKAGES=(pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev)
+LOCAL_SYSTEM_PACKAGES=()
 # Dev tools for working on the app (dx, cargo-edit, ...): ./mk setup-extra
 
 # Standard gates this repository runs its own way.
 LOCAL_OVERRIDES=(
-  test             # nextest over three builds (default, server, desktop) plus doctests
+  test             # nextest over default and server builds plus doctests
   wasm=check-wasm  # only the wasm-compatible crates; the CLI and server are native-only
 )
 # Repository gates added to ./mk ci.

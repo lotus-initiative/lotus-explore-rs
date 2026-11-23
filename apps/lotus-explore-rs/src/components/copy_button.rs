@@ -38,7 +38,7 @@ pub fn CopyButton(
                 copy_to_clipboard(text.as_ref());
                 *copied.write() = true;
                 spawn(async move {
-                    gloo_timer_sleep_ms(1200).await;
+                    sleep_ms(1200).await;
                     *copied.write() = false;
                 });
             },
@@ -52,13 +52,16 @@ pub fn CopyButton(
 }
 
 // `async` is required for signature parity at the call site: the WASM branch
-// `.await`s a `TimeoutFuture`, while the native branch sleeps synchronously. Clippy
+// `.await`s the browser timer, while the native branch sleeps synchronously. Clippy
 // sees only the current target, so on native this "looks" like an unused async.
 #[allow(clippy::unused_async)]
-async fn gloo_timer_sleep_ms(ms: u32) {
+async fn sleep_ms(ms: u32) {
     #[cfg(target_arch = "wasm32")]
     {
-        gloo_timers::future::TimeoutFuture::new(ms).await;
+        lotus_search::reqwest_client::sleep_wall_clock(std::time::Duration::from_millis(
+            u64::from(ms),
+        ))
+        .await;
     }
     #[cfg(not(target_arch = "wasm32"))]
     {

@@ -1,4 +1,4 @@
-# The web app, the desktop window and the wasm bundle.
+# The web app, the HTTP API server, and the wasm bundle.
 #
 # `dx` is the Dioxus CLI, pinned to the same 0.7.10 as the `dioxus` dependency in
 # the root manifest. `dx` is the binary `dioxus-cli` installs and is not published
@@ -76,18 +76,6 @@ script = """
 exec cargo run --locked --features server -p lotus-explore-rs
 """
 
-# Dioxus supplies a different entry point per renderer and two of them cannot be
-# enabled at once, so the renderer is chosen by a feature. Without
-# `--features desktop` a native build has no user interface and exits immediately.
-[tasks."web-dev-desktop"]
-cwd = "${REPO_ROOT}"
-description = "Run the dev server for the native-window build."
-dependencies = ["assets"]
-script = """
-cd apps/lotus-explore-rs
-dx serve --package lotus-explore-rs --desktop --locked --features desktop --open=false
-"""
-
 # The `BROWSERSLIST` is the shipped floor, and it is set here rather than left to
 # autoprefixer because the browserslist config affects what Tailwind emits: a
 # wider floor means more vendor prefixes in the stylesheet every page loads.
@@ -100,32 +88,6 @@ cd apps/lotus-explore-rs
 BROWSERSLIST='chrome >= 100, firefox >= 100, safari >= 15' \\
   dx build --release --package lotus-explore-rs --platform web --locked \\
   --debug-symbols=false --rustc-args=-Copt-level=z
-"""
-
-# The desktop job in CI: compile the one target nothing else builds, then prove
-# the bundle can answer what the app asks of it. Every desktop-only bug so far --
-# an unstyled window, a no-op download, a 404 for the toolkit -- compiled cleanly,
-# because nothing built this target.
-#
-# The steps after the build are dependencies rather than commands, so the runner
-# runs them instead of the script re-entering `cargo make` and fanning out over
-# all eight crates.
-[tasks."desktop"]
-cwd = "${REPO_ROOT}"
-description = "Build the desktop app and verify the bundle can answer every request."
-dependencies = ["assets", "lint-desktop", "test-desktop", "desktop-build", "verify-bundle", "bundle-icon"]
-
-[tasks."desktop-build"]
-cwd = "${REPO_ROOT}"
-description = "Run dx build for the desktop bundle."
-# `dx build` is not a task: it has to run from the app crate's directory, which is
-# where the assets and the output tree are. Shebang for the same reason as
-# `assets`: `sh` is dash on the CI runners.
-script = """
-#!/usr/bin/env bash
-set -euo pipefail
-cd apps/lotus-explore-rs
-exec dx build --package lotus-explore-rs --desktop --locked --features desktop
 """
 
 # The optimisation level is declared in three places, and `dx` passes
@@ -177,47 +139,6 @@ script = """
 #!/usr/bin/env bash
 set -euo pipefail
 exec bash "make/scripts/web-bytes.sh"
-"""
-
-# `dx` writes `CFBundleIconFile = icon.icns` into every macOS bundle whether or
-# not one is configured, so a bundle built without this file has a plist naming a
-# file that is not there, and Finder shows a generic icon. `iconutil` needs a
-# full iconset -- ten sizes, half of them at 2x -- so it is generated rather than
-# committed, which prevents an `.icns` that looks right and is missing a size.
-[tasks."app-icon"]
-cwd = "${REPO_ROOT}"
-description = "Generate the macOS .icns from the app's PNG artwork."
-script = """
-#!/usr/bin/env bash
-set -euo pipefail
-exec bash "make/scripts/app-icon.sh"
-"""
-
-# Done here rather than through `Dioxus.toml` because `dx` accepts a `resources`
-# entry and does not put it where the plist looks, so a configured icon and a
-# Finder icon were two different files.
-[tasks."bundle-icon"]
-cwd = "${REPO_ROOT}"
-description = "Install the .icns into any built macOS bundle."
-script = """
-#!/usr/bin/env bash
-set -euo pipefail
-exec bash "make/scripts/bundle-icon.sh"
-"""
-
-# `dioxus-desktop` serves a request out of the bundle only when the path starts
-# with `/assets/`, joining it onto `Contents/Resources`. Anything else is looked
-# up on disk relative to the working directory and missed. That rule is why RDKit
-# and Ketcher 404ed in the window while working in a browser, and nothing in the
-# test suite could see it: the assets were absent, and the paths were only ever
-# assembled at runtime.
-[tasks."verify-bundle"]
-cwd = "${REPO_ROOT}"
-description = "Assert the built desktop bundle can answer every request the app makes."
-script = """
-#!/usr/bin/env bash
-set -euo pipefail
-exec bash "make/scripts/verify-bundle.sh"
 """
 
 # Optional browser check against the built web bundle: checks horizontal overflow,

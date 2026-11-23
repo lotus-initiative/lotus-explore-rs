@@ -60,7 +60,7 @@ description = "Link the wasm module and run it through wasm-bindgen, the way the
 # one ships. A debug-profile link would pass happily while the release one is
 # broken.
 #
-# `dx` itself is a CI dependency, installed by the desktop and container jobs.
+# `dx` itself is a CI dependency, installed by the container and release jobs.
 # `./mk ci` runs this task, so a contributor without dx gets a task failure rather
 # than a skipped one, which is the same trade every other gate task makes.
 #

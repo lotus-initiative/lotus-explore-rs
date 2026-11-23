@@ -10,8 +10,8 @@
 # `--features server` sat broken on main while this passed.
 [tasks."test"]
 cwd = "${REPO_ROOT}"
-description = "Run every test: nextest for all three builds, then the doctests."
-dependencies = ["test-nextest", "test-server", "test-desktop", "test-doc"]
+description = "Run every test: nextest for default and server builds, then the doctests."
+dependencies = ["test-nextest", "test-server", "test-doc"]
 
 # The everyday profile: fail at the first failure. A red run nobody reads in full
 # is not worth the time.
@@ -32,11 +32,6 @@ exec cargo nextest run --workspace --locked --no-fail-fast --test-threads 4 "${a
 cwd = "${REPO_ROOT}"
 description = "Test the app's HTTP API build."
 script = "cargo nextest run --workspace --features lotus-explore-rs/server -E 'package(lotus-explore-rs)' --locked --no-fail-fast"
-
-[tasks."test-desktop"]
-cwd = "${REPO_ROOT}"
-description = "Test the app's native-window build."
-script = "cargo nextest run --workspace --features lotus-explore-rs/desktop -E 'package(lotus-explore-rs)' --all-targets --locked --no-fail-fast"
 
 # What CI runs, as one command. The `ci` task calls the per-build tasks
 # separately so a red test names the build it failed in; this is for a human who

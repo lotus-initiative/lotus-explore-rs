@@ -2,8 +2,8 @@
 
 Explorer and curation tool for the LOTUS compound–taxon–reference graph in
 Wikidata, queried over SPARQL (QLever, falling back to WDQS). Rust workspace:
-pure crates, a CLI, and one app crate (wasm web client, native API server,
-desktop window). Human docs: `README.md`, `CONTRIBUTING.md`, `docs/`.
+pure crates, a CLI, and one app crate (wasm web client and native API server).
+Human docs: `README.md`, `CONTRIBUTING.md`, `docs/`.
 
 Read `.github/ai/PITFALLS.md` before changing curation, query building, search
 retries, the server, or exports. Each entry there was a shipped bug.
@@ -15,7 +15,7 @@ retries, the server, or exports. Each entry there was a shipped bug.
 - `./mk check-changed` — inner loop scoped to affected packages + reverse-dependents.
 - `./mk test-fast -E 'test(name)'` — one test. `./mk test-fast [-p <crate>]` — nextest (no doctests).
 - `./mk test-changed` — nextest scoped to affected packages.
-- `./mk test` — nextest over default, `server` and `desktop` builds, plus doctests.
+- `./mk test` — nextest over default and `server` builds, plus doctests.
 - `./mk mutants-diff [--iterate]` — mutation testing on touched Rust files (`--iterate` retries remaining survivors).
 - `./mk mutants-affected [base]` / `./mk mutants-plan [--mode diff|affected|full]` — downstream-affected mutation sweep / JSON shard plan.
 - `./mk gate` — pre-push: everything above plus licence headers and wasm32 checks.

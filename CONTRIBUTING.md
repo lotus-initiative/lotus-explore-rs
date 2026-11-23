@@ -52,18 +52,6 @@ cargo install cargo-binstall --locked
 ./mk setup
 ```
 
-
-On Debian/Ubuntu, install the native dependencies before `./mk setup`:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y --no-install-recommends \
-  pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev \
-  libayatana-appindicator3-dev librsvg2-dev libxdo-dev
-```
-
-These six packages are needed for the desktop build. `./mk setup` installs apt
-packages automatically only on CI's Linux runners, not on a local machine.
 `./mk setup-extra` is optional and adds development utilities outside the
 required checks.
 
@@ -140,15 +128,15 @@ wanting to make a test hit a real endpoint, the thing to reach for is a fixture.
 
 ### The one thing that does need the network
 
-`./mk desktop` and the deploy fetch ~115 MB of third-party frontend assets —
+The deploy workflow fetches ~115 MB of third-party frontend assets —
 Ketcher, RDKit, Citation.js — from four hosts. That is the only part of the gate
 that reaches out, and it has been the source of intermittent failures: a single
 reset connection failed a build that had nothing wrong with the commit.
 
 It is now retried at two levels, and the reason is worth knowing before you
 change either one. `fetch-assets` retries each request three times with a
-doubling wait, so a blip inside a request is invisible. The `desktop` job and
-the Dockerfile then retry the whole run and clear the partial tree first, for the
+doubling wait, so a blip inside a request is invisible. The Dockerfile then
+retries the whole run and clear the partial tree first, for the
 failure that retry cannot see: a run cut off part way through leaves a
 half-populated `public/assets/`, and `dx build` succeeds against that — which
 publishes a site with no structure editor rather than failing.

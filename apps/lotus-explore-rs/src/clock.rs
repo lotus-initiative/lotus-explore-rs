@@ -31,8 +31,7 @@ pub fn now_iso8601() -> String {
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_secs().cast_signed());
-    let (y, m, d, hh, mm, ss) = epoch_to_ymdhms(secs);
-    format!("{y:04}-{m:02}-{d:02}T{hh:02}:{mm:02}:{ss:02}Z")
+    lotus_model::utc::UtcDateTime::from_unix_seconds(secs).format_iso_utc()
 }
 
 /// The current instant, from the browser's clock.
@@ -40,38 +39,6 @@ pub fn now_iso8601() -> String {
 #[must_use]
 pub fn now_iso8601() -> String {
     js_sys::Date::new_0().to_iso_string().into()
-}
-
-// Every cast below narrows within a value already bounded by the caller: a
-// time-of-day is under 86_400, a day count is four figures, and a signed
-// offset becomes a `u64` count of days only after the era shift has made it
-// non-negative. Widening the types to prove it would cost more than it says.
-#[cfg(not(target_arch = "wasm32"))]
-#[allow(clippy::cast_possible_wrap)]
-#[allow(clippy::cast_possible_truncation)]
-#[allow(clippy::cast_sign_loss)]
-const fn epoch_to_ymdhms(secs: i64) -> (i32, u32, u32, u32, u32, u32) {
-    // Dependency-free date conversion (Howard Hinnant, public domain).
-    let days = secs.div_euclid(86_400);
-    let rem = secs.rem_euclid(86_400);
-    let hh = (rem / 3600) as u32;
-    let mm = ((rem % 3600) / 60) as u32;
-    let ss = (rem % 60) as u32;
-    let z = days + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = (z - era * 146_097) as u64;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let y = yoe as i64 + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
-    let m = if mp < 10 {
-        (mp + 3) as u32
-    } else {
-        (mp - 9) as u32
-    };
-    let y = if m <= 2 { y + 1 } else { y };
-    (y as i32, m, d, hh, mm, ss)
 }
 
 /// The current calendar year.
@@ -87,7 +54,7 @@ pub fn current_year() -> u16 {
         .map_or(0_i64, |d| {
             i64::try_from(d.as_secs()).unwrap_or(i64::MAX) / 86_400
         });
-    year_from_days_since_epoch(days)
+    lotus_model::utc::year_from_days_since_epoch(days)
 }
 
 /// The current calendar year, from the browser's clock.
@@ -114,7 +81,7 @@ pub fn current_year() -> u16 {
         reason = "guarded by the range check above; the fractional part is seconds"
     )]
     let days = (millis / 86_400_000.0) as i64;
-    year_from_days_since_epoch(days)
+    lotus_model::utc::year_from_days_since_epoch(days)
 }
 
 /// The largest millisecond timestamp the conversion above accepts.
@@ -132,35 +99,6 @@ const MAX_MILLIS: f64 = 4_503_599_627_370_496.0; // 2^52
 /// Used only when the host has no usable clock at all.
 #[cfg(target_arch = "wasm32")]
 const FALLBACK_YEAR: u16 = 9999;
-
-/// Days since the Unix epoch to the calendar year that day falls in.
-///
-/// Howard Hinnant's civil-from-days algorithm, which is exact for every day in
-/// the proleptic Gregorian calendar and needs no lookup table. The full function is
-/// used rather than a year-only variant: the year-only version answers "which
-/// year contains the day *before* this one", which is right for 364 days a year
-/// and wrong on 1 January. That is the kind of bug that reads as correct for a
-/// long time.
-fn year_from_days_since_epoch(days: i64) -> u16 {
-    // Shift the epoch to 0000-03-01 so that a leap day lands at the end of the
-    // 400-year era rather than in the middle of it.
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let day_of_era = z - era * 146_097;
-    let year_of_era =
-        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
-    let year = year_of_era + era * 400;
-
-    // The year so far is the year the *March* falls in. January and February
-    // have not happened yet in that year, so they belong to the next one, and
-    // the only way to tell is to work out the month -- which is what this step
-    // is for. Skipping it and returning `year` is right for 364 days a year.
-    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
-    let month_prime = (5 * day_of_year + 2) / 153;
-    let year = if month_prime >= 10 { year + 1 } else { year };
-
-    u16::try_from(year).unwrap_or(u16::MAX)
-}
 
 #[cfg(test)]
 #[path = "clock/tests.rs"]

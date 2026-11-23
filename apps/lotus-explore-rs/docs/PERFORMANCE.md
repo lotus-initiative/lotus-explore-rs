@@ -205,7 +205,7 @@ Below that, the honest next step is code-splitting or trimming `lotus`, which is
 a project rather than a tweak. There is no further profile dial: `opt-level` is
 at `z`, LTO is fat, codegen units are 1, the panic strategy is already abort,
 and the dev-only crates are already out of the wasm graph (verified, not assumed ---
-`axum`, `utoipa`, `utoipa-swagger-ui`, `tokio`, `flat2`, `tempfile`,
+`axum`, `utoipa`, `tokio`, `flat2`, `tempfile`,
 `tower-http` and `clap` are all absent, and no TLS stack is
 reachable: `reqwest` on wasm uses the browser `fetch`).
 

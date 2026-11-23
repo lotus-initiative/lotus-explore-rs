@@ -71,7 +71,7 @@ the output the way the deploy does, see
 | [`lotus-explore-core`](crates/lotus-explore-core/README.md) | Framework-free app core: state reducers, URL codec, table filter/sort, bulk export pipelines   |
 | [`lotus-cli`](crates/lotus-cli/README.md)                   | The `lotus` binary (`search`, `curate`, `export`, `export-pubchem-tree`, `archive`)            |
 | `lotus-web-assets`                                          | Host-only fetcher for third-party frontend assets (Ketcher, RDKit, Citation.js)                |
-| [`apps/lotus-explore-rs`](apps/lotus-explore-rs/README.md)  | Dioxus web client (WASM), optional Axum HTTP API (`--features server`), optional desktop app   |
+| [`apps/lotus-explore-rs`](apps/lotus-explore-rs/README.md)  | Dioxus web client (WASM), optional Axum HTTP API (`--features server`)                         |
 
 Each library crate has a README that is compiled as its documentation, so the example in it is
 checked as a doctest. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) explains the layer boundaries,
@@ -119,7 +119,7 @@ conventions, and how to refresh the fixtures.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — the crates and their boundaries
 - [`docs/TAXON-SEARCH.md`](docs/TAXON-SEARCH.md) — how a taxon name becomes a QID, and the four nomenclatural relationships
 - [`docs/STRUCTURE-SEARCH.md`](docs/STRUCTURE-SEARCH.md) — how a name, an InChIKey or a QID becomes a compound identity
-- [`docs/FRONTENDS.md`](docs/FRONTENDS.md) — web, desktop and CLI: how each is built
+- [`docs/FRONTENDS.md`](docs/FRONTENDS.md) — web, CLI and HTTP API: how each is built
 - [`docs/QLEVER-POLITENESS.md`](docs/QLEVER-POLITENESS.md) — what a QLever 429 actually means, and how this project stays inside its budget
 - [`apps/lotus-explore-rs/docs/`](apps/lotus-explore-rs/docs/) — design system, performance, deployment
 

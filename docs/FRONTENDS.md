@@ -1,22 +1,21 @@
-# The four front ends
+# The three front ends
 
-LOTUS ships one core and four ways to reach it. They are not four
+LOTUS ships one core and three ways to reach it. They are not three
 implementations of the search: `lotus-model`, `lotus-query`, `lotus-search`,
 `lotus-curation` and `lotus-jsonld` hold all of the logic, and each front end is
 a thin shell over them. This document is about what differs between them, and
 why.
 
-| Front end | Crate                                      | Built by                                | Talks to                 |
-| --------- | ------------------------------------------ | --------------------------------------- | ------------------------ |
-| Web       | `apps/lotus-explore-rs` (`dioxus/web`)     | `dx build --platform web`               | QLever / WDQS over HTTPS |
-| Desktop   | `apps/lotus-explore-rs` (`dioxus/desktop`) | `dx serve --desktop --features desktop` | QLever / WDQS over HTTPS |
-| CLI       | `crates/lotus-cli`                         | `cargo build`                           | QLever / WDQS over HTTPS |
-| HTTP API  | `apps/lotus-explore-rs` (`server` feature) | `cargo run --features server`           | QLever / WDQS over HTTPS |
+| Front end | Crate                                      | Built by                      | Talks to                 |
+| --------- | ------------------------------------------ | ----------------------------- | ------------------------ |
+| Web       | `apps/lotus-explore-rs` (`dioxus/web`)     | `dx build --platform web`     | QLever / WDQS over HTTPS |
+| CLI       | `crates/lotus-cli`                         | `cargo build`                 | QLever / WDQS over HTTPS |
+| HTTP API  | `apps/lotus-explore-rs` (`server` feature) | `cargo run --features server` | QLever / WDQS over HTTPS |
 
-All four hit the same public endpoints, so a query that works in one works in
-all four. The API is the fourth, not a variation on the web client: it exists so
-that bulk callers can cap a response and get an export URL, which is why it is
-the one front end that sets a row limit of its own. The endpoints are overridable with `LOTUS_QLEVER_ENDPOINT`,
+All three hit the same public endpoints, so a query that works in one works in
+all three. The API exists so that bulk callers can cap a response and get an
+export URL, which is why it is the one front end that sets a row limit of its
+own. The endpoints are overridable with `LOTUS_QLEVER_ENDPOINT`,
 `LOTUS_WDQS_ENDPOINT` and `LOTUS_WDQS_SCHOLARLY_ENDPOINT`.
 
 ## Shared rules
@@ -67,52 +66,6 @@ Two things are specific to the web build:
   site, serve the whole tree. The curation bridges therefore load RDKit by
   requesting `assets/vendor/rdkit/RDKit_minimal.js` and it simply resolves.
 
-## Desktop
-
-```bash
-./mk web-dev-desktop  # from the repo root
-# equivalently, from apps/lotus-explore-rs:
-dx serve --package lotus-explore-rs --desktop --locked --features desktop
-```
-
-`fetch-assets` runs first, for the same reason it does on web.
-
-The desktop build reuses the web components unchanged. There is no separate
-desktop UI to keep in sync, and no feature that hides part of the app on native
-for the sake of the window.
-
-Note the flags: Dioxus supplies a different entry point per renderer and two of
-them cannot be enabled at once, so the renderer is chosen by a feature. Without
-`--features desktop` a native build has no user interface and exits immediately.
-
-What differs is the document and the asset pipeline, and both bite:
-
-- **Dioxus generates the document.** There is no `index.html` to read, so the
-  stylesheet is attached from the component tree with
-  `document::Stylesheet { href: asset!(...) }` in
-  `document_head::AppStylesheet`.
-- **Only `asset!`-referenced files are embedded.** This is the important one.
-  `dx` copies into the bundle the files that Rust names in an `asset!` call, not
-  the whole `public/` tree. `fetch-assets` writes RDKit and Ketcher into
-  `public/assets/vendor`, and nothing in Rust references them, so they are
-  absent from the bundle. The window has no CSS problem --- `AppStylesheet`
-  fixed that --- but the curation and structure-editor pages depend on those
-  files, and see them 404.
-
-Two consequences that are easy to mistake for unrelated bugs:
-
-- asset URL composition fails on native, so the Ketcher
-  panel gets an empty iframe `src`.
-- The RDKit bridge composes its own URL from `data-lotus-base-path`, which the
-  desktop document never sets.
-
-Both are the same underlying cause: runtime-composed asset URLs are invisible to
-the bundler. The fix is to name the assets in Rust with `asset!` and hand the
-resolved `bundled_path()` to the bridge, and for RDKit also pass a `locateFile`
-override, because hashed filenames land side by side in `assets/` and
-`RDKit_minimal.js` would otherwise look for `RDKit_minimal.wasm` next to itself
-and not find it.
-
 ## CLI
 
 ```bash
@@ -120,9 +73,9 @@ cargo run -p lotus-cli -- search --help
 cargo run -p lotus-cli -- curate --help
 ```
 
-`lotus` is the same search and curation logic without a browser or a window. It
-is the fastest way to check a query, and the only front end that is easy to put
-in a pipeline.
+`lotus` is the same search and curation logic without a browser. It is the
+fastest way to check a query, and the only front end that is easy to put in a
+pipeline.
 
 - Output is plain text by default, with `--format` for JSON, CSV and TSV.
 - `lotus curate` audits a `.tsv` file against Wikidata and reports per entry.
@@ -133,7 +86,7 @@ in a pipeline.
 
 Search and curation behaviour belongs in the shared crates, not in the front
 ends. If a change makes the web app show a different result, the fix belongs in
-`lotus-query` or `lotus-search` and all four front ends get it. The front ends
+`lotus-query` or `lotus-search` and all three front ends get it. The front ends
 differ in transport, in how they reach a file, and in what they do with the
 answer --- not in what the answer is.
 
@@ -148,7 +101,7 @@ result was that the API answered "what has been reported, and where" for a blank
 box while the browser answered "what exists".
 
 Each side's own tests passed throughout, because a duplicated dispatch has two
-sets of tests and neither can see the other. All four copies now call the shared
+sets of tests and neither can see the other. All copies now call the shared
 crate, and `server/tests.rs` asserts that the API and the library build the same
 query for the same request. **If you find yourself writing a query builder, a
 taxon parser or a QID test inside a front end, that is the bug.**

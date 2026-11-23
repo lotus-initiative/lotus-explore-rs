@@ -21,8 +21,7 @@ default = ["reqwest"]
 # unconditionally it was an unused dependency in a `--no-default-features` build,
 # which `./mk check-wasm-search` runs -- the "pure half" that has to compile with no
 # HTTP stack at all is the whole point of that task.
-# `gloo-timers` likewise: the stall watchdog it times is part of the same reader.
-reqwest = ["dep:futures", "dep:gloo-timers", "dep:reqwest"]
+reqwest = ["dep:futures", "dep:reqwest"]
 # A scripted transport, for the crates above that need to test a query without
 # a network. Off by default: a test double is not part of a consumer's API.
 testing = []
@@ -64,9 +63,6 @@ tokio = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 futures = { workspace = true, optional = true }
-# The browser has no reactor, so `tokio::time::timeout` does not exist there and
-# the streaming stall watchdog needs a timer of its own.
-gloo-timers = { workspace = true, optional = true }
 js-sys = { workspace = true }
 # `stream` is what turns the browser's `ReadableStream` into a `Stream` of
 # `Bytes`. Without it there is no way to read a response body a chunk at a time

@@ -64,7 +64,7 @@ static CITATION_JS: Option<manganis::Asset> = manganis::option_asset!(
     manganis::AssetOptions::folder()
 );
 
-/// Where the desktop bundle serves its assets from.
+/// Where bundled assets are served from.
 const ASSET_DIR: &str = "assets";
 
 /// The URL a bundled folder is served at, in a browser.
@@ -86,15 +86,8 @@ fn web_asset_url(bundled: &str) -> String {
     }
 }
 
-/// The URL a bundled folder is served at, in a desktop window.
-///
-/// **Rooted, and with the `assets/` prefix restored**, which `web_asset_url`
-/// deliberately does not need. `dioxus-desktop` serves a request out of the
-/// bundle only when the path starts with `/assets/`; anything else is looked up
-/// on disk relative to the working directory and missed. The document is served
-/// at `.../index.html`, so a relative URL would also resolve to
-/// `.../index.html/rdkit/RDKit_minimal.js` and 404.
-// Only the native build asks for this shape, and the tests assert both.
+/// The URL a bundled folder is served at when rooted under `/assets/`.
+// Exercised by native unit tests alongside `web_asset_url`.
 #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 fn native_asset_url(bundled: &str) -> String {
     let name = last_segment(bundled);

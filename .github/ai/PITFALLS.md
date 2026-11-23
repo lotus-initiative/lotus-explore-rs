@@ -108,7 +108,7 @@ the named test fails if it breaks.
 ## Tooling
 
 - After a toolchain bump, lint every build: default, `--features server`,
-  `--features desktop`, `--target wasm32-unknown-unknown`. `./mk gate` does.
+  `--target wasm32-unknown-unknown`. `./mk gate` does.
   A new lint firing inside Dioxus macro output gets the narrowest allow
   possible plus a `docs/DEBT.md` row.
 - Source-shape gates (`server/handlers/export_query_shape.rs`,

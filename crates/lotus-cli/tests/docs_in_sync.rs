@@ -12,7 +12,9 @@
 // that fails on a missing file or a bad fixture is reporting, not panicking.
 #![allow(clippy::expect_used, clippy::indexing_slicing, clippy::panic)]
 
-use assert_cmd::Command;
+mod common;
+
+use common::lotus;
 
 /// The path to the documentation, relative to this crate.
 const DOCS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/cli.md");
@@ -52,10 +54,6 @@ fn shell_words(line: &str) -> Vec<String> {
         .unwrap_or(args.len());
     args.truncate(end);
     args
-}
-
-fn lotus() -> Command {
-    Command::cargo_bin("lotus").expect("the binary is built by cargo test")
 }
 
 fn docs() -> String {

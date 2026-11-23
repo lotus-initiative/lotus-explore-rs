@@ -19,7 +19,7 @@ application is split across two crates:
   DTOs (`api/`), and the bulk export / PubChem tree / archive pipelines.
 - **[`apps/lotus-explore-rs`](../README.md)** owns the Dioxus UI components and
   pages, curation UI state (`src/features/curation/state/`), reactive hooks,
-  browser/desktop effects (clipboard, `localStorage`, file downloads, URL
+  browser/native effects (clipboard, `localStorage`, file downloads, URL
   history, `navigator.deviceMemory`), the `reqwest` HTTP client
   ([`src/sparql.rs`](../src/sparql.rs)), the wall clock
   ([`src/clock.rs`](../src/clock.rs)), and the optional Axum server

@@ -249,7 +249,6 @@ fn rust_toolchain_version_is_consistent_across_manifests_and_workflows() -> Resu
             "crates/lotus-jsonld/src/lib.rs",
             format!("requires_rust: \">= {version}\""),
         ),
-        (".github/workflows/ci.yml", format!("toolchain: {version}")),
         (
             ".github/workflows/archive.yml",
             format!("toolchain: {version}"),

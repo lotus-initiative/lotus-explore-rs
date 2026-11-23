@@ -130,6 +130,87 @@ fn close_port(port: &JsValue) {
     }
 }
 
+fn clear_browser_timeout(handle: &JsValue) {
+    let global = js_sys::global();
+    if let Ok(clear_timeout) = js_sys::Reflect::get(&global, &JsValue::from_str("clearTimeout"))
+        && let Some(func) = clear_timeout.dyn_ref::<js_sys::Function>()
+    {
+        let _ = func.call1(&global, handle);
+    }
+}
+
+struct BrowserTimeout {
+    handle: Option<JsValue>,
+    rx: futures::channel::oneshot::Receiver<()>,
+    _on_fire: Option<Closure<dyn FnMut()>>,
+}
+
+impl BrowserTimeout {
+    fn new(delay_ms: u32) -> Self {
+        let (tx, rx) = futures::channel::oneshot::channel();
+        let global = js_sys::global();
+        let Ok(set_timeout) = js_sys::Reflect::get(&global, &JsValue::from_str("setTimeout"))
+        else {
+            return Self {
+                handle: None,
+                rx,
+                _on_fire: None,
+            };
+        };
+        let Ok(func) = set_timeout.dyn_into::<js_sys::Function>() else {
+            return Self {
+                handle: None,
+                rx,
+                _on_fire: None,
+            };
+        };
+        let on_fire = Closure::once(move || {
+            let _ = tx.send(());
+        });
+        let Ok(handle) = func.call2(
+            &global,
+            on_fire.as_ref(),
+            &JsValue::from_f64(f64::from(delay_ms)),
+        ) else {
+            return Self {
+                handle: None,
+                rx,
+                _on_fire: None,
+            };
+        };
+        Self {
+            handle: Some(handle),
+            rx,
+            _on_fire: Some(on_fire),
+        }
+    }
+}
+
+impl Drop for BrowserTimeout {
+    fn drop(&mut self) {
+        if let Some(handle) = self.handle.take() {
+            clear_browser_timeout(&handle);
+        }
+    }
+}
+
+impl std::future::Future for BrowserTimeout {
+    type Output = ();
+
+    fn poll(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        match std::pin::Pin::new(&mut self.rx).poll(cx) {
+            std::task::Poll::Ready(_) => {
+                self.handle = None;
+                std::task::Poll::Ready(())
+            }
+            std::task::Poll::Pending => std::task::Poll::Pending,
+        }
+    }
+}
+
 /// Yield one browser macrotask without calling `setTimeout(0)`, avoiding
 /// Firefox's background-tab timer clamping (`>= 1 s` / `10 s` budget throttling).
 pub async fn yield_to_browser() {
@@ -206,7 +287,7 @@ async fn wait_deadline_with_grace(duration: std::time::Duration, resume_grace_ms
         if remaining_ms == 0 {
             return;
         }
-        let timer = gloo_timers::future::TimeoutFuture::new(remaining_ms);
+        let timer = BrowserTimeout::new(remaining_ms);
         if let Some(rx) = vis_rx.as_mut() {
             futures::pin_mut!(timer);
             let next_vis = rx.next();

@@ -11,13 +11,9 @@
 // that fails on a missing file or a bad fixture is reporting, not panicking.
 #![allow(clippy::expect_used, clippy::indexing_slicing)]
 
-use assert_cmd::Command;
-use predicates::prelude::*;
+mod common;
 
-/// The binary under test, as cargo builds it.
-fn lotus() -> Command {
-    Command::cargo_bin("lotus").expect("the binary is built by cargo test")
-}
+use common::{LotusCmd, lotus};
 
 #[test]
 fn help_names_the_subcommands_and_describes_the_data_source() {
@@ -25,10 +21,10 @@ fn help_names_the_subcommands_and_describes_the_data_source() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Wikidata"))
-        .stdout(predicate::str::contains("SPARQL"))
-        .stdout(predicate::str::contains("search"))
-        .stdout(predicate::str::contains("curate"));
+        .stdout_contains("Wikidata")
+        .stdout_contains("SPARQL")
+        .stdout_contains("search")
+        .stdout_contains("curate");
 }
 
 #[test]
@@ -159,9 +155,9 @@ fn explain_refuses_a_taxon_name_instead_of_printing_the_unfiltered_query() {
         .args(["search", "--taxon", "Gentiana lutea", "--explain"])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("does not resolve taxon names"))
-        .stderr(predicate::str::contains("Q21754"))
-        .stdout(predicate::str::contains("PREFIX").not());
+        .stderr_contains("does not resolve taxon names")
+        .stderr_contains("Q21754")
+        .stdout_not_contains("PREFIX");
 }
 
 #[test]
@@ -286,7 +282,7 @@ fn a_similarity_cutoff_outside_the_unit_interval_is_rejected() {
         ])
         .assert()
         .code(1)
-        .stderr(predicate::str::contains("0..=1"));
+        .stderr_contains("0..=1");
 }
 
 #[test]
@@ -323,7 +319,7 @@ fn an_unknown_flag_is_rejected() {
         .args(["search", "--magic"])
         .assert()
         .code(2)
-        .stderr(predicate::str::contains("--magic"));
+        .stderr_contains("--magic");
 }
 
 #[test]
@@ -515,7 +511,7 @@ fn a_version_is_reported() {
         .arg("--version")
         .assert()
         .success()
-        .stdout(predicate::str::contains(env!("CARGO_PKG_VERSION")));
+        .stdout_contains(env!("CARGO_PKG_VERSION"));
 }
 
 #[test]
@@ -631,7 +627,7 @@ fn explain_warns_about_nothing_when_no_structure_needs_resolving() {
 
 /// `lotus` with every proxy pointed at a closed loopback port, so a command
 /// that fetches fails at once, and nothing leaves the machine.
-fn lotus_without_a_reachable_endpoint() -> Command {
+fn lotus_without_a_reachable_endpoint() -> LotusCmd {
     let mut command = lotus();
     let closed = "http://127.0.0.1:9";
     for name in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"] {

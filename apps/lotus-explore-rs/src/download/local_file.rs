@@ -115,8 +115,8 @@ fn decode_base64(input: &str) -> Result<Vec<u8>, String> {
 /// directory. Otherwise the platform convention: `~/Downloads`, with the XDG
 /// variable honoured first on Linux.
 ///
-/// Spelled out rather than taken from `dirs`, which is only enabled for the
-/// `desktop` feature while this function compiles for every native target.
+/// Resolved via standard environment variables without pulling in an external
+/// directory-lookup dependency.
 fn download_dir() -> Option<PathBuf> {
     let non_empty = |v: Option<std::ffi::OsString>| v.filter(|v| !v.is_empty()).map(PathBuf::from);
 

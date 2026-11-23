@@ -43,9 +43,9 @@ path = "src/healthcheck.rs"
 # the one thing it does need, which is a TLS backend.
 reqwest = { workspace = true, features = ["default-tls", "blocking", "gzip"] }
 serde_json = { workspace = true }
-# Only this crate uses `zip`, and nothing depends on this crate, so a workspace
-# entry for it would be a second place to update for a single consumer.
-zip = "9"
+# Only Ketcher's release zip is extracted (Deflate/Stored). Default features
+# pull ~30 unused codecs/crypto crates (C zstd-sys, bzip2-1.0.6, aes, sha1 0.11).
+zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [lints]
 workspace = true
