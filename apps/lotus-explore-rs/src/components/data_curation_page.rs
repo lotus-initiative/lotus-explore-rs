@@ -3,8 +3,7 @@
 
 use crate::curation::share_links::build_curation_share_url;
 use crate::document_head::CurationScripts;
-use crate::features::curation::state::page_controller::CurationUiState;
-use crate::features::curation::state::page_controller::use_curation_page_controller;
+use crate::features::curation::page_controller::{CurationUiState, use_curation_page_controller};
 use dioxus::prelude::*;
 use std::sync::Arc;
 

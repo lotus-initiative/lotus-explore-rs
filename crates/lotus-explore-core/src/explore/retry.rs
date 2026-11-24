@@ -60,5 +60,5 @@ pub enum RetryEligibility {
     MaxRetriesExceeded,
 }
 #[cfg(test)]
-#[path = "retryable_orchestrator/tests.rs"]
+#[path = "retry/tests.rs"]
 mod tests;

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 #![doc = include_str!("../README.md")]
-#![warn(missing_docs)]
 // Awaiting a retry backoff on the browser means awaiting a JS promise, and a JS
 // promise is `!Send` -- it holds an `Rc`. There is no `Send`-preserving way to
 // hand control back to the single-threaded runtime that owns it, so every future

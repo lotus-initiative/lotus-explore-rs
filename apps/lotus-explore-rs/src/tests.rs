@@ -4,7 +4,7 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::indexing_slicing)]
 
-use crate::features::curation::state::page_controller::rows_to_tsv;
+use crate::features::curation::page_controller::rows_to_tsv;
 use crate::features::explore::selectors::toolbar_snapshot_from_result;
 use crate::ui::content_phase::{ContentPhase, LifecycleBooleans};
 use lotus_explore_core::explore::search_state::ExploreState;

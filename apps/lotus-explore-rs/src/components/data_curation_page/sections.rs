@@ -466,5 +466,5 @@ pub fn QuickStatementsCard(
 }
 
 #[cfg(test)]
-#[path = "tests.rs"]
+#[path = "sections/tests.rs"]
 mod tests;

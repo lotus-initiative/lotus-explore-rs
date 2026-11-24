@@ -317,4 +317,5 @@ async fn run<R: LotusRepository>(
 }
 
 #[cfg(test)]
+#[path = "resolve_structure/tests.rs"]
 mod tests;

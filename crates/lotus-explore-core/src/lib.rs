@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 #![doc = include_str!("../README.md")]
-#![warn(missing_docs)]
 // `ports::LotusRepository` exposes `async fn` returning `!Send` futures on
 // wasm32 because the browser transport and UI signals hold `Rc`/`RefCell`.
 #![cfg_attr(

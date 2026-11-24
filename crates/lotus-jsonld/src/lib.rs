@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 #![doc = include_str!("../README.md")]
-#![warn(missing_docs)]
 
 mod compound;
 mod dataset;

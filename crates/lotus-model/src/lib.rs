@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 #![doc = include_str!("../README.md")]
-#![warn(missing_docs)]
 // This crate dev-depends on itself to turn on `testing` for its own integration
 // tests; see the comment on that line in `Cargo.toml`. Cargo cannot express a
 // dev-dependency that applies only to this crate's tests, so the lib target

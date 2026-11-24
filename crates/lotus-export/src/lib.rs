@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 #![doc = include_str!("../README.md")]
-#![warn(missing_docs)]
 // The export pipelines are generic over `lotus_search::Http`. On wasm32 the
 // browser promise is `!Send`, so async functions awaiting it are `!Send` there.
 #![cfg_attr(

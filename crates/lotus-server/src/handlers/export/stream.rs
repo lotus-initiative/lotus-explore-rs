@@ -247,5 +247,5 @@ fn sanitized_attachment(filename: Option<&str>) -> Option<String> {
 }
 
 #[cfg(test)]
-#[path = "../pump_tests.rs"]
-mod pump_tests;
+#[path = "stream/tests.rs"]
+mod tests;

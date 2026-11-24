@@ -211,5 +211,5 @@ pub(in crate::explore) const fn should_clear_state_on_error(error_stage: QuerySt
 }
 
 #[cfg(test)]
-#[path = "error_recovery_coordinator/tests.rs"]
+#[path = "error_recovery/tests.rs"]
 mod tests;
