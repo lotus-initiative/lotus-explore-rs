@@ -7,7 +7,7 @@ use std::{
     time::Instant,
 };
 
-use crate::types::HealthResponse;
+use crate::dto::HealthResponse;
 
 #[derive(Debug)]
 pub struct RuntimeMetrics {

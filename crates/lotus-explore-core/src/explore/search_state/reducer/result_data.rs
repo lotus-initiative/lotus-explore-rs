@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::explore::types::LookupNotice;
+use crate::explore::error::LookupNotice;
 use crate::filters::ColumnFilters;
 use crate::sort::{SortColumn, SortDir};
 use lotus_model::{ColumnarResultSet, SparqlEndpoint};

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-use crate::explore::types::{DomainError, LookupNotice, QueryPhase};
+use crate::explore::error::{DomainError, LookupNotice, QueryPhase};
 use crate::filters::ColumnFilters;
 use crate::sort::SortState;
 use lotus_model::{ColumnarResultSet, DatasetStats, SearchCriteria};

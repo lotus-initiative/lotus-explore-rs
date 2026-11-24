@@ -12,10 +12,10 @@
 //! is a plain `Fn()` closure so that tests can supply a no-op.
 
 use crate::services::search_telemetry as telemetry;
-use lotus_explore_core::explore::search_metrics::SearchMetrics;
-use lotus_explore_core::explore::types::DomainError;
+use lotus_explore_core::explore::error::DomainError;
 #[cfg(target_arch = "wasm32")]
-use lotus_explore_core::explore::types::QueryStage;
+use lotus_explore_core::explore::error::QueryStage;
+use lotus_explore_core::explore::search_metrics::SearchMetrics;
 use lotus_explore_core::ports::LotusRepository;
 use lotus_model::ColumnarResultSet;
 use std::sync::Arc;

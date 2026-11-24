@@ -4,6 +4,7 @@
 
 pub mod actions;
 pub mod command;
+pub mod error;
 mod error_recovery;
 pub mod form_actions;
 pub mod form_validation;
@@ -20,5 +21,4 @@ mod sparql_errors;
 /// Classification of transport failures shared by retry, UI hints, and telemetry.
 pub mod transport_classification;
 pub mod truncation;
-pub mod types;
 pub mod url_codec;

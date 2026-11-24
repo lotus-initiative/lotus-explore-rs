@@ -14,8 +14,8 @@ use crate::services::error_presenter::{
 use crate::state::{use_app_state_context, use_results_context};
 use crate::ui::notice::{NoticeBar, NoticeTone};
 use dioxus::prelude::*;
+use lotus_explore_core::explore::error::ErrorKind;
 use lotus_explore_core::explore::recovery;
-use lotus_explore_core::explore::types::ErrorKind;
 use std::sync::Arc;
 
 #[component]

@@ -18,8 +18,8 @@ use super::{
     ApiDoc, build_router,
     cache_key::build_export_cache_key,
     config::AppConfig,
+    dto::{ExportUrlResponse, SearchRequest},
     state::{AppState, export_cache_put},
-    types::{ExportUrlResponse, SearchRequest},
 };
 
 fn test_config() -> AppConfig {

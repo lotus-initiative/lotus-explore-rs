@@ -6,8 +6,8 @@ use lotus_model::DatasetStats;
 use lotus_search::{Endpoint, FetchError, ResponseFormat, Service, execute};
 
 use crate::{
+    dto::{SearchResponse, SearchStats},
     errors::ApiError,
-    types::{SearchResponse, SearchStats},
 };
 use lotus_explore_core::api::dto::RowDto;
 

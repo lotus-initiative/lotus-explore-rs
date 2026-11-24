@@ -9,7 +9,7 @@ use anyhow::{Context, bail};
 use reqwest::Method;
 use reqwest::header::{ACCEPT, AUTHORIZATION};
 
-use super::types::Deposition;
+use super::record::Deposition;
 
 pub(super) const PRODUCTION_API_URL: &str = "https://zenodo.org/api";
 pub(super) const SANDBOX_API_URL: &str = "https://sandbox.zenodo.org/api";

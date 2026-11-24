@@ -20,6 +20,7 @@ use utoipa::OpenApi;
 use crate::{
     ApiDoc, build_router,
     config::AppConfig,
+    dto::{ExportUrlResponse, SearchRequest},
     export_urls,
     query_logic::{
         apply_request, build_execution_query, build_execution_query_with,
@@ -29,7 +30,6 @@ use crate::{
         AppState, CachedExportResponse, export_inflight_cell, prune_cache, search_inflight_cell,
         search_inflight_remove, taxon_cache_put,
     },
-    types::{ExportUrlResponse, SearchRequest},
 };
 use lotus_query::{self, ExportFormat};
 
@@ -1366,11 +1366,11 @@ fn resolve_count_stats_propagates_errors_only_when_capped() {
 
 #[test]
 fn state_caches_prune_bounds_and_inflight_removal_behave_consistently() {
+    use crate::dto::{SearchResponse, SearchStats};
     use crate::state::{
         CachedSearchResponse, CachedTaxonResolution, MAX_SEARCH_CACHE_ENTRIES, export_cache_get,
         export_cache_put, search_cache_get, search_cache_put, taxon_cache_get,
     };
-    use crate::types::{SearchResponse, SearchStats};
     use lotus_model::DatasetStats;
 
     let state = AppState::new(&test_config());

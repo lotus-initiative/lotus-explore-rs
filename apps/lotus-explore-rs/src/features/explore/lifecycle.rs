@@ -6,10 +6,10 @@ use crate::features::explore::search_state::dispatch_explore_action;
 use crate::services::search_telemetry as telemetry;
 use dioxus::prelude::*;
 use lotus_explore_core::explore::actions::ExploreAction;
+use lotus_explore_core::explore::error::{DomainError, QueryPhase};
 use lotus_explore_core::explore::request::SearchRequest;
 use lotus_explore_core::explore::retry::{RetryEligibility, plan_retry};
 use lotus_explore_core::explore::search_state::ExploreState;
-use lotus_explore_core::explore::types::{DomainError, QueryPhase};
 use std::time::Duration;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use crate::features::explore::taxon_cache::CachedTaxon;
-use lotus_explore_core::explore::types::{DomainError, ParseFault};
+use lotus_explore_core::explore::error::{DomainError, ParseFault};
 use lotus_model::{TaxonMatch, TaxonNameSource};
 
 /// How many candidates the ambiguity notice lists before it truncates.

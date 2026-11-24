@@ -9,10 +9,10 @@
 
 mod client;
 mod publish;
-mod types;
+mod record;
 
 pub use client::ZenodoClient;
-pub use types::{
+pub use record::{
     Community, Creator, DepositMetadata, DepositionId, RelatedIdentifier, UploadFile,
     prepare_uploads,
 };

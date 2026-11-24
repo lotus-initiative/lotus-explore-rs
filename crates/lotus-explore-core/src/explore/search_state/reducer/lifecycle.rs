@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use crate::explore::command::SearchCommand;
+use crate::explore::error::{DomainError, QueryPhase};
 use crate::explore::error_recovery::should_clear_state_on_error;
-use crate::explore::types::{DomainError, QueryPhase};
 
 use super::super::SearchLifecycleState;
 

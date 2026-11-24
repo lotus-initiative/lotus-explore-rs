@@ -17,8 +17,8 @@ use tokio::sync::{OnceCell, Semaphore};
 
 use crate::{
     config::AppConfig,
+    dto::{ExportUrlResponse, SearchResponse},
     errors::SharedApiError,
-    types::{ExportUrlResponse, SearchResponse},
 };
 
 pub use self::cache::{

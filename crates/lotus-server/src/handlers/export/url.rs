@@ -9,11 +9,11 @@ use lotus_query::ExportFormat;
 
 use super::super::prepare::{PreparedExportRequest, prepare_export_request};
 use crate::{
+    dto::{ExportUrlResponse, SearchRequest},
     errors::{ApiError, ErrorResponse, SharedApiError},
     state::{
         AppState, export_cache_get, export_cache_put, export_inflight_cell, export_inflight_remove,
     },
-    types::{ExportUrlResponse, SearchRequest},
 };
 
 async fn cached_export_urls(

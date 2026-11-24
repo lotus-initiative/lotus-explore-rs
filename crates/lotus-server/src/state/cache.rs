@@ -12,7 +12,7 @@ use super::{
     AppState, CACHE_PRUNE_INTERVAL, EXPORT_CACHE_TTL, MAX_EXPORT_CACHE_ENTRIES,
     MAX_SEARCH_CACHE_ENTRIES, MAX_TAXON_CACHE_ENTRIES, SEARCH_CACHE_TTL, TAXON_CACHE_TTL,
 };
-use crate::types::{ExportUrlResponse, SearchResponse};
+use crate::dto::{ExportUrlResponse, SearchResponse};
 
 #[derive(Clone, Debug)]
 pub struct CachedTaxonResolution {

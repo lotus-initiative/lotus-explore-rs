@@ -4,7 +4,7 @@
 
 use std::cmp::Reverse;
 
-use super::types::{GraphEmptyReason, GraphProjection, NodeKey, NodeKind};
+use super::kinds::{GraphEmptyReason, GraphProjection, NodeKey, NodeKind};
 
 /// One vertex in the projected graph.
 #[derive(Debug, Clone, PartialEq)]

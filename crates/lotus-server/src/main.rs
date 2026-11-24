@@ -11,6 +11,7 @@
 mod cache_key;
 mod clock;
 mod config;
+mod dto;
 mod errors;
 mod export_urls;
 mod handlers;
@@ -18,7 +19,6 @@ mod logging;
 mod query_logic;
 mod services;
 mod state;
-mod types;
 
 #[cfg(test)]
 mod characterization_tests;
@@ -43,10 +43,10 @@ use utoipa::OpenApi;
 
 use crate::{
     config::{AppConfig, build_cors_layer},
+    dto::{ExportUrlResponse, HealthResponse, SearchRequest, SearchResponse, SearchStats},
     errors::ErrorResponse,
     handlers::{export_file, export_urls, health, metrics, search},
     state::AppState,
-    types::{ExportUrlResponse, HealthResponse, SearchRequest, SearchResponse, SearchStats},
 };
 use lotus_explore_core::api::dto::{ApiElementState, ApiSmilesSearchType, RowDto};
 

@@ -3,7 +3,7 @@
 //! Shared search outcome type for completed Explore executions.
 
 use crate::api::dto::SearchResponse;
-use crate::explore::types::LookupNotice;
+use crate::explore::error::LookupNotice;
 use lotus_model::{ColumnarResultSet, CompoundEntry, SparqlEndpoint};
 use std::sync::Arc;
 

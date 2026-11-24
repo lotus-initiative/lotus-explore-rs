@@ -351,5 +351,5 @@ impl DomainError {
 }
 
 #[cfg(test)]
-#[path = "types/tests.rs"]
+#[path = "error/tests.rs"]
 mod tests;

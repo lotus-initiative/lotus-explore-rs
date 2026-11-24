@@ -7,8 +7,8 @@
 use super::*;
 use crate::repositories::mock::MockRepository;
 use lotus_explore_core::explore::command::SearchCommand;
+use lotus_explore_core::explore::error::ValidationFault;
 use lotus_explore_core::explore::request::SearchRequest;
-use lotus_explore_core::explore::types::ValidationFault;
 use lotus_model::SearchCriteria;
 
 #[test]
@@ -140,7 +140,7 @@ fn interactive_pipeline_fetches_rows_and_counts() {
 
 #[test]
 fn substructure_smiles_with_wildcard_skips_identity_lookup_and_omits_biota_closure() {
-    use lotus_explore_core::explore::types::LookupNotice;
+    use lotus_explore_core::explore::error::LookupNotice;
     use lotus_explore_core::graph::NETWORK_STARTERS;
     use std::cell::RefCell;
 

@@ -75,7 +75,7 @@ exclude_globs = ["apps/lotus-explore-rs/**", "crates/lotus-search/src/**/wasm.rs
 
 # Mutants no test can kill, kept out of every run. Each one says why.
 #
-#   lotus-explore-core explore/types.rs: `DomainError::memory_limit` and the
+#   lotus-explore-core explore/error.rs: `DomainError::memory_limit` and the
 #   `MemoryLimit` arms
 #
 # `#[cfg(target_arch = "wasm32")]`: cargo-mutants builds and tests natively, so

@@ -4,7 +4,7 @@
 use super::*;
 use crate::explore::actions::ExploreAction;
 use crate::explore::command::SearchCommand;
-use crate::explore::types::{DomainError, QueryPhase, QueryStage, ValidationFault};
+use crate::explore::error::{DomainError, QueryPhase, QueryStage, ValidationFault};
 use crate::ports::RepositoryError;
 use crate::sort::{SortColumn, SortDir};
 use lotus_model::SearchCriteria;

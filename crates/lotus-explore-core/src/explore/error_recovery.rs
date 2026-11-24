@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Error recovery coordination — intelligent retry decisions based on error classification.
 
+use crate::explore::error::{DomainError, QueryStage};
 use crate::explore::transport_classification::{TransportFailureKind, classify_transport_error};
-use crate::explore::types::{DomainError, QueryStage};
 use crate::ports::RepositoryError;
 
 /// Encapsulates retry decision-making for a failed search operation.

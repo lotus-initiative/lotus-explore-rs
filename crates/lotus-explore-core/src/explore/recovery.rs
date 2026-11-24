@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Error recovery strategies and stale state handling patterns.
 
+use crate::explore::error::DomainError;
 use crate::explore::transport_classification::classify_transport_error;
-use crate::explore::types::DomainError;
 
 /// Determines whether an error is recoverable and worth retrying.
 #[must_use]

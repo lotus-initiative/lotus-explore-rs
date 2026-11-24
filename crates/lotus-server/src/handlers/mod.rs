@@ -13,7 +13,7 @@ use axum::{
     response::Response,
 };
 
-use crate::{errors::ApiError, state::AppState, types::HealthResponse};
+use crate::{dto::HealthResponse, errors::ApiError, state::AppState};
 
 pub use self::export::{__path_export_file, __path_export_urls, export_file, export_urls};
 #[cfg(test)]

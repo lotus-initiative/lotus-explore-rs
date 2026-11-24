@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use super::ZenodoClient;
 use super::client::{ensure_success, parse_action_deposition, parse_json_response};
-use super::types::{DepositMetadata, Deposition, DepositionId, PublishedRecord, UploadFile};
+use super::record::{DepositMetadata, Deposition, DepositionId, PublishedRecord, UploadFile};
 
 impl ZenodoClient {
     /// Creates a new deposition (or versions `root_id`), updates metadata,

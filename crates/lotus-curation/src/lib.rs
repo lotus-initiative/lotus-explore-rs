@@ -14,21 +14,18 @@
     )
 )]
 
-mod constants;
+mod error;
 mod input;
-mod internal;
 mod knowledge;
 mod quickstatements;
+mod resolution;
+mod row;
 mod structure;
-mod types;
+mod wikidata;
 mod wikidata_query;
 
-pub use constants::{
-    CURATION_SPARQL_PREFIXES, WD_CHEMICAL_COMPOUND_QID, WD_OCCURS_IN_TAXON_PROP,
-    WD_STEREOISOMER_GROUP_QID, WD_TAXON_QID, WD_TYPE_CHEMICAL_ENTITY_QID,
-};
+pub use error::{CurationError, CurationErrorKind};
 pub use input::{parse_tabular, row_uniqueness_key};
-pub use internal::{DependencyResolution, MassResolution, WikidataCompound};
 pub use knowledge::{
     REVISED_ROW_NOTE, StructureKey, WikidataLookup, is_revised_row, look_up, revised_row_statement,
     to_result_row,
@@ -38,13 +35,15 @@ pub use quickstatements::{
     merge_new_compound_creates, qs_canonical_smiles_statement, qs_inchi_statement,
     qs_inchikey_statement, qs_isomeric_smiles_statement, qs_mass_statement, qs_statement_with_refs,
 };
+pub use resolution::{DependencyResolution, MassResolution, WikidataCompound};
+pub use row::{CurationInputRow, CurationResultRow, CurationStatus, QuickStatementsBundle};
 pub use structure::{
     ConvertedStructure, convert_structure, convert_structures, extract_formula_from_inchi,
     has_stereo_marks, normalize_formula_for_wikidata, strip_stereo_marks,
 };
-pub use types::{
-    CurationError, CurationErrorKind, CurationInputRow, CurationResultRow, CurationStatus,
-    QuickStatementsBundle,
+pub use wikidata::{
+    CURATION_SPARQL_PREFIXES, WD_CHEMICAL_COMPOUND_QID, WD_OCCURS_IN_TAXON_PROP,
+    WD_STEREOISOMER_GROUP_QID, WD_TAXON_QID, WD_TYPE_CHEMICAL_ENTITY_QID,
 };
 pub use wikidata_query::{
     build_compound_lookup_query, build_occurrence_query, build_occurrence_with_ref_query,

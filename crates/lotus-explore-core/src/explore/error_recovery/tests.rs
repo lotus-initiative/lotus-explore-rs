@@ -3,7 +3,7 @@
 //! The tests for `error_recovery`, in their own file.
 
 use super::*;
-use crate::explore::types::ValidationFault;
+use crate::explore::error::ValidationFault;
 
 #[test]
 fn validation_error_does_not_retry() {

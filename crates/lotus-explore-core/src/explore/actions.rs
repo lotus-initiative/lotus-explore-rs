@@ -3,7 +3,7 @@
 //! Action catalog for the Explore feature reducer.
 
 use crate::explore::command::SearchCommand;
-use crate::explore::types::{DomainError, LookupNotice, QueryPhase};
+use crate::explore::error::{DomainError, LookupNotice, QueryPhase};
 use crate::sort::SortColumn;
 use lotus_model::{SearchCriteria, SparqlEndpoint};
 use std::sync::Arc;

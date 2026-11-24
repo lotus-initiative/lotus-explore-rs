@@ -10,7 +10,7 @@ use crate::i18n::{count_label, format_count};
 use crate::state::use_results_context;
 use crate::ui::notice::{NoticeBar, NoticeTone};
 use dioxus::prelude::*;
-use lotus_explore_core::explore::types::QueryPhase;
+use lotus_explore_core::explore::error::QueryPhase;
 
 /// Branded breathing LOTUS flower indicator.
 #[component]

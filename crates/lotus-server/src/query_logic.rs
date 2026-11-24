@@ -3,9 +3,9 @@
 //! SPARQL query construction, taxon resolution, and request transformation logic.
 
 use crate::{
+    dto::SearchRequest,
     errors::ApiError,
     state::{AppState, taxon_cache_get, taxon_cache_put},
-    types::SearchRequest,
 };
 use lotus_model::SearchCriteria;
 

@@ -5,7 +5,7 @@
 #![allow(clippy::panic)]
 
 use super::*;
-use crate::explore::types::{QueryStage, ValidationFault};
+use crate::explore::error::{QueryStage, ValidationFault};
 use crate::ports::RepositoryError;
 
 #[test]

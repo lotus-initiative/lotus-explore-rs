@@ -21,13 +21,13 @@
 use crate::features::explore::service::{api_pipeline, results_pipeline};
 use crate::perf;
 use crate::services::search_telemetry as telemetry;
+use lotus_explore_core::explore::error::{DomainError, QueryPhase};
 use lotus_explore_core::explore::outcome::SearchOutcome;
 use lotus_explore_core::explore::request::SearchRequest;
 use lotus_explore_core::explore::search_metrics::{SearchMetrics, emit_search_summary};
 use lotus_explore_core::explore::service::{
     build_query::normalize_smiles, strategy::ExecutionStrategy,
 };
-use lotus_explore_core::explore::types::{DomainError, QueryPhase};
 use lotus_explore_core::ports::LotusRepository;
 
 pub struct SearchExecutor<R, P, G>

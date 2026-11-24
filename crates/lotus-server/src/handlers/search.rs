@@ -10,12 +10,12 @@ use tokio::time::timeout;
 use super::prepare::{PreparedSearchRequest, acquire_upstream_permit, prepare_search_request};
 use crate::{
     cache_key::build_search_cache_key,
+    dto::{SearchRequest, SearchResponse},
     errors::{ApiError, ErrorResponse, SharedApiError},
     services::build_search_response,
     state::{
         AppState, search_cache_get, search_cache_put, search_inflight_cell, search_inflight_remove,
     },
-    types::{SearchRequest, SearchResponse},
 };
 
 async fn cached_search_response(

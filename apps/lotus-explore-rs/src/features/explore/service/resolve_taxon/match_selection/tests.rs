@@ -5,7 +5,7 @@
 #![allow(clippy::expect_used)]
 
 use super::*;
-use lotus_explore_core::explore::types::LookupNotice;
+use lotus_explore_core::explore::error::LookupNotice;
 
 fn candidate(name: &str, qid: &str) -> TaxonMatch {
     TaxonMatch {

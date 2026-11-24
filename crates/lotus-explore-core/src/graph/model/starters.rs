@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Curated `/network` starters and global node search match type.
 
-use super::types::{NodeKey, NodeKind};
+use super::kinds::{NodeKey, NodeKind};
 
 /// Entity match returned by [`super::super::search_all_nodes`] across the full filtered set.
 #[derive(Debug, Clone, PartialEq, Eq)]

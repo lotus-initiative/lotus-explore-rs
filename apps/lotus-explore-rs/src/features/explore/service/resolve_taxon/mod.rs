@@ -14,10 +14,10 @@ mod match_selection;
 use crate::features::explore::taxon_cache;
 use crate::perf;
 use crate::services::search_telemetry as telemetry;
-use lotus_explore_core::explore::search_metrics::SearchMetrics;
-use lotus_explore_core::explore::types::{
+use lotus_explore_core::explore::error::{
     DomainError, LookupNotice, ParseFault, QueryStage, ValidationFault,
 };
+use lotus_explore_core::explore::search_metrics::SearchMetrics;
 use lotus_explore_core::ports::LotusRepository;
 use lotus_model::TaxonMatch;
 use lotus_model::standardize_taxon_name as sanitize_taxon_input;

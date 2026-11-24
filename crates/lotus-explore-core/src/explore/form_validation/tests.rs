@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use super::validate_dispatch_criteria;
-use crate::explore::types::ValidationFault;
+use crate::explore::error::ValidationFault;
 use lotus_model::{SearchCriteria, SmilesSearchType};
 
 const YEAR: u16 = 2027;

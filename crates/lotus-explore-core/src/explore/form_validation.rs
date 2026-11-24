@@ -6,7 +6,7 @@
 //! CLI enforce one set of rules, translating [`lotus_model::ValidationError`]
 //! into [`ValidationFault`].
 
-use crate::explore::types::ValidationFault;
+use crate::explore::error::ValidationFault;
 use lotus_model::{SearchCriteria, ValidationError, validate_criteria};
 
 /// Validate criteria against `year_max` before dispatching a search.

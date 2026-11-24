@@ -3,7 +3,7 @@
 //! The tests for `search_state`, in their own file.
 
 use super::*;
-use lotus_explore_core::explore::types::QueryPhase;
+use lotus_explore_core::explore::error::QueryPhase;
 
 #[test]
 fn noop_detection_handles_phase_and_error_actions() {

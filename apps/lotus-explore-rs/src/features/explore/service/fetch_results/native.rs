@@ -11,8 +11,8 @@
 use super::{FetchResult, PlannedResultsFetch};
 use crate::perf;
 use crate::services::search_telemetry as telemetry;
+use lotus_explore_core::explore::error::{DomainError, ParseFault, QueryStage};
 use lotus_explore_core::explore::search_metrics::SearchMetrics;
-use lotus_explore_core::explore::types::{DomainError, ParseFault, QueryStage};
 use lotus_explore_core::ports::LotusRepository;
 use lotus_model::ColumnarResultSet;
 // Named here because only the native fetch path streams a file; going through the

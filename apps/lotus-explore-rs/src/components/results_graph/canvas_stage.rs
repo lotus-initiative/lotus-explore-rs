@@ -14,7 +14,7 @@ use crate::i18n::{TextKey, aria_graph_kind_toggle, format_count, graph_two_type_
 use crate::state::use_results_context;
 use crate::ui::notice::{NoticeBar, NoticeTone};
 use dioxus::prelude::*;
-use lotus_explore_core::explore::types::QueryPhase;
+use lotus_explore_core::explore::error::QueryPhase;
 use lotus_explore_core::graph::{
     GraphModel, GraphProjection, GraphScope, NodeKind, OVERVIEW_MAX_NODE_PRESETS,
 };

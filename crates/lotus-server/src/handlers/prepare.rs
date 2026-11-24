@@ -14,12 +14,12 @@ use tokio::{
 
 use crate::{
     cache_key::build_export_cache_key,
+    dto::SearchRequest,
     errors::{ApiError, SharedApiError},
     query_logic::{
         apply_request, build_execution_query_with, resolve_search_inputs, resolve_taxon_qid_cached,
     },
     state::{AppState, RuntimeMetrics},
-    types::SearchRequest,
 };
 
 /// Retry delay advertised when upstream query slots are saturated.

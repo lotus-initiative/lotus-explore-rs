@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Retryable search orchestration — integration point for error recovery with the base orchestrator.
 
+use crate::explore::error::DomainError;
 use crate::explore::error_recovery::{ErrorClass, classify_error_recovery};
-use crate::explore::types::DomainError;
 
 /// Normalized retry decision used by lifecycle/telemetry orchestration.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
