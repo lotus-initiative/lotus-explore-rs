@@ -27,8 +27,8 @@ use dioxus::prelude::*;
 /// The example buttons, one of each kind the field accepts. The list and its
 /// explanation live in `lotus-model`, next to the input classifier, so the buttons
 /// and the resolver cannot disagree about what is a name and what is a structure.
-use lotus_model::REFERENCE_INPUT_EXAMPLES as REFERENCE_SUGGESTIONS;
-use lotus_model::STRUCTURE_INPUT_EXAMPLES as STRUCTURE_SUGGESTIONS;
+use lotus_model::REFERENCE_INPUT_EXAMPLES;
+use lotus_model::STRUCTURE_INPUT_EXAMPLES;
 use lotus_model::SmilesSearchType;
 
 /// JSON Schema for search form autofill / MCP tooling introspection.
@@ -198,13 +198,13 @@ fn ReferenceInput() -> Element {
                 class: "min-h-[44px] font-mono w-full rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
             }
             datalist { id: "reference-suggestions",
-                for item in REFERENCE_SUGGESTIONS {
+                for item in REFERENCE_INPUT_EXAMPLES {
                     option { value: "{item}" }
                 }
             }
             FieldExamples {
                 target: "reference-input",
-                values: &REFERENCE_SUGGESTIONS,
+                values: &REFERENCE_INPUT_EXAMPLES,
                 heading: TextKey::Examples,
                 onfill: move |value: String| ctx.update(FormAction::Reference(value)),
             }
@@ -244,7 +244,7 @@ fn StructureInput() -> Element {
             }
             FieldExamples {
                 target: "smiles-input",
-                values: &STRUCTURE_SUGGESTIONS,
+                values: &STRUCTURE_INPUT_EXAMPLES,
                 heading: TextKey::Examples,
                 onfill: move |value: String| ctx.update(FormAction::Smiles(value)),
             }

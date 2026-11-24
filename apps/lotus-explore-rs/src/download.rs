@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Shared download helpers for browser/native targets, including format handling & deduplication.
 
-use lotus_query::ExportFormat as DownloadFormat;
+use lotus_query::ExportFormat;
 
 use std::sync::Arc;
 
@@ -92,13 +92,13 @@ pub fn blob_path_message(rows: usize, limit: usize) -> String {
 ///
 /// Ordered by a test below, because an estimate that reorders would make the gate
 /// wrong in the direction nobody notices.
-const BYTES_PER_ROW: &[(DownloadFormat, usize)] = &[
+const BYTES_PER_ROW: &[(ExportFormat, usize)] = &[
     // 200,000 rows -> 23,191,983 bytes
-    (DownloadFormat::Csv, 116),
+    (ExportFormat::Csv, 116),
     // 200,000 rows -> 133,392,052 bytes
-    (DownloadFormat::Json, 667),
+    (ExportFormat::Json, 667),
     // 200,000 rows -> 55,151,433 bytes
-    (DownloadFormat::Rdf, 276),
+    (ExportFormat::Rdf, 276),
 ];
 
 /// The RAM the in-memory path may assemble before the tab goes.
@@ -121,7 +121,7 @@ const IN_MEMORY_BUDGET_BYTES: usize = 512 * 1024 * 1024;
 
 /// The most rows the in-memory path will attempt, in `format`.
 #[must_use]
-pub fn blob_path_ceiling(format: DownloadFormat) -> usize {
+pub fn blob_path_ceiling(format: ExportFormat) -> usize {
     let per_row = BYTES_PER_ROW
         .iter()
         .find(|(f, _)| *f == format)
@@ -146,7 +146,7 @@ pub const DOWNLOAD_MAX_ROWS: usize = 1_000_000;
 /// Checked before a single chunk is produced, so finding out costs one comparison
 /// rather than a killed tab.
 #[must_use]
-pub fn blob_path_can_carry(rows: usize, format: DownloadFormat) -> bool {
+pub fn blob_path_can_carry(rows: usize, format: ExportFormat) -> bool {
     rows <= blob_path_ceiling(format)
 }
 
@@ -188,7 +188,7 @@ pub struct BrowserDownload;
 /// file appearing in `~/Downloads` with nothing on screen is indistinguishable
 /// from a button that did nothing.
 pub async fn execute_download(
-    format: DownloadFormat,
+    format: ExportFormat,
     #[cfg_attr(not(target_arch = "wasm32"), allow(unused_variables))] browser: BrowserDownload,
     query: Arc<str>,
     filename: String,

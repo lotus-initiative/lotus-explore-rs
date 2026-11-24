@@ -12,9 +12,9 @@ fn the_ceiling_follows_the_format_and_not_one_number() {
     // CSV line, a JSON object with its keys spelled out, or the reified Turtle
     // chain. One number either starves CSV or hands Turtle a budget that takes
     // the tab with it.
-    let csv = super::blob_path_ceiling(super::DownloadFormat::Csv);
-    let json = super::blob_path_ceiling(super::DownloadFormat::Json);
-    let rdf = super::blob_path_ceiling(super::DownloadFormat::Rdf);
+    let csv = super::blob_path_ceiling(super::ExportFormat::Csv);
+    let json = super::blob_path_ceiling(super::ExportFormat::Json);
+    let rdf = super::blob_path_ceiling(super::ExportFormat::Rdf);
     assert_eq!(
         csv,
         super::DOWNLOAD_MAX_ROWS,
@@ -43,8 +43,8 @@ fn the_ceiling_follows_the_format_and_not_one_number() {
 /// Turtle ever does start costing more than JSON, this is where it shows up.
 #[test]
 fn turtle_is_cheaper_per_row_than_json_because_the_estimates_used_to_say_otherwise() {
-    let json = super::blob_path_ceiling(super::DownloadFormat::Json);
-    let rdf = super::blob_path_ceiling(super::DownloadFormat::Rdf);
+    let json = super::blob_path_ceiling(super::ExportFormat::Json);
+    let rdf = super::blob_path_ceiling(super::ExportFormat::Rdf);
     assert!(
         rdf > json,
         "Turtle measured 276 B/row against JSON's 667, so it earns the higher \
@@ -74,17 +74,17 @@ fn the_estimates_are_ordered_the_way_the_formats_nest() {
     // budget it cannot hold. Ceiling is the inverse of cost and is bounded by
     // `DOWNLOAD_MAX_ROWS`, so CSV and Turtle both land on the same ceiling while
     // costing very different amounts, and ordering the ceilings would say nothing.
-    let cost = |f: super::DownloadFormat| match f {
-        super::DownloadFormat::Csv => 116,
-        super::DownloadFormat::Json => 667,
-        super::DownloadFormat::Rdf => 276,
+    let cost = |f: super::ExportFormat| match f {
+        super::ExportFormat::Csv => 116,
+        super::ExportFormat::Json => 667,
+        super::ExportFormat::Rdf => 276,
     };
     assert!(
-        cost(super::DownloadFormat::Csv) < cost(super::DownloadFormat::Json),
+        cost(super::ExportFormat::Csv) < cost(super::ExportFormat::Json),
         "a CSV line is the narrowest of the three"
     );
     assert!(
-        cost(super::DownloadFormat::Rdf) < cost(super::DownloadFormat::Json),
+        cost(super::ExportFormat::Rdf) < cost(super::ExportFormat::Json),
         "measured: Turtle writes short repeated IRIs where JSON spells out a key \
          per column, so Turtle is the cheaper of the two despite emitting more lines"
     );
@@ -93,17 +93,14 @@ fn the_estimates_are_ordered_the_way_the_formats_nest() {
 #[test]
 fn the_in_memory_path_refuses_past_the_ceiling() {
     // The failure this prevents is a killed tab, not an error message.
-    assert!(super::blob_path_can_carry(0, super::DownloadFormat::Csv));
-    assert!(super::blob_path_can_carry(
-        10_000,
-        super::DownloadFormat::Csv
-    ));
+    assert!(super::blob_path_can_carry(0, super::ExportFormat::Csv));
+    assert!(super::blob_path_can_carry(10_000, super::ExportFormat::Csv));
     assert!(
-        super::blob_path_can_carry(super::DOWNLOAD_MAX_ROWS, super::DownloadFormat::Csv),
+        super::blob_path_can_carry(super::DOWNLOAD_MAX_ROWS, super::ExportFormat::Csv),
         "the ceiling itself must be allowed"
     );
     assert!(
-        !super::blob_path_can_carry(super::DOWNLOAD_MAX_ROWS + 1, super::DownloadFormat::Csv),
+        !super::blob_path_can_carry(super::DOWNLOAD_MAX_ROWS + 1, super::ExportFormat::Csv),
         "one row past the ceiling must be refused"
     );
 }

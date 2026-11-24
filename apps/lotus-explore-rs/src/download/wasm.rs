@@ -11,7 +11,7 @@ use crate::repositories::hybrid::is_wdqs_fallback_used;
 use crate::sparql::wdqs_download_query;
 use lotus_model::ColumnarResultSet;
 use lotus_model::{QLEVER_WIKIDATA, SearchCriteria};
-use lotus_query::ExportFormat as DownloadFormat;
+use lotus_query::ExportFormat;
 use lotus_query::RowExporter;
 use std::sync::Arc;
 
@@ -35,7 +35,7 @@ use std::sync::Arc;
 /// and the Rust buffer dropped before the next is produced, which is the same
 /// discipline the WDQS path uses for the same reason.
 pub(super) async fn execute_download_from_rows(
-    format: DownloadFormat,
+    format: ExportFormat,
     set: &ColumnarResultSet,
     filename: &str,
     dl_timer: perf::TimerHandle,
@@ -115,7 +115,7 @@ pub(super) async fn execute_download_from_rows(
 ///
 /// Every step down is logged with its reason, because "the download was slow" and "the
 /// browser made us buffer 600 MB" look identical from the outside.
-async fn open_sink(filename: &str, rows: usize, format: DownloadFormat) -> Sink {
+async fn open_sink(filename: &str, rows: usize, format: ExportFormat) -> Sink {
     debug_assert_eq!(
         super::SINK_PREFERENCE[0],
         SinkPreference::UserChosenFile,
@@ -225,7 +225,7 @@ impl Sink {
 }
 
 pub(super) async fn execute_download_wasm(
-    format: DownloadFormat,
+    format: ExportFormat,
     criteria: Arc<SearchCriteria>,
     query: Arc<str>,
     filename: String,
@@ -298,7 +298,7 @@ pub(super) async fn execute_download_wasm(
 /// WDQS when the interactive query already fell back, because that endpoint is then
 /// known to answer; a form POST to `QLever` otherwise, which needs no fetch from here.
 async fn qlever_route(
-    format: DownloadFormat,
+    format: ExportFormat,
     query: Arc<str>,
     filename: String,
     dl_timer: perf::TimerHandle,
@@ -333,7 +333,7 @@ async fn qlever_route(
 /// export URL and a `QLever` form POST are both handed to the browser, which
 /// streams them itself and never puts a byte in this module's memory.
 async fn execute_download_wasm_wdqs(
-    format: DownloadFormat,
+    format: ExportFormat,
     query: Arc<str>,
     filename: String,
     dl_timer: perf::TimerHandle,
@@ -424,16 +424,16 @@ async fn execute_download_wasm_wdqs(
 }
 
 /// Returns the MIME type for downloaded file content.
-fn wdqs_content_type(format: DownloadFormat) -> &'static str {
+fn wdqs_content_type(format: ExportFormat) -> &'static str {
     match format {
-        DownloadFormat::Csv => "text/csv",
-        DownloadFormat::Json => "application/sparql-results+json",
-        DownloadFormat::Rdf => "text/turtle",
+        ExportFormat::Csv => "text/csv",
+        ExportFormat::Json => "application/sparql-results+json",
+        ExportFormat::Rdf => "text/turtle",
     }
 }
 
 async fn execute_download_wasm_browser_post(
-    format: DownloadFormat,
+    format: ExportFormat,
     query: Arc<str>,
     filename: String,
     dl_timer: perf::TimerHandle,
@@ -479,13 +479,13 @@ async fn execute_download_wasm_browser_post(
 /// finished an export format returns. An empty string is not a usable URL, and
 /// handing one to the browser would produce a download of the current page.
 fn api_export_url(
-    format: DownloadFormat,
+    format: ExportFormat,
     urls: &lotus_explore_core::api::dto::ExportUrlResponse,
 ) -> Option<&str> {
     let url = match format {
-        DownloadFormat::Csv => super::gz_or_plain_url(urls.csv_gz_url.as_deref(), &urls.csv_url),
-        DownloadFormat::Json => super::gz_or_plain_url(urls.json_gz_url.as_deref(), &urls.json_url),
-        DownloadFormat::Rdf => super::gz_or_plain_url(urls.rdf_gz_url.as_deref(), &urls.rdf_url),
+        ExportFormat::Csv => super::gz_or_plain_url(urls.csv_gz_url.as_deref(), &urls.csv_url),
+        ExportFormat::Json => super::gz_or_plain_url(urls.json_gz_url.as_deref(), &urls.json_url),
+        ExportFormat::Rdf => super::gz_or_plain_url(urls.rdf_gz_url.as_deref(), &urls.rdf_url),
     };
     (!url.trim().is_empty()).then_some(url)
 }

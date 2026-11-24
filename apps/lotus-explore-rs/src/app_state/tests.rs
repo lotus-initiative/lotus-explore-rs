@@ -35,7 +35,7 @@ fn app_state_clone_is_equal_to_original() {
 #[test]
 fn download_state_with_pending_format_is_not_default() {
     let s = DownloadState {
-        pending_format: Some(DownloadFormat::Csv),
+        pending_format: Some(ExportFormat::Csv),
         pending_invalid_format: None,
         direct_execute: false,
     };

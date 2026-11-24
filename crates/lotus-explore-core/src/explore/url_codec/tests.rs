@@ -5,7 +5,7 @@
 
 use super::*;
 use lotus_model::{ElementState, SearchCriteria, SmilesSearchType};
-use lotus_query::ExportFormat as DownloadFormat;
+use lotus_query::ExportFormat;
 
 #[test]
 fn parse_criteria_supports_formula_and_halogens() {
@@ -133,7 +133,7 @@ fn startup_action_download_has_priority_over_execute() {
     params.insert("execute".into(), "true".into());
     params.insert("format".into(), "rdf".into());
     let startup = parse_startup_action_from_params(&params);
-    assert_eq!(startup.pending_format, Some(DownloadFormat::Rdf));
+    assert_eq!(startup.pending_format, Some(ExportFormat::Rdf));
     assert!(startup.pending_invalid_format.is_none());
     assert!(!startup.direct_execute);
 }

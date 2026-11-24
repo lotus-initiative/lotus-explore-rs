@@ -10,6 +10,25 @@ This layering prevents the same query, validation, or curation logic from being 
 
 ---
 
+## Domain Glossary
+
+One canonical term per concept across crates, CLI flags, UI, and tests:
+
+| Term | Canonical symbol(s) | Meaning |
+| --- | --- | --- |
+| **Compound** | `CompoundEntry`, `compound_qid` | A chemical entity in Wikidata carrying `InChIKey` (`P235`), canonical/isomeric SMILES (`P233`/`P2017`), formula (`P274`), or exact mass (`P2067`). |
+| **Taxon** | `TaxonResolution`, `TaxonNomenclature` | A biological taxon (`Q…`) matched by QID, scientific name (`P225`), or common name (`P1843`), optionally expanded across accepted/basionym/protonym/replacement links. |
+| **Reference** | `reference`, `look_up` | A scholarly article (`Q…` or upper-cased bare DOI via `P356`) grounding a compound–taxon occurrence (`prov:wasDerivedFrom`). |
+| **Occurrence** | `occurrences_query`, `p:P703` | A reified Wikidata statement linking a compound to a reporting taxon (`P703`) and its reference provenance. |
+| **Search criteria** | `SearchCriteria`, `validate_criteria` | Validated filter state (taxon, structure, reference, mass, year, molecular formula, halogens); constructed via `SearchCriteria::up_to_year(year)`. |
+| **Execution query** | `build_execution_query_with`, `with_filters` | The 15-column `SELECT` SPARQL string emitted after input resolution and server-side filter splicing. |
+| **Columnar result set** | `ColumnarResultSet`, `CsvColumnarReader` | Deduplicated per-entity dictionaries plus flat occurrence edge arrays, streamed in chunks from `QLever` or `WDQS`. |
+| **Export** | `ExportFormat`, `RowExporter` | Serialization of search results or full-graph tables to CSV, SPARQL JSON, or RDF Turtle (`gzip`-optional on native API). |
+| **Curation row** | `CurationInputRow`, `CurationResultRow`, `parse_tabular` | A candidate `(name, smiles, taxon, doi)` batch record ingested from TSV/CSV and reconciled against Wikidata into `QuickStatementsBundle` blocks. |
+| **Endpoint** | `Endpoint`, `Service`, `SparqlEndpoint` | Upstream SPARQL target (`Qlever` primary at `QLEVER_WIKIDATA`, `Wdqs` fallback across `WDQS_WIKIDATA` / `WDQS_SCHOLARLY`). |
+
+---
+
 ## Crate Map & One-Line Responsibilities
 
 ### 11 Workspace Crates (Three Layers)

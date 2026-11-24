@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Consolidated app-level state for download orchestration and render telemetry.
 
-use lotus_query::ExportFormat as DownloadFormat;
+use lotus_query::ExportFormat;
 
 /// App-level state.  One signal of this type lives at the root of `App`.
 /// Scope is deliberately narrow:
@@ -22,7 +22,7 @@ pub struct AppState {
 #[derive(Clone, PartialEq, Eq, Default, Debug)]
 pub struct DownloadState {
     /// Parsed pending programmatic download format.
-    pub pending_format: Option<DownloadFormat>,
+    pub pending_format: Option<ExportFormat>,
 
     /// Raw invalid format from URL (`?download=true&format=...`) preserved so
     /// startup validation can report the exact unsupported value once.

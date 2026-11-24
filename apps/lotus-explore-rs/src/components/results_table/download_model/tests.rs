@@ -9,7 +9,7 @@ use super::{
     build_download_toolbar_model, build_download_toolbar_model_with_endpoint,
 };
 use lotus_model::SearchCriteria;
-use lotus_query::ExportFormat as DownloadFormat;
+use lotus_query::ExportFormat;
 
 /// The year the tests pin, so the filename they assert is the whole filename.
 const YEAR: u16 = 2026;
@@ -19,9 +19,9 @@ const NOW: &str = "2026-03-04T05:06:07Z";
 
 #[test]
 fn download_specs_keep_expected_formats() {
-    assert_eq!(DOWNLOAD_QUERY_CSV_SPEC.format, DownloadFormat::Csv);
-    assert_eq!(DOWNLOAD_QUERY_JSON_SPEC.format, DownloadFormat::Json);
-    assert_eq!(DOWNLOAD_QUERY_RDF_SPEC.format, DownloadFormat::Rdf);
+    assert_eq!(DOWNLOAD_QUERY_CSV_SPEC.format, ExportFormat::Csv);
+    assert_eq!(DOWNLOAD_QUERY_JSON_SPEC.format, ExportFormat::Json);
+    assert_eq!(DOWNLOAD_QUERY_RDF_SPEC.format, ExportFormat::Rdf);
 }
 
 /// The name the toolbar shows is the name the download gets.
@@ -47,9 +47,9 @@ fn the_toolbar_filenames_follow_the_formats_own_extension() {
     );
 
     for (name, format) in [
-        (&model.csv_filename, DownloadFormat::Csv),
-        (&model.json_filename, DownloadFormat::Json),
-        (&model.rdf_filename, DownloadFormat::Rdf),
+        (&model.csv_filename, ExportFormat::Csv),
+        (&model.json_filename, ExportFormat::Json),
+        (&model.rdf_filename, ExportFormat::Rdf),
     ] {
         assert!(
             name.ends_with(&format!(".{}", format.extension())),
@@ -61,7 +61,7 @@ fn the_toolbar_filenames_follow_the_formats_own_extension() {
     assert!(
         model
             .rdf_filename
-            .ends_with(&format!(".{}", DownloadFormat::Rdf.extension())),
+            .ends_with(&format!(".{}", ExportFormat::Rdf.extension())),
         "Turtle is named for what it is, and this is the assertion that would have \
          caught the toolbar still saying rdf after the rename: {}",
         model.rdf_filename

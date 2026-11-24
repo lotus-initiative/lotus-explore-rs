@@ -15,7 +15,7 @@ use crate::perf;
 use crate::state::use_results_context;
 use dioxus::prelude::*;
 use lotus_model::SearchCriteria;
-use lotus_query::ExportFormat as DownloadFormat;
+use lotus_query::ExportFormat;
 use std::sync::Arc;
 
 // `criteria_snapshot` is used on WASM only (threaded into the download
@@ -44,7 +44,7 @@ pub(super) struct DownloadSignals {
     allow(unused_variables, clippy::needless_pass_by_value)
 )]
 fn spawn_query_download(
-    format: DownloadFormat,
+    format: ExportFormat,
     status_message: String,
     criteria_snapshot: Option<Arc<SearchCriteria>>,
     filename: String,

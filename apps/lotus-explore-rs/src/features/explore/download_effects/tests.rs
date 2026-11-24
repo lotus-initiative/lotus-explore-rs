@@ -10,7 +10,7 @@ use super::startup::{StartupTriggerMode, should_trigger_startup_search};
 use crate::app_state::MetricsState;
 use lotus_explore_core::explore::search_state::ExploreState;
 use lotus_model::SearchCriteria;
-use lotus_query::ExportFormat as DownloadFormat;
+use lotus_query::ExportFormat;
 
 /// The year the tests pin, so the filename they assert is the whole filename.
 const YEAR: u16 = 2026;
@@ -21,20 +21,20 @@ const NOW: &str = "2026-03-04T05:06:07Z";
 #[test]
 fn should_trigger_startup_search_requires_all_conditions() {
     assert!(should_trigger_startup_search(
-        Some(DownloadFormat::Csv),
+        Some(ExportFormat::Csv),
         false,
         false,
         false,
     ));
     assert!(!should_trigger_startup_search(None, false, false, false));
     assert!(!should_trigger_startup_search(
-        Some(DownloadFormat::Csv),
+        Some(ExportFormat::Csv),
         false,
         true,
         false,
     ));
     assert!(!should_trigger_startup_search(
-        Some(DownloadFormat::Csv),
+        Some(ExportFormat::Csv),
         false,
         false,
         true,
@@ -51,11 +51,11 @@ fn dispatch_phase_inactive_when_no_pending_format() {
 fn dispatch_phase_waiting_for_loading_when_loading() {
     let mut explore = ExploreState::default();
     explore.lifecycle.loading = true;
-    let phase = classify_dispatch_phase(Some(DownloadFormat::Csv), &explore, YEAR, NOW);
+    let phase = classify_dispatch_phase(Some(ExportFormat::Csv), &explore, YEAR, NOW);
     assert_eq!(
         phase,
         DispatchPhase::WaitingForLoading {
-            format: DownloadFormat::Csv,
+            format: ExportFormat::Csv,
         }
     );
 }
@@ -63,11 +63,11 @@ fn dispatch_phase_waiting_for_loading_when_loading() {
 #[test]
 fn dispatch_phase_waiting_for_query_when_query_absent() {
     let explore = ExploreState::default();
-    let phase = classify_dispatch_phase(Some(DownloadFormat::Csv), &explore, YEAR, NOW);
+    let phase = classify_dispatch_phase(Some(ExportFormat::Csv), &explore, YEAR, NOW);
     assert_eq!(
         phase,
         DispatchPhase::WaitingForQuery {
-            format: DownloadFormat::Csv,
+            format: ExportFormat::Csv,
         }
     );
 }
@@ -81,7 +81,7 @@ fn dispatch_phase_ready_when_all_preconditions_met() {
         ..SearchCriteria::up_to_year(YEAR)
     };
 
-    let phase = classify_dispatch_phase(Some(DownloadFormat::Json), &explore, YEAR, NOW);
+    let phase = classify_dispatch_phase(Some(ExportFormat::Json), &explore, YEAR, NOW);
 
     if let DispatchPhase::Ready {
         #[cfg(target_arch = "wasm32")]
@@ -94,7 +94,7 @@ fn dispatch_phase_ready_when_all_preconditions_met() {
         #[cfg(target_arch = "wasm32")]
         assert_eq!(criteria.taxon, "Rosa");
         assert!(query.contains("SELECT"));
-        assert_eq!(format, DownloadFormat::Json);
+        assert_eq!(format, ExportFormat::Json);
     } else {
         panic!("expected Ready phase, got {:?}", phase);
     }
@@ -103,7 +103,7 @@ fn dispatch_phase_ready_when_all_preconditions_met() {
 #[test]
 fn startup_trigger_mode_discriminates_by_source() {
     let download_mode = StartupTriggerMode::Download {
-        format: DownloadFormat::Csv,
+        format: ExportFormat::Csv,
     };
     let execute_mode = StartupTriggerMode::DirectExecute;
 

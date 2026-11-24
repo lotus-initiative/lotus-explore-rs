@@ -7,12 +7,12 @@ use crate::perf;
 use crate::sparql;
 use crate::sparql::wdqs_download_query;
 use lotus_model::WDQS_SCHOLARLY;
-use lotus_query::ExportFormat as DownloadFormat;
-use lotus_search::ResponseFormat as LotusResponseFormat;
+use lotus_query::ExportFormat;
+use lotus_search::ResponseFormat;
 use std::sync::Arc;
 
 pub(super) async fn execute_download_with_fallback(
-    format: DownloadFormat,
+    format: ExportFormat,
     query: Arc<str>,
     filename: String,
     dl_timer: perf::TimerHandle,
@@ -39,7 +39,7 @@ pub(super) async fn execute_download_with_fallback(
 
 /// Execute a download against a WDQS endpoint with the given query and endpoint.
 async fn execute_download_wdqs_endpoint(
-    format: DownloadFormat,
+    format: ExportFormat,
     query: &str,
     endpoint: &str,
     filename: &str,
@@ -58,7 +58,7 @@ async fn execute_download_wdqs_endpoint(
 }
 
 async fn execute_download_wdqs(
-    format: DownloadFormat,
+    format: ExportFormat,
     query: Arc<str>,
     filename: String,
     dl_timer: perf::TimerHandle,
@@ -76,7 +76,7 @@ async fn execute_download_wdqs(
 /// Logs fetch timing, triggers the browser download, and logs trigger timing.
 /// Shared between the `QLever` and WDQS download paths.
 fn finalize_download(
-    format: DownloadFormat,
+    format: ExportFormat,
     source: &str,
     body: &str,
     dl_timer: perf::TimerHandle,
@@ -118,7 +118,7 @@ fn finalize_download(
 }
 
 fn handle_download_error(
-    format: DownloadFormat,
+    format: ExportFormat,
     error: DownloadError,
     dl_timer: perf::TimerHandle,
 ) -> Result<String, DownloadError> {
@@ -141,32 +141,30 @@ fn handle_download_error(
 }
 
 async fn execute_download_direct(
-    format: DownloadFormat,
+    format: ExportFormat,
     query: &str,
 ) -> Result<String, DownloadError> {
     let prepared_query = format.prepared_query(query);
     match format {
-        DownloadFormat::Csv => sparql::execute_query(&prepared_query)
+        ExportFormat::Csv => sparql::execute_query(&prepared_query)
             .await
             .map_err(|e| DownloadError::Network(e.to_string())),
-        DownloadFormat::Json => {
-            sparql::execute_sparql_format(&prepared_query, LotusResponseFormat::SparqlJson)
+        ExportFormat::Json => {
+            sparql::execute_sparql_format(&prepared_query, ResponseFormat::SparqlJson)
                 .await
                 .map_err(|e| DownloadError::Network(e.to_string()))
         }
-        DownloadFormat::Rdf => {
-            sparql::execute_sparql_format(&prepared_query, LotusResponseFormat::Turtle)
-                .await
-                .map_err(|e| DownloadError::Network(e.to_string()))
-        }
+        ExportFormat::Rdf => sparql::execute_sparql_format(&prepared_query, ResponseFormat::Turtle)
+            .await
+            .map_err(|e| DownloadError::Network(e.to_string())),
     }
 }
 
 async fn execute_sparql_with_format_download(
-    format: DownloadFormat,
+    format: ExportFormat,
     query: &str,
     endpoint: &str,
-    response_format: LotusResponseFormat,
+    response_format: ResponseFormat,
     filename: &str,
     dl_timer: perf::TimerHandle,
 ) -> Result<String, DownloadError> {

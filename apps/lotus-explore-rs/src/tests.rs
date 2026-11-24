@@ -8,10 +8,10 @@ use crate::features::curation::page_controller::rows_to_tsv;
 use crate::features::explore::selectors::toolbar_snapshot_from_result;
 use crate::ui::content_phase::{ContentPhase, LifecycleBooleans};
 use lotus_explore_core::explore::search_state::ExploreState;
-use lotus_query::ExportFormat as DownloadFormat;
+use lotus_query::ExportFormat;
 
 fn is_supported_download_format(fmt: &str) -> bool {
-    DownloadFormat::parse(fmt).is_some()
+    ExportFormat::parse(fmt).is_some()
 }
 
 #[test]

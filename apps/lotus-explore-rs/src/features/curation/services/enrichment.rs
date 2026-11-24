@@ -31,10 +31,10 @@ use lotus_curation::{
     CurationError, CurationInputRow, CurationResultRow, CurationStatus, DependencyResolution,
     MassResolution, QS_REF_INFERRED_FROM_SMILES, WD_CHEMICAL_COMPOUND_QID,
     WD_STEREOISOMER_GROUP_QID, WD_TYPE_CHEMICAL_ENTITY_QID, WikidataCompound,
-    escape_quickstatements, extract_formula_from_inchi, has_stereo_marks as has_isomeric_smiles,
-    is_revised_row, normalize_formula_for_wikidata, normalize_taxon_lookup,
-    qs_canonical_smiles_statement, qs_inchi_statement, qs_inchikey_statement,
-    qs_isomeric_smiles_statement, qs_mass_statement, qs_statement_with_refs, revised_row_statement,
+    escape_quickstatements, extract_formula_from_inchi, has_stereo_marks, is_revised_row,
+    normalize_formula_for_wikidata, normalize_taxon_lookup, qs_canonical_smiles_statement,
+    qs_inchi_statement, qs_inchikey_statement, qs_isomeric_smiles_statement, qs_mass_statement,
+    qs_statement_with_refs, revised_row_statement,
 };
 use lotus_model::normalize_doi;
 use std::collections::HashMap;
@@ -100,7 +100,7 @@ fn revised_result_row(
     CurationResultRow {
         input: input.clone(),
         canonical_smiles: Some(structure.canonical_smiles.clone()),
-        isomeric_smiles: has_isomeric_smiles(&structure.isomeric_smiles)
+        isomeric_smiles: has_stereo_marks(&structure.isomeric_smiles)
             .then(|| structure.isomeric_smiles.clone()),
         inchikey: Some(structure.inchikey.clone()),
         inchi: Some(structure.inchi.clone()),
@@ -292,7 +292,7 @@ async fn update_existing(
     Ok(CurationResultRow {
         input: row.input.clone(),
         canonical_smiles: Some(structure.canonical_smiles.clone()),
-        isomeric_smiles: has_isomeric_smiles(&structure.isomeric_smiles)
+        isomeric_smiles: has_stereo_marks(&structure.isomeric_smiles)
             .then(|| structure.isomeric_smiles.clone())
             .or_else(|| existing.isomeric_smiles.clone()),
         inchikey: Some(structure.inchikey.clone()),
@@ -331,7 +331,7 @@ fn missing_statements(
         lines.push(qs_canonical_smiles_statement(
             &existing.qid,
             &structure.canonical_smiles,
-            has_isomeric_smiles(&structure.isomeric_smiles),
+            has_stereo_marks(&structure.isomeric_smiles),
         ));
     }
     if existing.inchi.is_none() {
@@ -352,7 +352,7 @@ fn missing_statements(
     {
         lines.push(qs_mass_statement(&existing.qid, mass));
     }
-    if has_isomeric_smiles(&structure.isomeric_smiles) && existing.isomeric_smiles.is_none() {
+    if has_stereo_marks(&structure.isomeric_smiles) && existing.isomeric_smiles.is_none() {
         lines.push(qs_isomeric_smiles_statement(
             &existing.qid,
             &structure.isomeric_smiles,
@@ -434,9 +434,9 @@ async fn create_new(row: &Row<'_>) -> Result<CurationResultRow, CurationError> {
     lines.push(qs_canonical_smiles_statement(
         "LAST",
         &structure.canonical_smiles,
-        has_isomeric_smiles(&structure.isomeric_smiles),
+        has_stereo_marks(&structure.isomeric_smiles),
     ));
-    if has_isomeric_smiles(&structure.isomeric_smiles) {
+    if has_stereo_marks(&structure.isomeric_smiles) {
         lines.push(qs_isomeric_smiles_statement(
             "LAST",
             &structure.isomeric_smiles,
@@ -462,7 +462,7 @@ async fn create_new(row: &Row<'_>) -> Result<CurationResultRow, CurationError> {
     Ok(CurationResultRow {
         input: row.input.clone(),
         canonical_smiles: Some(structure.canonical_smiles.clone()),
-        isomeric_smiles: has_isomeric_smiles(&structure.isomeric_smiles)
+        isomeric_smiles: has_stereo_marks(&structure.isomeric_smiles)
             .then(|| structure.isomeric_smiles.clone()),
         inchikey: Some(structure.inchikey.clone()),
         inchi: Some(structure.inchi.clone()),

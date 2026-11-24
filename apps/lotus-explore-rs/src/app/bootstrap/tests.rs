@@ -4,7 +4,7 @@
 
 use super::*;
 use lotus_explore_core::explore::url_codec::InitialDownloadState;
-use lotus_query::ExportFormat as DownloadFormat;
+use lotus_query::ExportFormat;
 
 #[test]
 fn bootstrap_app_copies_startup_locale_and_download_state() {
@@ -12,7 +12,7 @@ fn bootstrap_app_copies_startup_locale_and_download_state() {
         criteria: SearchCriteria::up_to_year(crate::clock::current_year()),
         locale: Locale::Fr,
         download: InitialDownloadState {
-            pending_format: Some(DownloadFormat::Csv),
+            pending_format: Some(ExportFormat::Csv),
             pending_invalid_format: Some("ttl".into()),
             direct_execute: true,
         },
@@ -23,7 +23,7 @@ fn bootstrap_app_copies_startup_locale_and_download_state() {
     assert_eq!(bootstrap.locale, Locale::Fr);
     assert_eq!(
         bootstrap.app_state.download.pending_format,
-        Some(DownloadFormat::Csv)
+        Some(ExportFormat::Csv)
     );
     assert_eq!(
         bootstrap

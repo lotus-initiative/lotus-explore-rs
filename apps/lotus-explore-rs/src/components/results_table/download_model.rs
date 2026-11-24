@@ -4,7 +4,7 @@
 
 use crate::i18n::TextKey;
 use lotus_model::SearchCriteria;
-use lotus_query::ExportFormat as DownloadFormat;
+use lotus_query::ExportFormat;
 
 const QLEVER_UI: &str = "https://qlever.dev/wikidata";
 const WDQS_UI: &str = "https://query-next.wikidata.org";
@@ -38,7 +38,7 @@ impl std::fmt::Display for SparqlEndpointUI {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct DownloadQuerySpec {
-    pub(super) format: DownloadFormat,
+    pub(super) format: ExportFormat,
     pub(super) status_key: TextKey,
     pub(super) title_key: TextKey,
     pub(super) label_key: TextKey,
@@ -51,21 +51,21 @@ pub(super) struct DownloadMetadataSpec {
 }
 
 pub(super) const DOWNLOAD_QUERY_CSV_SPEC: DownloadQuerySpec = DownloadQuerySpec {
-    format: DownloadFormat::Csv,
+    format: ExportFormat::Csv,
     status_key: TextKey::StartingCsvDownload,
     title_key: TextKey::DownloadCsvTitle,
     label_key: TextKey::DownloadCsvLabel,
 };
 
 pub(super) const DOWNLOAD_QUERY_JSON_SPEC: DownloadQuerySpec = DownloadQuerySpec {
-    format: DownloadFormat::Json,
+    format: ExportFormat::Json,
     status_key: TextKey::PreparingJsonDownload,
     title_key: TextKey::DownloadJsonTitle,
     label_key: TextKey::DownloadJsonLabel,
 };
 
 pub(super) const DOWNLOAD_QUERY_RDF_SPEC: DownloadQuerySpec = DownloadQuerySpec {
-    format: DownloadFormat::Rdf,
+    format: ExportFormat::Rdf,
     status_key: TextKey::PreparingRdfDownload,
     title_key: TextKey::DownloadRdfTitle,
     label_key: TextKey::DownloadRdfLabel,
@@ -131,19 +131,19 @@ pub(super) fn build_download_toolbar_model_with_endpoint(
         export_available: sparql_query.is_some() || metadata_json.is_some(),
         csv_filename: lotus_explore_core::export::filename::generate_filename(
             criteria,
-            DownloadFormat::Csv.extension(),
+            ExportFormat::Csv.extension(),
             year,
             now,
         ),
         json_filename: lotus_explore_core::export::filename::generate_filename(
             criteria,
-            DownloadFormat::Json.extension(),
+            ExportFormat::Json.extension(),
             year,
             now,
         ),
         rdf_filename: lotus_explore_core::export::filename::generate_filename(
             criteria,
-            DownloadFormat::Rdf.extension(),
+            ExportFormat::Rdf.extension(),
             year,
             now,
         ),

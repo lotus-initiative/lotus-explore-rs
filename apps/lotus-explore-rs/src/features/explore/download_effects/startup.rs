@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use lotus_query::ExportFormat as DownloadFormat;
+use lotus_query::ExportFormat;
 
 /// Check if startup effect should trigger based on download state and search history.
 /// Returns `true` when all preconditions are met:
 #[must_use]
 pub const fn should_trigger_startup_search(
-    pending_format: Option<DownloadFormat>,
+    pending_format: Option<ExportFormat>,
     direct_execute: bool,
     searched_once: bool,
     loading: bool,
@@ -18,7 +18,7 @@ pub const fn should_trigger_startup_search(
 /// Determine telemetry call for startup trigger based on mode.
 pub enum StartupTriggerMode {
     /// Format pending — user requested download startup.
-    Download { format: DownloadFormat },
+    Download { format: ExportFormat },
     /// Direct execute — user requested immediate search.
     DirectExecute,
 }
