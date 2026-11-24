@@ -29,7 +29,7 @@ PREFIX wikibase: <http://wikiba.se/ontology#>
 /// Every query as `(query, text before the prefixes, text after them)`.
 ///
 /// Only the compound labels put a prefix of their own ahead of the shared block.
-const CASES: [(&str, &str, &str); 28] = [
+const CASES: [(&str, &str, &str); 16] = [
     (
         COMPOUND_TAXON_REFERENCE_QUERY,
         "",
@@ -111,36 +111,6 @@ SELECT ?reference ?doi ?pmid ?pmcid ?title ?date ?journal ?journal_label WHERE {
 }",
     ),
     (
-        COMPOUND_SMILES_CAN_QUERY,
-        "",
-        r"
-SELECT DISTINCT ?compound ?compound_smiles_can WHERE {
-  ?compound wdt:P235 ?inchikey ;
-           wdt:P703 ?taxon ;
-           wdt:P233 ?compound_smiles_can .
-}",
-    ),
-    (
-        COMPOUND_SMILES_ISO_QUERY,
-        "",
-        r"
-SELECT DISTINCT ?compound ?compound_smiles_iso WHERE {
-  ?compound wdt:P235 ?inchikey ;
-           wdt:P703 ?taxon ;
-           wdt:P2017 ?compound_smiles_iso .
-}",
-    ),
-    (
-        COMPOUND_CID_QUERY,
-        "",
-        r"
-SELECT DISTINCT ?compound ?compound_cid WHERE {
-  ?compound wdt:P235 ?inchikey ;
-           wdt:P703 ?taxon ;
-           wdt:P662 ?compound_cid .
-}",
-    ),
-    (
         TAXON_NAME_QUERY,
         "",
         r"
@@ -157,124 +127,12 @@ SELECT DISTINCT ?taxon ?taxon_ncbi WHERE {
 }",
     ),
     (
-        TAXON_OTT_QUERY,
-        "",
-        r"
-SELECT DISTINCT ?taxon ?taxon_ott WHERE {
-  ?taxon wdt:P9157 ?taxon_ott .
-}",
-    ),
-    (
-        TAXON_GBIF_QUERY,
-        "",
-        r"
-SELECT DISTINCT ?taxon ?taxon_gbif WHERE {
-  ?taxon wdt:P846 ?taxon_gbif .
-}",
-    ),
-    (
         TAXON_PARENT_QUERY,
         "",
         r"
 SELECT DISTINCT ?taxon ?taxon_parent WHERE {
   ?taxon wdt:P171 ?taxon_parent .
   ?taxon_parent wdt:P171* wd:Q2382443 .
-}",
-    ),
-    (
-        TAXON_RANK_QUERY,
-        "",
-        r#"
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-SELECT DISTINCT ?taxon ?taxon_rank ?taxon_rank_label WHERE {
-  ?taxon wdt:P105 ?taxon_rank .
-  ?taxon_rank rdfs:label ?taxon_rank_label .
-  FILTER(LANG(?taxon_rank_label) = "en")
-}"#,
-    ),
-    (
-        REFERENCE_DOI_QUERY,
-        "",
-        r"
-SELECT DISTINCT ?reference ?doi WHERE {
-  ?compound wdt:P235 ?inchikey .
-  ?compound p:P703 ?statement .
-  ?statement ps:P703 ?taxon .
-  ?statement wikibase:rank ?_rank .
-  FILTER(?_rank != wikibase:DeprecatedRank)
-  ?statement prov:wasDerivedFrom/pr:P248 ?reference .
-  ?reference wdt:P356 ?doi .
-}",
-    ),
-    (
-        REFERENCE_PMID_QUERY,
-        "",
-        r"
-SELECT DISTINCT ?reference ?pmid WHERE {
-  ?compound wdt:P235 ?inchikey .
-  ?compound p:P703 ?statement .
-  ?statement ps:P703 ?taxon .
-  ?statement wikibase:rank ?_rank .
-  FILTER(?_rank != wikibase:DeprecatedRank)
-  ?statement prov:wasDerivedFrom/pr:P248 ?reference .
-  ?reference wdt:P698 ?pmid .
-}",
-    ),
-    (
-        REFERENCE_PMCID_QUERY,
-        "",
-        r"
-SELECT DISTINCT ?reference ?pmcid WHERE {
-  ?compound wdt:P235 ?inchikey .
-  ?compound p:P703 ?statement .
-  ?statement ps:P703 ?taxon .
-  ?statement wikibase:rank ?_rank .
-  FILTER(?_rank != wikibase:DeprecatedRank)
-  ?statement prov:wasDerivedFrom/pr:P248 ?reference .
-  ?reference wdt:P932 ?pmcid .
-}",
-    ),
-    (
-        REFERENCE_TITLE_QUERY,
-        "",
-        r"
-SELECT DISTINCT ?reference ?title WHERE {
-  ?compound wdt:P235 ?inchikey .
-  ?compound p:P703 ?statement .
-  ?statement ps:P703 ?taxon .
-  ?statement wikibase:rank ?_rank .
-  FILTER(?_rank != wikibase:DeprecatedRank)
-  ?statement prov:wasDerivedFrom/pr:P248 ?reference .
-  ?reference wdt:P1476 ?title .
-}",
-    ),
-    (
-        REFERENCE_DATE_QUERY,
-        "",
-        r"
-SELECT DISTINCT ?reference ?date WHERE {
-  ?compound wdt:P235 ?inchikey .
-  ?compound p:P703 ?statement .
-  ?statement ps:P703 ?taxon .
-  ?statement wikibase:rank ?_rank .
-  FILTER(?_rank != wikibase:DeprecatedRank)
-  ?statement prov:wasDerivedFrom/pr:P248 ?reference .
-  ?reference wdt:P577 ?date .
-}",
-    ),
-    (
-        REFERENCE_JOURNAL_QUERY,
-        "",
-        r"
-SELECT DISTINCT ?reference ?journal ?journal_label WHERE {
-  ?compound wdt:P235 ?inchikey .
-  ?compound p:P703 ?statement .
-  ?statement ps:P703 ?taxon .
-  ?statement wikibase:rank ?_rank .
-  FILTER(?_rank != wikibase:DeprecatedRank)
-  ?statement prov:wasDerivedFrom/pr:P248 ?reference .
-  ?reference wdt:P1433 ?journal .
-  ?journal wdt:P1476 ?journal_label .
 }",
     ),
     (

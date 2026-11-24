@@ -16,73 +16,17 @@ pub const COMPOUND_TAXON_REFERENCE_QUERY: &str = select_distinct!(
     "  ?statement prov:wasDerivedFrom/pr:P248 ?reference .",
 );
 
-/// Canonical SMILES (P233) for compounds that have an occurrence and `InChIKey`.
-pub const COMPOUND_SMILES_CAN_QUERY: &str =
-    occurring_compound_property!("P233", "compound_smiles_can");
-
-/// Isomeric SMILES (P2017) for compounds that have an occurrence and `InChIKey`.
-pub const COMPOUND_SMILES_ISO_QUERY: &str =
-    occurring_compound_property!("P2017", "compound_smiles_iso");
-
-/// `PubChem` CID (P662) for compounds that have an occurrence and `InChIKey`.
-pub const COMPOUND_CID_QUERY: &str = occurring_compound_property!("P662", "compound_cid");
-
 /// Taxon scientific name (P225).
 pub const TAXON_NAME_QUERY: &str = direct_property!("taxon", "P225", "taxon_name");
 
 /// Taxon NCBI taxonomy ID (P685).
 pub const TAXON_NCBI_QUERY: &str = direct_property!("taxon", "P685", "taxon_ncbi");
 
-/// Taxon OTT ID (P9157).
-pub const TAXON_OTT_QUERY: &str = direct_property!("taxon", "P9157", "taxon_ott");
-
-/// Taxon GBIF ID (P846).
-pub const TAXON_GBIF_QUERY: &str = direct_property!("taxon", "P846", "taxon_gbif");
-
 /// Taxon parent (P171), constrained to taxa under Biota (Q2382443).
 pub const TAXON_PARENT_QUERY: &str = select_distinct!(
     "?taxon ?taxon_parent",
     "  ?taxon wdt:P171 ?taxon_parent .",
     "  ?taxon_parent wdt:P171* wd:Q2382443 .",
-);
-
-/// Taxon rank (P105) with its English label.
-pub const TAXON_RANK_QUERY: &str = concat!(
-    prefixes!(),
-    "
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-SELECT DISTINCT ?taxon ?taxon_rank ?taxon_rank_label WHERE {
-  ?taxon wdt:P105 ?taxon_rank .
-  ?taxon_rank rdfs:label ?taxon_rank_label .
-  FILTER(LANG(?taxon_rank_label) = \"en\")
-}"
-);
-
-/// Reference DOI (P356) for references cited by occurrence statements.
-pub const REFERENCE_DOI_QUERY: &str =
-    occurrence_reference!("?reference ?doi", "  ?reference wdt:P356 ?doi .");
-
-/// Reference PMID (P698) for references cited by occurrence statements.
-pub const REFERENCE_PMID_QUERY: &str =
-    occurrence_reference!("?reference ?pmid", "  ?reference wdt:P698 ?pmid .");
-
-/// Reference PMCID (P932) for references cited by occurrence statements.
-pub const REFERENCE_PMCID_QUERY: &str =
-    occurrence_reference!("?reference ?pmcid", "  ?reference wdt:P932 ?pmcid .");
-
-/// Reference title (P1476) for references cited by occurrence statements.
-pub const REFERENCE_TITLE_QUERY: &str =
-    occurrence_reference!("?reference ?title", "  ?reference wdt:P1476 ?title .");
-
-/// Reference publication date (P577) for references cited by occurrence statements.
-pub const REFERENCE_DATE_QUERY: &str =
-    occurrence_reference!("?reference ?date", "  ?reference wdt:P577 ?date .");
-
-/// Reference journal (P1433) with its label for references cited by occurrence statements.
-pub const REFERENCE_JOURNAL_QUERY: &str = occurrence_reference!(
-    "?reference ?journal ?journal_label",
-    "  ?reference wdt:P1433 ?journal .",
-    "  ?journal wdt:P1476 ?journal_label .",
 );
 
 /// Consolidated compound properties (`SMILES`, isomeric `SMILES`, `PubChem` CID)

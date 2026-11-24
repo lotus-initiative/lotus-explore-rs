@@ -56,18 +56,6 @@ macro_rules! direct_property {
     };
 }
 
-/// One direct property of compounds that carry an `InChIKey` and an occurrence.
-macro_rules! occurring_compound_property {
-    ($property:literal, $column:literal) => {
-        select_distinct!(
-            concat!("?compound ?", $column),
-            "  ?compound wdt:P235 ?inchikey ;",
-            "           wdt:P703 ?taxon ;",
-            concat!("           wdt:", $property, " ?", $column, " ."),
-        )
-    };
-}
-
 /// Properties of the references cited by occurrence statements (compound with
 /// an `InChIKey`, found in a taxon, stated in a reference).
 macro_rules! occurrence_reference {
@@ -97,11 +85,8 @@ pub use parse_id::{
     looks_like_archive_inchikey,
 };
 pub use queries_core::{
-    COMPOUND_CID_QUERY, COMPOUND_SMILES_CAN_QUERY, COMPOUND_SMILES_ISO_QUERY,
     COMPOUND_TAXON_REFERENCE_QUERY, EXPORT_COMPOUNDS_QUERY, EXPORT_REFERENCES_QUERY,
-    EXPORT_TAXA_QUERY, REFERENCE_DATE_QUERY, REFERENCE_DOI_QUERY, REFERENCE_JOURNAL_QUERY,
-    REFERENCE_PMCID_QUERY, REFERENCE_PMID_QUERY, REFERENCE_TITLE_QUERY, TAXON_GBIF_QUERY,
-    TAXON_NAME_QUERY, TAXON_NCBI_QUERY, TAXON_OTT_QUERY, TAXON_PARENT_QUERY, TAXON_RANK_QUERY,
+    EXPORT_TAXA_QUERY, TAXON_NAME_QUERY, TAXON_NCBI_QUERY, TAXON_PARENT_QUERY,
 };
 pub use queries_enrich::{
     ARCHIVE_SMILES_QUERY, ARCHIVE_SMILES_WITHOUT_INCHIKEY_QUERY, COMPOUND_CXSMILES_QUERY,
