@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! The tests for `urls`, in their own file.
+//! Unit tests for `export_urls`.
 
 use super::*;
 
@@ -14,8 +14,6 @@ fn the_qlever_url_carries_the_query_and_the_action() {
 
 #[test]
 fn the_query_is_percent_encoded() {
-    // An unencoded space or brace in a query string is a malformed URL, and
-    // a malformed URL fails at the far end with an error nobody can read.
     let url = qlever_export_url("SELECT ?s WHERE { ?s ?p ?o }", ExportFormat::Csv);
     assert!(!url.contains('{'), "{url}");
     assert!(url.contains("%7B") || url.contains("%20"), "{url}");
@@ -43,10 +41,8 @@ fn the_api_url_is_the_one_the_server_serves() {
 
 #[test]
 fn a_cache_key_cannot_escape_its_path_segment() {
-    // The key reaches the server as a path segment; a slash in it would
-    // address a different route.
     assert!(
-        !api_export_file_url("a/../b", ExportFormat::Csv)
+        api_export_file_url("a/../b", ExportFormat::Csv)
             .matches('/')
             .count()
             > 3,

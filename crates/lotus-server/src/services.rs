@@ -1,21 +1,34 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
+//! Upstream SPARQL execution and capped/counted response assembly.
+#![expect(
+    clippy::redundant_pub_crate,
+    reason = "private crate-root module uses pub(crate) because workspace denies unreachable_pub"
+)]
 
-use crate::server::{
+use lotus_model::DatasetStats;
+use lotus_search::{Endpoint, FetchError, ResponseFormat, Service, execute};
+
+use crate::{
     errors::ApiError,
     types::{RowDto, SearchResponse, SearchStats},
 };
-use crate::sparql;
-use lotus_model::DatasetStats;
+
+async fn execute_qlever_csv_bytes(sparql: &str) -> Result<Vec<u8>, FetchError> {
+    let http = lotus_search::reqwest_client::ReqwestClient::new()?;
+    let answer = execute(
+        &http,
+        Endpoint::new(Service::Qlever),
+        sparql,
+        ResponseFormat::Csv,
+    )
+    .await?;
+    Ok(answer.body)
+}
 
 /// Choose between the count query's totals and the exact totals computed from
 /// the displayed rows.
-///
-/// Only falls back when `capped` is `false`, so an uncapped page still gets an
-/// exact total even if the count query fails, whereas a capped page propagates
-/// the failure instead of reporting the truncated sample size as the dataset
-/// total.
-pub fn resolve_count_stats(
+pub(crate) fn resolve_count_stats(
     capped: bool,
     fallback_stats: DatasetStats,
     stats_result: Result<DatasetStats, ApiError>,
@@ -33,7 +46,7 @@ pub fn resolve_count_stats(
     }
 }
 
-pub async fn build_search_response(
+pub(crate) async fn build_search_response(
     execution_query: &str,
     limit: usize,
     include_counts: bool,
@@ -42,7 +55,7 @@ pub async fn build_search_response(
 ) -> Result<SearchResponse, ApiError> {
     let display_query = lotus_query::limit_query(execution_query, limit.saturating_add(1));
     let rows_future = async {
-        let rows_bytes = sparql::execute_sparql_bytes(&display_query)
+        let rows_bytes = execute_qlever_csv_bytes(&display_query)
             .await
             .map_err(|e| ApiError::from_fetch("display query failed", e))?;
         lotus_query::parse_compounds_csv_capped(&rows_bytes, limit)
@@ -53,7 +66,7 @@ pub async fn build_search_response(
         let count_query = lotus_query::counts_query(execution_query);
 
         let stats_future = async {
-            let count_bytes = sparql::execute_sparql_bytes(&count_query)
+            let count_bytes = execute_qlever_csv_bytes(&count_query)
                 .await
                 .map_err(|e| ApiError::from_fetch("count query failed", e))?;
             lotus_query::parse_counts_csv(&count_bytes)

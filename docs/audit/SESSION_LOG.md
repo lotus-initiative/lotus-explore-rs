@@ -79,3 +79,14 @@
   - `crates/lotus-cli/Cargo.toml`: replaced `lotus-explore-core` with `lotus-export`, completely decoupling `lotus-cli` from explorer core UI/domain logic
   - Updated `Cargo.toml`, `Cargo.lock`, `Makefile.toml` (`boundary`), `mk.local` (`MUTANTS_PACKAGES`), `make/test.toml` (`cov`), `crates/lotus-query/src/bulk_export.rs`, `apps/lotus-explore-rs/tests/doc_links.rs`, `README.md`, `docs/ARCHITECTURE.md`, and `docs/DEBT.md`
 - **Metrics after Step 3:** Workspace crates 9 → 10; every production file in `crates/lotus-export` is ≤ ~245 LOC (`index.rs`); all existing characterization and unit tests preserved intact.
+
+### Step 4 — Extract `crates/lotus-server` and Unify Wire DTOs
+- **Files created/moved/edited:**
+  - `crates/lotus-explore-core/{Cargo.toml, src/api/dto.rs}`: added opt-in `openapi = ["dep:utoipa"]` feature and unified `ApiSmilesSearchType`, `ApiElementState`, and `RowDto` with bidirectional `From` conversions and `#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]`
+  - Created `crates/lotus-server/{Cargo.toml, README.md, src/main.rs, src/lib.rs, src/{clock,cache_key*,export_urls*,errors,types,logging*,query_logic,services}.rs}`
+  - Split `handlers.rs` (715 LOC) into `crates/lotus-server/src/handlers/{mod,prepare,search,export}.rs` (preserving `export_query_shape.rs` and `pump_tests.rs`)
+  - Split `state.rs` (426 LOC) into `crates/lotus-server/src/state/{mod,metrics,cache,inflight}.rs`
+  - Replaced `Result<_, String>` in `crates/lotus-server/src/config.rs` with typed `ConfigError` (`thiserror`)
+  - Stripped `[features] server`, `axum`, `clap`, `flate2`, `tokio`, `tower-http`, `utoipa`, `tower`, runtime `sha2`, `src/server/`, `src/cache_key*`, and `src/export*` from `apps/lotus-explore-rs`
+  - Updated `Cargo.toml`, `Cargo.lock`, `Dockerfile`, `Makefile.toml`, `make/{lint,test,web}.toml`, `mk.local`, `apps/lotus-explore-rs/tests/doc_links.rs`, `README.md`, `docs/{ARCHITECTURE,FRONTENDS,DEBT}.md`, `apps/lotus-explore-rs/{README.md,docs/ARCHITECTURE.md}`
+- **Metrics after Step 4:** Workspace crates 10 → 11; `apps/lotus-explore-rs` dropped `server` feature + 8 server-only dependencies; `handlers/` max file is `export.rs` (363 lines; prepare 151, search 169, mod 46, export_query_shape 85) and `state/` max file is `cache.rs` (183 lines; metrics 128, mod 89, inflight 77); server OpenAPI & HTTP wire characterization tests preserved unchanged.

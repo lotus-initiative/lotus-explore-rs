@@ -37,7 +37,8 @@ the output the way the deploy does, see
 ```text
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ Front ends & build tools                                                │
-│   apps/lotus-explore-rs (Web WASM / Desktop / Axum HTTP API server)     │
+│   apps/lotus-explore-rs (Dioxus Web WASM explorer)                      │
+│   crates/lotus-server   (Native Axum OpenAPI HTTP API & static host)    │
 │   crates/lotus-cli      (`lotus` CLI: search, curate, export, archive)  │
 │   crates/lotus-web-assets (build-time fetcher for RDKit / Ketcher)      │
 └───────────────────────────────┬─────────────────────────────────────────┘
@@ -73,8 +74,9 @@ the output the way the deploy does, see
 | [`lotus-explore-core`](crates/lotus-explore-core/README.md) | Framework-free app core: state reducers, URL codec, table filter/sort, graph projection     |
 | [`lotus-export`](crates/lotus-export/README.md)             | Full-graph CLI bulk export pipelines (frozen CSV, Wikidata SMILES archive, PubChem trees)   |
 | [`lotus-cli`](crates/lotus-cli/README.md)                   | The `lotus` binary (`search`, `curate`, `export`, `export-pubchem-tree`, `archive`)            |
+| [`lotus-server`](crates/lotus-server/README.md)             | Native Axum OpenAPI HTTP API server and static SPA host                                        |
 | `lotus-web-assets`                                          | Host-only fetcher for third-party frontend assets (Ketcher, RDKit, Citation.js)                |
-| [`apps/lotus-explore-rs`](apps/lotus-explore-rs/README.md)  | Dioxus web client (WASM), optional Axum HTTP API (`--features server`)                         |
+| [`apps/lotus-explore-rs`](apps/lotus-explore-rs/README.md)  | Dioxus web client (WASM)                                                                       |
 
 Each library crate has a README that is compiled as its documentation, so the example in it is
 checked as a doctest. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) explains the layer boundaries,

@@ -10,6 +10,10 @@ keywords = ["lotus", "natural-products", "sparql", "state-machine"]
 categories = ["science"]
 publish = false
 
+[features]
+# Enables `utoipa::ToSchema` on shared REST API wire types for `lotus-server`.
+openapi = ["dep:utoipa"]
+
 [dependencies]
 # The library crates this half of the application is built on. `lotus-model`
 # holds the vocabulary, `lotus-query` builds the SPARQL, `lotus-search` owns the
@@ -27,6 +31,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
+utoipa = { workspace = true, optional = true }
 
 [dev-dependencies]
 # `tokio` drives async unit tests on `ports`.

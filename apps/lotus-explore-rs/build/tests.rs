@@ -532,8 +532,7 @@ fn repo_file(relative: &str) -> Result<String, Box<dyn Error>> {
 
 #[test]
 fn every_client_route_is_served_by_the_router() -> Result<(), Box<dyn Error>> {
-    let router =
-        fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/server/mod.rs"))?;
+    let router = repo_file("crates/lotus-server/src/lib.rs")?;
     for route in CLIENT_ROUTES {
         assert!(
             router.contains(&format!(".route(\"{route}\", route_index(")),

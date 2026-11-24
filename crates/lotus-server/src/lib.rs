@@ -1,20 +1,30 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! Native HTTP API for the LOTUS explorer: search and export endpoints.
+#![doc = include_str!("../README.md")]
+#![warn(missing_docs)]
+// This crate exposes the router/types cleanly for its integration & unit tests
+// and the `lotus-server` binary; some internal test helpers live in `crate` submodules.
 
-mod config;
-mod errors;
-mod handlers;
+//! Native HTTP API and static SPA host for the LOTUS Explorer.
+
+mod cache_key;
+mod clock;
+pub mod config;
+pub mod errors;
+mod export_urls;
+pub mod handlers;
 mod logging;
 mod query_logic;
 mod services;
-mod state;
-mod types;
+pub mod state;
+pub mod types;
 
 #[cfg(test)]
 mod characterization_tests;
 #[cfg(test)]
 mod tests;
+
+pub use cache_key::{build_export_cache_key, build_search_cache_key};
 
 use axum::{
     Json, Router,
@@ -25,7 +35,6 @@ use axum::{
     response::Response,
     routing::{any, get, get_service, post},
 };
-use handlers::{export_file, export_urls, health, metrics, search};
 use tower_http::{
     compression::CompressionLayer,
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
@@ -33,9 +42,10 @@ use tower_http::{
 };
 use utoipa::OpenApi;
 
-use crate::server::{
+use crate::{
     config::{AppConfig, build_cors_layer},
     errors::ErrorResponse,
+    handlers::{export_file, export_urls, health, metrics, search},
     state::AppState,
     types::{
         ApiElementState, ApiSmilesSearchType, ExportUrlResponse, HealthResponse, RowDto,
@@ -69,7 +79,7 @@ const X_REQUEST_ID: HeaderName = HeaderName::from_static("x-request-id");
     ),
     tags((name = "lotus-explore-rs", description = "LOTUS explorer programmatic API"))
 )]
-struct ApiDoc;
+pub(crate) struct ApiDoc;
 
 async fn api_not_found() -> StatusCode {
     StatusCode::NOT_FOUND
@@ -79,6 +89,7 @@ async fn openapi_json() -> Json<utoipa::openapi::OpenApi> {
     Json(ApiDoc::openapi())
 }
 
+/// Build the Axum [`Router`] with middleware, `/v1/*` routes, and optional static SPA fallback.
 pub fn build_router(max_body_bytes: usize, config: &AppConfig, state: AppState) -> Router {
     let mut router = Router::new()
         .route("/health", get(health))
@@ -93,7 +104,6 @@ pub fn build_router(max_body_bytes: usize, config: &AppConfig, state: AppState) 
         .layer(middleware::from_fn(log_request))
         .layer(PropagateRequestIdLayer::new(X_REQUEST_ID));
 
-    // Optionally serve the Dioxus WASM build output as static files.
     if let Some(public_dir) = &config.public_dir {
         let route_index = |route: &str| {
             let candidate = public_dir.join(route).join("index.html");
@@ -156,17 +166,20 @@ async fn add_security_headers(req: axum::http::Request<Body>, next: Next) -> Res
     response
 }
 
-/// Entry point for the in-package native API server.
+/// Start the HTTP API server, listening until `SIGINT` or `SIGTERM`.
+///
+/// # Errors
+/// Returns an error when configuration parsing, socket binding, or `axum::serve` fails.
 pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     logging::init();
 
-    let config = config::AppConfig::from_env().map_err(std::io::Error::other)?;
+    let config = config::AppConfig::from_env()?;
     let state = state::AppState::new(&config);
     let app = build_router(config.max_body_bytes, &config, state);
 
-    let addr = config.bind_addr().map_err(std::io::Error::other)?;
+    let addr = config.bind_addr()?;
     log::info!(
-        "lotus-explore-rs server listening on http://{addr} timeout_ms={} max_concurrency={} max_body_bytes={}",
+        "lotus-server listening on http://{addr} timeout_ms={} max_concurrency={} max_body_bytes={}",
         config.request_timeout.as_millis(),
         config.max_concurrency,
         config.max_body_bytes,

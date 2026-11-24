@@ -21,4 +21,4 @@ Every unavoidable lint suppression, duplicate-dependency skip, echoes/coverage r
 - `ECHOES_MAX_REUSE=0`
 - `Cargo.toml` lint `allow` count: `1`
 - `MIRI_PACKAGES=(lotus-model lotus-query lotus-jsonld)`
-- `MUTANTS_PACKAGES=(lotus-model lotus-search lotus-query lotus-curation lotus-jsonld lotus-cli lotus-web-assets lotus-explore-core lotus-export)`
+- `MUTANTS_PACKAGES=(lotus-model lotus-search lotus-query lotus-curation lotus-jsonld lotus-cli lotus-web-assets lotus-explore-core lotus-export lotus-server)`

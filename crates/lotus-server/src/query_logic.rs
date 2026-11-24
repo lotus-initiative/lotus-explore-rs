@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! SPARQL query construction, taxon resolution, and request transformation logic.
-//! This module bridges the HTTP request layer and the upstream SPARQL endpoint:
-//! More detail in the type and function docs below.
+#![expect(
+    clippy::redundant_pub_crate,
+    reason = "private crate-root module uses pub(crate) because workspace denies unreachable_pub"
+)]
 
-use crate::server::errors::ApiError;
-use crate::server::state::{AppState, taxon_cache_get, taxon_cache_put};
-use crate::server::types::SearchRequest;
+use crate::{
+    errors::ApiError,
+    state::{AppState, taxon_cache_get, taxon_cache_put},
+    types::SearchRequest,
+};
 use lotus_model::SearchCriteria;
 
-pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
+pub(crate) fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
     let mut c = SearchCriteria {
         taxon: req.taxon.clone().unwrap_or_default(),
         reference: req.reference.clone().unwrap_or_default(),
@@ -19,8 +23,6 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
 
     check_reference(&c.reference)?;
 
-    // Absent leaves the model default alone, so a caller that omits the
-    // toggles gets the same answer as the UI's default checkboxes.
     if let Some(v) = req.taxon_accepted_synonyms {
         c.taxon_names.accepted_synonyms = v;
     }
@@ -83,7 +85,6 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
         c.formula_exact = v.trim().to_string();
     }
 
-    // Apply optional element-count bounds from the request.
     macro_rules! apply_opt {
         ($src:expr => $dst:expr) => {
             if let Some(v) = $src {
@@ -114,7 +115,6 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
         return Err(ApiError::bad_request("Element min must be <= max"));
     }
 
-    // Halogen presence states — each converts via `Into` from the request enum.
     apply_opt!(req.f_state.map(Into::into)  => c.f_state);
     apply_opt!(req.cl_state.map(Into::into) => c.cl_state);
     apply_opt!(req.br_state.map(Into::into) => c.br_state);
@@ -123,25 +123,12 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
     validated(c)
 }
 
-/// The same rules the CLI and the browser apply, so one request means the same
-/// thing on every surface -- and so an overlong taxon or structure is refused
-/// here rather than forwarded to the upstream resolvers.
 fn validated(criteria: SearchCriteria) -> Result<SearchCriteria, ApiError> {
     lotus_model::validate_criteria(&criteria, crate::clock::current_year())
         .map_err(|e| ApiError::bad_request(e.to_string()))?;
     Ok(criteria)
 }
 
-/// Refuse a reference that is neither a Wikidata QID nor a DOI, rather than
-/// letting `lotus_query::with_filters` silently drop the constraint.
-///
-/// DOIs accepted here are resolved to their Wikidata QID by
-/// [`resolve_search_inputs`] before the query is built; a DOI that matches
-/// nothing in Wikidata is also refused with a 400 there.
-///
-/// # Errors
-/// `ApiError::BadRequest` naming the accepted forms for a non-blank reference
-/// that is neither a QID nor a DOI.
 fn check_reference(reference: &str) -> Result<(), ApiError> {
     let trimmed = reference.trim();
     if trimmed.is_empty()
@@ -155,8 +142,8 @@ fn check_reference(reference: &str) -> Result<(), ApiError> {
     ))
 }
 
-/// The query the API sends when structure and reference need no extra resolution.
-pub fn build_execution_query(
+#[cfg(test)]
+pub(crate) fn build_execution_query(
     criteria: &SearchCriteria,
     resolved_taxon_qid: Option<&str>,
 ) -> String {
@@ -167,11 +154,9 @@ pub fn build_execution_query(
     )
 }
 
-/// The query the API sends once taxon, structure, and reference inputs are resolved.
-///
 /// Delegates directly to [`lotus_search::build_execution_query_with`] so the
 /// server, CLI, and browser answer the same request with the same SPARQL.
-pub fn build_execution_query_with(
+pub(crate) fn build_execution_query_with(
     criteria: &SearchCriteria,
     resolved_taxon_qid: Option<&str>,
     resolved_inputs: &lotus_search::ResolvedInputs,
@@ -180,7 +165,7 @@ pub fn build_execution_query_with(
     lotus_search::build_execution_query_with(&request, resolved_taxon_qid, resolved_inputs)
 }
 
-pub async fn resolve_taxon_qid_cached(
+pub(crate) async fn resolve_taxon_qid_cached(
     state: &AppState,
     taxon_input: String,
 ) -> Result<(Option<String>, Option<String>), ApiError> {
@@ -200,12 +185,7 @@ pub async fn resolve_taxon_qid_cached(
     Ok(resolved)
 }
 
-/// Resolve a taxon string via [`lotus_search::resolve_taxon`], including the
-/// `P1843` common-name fallback when `P225` matches nothing.
-///
-/// Preserves `Some("*")` for the wildcard so `SearchResponse.resolved_taxon_qid`
-/// distinguishes `"*"` (every reported occurrence) from an empty taxon box.
-pub async fn resolve_taxon_with<H: lotus_search::Http>(
+pub(crate) async fn resolve_taxon_with<H: lotus_search::Http>(
     http: &H,
     taxon_input: &str,
 ) -> Result<(Option<String>, Option<String>), ApiError> {
@@ -233,9 +213,7 @@ pub async fn resolve_taxon_with<H: lotus_search::Http>(
     Ok((resolution.qid, warning))
 }
 
-/// Resolve structure (compound name, `InChIKey`, QID, or exact SMILES) and
-/// reference DOI inputs before building the execution query.
-pub async fn resolve_search_inputs(
+pub(crate) async fn resolve_search_inputs(
     criteria: &SearchCriteria,
 ) -> Result<lotus_search::ResolvedInputs, ApiError> {
     let http = lotus_search::reqwest_client::ReqwestClient::new()
@@ -243,7 +221,7 @@ pub async fn resolve_search_inputs(
     resolve_search_inputs_with(&http, criteria).await
 }
 
-pub async fn resolve_search_inputs_with<H: lotus_search::Http>(
+pub(crate) async fn resolve_search_inputs_with<H: lotus_search::Http>(
     http: &H,
     criteria: &SearchCriteria,
 ) -> Result<lotus_search::ResolvedInputs, ApiError> {

@@ -17,10 +17,10 @@ use axum::http::{Request, StatusCode, header};
 use tower::ServiceExt;
 use utoipa::OpenApi;
 
-use crate::export;
-use crate::server::{
+use crate::{
     ApiDoc, build_router,
     config::AppConfig,
+    export_urls,
     query_logic::{
         apply_request, build_execution_query, build_execution_query_with,
         resolve_search_inputs_with, resolve_taxon_with,
@@ -169,7 +169,7 @@ fn config_rejects_invalid_port() {
     let env = map_provider(&[("PORT", "abc")]);
     let err = AppConfig::from_provider(|name| env.get(name).cloned())
         .expect_err("invalid PORT should fail");
-    assert!(err.contains("PORT"));
+    assert!(err.to_string().contains("PORT"));
 }
 
 #[test]
@@ -177,7 +177,7 @@ fn production_requires_explicit_cors_allowlist() {
     let env = map_provider(&[("APP_ENV", "production")]);
     let err = AppConfig::from_provider(|name| env.get(name).cloned())
         .expect_err("production without CORS origins should fail");
-    assert!(err.contains("CORS_ALLOWED_ORIGINS"));
+    assert!(err.to_string().contains("CORS_ALLOWED_ORIGINS"));
 }
 
 #[test]
@@ -206,7 +206,7 @@ fn normalized_structure_preserves_multiline_molfile() {
 #[test]
 fn rdf_export_url_uses_construct_query_with_normalized_formula_binding() {
     let select = lotus_query::compounds_by_taxon_query("Q2382443");
-    let url = export::qlever_export_url(&select, ExportFormat::Rdf);
+    let url = export_urls::qlever_export_url(&select, ExportFormat::Rdf);
 
     assert!(url.contains("action=turtle_export"));
 
@@ -690,11 +690,11 @@ fn sanitize_filename_replaces_slash_with_underscore() {
     // '/' and '\' are replaced with '_'; leading dots from trim_matches get removed too.
     // "../../etc/passwd" → ".._.._etc_passwd" → trim leading dots → "_.._etc_passwd"
     assert_eq!(
-        export::sanitize_download_filename("../../etc/passwd"),
+        lotus_query::sanitize_download_filename("../../etc/passwd"),
         "_.._etc_passwd"
     );
     assert_eq!(
-        export::sanitize_download_filename(r"C:\Windows\system32"),
+        lotus_query::sanitize_download_filename(r"C:\Windows\system32"),
         "C:_Windows_system32"
     );
 }
@@ -702,7 +702,7 @@ fn sanitize_filename_replaces_slash_with_underscore() {
 #[test]
 fn sanitize_filename_removes_control_chars() {
     let input = "file\x00name\x1f.csv";
-    let result = export::sanitize_download_filename(input);
+    let result = lotus_query::sanitize_download_filename(input);
     assert!(!result.contains('\x00'));
     assert!(!result.contains('\x1f'));
     assert!(result.contains("filename"));
@@ -710,22 +710,25 @@ fn sanitize_filename_removes_control_chars() {
 
 #[test]
 fn sanitize_filename_trims_leading_trailing_dots() {
-    assert_eq!(export::sanitize_download_filename("...hidden"), "hidden");
-    assert_eq!(export::sanitize_download_filename("file..."), "file");
+    assert_eq!(
+        lotus_query::sanitize_download_filename("...hidden"),
+        "hidden"
+    );
+    assert_eq!(lotus_query::sanitize_download_filename("file..."), "file");
 }
 
 #[test]
 fn sanitize_filename_preserves_normal_names() {
     assert_eq!(
-        export::sanitize_download_filename("export_2024-01-15.csv"),
+        lotus_query::sanitize_download_filename("export_2024-01-15.csv"),
         "export_2024-01-15.csv"
     );
 }
 
 #[test]
 fn sanitize_filename_empty_or_whitespace_returns_empty() {
-    assert_eq!(export::sanitize_download_filename(""), "");
-    assert_eq!(export::sanitize_download_filename("   "), "");
+    assert_eq!(lotus_query::sanitize_download_filename(""), "");
+    assert_eq!(lotus_query::sanitize_download_filename("   "), "");
 }
 
 #[test]
@@ -1254,7 +1257,7 @@ async fn a_cancelled_leader_does_not_pin_its_search_cell() {
     assert!(!is_leader, "the entry is still there");
     let _ = waiter
         .get_or_init(|| async {
-            Err(crate::server::errors::SharedApiError::timed_out(
+            Err(crate::errors::SharedApiError::timed_out(
                 "search execution timed out",
             ))
         })
@@ -1334,7 +1337,7 @@ async fn resolve_taxon_with_maps_endpoint_timeout_to_504() {
 
 #[test]
 fn resolve_count_stats_propagates_errors_only_when_capped() {
-    use crate::server::{errors::ApiError, services::resolve_count_stats};
+    use crate::{errors::ApiError, services::resolve_count_stats};
     use lotus_model::DatasetStats;
 
     let sample = DatasetStats {

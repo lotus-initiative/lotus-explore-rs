@@ -9,8 +9,6 @@
 use super::*;
 use lotus_search::{FetchError, HttpResponse, ResponseBody};
 
-/// A 200 whose body arrives in `pieces` and then fails, as a connection dropped
-/// mid-transfer does.
 struct CutShort {
     pieces: std::collections::VecDeque<&'static str>,
 }
@@ -36,7 +34,6 @@ impl HttpResponse for CutShort {
     }
 }
 
-/// Everything the pump sent, in order.
 async fn run(format: ExportFormat, compress: bool) -> Vec<Result<Bytes, std::io::Error>> {
     let (tx, mut rx) = tokio::sync::mpsc::channel(8);
     let upstream = CutShort {
@@ -50,10 +47,6 @@ async fn run(format: ExportFormat, compress: bool) -> Vec<Result<Bytes, std::io:
     sent
 }
 
-/// A cut-short export used to arrive as a complete file: a 200, a valid gzip
-/// of part of the CSV, or an empty one for JSON and Turtle. The stream must end
-/// in an error instead, so the client sees a failed download and not a small
-/// one.
 #[tokio::test]
 async fn an_upstream_that_stops_part_way_fails_the_download() {
     for (format, compress) in [

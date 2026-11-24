@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! The tests for `cache_key`, in their own file.
-#![allow(clippy::expect_used)]
+//! Microbenchmark for `cache_key` construction.
+#![allow(
+    clippy::expect_used,
+    reason = "microbenchmark test helper formatting timing statistics"
+)]
 
 use super::{build_export_cache_key, build_search_cache_key};
 use sha2::{Digest, Sha256};
@@ -33,8 +36,6 @@ fn queries() -> Vec<(&'static str, String)> {
         ),
     ];
 
-    // A structure search carries the whole SERVICE block, so it is the longest
-    // of the twelve and the one worth seeing at the top of the range.
     out.push((
         "structure search (longest of the twelve)",
         lotus_query::structure_search_query(
@@ -45,8 +46,6 @@ fn queries() -> Vec<(&'static str, String)> {
         ),
     ));
 
-    // And one far past anything the app builds, to show the curve is linear
-    // rather than hiding a cliff at the sizes actually used.
     let base = lotus_query::compounds_by_taxon_query("Q16521");
     out.push(("synthetic 16x (past any real query)", base.repeat(16)));
 
@@ -80,8 +79,6 @@ fn bench_cache_key() {
     );
 
     for (name, query) in &cases {
-        // One untimed round each, so the first timed round is not paying for a
-        // cold allocator.
         let _ = build_export_cache_key(query);
         let _ = build_search_cache_key(query, 500, true);
 
@@ -102,8 +99,6 @@ fn bench_cache_key() {
             search.push(start.elapsed().as_nanos());
             std::hint::black_box(key);
 
-            // The two halves the key is built from, measured on their own so
-            // the split is visible rather than inferred.
             let start = Instant::now();
             let digest = Sha256::digest(bytes);
             hash.push(start.elapsed().as_nanos());

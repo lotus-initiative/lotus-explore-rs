@@ -8,9 +8,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 /// How a structure is matched against the compound it names.
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "lowercase")]
-enum ApiSmilesSearchType {
+pub enum ApiSmilesSearchType {
     /// The same molecule.
     Exact,
     /// A molecule containing the given one.
@@ -29,10 +30,21 @@ impl From<SmilesSearchType> for ApiSmilesSearchType {
     }
 }
 
+impl From<ApiSmilesSearchType> for SmilesSearchType {
+    fn from(value: ApiSmilesSearchType) -> Self {
+        match value {
+            ApiSmilesSearchType::Exact => Self::Exact,
+            ApiSmilesSearchType::Substructure => Self::Substructure,
+            ApiSmilesSearchType::Similarity => Self::Similarity,
+        }
+    }
+}
+
 /// What the server is told to do with an element.
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "lowercase")]
-enum ApiElementState {
+pub enum ApiElementState {
     /// The element may be present.
     Allowed,
     /// The element must be present.
@@ -47,6 +59,16 @@ impl From<ElementState> for ApiElementState {
             ElementState::Allowed => Self::Allowed,
             ElementState::Required => Self::Required,
             ElementState::Excluded => Self::Excluded,
+        }
+    }
+}
+
+impl From<ApiElementState> for ElementState {
+    fn from(value: ApiElementState) -> Self {
+        match value {
+            ApiElementState::Allowed => Self::Allowed,
+            ApiElementState::Required => Self::Required,
+            ApiElementState::Excluded => Self::Excluded,
         }
     }
 }
@@ -263,7 +285,8 @@ impl From<SearchStats> for DatasetStats {
 }
 
 /// One row of a search answer.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct RowDto {
     /// The compound's QID.
     pub compound_qid: String,
@@ -291,6 +314,26 @@ pub struct RowDto {
     pub pub_year: Option<i16>,
     /// The Wikidata statement the entry came from.
     pub statement: Option<String>,
+}
+
+impl From<CompoundEntry> for RowDto {
+    fn from(value: CompoundEntry) -> Self {
+        Self {
+            compound_qid: value.compound_qid.to_string(),
+            name: value.name.to_string(),
+            inchikey: value.inchikey.map(|v| v.to_string()),
+            smiles: value.smiles.map(|v| v.to_string()),
+            mass: value.mass,
+            formula: value.formula.map(|v| v.to_string()),
+            taxon_qid: value.taxon_qid.to_string(),
+            taxon_name: value.taxon_name.to_string(),
+            reference_qid: value.reference_qid.to_string(),
+            ref_title: value.ref_title.map(|v| v.to_string()),
+            ref_doi: value.ref_doi.map(|v| v.to_string()),
+            pub_year: value.pub_year,
+            statement: value.statement.map(|v| v.to_string()),
+        }
+    }
 }
 
 impl From<RowDto> for CompoundEntry {

@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
+//! HTTP API request/response wire schemas, reusing shared enums and row DTOs
+//! from [`lotus_explore_core::api::dto`].
 
-use lotus_model::{CompoundEntry, DatasetStats, SmilesSearchType};
+pub use lotus_explore_core::api::dto::{ApiElementState, ApiSmilesSearchType, RowDto};
+use lotus_model::DatasetStats;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+/// JSON response payload returned by `GET /health`.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct HealthResponse {
     pub(crate) status: &'static str,
@@ -19,72 +23,17 @@ pub struct HealthResponse {
     pub(crate) export_upstream_hits: u64,
     pub(crate) overload_rejections: u64,
     /// Searches refused because every `QLever` slot was busy.
-    ///
-    /// The counter to watch for politeness. It should be zero on a healthy
-    /// deployment: if it climbs, this server is asking more of a shared public
-    /// endpoint than it should, and `UPSTREAM_CONCURRENCY` is the knob.
     pub(crate) upstream_shed: u64,
     pub(crate) request_timeouts: u64,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
-pub enum ApiSmilesSearchType {
-    Exact,
-    Substructure,
-    Similarity,
-}
-
-impl From<ApiSmilesSearchType> for SmilesSearchType {
-    fn from(value: ApiSmilesSearchType) -> Self {
-        match value {
-            ApiSmilesSearchType::Exact => Self::Exact,
-            ApiSmilesSearchType::Substructure => Self::Substructure,
-            ApiSmilesSearchType::Similarity => Self::Similarity,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
-pub enum ApiElementState {
-    Allowed,
-    Required,
-    Excluded,
-}
-
-impl From<ApiElementState> for lotus_model::ElementState {
-    fn from(value: ApiElementState) -> Self {
-        match value {
-            ApiElementState::Allowed => Self::Allowed,
-            ApiElementState::Required => Self::Required,
-            ApiElementState::Excluded => Self::Excluded,
-        }
-    }
-}
-
+/// Request payload accepted by `POST /v1/search` and `POST /v1/export-url`.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct SearchRequest {
     pub(crate) taxon: Option<String>,
     /// A Wikidata QID (`Q23118`) or DOI (`10.7554/eLife.70780`, bare or `https://doi.org/…`)
     /// naming the reference to constrain by.
-    ///
-    /// Validated at the boundary by [`query_logic::check_reference`](crate::server::query_logic)
-    /// and resolved to a QID before building the query by
-    /// [`query_logic::resolve_search_inputs`](crate::server::query_logic); an
-    /// unrecognised string or unmatched DOI is refused with a 400 rather than
-    /// dropped.
     pub(crate) reference: Option<String>,
-    /// Whether the taxon filter also collects the compounds recorded against
-    /// the taxon's other names.
-    ///
-    /// One field per nomenclatural relationship, because they answer different
-    /// questions — *accepted name vs. synonym* is a taxonomic judgement, *old vs.
-    /// new* a nomenclatural fact — and Wikidata stores them under four separate
-    /// property pairs. See `docs/TAXON-SEARCH.md`.
-    ///
-    /// Each absent field is left at the model default, so a caller omitting them
-    /// all gets the UI's default checkbox answer.
     pub(crate) taxon_accepted_synonyms: Option<bool>,
     pub(crate) taxon_basionyms: Option<bool>,
     pub(crate) taxon_protonyms: Option<bool>,
@@ -93,10 +42,7 @@ pub struct SearchRequest {
     pub(crate) smiles: Option<String>,
     #[serde(alias = "structure_search")]
     pub(crate) smiles_search_type: Option<ApiSmilesSearchType>,
-    /// Tanimoto cutoff for a similarity structure search. Read under the name it
-    /// now has; the old `smiles_threshold` and client `structure_threshold` are
-    /// still accepted, because links naming it are already in people's clipboard
-    /// histories.
+    /// Tanimoto cutoff for a similarity structure search.
     #[serde(alias = "smiles_threshold", alias = "structure_threshold")]
     pub(crate) similarity_threshold: Option<f64>,
     pub(crate) mass_min: Option<f64>,
@@ -124,6 +70,7 @@ pub struct SearchRequest {
     pub(crate) include_counts: Option<bool>,
 }
 
+/// Dataset cardinality counters returned in [`SearchResponse`].
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct SearchStats {
     #[serde(rename = "n_compounds")]
@@ -150,43 +97,7 @@ impl From<DatasetStats> for SearchStats {
     }
 }
 
-#[derive(Debug, Clone, Serialize, ToSchema)]
-pub struct RowDto {
-    pub(crate) compound_qid: String,
-    pub(crate) name: String,
-    pub(crate) inchikey: Option<String>,
-    pub(crate) smiles: Option<String>,
-    pub(crate) mass: Option<f64>,
-    pub(crate) formula: Option<String>,
-    pub(crate) taxon_qid: String,
-    pub(crate) taxon_name: String,
-    pub(crate) reference_qid: String,
-    pub(crate) ref_title: Option<String>,
-    pub(crate) ref_doi: Option<String>,
-    pub(crate) pub_year: Option<i16>,
-    pub(crate) statement: Option<String>,
-}
-
-impl From<CompoundEntry> for RowDto {
-    fn from(value: CompoundEntry) -> Self {
-        Self {
-            compound_qid: value.compound_qid.to_string(),
-            name: value.name.to_string(),
-            inchikey: value.inchikey.map(|v| v.to_string()),
-            smiles: value.smiles.map(|v| v.to_string()),
-            mass: value.mass,
-            formula: value.formula.map(|v| v.to_string()),
-            taxon_qid: value.taxon_qid.to_string(),
-            taxon_name: value.taxon_name.to_string(),
-            reference_qid: value.reference_qid.to_string(),
-            ref_title: value.ref_title.map(|v| v.to_string()),
-            ref_doi: value.ref_doi.map(|v| v.to_string()),
-            pub_year: value.pub_year,
-            statement: value.statement.map(|v| v.to_string()),
-        }
-    }
-}
-
+/// JSON response payload returned by `POST /v1/search`.
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct SearchResponse {
     pub(crate) resolved_taxon_qid: Option<String>,
@@ -197,6 +108,7 @@ pub struct SearchResponse {
     pub(crate) stats: SearchStats,
 }
 
+/// JSON response payload returned by `POST /v1/export-url`.
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct ExportUrlResponse {
     pub(crate) query: String,
@@ -208,6 +120,7 @@ pub struct ExportUrlResponse {
     pub(crate) rdf_gz_url: String,
 }
 
+/// Optional query parameters on `GET /v1/export-file/{cache_key}/{format}`.
 #[derive(Debug, Default, Deserialize)]
 pub struct ExportFileQuery {
     pub(crate) filename: Option<String>,

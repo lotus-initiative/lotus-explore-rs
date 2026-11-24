@@ -126,7 +126,7 @@ COPY . .
 # have to know which target produced them.
 RUN musl=$(cat /tmp/musl-target) \
  && rustup target add "$musl" \
- && cargo build --release --locked --features server -p lotus-explore-rs \
+ && cargo build --release --locked -p lotus-server --bin lotus-server \
  && mkdir -p /out \
  && cargo build --release --locked --target "$musl" \
       -p lotus-cli --bin lotus \
@@ -266,7 +266,7 @@ LABEL org.opencontainers.image.title="lotus-explore-rs" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.version="0.1.0"
 
-COPY --from=builder /build/target/release/lotus-explore-rs /usr/local/bin/lotus-explore-rs
+COPY --from=builder /build/target/release/lotus-server /usr/local/bin/lotus-explore-rs
 COPY --from=builder /out/lotus-healthcheck /usr/local/bin/lotus-healthcheck
 COPY --from=wasm-builder /build/target/dx/lotus-explore-rs/release/web/public /app/public
 

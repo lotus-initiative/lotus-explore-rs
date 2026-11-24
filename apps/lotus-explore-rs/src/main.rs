@@ -1,18 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-// Three programs share this crate: the browser client, an HTTP API, and the
-// test build. The crate-wide lint exceptions below are the cost of that, and
-// each one is scoped to where it is actually wrong.
+// Two builds share this crate: the browser WASM client and the native test build.
 #![cfg_attr(target_arch = "wasm32", allow(clippy::future_not_send))]
-// `tower` is a `server`-feature test dependency. Cargo cannot express a
-// feature-gated dev-dependency, so `unused_crate_dependencies` false-positives
-// on a default-features build. The lint stays on workspace-wide, where it still
-// catches things in `lotus` and `lotus-web-assets`.
-#![allow(unused_crate_dependencies)]
-// `pub` inside a module that only exists on some targets is unreachable from the
-// others -- a `#[cfg(not(target_arch = "wasm32"))]` module is `pub` for the server
-// build and absent for the browser one.
+#![cfg_attr(
+    not(target_arch = "wasm32"),
+    allow(
+        unused_crate_dependencies,
+        reason = "the native non-test binary stub prints usage without calling WASM UI dependencies"
+    )
+)]
 #![allow(
     unreachable_pub,
     reason = "a `pub` item in a target-gated module is unreachable from the other target"
@@ -25,13 +22,8 @@
     clippy::missing_const_for_fn,
     reason = "fires on the locale-dispatch helpers, which cannot be `const` without cascading into all four locale tables"
 )]
-// `dead_code` is denied, and allowed only where the code in this crate is not
-// the program being built. See the `cfg_attr` below for which those are.
-#![cfg_attr(
-    any(test, all(feature = "server", not(target_arch = "wasm32"))),
-    allow(dead_code)
-)]
-//! `lotus-explore-rs` — LOTUS Explorer.
+#![cfg_attr(test, allow(dead_code))]
+//! `lotus-explore-rs` — LOTUS Explorer browser client.
 
 // Dioxus components are PascalCase by convention, so every `#[component]` fn in
 // this crate is named `SomeComponent` rather than `some_component`.
@@ -40,58 +32,51 @@
     reason = "Dioxus names `#[component]` functions in PascalCase"
 )]
 
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod api;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod app;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod app_state;
-/// In-browser result cache (mirrors the native server's result cache).
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+/// In-browser result cache.
+#[cfg(any(target_arch = "wasm32", test))]
 mod cache;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
-mod cache_key;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod clock;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod components;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod curation;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod document_head;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod download;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
-mod export;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod features;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod hooks;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod i18n;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod pages;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod perf;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod repositories;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod services;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod sparql;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod state;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod ui;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod upload;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod utils;
-#[cfg(any(target_arch = "wasm32", feature = "server", test))]
+#[cfg(any(target_arch = "wasm32", test))]
 mod vendor_assets;
-
-#[cfg(all(feature = "server", not(target_arch = "wasm32")))]
-mod server;
 
 #[cfg(target_arch = "wasm32")]
 use dioxus::prelude::*;
@@ -99,20 +84,14 @@ use dioxus::prelude::*;
 #[cfg(test)]
 mod tests;
 
-#[cfg(all(not(target_arch = "wasm32"), feature = "server"))]
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    server::run().await
-}
-
-#[cfg(all(not(target_arch = "wasm32"), not(feature = "server")))]
+#[cfg(not(target_arch = "wasm32"))]
 fn main() {
     // A native build with no server. `dx serve` builds the browser client;
-    // `--features server` builds the API.
+    // `cargo run -p lotus-server` runs the HTTP API.
     eprintln!(
-        "lotus-explore-rs (native): this binary has no user interface.\n\
+        "lotus-explore-rs (native): this binary builds for the browser (wasm32).\n\
          \n  browser client   dx serve (from apps/lotus-explore-rs)\n\
-         \x20 HTTP API        cargo run --features server -p lotus-explore-rs"
+         \x20 HTTP API        cargo run -p lotus-server --bin lotus-server"
     );
 }
 

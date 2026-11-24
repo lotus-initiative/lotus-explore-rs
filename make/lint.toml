@@ -6,18 +6,18 @@ cwd = "${REPO_ROOT}"
 description = "Clippy over the whole workspace, all targets, all features, warnings denied."
 script = "cargo clippy --workspace --all-targets --all-features --locked -- -D warnings"
 
-# The app is two programs: a browser client and an HTTP API.
-# `--workspace --all-features` compiles `server` on top of the browser crate;
-# checking `server` on its own mirrors what the server build ships.
+# The HTTP API server now lives in its own crate (`lotus-server`).
+# Keeping an explicit server lint task preserves the split between the
+# browser app check and the native API service build.
 [tasks."lint-native-builds"]
 cwd = "${REPO_ROOT}"
-description = "Clippy the server build on its own, warnings denied."
+description = "Clippy the server crate on its own, warnings denied."
 dependencies = ["lint-server"]
 
 [tasks."lint-server"]
 cwd = "${REPO_ROOT}"
-description = "Clippy the app's HTTP API build, warnings denied."
-script = "cargo clippy --workspace --features lotus-explore-rs/server --locked -- -D warnings"
+description = "Clippy the HTTP API server crate (`lotus-server`), warnings denied."
+script = "cargo clippy -p lotus-server --all-targets --locked -- -D warnings"
 
 # Per-package WASM clippy.
 #

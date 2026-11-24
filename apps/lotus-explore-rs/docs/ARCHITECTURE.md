@@ -1,6 +1,6 @@
 # lotus-explore-rs Application Architecture
 
-The workspace layout — what each of the 9 crates is for, which of them are pure,
+The workspace layout — what each crate in the repository is for, which of them are pure,
 and how a search flows end to end — is in
 [`docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md). This page covers what
 the `apps/lotus-explore-rs` crate adds on top of the shared libraries.
@@ -15,15 +15,17 @@ application is split across two crates:
   `reduce_mut`), URL query parameter encoding/decoding (`CriteriaQueryDto`),
   client-side columnar filtering (`ColumnFilters`) and sorting (`SortColumn`,
   `SortDir`, `SortState`), graph projection and node search (`graph/`), table memory budgets (`table_budget.rs`), query
-  construction (`explore::service::build_query::build_sparql_query`), REST API
-  DTOs (`api/`), and the bulk export / PubChem tree / archive pipelines.
+  construction (`explore::service::build_query::build_sparql_query`), and REST API
+  DTOs (`api/`). Bulk export pipelines live in
+  [`crates/lotus-export`](../../../crates/lotus-export/README.md), and the
+  native HTTP API server lives in
+  [`crates/lotus-server`](../../../crates/lotus-server/README.md).
 - **[`apps/lotus-explore-rs`](../README.md)** owns the Dioxus UI components and
   pages, curation UI state (`src/features/curation/state/`), reactive hooks,
   browser/native effects (clipboard, `localStorage`, file downloads, URL
   history, `navigator.deviceMemory`), the `reqwest` HTTP client
-  ([`src/sparql.rs`](../src/sparql.rs)), the wall clock
-  ([`src/clock.rs`](../src/clock.rs)), and the optional Axum server
-  ([`src/server/`](../src/server/)).
+  ([`src/sparql.rs`](../src/sparql.rs)), and the wall clock
+  ([`src/clock.rs`](../src/clock.rs)).
 
 ## Directory layout of `apps/lotus-explore-rs/src/`
 
@@ -54,7 +56,6 @@ src/
   services/             Cross-feature browser/host services (clipboard, storage, error formatting)
   state/                Dioxus signal wrappers around application state
   repositories/         Data access layer streaming SPARQL CSV / JSON responses
-  server/               Optional Axum HTTP server (`--features server`), REST API, and static hosting
   clock.rs              The one place in the app that reads a wall clock
   sparql.rs             The app's HTTP layer: the only place that names reqwest
 ```

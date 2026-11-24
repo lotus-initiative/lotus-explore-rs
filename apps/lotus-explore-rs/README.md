@@ -20,10 +20,10 @@ cargo run -p lotus-web-assets --bin fetch-assets
 dx serve --platform web --package lotus-explore-rs --locked
 ```
 
-To also run the optional API:
+To also run the optional HTTP API server:
 
 ```bash
-cargo run --locked --features server -p lotus-explore-rs
+cargo run --locked -p lotus-server --bin lotus-server
 ```
 
 Then open `http://localhost:8080/?api_base=http://127.0.0.1:8787`.

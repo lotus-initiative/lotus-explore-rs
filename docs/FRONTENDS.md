@@ -6,11 +6,11 @@ implementations of the search: `lotus-model`, `lotus-query`, `lotus-search`,
 a thin shell over them. This document is about what differs between them, and
 why.
 
-| Front end | Crate                                      | Built by                      | Talks to                 |
-| --------- | ------------------------------------------ | ----------------------------- | ------------------------ |
-| Web       | `apps/lotus-explore-rs` (`dioxus/web`)     | `dx build --platform web`     | QLever / WDQS over HTTPS |
-| CLI       | `crates/lotus-cli`                         | `cargo build`                 | QLever / WDQS over HTTPS |
-| HTTP API  | `apps/lotus-explore-rs` (`server` feature) | `cargo run --features server` | QLever / WDQS over HTTPS |
+| Front end | Crate                                  | Built by                                      | Talks to                 |
+| --------- | -------------------------------------- | --------------------------------------------- | ------------------------ |
+| Web       | `apps/lotus-explore-rs` (`dioxus/web`) | `dx build --platform web`                     | QLever / WDQS over HTTPS |
+| CLI       | `crates/lotus-cli`                     | `cargo build -p lotus-cli`                    | QLever / WDQS over HTTPS |
+| HTTP API  | `crates/lotus-server`                  | `cargo run -p lotus-server --bin lotus-server` | QLever / WDQS over HTTPS |
 
 All three hit the same public endpoints, so a query that works in one works in
 all three. The API exists so that bulk callers can cap a response and get an
@@ -91,7 +91,7 @@ differ in transport, in how they reach a file, and in what they do with the
 answer --- not in what the answer is.
 
 **This has already been got wrong once, so the reason is worth stating.** The API
-server carried its own copy of the query dispatch in `server/query_logic.rs`,
+server carried its own copy of the query dispatch in `lotus-server/src/query_logic.rs`,
 along with three more helpers copied from `lotus-search`: the structure
 normaliser, the taxon-name standardiser and the `is_qid` test. It then drifted.
 The library resolves the `*` wildcard to no QID, because a wildcard names no

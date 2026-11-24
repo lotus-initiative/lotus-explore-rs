@@ -73,7 +73,7 @@ dx serve --package lotus-explore-rs --platform web --locked --open=false \\
 cwd = "${REPO_ROOT}"
 description = "Run the HTTP API on http://127.0.0.1:8787."
 script = """
-exec cargo run --locked --features server -p lotus-explore-rs
+exec cargo run --locked -p lotus-server --bin lotus-server
 """
 
 # The `BROWSERSLIST` is the shipped floor, and it is set here rather than left to

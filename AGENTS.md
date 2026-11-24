@@ -29,7 +29,7 @@ Cold `./mk gate` is about 5 minutes. Cargo must be able to write `~/.cargo`.
 
 ## Verify cheaply, in this order
 
-1. `./mk check -p <crate>` (or `cargo clippy -p <crate> --all-targets --features server` / `--target wasm32-unknown-unknown` when behind features/targets).
+1. `./mk check -p <crate>` (or `cargo clippy -p lotus-server --all-targets` / `--target wasm32-unknown-unknown` when checking non-default targets).
 2. `./mk test-fast -p <crate> -E 'test(<name>)'` (or `./mk test-changed`).
 3. `./mk mutants-diff --iterate` when touching code in `MUTANTS_PACKAGES`.
 4. `./mk gate` (or `./mk ci-fast`), then `./mk ci` before calling the work done.

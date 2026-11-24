@@ -30,8 +30,8 @@ exec cargo nextest run --workspace --locked --no-fail-fast --test-threads 4 "${a
 
 [tasks."test-server"]
 cwd = "${REPO_ROOT}"
-description = "Test the app's HTTP API build."
-script = "cargo nextest run --workspace --features lotus-explore-rs/server -E 'package(lotus-explore-rs)' --locked --no-fail-fast"
+description = "Test the HTTP API server crate (`lotus-server`)."
+script = "cargo nextest run -p lotus-server --locked --no-fail-fast"
 
 # What CI runs, as one command. The `ci` task calls the per-build tasks
 # separately so a red test names the build it failed in; this is for a human who
@@ -115,7 +115,7 @@ description = "Coverage report for the library crates, CLI and web-assets binari
 script = """
 cargo llvm-cov nextest --locked \\
   -p lotus-model -p lotus-query -p lotus-curation -p lotus-jsonld -p lotus-search \\
-  -p lotus-cli -p lotus-web-assets -p lotus-explore-core -p lotus-export \\
+  -p lotus-cli -p lotus-web-assets -p lotus-explore-core -p lotus-export -p lotus-server \\
   --profile ci --no-fail-fast
 cargo llvm-cov report --html --output-dir "${REPO_ROOT}/target/llvm-cov-report"
 cargo llvm-cov report --lcov --output-path "${REPO_ROOT}/target/llvm-cov-report/lcov.info"

@@ -2146,17 +2146,15 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
+ "utoipa",
 ]
 
 [[package]]
 name = "lotus-explore-rs"
 version = "0.1.0"
 dependencies = [
- "axum",
- "clap",
  "dioxus",
  "dioxus-ssr",
- "flate2",
  "futures",
  "js-sys",
  "log",
@@ -2171,10 +2169,6 @@ dependencies = [
  "sha2 0.11.1",
  "tempfile",
  "thiserror 2.0.21",
- "tokio",
- "tower",
- "tower-http",
- "utoipa",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -2241,6 +2235,30 @@ dependencies = [
  "tokio",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+]
+
+[[package]]
+name = "lotus-server"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "clap",
+ "flate2",
+ "futures",
+ "log",
+ "lotus-explore-core",
+ "lotus-model",
+ "lotus-query",
+ "lotus-search",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tower",
+ "tower-http",
+ "utoipa",
 ]
 
 [[package]]

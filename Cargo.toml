@@ -10,6 +10,7 @@ members = [
   "crates/lotus-model",
   "crates/lotus-query",
   "crates/lotus-search",
+  "crates/lotus-server",
   "crates/lotus-web-assets",
 ]
 

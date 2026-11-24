@@ -30,6 +30,7 @@ const DOCUMENTS: &[&str] = &[
     "crates/lotus-model/README.md",
     "crates/lotus-query/README.md",
     "crates/lotus-search/README.md",
+    "crates/lotus-server/README.md",
     "crates/lotus-curation/README.md",
     "crates/lotus-jsonld/README.md",
 ];

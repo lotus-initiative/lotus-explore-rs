@@ -96,28 +96,6 @@ pub async fn execute_query(sparql: &str) -> Result<String, FetchError> {
     answer.text()
 }
 
-// Only the native and server paths reach this; the browser client has its
-// own fetch path, so a wasm build has no caller for it.
-#[cfg(not(target_arch = "wasm32"))]
-/// Run a query on `QLever` and return the raw bytes, without decoding.
-///
-/// Used where the payload is an archive being streamed to disk or handed to the
-/// browser untouched.
-///
-/// # Errors
-/// Propagates any transport, status or decode failure.
-pub async fn execute_sparql_bytes(sparql: &str) -> Result<Vec<u8>, FetchError> {
-    let http = ReqwestClient::new()?;
-    let answer = execute(
-        &http,
-        Endpoint::new(Service::Qlever),
-        sparql,
-        ResponseFormat::Csv,
-    )
-    .await?;
-    Ok(answer.body)
-}
-
 /// Run a query on `QLever` and return the body undecoded.
 ///
 /// # Errors

@@ -111,11 +111,11 @@ the named test fails if it breaks.
 
 ## Tooling
 
-- After a toolchain bump, lint every build: default, `--features server`,
-  `--target wasm32-unknown-unknown`. `./mk gate` does.
+- After a toolchain bump, lint every build: default workspace, `-p lotus-server`,
+  `--target wasm32-unknown-unknown`. `./mk gate` and `./mk local:lint-native-builds` do.
   A new lint firing inside Dioxus macro output gets the narrowest allow
   possible plus a `docs/DEBT.md` row.
-- Source-shape gates (`server/handlers/export_query_shape.rs`,
+- Source-shape gates (`crates/lotus-server/src/handlers/export_query_shape.rs`,
   `download/streaming_gate`, `fetch_results/no_limit_gate`) match literal code.
   Update them with the line they pin.
 - Test doubles implementing `lotus_search::HttpResponse` need

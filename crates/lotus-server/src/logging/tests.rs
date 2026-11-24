@@ -21,7 +21,7 @@ fn parses_plain_directives_case_insensitively() {
 #[test]
 fn parses_target_scoped_comma_directives() {
     assert_eq!(
-        parse_log_level(Some("lotus_explore_rs=debug,tower_http=warn")),
+        parse_log_level(Some("lotus_server=debug,tower_http=warn")),
         LevelFilter::Debug
     );
     assert_eq!(

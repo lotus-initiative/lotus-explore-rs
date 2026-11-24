@@ -1,0 +1,42 @@
+[package]
+name = "lotus-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Native Axum OpenAPI HTTP server and static SPA host for the LOTUS Explorer"
+readme = "README.md"
+repository.workspace = true
+license.workspace = true
+keywords = ["axum", "http", "lotus", "openapi", "sparql"]
+categories = ["science", "web-programming::http-server"]
+publish = false
+
+[[bin]]
+name = "lotus-server"
+path = "src/main.rs"
+
+[dependencies]
+axum = { workspace = true }
+clap = { workspace = true }
+flate2 = { workspace = true }
+futures = { workspace = true }
+log = { workspace = true }
+lotus-explore-core = { workspace = true, features = ["openapi"] }
+lotus-model = { workspace = true }
+lotus-query = { workspace = true }
+lotus-search = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal", "sync"] }
+tower-http = { workspace = true }
+utoipa = { workspace = true }
+
+[dev-dependencies]
+lotus-search = { workspace = true, features = ["testing"] }
+tempfile = { workspace = true }
+tower = { workspace = true }
+
+[lints]
+workspace = true
