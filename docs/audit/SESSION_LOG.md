@@ -67,3 +67,15 @@
   - Switched `Qid` parsing to handle both bare `q<digits>` and `http(s)://www.wikidata.org/entity/q<digits>` URIs consistently.
   - Replaced `#[allow(unreachable_pub)]` in `lotus-model/src/identify.rs` with `pub(crate)` + `#[expect(clippy::redundant_pub_crate, reason = ...)]` so crate-internal visibility is enforced without `allow` drift.
 - **Verification & Metrics:** `./mk gate`, `./mk deny`, `./mk machete`, `./mk echoes`, `./mk refquiem`, `./mk doc`, and `cargo test --workspace --doc --locked` all green (with targeted `./mk check -p lotus-model`, `cargo nextest run -p lotus-model --locked`, `./mk doc`, doctests, `./mk typos`, `./mk echoes`, and `./mk refquiem` re-run after fixing `Qid::from_str` lowercase URI parsing); `lotus-search` public re-export leak (`pub use lotus_model::*;`, +271 symbols) eliminated.
+
+### Step 3 — Extract `crates/lotus-export` from `lotus-explore-core`
+- **Files created/moved:**
+  - Created `crates/lotus-export/{Cargo.toml, README.md, src/lib.rs, tests/characterization_exports.rs}`
+  - Split `pipeline` into `crates/lotus-export/src/pipeline/{mod,index,join,tests}.rs` with `PipelineOptions<'a>` (replacing 5 parameters)
+  - Split `archive` into `crates/lotus-export/src/archive/{mod,fetch,dedup,tar_writer,tests}.rs` with `ArchiveOptions<'a>` & `WriteArchiveInput<'a>` (replacing 7 parameters)
+  - Split `pubchem_tree` into `crates/lotus-export/src/pubchem_tree/{mod,fetch,index,compact,document,nodes,npclassifier,trees,tests}.rs` with `PubchemTreeOptions<'a>` & `PubchemTreeOutputs` (replacing a 6-tuple)
+- **Dependency & boundary changes:**
+  - `crates/lotus-explore-core/Cargo.toml`: removed `csv`, `flate2`, `tar`, and switched `lotus-search` to `default-features = false`
+  - `crates/lotus-cli/Cargo.toml`: replaced `lotus-explore-core` with `lotus-export`, completely decoupling `lotus-cli` from explorer core UI/domain logic
+  - Updated `Cargo.toml`, `Cargo.lock`, `Makefile.toml` (`boundary`), `mk.local` (`MUTANTS_PACKAGES`), `make/test.toml` (`cov`), `crates/lotus-query/src/bulk_export.rs`, `apps/lotus-explore-rs/tests/doc_links.rs`, `README.md`, `docs/ARCHITECTURE.md`, and `docs/DEBT.md`
+- **Metrics after Step 3:** Workspace crates 9 → 10; every production file in `crates/lotus-export` is ≤ ~245 LOC (`index.rs`); all existing characterization and unit tests preserved intact.

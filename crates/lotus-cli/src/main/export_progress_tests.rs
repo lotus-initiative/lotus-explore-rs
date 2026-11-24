@@ -7,11 +7,8 @@ use super::ExportProgress;
 
 #[test]
 fn the_visible_export_bar_and_count_advance_between_tables() {
-    let mut progress = ExportProgress::new(
-        Vec::new(),
-        true,
-        lotus_explore_core::export::pipeline::EXPORT_QUERY_COUNT,
-    );
+    let mut progress =
+        ExportProgress::new(Vec::new(), true, lotus_export::pipeline::EXPORT_QUERY_COUNT);
 
     progress.step("compound_taxon_reference");
     let step_0 = "\r\x1b[2K[\x1b[36m>\x1b[34m----------------------------------------\x1b[0m] 0/4 Fetching compound_taxon_reference";
@@ -64,7 +61,7 @@ fn non_terminal_stderr_emits_no_progress_escapes() {
     let mut progress = ExportProgress::new(
         Vec::new(),
         false,
-        lotus_explore_core::export::pipeline::EXPORT_QUERY_COUNT,
+        lotus_export::pipeline::EXPORT_QUERY_COUNT,
     );
     progress.step("compound_taxon_reference");
     progress.finish();

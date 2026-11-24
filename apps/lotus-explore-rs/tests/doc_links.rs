@@ -26,6 +26,7 @@ const DOCUMENTS: &[&str] = &[
     "apps/lotus-explore-rs/docs/ARCHITECTURE.md",
     "crates/lotus-cli/README.md",
     "crates/lotus-explore-core/README.md",
+    "crates/lotus-export/README.md",
     "crates/lotus-model/README.md",
     "crates/lotus-query/README.md",
     "crates/lotus-search/README.md",

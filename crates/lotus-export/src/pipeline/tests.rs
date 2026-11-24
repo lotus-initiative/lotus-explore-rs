@@ -72,6 +72,14 @@ fn endpoint() -> Endpoint {
     Endpoint::new(Service::Qlever)
 }
 
+fn options() -> PipelineOptions<'static> {
+    PipelineOptions {
+        endpoint: endpoint(),
+        now: NOW,
+        year: YEAR,
+    }
+}
+
 /// A temp dir whose path outlives the call, for writing the returned CSV
 /// strings to disk (keeps `tempfile` exercised and tests real file I/O).
 fn out_dir() -> PathBuf {
@@ -87,10 +95,9 @@ async fn pipeline_serializes_frozen_csv_and_metadata() {
         csv(200, &references_csv()),
     ]);
 
-    let (frozen_csv, metadata_csv, summary) =
-        run_lotus_exporter(&http, endpoint(), NOW, YEAR, |_| {})
-            .await
-            .expect("the pipeline runs");
+    let (frozen_csv, metadata_csv, summary) = run_lotus_exporter(&http, &options(), |_| {})
+        .await
+        .expect("the pipeline runs");
 
     assert_eq!(summary.triplets, 2);
     assert_eq!(summary.compounds, 2);
@@ -136,7 +143,7 @@ async fn pipeline_tolerates_missing_optional_tables() {
         csv(200, &empty_references_csv()),
     ]);
 
-    let (frozen_csv, _, summary) = run_lotus_exporter(&http, endpoint(), NOW, YEAR, |_| {})
+    let (frozen_csv, _, summary) = run_lotus_exporter(&http, &options(), |_| {})
         .await
         .expect("the pipeline runs");
 
@@ -159,7 +166,7 @@ async fn pipeline_records_every_query_in_order() {
     ]);
 
     let mut stages = Vec::new();
-    let _ = run_lotus_exporter(&http, endpoint(), NOW, YEAR, |table| stages.push(table)).await;
+    let _ = run_lotus_exporter(&http, &options(), |table| stages.push(table)).await;
     assert_eq!(
         stages,
         [
@@ -205,7 +212,7 @@ async fn pipeline_propagates_fetch_errors() {
     let http = script(vec![(400, "bad request")]);
 
     let mut stages = Vec::new();
-    let err = run_lotus_exporter(&http, endpoint(), NOW, YEAR, |table| stages.push(table))
+    let err = run_lotus_exporter(&http, &options(), |table| stages.push(table))
         .await
         .unwrap_err();
     assert_eq!(stages, ["compound_taxon_reference"]);

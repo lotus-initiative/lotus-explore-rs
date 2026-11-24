@@ -27,7 +27,7 @@ use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand, ValueEnum};
-use lotus_explore_core::export::pubchem_tree::{PUBCHEM_TREE_QUERY_COUNT, run_pubchem_tree};
+use lotus_export::pubchem_tree::{PUBCHEM_TREE_QUERY_COUNT, PubchemTreeOptions, run_pubchem_tree};
 use lotus_model::SmilesSearchType;
 
 mod curate;
@@ -600,13 +600,15 @@ async fn export(args: ExportArgs) -> anyhow::Result<ExitCode> {
     let mut progress = ExportProgress::new(
         stderr,
         is_terminal,
-        lotus_explore_core::export::pipeline::EXPORT_QUERY_COUNT,
+        lotus_export::pipeline::EXPORT_QUERY_COUNT,
     );
-    let result = lotus_explore_core::export::pipeline::run_lotus_exporter(
+    let result = lotus_export::pipeline::run_lotus_exporter(
         &http,
-        endpoint,
-        &now,
-        year,
+        &lotus_export::pipeline::PipelineOptions {
+            endpoint,
+            now: &now,
+            year,
+        },
         |table| progress.step(table),
     )
     .await;
@@ -648,9 +650,17 @@ async fn export_pubchem_tree(args: ExportPubchemTreeArgs) -> anyhow::Result<Exit
     let stderr = io::stderr();
     let is_terminal = stderr.is_terminal();
     let mut progress = ExportProgress::new(stderr, is_terminal, PUBCHEM_TREE_QUERY_COUNT);
-    let result = run_pubchem_tree(&http, endpoint, &now, |table| progress.step(table)).await;
+    let result = run_pubchem_tree(
+        &http,
+        &PubchemTreeOptions {
+            endpoint,
+            now: &now,
+        },
+        |table| progress.step(table),
+    )
+    .await;
     progress.finish();
-    let (bio_full, chem_full, npc_full, bio_pc, chem_pc, npc_pc) = result?;
+    let outputs = result?;
 
     let output_dir = args
         .output
@@ -665,12 +675,21 @@ async fn export_pubchem_tree(args: ExportPubchemTreeArgs) -> anyhow::Result<Exit
         Ok(())
     };
 
-    write("lotus_biological_tree.json", &bio_full)?;
-    write("lotus_chemical_tree.json", &chem_full)?;
-    write("lotus_npclassifier_tree.json", &npc_full)?;
-    write("lotus_biological_tree_pubchem.json", &bio_pc)?;
-    write("lotus_chemical_tree_pubchem.json", &chem_pc)?;
-    write("lotus_npclassifier_tree_pubchem.json", &npc_pc)?;
+    write("lotus_biological_tree.json", &outputs.biological_full)?;
+    write("lotus_chemical_tree.json", &outputs.chemical_full)?;
+    write("lotus_npclassifier_tree.json", &outputs.npclassifier_full)?;
+    write(
+        "lotus_biological_tree_pubchem.json",
+        &outputs.biological_pubchem,
+    )?;
+    write(
+        "lotus_chemical_tree_pubchem.json",
+        &outputs.chemical_pubchem,
+    )?;
+    write(
+        "lotus_npclassifier_tree_pubchem.json",
+        &outputs.npclassifier_pubchem,
+    )?;
 
     Ok(ExitCode::SUCCESS)
 }
@@ -743,8 +762,13 @@ async fn archive(args: ArchiveArgs) -> anyhow::Result<ExitCode> {
     let endpoint = lotus_search::Endpoint::new(lotus_search::Service::Qlever);
 
     let filename = archive_filename(fetched_at);
-    let (artifacts, summary) = Box::pin(lotus_explore_core::export::archive::run_archive(
-        &http, endpoint, &now, &filename,
+    let (artifacts, summary) = Box::pin(lotus_export::archive::run_archive(
+        &http,
+        &lotus_export::archive::ArchiveOptions {
+            endpoint,
+            fetched_at: &now,
+            archive_filename: &filename,
+        },
     ))
     .await
     .map_err(|e| anyhow::anyhow!("archive failed: {e}"))?;
@@ -804,7 +828,7 @@ fn archive_filename(fetched_at: lotus_model::utc::UtcDateTime) -> String {
 fn write_archive_files(
     output: Option<&std::path::PathBuf>,
     filename: &str,
-    artifacts: &lotus_explore_core::export::archive::ArchiveArtifacts,
+    artifacts: &lotus_export::archive::ArchiveArtifacts,
 ) -> anyhow::Result<(std::path::PathBuf, std::path::PathBuf, std::path::PathBuf)> {
     let output_dir: &std::path::Path =
         output.map_or_else(|| std::path::Path::new("."), |p| p.as_path());

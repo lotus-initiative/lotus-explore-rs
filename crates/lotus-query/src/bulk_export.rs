@@ -5,7 +5,7 @@
 ///
 /// Every query here is a `const` string and nothing else: no HTTP, no
 /// runtime, no clock. The transport is injected by the caller (see
-/// [`lotus_explore_core::export::pipeline`]), so the same queries are tested
+/// [`lotus_export::pipeline`]), so the same queries are tested
 /// against a mock and run against `QLever` in production.
 ///
 /// The queries are the ones from `lotus_exporter.py`, `lotus_pubchem_tree.py`

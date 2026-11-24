@@ -6,12 +6,13 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::ops::Bound;
 
-use super::index::{Index, PubChemData, cell, qid};
+use super::fetch::PubChemData;
+use super::index::{Index, cell, qid};
 use super::nodes::{
     ClassMember, Classification, CompoundNode, Descriptors, Level, Pathway, Qid, Superclass,
     sort_by_name,
 };
-use crate::export::pipeline::Row;
+use crate::pipeline::Row;
 
 /// The class name the Python generator files a classless compound under. A
 /// class of that name is read the same way, and the name decides where those

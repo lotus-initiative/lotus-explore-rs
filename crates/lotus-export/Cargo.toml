@@ -1,0 +1,32 @@
+[package]
+name = "lotus-export"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Full-graph LOTUS bulk export pipelines: frozen CSV, Wikidata SMILES archive, and PubChem trees"
+readme = "README.md"
+repository.workspace = true
+license.workspace = true
+keywords = ["export", "lotus", "natural-products", "sparql", "wikidata"]
+categories = ["science"]
+publish = false
+
+[dependencies]
+csv = { workspace = true }
+flate2 = { workspace = true }
+lotus-model = { workspace = true }
+lotus-query = { workspace = true }
+lotus-search = { workspace = true, default-features = false }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+tar = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+lotus-search = { workspace = true, features = ["testing"] }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+[lints]
+workspace = true

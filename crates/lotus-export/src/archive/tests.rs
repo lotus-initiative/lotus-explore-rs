@@ -7,9 +7,11 @@ use std::io::Read;
 
 use flate2::read::GzDecoder;
 
+use lotus_query::{ARCHIVE_PAGE_SIZE, ARCHIVE_SMILES_QUERY};
 use lotus_search::testing::Scripted;
 use lotus_search::{Endpoint, Service};
 
+use super::fetch::QleverClient;
 use super::*;
 
 fn endpoint() -> Endpoint {
@@ -100,9 +102,16 @@ async fn run_archive_fetches_all_pages_and_deduplicates() {
         ),
     ]);
 
-    let (artifacts, summary) = run_archive(&http, endpoint(), "2026-03-04T05:06:07Z", "a.tar.gz")
-        .await
-        .expect("the archive runs");
+    let (artifacts, summary) = run_archive(
+        &http,
+        &ArchiveOptions {
+            endpoint: endpoint(),
+            fetched_at: "2026-03-04T05:06:07Z",
+            archive_filename: "a.tar.gz",
+        },
+    )
+    .await
+    .expect("the archive runs");
 
     assert_eq!(summary.source_records, 3);
     assert_eq!(summary.missing_inchi_key_records, 1);
@@ -182,9 +191,16 @@ async fn run_archive_handles_empty_results() {
         json_reply(200, &smiles_without_inchikey_page(&[])),
     ]);
 
-    let (artifacts, summary) = run_archive(&http, endpoint(), "2026-01-01T00:00:00Z", "a.tar.gz")
-        .await
-        .expect("the archive runs");
+    let (artifacts, summary) = run_archive(
+        &http,
+        &ArchiveOptions {
+            endpoint: endpoint(),
+            fetched_at: "2026-01-01T00:00:00Z",
+            archive_filename: "a.tar.gz",
+        },
+    )
+    .await
+    .expect("the archive runs");
 
     assert_eq!(summary.source_records, 0);
     assert_eq!(summary.records, 0);
@@ -261,15 +277,15 @@ fn write_archive_produces_checksums_and_manifest() {
     }];
     let errors = vec![];
 
-    let artifacts = write_archive(
-        "2026-09-17T00:00:00Z",
-        "lotus-wikidata-smiles-20260917T000000Z.tar.gz",
-        DEFAULT_QLEVER_ENDPOINT,
-        1,
-        &missing,
-        &records,
-        &errors,
-    )
+    let artifacts = write_archive(&WriteArchiveInput {
+        fetched_at: "2026-09-17T00:00:00Z",
+        archive_filename: "lotus-wikidata-smiles-20260917T000000Z.tar.gz",
+        endpoint: DEFAULT_QLEVER_ENDPOINT,
+        source_records: 1,
+        missing_inchi_key_records: &missing,
+        records: &records,
+        parse_errors: &errors,
+    })
     .expect("write_archive succeeds");
 
     let members = decode_archive(&artifacts.archive);

@@ -105,7 +105,7 @@ fn scratch_dir(test: &str) -> std::path::PathBuf {
 fn write_archive_files_writes_the_three_artifacts_under_their_names() {
     let dir = scratch_dir("write-archive");
     let fetched_at = parse_iso_utc("2025-01-15T12:30:05Z").expect("valid RFC3339");
-    let artifacts = lotus_explore_core::export::archive::ArchiveArtifacts {
+    let artifacts = lotus_export::archive::ArchiveArtifacts {
         archive: vec![0x1f, 0x8b, 0x08],
         manifest: "{\"records\":1}".to_string(),
         checksums: "abc  archive\n".to_string(),
@@ -204,16 +204,17 @@ fn the_checksums_file_names_the_archive_that_was_written() {
     let dir = scratch_dir("checksum-names");
     let fetched_at = parse_iso_utc("2025-01-15T12:30:05Z").expect("valid RFC3339");
     let filename = archive_filename(fetched_at);
-    let artifacts = lotus_explore_core::export::archive::write_archive(
-        "2025-01-15T12:30:05Z",
-        &filename,
-        "https://qlever.example/wikidata",
-        0,
-        &[],
-        &[],
-        &[],
-    )
-    .expect("an empty archive serialises");
+    let artifacts =
+        lotus_export::archive::write_archive(&lotus_export::archive::WriteArchiveInput {
+            fetched_at: "2025-01-15T12:30:05Z",
+            archive_filename: &filename,
+            endpoint: "https://qlever.example/wikidata",
+            source_records: 0,
+            missing_inchi_key_records: &[],
+            records: &[],
+            parse_errors: &[],
+        })
+        .expect("an empty archive serialises");
 
     let (archive, _, checksums) =
         write_archive_files(Some(&dir), &filename, &artifacts).expect("files are written");

@@ -36,4 +36,4 @@ MIRI_PACKAGES=(lotus-model lotus-query lotus-jsonld)
 # Every crate but the app, whose ~2,700 rendering mutants are opt-in
 # (`./mk local:mutants-ui`; the reason is in .cargo/mutants.toml).
 MUTANTS_PACKAGES=(lotus-model lotus-search lotus-query lotus-curation lotus-jsonld
-  lotus-cli lotus-web-assets lotus-explore-core)
+  lotus-cli lotus-web-assets lotus-explore-core lotus-export)

@@ -5,6 +5,7 @@ members = [
   "crates/lotus-cli",
   "crates/lotus-curation",
   "crates/lotus-explore-core",
+  "crates/lotus-export",
   "crates/lotus-jsonld",
   "crates/lotus-model",
   "crates/lotus-query",
@@ -39,6 +40,7 @@ js-sys = "0.3"
 log = "0.4"
 lotus-curation = { path = "crates/lotus-curation", version = "0.1" }
 lotus-explore-core = { path = "crates/lotus-explore-core", version = "0.1" }
+lotus-export = { path = "crates/lotus-export", version = "0.1" }
 lotus-jsonld = { path = "crates/lotus-jsonld", version = "0.1" }
 lotus-model = { path = "crates/lotus-model", version = "0.1" }
 lotus-query = { path = "crates/lotus-query", version = "0.1" }

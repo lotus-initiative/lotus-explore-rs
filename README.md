@@ -45,7 +45,9 @@ the output the way the deploy does, see
 ┌───────────────────────────────▼─────────────────────────────────────────┐
 │ Use-case & framework-free application core (injectable `Http`, no UI)   │
 │   crates/lotus-explore-core (Explore state machine, URL codec, client   │
-│                              table filter/sort, bulk export pipelines)  │
+│                              table filter/sort, graph projection)       │
+│   crates/lotus-export       (CLI bulk export pipelines: frozen CSV,     │
+│                              PubChem trees, Wikidata archive)           │
 │   crates/lotus-search       (SPARQL execution, QLever→WDQS fallback,    │
 │                              split-stream fold + dictionary enrichment) │
 └───────────────────────────────┬─────────────────────────────────────────┘
@@ -68,7 +70,8 @@ the output the way the deploy does, see
 | [`lotus-search`](crates/lotus-search/README.md)             | Search execution: taxon/compound/DOI resolution, retry, QLever→WDQS fallback, streaming fold   |
 | [`lotus-curation`](crates/lotus-curation/README.md)         | Curation vocabulary, TSV reader, Wikidata reconciliation queries, QuickStatements V1 generator |
 | [`lotus-jsonld`](crates/lotus-jsonld/README.md)             | Bioschemas JSON-LD, CodeMeta, `CITATION.cff`                                                   |
-| [`lotus-explore-core`](crates/lotus-explore-core/README.md) | Framework-free app core: state reducers, URL codec, table filter/sort, bulk export pipelines   |
+| [`lotus-explore-core`](crates/lotus-explore-core/README.md) | Framework-free app core: state reducers, URL codec, table filter/sort, graph projection     |
+| [`lotus-export`](crates/lotus-export/README.md)             | Full-graph CLI bulk export pipelines (frozen CSV, Wikidata SMILES archive, PubChem trees)   |
 | [`lotus-cli`](crates/lotus-cli/README.md)                   | The `lotus` binary (`search`, `curate`, `export`, `export-pubchem-tree`, `archive`)            |
 | `lotus-web-assets`                                          | Host-only fetcher for third-party frontend assets (Ketcher, RDKit, Citation.js)                |
 | [`apps/lotus-explore-rs`](apps/lotus-explore-rs/README.md)  | Dioxus web client (WASM), optional Axum HTTP API (`--features server`)                         |

@@ -11,14 +11,10 @@ categories = ["science"]
 publish = false
 
 [dependencies]
-# Reading SPARQL CSV result payloads into row maps for the export join.
-csv = { workspace = true }
-# The archive writes a gzip-compressed tar; both are pure Rust and wasm-clean.
-flate2 = { workspace = true }
 # The library crates this half of the application is built on. `lotus-model`
 # holds the vocabulary, `lotus-query` builds the SPARQL, `lotus-search` owns the
-# search use case, `lotus-curation` owns the TSV reader and the curation
-# vocabulary, `lotus-jsonld` builds the metadata document.
+# search transport contract (`default-features = false` keeps `reqwest` out of
+# the core), and `lotus-jsonld` builds the metadata document.
 #
 # No `dioxus`. This crate is the half of the application that does not know
 # which UI framework is drawing it, and the boundary is checked mechanically --
@@ -26,17 +22,14 @@ flate2 = { workspace = true }
 lotus-jsonld = { workspace = true }
 lotus-model = { workspace = true }
 lotus-query = { workspace = true }
-lotus-search = { workspace = true }
+lotus-search = { workspace = true, default-features = false }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
-tar = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-# The pipeline is async and its tests run against `lotus_search::testing::Scripted`,
-# which is behind the `testing` feature. `tokio` drives the async tests.
-lotus-search = { workspace = true, features = ["testing"] }
+# `tokio` drives async unit tests on `ports`.
 tokio = { workspace = true, features = ["macros", "rt"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

@@ -22,13 +22,13 @@ This layering prevents the same query, validation, or curation logic from being 
 | [`lotus-search`](../crates/lotus-search/README.md) | Application | Transport-abstracted SPARQL execution, retry/fallback, and input resolution | `lotus-model`, `lotus-query` |
 | [`lotus-curation`](../crates/lotus-curation/README.md) | Application | Curation TSV ingestion, Wikidata reconciliation queries, and QuickStatements V1 bundling | `lotus-model`, `lotus-search` (`default-features = false`) |
 | [`lotus-explore-core`](../crates/lotus-explore-core/README.md) | Application | Framework-free explorer state machine, URL codec, client filter/sort, graph projection, and API DTOs | `lotus-model`, `lotus-query`, `lotus-search` (`default-features = false`), `lotus-jsonld` |
-| `lotus-export` *(target)* | Application | Full-graph bulk ETL pipelines (frozen CSV export, PubChem trees, Zenodo archive) over injectable `Http` | `lotus-model`, `lotus-query`, `lotus-search` (`default-features = false`) |
+| [`lotus-export`](../crates/lotus-export/README.md) | Application | Full-graph bulk ETL pipelines (frozen CSV export, PubChem trees, Zenodo archive) over injectable `Http` | `lotus-model`, `lotus-query`, `lotus-search` (`default-features = false`) |
 | `lotus-server` *(target)* | Adapter | Native Axum OpenAPI HTTP server (`/v1/*`, `/health`, `/metrics`, static SPA hosting) | `lotus-model`, `lotus-query`, `lotus-search`, `lotus-explore-core` (`openapi`) |
 | [`lotus-cli`](../crates/lotus-cli/README.md) | Adapter | The `lotus` terminal binary (`search`, `curate`, `export`, `export-pubchem-tree`, `archive`) | `lotus-model`, `lotus-query`, `lotus-search`, `lotus-curation`, `lotus-jsonld`, `lotus-export` |
 | [`apps/lotus-explore-rs`](../apps/lotus-explore-rs/README.md) | Adapter | Dioxus WASM web client and browser platform adapters | `lotus-model`, `lotus-query`, `lotus-search`, `lotus-curation`, `lotus-explore-core` |
 | `lotus-web-assets` | Adapter | Host-only build and container utilities (`fetch-assets`, `inject-wasm-preload`, `lotus-healthcheck`) | *(none)* |
 
-> **Migration note:** During the incremental refactor, bulk export pipelines currently reside in `crates/lotus-explore-core/src/export/` and the HTTP server currently resides in `apps/lotus-explore-rs/src/server/` until Steps 3 and 4 of [`REFACTOR_PLAN.md`](REFACTOR_PLAN.md) complete.
+> **Migration note:** During the incremental refactor, the HTTP server currently resides in `apps/lotus-explore-rs/src/server/` until Step 4 of [`REFACTOR_PLAN.md`](REFACTOR_PLAN.md) completes.
 
 ---
 

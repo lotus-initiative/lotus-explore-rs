@@ -115,7 +115,7 @@ description = "Coverage report for the library crates, CLI and web-assets binari
 script = """
 cargo llvm-cov nextest --locked \\
   -p lotus-model -p lotus-query -p lotus-curation -p lotus-jsonld -p lotus-search \\
-  -p lotus-cli -p lotus-web-assets -p lotus-explore-core \\
+  -p lotus-cli -p lotus-web-assets -p lotus-explore-core -p lotus-export \\
   --profile ci --no-fail-fast
 cargo llvm-cov report --html --output-dir "${REPO_ROOT}/target/llvm-cov-report"
 cargo llvm-cov report --lcov --output-path "${REPO_ROOT}/target/llvm-cov-report/lcov.info"

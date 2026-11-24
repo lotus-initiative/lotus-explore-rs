@@ -5,18 +5,20 @@
 
 use std::collections::BTreeSet;
 
-use lotus_query::QLEVER_WIKIDATA;
+use lotus_model::QLEVER_WIKIDATA;
 use lotus_search::Service;
 use lotus_search::testing::Scripted;
 use serde_json::{Value, json};
 
-use super::index::PubChemData;
+use super::fetch::{PubChemData, fetch_all_pubchem_data};
+use super::index::Index;
 use super::nodes::{
     ChemicalNode, Class, ClassMember, Classification, CompoundNode, Descriptors, Level, Qid,
     Reference, TaxonCompound, TaxonIdentifiers, TaxonNode, count_nodes,
 };
+use super::npclassifier::SmilesIndex;
 use super::*;
-use crate::export::pipeline::Row;
+use crate::pipeline::Row;
 
 const NOW: &str = "2026-03-04T05:06:07Z";
 
@@ -164,9 +166,16 @@ async fn index_names_and_describes_each_compound() {
 async fn documents() -> [Value; 6] {
     let http = scripted();
     let mut steps = Vec::new();
-    let documents = run_pubchem_tree(&http, Endpoint::new(Service::Qlever), NOW, |step| {
-        steps.push(step);
-    })
+    let documents = run_pubchem_tree(
+        &http,
+        &PubchemTreeOptions {
+            endpoint: Endpoint::new(Service::Qlever),
+            now: NOW,
+        },
+        |step| {
+            steps.push(step);
+        },
+    )
     .await
     .expect("the pipeline runs");
     assert_eq!(http.call_count(), 13);
@@ -204,7 +213,15 @@ async fn documents() -> [Value; 6] {
         http.endpoints().last().map(String::as_str),
         Some(NPCLASSIFIER_CACHE_URL)
     );
-    <[String; 6]>::from(documents).map(|t| parse(&t))
+    [
+        documents.biological_full,
+        documents.chemical_full,
+        documents.npclassifier_full,
+        documents.biological_pubchem,
+        documents.chemical_pubchem,
+        documents.npclassifier_pubchem,
+    ]
+    .map(|t| parse(&t))
 }
 
 fn caffeine() -> Value {
@@ -857,21 +874,24 @@ fn biological_tree_walks_all_parents_when_a_taxon_has_multiple_parent_rows() {
 async fn run_pubchem_tree_records_configured_endpoint_in_wikidata_metadata() {
     let endpoint = Endpoint::new(Service::Wdqs);
     let expected_url = endpoint.url().to_string();
-    let (bio_full, chem_full, npc_full, _, _, _) =
-        run_pubchem_tree(&scripted(), endpoint, NOW, |_| {})
-            .await
-            .expect("pubchem tree succeeds");
+    let outputs = run_pubchem_tree(
+        &scripted(),
+        &PubchemTreeOptions { endpoint, now: NOW },
+        |_| {},
+    )
+    .await
+    .expect("pubchem tree succeeds");
 
     assert_eq!(
-        parse(&bio_full)["metadata"]["source"]["endpoint"],
+        parse(&outputs.biological_full)["metadata"]["source"]["endpoint"],
         expected_url
     );
     assert_eq!(
-        parse(&chem_full)["metadata"]["source"]["endpoint"],
+        parse(&outputs.chemical_full)["metadata"]["source"]["endpoint"],
         expected_url
     );
     assert_eq!(
-        parse(&npc_full)["metadata"]["source"]["endpoint"],
+        parse(&outputs.npclassifier_full)["metadata"]["source"]["endpoint"],
         NPCLASSIFIER_CACHE_URL
     );
 }
@@ -893,9 +913,16 @@ async fn run_pubchem_tree_propagates_npclassifier_cache_errors() {
         (200, REFERENCE_PMID),
         (500, "cache upstream failed"),
     ]);
-    let err = run_pubchem_tree(&failing, Endpoint::new(Service::Qlever), NOW, |_| {})
-        .await
-        .expect_err("HTTP 500 on NPClassifier cache must fail instead of producing an empty tree");
+    let err = run_pubchem_tree(
+        &failing,
+        &PubchemTreeOptions {
+            endpoint: Endpoint::new(Service::Qlever),
+            now: NOW,
+        },
+        |_| {},
+    )
+    .await
+    .expect_err("HTTP 500 on NPClassifier cache must fail instead of producing an empty tree");
     assert!(
         err.to_string().contains("500"),
         "error should report the upstream HTTP status: {err}"

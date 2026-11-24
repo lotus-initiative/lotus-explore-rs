@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! The two trees read from Wikidata hierarchies: taxa under Biota (P171) with
-//! their compounds, and compounds under chemical compound (Q11173) via P279.
+//! The two trees read from Wikidata hierarchies: taxa under Biota (`P171`) with
+//! their compounds, and compounds under chemical compound (`Q11173`) via `P279`.
 
 use std::collections::{HashMap, HashSet};
 
-use super::index::{Hierarchy, Index, PubChemData, qid};
+use super::fetch::PubChemData;
+use super::index::{Hierarchy, Index, qid};
 use super::nodes::{ChemicalNode, TaxonCompound, TaxonIdentifiers, TaxonNode, sort_by_name};
 
 /// Build the biological tree: every taxon with a compound, every ancestor of
