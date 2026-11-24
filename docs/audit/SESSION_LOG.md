@@ -115,3 +115,15 @@
   - `lotus-search/{search,execute,reqwest_client}/`: max 221 (`stream_search.rs`; `mod.rs` 201, `fallback.rs` 185, `resolve_structure.rs` 171; pre-existing `reqwest_client/wasm.rs` kept intact at 415)
   - `lotus-curation/{wikidata_query,structure,knowledge}/`: max 206 (`convert.rs`; `statements.rs` 182, `taxon_name.rs` 179, `lookup.rs` 154)
   - `lotus-explore-core/{graph/project,graph/model,url_codec/criteria,export/metadata}/`: max 312 (`metadata/builder.rs`, 297 code/comment lines excl. header; `criteria/decode.rs` 281, `graph/project/nodes.rs` 262, `graph/model/types.rs` 237)
+
+### Step 5b-2 — Decompose `crates/lotus-cli` and `apps/lotus-explore-rs/build.rs`
+- **Files created/removed/updated:**
+  - `crates/lotus-cli/src/main.rs` (1,096 → 120 lines): extracted `args/{mod,search}.rs`, `criteria.rs`, `search_cmd.rs`, `export_cmd.rs`, `archive_cmd.rs`, and `clock.rs`; extracted `explain_search` & `resolve_explain_taxon` helpers; preserved all 5 `main/*_tests.rs` suites intact
+  - `crates/lotus-cli/src/zenodo.rs` (579 lines) → `zenodo/{mod,types,client,publish}.rs` (keeping `zenodo/tests.rs` intact)
+  - `crates/lotus-cli/src/curate.rs` (487 lines) → `curate/{mod,runner,report}.rs` (keeping `curate/tests.rs` intact)
+  - `apps/lotus-explore-rs/build.rs` (892 → 161 lines) → `build/{mod,metadata,ai,site_files,csp,headers}.rs` (preserving `build_test.rs` & `build/tests.rs` unchanged; 1 scoped `#[allow(unreachable_pub)]` on `mod modules` recorded in `docs/DEBT.md`)
+  - Marked Step 5 `[x]` in `docs/REFACTOR_PLAN.md` (query-builder unification between `lotus-search` and `lotus-explore-core` tracked into Step 6)
+- **Metrics after Step 5b-2 (observed total lines via `wc -l`):**
+  - `crates/lotus-cli/src/`: `archive_cmd.rs` 273, `zenodo/publish.rs` 234, `curate/runner.rs` 248, `args/search.rs` 201, `zenodo/client.rs` 210, `curate/mod.rs` 186, `export_cmd.rs` 172, `zenodo/types.rs` 149, `search_cmd.rs` 131, `criteria.rs` 130, `main.rs` 120, `args/mod.rs` 113, `curate/report.rs` 78, `clock.rs` 45, `zenodo/mod.rs` 29 (`output.rs` left untouched at 308 lines total, <300 code lines)
+  - `apps/lotus-explore-rs/build*`: `build.rs` 161, `build/ai.rs` 259, `build/headers.rs` 150, `build/site_files.rs` 135, `build/csp.rs` 116, `build/metadata.rs` 115, `build/mod.rs` 9
+  - `lotus-cli` (90 unit + 34 `cli` + 5 `docs_in_sync`) and `lotus-explore-rs` (`buildrs` 23/23 + `doc_links` 2/2) all pass unchanged.
