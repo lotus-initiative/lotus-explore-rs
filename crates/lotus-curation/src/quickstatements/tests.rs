@@ -313,6 +313,11 @@ fn quickstatements_statements_preserve_smiles_and_escape_delimiters() {
         format!(r#"LAST|P234|"{inchi}"|S887|Q113907573"#),
         "InChI statement preserves slashes and appends S887"
     );
+    assert_eq!(
+        qs_inchikey_statement("LAST", "BSYNRYMUTXBXSQ-UHFFFAOYSA-N"),
+        r#"LAST|P235|"BSYNRYMUTXBXSQ-UHFFFAOYSA-N"|S887|Q113907573"#,
+        "InChIKey statement emits P235 with S887 reference"
+    );
 }
 
 #[test]

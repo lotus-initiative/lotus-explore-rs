@@ -33,6 +33,20 @@ fn metadata_json_contains_schema_dataset() {
 
     let parsed: Value = serde_json::from_str(&body).expect("valid JSON");
     assert!(parsed.get("variableMeasured").is_some());
+    assert_eq!(
+        at(&parsed, "/keywords"),
+        json!([
+            "natural products",
+            "chemical structure",
+            "taxonomy",
+            "SPARQL",
+            "linked open data",
+            lotus_jsonld::edam::TOPIC_SMALL_MOLECULES,
+            lotus_jsonld::edam::TOPIC_CHEMINFORMATICS,
+            lotus_jsonld::edam::TOPIC_METABOLOMICS,
+            lotus_jsonld::edam::TOPIC_TAXONOMY,
+        ])
+    );
     let dl_val = at(&parsed, "/distribution/0");
     let dl = dl_val.as_object().expect("DataDownload object");
     assert_eq!(

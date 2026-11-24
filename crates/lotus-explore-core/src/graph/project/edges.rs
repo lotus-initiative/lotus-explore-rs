@@ -146,3 +146,7 @@ pub(super) fn collect_retained_edges(
     edges.sort_by_key(|edge| (edge.source, edge.target));
     edges
 }
+
+#[cfg(test)]
+#[path = "edges/tests.rs"]
+mod tests;

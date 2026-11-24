@@ -47,6 +47,8 @@ fn qid_accepts_canonical_lowercase_and_entity_iris() {
     assert_eq!(q1, q6, "lowercase https URI must canonicalize identically");
     assert_eq!(q1.numeric(), 18_216, "numeric accessor mismatch");
     assert_eq!(q1.as_str(), "Q18216", "canonical string mismatch");
+    assert_eq!(q1.as_ref(), "Q18216", "AsRef<str> mismatch");
+    assert_eq!(q1.to_string(), "Q18216", "Display mismatch");
 }
 
 #[test]
@@ -93,6 +95,12 @@ fn doi_strips_prefixes_uppercases_and_rejects_malformed() {
     assert_eq!(d1, d2, "prefix stripping must produce identical Doi");
     assert_eq!(d1, d3, "case-folding must produce identical Doi");
     assert_eq!(d1.as_str(), "10.7554/ELIFE.70780", "canonical DOI mismatch");
+    assert_eq!(d1.as_ref(), "10.7554/ELIFE.70780", "Doi AsRef mismatch");
+    assert_eq!(
+        d1.to_string(),
+        "10.7554/ELIFE.70780",
+        "Doi Display mismatch"
+    );
 
     for bad in ["", "10.12/abc", "10.1000/", "10.1000/a b", "not-a-doi"] {
         assert!(

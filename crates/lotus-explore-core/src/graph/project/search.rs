@@ -16,7 +16,7 @@ pub fn search_all_nodes(
     limit: usize,
 ) -> Vec<NodeMatch> {
     let needle = lotus_model::folded(query);
-    if needle.is_empty() || limit == 0 || rows.is_empty() {
+    if needle.is_empty() || limit == 0 {
         return Vec::new();
     }
 

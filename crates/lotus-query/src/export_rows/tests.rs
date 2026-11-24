@@ -763,3 +763,24 @@ fn export_json_omits_unbound_empty_cells() {
         );
     }
 }
+
+#[test]
+fn row_exporter_next_chunk_yields_bounded_chunks_and_terminates_with_none() {
+    let set = set_of(&[full_row()]);
+    let mut exporter = RowExporter::new(ExportFormat::Csv, &set);
+    let first = exporter.next_chunk().expect("preamble chunk");
+    assert!(
+        first.starts_with("compound,"),
+        "first chunk must carry CSV header: {first:?}"
+    );
+    let second = exporter.next_chunk().expect("row body chunk");
+    assert!(
+        second.contains(&*full_row().compound_qid),
+        "second chunk must carry compound row: {second:?}"
+    );
+    assert_eq!(
+        exporter.next_chunk(),
+        None,
+        "exporter must return None once exhausted"
+    );
+}

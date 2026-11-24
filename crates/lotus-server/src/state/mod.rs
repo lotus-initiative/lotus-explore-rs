@@ -21,12 +21,12 @@ use crate::{
     types::{ExportUrlResponse, SearchResponse},
 };
 
-#[cfg(test)]
-pub(crate) use self::cache::prune_cache;
 pub(crate) use self::cache::{
     CachedExportResponse, CachedTaxonResolution, export_cache_get, export_cache_put,
     search_cache_get, search_cache_put, taxon_cache_get, taxon_cache_put,
 };
+#[cfg(test)]
+pub(crate) use self::cache::{CachedSearchResponse, maybe_prune_cache_at, prune_cache};
 pub(crate) use self::inflight::{
     export_inflight_cell, export_inflight_remove, search_inflight_cell, search_inflight_remove,
 };

@@ -1363,3 +1363,134 @@ fn resolve_count_stats_propagates_errors_only_when_capped() {
         "count query timeout error status must be preserved"
     );
 }
+
+#[test]
+fn state_caches_prune_bounds_and_inflight_removal_behave_consistently() {
+    use crate::state::{
+        CachedSearchResponse, CachedTaxonResolution, MAX_SEARCH_CACHE_ENTRIES, export_cache_get,
+        export_cache_put, search_cache_get, search_cache_put, taxon_cache_get,
+    };
+    use crate::types::{SearchResponse, SearchStats};
+    use lotus_model::DatasetStats;
+
+    let state = AppState::new(&test_config());
+
+    let search_resp = SearchResponse {
+        resolved_taxon_qid: None,
+        warning: None,
+        query: "SELECT 1".to_string(),
+        rows: Vec::new(),
+        total_matches: 0,
+        stats: SearchStats::from(DatasetStats::default()),
+    };
+    search_cache_put(&state, "k1".into(), search_resp.clone());
+    assert_eq!(
+        search_cache_get(&state, "k1").map(|r| r.query),
+        Some("SELECT 1".to_string())
+    );
+
+    // Force immediate prune check across the `<` / `<=` / `+` boundary in maybe_prune_cache.
+    *state.search_cache_prune_after.lock().expect("prune lock") = Instant::now()
+        .checked_sub(Duration::from_secs(1))
+        .expect("past instant");
+    search_cache_put(&state, "k2".into(), search_resp.clone());
+    assert!(
+        search_cache_get(&state, "k1").is_some(),
+        "fresh entry within TTL stays after prune"
+    );
+    *state.search_cache_prune_after.lock().expect("prune lock") = Instant::now()
+        .checked_sub(Duration::from_secs(1))
+        .expect("past instant");
+    if let Ok(mut guard) = state.search_cache.lock() {
+        let expired_at = Instant::now()
+            .checked_sub(Duration::from_secs(600))
+            .expect("past instant");
+        for idx in 0..=MAX_SEARCH_CACHE_ENTRIES + 5 {
+            guard.insert(
+                format!("extra-{idx}"),
+                CachedSearchResponse {
+                    inserted_at: expired_at,
+                    value: search_resp.clone(),
+                },
+            );
+        }
+    }
+    search_cache_get(&state, "k2");
+    assert!(
+        state.search_cache.lock().expect("lock").len() <= MAX_SEARCH_CACHE_ENTRIES,
+        "expired/excess entries must be pruned"
+    );
+
+    let export_resp = ExportUrlResponse {
+        query: "SELECT 1".into(),
+        csv_url: "https://example.org/out.csv".into(),
+        json_url: "https://example.org/out.json".into(),
+        rdf_url: "https://example.org/out.ttl".into(),
+        csv_gz_url: "https://example.org/out.csv.gz".into(),
+        json_gz_url: "https://example.org/out.json.gz".into(),
+        rdf_gz_url: "https://example.org/out.ttl.gz".into(),
+    };
+    export_cache_put(&state, "ek".into(), export_resp);
+    assert_eq!(
+        export_cache_get(&state, "ek").map(|e| e.csv_url),
+        Some("https://example.org/out.csv".to_string())
+    );
+
+    taxon_cache_put(&state, "Gentiana".into(), (Some("Q158572".into()), None));
+    assert_eq!(
+        taxon_cache_get(&state, "Gentiana"),
+        Some((Some("Q158572".into()), None))
+    );
+    let _ = CachedTaxonResolution {
+        inserted_at: Instant::now(),
+        value: (None, None),
+    };
+
+    let (cell, created) = export_inflight_cell(&state, "e-key").expect("inflight acquire");
+    assert!(created);
+    crate::state::export_inflight_remove(&state, "e-key", &cell);
+    let (_cell2, recreated) =
+        export_inflight_cell(&state, "e-key").expect("re-acquire after remove");
+    assert!(recreated);
+
+    let mut criteria = lotus_model::SearchCriteria::up_to_year(2026);
+    criteria.taxon = "Gentiana".into();
+    crate::handlers::apply_resolved_taxon(&mut criteria, Some("Q158572"));
+    assert_eq!(criteria.taxon, "Q158572");
+    crate::handlers::apply_resolved_taxon(&mut criteria, Some("*"));
+    assert_eq!(criteria.taxon, "Q158572");
+}
+
+#[test]
+fn maybe_prune_cache_at_enforces_exact_deadline_boundary() {
+    // Verify exact `<`, `<=`, and `+ CACHE_PRUNE_INTERVAL` branches on `maybe_prune_cache_at`.
+    let base_now = Instant::now();
+    let future = base_now + Duration::from_secs(60);
+    let gate = std::sync::Arc::new(std::sync::Mutex::new(future));
+    let mut map: HashMap<String, Instant> = HashMap::from([(
+        "stale".into(),
+        base_now
+            .checked_sub(Duration::from_secs(500))
+            .expect("past"),
+    )]);
+    crate::state::maybe_prune_cache_at(
+        &mut map,
+        &gate,
+        Duration::from_secs(60),
+        10,
+        base_now,
+        |v| *v,
+    );
+    assert_eq!(map.len(), 1, "before prune deadline, map must stay intact");
+
+    crate::state::maybe_prune_cache_at(&mut map, &gate, Duration::from_secs(60), 10, future, |v| {
+        *v
+    });
+    assert_eq!(
+        map.len(),
+        0,
+        "at exact deadline (now == next_prune), map must prune"
+    );
+    let next_deadline = *gate.lock().expect("gate lock");
+    assert!(next_deadline > future, "next_prune must advance forward");
+}

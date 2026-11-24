@@ -229,7 +229,7 @@ fn format_compound_secondary(formula: Option<&str>, mass: Option<f64>) -> Option
 }
 
 fn seeded_coords(key: NodeKey, idx: usize, total: usize, degree: u32) -> (f32, f32, f32) {
-    let raw_seed = (u64::from(key.kind.as_u8()) << 32) | u64::from(key.qid);
+    let raw_seed = (u64::from(key.kind.as_u8()) << 32) + u64::from(key.qid);
     let seed = splitmix64(raw_seed);
     let u0 = f32::from(u16::try_from(seed & 0xffff).unwrap_or(0)) / 65_535.0_f32;
     let u1 = f32::from(u16::try_from((seed >> 16) & 0xffff).unwrap_or(0)) / 65_535.0_f32;

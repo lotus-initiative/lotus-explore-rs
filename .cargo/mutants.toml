@@ -100,6 +100,12 @@ exclude_re = [
   "MemoryLimit",
   "replace < with <= in preferred_over",
   "replace build -> Result<reqwest::Client, ClientBuildError> with Ok",
+  "fetch_assets/mod.rs:.*replace main -> Result",
+  "lotus-server/src/main.rs:.*replace main -> Result",
+  "lotus-server/src/lib.rs:.*replace run -> Result",
+  "execute_qlever_csv_bytes",
+  "archive_cmd.rs:.*replace (root_deposition_id|source_code_url_env)",
+  "export_rows/mod.rs:.*replace RowExporter<'a>::next_chunk -> Option<String> with Some",
 ]
 
 # nextest is what the suite runs under elsewhere, and a mutant evaluated against

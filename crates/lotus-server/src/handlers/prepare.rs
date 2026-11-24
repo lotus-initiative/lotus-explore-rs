@@ -70,11 +70,7 @@ async fn prepare_query(
         ApiError::timed_out("taxon resolution timed out")
     })??;
 
-    if let Some(qid) = resolved_taxon_qid.as_deref()
-        && qid != "*"
-    {
-        criteria.taxon = qid.to_string();
-    }
+    apply_resolved_taxon(&mut criteria, resolved_taxon_qid.as_deref());
 
     let resolved_inputs = timeout(state.request_timeout, resolve_search_inputs(&criteria))
         .await
@@ -95,6 +91,21 @@ async fn prepare_query(
         resolved_taxon_qid,
         warning,
     })
+}
+
+#[expect(
+    clippy::redundant_pub_crate,
+    reason = "re-exported as pub(crate) through handlers module under #[cfg(test)]"
+)]
+pub(crate) fn apply_resolved_taxon(
+    criteria: &mut lotus_model::SearchCriteria,
+    resolved_taxon_qid: Option<&str>,
+) {
+    if let Some(qid) = resolved_taxon_qid
+        && qid != "*"
+    {
+        criteria.taxon = qid.to_string();
+    }
 }
 
 pub(super) async fn prepare_search_request(

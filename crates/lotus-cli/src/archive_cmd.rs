@@ -161,7 +161,13 @@ pub fn write_archive_files(
 
 /// Resolve the root deposition ID from `ZENODO_ROOT_DEPOSITION_ID`, if set.
 fn root_deposition_id() -> anyhow::Result<Option<zenodo::DepositionId>> {
-    match std::env::var("ZENODO_ROOT_DEPOSITION_ID") {
+    root_deposition_id_from(|key| std::env::var(key))
+}
+
+pub fn root_deposition_id_from(
+    mut get_var: impl FnMut(&str) -> Result<String, std::env::VarError>,
+) -> anyhow::Result<Option<zenodo::DepositionId>> {
+    match get_var("ZENODO_ROOT_DEPOSITION_ID") {
         Ok(value) => parse_deposition_id(&value),
         Err(std::env::VarError::NotPresent) => Ok(None),
         Err(e) => anyhow::bail!("cannot read ZENODO_ROOT_DEPOSITION_ID: {e}"),
@@ -234,8 +240,14 @@ pub async fn publish_to_zenodo(
 /// Read and validate `SOURCE_CODE_URL` for the source-code related identifier
 /// Zenodo expects: an `https` URL with a `/commit/<40-hex-SHA>` suffix.
 fn source_code_url_env() -> anyhow::Result<String> {
-    let url = std::env::var("SOURCE_CODE_URL")
-        .map_err(|_| anyhow::anyhow!("SOURCE_CODE_URL is not set"))?;
+    source_code_url_from(|key| std::env::var(key))
+}
+
+pub fn source_code_url_from(
+    mut get_var: impl FnMut(&str) -> Result<String, std::env::VarError>,
+) -> anyhow::Result<String> {
+    let url =
+        get_var("SOURCE_CODE_URL").map_err(|_| anyhow::anyhow!("SOURCE_CODE_URL is not set"))?;
     validate_source_code_url(&url)
 }
 

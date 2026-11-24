@@ -294,3 +294,15 @@ fn salts_and_smiles_with_digits_stay_structures() {
         );
     }
 }
+
+#[test]
+fn normalize_structure_trims_smiles_and_keeps_molfile_header_blanks() {
+    assert_eq!(normalize_structure("  CCO \r\n"), "CCO");
+    let mol = "\r\n  Mrv2014 010124\n\n  0  0  0     0  0            999 V2000\nM  END\r\n";
+    let normalized = normalize_structure(mol);
+    assert!(
+        normalized.starts_with("\n  Mrv"),
+        "leading blank header line must survive normalize_structure: {normalized:?}"
+    );
+    assert!(!normalized.contains('\r'));
+}

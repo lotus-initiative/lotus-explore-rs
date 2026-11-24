@@ -57,3 +57,11 @@ fn a_byte_boundary_cannot_paste_two_inputs_together() {
     // current call sites are wrong.
     assert_ne!(build_export_cache_key("abc"), build_export_cache_key("cba"));
 }
+
+#[test]
+fn sha256_hex_formats_every_nibble_in_big_endian_order() {
+    assert_eq!(
+        super::sha256_hex([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]),
+        "0123456789abcdef"
+    );
+}

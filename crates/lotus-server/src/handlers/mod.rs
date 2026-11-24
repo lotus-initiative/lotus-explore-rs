@@ -16,6 +16,8 @@ use axum::{
 use crate::{errors::ApiError, state::AppState, types::HealthResponse};
 
 pub use self::export::{__path_export_file, __path_export_urls, export_file, export_urls};
+#[cfg(test)]
+pub(crate) use self::prepare::apply_resolved_taxon;
 pub use self::search::{__path_search, search};
 
 /// Health and cache observability endpoint (`GET /health`).

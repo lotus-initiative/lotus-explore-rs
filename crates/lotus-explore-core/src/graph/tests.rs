@@ -731,3 +731,308 @@ fn node_kind_and_node_key_url_tokens_round_trip_and_reject_invalid() {
         );
     }
 }
+
+#[test]
+fn resolve_projection_payload_neighbors_and_node_layout_are_exact() {
+    assert_eq!(NodeKind::Compound.as_u8(), 0);
+    assert_eq!(NodeKind::Taxon.as_u8(), 1);
+    assert_eq!(NodeKind::Reference.as_u8(), 2);
+
+    assert_eq!(
+        resolve_projection(GraphProjection::Auto, 2, 2, 5),
+        GraphProjection::CompoundTaxon
+    );
+    assert_eq!(
+        resolve_projection(GraphProjection::Auto, 1, 1, 1),
+        GraphProjection::CompoundTaxon
+    );
+    assert_eq!(
+        resolve_projection(GraphProjection::Auto, 1, 1, 2),
+        GraphProjection::CompoundTaxon
+    );
+    assert_eq!(
+        resolve_projection(GraphProjection::Auto, 2, 1, 2),
+        GraphProjection::CompoundReference
+    );
+    assert_eq!(
+        resolve_projection(GraphProjection::Auto, 1, 2, 2),
+        GraphProjection::TaxonReference
+    );
+    assert_eq!(
+        resolve_projection(GraphProjection::Auto, 2, 1, 1),
+        GraphProjection::CompoundTaxon
+    );
+    assert_eq!(
+        resolve_projection(GraphProjection::Auto, 1, 2, 1),
+        GraphProjection::CompoundTaxon
+    );
+
+    // Minimal 2-node overview: pins exact seeded_coords/splitmix64 & radius math.
+    let pair = ColumnarResultSet::from_entries(&[make_row(
+        "Q1",
+        "Quercetin",
+        "Q10",
+        "Gentiana lutea",
+        "Q100",
+        Some("Paper A"),
+    )]);
+    let two_node = build_graph(
+        &pair,
+        &[0],
+        GraphProjection::CompoundTaxon,
+        GraphScope::Overview { max_nodes: 2 },
+    );
+    assert!(!two_node.capped, "max_nodes == node_count is not capped");
+    assert_eq!(two_node.top_hubs.len(), 2);
+    assert!(two_node.nodes.iter().all(|n| n.degree == 1));
+    assert_eq!(two_node.neighbors_of(0), vec![(1, 1)]);
+    assert_eq!(two_node.neighbors_of(1), vec![(0, 1)]);
+
+    let payload = two_node.to_payload();
+    assert_eq!(payload.kinds, vec![0, 1]);
+    assert_eq!(payload.hub_index, vec![1, 2]);
+    assert_eq!(payload.edges, vec![0, 1]);
+
+    if let (Some(c0), Some(t1)) = (two_node.nodes.first(), two_node.nodes.get(1)) {
+        assert_eq!(t1.label, "Gentiana lutea");
+        assert!((c0.init_x - 71.574_01_f32).abs() < 1e-2, "{}", c0.init_x);
+        assert!((c0.init_y - 41.657_79_f32).abs() < 1e-2, "{}", c0.init_y);
+        assert!((c0.init_z - 6.130_126_f32).abs() < 1e-2, "{}", c0.init_z);
+        assert!((t1.init_x + 61.412_77_f32).abs() < 1e-2, "{}", t1.init_x);
+        assert!((t1.init_y + 41.484_66_f32).abs() < 1e-2, "{}", t1.init_y);
+        assert!((t1.init_z - 22.550_97_f32).abs() < 1e-2, "{}", t1.init_z);
+        let expected_r = 4.5_f32 + (2.0_f32.ln() * 2.4_f32).min(11.5_f32);
+        assert!((c0.radius - expected_r).abs() < 1e-4, "{}", c0.radius);
+    }
+    assert_eq!(two_node.nodes.len(), 2);
+}
+
+#[test]
+fn ego_graph_checks_exact_cap_boundaries_and_origin() {
+    let pair = ColumnarResultSet::from_entries(&[make_row(
+        "Q1",
+        "Quercetin",
+        "Q10",
+        "Gentiana lutea",
+        "Q100",
+        Some("Paper A"),
+    )]);
+
+    // Ego exact-cap boundary and zero-centered hub origin.
+    let ego_exact = build_graph(
+        &pair,
+        &[0],
+        GraphProjection::CompoundTaxon,
+        GraphScope::Ego {
+            center: NodeKey::new(NodeKind::Compound, 1),
+            max_neighbors: 1,
+        },
+    );
+    assert!(
+        !ego_exact.capped,
+        "max_neighbors == neighbor_count is not capped"
+    );
+    let ego_under = build_graph(
+        &pair,
+        &[0],
+        GraphProjection::CompoundTaxon,
+        GraphScope::Ego {
+            center: NodeKey::new(NodeKind::Compound, 1),
+            max_neighbors: 2,
+        },
+    );
+    assert!(
+        !ego_under.capped,
+        "max_neighbors > neighbor_count is not capped"
+    );
+    let ego_zero = build_graph(
+        &pair,
+        &[0],
+        GraphProjection::CompoundTaxon,
+        GraphScope::Ego {
+            center: NodeKey::new(NodeKind::Compound, 1),
+            max_neighbors: 0,
+        },
+    );
+    assert!(
+        ego_zero.capped,
+        "max_neighbors < neighbor_count must mark capped"
+    );
+    if let (Some(center), Some(nb)) = (ego_exact.nodes.first(), ego_exact.nodes.get(1)) {
+        assert!(
+            center.init_x.abs() < 1e-6 && center.init_y.abs() < 1e-6 && center.init_z.abs() < 1e-6
+        );
+        assert!(nb.init_x.abs() > 1e-3 || nb.init_y.abs() > 1e-3 || nb.init_z.abs() > 1e-3);
+    }
+}
+
+fn rich_metadata_set() -> ColumnarResultSet {
+    ColumnarResultSet::from_entries(&[
+        CompoundEntry {
+            compound_qid: Arc::from("Q2"),
+            name: Arc::from("Beta"),
+            inchikey: Some(Arc::from("ABCDEFGHIJKLMN-OPQRSTUVWX-Y")),
+            smiles: None,
+            mass: None,
+            formula: Some(Arc::from("C10H16")),
+            taxon_qid: Arc::from("Q20"),
+            taxon_name: Arc::from("   "),
+            reference_qid: Arc::from("Q200"),
+            reference_node: Arc::from(""),
+            ref_title: Some(Arc::from("   ")),
+            ref_doi: Some(Arc::from("10.1234/ALPHA")),
+            pub_year: Some(2024),
+            statement: None,
+        },
+        CompoundEntry {
+            compound_qid: Arc::from("Q3"),
+            name: Arc::from("Gamma"),
+            inchikey: None,
+            smiles: None,
+            mass: Some(180.16),
+            formula: Some(Arc::from("   ")),
+            taxon_qid: Arc::from("Q20"),
+            taxon_name: Arc::from("Taxus"),
+            reference_qid: Arc::from("Q201"),
+            reference_node: Arc::from(""),
+            ref_title: Some(Arc::from("Study Title")),
+            ref_doi: None,
+            pub_year: None,
+            statement: None,
+        },
+        CompoundEntry {
+            compound_qid: Arc::from("Q4"),
+            name: Arc::from("Delta"),
+            inchikey: None,
+            smiles: None,
+            mass: None,
+            formula: None,
+            taxon_qid: Arc::from("Q20"),
+            taxon_name: Arc::from("Taxus"),
+            reference_qid: Arc::from("Q202"),
+            reference_node: Arc::from(""),
+            ref_title: None,
+            ref_doi: Some(Arc::from(" ")),
+            pub_year: Some(1999),
+            statement: None,
+        },
+    ])
+}
+
+#[test]
+fn build_graph_formats_secondary_metadata_and_searches_all_fields() {
+    // Exercise secondary text formatting combinations, blank strings, and search_all_nodes paths.
+    let rich = rich_metadata_set();
+    let all = all_rows(&rich);
+    let tri = build_graph(
+        &rich,
+        &all,
+        GraphProjection::Tripartite,
+        GraphScope::Overview { max_nodes: 20 },
+    );
+    assert_eq!(
+        tri.nodes
+            .iter()
+            .find(|n| n.key == NodeKey::new(NodeKind::Compound, 2))
+            .and_then(|n| n.secondary.as_deref()),
+        Some("C10H16")
+    );
+    assert_eq!(
+        tri.nodes
+            .iter()
+            .find(|n| n.key == NodeKey::new(NodeKind::Compound, 3))
+            .and_then(|n| n.secondary.as_deref()),
+        Some("180.16 Da")
+    );
+    assert_eq!(
+        tri.nodes
+            .iter()
+            .find(|n| n.key == NodeKey::new(NodeKind::Compound, 4))
+            .and_then(|n| n.secondary.as_deref()),
+        None
+    );
+    assert_eq!(
+        tri.nodes
+            .iter()
+            .find(|n| n.key == NodeKey::new(NodeKind::Reference, 200))
+            .map(|n| (n.label.as_str(), n.secondary.as_deref())),
+        Some(("10.1234/ALPHA", Some("2024")))
+    );
+    assert_eq!(
+        tri.nodes
+            .iter()
+            .find(|n| n.key == NodeKey::new(NodeKind::Reference, 201))
+            .map(|n| n.label.as_str()),
+        Some("Study Title")
+    );
+    assert_eq!(
+        tri.nodes
+            .iter()
+            .find(|n| n.key == NodeKey::new(NodeKind::Reference, 202))
+            .map(|n| n.label.as_str()),
+        Some("Q202")
+    );
+
+    assert_eq!(search_all_nodes(&rich, &all, "", 5), Vec::new());
+    assert_eq!(search_all_nodes(&rich, &all, "bet", 0), Vec::new());
+    assert_eq!(search_all_nodes(&rich, &[], "bet", 10), Vec::new());
+    assert_eq!(
+        search_all_nodes(&rich, &all, "C10H16", 5)
+            .first()
+            .map(|m| m.key),
+        Some(NodeKey::new(NodeKind::Compound, 2))
+    );
+    assert_eq!(
+        search_all_nodes(&rich, &all, "1234/alpha", 5)
+            .first()
+            .map(|m| m.key),
+        Some(NodeKey::new(NodeKind::Reference, 200))
+    );
+    assert_eq!(
+        search_all_nodes(&rich, &all, "gamm", 5)
+            .first()
+            .map(|m| m.key),
+        Some(NodeKey::new(NodeKind::Compound, 3))
+    );
+}
+
+#[test]
+fn search_all_nodes_ranks_prefix_and_formula_matches_ahead_of_substrings() {
+    // Prefix match (1 occurrence) must outrank substring-only higher occurrence (2 occurrences)
+    // and secondary formula prefix match on `Compound` (no label prefix) must also mark starts_with.
+    let ranked_set = ColumnarResultSet::from_entries(&[
+        CompoundEntry {
+            formula: Some(Arc::from("C8H10")),
+            ..make_row("Q10", "abeta", "Q50", "TaxonOne", "Q500", None)
+        },
+        CompoundEntry {
+            formula: Some(Arc::from("C8H10")),
+            ..make_row("Q10", "abeta", "Q51", "TaxonTwo", "Q501", None)
+        },
+        CompoundEntry {
+            formula: Some(Arc::from("C9H12")),
+            ..make_row("Q11", "beta", "Q50", "TaxonOne", "Q500", None)
+        },
+        CompoundEntry {
+            formula: Some(Arc::from("XC9H12")),
+            ..make_row("Q12", "omega", "Q50", "TaxonOne", "Q500", None)
+        },
+        CompoundEntry {
+            formula: Some(Arc::from("XC9H12")),
+            ..make_row("Q12", "omega", "Q51", "TaxonTwo", "Q501", None)
+        },
+    ]);
+    let ranked_rows = all_rows(&ranked_set);
+    assert_eq!(
+        search_all_nodes(&ranked_set, &ranked_rows, "beta", 5)
+            .first()
+            .map(|m| m.key),
+        Some(NodeKey::new(NodeKind::Compound, 11))
+    );
+    assert_eq!(
+        search_all_nodes(&ranked_set, &ranked_rows, "C9H12", 5)
+            .first()
+            .map(|m| m.key),
+        Some(NodeKey::new(NodeKind::Compound, 11))
+    );
+}

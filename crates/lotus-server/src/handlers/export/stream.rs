@@ -89,17 +89,9 @@ pub async fn export_file(
     })?
     .map_err(|e| ApiError::from_fetch("export fetch failed", e))?;
     let status = response.status().as_u16();
-    if !(200..300).contains(&status) {
-        return Err(ApiError::upstream(format!(
-            "export upstream returned HTTP {status}"
-        )));
-    }
+    check_upstream_status(status)?;
 
-    let requested_filename = params
-        .filename
-        .as_deref()
-        .map(lotus_query::sanitize_download_filename)
-        .filter(|name| !name.is_empty());
+    let requested_filename = sanitized_attachment(params.filename.as_deref());
     let compress = requested_filename.is_none();
     let content_type = if compress {
         "application/gzip".to_string()
@@ -219,17 +211,39 @@ async fn push_chunk(
     encoder: &mut Option<GzEncoder<Vec<u8>>>,
     data: &[u8],
 ) -> bool {
+    if data.is_empty() {
+        return true;
+    }
     match encoder {
         Some(encoder) => {
             use std::io::Write as _;
-            if encoder.write_all(data).is_err() || encoder.flush().is_err() {
+            if encoder
+                .write_all(data)
+                .and_then(|()| encoder.flush())
+                .is_err()
+            {
                 return false;
             }
             let ready = std::mem::take(encoder.get_mut());
-            ready.is_empty() || tx.send(Ok(Bytes::from(ready))).await.is_ok()
+            tx.send(Ok(Bytes::from(ready))).await.is_ok()
         }
         None => tx.send(Ok(Bytes::from(data.to_vec()))).await.is_ok(),
     }
+}
+
+fn check_upstream_status(status: u16) -> Result<(), ApiError> {
+    if !(200..300).contains(&status) {
+        return Err(ApiError::upstream(format!(
+            "export upstream returned HTTP {status}"
+        )));
+    }
+    Ok(())
+}
+
+fn sanitized_attachment(filename: Option<&str>) -> Option<String> {
+    filename
+        .map(lotus_query::sanitize_download_filename)
+        .filter(|name| !name.is_empty())
 }
 
 #[cfg(test)]

@@ -178,3 +178,31 @@ fn a_switched_off_formula_is_not_sent() {
     let request = SearchRequest::from_criteria(&criteria, 10, false, YEAR);
     assert_eq!(request.formula_exact, None);
 }
+
+#[test]
+fn api_enums_convert_every_variant_into_domain_types() {
+    assert_eq!(
+        SmilesSearchType::from(ApiSmilesSearchType::Exact),
+        SmilesSearchType::Exact
+    );
+    assert_eq!(
+        SmilesSearchType::from(ApiSmilesSearchType::Substructure),
+        SmilesSearchType::Substructure
+    );
+    assert_eq!(
+        SmilesSearchType::from(ApiSmilesSearchType::Similarity),
+        SmilesSearchType::Similarity
+    );
+    assert_eq!(
+        ElementState::from(ApiElementState::Allowed),
+        ElementState::Allowed
+    );
+    assert_eq!(
+        ElementState::from(ApiElementState::Required),
+        ElementState::Required
+    );
+    assert_eq!(
+        ElementState::from(ApiElementState::Excluded),
+        ElementState::Excluded
+    );
+}

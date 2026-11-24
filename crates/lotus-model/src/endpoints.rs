@@ -51,3 +51,7 @@ impl SparqlEndpoint {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "endpoints/tests.rs"]
+mod tests;

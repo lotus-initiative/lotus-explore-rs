@@ -23,11 +23,7 @@ pub const fn resolve_projection(
 ) -> GraphProjection {
     match requested {
         GraphProjection::Auto => {
-            if (n_compounds > 1 && n_taxa > 1)
-                || (n_compounds >= 1 && n_taxa >= 1 && n_references <= 1)
-            {
-                GraphProjection::CompoundTaxon
-            } else if n_taxa <= 1 && n_compounds > 1 && n_references > 1 {
+            if n_taxa <= 1 && n_compounds > 1 && n_references > 1 {
                 GraphProjection::CompoundReference
             } else if n_compounds <= 1 && n_taxa > 1 && n_references > 1 {
                 GraphProjection::TaxonReference

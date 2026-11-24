@@ -159,3 +159,64 @@ fn query_rewriters_preserve_invariants_across_deterministic_shapes() {
         }
     }
 }
+
+#[test]
+fn base_query_for_criteria_and_normalize_digits_expr_match_exact_outputs() {
+    let empty = lotus_model::SearchCriteria::up_to_year(2026);
+    assert_eq!(
+        base_query_for_criteria(&empty, "", None),
+        all_compounds_including_untaxonomised_query()
+    );
+    assert_eq!(
+        base_query_for_criteria(&empty, "", Some("*")),
+        all_compounds_query()
+    );
+    assert_eq!(
+        base_query_for_criteria(&empty, "", Some("Q158572")),
+        compounds_by_taxon_query_with("Q158572", &Nomenclature::from(&empty))
+    );
+
+    let wildcard = lotus_model::SearchCriteria {
+        taxon: "*".into(),
+        ..empty.clone()
+    };
+    assert_eq!(
+        base_query_for_criteria(&wildcard, "", None),
+        all_compounds_query()
+    );
+
+    let by_ref = lotus_model::SearchCriteria {
+        reference: "Q28496894".into(),
+        ..empty.clone()
+    };
+    assert_eq!(
+        base_query_for_criteria(&by_ref, "", None),
+        all_compounds_query()
+    );
+
+    let by_struct = lotus_model::SearchCriteria {
+        structure: "CCO".into(),
+        structure_search: lotus_model::SmilesSearchType::Substructure,
+        ..empty
+    };
+    assert_eq!(
+        base_query_for_criteria(&by_struct, "CCO", Some("Q158572")),
+        structure_search_query_with(
+            "CCO",
+            by_struct.structure_search,
+            by_struct.structure_threshold,
+            Some("Q158572"),
+            &Nomenclature::from(&by_struct),
+        )
+    );
+
+    assert_eq!(
+        normalize_digits_expr("?f"),
+        concat!(
+            r#"REPLACE(REPLACE(REPLACE(REPLACE(REPLACE("#,
+            r#"REPLACE(REPLACE(REPLACE(REPLACE(REPLACE("#,
+            r#"STR(?f), "₀", "0"), "₁", "1"), "₂", "2"), "₃", "3"), "₄", "4"),"#,
+            r#" "₅", "5"), "₆", "6"), "₇", "7"), "₈", "8"), "₉", "9")"#,
+        )
+    );
+}

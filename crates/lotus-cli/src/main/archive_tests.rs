@@ -268,3 +268,26 @@ async fn publish_to_zenodo_rejects_bad_env_or_duplicate_uploads_offline() {
         "unexpected error: {msg}"
     );
 }
+
+#[test]
+fn env_lookup_helpers_resolve_deposition_id_and_source_url() {
+    assert_eq!(
+        crate::archive_cmd::root_deposition_id_from(|_| Err(std::env::VarError::NotPresent))
+            .expect("absent"),
+        None
+    );
+    assert_eq!(
+        crate::archive_cmd::root_deposition_id_from(|_| Ok("99".to_string()))
+            .expect("present")
+            .map(|id| id.0),
+        Some(99)
+    );
+    let url = format!("https://github.com/lotus-initiative/lotus-explore-rs/commit/{VALID_SHA}");
+    assert_eq!(
+        crate::archive_cmd::source_code_url_from(|_| Ok(url.clone())).expect("valid URL"),
+        url
+    );
+    assert!(
+        crate::archive_cmd::source_code_url_from(|_| Err(std::env::VarError::NotPresent)).is_err()
+    );
+}

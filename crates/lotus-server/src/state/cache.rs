@@ -145,7 +145,26 @@ fn maybe_prune_cache<V, F>(
 ) where
     F: Fn(&V) -> Instant,
 {
-    let now = Instant::now();
+    maybe_prune_cache_at(
+        cache,
+        prune_after,
+        ttl,
+        max_entries,
+        Instant::now(),
+        inserted_at,
+    );
+}
+
+pub(crate) fn maybe_prune_cache_at<V, F>(
+    cache: &mut HashMap<String, V>,
+    prune_after: &Arc<Mutex<Instant>>,
+    ttl: Duration,
+    max_entries: usize,
+    now: Instant,
+    inserted_at: F,
+) where
+    F: Fn(&V) -> Instant,
+{
     let should_prune = prune_after.lock().map_or(true, |mut next_prune| {
         if now < *next_prune {
             false

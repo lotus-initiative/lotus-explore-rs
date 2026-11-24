@@ -205,3 +205,7 @@ static DELIMITERS: [bool; 256] = {
 fn is_delimiter(byte: u8) -> bool {
     DELIMITERS.get(usize::from(byte)).copied().unwrap_or(false)
 }
+
+#[cfg(test)]
+#[path = "splitter/tests.rs"]
+mod tests;
