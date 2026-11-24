@@ -113,7 +113,7 @@ pub fn is_reference_lookup(query: &str) -> bool {
 
 /// A nested `REPLACE` chain folding subscript digits to ASCII.
 #[must_use]
-pub fn normalize_digits_expr(var: &str) -> String {
+pub(super) fn normalize_digits_expr(var: &str) -> String {
     SUBSCRIPTS
         .iter()
         .fold(format!("STR({var})"), |acc, (from, to)| {

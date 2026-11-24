@@ -108,7 +108,7 @@ fn integration_curation_rows_tsv_round_trip_keeps_expected_header() {
     }];
 
     let tsv = rows_to_tsv(&rows);
-    let parsed = lotus_curation::parse_tsv(&tsv).expect("tsv should parse");
+    let parsed = lotus_curation::parse_tabular(&tsv).expect("tsv should parse");
 
     assert!(tsv.starts_with("name\tsmiles\ttaxon\tdoi\n"));
     assert_eq!(parsed.len(), 1);

@@ -13,10 +13,9 @@ pub use criteria::{criteria_query_params, parse_criteria_from_params};
 pub use encode::{
     build_network_shareable_url, build_shareable_url, encode_query_params, parse_query_string,
 };
-pub use network::{
-    GraphViewParams, MAX_EGO_NEIGHBORS_LIMIT, MAX_OVERVIEW_NODES_LIMIT, graph_view_query_params,
-    network_query_params, parse_graph_view_from_params,
-};
+pub use network::{GraphViewParams, network_query_params, parse_graph_view_from_params};
+#[cfg(test)]
+use network::{MAX_EGO_NEIGHBORS_LIMIT, MAX_OVERVIEW_NODES_LIMIT, graph_view_query_params};
 pub use startup::{InitialDownloadState, parse_startup_action_from_params};
 
 /// The URL query parameters of a search, keyed by parameter name.

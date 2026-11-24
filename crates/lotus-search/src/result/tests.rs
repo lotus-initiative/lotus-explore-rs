@@ -2,8 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for `result`, in their own file.
 
-use super::{SearchResult, TaxonNote, TaxonResolution};
-use lotus_model::CompoundEntry;
+use super::{TaxonNote, TaxonResolution};
 
 fn resolution(qid: Option<&str>, looked_up: &str) -> TaxonResolution {
     TaxonResolution {
@@ -62,37 +61,6 @@ fn every_taxon_is_exactly_the_absence_of_a_qid() {
     assert!(
         !resolution(Some("Q16521"), "Gentiana lutea").is_all_taxa(),
         "a named taxon is one taxon, not every taxon"
-    );
-}
-
-/// The rows come back as the rows that are stored, in order, and nothing else.
-///
-/// `as_rows` is the hand-off from a page of rows to a table or an export, so
-/// a default-constructed `Rows` here would be an empty export that reported
-/// success.
-#[test]
-fn the_rows_are_the_rows_that_were_stored() {
-    let mut result = SearchResult::default();
-    assert!(
-        result.as_rows().is_empty(),
-        "a result with no rows has no rows"
-    );
-
-    result.rows = (1..=3)
-        .map(|n| CompoundEntry {
-            compound_qid: format!("Q{n}").into(),
-            name: format!("compound-{n}").into(),
-            ..CompoundEntry::default()
-        })
-        .collect();
-
-    let rows = result.as_rows();
-    assert_eq!(rows.len(), 3, "every stored row is handed over");
-    let handed_over: Vec<&str> = rows.iter().map(|r| r.compound_qid.as_ref()).collect();
-    assert_eq!(
-        handed_over,
-        vec!["Q1", "Q2", "Q3"],
-        "and in the order they were stored"
     );
 }
 

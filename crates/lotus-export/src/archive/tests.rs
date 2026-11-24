@@ -11,6 +11,7 @@ use lotus_query::{ARCHIVE_PAGE_SIZE, ARCHIVE_SMILES_QUERY};
 use lotus_search::testing::Scripted;
 use lotus_search::{Endpoint, Service};
 
+use super::dedup::deduplicate_by_inchi_key;
 use super::fetch::QleverClient;
 use super::*;
 

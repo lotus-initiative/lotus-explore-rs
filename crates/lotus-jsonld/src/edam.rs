@@ -8,7 +8,8 @@
 //! `MolecularEntity` consumers (such as bio.tools and ELIXIR registries).
 
 /// The canonical EDAM namespace prefix.
-pub const NAMESPACE: &str = "http://edamontology.org/";
+#[cfg(test)]
+const NAMESPACE: &str = "http://edamontology.org/";
 
 /// EDAM `topic_0154` — Small molecules.
 pub const TOPIC_SMALL_MOLECULES: &str = "http://edamontology.org/topic_0154";
@@ -21,9 +22,6 @@ pub const TOPIC_METABOLOMICS: &str = "http://edamontology.org/topic_3172";
 
 /// EDAM `topic_0637` — Taxonomy.
 pub const TOPIC_TAXONOMY: &str = "http://edamontology.org/topic_0637";
-
-/// EDAM `topic_0089` — Ontology and terminology.
-pub const TOPIC_ONTOLOGY_AND_TERMINOLOGY: &str = "http://edamontology.org/topic_0089";
 
 /// EDAM `operation_2421` — Database search.
 pub const OPERATION_DATABASE_SEARCH: &str = "http://edamontology.org/operation_2421";

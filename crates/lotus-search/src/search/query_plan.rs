@@ -9,23 +9,23 @@ use crate::result::SearchRequest;
 
 /// How a structure search should be run, once the structure is known.
 #[derive(Debug, Clone, PartialEq)]
-pub struct StructurePlan {
+struct StructurePlan {
     /// The normalised structure text.
-    pub structure: String,
+    structure: String,
     /// The search to run, as asked for. A molfile takes either mode: the
     /// similarity service was measured accepting a multi-line CTAB literal and
     /// answering a cutoff search, so the format does not decide the mode.
-    pub search: SmilesSearchType,
+    search: SmilesSearchType,
     /// Tanimoto cutoff, when `search` is a similarity search.
-    pub threshold: f64,
+    threshold: f64,
     /// Whether the structure is a molfile rather than a SMILES string.
-    pub is_molfile: bool,
+    is_molfile: bool,
 }
 
 impl StructurePlan {
     /// Whether the request is a structure search at all.
     #[must_use]
-    pub fn for_request(criteria: &SearchCriteria) -> Option<Self> {
+    fn for_request(criteria: &SearchCriteria) -> Option<Self> {
         let structure = normalize_structure(&criteria.structure);
         if structure.is_empty() {
             return None;

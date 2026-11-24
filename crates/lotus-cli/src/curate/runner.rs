@@ -203,7 +203,7 @@ pub(super) async fn curate_findings(
             match by_smiles.get(key) {
                 Some(structure) => rows.push(curate_row(&http, finding, structure).await),
                 // No entry means the file had no structure to convert, which
-                // `parse_tsv` should have caught; a row that gets here has no
+                // `parse_tabular` should have caught; a row that gets here has no
                 // structure at all and is reported rather than skipped.
                 None => rows.push(
                     curate_row(

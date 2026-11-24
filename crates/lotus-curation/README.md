@@ -10,9 +10,9 @@ It never writes to Wikidata; submitting them is a separate, deliberate act.
 Pure: nothing here talks to Wikidata or `RDKit`.
 
 ```rust
-use lotus_curation::{CurationStatus, parse_tsv};
+use lotus_curation::{CurationStatus, parse_tabular};
 
-let rows = parse_tsv("name\tsmiles\ttaxon\tdoi\naspirin\tCC(=O)Oc1ccccc1C(=O)O\n")
+let rows = parse_tabular("name\tsmiles\ttaxon\tdoi\naspirin\tCC(=O)Oc1ccccc1C(=O)O\n")
     .expect("`name` and `smiles` are the only required columns");
 
 assert_eq!(rows[0].name, "aspirin");

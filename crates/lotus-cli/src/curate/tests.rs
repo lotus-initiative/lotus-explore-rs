@@ -202,7 +202,7 @@ fn no_two_statuses_share_a_key() {
 
 /// An input with no usable rows is a failure, not an empty report.
 ///
-/// `parse_tsv` accepts a header it understands, so a file of nothing but the
+/// `parse_tabular` accepts a header it understands, so a file of nothing but the
 /// header parses to zero findings. Reporting success with no output would look
 /// like "checked your rows, there was nothing to say", which is a different and
 /// wrong claim from "I found no rows in what you gave me".

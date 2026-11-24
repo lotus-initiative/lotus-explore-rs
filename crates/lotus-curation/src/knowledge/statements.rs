@@ -102,7 +102,7 @@ fn missing_compound_property_statements(
 
 /// The statements a row needs, and what curation concluded about it.
 #[must_use]
-pub fn statements_for(
+pub(super) fn statements_for(
     row: &CurationInputRow,
     converted: &crate::ConvertedStructure,
     lookup: &WikidataLookup,
@@ -173,14 +173,4 @@ pub fn statements_for(
     }
 
     out
-}
-
-/// The statements that would create a compound, for a row the run found missing.
-#[must_use]
-pub fn creation_statements(
-    row: &CurationInputRow,
-    canonical_smiles: &str,
-    isomeric_smiles: &str,
-) -> String {
-    create_compound_statements(row.name.trim(), canonical_smiles, isomeric_smiles)
 }

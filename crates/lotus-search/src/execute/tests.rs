@@ -15,6 +15,12 @@ fn an_error_body_becomes_one_readable_line() {
 fn a_gateway_pages_title_is_the_message_not_its_markup() {
     let body = b"<html>\n<head><title>502 Bad Gateway</title></head>\n</html>";
     assert_eq!(compact(body), "502 Bad Gateway");
+    assert_eq!(
+        html_title("<html><title> 502 Bad Gateway </title></html>"),
+        Some("502 Bad Gateway"),
+        "html_title trims whitespace inside <title>"
+    );
+    assert_eq!(html_title("plain text"), None, "plain text is not markup");
 }
 
 #[test]

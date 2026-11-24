@@ -17,14 +17,13 @@ mod statements;
 #[cfg(test)]
 use crate::{CurationError, CurationInputRow, CurationStatus, WikidataCompound};
 #[cfg(test)]
+use dependencies::taxon_dependency_statements;
+#[cfg(test)]
 use lookup::{ask, binding_qid, first_bindings};
 
 #[cfg(test)]
 mod tests;
 
-pub use dependencies::{reference_dependency_statements, taxon_dependency_statements};
 pub use lookup::{StructureKey, WikidataLookup, look_up};
 pub use result_row::to_result_row;
-pub use statements::{
-    REVISED_ROW_NOTE, creation_statements, is_revised_row, revised_row_statement, statements_for,
-};
+pub use statements::{REVISED_ROW_NOTE, is_revised_row, revised_row_statement};

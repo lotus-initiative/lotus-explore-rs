@@ -43,7 +43,7 @@ pub use nomenclature::Nomenclature;
 pub use prefixes::SELECT_COLUMNS;
 pub use rewrite::{
     FallbackService, construct_from_select, escape_sparql_string, escape_structure_literal,
-    export_query, is_reference_lookup, normalize_digits_expr, wdqs_fallback,
+    export_query, is_reference_lookup, wdqs_fallback,
 };
 pub use structure::{structure_search_query, structure_search_query_with};
 
@@ -51,3 +51,5 @@ pub use structure::{structure_search_query, structure_search_query_with};
 use builders_body::{all_required_compounds_query_body, optional_compounds_query_body};
 #[cfg(test)]
 use compound_names::tagged_name_values;
+#[cfg(test)]
+use rewrite::normalize_digits_expr;

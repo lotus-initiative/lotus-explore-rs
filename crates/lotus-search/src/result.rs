@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use lotus_model::{CompoundEntry, DatasetStats, Rows, SearchCriteria};
+use lotus_model::{CompoundEntry, DatasetStats, SearchCriteria};
 
 /// A resolved search: the rows, what the endpoint said about the whole result
 /// set, and how the taxon was resolved.
@@ -20,14 +20,6 @@ pub struct SearchResult {
     pub query: String,
     /// Whether the row limit hid part of the result.
     pub truncated: bool,
-}
-
-impl SearchResult {
-    /// The rows as a shared slice, which is what a table or an export wants.
-    #[must_use]
-    pub fn as_rows(&self) -> Rows {
-        self.rows.as_slice().into()
-    }
 }
 
 /// A whole result set, in memory that fits, with its exact counts.
@@ -119,7 +111,7 @@ pub struct SearchRequest {
     pub criteria: SearchCriteria,
     /// The year the year filter is bounded against.
     pub year_max: u16,
-    /// Rows to fetch. `None` means [`DEFAULT_ROW_LIMIT`](crate::DEFAULT_ROW_LIMIT).
+    /// Rows to fetch. `None` means `500`.
     pub limit: Option<usize>,
 }
 

@@ -19,10 +19,9 @@ mod stream_search;
 #[cfg(test)]
 mod tests;
 
-pub use execute_search::{DEFAULT_ROW_LIMIT, SearchError, counts, search};
+pub use execute_search::{SearchError, counts, search};
 pub use query_plan::{
-    ResolvedInputs, StructurePlan, build_base_query, build_execution_query,
-    build_execution_query_with,
+    ResolvedInputs, build_base_query, build_execution_query, build_execution_query_with,
 };
 pub use resolve_reference::resolve_reference;
 pub use resolve_structure::{StructureResolution, resolve_inputs, resolve_structure};

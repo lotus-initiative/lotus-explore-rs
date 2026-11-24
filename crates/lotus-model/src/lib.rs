@@ -20,7 +20,6 @@ mod endpoints;
 mod entry;
 mod identify;
 mod percent;
-mod qid;
 mod reference;
 mod stats;
 mod structure;
@@ -39,13 +38,12 @@ pub use identify::{
     standardize_taxon_name,
 };
 pub use percent::{percent_decode, percent_encode};
-pub use qid::{Doi, InvalidDoiError, InvalidQidError, Qid};
 pub use reference::{looks_like_doi, looks_like_reference_qid, strip_doi_prefix};
 pub use stats::{DEFAULT_STRUCTURE_THRESHOLD, DatasetStats, ElementState, SmilesSearchType};
 pub use structure::{
-    InputKind, REFERENCE_INPUT_EXAMPLES, STRUCTURE_INPUT_EXAMPLES, StructureKind,
-    classify_structure, classify_structure_input, could_be_a_compound_name,
-    looks_like_a_compound_qid, looks_like_inchikey, names_a_compound, normalize_structure,
+    REFERENCE_INPUT_EXAMPLES, STRUCTURE_INPUT_EXAMPLES, StructureKind, classify_structure,
+    could_be_a_compound_name, looks_like_a_compound_qid, looks_like_inchikey, names_a_compound,
+    normalize_structure,
 };
 pub use validate::{ValidationError, validate_criteria};
 
@@ -205,17 +203,17 @@ pub mod taxon_nomenclature {
 }
 
 /// Upper bound for the mass range, in daltons.
-pub const MASS_MAX: f64 = 10_000.0;
+pub(crate) const MASS_MAX: f64 = 10_000.0;
 
 /// Earliest plausible publication year. Earlier means a parsing fault, not
 /// history: the LOTUS sources are modern.
 pub const YEAR_MIN: u16 = 1800;
 
 /// Longest taxon string accepted, in bytes.
-pub const TAXON_MAX_LEN: usize = 500;
+pub(crate) const TAXON_MAX_LEN: usize = 500;
 
 /// Longest structure string accepted, in bytes.
-pub const STRUCTURE_MAX_LEN: usize = 10_000;
+pub(crate) const STRUCTURE_MAX_LEN: usize = 10_000;
 
 #[cfg(test)]
 #[path = "taxon_nomenclature_tests.rs"]

@@ -23,8 +23,8 @@ use lotus_search::{Endpoint, FetchError, Http};
 use serde::Serialize;
 use thiserror::Error;
 
-pub use self::dedup::deduplicate_by_inchi_key;
-pub use self::fetch::QleverClient;
+use self::dedup::deduplicate_by_inchi_key;
+use self::fetch::QleverClient;
 pub use self::tar_writer::{WriteArchiveInput, write_archive};
 
 /// `QLever`'s public Wikidata SPARQL endpoint, the default for the archive.

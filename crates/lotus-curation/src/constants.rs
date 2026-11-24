@@ -7,14 +7,6 @@
 //! statements mean, so they are named constants in one file rather than literals
 //! repeated across the query builders.
 
-/// The natural-products API, which converts a structure into an `InChIKey`.
-///
-/// A plain URL, so it is available on every target. The browser build converts
-/// through `RDKit` in WebAssembly instead and never asks for this, but the
-/// constant existing on wasm costs nothing and gating it kept this crate from
-/// being built there at all.
-pub const NATPROD_API_BASE: &str = "https://api.naturalproducts.net/latest";
-
 /// The `PREFIX` block every curation query starts with.
 ///
 /// Templates embed it as a `{CURATION_SPARQL_PREFIXES}` placeholder and

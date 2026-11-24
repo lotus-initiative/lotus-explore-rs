@@ -113,17 +113,6 @@ pub fn parse_tabular(input: &str) -> Result<Vec<CurationInputRow>, CurationError
     Ok(out)
 }
 
-/// Parses a curation batch from TSV (or CSV) text.
-///
-/// Kept as the backwards-compatible entry point alongside [`parse_tabular`].
-///
-/// # Errors
-/// [`CurationError::MissingTsvColumn`] if there is no `name` or `smiles`
-/// column. An empty input is not an error: it is an empty batch.
-pub fn parse_tsv(tsv: &str) -> Result<Vec<CurationInputRow>, CurationError> {
-    parse_tabular(tsv)
-}
-
 fn find_col(columns: &[String], aliases: &[&str]) -> Option<usize> {
     aliases
         .iter()

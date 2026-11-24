@@ -13,7 +13,7 @@ pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// The name the metadata document reports.
 pub const APP_NAME: &str = "LOTUS Explorer";
 /// From the manifest, so the URL is declared once for the whole workspace.
-pub const APP_URL: &str = env!("CARGO_PKG_REPOSITORY");
+const APP_URL: &str = env!("CARGO_PKG_REPOSITORY");
 /// The endpoint the searches normally run against.
 pub const QLEVER_ENDPOINT: &str = lotus_model::QLEVER_WIKIDATA;
 /// The endpoint the searches fall back to.

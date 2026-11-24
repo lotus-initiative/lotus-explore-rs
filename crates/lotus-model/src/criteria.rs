@@ -45,7 +45,7 @@ pub struct SearchCriteria {
     /// Tanimoto cutoff in 0.0..=1.0, used only for similarity search.
     pub structure_threshold: f64,
     /// Inclusive molecular mass range in daltons; the full span is
-    /// 0.0..=[`MASS_MAX`].
+    /// 0.0..=10,000.0.
     pub mass_min: f64,
     /// See [`mass_min`](Self::mass_min).
     pub mass_max: f64,
@@ -275,7 +275,7 @@ impl SearchCriteria {
         ]
     }
 
-    /// Whether the mass range is narrower than the full 0..=`MASS_MAX` span.
+    /// Whether the mass range is narrower than the full 0..=10,000 span.
     #[must_use]
     pub fn has_mass_filter(&self) -> bool {
         self.mass_min > 0.0 || self.mass_max < MASS_MAX

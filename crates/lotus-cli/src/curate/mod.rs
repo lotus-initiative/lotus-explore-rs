@@ -109,7 +109,7 @@ pub async fn run(args: &CurateArgs) -> anyhow::Result<ExitCode> {
             .map_err(|e| anyhow::anyhow!("could not read {path}: {e}"))?,
     };
 
-    let findings = lotus_curation::parse_tsv(&input)?;
+    let findings = lotus_curation::parse_tabular(&input)?;
     if findings.is_empty() {
         eprintln!("lotus: no usable rows in the input");
         return Ok(ExitCode::FAILURE);

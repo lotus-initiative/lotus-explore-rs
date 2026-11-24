@@ -7,9 +7,9 @@
 use super::*;
 
 #[test]
-fn parse_tsv_supports_expected_headers() {
+fn parse_tabular_supports_expected_headers() {
     let tsv = "name\tsmiles\torganism\tdoi\nA\tCCO\tTaxon\thttps://doi.org/10.1/x\n";
-    let rows = parse_tsv(tsv).expect("tsv parse");
+    let rows = parse_tabular(tsv).expect("tsv parse");
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].name, "A");
     assert_eq!(rows[0].smiles, "CCO");
@@ -18,7 +18,7 @@ fn parse_tsv_supports_expected_headers() {
 }
 
 #[test]
-fn parse_tsv_drops_rows_missing_either_required_field() {
+fn parse_tabular_drops_rows_missing_either_required_field() {
     // Both fields are required, and they are required independently: a row
     // with a name but no structure, or a structure but no name, is as
     // unusable as a row with neither. Mutation testing caught the check
@@ -30,7 +30,7 @@ fn parse_tsv_drops_rows_missing_either_required_field() {
                B\t\n\
                \t\n\
                C\tCCN\n";
-    let rows = parse_tsv(tsv).expect("tsv parse");
+    let rows = parse_tabular(tsv).expect("tsv parse");
     assert_eq!(
         rows.iter().map(|r| r.name.as_str()).collect::<Vec<_>>(),
         vec!["A", "C"],
@@ -39,11 +39,11 @@ fn parse_tsv_drops_rows_missing_either_required_field() {
 }
 
 #[test]
-fn parse_tsv_ignores_a_header_row() {
+fn parse_tabular_ignores_a_header_row() {
     // The header is located by name, so a header line is just another row
     // and has to be dropped by the same required-field rule.
     let tsv = "name\tsmiles\nA\tCCO\n";
-    let rows = parse_tsv(tsv).expect("tsv parse");
+    let rows = parse_tabular(tsv).expect("tsv parse");
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].name, "A");
 }
@@ -121,7 +121,7 @@ fn a_row_needs_both_a_name_and_a_smiles() {
                Taxon\t\tCCC\n\
                \tNoStructure\t\n\
                Taxon\tBoth blank\t \n";
-    let rows = parse_tsv(tsv).expect("tsv parse");
+    let rows = parse_tabular(tsv).expect("tsv parse");
     let kept: Vec<&str> = rows.iter().map(|row| row.name.as_str()).collect();
     assert_eq!(kept, ["Keep"], "only the complete row survives: {kept:?}");
 }
@@ -134,7 +134,7 @@ fn a_row_needs_both_a_name_and_a_smiles() {
 fn a_pasted_multiline_corpus_keeps_every_row_and_column() {
     let tsv = "name\tsmiles\ttaxon\tdoi\n2'-deoxyguanosine\tC1[C@@H]([C@H](O[C@H]1N2C=NC3=C2N=C(NC3=O)N)CO)O\tIsaria cicadae\t10.1177/1934578X1501001233\nthymidine\tCC1=CN(C(=O)NC1=O)[C@H]2C[C@@H]([C@H](O2)CO)O\tIsaria cicadae\t10.1177/1934578X1501001233\nadenosine\tC1=NC(=C2C(=N1)N(C=N2)[C@H]3[C@@H]([C@@H]([C@H](O3)CO)O)O)N\tIsaria cicadae\t10.1177/1934578X1501001233\n2'-deoxyadenosine\tC1[C@@H]([C@H](O[C@H]1N2C=NC3=C(N=CN=C32)N)CO)O\tIsaria cicadae\t10.1177/1934578X1501001233\ntryptophan\tC1=CC=C2C(=C1)C(=CN2)C[C@@H](C(=O)O)N\tIsaria cicadae\t10.1177/1934578X1501001233\nphenylalanine\tC1=CC=C(C=C1)C[C@@H](C(=O)O)N\tIsaria cicadae\t10.1177/1934578X1501001233\ntyrosine\tC1=CC(=CC=C1C[C@@H](C(=O)O)N)O\tIsaria cicadae\t10.1177/1934578X1501001233\nN-acetylnoradrenaline\tCC(=O)NCC(C1=CC(=C(C=C1)O)O)O\tIsaria cicadae\t10.1177/1934578X1501001233";
 
-    let rows = parse_tsv(tsv).expect("tsv parse");
+    let rows = parse_tabular(tsv).expect("tsv parse");
     assert_eq!(rows.len(), 8, "every row in the example survives");
 
     for row in rows {
@@ -191,7 +191,7 @@ fn a_doi_url_with_nothing_after_it_is_no_doi_at_all() {
 #[test]
 fn an_upper_case_doi_url_strips_the_host_and_matches_lower_case() {
     let tsv = "name\tsmiles\torganism\tdoi\nA\tCCO\tTaxon\thttps://DOI.ORG/10.1/x\n";
-    let rows = parse_tsv(tsv).expect("the tsv parses");
+    let rows = parse_tabular(tsv).expect("the tsv parses");
 
     assert_eq!(
         rows[0].doi.as_deref(),
@@ -199,8 +199,9 @@ fn an_upper_case_doi_url_strips_the_host_and_matches_lower_case() {
         "an upper-case doi.org URL has its prefix stripped and is normalised to the bare DOI"
     );
 
-    let lower = parse_tsv("name\tsmiles\torganism\tdoi\nA\tCCO\tTaxon\thttps://doi.org/10.1/x\n")
-        .expect("the tsv parses");
+    let lower =
+        parse_tabular("name\tsmiles\torganism\tdoi\nA\tCCO\tTaxon\thttps://doi.org/10.1/x\n")
+            .expect("the tsv parses");
     assert_eq!(
         rows[0].doi, lower[0].doi,
         "host case does not split one reference into two submissions"
@@ -213,7 +214,7 @@ fn an_upper_case_doi_url_strips_the_host_and_matches_lower_case() {
 #[test]
 fn a_byte_order_mark_does_not_rename_the_first_column() {
     let tsv = "\u{feff}taxon\tname\tsmiles\nGentiana lutea\tEthanol\tCCO\n";
-    let rows = parse_tsv(tsv).expect("tsv parse");
+    let rows = parse_tabular(tsv).expect("tsv parse");
     assert_eq!(
         rows.first().and_then(|row| row.taxon.as_deref()),
         Some("Gentiana lutea"),
@@ -222,7 +223,7 @@ fn a_byte_order_mark_does_not_rename_the_first_column() {
 
     let tsv = "\u{feff}name\tsmiles\nEthanol\tCCO\n";
     assert_eq!(
-        parse_tsv(tsv)
+        parse_tabular(tsv)
             .expect("a leading name column is found")
             .len(),
         1

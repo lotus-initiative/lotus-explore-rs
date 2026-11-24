@@ -12,15 +12,15 @@ use crate::features::curation::services::chemical::extract_exact_mass_from_json;
 use crate::i18n::Locale;
 use lotus_curation::{
     CurationInputRow, CurationResultRow, CurationStatus, build_quickstatements_bundle,
-    extract_formula_from_inchi, normalize_formula_for_wikidata, parse_tsv as parse_tsv_rows,
-    qs_mass_statement, row_uniqueness_key,
+    extract_formula_from_inchi, normalize_formula_for_wikidata, parse_tabular, qs_mass_statement,
+    row_uniqueness_key,
 };
 use std::collections::BTreeMap;
 
 #[test]
-fn parse_tsv_supports_expected_headers() {
+fn parse_tabular_supports_expected_headers() {
     let tsv = "name\tsmiles\torganism\tdoi\nA\tCCO\tTaxon\thttps://doi.org/10.1/x\n";
-    let rows = parse_tsv_rows(tsv).expect("tsv parse");
+    let rows = parse_tabular(tsv).expect("tsv parse");
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].name, "A");
     assert_eq!(rows[0].smiles, "CCO");

@@ -57,7 +57,7 @@ mod unit {
     #![allow(clippy::expect_used, clippy::indexing_slicing)]
 
     use super::super::*;
-    use crate::parse_tsv;
+    use crate::{create_compound_statements, parse_tabular};
     fn row(name: &str, smiles: &str, taxon: Option<&str>, doi: Option<&str>) -> CurationInputRow {
         CurationInputRow {
             name: name.into(),
@@ -458,11 +458,7 @@ mod unit {
         // canonical drops stereochemistry, isomeric keeps it, and Wikidata
         // holds both. Emitting an empty string here would silently produce a
         // compound with no structure at all.
-        let stmts = creation_statements(
-            &row("Quercetin", "c1ccccc1", None, None),
-            "C1=CC=CC=C1",
-            "C1=CC=CC=C1",
-        );
+        let stmts = create_compound_statements("Quercetin", "C1=CC=CC=C1", "C1=CC=CC=C1");
         assert!(
             !stmts.is_empty(),
             "creation statements must not be empty for a row that needs creating"
@@ -487,12 +483,8 @@ mod unit {
     fn creation_statements_keep_both_stereochemistry_variants_distinct() {
         // The same compound, specified and unspecified. They must not collapse
         // to one statement, or the stereochemistry is lost on submission.
-        let racemic = creation_statements(&row("lactic", "CC(O)C", None, None), "CC(O)C", "CC(O)C");
-        let one_isomer = creation_statements(
-            &row("lactic", "C[C@@H](O)C", None, None),
-            "CC(O)C",
-            "C[C@@H](O)C",
-        );
+        let racemic = create_compound_statements("lactic", "CC(O)C", "CC(O)C");
+        let one_isomer = create_compound_statements("lactic", "CC(O)C", "C[C@@H](O)C");
         assert_ne!(
             racemic, one_isomer,
             "a specified and an unspecified structure must produce different statements"
@@ -507,7 +499,7 @@ mod unit {
     fn the_shipped_example_still_parses() {
         // The two front-ends read the same file; this is the one in the docs.
         let tsv = "name\tsmiles\ttaxon\tdoi\nQuercetin\tCCO\tGentiana lutea\t10.1/a\n";
-        let rows = parse_tsv(tsv).expect("the example parses");
+        let rows = parse_tabular(tsv).expect("the example parses");
         assert_eq!(rows.len(), 1);
     }
 }

@@ -13,7 +13,7 @@
 use crate::features::curation::services::inputs::example_rows;
 use lotus_curation::{
     CurationInputRow, CurationResultRow, CurationStatus, QuickStatementsBundle,
-    build_quickstatements_bundle, parse_tsv as parse_tsv_rows, row_uniqueness_key,
+    build_quickstatements_bundle, parse_tabular, row_uniqueness_key,
 };
 
 fn input(name: &str, smiles: &str, taxon: Option<&str>, doi: Option<&str>) -> CurationInputRow {
@@ -51,7 +51,7 @@ fn result(
 
 #[test]
 fn tsv_columns_are_matched_by_name_not_position() {
-    let rows = parse_tsv_rows("smiles\tname\ttaxon\nCCO\tEthanol\tOenothera\n").expect("valid TSV");
+    let rows = parse_tabular("smiles\tname\ttaxon\nCCO\tEthanol\tOenothera\n").expect("valid TSV");
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].name, "Ethanol");
     assert_eq!(rows[0].smiles, "CCO");
@@ -59,16 +59,16 @@ fn tsv_columns_are_matched_by_name_not_position() {
 
 #[test]
 fn organism_is_accepted_as_a_synonym_for_taxon() {
-    let rows = parse_tsv_rows("name\tsmiles\torganism\nA\tCCO\tOenothera\n").expect("valid TSV");
+    let rows = parse_tabular("name\tsmiles\torganism\nA\tCCO\tOenothera\n").expect("valid TSV");
     assert_eq!(rows[0].taxon.as_deref(), Some("Oenothera"));
 }
 
 #[test]
 fn a_missing_name_or_smiles_column_is_rejected_but_optional_columns_are_not() {
-    let err = parse_tsv_rows("smiles\ttaxon\nCCO\tOenothera\n").expect_err("no name column");
+    let err = parse_tabular("smiles\ttaxon\nCCO\tOenothera\n").expect_err("no name column");
     assert!(err.to_string().contains("name"), "got: {err}");
 
-    let rows = parse_tsv_rows("name\tsmiles\nA\tCCO\n").expect("valid TSV");
+    let rows = parse_tabular("name\tsmiles\nA\tCCO\n").expect("valid TSV");
     assert_eq!(rows[0].taxon, None);
     assert_eq!(rows[0].doi, None);
 }
@@ -76,19 +76,17 @@ fn a_missing_name_or_smiles_column_is_rejected_but_optional_columns_are_not() {
 #[test]
 fn rows_without_a_name_or_a_smiles_are_skipped_not_rejected() {
     let rows =
-        parse_tsv_rows("name\tsmiles\ttaxon\nA\tCCO\tX\nB\t\tX\nC\tCCN\tX\n").expect("valid TSV");
+        parse_tabular("name\tsmiles\ttaxon\nA\tCCO\tX\nB\t\tX\nC\tCCN\tX\n").expect("valid TSV");
     let names: Vec<&str> = rows.iter().map(|r| r.name.as_str()).collect();
     assert_eq!(names, vec!["A", "C"], "an empty SMILES cell drops the row");
 }
 
 #[test]
 fn a_row_whose_first_cell_is_empty_is_skipped_when_name_or_smiles_are_blank() {
-    // Fixed: `parse_tsv_rows` no longer trims each line with `str::trim` before
-    // splitting on tabs, so a leading `\t` keeps columns aligned instead of
-    // shifting everything left. With `name\tsmiles\ttaxon` as header,
-    // `\tCCO\tX` now parses as name="" smiles="CCO" taxon="X" — and the empty
+    // `parse_tabular` preserves leading `\t` alignment instead of trimming each
+    // line, so `\tCCO\tX` parses as name="" smiles="CCO" taxon="X" and the empty
     // name causes the row to be skipped by the `name.is_empty()` guard.
-    let rows = parse_tsv_rows("name\tsmiles\ttaxon\n\tCCO\tX\n").expect("valid TSV");
+    let rows = parse_tabular("name\tsmiles\ttaxon\n\tCCO\tX\n").expect("valid TSV");
     assert_eq!(rows.len(), 0, "an empty name causes the row to be skipped");
 }
 
@@ -96,7 +94,7 @@ fn a_row_whose_first_cell_is_empty_is_skipped_when_name_or_smiles_are_blank() {
 fn an_empty_optional_first_column_preserves_alignment() {
     // When the optional taxon column comes first and is empty, columns stay
     // aligned and the row survives (taxon=None, name="Ethanol", smiles="CCO").
-    let rows = parse_tsv_rows("taxon\tname\tsmiles\n\tEthanol\tCCO\n").expect("valid TSV");
+    let rows = parse_tabular("taxon\tname\tsmiles\n\tEthanol\tCCO\n").expect("valid TSV");
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].name, "Ethanol");
     assert_eq!(rows[0].smiles, "CCO");
@@ -107,7 +105,7 @@ fn an_empty_optional_first_column_preserves_alignment() {
 fn a_trailing_empty_cell_also_survives_because_only_the_line_ends_are_trimmed() {
     // The mirror case does *not* misparse: `trim` removes trailing tabs, but the
     // remaining empty cells are still present, so the columns stay aligned.
-    let rows = parse_tsv_rows("name\tsmiles\ttaxon\tdoi\nA\tCCO\tX\t\n").expect("valid TSV");
+    let rows = parse_tabular("name\tsmiles\ttaxon\tdoi\nA\tCCO\tX\t\n").expect("valid TSV");
     assert_eq!(rows[0].name, "A");
     assert_eq!(rows[0].smiles, "CCO");
     assert_eq!(rows[0].taxon.as_deref(), Some("X"));
@@ -118,7 +116,7 @@ fn a_trailing_empty_cell_also_survives_because_only_the_line_ends_are_trimmed() 
 fn extra_columns_past_the_last_interesting_one_are_ignored() {
     // A real export carries a dozen more fields; none may shift the ones we read.
     let rows =
-        parse_tsv_rows("name\tsmiles\ttaxon\tdoi\textra1\textra2\nA\tCCO\tX\t10.1/a\tfoo\tbar\n")
+        parse_tabular("name\tsmiles\ttaxon\tdoi\textra1\textra2\nA\tCCO\tX\t10.1/a\tfoo\tbar\n")
             .expect("valid TSV");
     assert_eq!(rows[0].name, "A");
     assert_eq!(rows[0].doi.as_deref(), Some("10.1/A"));
@@ -127,12 +125,12 @@ fn extra_columns_past_the_last_interesting_one_are_ignored() {
 #[test]
 fn header_only_and_empty_input_yield_no_rows() {
     assert_eq!(
-        parse_tsv_rows("name\tsmiles\n").expect("valid TSV").len(),
+        parse_tabular("name\tsmiles\n").expect("valid TSV").len(),
         0,
         "a header row is not a compound"
     );
     assert_eq!(
-        parse_tsv_rows("").expect("empty is valid").len(),
+        parse_tabular("").expect("empty is valid").len(),
         0,
         "expected no entries"
     );
@@ -140,7 +138,7 @@ fn header_only_and_empty_input_yield_no_rows() {
 
 #[test]
 fn blank_lines_and_crlf_are_tolerated() {
-    let rows = parse_tsv_rows("name\tsmiles\r\n\r\nA\tCCO\r\n\r\nB\tCCN\r\n").expect("valid TSV");
+    let rows = parse_tabular("name\tsmiles\r\n\r\nA\tCCO\r\n\r\nB\tCCN\r\n").expect("valid TSV");
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[1].smiles, "CCN");
 }

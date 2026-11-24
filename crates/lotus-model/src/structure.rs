@@ -204,7 +204,7 @@ mod tests;
 /// The one place that decides, so the example buttons, the resolver and the tests
 /// cannot each hold a different idea of what a given input is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InputKind {
+enum InputKind {
     /// A QID: already the answer, no lookup.
     Qid,
     /// An `InChIKey`: resolved through `P235`.
@@ -217,7 +217,7 @@ pub enum InputKind {
 
 /// Classify what was typed into the structure field.
 #[must_use]
-pub fn classify_structure_input(text: &str) -> InputKind {
+fn classify_structure_input(text: &str) -> InputKind {
     let trimmed = text.trim();
     if trimmed.is_empty() {
         return InputKind::Structure;

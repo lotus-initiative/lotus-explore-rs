@@ -80,10 +80,7 @@ mod queries_enrich;
 #[cfg(test)]
 mod tests;
 
-pub use parse_id::{
-    ARCHIVE_PAGE_SIZE, WIKIDATA_ENTITY_PREFIX, archive_page, extract_qid,
-    looks_like_archive_inchikey,
-};
+pub use parse_id::{ARCHIVE_PAGE_SIZE, archive_page, extract_qid};
 pub use queries_core::{
     COMPOUND_TAXON_REFERENCE_QUERY, EXPORT_COMPOUNDS_QUERY, EXPORT_REFERENCES_QUERY,
     EXPORT_TAXA_QUERY, TAXON_NAME_QUERY, TAXON_NCBI_QUERY, TAXON_PARENT_QUERY,

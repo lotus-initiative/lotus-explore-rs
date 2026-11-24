@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! Wikidata QID extraction, archive pagination, and endpoint constants for bulk export.
-
-use lotus_model::looks_like_inchikey;
+//! Wikidata QID extraction and archive pagination for bulk export.
 
 /// Wikidata's entity IRI prefix, stripped to recover a bare QID.
-pub const WIKIDATA_ENTITY_PREFIX: &str = "http://www.wikidata.org/entity/";
+const WIKIDATA_ENTITY_PREFIX: &str = "http://www.wikidata.org/entity/";
 
 /// Extract a bare QID (`Q153`) from a Wikidata entity IRI.
 ///
@@ -26,10 +24,4 @@ pub const ARCHIVE_PAGE_SIZE: usize = 50_000;
 #[must_use]
 pub fn archive_page(base_query: &str, offset: usize) -> String {
     format!("{base_query}\nLIMIT {ARCHIVE_PAGE_SIZE}\nOFFSET {offset}")
-}
-
-/// Whether a value looks like a standard `InChIKey`, used to validate decoded rows.
-#[must_use]
-pub fn looks_like_archive_inchikey(value: &str) -> bool {
-    looks_like_inchikey(value)
 }

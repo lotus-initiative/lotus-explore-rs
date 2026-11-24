@@ -8,10 +8,10 @@ use crate::graph::{
 use lotus_model::SearchCriteria;
 
 /// Hard upper bound accepted for `?max_nodes=` on `/network`.
-pub const MAX_OVERVIEW_NODES_LIMIT: usize = 50_000;
+pub(super) const MAX_OVERVIEW_NODES_LIMIT: usize = 50_000;
 
 /// Hard upper bound accepted for `?max_neighbors=` on `/network`.
-pub const MAX_EGO_NEIGHBORS_LIMIT: usize = 10_000;
+pub(super) const MAX_EGO_NEIGHBORS_LIMIT: usize = 10_000;
 
 /// Visualization parameters encoded into the `/network` URL query string.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -110,7 +110,7 @@ pub fn parse_graph_view_from_params(params: &QueryParams) -> GraphViewParams {
 
 /// Serialize non-default `/network` visualization parameters into URL query pairs.
 #[must_use]
-pub fn graph_view_query_params(view: &GraphViewParams) -> QueryParams {
+pub(super) fn graph_view_query_params(view: &GraphViewParams) -> QueryParams {
     let mut params = QueryParams::new();
 
     if view.projection != GraphProjection::Auto {

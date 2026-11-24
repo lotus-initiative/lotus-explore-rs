@@ -13,7 +13,6 @@ fn every_edam_constant_is_a_canonical_four_digit_edam_iri() {
                 TOPIC_CHEMINFORMATICS,
                 TOPIC_METABOLOMICS,
                 TOPIC_TAXONOMY,
-                TOPIC_ONTOLOGY_AND_TERMINOLOGY,
             ][..],
         ),
         (

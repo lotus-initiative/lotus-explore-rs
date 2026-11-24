@@ -18,7 +18,7 @@ pub use bulk_export::{
     COMPOUND_SMILES_ISO_ALL_QUERY, COMPOUND_TAXON_REFERENCE_QUERY, EXPORT_COMPOUNDS_QUERY,
     EXPORT_REFERENCES_QUERY, EXPORT_TAXA_QUERY, REFERENCE_DOI_COMPOUND_TAXON_QUERY,
     REFERENCE_PMID_COMPOUND_TAXON_QUERY, TAXON_NAME_QUERY, TAXON_NCBI_QUERY, TAXON_PARENT_QUERY,
-    WIKIDATA_ENTITY_PREFIX, archive_page, extract_qid, looks_like_archive_inchikey,
+    archive_page, extract_qid,
 };
 pub use error::ParseError;
 pub use export::{ExportFormat, sanitize_download_filename};
@@ -36,8 +36,8 @@ pub use query::{
     compounds_by_taxon_query_with, compounds_by_taxon_query_with_resolved_closure,
     construct_from_select, counts_query, dictionary_queries, entity_dictionary_query,
     escape_sparql_string, escape_structure_literal, exact_compound_query, exact_compounds_query,
-    export_query, has_data_row, is_reference_lookup, limit_query, normalize_digits_expr,
-    occurrences_query, reference_by_doi_query, reference_by_qid_query, reference_dictionary_query,
+    export_query, has_data_row, is_reference_lookup, limit_query, occurrences_query,
+    reference_by_doi_query, reference_by_qid_query, reference_dictionary_query,
     structure_compound_lookup_query, structure_search_query, structure_search_query_with,
     taxon_common_name_lookup_query, taxon_has_compounds_query, taxon_lookup_query, wdqs_fallback,
     with_filters,

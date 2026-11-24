@@ -11,7 +11,7 @@ use super::{SmilesKind, SmilesRecord};
 /// Multiple values of the preferred property are resolved deterministically by
 /// source SMILES then Wikidata ID, so repeated pulls yield the same archive.
 #[must_use]
-pub fn deduplicate_by_inchi_key(records: Vec<SmilesRecord>) -> Vec<SmilesRecord> {
+pub(super) fn deduplicate_by_inchi_key(records: Vec<SmilesRecord>) -> Vec<SmilesRecord> {
     let mut selected = BTreeMap::new();
     for record in records {
         match selected.entry(record.inchi_key.clone()) {

@@ -13,7 +13,7 @@ use crate::error::{FetchError, ResponseFormat};
 use crate::result::{SearchRequest, SearchResult};
 
 /// How many rows a search returns when the caller does not say.
-pub const DEFAULT_ROW_LIMIT: usize = 500;
+const DEFAULT_ROW_LIMIT: usize = 500;
 
 /// Why a search could not be completed.
 #[derive(Debug, thiserror::Error)]

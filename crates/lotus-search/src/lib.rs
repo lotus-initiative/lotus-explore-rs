@@ -36,15 +36,14 @@ pub use client::{BodyChunks, ChunkFuture, ChunkedBody, Http, HttpResponse, Respo
 pub use error::{FetchError, ResponseFormat, TruncationReason, is_retryable_status};
 pub use execute::{
     Answer, Endpoint, Service, StreamAnswer, execute, execute_streaming,
-    execute_streaming_with_fallback, execute_with_fallback, fetch_url, html_title,
+    execute_streaming_with_fallback, execute_with_fallback, fetch_url,
 };
 pub use result::{ColumnarSearchResult, SearchRequest, SearchResult, TaxonNote, TaxonResolution};
 pub use search::{
-    DEFAULT_ROW_LIMIT, ResolvedInputs, SearchError, StreamProgress, StructurePlan,
-    StructureResolution, build_base_query, build_execution_query, build_execution_query_with,
-    columnar_from_chunks, columnar_from_chunks_reporting, counts, enrich_columnar_reader,
-    feed_chunks_reporting, resolve_inputs, resolve_reference, resolve_structure, resolve_taxon,
-    search, search_columnar,
+    ResolvedInputs, SearchError, StreamProgress, StructureResolution, build_base_query,
+    build_execution_query, build_execution_query_with, columnar_from_chunks,
+    columnar_from_chunks_reporting, counts, enrich_columnar_reader, feed_chunks_reporting,
+    resolve_inputs, resolve_reference, resolve_structure, resolve_taxon, search, search_columnar,
 };
 
 #[cfg(feature = "reqwest")]

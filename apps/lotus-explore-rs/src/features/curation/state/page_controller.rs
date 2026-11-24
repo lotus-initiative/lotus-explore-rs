@@ -222,7 +222,7 @@ pub fn import_tsv_rows(
     mut rows: Signal<Vec<CurationInputRow>>,
     mut status_message: Signal<Option<String>>,
 ) {
-    match lotus_curation::parse_tsv(content) {
+    match lotus_curation::parse_tabular(content) {
         Ok(parsed) => {
             if parsed.is_empty() {
                 status_message.set(Some(msg_no_valid_tsv_rows(locale)));

@@ -173,7 +173,7 @@ fn add_to_create(statements: &mut Vec<String>, line: &str) {
 /// Reference QID for `S887` (`inferred from SMILES`).
 pub const QS_REF_INFERRED_FROM_SMILES: &str = "Q113907573";
 /// Reference QID for `S887` (`inferred from isomeric SMILES`).
-pub const QS_REF_INFERRED_FROM_ISOMERIC_SMILES: &str = "Q123282952";
+const QS_REF_INFERRED_FROM_ISOMERIC_SMILES: &str = "Q123282952";
 
 /// Format a Wikidata `QuickStatements` mass statement using the dalton unit (`U483261`),
 /// with an `S887` `inferred from SMILES` reference (`Q113907573`).

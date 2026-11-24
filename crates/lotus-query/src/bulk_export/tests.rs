@@ -245,13 +245,6 @@ fn archive_queries_are_paged_by_offset() {
 }
 
 #[test]
-fn archive_inchikey_validation_rejects_non_inchikeys() {
-    assert!(looks_like_archive_inchikey("LFQSCWFLJHTTHZ-UHFFFAOYSA-N"));
-    assert!(!looks_like_archive_inchikey("not-an-inchikey"));
-    assert!(!looks_like_archive_inchikey(""));
-}
-
-#[test]
 fn extract_qid_strips_both_http_and_https_entity_prefixes() {
     assert_eq!(
         extract_qid("http://www.wikidata.org/entity/Q153"),

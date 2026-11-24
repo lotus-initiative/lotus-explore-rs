@@ -214,7 +214,7 @@ impl ColumnarResultSet {
 
     /// The reference's publication year, or `None` when it has none.
     #[must_use]
-    pub fn reference_year(&self, reference_id: u32) -> Option<i16> {
+    pub(super) fn reference_year(&self, reference_id: u32) -> Option<i16> {
         self.reference_years
             .get(reference_id as usize)
             .copied()

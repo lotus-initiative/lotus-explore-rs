@@ -6,7 +6,7 @@ use crate::{CurationInputRow, escape_quickstatements, extract_canonical_taxon_na
 
 /// The statements that would create a taxon the row needs and Wikidata lacks.
 #[must_use]
-pub fn taxon_dependency_statements(row: &CurationInputRow) -> Vec<String> {
+pub(super) fn taxon_dependency_statements(row: &CurationInputRow) -> Vec<String> {
     let Some(taxon) = row
         .taxon
         .as_deref()
@@ -31,7 +31,7 @@ pub fn taxon_dependency_statements(row: &CurationInputRow) -> Vec<String> {
 /// The statements that would create a scholarly article item for a DOI the row
 /// needs and Wikidata lacks.
 #[must_use]
-pub fn reference_dependency_statements(row: &CurationInputRow) -> Vec<String> {
+pub(super) fn reference_dependency_statements(row: &CurationInputRow) -> Vec<String> {
     let Some(doi) = row.doi.as_deref().and_then(lotus_model::normalize_doi) else {
         return Vec::new();
     };

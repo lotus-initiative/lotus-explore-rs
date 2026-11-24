@@ -22,7 +22,7 @@ fn export_search_type_suffix(criteria: &SearchCriteria) -> Option<&'static str> 
 /// than read, so a caller that already has the instant does not have to ask a
 /// second time and get a second answer.
 #[must_use]
-pub fn today_yyyymmdd(iso_timestamp: &str) -> String {
+fn today_yyyymmdd(iso_timestamp: &str) -> String {
     iso_timestamp
         .chars()
         .filter(char::is_ascii_digit)
@@ -36,7 +36,7 @@ pub fn today_yyyymmdd(iso_timestamp: &str) -> String {
 /// people and "`all_taxa`" says what the file is; every other unusable
 /// character becomes an underscore or is dropped.
 #[must_use]
-pub fn safe_taxon_slug(taxon: &str) -> String {
+fn safe_taxon_slug(taxon: &str) -> String {
     let t = taxon.trim();
     if t.is_empty() {
         return "any_taxon".to_string();

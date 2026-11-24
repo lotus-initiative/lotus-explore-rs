@@ -17,7 +17,7 @@ pub use software::{Software, citation_cff, codemeta, software_jsonld};
 pub use taxon::taxon_jsonld;
 
 /// The base `schema.org` `@context` URI.
-pub const CONTEXT: &str = "https://schema.org/";
+const CONTEXT: &str = "https://schema.org/";
 
 /// The JSON-LD `@context` shared across exported documents, binding `dct` so
 /// strict JSON-LD 1.1 processors can expand `dct:conformsTo`.
@@ -53,19 +53,19 @@ pub(crate) fn stamp(mut node: serde_json::Value, profile: Profile) -> serde_json
 
 /// The Wikidata entity URI for a QID.
 #[must_use]
-pub fn wikidata_uri(qid: &str) -> String {
+pub(crate) fn wikidata_uri(qid: &str) -> String {
     format!("http://www.wikidata.org/entity/{qid}")
 }
 
 /// The canonical URL for a LOTUS concept, as a `sameAs` target.
 #[must_use]
-pub fn pubchem_uri(inchikey: &str) -> String {
+pub(crate) fn pubchem_uri(inchikey: &str) -> String {
     format!("https://pubchem.ncbi.nlm.nih.gov/compound/{inchikey}")
 }
 
 /// The `doi.org` URL for a DOI (stripping any resolver prefix or whitespace).
 #[must_use]
-pub fn doi_uri(doi: &str) -> String {
+pub(crate) fn doi_uri(doi: &str) -> String {
     let bare = lotus_model::strip_doi_prefix(doi.trim());
     format!("https://doi.org/{bare}")
 }
@@ -76,7 +76,7 @@ pub fn doi_uri(doi: &str) -> String {
 /// identifier goes in `identifier` with its own vocabulary, which is what the
 /// Bioschemas `MolecularEntity` profile asks for.
 #[must_use]
-pub fn property_value(
+pub(crate) fn property_value(
     property: &str,
     value: &str,
     value_type: &str,

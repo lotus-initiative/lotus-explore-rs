@@ -17,7 +17,6 @@ mod wasm;
 mod tests;
 
 pub use endpoints::{Answer, Endpoint, Service, StreamAnswer};
-pub use error_format::html_title;
 pub use fallback::{execute_streaming_with_fallback, execute_with_fallback, fetch_url};
 pub use retry::{execute, execute_streaming};
 
@@ -29,7 +28,7 @@ use budget::{
     request_headers,
 };
 #[cfg(test)]
-use error_format::{compact, json_exception, urlencode};
+use error_format::{compact, html_title, json_exception, urlencode};
 #[cfg(test)]
 use fallback::is_success;
 #[cfg(test)]

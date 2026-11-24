@@ -6,7 +6,9 @@ use lotus_search::{Http, HttpResponse as _};
 
 use super::ConvertedStructure;
 use super::formula::{has_stereo_marks, strip_stereo_marks};
-use crate::{CurationError, NATPROD_API_BASE};
+use crate::CurationError;
+
+const NATPROD_API_BASE: &str = "https://api.naturalproducts.net/latest";
 
 /// The URL the batch converter is called at, for one output format.
 fn batch_url(output_format: &str) -> String {

@@ -38,14 +38,14 @@ pub(super) struct SparqlValue {
 
 /// HTTP client for fetching LOTUS SMILES from `QLever`.
 #[derive(Clone, Debug)]
-pub struct QleverClient<'a, H: Http + 'a> {
+pub(super) struct QleverClient<'a, H: Http + 'a> {
     http: &'a H,
     endpoint: Endpoint,
 }
 
 impl<'a, H: Http + 'a> QleverClient<'a, H> {
     /// Constructs a client for the supplied `QLever` SPARQL endpoint.
-    pub const fn new(http: &'a H, endpoint: Endpoint) -> Self {
+    pub(super) const fn new(http: &'a H, endpoint: Endpoint) -> Self {
         Self { http, endpoint }
     }
 
@@ -54,7 +54,7 @@ impl<'a, H: Http + 'a> QleverClient<'a, H> {
     ///
     /// # Errors
     /// Returns [`ArchiveError::Fetch`] when the endpoint fails to answer.
-    pub async fn fetch_lotus_smiles(&self) -> Result<Vec<SmilesRecord>, ArchiveError> {
+    pub(super) async fn fetch_lotus_smiles(&self) -> Result<Vec<SmilesRecord>, ArchiveError> {
         decode_sparql_bindings(self.fetch_bindings(ARCHIVE_SMILES_QUERY).await?)
     }
 
@@ -62,7 +62,7 @@ impl<'a, H: Http + 'a> QleverClient<'a, H> {
     ///
     /// # Errors
     /// Returns [`ArchiveError::Fetch`] when the endpoint fails to answer.
-    pub async fn fetch_missing_inchi_key_smiles(
+    pub(super) async fn fetch_missing_inchi_key_smiles(
         &self,
     ) -> Result<Vec<MissingInchiKeyRecord>, ArchiveError> {
         decode_missing_inchi_key_bindings(
