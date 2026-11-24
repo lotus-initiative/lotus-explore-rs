@@ -9,3 +9,6 @@ extend-exclude = [
 
 [default.extend-words]
 LOD = "LOD"
+
+[default.extend-identifiers]
+flate2 = "flate2"
