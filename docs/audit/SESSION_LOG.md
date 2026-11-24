@@ -167,3 +167,39 @@
     - 2,990,730 rows (890.1 MB CSV): `split records 5126.6 ms`, `parse + build 9737.8 ms (87.2 MB/s)`, `resident 260.7 MB (91.4 B/row, 31% of the CSV)`, `plan text filter 103.7 ms`, `scan rows 59.3 ms`, `plan mass filter 4.5 ms`, `sort by name 2297.7 ms`.
     - `bench_sort_scaling` (15 samples/size): `50k 0.6 ms` (`12.3 ns/row`), `100k 2.0 ms` (`19.9 ns/row`), `250k 8.4 ms` (`33.7 ns/row`), `500k 18.6 ms` (`37.2 ns/row`), `1M 21.1 ms` (`21.1 ns/row`), `2M 2004.5 ms` (`1002.3 ns/row`), `2.99M 4273.6 ms` (`1428.9 ns/row`).
   - `lotus-server` `cache_key` benchmark (50 samples): `tiny` `708 ns`, `everything` `3000–3041 ns`, `one taxon` `3792–3833 ns`, `structure search` `3041 ns`, `synthetic 16x` `94167–94625 ns`.
+
+### Step 7b — Final Re-Audit & Anti-Timidity Check
+
+#### Mutation & Workspace Gate Verification
+- Targeted mutation sweep (`cargo mutants -p lotus-model -F filter.rs -- --locked`): `65 mutants tested in 9m: 65 caught` (0 missed, 0 unviable, 0 timeouts).
+- `./mk echoes`: `12 doctests (12 unique), 4710 functions (4694 unique), 0 duplicated groups, 11842 context blocks (3044 unique), 0 approximate groups, 0 dependency reuse opportunities (36 packages)`.
+- All workspace checks (`fmt-check`, `tombi-check`, `tombi-lint`, `typos`, `license-headers`, `check`, `lint`, `test-nextest`, `check-wasm-{pure,search,app}`, `lint-native-builds`, `lint-wasm`, `refquiem`, `doc`, workspace doctests) green prior to final doc commit; re-verified under `./mk ci`.
+
+#### End-of-Refactor vs Baseline (`7b88120`) Metrics
+
+| Metric | Baseline (`7b88120`) | Final (`HEAD`) | Delta |
+| --- | --- | --- | --- |
+| Workspace crates | 9 (8 in `crates/`, 1 app) | 11 (10 in `crates/`, 1 app) | +2 extracted crates |
+| Total / prod `.rs` files | 536 total | 643 total / 431 prod | +107 files (modular splits + tests) |
+| Prod files > 300 lines (raw / non-blank non-`//` code) | 51 raw | 32 raw / 17 code (3 in `crates/`) | −37% raw; 0 in 8 of 10 crates |
+| Max prod file LOC (overall / in `crates/`) | 2,041 (`lotus-query`) | 593 (`apps/.../i18n/faq.rs`) / 415 (`crates/.../reqwest_client/wasm.rs`) | −71% overall / −80% in crates |
+| Max prod function LOC (in `crates/`) | 261 | 134 (`dictionary.rs::format_values_clause`) | −49% |
+| Prod `pub` items per library crate (`explore-core` / `model` / `curation` / `search` / `jsonld` / `query` / `cli`) | 432 / 271 / 128 / 124+`*` / 88 / 142 / 65 | 215 / 192 / 85 / 87 / 53 / 130 / 56 (+ 29 `export`, 27 `server`, 30 `web-assets`) | Tightened −9% to −50% per crate |
+| Prod `Result<_, String>` sites | 61 | 0 | −100% |
+| Junk-drawer files (`util`/`helper`/`common`) | 6 | 0 | −100% |
+| `cargo echoes` duplicates / approx / reuse | — | 0 / 0 / 0 | Clean |
+| `lotus` CLI release binary size | — | `4.6M` (`cargo build --release -p lotus-cli --locked`) | Recorded |
+
+#### Anti-Timidity Check
+1. **Three largest structural changes:**
+   - Extracted `crates/lotus-server` from `apps/lotus-explore-rs` (`src/server/`, `cache_key`, export URL builders) and unified client/server wire schemas behind `lotus-explore-core`'s opt-in `openapi` feature, eliminating the `server` feature and crate-wide dead-code/unused-dep suppressions from the web client crate.
+   - Extracted `crates/lotus-export` (bulk ETL pipelines, `pubchem_tree`, TAR/gzip archive builder) out of `crates/lotus-explore-core`, decoupling `lotus-cli` from browser/UI state and stripping `csv`, `flate2`, and `tar` from the WASM-targeted explorer core.
+   - Consolidated domain primitives and query construction: removed `pub use lotus_model::*;` from `lotus-search`, introduced validated `Qid`/`Doi` newtypes and central Wikidata endpoint constants in `lotus-model`, unified the 6-shape SPARQL builder under `lotus_query::base_query_for_criteria`, moved QuickStatements builders into `lotus-curation`, decomposed every >400-line god module in `crates/` (including `query.rs`, `columnar.rs`, `main.rs`, `execute.rs`, `search.rs`, `wikidata_query.rs`, `knowledge.rs`, `project.rs`, `model.rs`, `build.rs`), and eliminated all 61 production `Result<_, String>` sites and all 6 junk-drawer modules.
+2. **Crates & modules created vs deleted:**
+   - Created crates: `crates/lotus-export`, `crates/lotus-server`.
+   - Created domain/error/module hierarchies: `lotus_model::{qid, endpoints}` and decomposed `columnar/` tree; `lotus_query/src/query/` and `parse/` + `export_rows/` + `bulk_export/` submodules; `lotus_search/src/{search,execute,reqwest_client}/` submodules + `ClientBuildError`; `lotus_curation/src/{wikidata_query,structure,knowledge,quickstatements}/`; `lotus_explore_core/src/{graph/project,graph/model,explore/url_codec/criteria,export/metadata}/`; `lotus_cli/src/{args,curate,zenodo}/` + command modules; `apps/lotus-explore-rs/build/` submodules and `src/download/error.rs` (`DownloadError`).
+   - Deleted: `crates/lotus-explore-core/src/export/{pipeline,archive,pubchem_tree}` (moved to `lotus-export`), `apps/lotus-explore-rs/src/server/` and server DTO duplicates (moved to `lotus-server` and unified on `lotus-explore-core`), `apps/lotus-explore-rs/src/features/curation/services/` QuickStatements duplicate file, and all 6 junk-drawer modules across core and app (search utility module, app logging utility module, UI common module, and graph/curation/i18n/table helper modules).
+3. **Why not zero >300 LOC files globally?**
+   - Every core/domain library crate except `lotus-search/src/reqwest_client/wasm.rs` (359 code lines of `web_sys` Fetch glue, guarded by source-shape gates) and `lotus-jsonld/src/software.rs` (304 code lines of JSON-LD fixture/metadata serialization) is at or below 300 code lines. The remaining files >300 code lines live in `apps/lotus-explore-rs/` declarative Dioxus UI views, static French FAQ translations (`i18n/faq.rs`, `faq_guide.rs`), and JS/OPFS browser interop guarded by textual gate tests (`download/file_sink.rs`, `download/wasm.rs`, `upload.rs`). Further splitting those static translation tables or gate-asserted files would add ceremony without reducing architectural coupling.
+
+- Marked Step 7 `[x]` in `docs/REFACTOR_PLAN.md` and authored `REVIEW_NOTES.md`.
