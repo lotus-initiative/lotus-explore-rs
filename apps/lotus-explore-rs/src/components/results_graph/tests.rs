@@ -22,12 +22,11 @@ use lotus_explore_core::explore::actions::ExploreAction;
 use lotus_explore_core::explore::command::SearchCommand;
 use lotus_explore_core::explore::search_state::{ExploreState, reduce_mut};
 use lotus_explore_core::explore::url_codec::QueryParams;
-use lotus_explore_core::export::metadata::SparqlEndpoint;
 use lotus_explore_core::graph::{
     DEFAULT_MAX_NODES, GraphEmptyReason, GraphModel, GraphProjection, GraphScope, NodeKind,
     build_graph,
 };
-use lotus_model::{ColumnarResultSet, CompoundEntry, SearchCriteria};
+use lotus_model::{ColumnarResultSet, CompoundEntry, SearchCriteria, SparqlEndpoint};
 use std::sync::Arc;
 
 fn entry_row(

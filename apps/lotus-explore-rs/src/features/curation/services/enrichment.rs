@@ -27,10 +27,9 @@ use super::{
     curation_note_existing_updates, curation_note_missing_doi, curation_note_new_compound,
     curation_note_revised, curation_pending_reference, curation_pending_taxon,
     escape_quickstatements, fetch_reference_quickstatements, has_isomeric_smiles,
-    has_undefined_stereo, is_revised_row, normalize_doi, normalize_taxon_lookup,
-    qs_canonical_smiles_statement, qs_inchi_statement, qs_inchikey_statement,
-    qs_isomeric_smiles_statement, qs_statement_with_refs, resolve_exact_mass,
-    revised_row_statement,
+    has_undefined_stereo, is_revised_row, normalize_taxon_lookup, qs_canonical_smiles_statement,
+    qs_inchi_statement, qs_inchikey_statement, qs_isomeric_smiles_statement,
+    qs_statement_with_refs, resolve_exact_mass, revised_row_statement,
 };
 use crate::features::curation::repositories::CurationKnowledgeRepository;
 use crate::i18n::Locale;
@@ -38,6 +37,7 @@ use lotus_curation::WikidataCompound;
 use lotus_curation::{
     extract_formula_from_inchi, normalize_formula_for_wikidata, qs_mass_statement,
 };
+use lotus_model::normalize_doi;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

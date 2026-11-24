@@ -13,7 +13,7 @@ use crate::components::form_sections::{
     TaxonNomenclatureFilters, YearRangeInput,
 };
 use crate::features::explore::use_criteria_selector;
-use lotus_explore_core::explore::FormAction;
+use lotus_explore_core::explore::form_actions::FormAction;
 
 use crate::components::form_inputs::{ResetFiltersButton, SearchButton};
 use crate::features::explore::{use_explore_interactions, use_lifecycle_selector};

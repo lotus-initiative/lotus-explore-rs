@@ -2,13 +2,12 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use crate::explore::types::LookupNotice;
-use crate::export::metadata::SparqlEndpoint;
 use crate::filters::ColumnFilters;
 use crate::sort::{SortColumn, SortDir};
+use lotus_model::{ColumnarResultSet, SparqlEndpoint};
 use std::sync::Arc;
 
 use super::super::ResultDataState;
-use lotus_model::ColumnarResultSet;
 
 #[derive(Clone, Debug)]
 pub(super) struct SearchSuccessPayload {

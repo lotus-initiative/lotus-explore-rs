@@ -16,8 +16,6 @@ pub use profile::{Profile, ValidationIssue, check};
 pub use software::{Software, citation_cff, codemeta, software_jsonld};
 pub use taxon::taxon_jsonld;
 
-use lotus_model::CompoundEntry;
-
 /// The base `schema.org` `@context` URI.
 pub const CONTEXT: &str = "https://schema.org/";
 
@@ -146,15 +144,6 @@ pub const SOFTWARE: crate::software::Software = crate::software::Software {
         year: 2022,
     }),
 };
-
-/// The `MolecularEntity` for a result row, or `None` if the row has no QID.
-///
-/// # Errors
-/// Never, today. It returns `Result` so that a future profile check can fail
-/// without changing every call site's type.
-pub fn entity_for(entry: &CompoundEntry) -> Result<serde_json::Value, serde_json::Error> {
-    Ok(compound_jsonld(entry))
-}
 
 #[cfg(test)]
 mod uri_tests;

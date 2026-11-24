@@ -6,9 +6,9 @@ use crate::download::{export_timer_label, export_trigger_timer_label};
 use crate::perf;
 use crate::sparql;
 use crate::sparql::wdqs_download_query;
+use lotus_model::WDQS_SCHOLARLY;
 use lotus_query::ExportFormat as DownloadFormat;
 use lotus_search::ResponseFormat as LotusResponseFormat;
-use lotus_search::WDQS_SCHOLARLY;
 use std::sync::Arc;
 
 pub(super) async fn execute_download_with_fallback(

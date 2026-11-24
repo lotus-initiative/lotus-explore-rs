@@ -32,7 +32,11 @@ pub fn revised_row_statement(row: &CurationInputRow) -> String {
 }
 
 pub(super) fn is_reference_pending(row: &CurationInputRow, lookup: &WikidataLookup) -> bool {
-    row.doi.as_deref().and_then(crate::normalize_doi).is_some() && lookup.reference_qid.is_none()
+    row.doi
+        .as_deref()
+        .and_then(lotus_model::normalize_doi)
+        .is_some()
+        && lookup.reference_qid.is_none()
 }
 
 fn occurrence_line(subject: &str, taxon: &str, reference: Option<&str>) -> String {

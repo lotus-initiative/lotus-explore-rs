@@ -54,8 +54,6 @@ pub mod reqwest_client;
 #[cfg_attr(docsrs, doc(cfg(feature = "testing")))]
 pub mod testing;
 
-pub use lotus_model::{QLEVER_WIKIDATA, WDQS_SCHOLARLY, WDQS_WIKIDATA};
-
 /// How this client identifies itself to `QLever` (`api-user-agent`) and native
 /// HTTP targets including Wikimedia's REST Gateway (`User-Agent`).
 pub(crate) const CLIENT_ID: &str = concat!(

@@ -95,7 +95,7 @@ pub struct ResultDataState {
     /// [`crate::filters`].
     pub filters: ColumnFilters,
     /// The SPARQL endpoint used (Qlever by default, WDQS on fallback from 502)
-    pub endpoint: crate::export::metadata::SparqlEndpoint,
+    pub endpoint: lotus_model::SparqlEndpoint,
 }
 
 impl Default for ResultDataState {
@@ -113,7 +113,7 @@ impl Default for ResultDataState {
             display_capped_rows: false,
             sort: SortState::default(),
             filters: ColumnFilters::empty(),
-            endpoint: crate::export::metadata::SparqlEndpoint::Qlever,
+            endpoint: lotus_model::SparqlEndpoint::Qlever,
         }
     }
 }

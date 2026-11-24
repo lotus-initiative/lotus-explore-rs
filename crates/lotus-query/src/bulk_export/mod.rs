@@ -93,7 +93,7 @@ mod queries_enrich;
 mod tests;
 
 pub use parse_id::{
-    ARCHIVE_PAGE_SIZE, QLEVER_WIKIDATA, WIKIDATA_ENTITY_PREFIX, archive_page, extract_qid,
+    ARCHIVE_PAGE_SIZE, WIKIDATA_ENTITY_PREFIX, archive_page, extract_qid,
     looks_like_archive_inchikey,
 };
 pub use queries_core::{

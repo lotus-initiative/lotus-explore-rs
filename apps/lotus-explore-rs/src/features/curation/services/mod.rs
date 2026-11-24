@@ -12,7 +12,7 @@ use crate::i18n::{
     curation_note_revised, curation_pending_reference, curation_pending_taxon,
 };
 use crate::sparql::wdqs_download_query;
-use crate::sparql::{FetchError, QLEVER_WIKIDATA, ResponseFormat};
+use crate::sparql::{FetchError, ResponseFormat};
 #[cfg(not(target_arch = "wasm32"))]
 use futures::future::BoxFuture;
 #[cfg(target_arch = "wasm32")]
@@ -21,10 +21,11 @@ pub(super) use lotus_curation::{
     CurationError, CurationInputRow, CurationResultRow, CurationStatus, DependencyResolution,
     MassResolution, QS_REF_INFERRED_FROM_SMILES, WD_CHEMICAL_COMPOUND_QID, WD_OCCURS_IN_TAXON_PROP,
     WD_STEREOISOMER_GROUP_QID, WD_TAXON_QID, WD_TYPE_CHEMICAL_ENTITY_QID, WikidataCompound,
-    escape_quickstatements, has_stereo_marks as has_isomeric_smiles, is_revised_row, normalize_doi,
+    escape_quickstatements, has_stereo_marks as has_isomeric_smiles, is_revised_row,
     qs_canonical_smiles_statement, qs_inchi_statement, qs_inchikey_statement,
     qs_isomeric_smiles_statement, qs_statement_with_refs, revised_row_statement,
 };
+use lotus_model::QLEVER_WIKIDATA;
 
 mod chemical;
 mod enrichment;

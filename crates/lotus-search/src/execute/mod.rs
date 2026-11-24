@@ -24,8 +24,6 @@ pub use retry::{execute, execute_streaming};
 #[cfg(test)]
 use crate::{FetchError, ResponseFormat};
 #[cfg(test)]
-use crate::{QLEVER_WIKIDATA, WDQS_SCHOLARLY, WDQS_WIKIDATA};
-#[cfg(test)]
 use budget::{
     ACCESS_TOKEN_HEADER, QLever, access_token, access_token_from, clamp_budget, query_budget_from,
     request_headers,
@@ -34,3 +32,5 @@ use budget::{
 use error_format::{compact, json_exception, urlencode};
 #[cfg(test)]
 use fallback::is_success;
+#[cfg(test)]
+use lotus_model::{QLEVER_WIKIDATA, WDQS_SCHOLARLY, WDQS_WIKIDATA};

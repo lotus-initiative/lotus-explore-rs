@@ -16,7 +16,7 @@ use crate::i18n::{
 };
 use crate::repositories::RepositoryError;
 use lotus_explore_core::explore::truncation::{Reason, truncation_reason};
-use lotus_explore_core::explore::{
+use lotus_explore_core::explore::types::{
     DomainError, ErrorKind, LookupNotice, ParseFault, QueryStage, ValidationFault,
 };
 

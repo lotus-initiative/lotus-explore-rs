@@ -47,11 +47,9 @@ use crate::{
     errors::ErrorResponse,
     handlers::{export_file, export_urls, health, metrics, search},
     state::AppState,
-    types::{
-        ApiElementState, ApiSmilesSearchType, ExportUrlResponse, HealthResponse, RowDto,
-        SearchRequest, SearchResponse, SearchStats,
-    },
+    types::{ExportUrlResponse, HealthResponse, SearchRequest, SearchResponse, SearchStats},
 };
+use lotus_explore_core::api::dto::{ApiElementState, ApiSmilesSearchType, RowDto};
 
 const X_REQUEST_ID: HeaderName = HeaderName::from_static("x-request-id");
 

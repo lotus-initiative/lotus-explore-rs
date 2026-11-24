@@ -3,8 +3,8 @@
 //! Result finalization service.
 
 use crate::explore::hashing::compute_hashes;
-use crate::export::metadata::{MetadataInputs, SparqlEndpoint};
-use lotus_model::{ColumnarResultSet, SearchCriteria};
+use crate::export::metadata::MetadataInputs;
+use lotus_model::{ColumnarResultSet, SearchCriteria, SparqlEndpoint};
 use std::sync::Arc;
 
 /// Computed hashes and metadata JSON for a single search result.

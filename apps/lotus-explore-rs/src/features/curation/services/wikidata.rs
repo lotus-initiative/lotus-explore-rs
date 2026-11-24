@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-use super::{CurationError, WD_TAXON_QID, WikidataCompound, normalize_doi};
+use super::{CurationError, WD_TAXON_QID, WikidataCompound};
 use crate::sparql::{FetchError, ResponseFormat};
 pub(super) use lotus_curation::normalize_taxon_lookup;
 use lotus_curation::qid_from_uri as extract_qid_from_uri;
@@ -9,6 +9,7 @@ use lotus_curation::{
     build_reference_lookup_query, build_single_taxon_lookup_query, build_taxon_lookup_query,
     escape_quickstatements, extract_canonical_taxon_name, qid_number, taxon_name_candidates,
 };
+use lotus_model::normalize_doi;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for `state`, in their own file.
 
-use lotus_explore_core::explore::{FormAction, apply_form_action};
+use lotus_explore_core::explore::form_actions::{FormAction, apply_form_action};
 use lotus_model::SearchCriteria;
 
 #[test]

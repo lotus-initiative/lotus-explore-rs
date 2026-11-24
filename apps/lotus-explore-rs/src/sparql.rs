@@ -15,13 +15,11 @@
 //! the exception: it resolves a query to the service that should answer it,
 //! which is routing rather than transport.
 
+use lotus_model::{WDQS_SCHOLARLY, WDQS_WIKIDATA};
 use lotus_search::reqwest_client::ReqwestClient;
 use lotus_search::{Endpoint, Service, execute_streaming};
 
-pub use lotus_search::{
-    FetchError, HttpResponse, QLEVER_WIKIDATA, ResponseBody, ResponseFormat, WDQS_SCHOLARLY,
-    WDQS_WIKIDATA, execute,
-};
+pub use lotus_search::{FetchError, HttpResponse, ResponseBody, ResponseFormat, execute};
 
 // Reading the answer is part of talking to the endpoint, so these are reachable
 // from here too. They are implemented in `lotus-query`.
@@ -177,7 +175,7 @@ pub async fn execute_sparql_tempfile_at(
 // own fetch path, so a wasm build has no caller for it.
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn execute_sparql_tempfile(sparql: &str) -> Result<tempfile::NamedTempFile, FetchError> {
-    execute_sparql_tempfile_at(sparql, QLEVER_WIKIDATA).await
+    execute_sparql_tempfile_at(sparql, lotus_model::QLEVER_WIKIDATA).await
 }
 
 /// Rewrite a query for `WDQS`, returning the endpoint URL to send it to.

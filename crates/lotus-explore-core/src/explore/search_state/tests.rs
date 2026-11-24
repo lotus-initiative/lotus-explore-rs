@@ -80,7 +80,7 @@ fn search_succeeded_clears_loading_and_stores_result() {
     state.lifecycle.loading = true;
     let set = std::sync::Arc::new(lotus_model::ColumnarResultSet::default());
     let metadata = Arc::<str>::from(r#"{"test":"metadata"}"#);
-    let endpoint = crate::export::metadata::SparqlEndpoint::Qlever;
+    let endpoint = lotus_model::SparqlEndpoint::Qlever;
     let next = reduce(
         state,
         ExploreAction::SearchSucceeded {
@@ -108,10 +108,7 @@ fn search_succeeded_clears_loading_and_stores_result() {
     assert_eq!(next.result.query_hash.as_deref(), Some("qh"));
     assert_eq!(next.result.result_hash.as_deref(), Some("rh"));
     assert_eq!(next.result.metadata_json, Some(metadata));
-    assert_eq!(
-        next.result.endpoint,
-        crate::export::metadata::SparqlEndpoint::Qlever
-    );
+    assert_eq!(next.result.endpoint, lotus_model::SparqlEndpoint::Qlever);
 }
 
 #[test]

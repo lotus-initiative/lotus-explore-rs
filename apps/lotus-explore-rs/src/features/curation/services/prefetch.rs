@@ -19,9 +19,10 @@
 )]
 
 use super::occurrence_cache::{OccurrenceAskCache, record_pairs_cached, record_triples_cached};
-use super::{CurationError, CurationInputRow, normalize_doi, wikidata};
+use super::{CurationError, CurationInputRow, wikidata};
 use crate::features::curation::repositories::CurationKnowledgeRepository;
 use lotus_curation::WikidataCompound;
+use lotus_model::normalize_doi;
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 

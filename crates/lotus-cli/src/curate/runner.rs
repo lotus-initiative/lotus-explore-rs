@@ -6,7 +6,9 @@
 // statements, and two escapers is one duplicated bug waiting to happen.
 use lotus_curation::escape_quickstatements;
 
-use super::{CuratedReport, Finding};
+use lotus_curation::CurationInputRow;
+
+use super::CuratedReport;
 
 /// The properties a LOTUS row is written against, from the Wikidata projection.
 ///
@@ -25,7 +27,7 @@ const PROPERTY_NAME: &str = "Len";
 /// write it in a different valid order.
 pub(super) async fn curate_row<H: lotus_search::Http>(
     http: &H,
-    finding: &Finding,
+    finding: &CurationInputRow,
     converted: &lotus_curation::ConvertedStructure,
 ) -> lotus_curation::CurationResultRow {
     match lotus_curation::look_up(http, finding, converted).await {
@@ -54,7 +56,7 @@ pub(super) async fn curate_row<H: lotus_search::Http>(
 /// bundle is not mistaken for a finished curation. The occurrence and the
 /// reference are not: `P703` and `P248` take items, and offline the taxon and
 /// the DOI were never resolved to one. The note says so.
-pub(super) fn not_checked_row(finding: &Finding) -> lotus_curation::CurationResultRow {
+pub(super) fn not_checked_row(finding: &CurationInputRow) -> lotus_curation::CurationResultRow {
     let raw_smiles = finding.smiles.trim();
     let canonical = lotus_curation::strip_stereo_marks(raw_smiles);
     let isomeric_smiles =
@@ -162,7 +164,7 @@ pub(super) fn unchecked_count(report: &CuratedReport) -> usize {
 /// Trimmed, and blank ones dropped: an empty structure is what the service
 /// cannot read, so asking it to convert one spends a request to be told the
 /// thing that was already obvious here.
-pub(super) fn convertible_smiles(findings: &[Finding]) -> Vec<&str> {
+pub(super) fn convertible_smiles(findings: &[CurationInputRow]) -> Vec<&str> {
     findings
         .iter()
         .map(|finding| finding.smiles.trim())
@@ -177,7 +179,7 @@ pub(super) fn convertible_smiles(findings: &[Finding]) -> Vec<&str> {
 /// lookups stay per row: a different service, and a `VALUES` query over a whole
 /// file is one enormous answer that loses everything if one row in it is wrong.
 pub(super) async fn curate_findings(
-    findings: &[Finding],
+    findings: &[CurationInputRow],
     offline: bool,
 ) -> anyhow::Result<CuratedReport> {
     let mut rows = Vec::with_capacity(findings.len());

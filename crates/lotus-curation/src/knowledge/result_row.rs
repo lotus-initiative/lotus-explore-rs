@@ -42,40 +42,7 @@ pub fn to_result_row(
         CurationStatus::NewCompound
     };
 
-    let mut note = String::new();
-    if is_revised_row(row) {
-        note.push_str(REVISED_ROW_NOTE);
-        note.push(' ');
-    }
-    if !key.is_known() {
-        note.push_str("no InChIKey for this structure; nothing could be looked up. ");
-    }
-    if let Some(taxon) = row
-        .taxon
-        .as_deref()
-        .map(str::trim)
-        .filter(|t| !t.is_empty())
-    {
-        if !is_binomial(taxon) {
-            if taxon.contains(char::is_whitespace) {
-                note.push_str(
-                    "the taxon uses open nomenclature or lacks a specific epithet, so it cannot be resolved unambiguously. ",
-                );
-            } else {
-                note.push_str("the taxon is a genus on its own, which is ambiguous. ");
-            }
-        } else if lookup.taxon_qid.is_none() {
-            note.push_str("Wikidata has no taxon by that name. ");
-        }
-        if row.doi.as_deref().and_then(crate::normalize_doi).is_none() {
-            note.push_str(
-                "no DOI provided; occurrence statement has no literature reference (P248). ",
-            );
-        }
-    }
-    if ref_pending {
-        note.push_str("Wikidata has no reference with that DOI. ");
-    }
+    let note = build_note(row, lookup, key.is_known(), ref_pending);
 
     let mut dependency_blocks = Vec::new();
     if !is_revised_row(row) {
@@ -115,8 +82,56 @@ pub fn to_result_row(
         mass_warning: None,
         wikidata_qid: lookup.compound.as_ref().map(|c| c.qid.clone()),
         status,
-        note: note.trim().to_string(),
+        note,
         dependency_blocks,
         quickstatements: statements,
     }
+}
+
+fn build_note(
+    row: &CurationInputRow,
+    lookup: &WikidataLookup,
+    key_known: bool,
+    ref_pending: bool,
+) -> String {
+    let mut note = String::new();
+    if is_revised_row(row) {
+        note.push_str(REVISED_ROW_NOTE);
+        note.push(' ');
+    }
+    if !key_known {
+        note.push_str("no InChIKey for this structure; nothing could be looked up. ");
+    }
+    if let Some(taxon) = row
+        .taxon
+        .as_deref()
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+    {
+        if !is_binomial(taxon) {
+            if taxon.contains(char::is_whitespace) {
+                note.push_str(
+                    "the taxon uses open nomenclature or lacks a specific epithet, so it cannot be resolved unambiguously. ",
+                );
+            } else {
+                note.push_str("the taxon is a genus on its own, which is ambiguous. ");
+            }
+        } else if lookup.taxon_qid.is_none() {
+            note.push_str("Wikidata has no taxon by that name. ");
+        }
+        if row
+            .doi
+            .as_deref()
+            .and_then(lotus_model::normalize_doi)
+            .is_none()
+        {
+            note.push_str(
+                "no DOI provided; occurrence statement has no literature reference (P248). ",
+            );
+        }
+    }
+    if ref_pending {
+        note.push_str("Wikidata has no reference with that DOI. ");
+    }
+    note.trim().to_string()
 }

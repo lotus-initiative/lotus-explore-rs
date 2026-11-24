@@ -4,7 +4,7 @@
 
 use crate::api::dto::SearchResponse;
 use crate::explore::types::LookupNotice;
-use lotus_model::{ColumnarResultSet, CompoundEntry};
+use lotus_model::{ColumnarResultSet, CompoundEntry, SparqlEndpoint};
 use std::sync::Arc;
 
 /// Outcome of a results pipeline execution.
@@ -19,7 +19,7 @@ pub struct ResultsPipelineOutcome {
     /// Whether the displayed rows are a capped subset of the full result.
     pub display_capped_rows: bool,
     /// The endpoint that served the result.
-    pub endpoint: crate::export::metadata::SparqlEndpoint,
+    pub endpoint: SparqlEndpoint,
     /// The QID of the resolved taxon, when one was resolved.
     pub qid: Option<String>,
 }
@@ -40,7 +40,7 @@ pub struct SearchOutcome {
     /// Whether the displayed rows are a capped subset of the full result.
     pub display_capped_rows: bool,
     /// The endpoint that served the result.
-    pub endpoint: crate::export::metadata::SparqlEndpoint,
+    pub endpoint: SparqlEndpoint,
 }
 
 impl SearchOutcome {
@@ -75,7 +75,7 @@ impl SearchOutcome {
             warnings,
             query: response.query,
             display_capped_rows,
-            endpoint: crate::export::metadata::SparqlEndpoint::Qlever,
+            endpoint: SparqlEndpoint::Qlever,
         }
     }
 

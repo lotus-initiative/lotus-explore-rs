@@ -5,6 +5,7 @@
 #![allow(clippy::expect_used)]
 
 use super::*;
+use lotus_model::SparqlEndpoint;
 
 /// The year the tests pin, so "is this year bound in the future?" has one
 /// answer rather than the answer the day the suite runs.

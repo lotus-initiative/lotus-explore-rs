@@ -32,7 +32,7 @@ pub fn taxon_dependency_statements(row: &CurationInputRow) -> Vec<String> {
 /// needs and Wikidata lacks.
 #[must_use]
 pub fn reference_dependency_statements(row: &CurationInputRow) -> Vec<String> {
-    let Some(doi) = row.doi.as_deref().and_then(crate::normalize_doi) else {
+    let Some(doi) = row.doi.as_deref().and_then(lotus_model::normalize_doi) else {
         return Vec::new();
     };
     let escaped = escape_quickstatements(&doi);

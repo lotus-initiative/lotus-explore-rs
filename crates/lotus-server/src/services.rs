@@ -11,8 +11,9 @@ use lotus_search::{Endpoint, FetchError, ResponseFormat, Service, execute};
 
 use crate::{
     errors::ApiError,
-    types::{RowDto, SearchResponse, SearchStats},
+    types::{SearchResponse, SearchStats},
 };
+use lotus_explore_core::api::dto::RowDto;
 
 async fn execute_qlever_csv_bytes(sparql: &str) -> Result<Vec<u8>, FetchError> {
     let http = lotus_search::reqwest_client::ReqwestClient::new()?;

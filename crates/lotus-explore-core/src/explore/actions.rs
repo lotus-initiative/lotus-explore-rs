@@ -4,9 +4,8 @@
 
 use crate::explore::command::SearchCommand;
 use crate::explore::types::{DomainError, LookupNotice, QueryPhase};
-use crate::export::metadata::SparqlEndpoint;
 use crate::sort::SortColumn;
-use lotus_model::SearchCriteria;
+use lotus_model::{SearchCriteria, SparqlEndpoint};
 use std::sync::Arc;
 
 /// All state transitions that can occur in the Explore feature.

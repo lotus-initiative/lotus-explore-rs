@@ -208,7 +208,7 @@ compound,compoundLabel,compound_inchikey,compound_smiles_iso,compound_mass,compo
         Some(
             format!(
                 "{}|{}&timeout=30s",
-                lotus_search::QLEVER_WIKIDATA,
+                lotus_model::QLEVER_WIKIDATA,
                 lotus_query::entity_dictionary_query(&[1, 2, 3, 4], &[100, 200])
             )
             .as_str()

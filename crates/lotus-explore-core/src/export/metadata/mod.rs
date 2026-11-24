@@ -6,8 +6,7 @@ mod builder;
 mod schema;
 
 pub use builder::build_metadata_json;
-use lotus_model::SearchCriteria;
-pub use lotus_model::SparqlEndpoint;
+use lotus_model::{SearchCriteria, SparqlEndpoint};
 
 /// The version the metadata document reports.
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");

@@ -2,10 +2,6 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Explore feature domain.
 
-pub use form_actions::{FormAction, apply_form_action};
-pub use search_state::ExploreState;
-pub use types::{DomainError, ErrorKind, LookupNotice, ParseFault, QueryStage, ValidationFault};
-
 pub mod actions;
 pub mod command;
 pub mod error_recovery;

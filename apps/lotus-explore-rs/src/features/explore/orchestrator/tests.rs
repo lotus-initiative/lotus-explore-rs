@@ -34,7 +34,7 @@ fn build_search_succeeded_action_applies_finalized_counts() {
         warnings: Vec::new(),
         query: "SELECT * WHERE {}".to_string(),
         display_capped_rows: true,
-        endpoint: lotus_explore_core::export::metadata::SparqlEndpoint::Qlever,
+        endpoint: lotus_model::SparqlEndpoint::Qlever,
     };
 
     let action = build_search_succeeded_action_for_tests(&request, outcome);

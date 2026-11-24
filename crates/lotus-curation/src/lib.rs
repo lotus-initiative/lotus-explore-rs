@@ -35,7 +35,7 @@ pub use constants::{
     CURATION_SPARQL_PREFIXES, WD_CHEMICAL_COMPOUND_QID, WD_OCCURS_IN_TAXON_PROP,
     WD_STEREOISOMER_GROUP_QID, WD_TAXON_QID, WD_TYPE_CHEMICAL_ENTITY_QID,
 };
-pub use input::{normalize_doi, parse_tabular, parse_tsv, row_uniqueness_key};
+pub use input::{parse_tabular, parse_tsv, row_uniqueness_key};
 pub use internal::{DependencyResolution, MassResolution, WikidataCompound};
 pub use knowledge::{
     REVISED_ROW_NOTE, StructureKey, WikidataLookup, creation_statements, is_revised_row, look_up,

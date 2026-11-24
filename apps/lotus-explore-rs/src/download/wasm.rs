@@ -10,10 +10,9 @@ use crate::perf;
 use crate::repositories::is_wdqs_fallback_used;
 use crate::sparql::wdqs_download_query;
 use lotus_model::ColumnarResultSet;
-use lotus_model::SearchCriteria;
+use lotus_model::{QLEVER_WIKIDATA, SearchCriteria};
 use lotus_query::ExportFormat as DownloadFormat;
 use lotus_query::RowExporter;
-use lotus_search::QLEVER_WIKIDATA;
 use std::sync::Arc;
 
 /// Build the file from the rows in memory, without asking a service for it.

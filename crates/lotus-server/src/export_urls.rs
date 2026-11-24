@@ -7,8 +7,8 @@
     reason = "private crate-root module uses pub(crate) because workspace denies unreachable_pub"
 )]
 
+use lotus_model::QLEVER_WIKIDATA;
 use lotus_query::ExportFormat;
-use lotus_search::QLEVER_WIKIDATA;
 
 /// The `QLever` URL for a query in a format.
 ///

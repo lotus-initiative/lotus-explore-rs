@@ -13,7 +13,8 @@
     reason = "a fixture that stopped being the expected shape is a broken test"
 )]
 
-use super::{CompoundEntry, Profile, compound_jsonld};
+use super::{Profile, compound_jsonld};
+use lotus_model::CompoundEntry;
 use std::sync::Arc;
 
 fn a_compound_entry() -> CompoundEntry {

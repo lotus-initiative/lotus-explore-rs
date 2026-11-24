@@ -87,12 +87,6 @@ pub enum LogLevel {
     Debug,
 }
 
-/// One row of the input file.
-///
-/// The curation vocabulary lives in `lotus-curation`, because the web client
-/// curates from the same file and the two used to parse it differently.
-pub use lotus_curation::CurationInputRow as Finding;
-
 /// What curation would do to each row.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CuratedReport {
@@ -102,22 +96,6 @@ pub struct CuratedReport {
     pub statements: Vec<String>,
     /// The LOTUS paper, which every result should cite.
     pub citation: &'static str,
-}
-
-/// Parse a TSV by column name.
-///
-/// Columns are matched by name rather than position, because an export from a
-/// spreadsheet carries whatever else it has and a caller should not have to
-/// strip it first.
-pub fn parse_tsv(tsv: &str) -> Result<Vec<Finding>, lotus_curation::CurationError> {
-    lotus_curation::parse_tsv(tsv)
-}
-
-/// The two findings that name the same compound in the same taxon with the same
-/// reference are the same finding, whatever they were called.
-#[must_use]
-pub fn identity_key(finding: &Finding) -> String {
-    lotus_curation::row_uniqueness_key(finding)
 }
 
 pub async fn run(args: &CurateArgs) -> anyhow::Result<ExitCode> {
@@ -131,7 +109,7 @@ pub async fn run(args: &CurateArgs) -> anyhow::Result<ExitCode> {
             .map_err(|e| anyhow::anyhow!("could not read {path}: {e}"))?,
     };
 
-    let findings = parse_tsv(&input)?;
+    let findings = lotus_curation::parse_tsv(&input)?;
     if findings.is_empty() {
         eprintln!("lotus: no usable rows in the input");
         return Ok(ExitCode::FAILURE);
@@ -141,9 +119,9 @@ pub async fn run(args: &CurateArgs) -> anyhow::Result<ExitCode> {
     // accident rather than two findings.
     let mut seen = std::collections::HashSet::new();
     let total = findings.len();
-    let unique: Vec<Finding> = findings
+    let unique: Vec<lotus_curation::CurationInputRow> = findings
         .into_iter()
-        .filter(|f| seen.insert(identity_key(f)))
+        .filter(|f| seen.insert(lotus_curation::row_uniqueness_key(f)))
         .collect();
     let duplicates = total - unique.len();
     if duplicates > 0 {

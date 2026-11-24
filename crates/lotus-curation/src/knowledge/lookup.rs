@@ -111,7 +111,7 @@ pub async fn look_up<H: Http>(
         }
     }
 
-    if let Some(doi) = row.doi.as_deref().and_then(crate::normalize_doi) {
+    if let Some(doi) = row.doi.as_deref().and_then(lotus_model::normalize_doi) {
         let json = execute(http, &reference_by_doi_query(&doi)).await?;
         if let Some(bindings) = first_bindings(&json) {
             out.reference_qid = binding_qid(bindings, "ref");

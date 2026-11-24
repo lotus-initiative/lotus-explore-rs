@@ -22,7 +22,7 @@ use lotus_explore_core::explore::service::build_query::{
     ResolvedStructure, apply_server_filters, build_sparql_query,
 };
 use lotus_explore_core::explore::types::{DomainError, QueryPhase};
-use lotus_explore_core::export::metadata::SparqlEndpoint;
+use lotus_model::SparqlEndpoint;
 
 pub(super) struct ResultsExecutionPlan {
     taxon_resolution: TaxonResolution,

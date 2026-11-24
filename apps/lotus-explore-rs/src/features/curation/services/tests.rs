@@ -5,8 +5,8 @@
 #![allow(clippy::expect_used)]
 
 use super::*;
-use crate::sparql::{QLEVER_WIKIDATA, WDQS_SCHOLARLY, WDQS_WIKIDATA};
 use futures::executor::block_on;
+use lotus_model::{QLEVER_WIKIDATA, WDQS_SCHOLARLY, WDQS_WIKIDATA};
 use std::sync::{Arc, Mutex};
 
 fn run_with_mock(

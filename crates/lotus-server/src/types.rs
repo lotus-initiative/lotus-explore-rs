@@ -3,7 +3,7 @@
 //! HTTP API request/response wire schemas, reusing shared enums and row DTOs
 //! from [`lotus_explore_core::api::dto`].
 
-pub use lotus_explore_core::api::dto::{ApiElementState, ApiSmilesSearchType, RowDto};
+use lotus_explore_core::api::dto::{ApiElementState, ApiSmilesSearchType, RowDto};
 use lotus_model::DatasetStats;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

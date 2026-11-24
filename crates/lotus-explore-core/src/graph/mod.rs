@@ -8,8 +8,8 @@
 //! outside capped overviews, and builds exact [`lotus_model::SearchCriteria`]
 //! pivots for any node.
 
-pub mod model;
-pub mod project;
+mod model;
+mod project;
 
 pub use model::{
     DEFAULT_EGO_MAX_NEIGHBORS, DEFAULT_MAX_NODES, GraphEdge, GraphEmptyReason, GraphModel,

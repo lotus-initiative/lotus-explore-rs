@@ -184,13 +184,13 @@ fn prepare_wdqs_fallback_query_routes_scholarly_and_main_queries() {
     reset_wdqs_fallback_flag();
     let doi_query = lotus_query::reference_by_doi_query("10.1000/xyz");
     let (endpoint, rewritten) = prepare_wdqs_fallback_query(&doi_query);
-    assert_eq!(endpoint, crate::sparql::WDQS_SCHOLARLY);
+    assert_eq!(endpoint, lotus_model::WDQS_SCHOLARLY);
     assert_eq!(rewritten, doi_query);
 
     reset_wdqs_fallback_flag();
     let taxon_query = lotus_query::compounds_by_taxon_query("Q16521");
     let (endpoint, rewritten) = prepare_wdqs_fallback_query(&taxon_query);
-    assert_eq!(endpoint, crate::sparql::WDQS_WIKIDATA);
+    assert_eq!(endpoint, lotus_model::WDQS_WIKIDATA);
     assert!(
         rewritten.contains("SERVICE <https://query-scholarly-next.wikidata.org/sparql>"),
         "{rewritten}"

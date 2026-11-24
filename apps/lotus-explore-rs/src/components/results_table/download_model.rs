@@ -18,11 +18,11 @@ pub(super) enum SparqlEndpointUI {
     Wdqs,
 }
 
-impl From<lotus_explore_core::export::metadata::SparqlEndpoint> for SparqlEndpointUI {
-    fn from(value: lotus_explore_core::export::metadata::SparqlEndpoint) -> Self {
+impl From<lotus_model::SparqlEndpoint> for SparqlEndpointUI {
+    fn from(value: lotus_model::SparqlEndpoint) -> Self {
         match value {
-            lotus_explore_core::export::metadata::SparqlEndpoint::Qlever => Self::Qlever,
-            lotus_explore_core::export::metadata::SparqlEndpoint::Wdqs => Self::Wdqs,
+            lotus_model::SparqlEndpoint::Qlever => Self::Qlever,
+            lotus_model::SparqlEndpoint::Wdqs => Self::Wdqs,
         }
     }
 }

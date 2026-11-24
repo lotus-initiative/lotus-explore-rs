@@ -4,7 +4,7 @@
 
 use crate::client::ChunkedBody;
 use crate::error::FetchError;
-use crate::{QLEVER_WIKIDATA, WDQS_SCHOLARLY, WDQS_WIKIDATA};
+use lotus_model::{QLEVER_WIKIDATA, WDQS_SCHOLARLY, WDQS_WIKIDATA};
 
 /// Which service answered, and therefore what the provenance should say.
 ///

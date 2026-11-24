@@ -54,11 +54,11 @@ fn a_property_value_is_shaped_the_way_a_consumer_expects() {
 }
 
 #[test]
-fn an_entity_is_returned_for_a_row() {
+fn compound_jsonld_sets_id_for_row() {
     let entry = lotus_model::CompoundEntry {
         compound_qid: std::sync::Arc::from("Q1"),
         ..lotus_model::CompoundEntry::default()
     };
-    let entity = entity_for(&entry).expect("infallible today");
+    let entity = compound_jsonld(&entry);
     assert_eq!(entity["@id"], "http://www.wikidata.org/entity/Q1");
 }

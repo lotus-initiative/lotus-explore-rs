@@ -6,9 +6,9 @@
 
 use super::*;
 use crate::repositories::mock::MockRepository;
-use lotus_explore_core::explore::ValidationFault;
 use lotus_explore_core::explore::command::SearchCommand;
 use lotus_explore_core::explore::request::SearchRequest;
+use lotus_explore_core::explore::types::ValidationFault;
 use lotus_model::SearchCriteria;
 
 #[test]

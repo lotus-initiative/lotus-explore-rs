@@ -122,7 +122,7 @@ pub struct ToolbarResultSnapshot {
     pub total_stats: Option<DatasetStats>,
     pub total_matches: Option<usize>,
     pub display_capped_rows: bool,
-    pub endpoint: lotus_explore_core::export::metadata::SparqlEndpoint,
+    pub endpoint: lotus_model::SparqlEndpoint,
 }
 
 pub fn toolbar_snapshot_from_result(result: &ResultDataState) -> ToolbarResultSnapshot {

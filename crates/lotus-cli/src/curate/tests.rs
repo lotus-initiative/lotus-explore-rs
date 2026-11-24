@@ -10,13 +10,12 @@
 )]
 
 use super::{
-    CurateArgs, CuratedReport, Finding, convertible_smiles, should_warn_about_unchecked,
-    unchecked_count,
+    CurateArgs, CuratedReport, convertible_smiles, should_warn_about_unchecked, unchecked_count,
 };
 use lotus_curation::{CurationInputRow, CurationResultRow, CurationStatus};
 
-fn finding(smiles: &str) -> Finding {
-    Finding {
+fn finding(smiles: &str) -> CurationInputRow {
+    CurationInputRow {
         name: "Quercetin".into(),
         smiles: smiles.into(),
         taxon: None,
@@ -288,7 +287,7 @@ async fn online_revised_row_with_missing_taxon_and_doi_emits_no_create_statement
         canonical_smiles: Some("CCO".into()),
         ..lotus_curation::ConvertedStructure::default()
     };
-    let input = Finding {
+    let input = CurationInputRow {
         name: "Hyperelodione D".into(),
         smiles: "CCO".into(),
         taxon: Some("Hypericum elodeoides".into()),
@@ -315,7 +314,7 @@ async fn curate_row_clears_statements_when_wikidata_lookup_fails() {
         canonical_smiles: Some("CCO".into()),
         ..lotus_curation::ConvertedStructure::default()
     };
-    let input = Finding {
+    let input = CurationInputRow {
         name: "Ethanol".into(),
         smiles: "CCO".into(),
         taxon: Some("Gentiana lutea".into()),
@@ -361,7 +360,7 @@ fn not_checked_row_populates_canonical_and_isomeric_smiles_and_p31() {
 /// `QuickStatements` runs anyway, leaving an empty item in Wikidata.
 #[test]
 fn an_offline_row_emits_nothing_for_an_unresolved_taxon_or_reference() {
-    let row = super::not_checked_row(&Finding {
+    let row = super::not_checked_row(&CurationInputRow {
         name: "Quercetin".into(),
         smiles: "CCO".into(),
         taxon: Some("Gentiana lutea".into()),
@@ -383,7 +382,7 @@ fn an_offline_row_emits_nothing_for_an_unresolved_taxon_or_reference() {
 
 #[test]
 fn offline_revised_row_suppresses_create_statements() {
-    let row = super::not_checked_row(&Finding {
+    let row = super::not_checked_row(&CurationInputRow {
         name: "Hyperelodione D".into(),
         smiles: "C[C@H](O)C".into(),
         taxon: Some("Hypericum elodeoides".into()),
@@ -403,7 +402,7 @@ fn offline_revised_row_suppresses_create_statements() {
     assert_eq!(row.canonical_smiles.as_deref(), Some("CC(O)C"));
     assert_eq!(row.isomeric_smiles.as_deref(), Some("C[C@H](O)C"));
 
-    let blank = super::not_checked_row(&Finding {
+    let blank = super::not_checked_row(&CurationInputRow {
         name: "Unknown".into(),
         smiles: "   ".into(),
         taxon: None,
