@@ -324,3 +324,47 @@ fn qs_mass_statement_includes_smiles_reference() {
     assert!(stmt.contains("S887"));
     assert!(stmt.contains("Q113907573"));
 }
+
+#[test]
+fn escape_quickstatements_removes_unescaped_quotes_pipes_and_controls() {
+    const DIRTY: &[char] = &[
+        'a', 'Z', '0', '"', '|', '\n', '\r', '\t', '\0', 'α', '-', ' ',
+    ];
+    const CLEAN: &[char] = &['Q', 'u', 'e', 'r', 'c', 'i', 't', 'n', ' ', '-', 'α'];
+
+    for case in 0..256_usize {
+        let len = (case % 19) + 1;
+        let sample: String = (0..len)
+            .map(|pos| {
+                let idx = (case * 31 + pos * 17) % DIRTY.len();
+                DIRTY.get(idx).copied().unwrap_or('a')
+            })
+            .collect();
+        let escaped = escape_quickstatements(&sample);
+
+        assert!(!escaped.contains('|'), "pipe leaked in {escaped:?}");
+        assert!(
+            !escaped.chars().any(char::is_control),
+            "control char leaked in {escaped:?}"
+        );
+        let mut prev = None;
+        for ch in escaped.chars() {
+            if ch == '"' {
+                assert_eq!(prev, Some('\\'), "unescaped quote in {escaped:?}");
+            }
+            prev = Some(ch);
+        }
+
+        let clean: String = (0..len)
+            .map(|pos| {
+                let idx = (case * 13 + pos * 7) % CLEAN.len();
+                CLEAN.get(idx).copied().unwrap_or('a')
+            })
+            .collect();
+        assert_eq!(
+            escape_quickstatements(&clean),
+            clean,
+            "clean QuickStatements scalar must round-trip untouched"
+        );
+    }
+}

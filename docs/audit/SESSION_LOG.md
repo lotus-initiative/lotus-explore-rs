@@ -150,3 +150,20 @@
   - `apps/lotus-explore-rs/src/download/error.rs`: introduced `pub enum DownloadError` (`#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]` with `InvalidInput`, `Io`, `Network`, `Browser`, `InMemoryLimit`, `is_gateway_error()`, and `From<UploadError>`); converted `download.rs`, `download/{local_file,native,wasm,file_sink}.rs`, `download_actions.rs`, and `download_dispatch.rs` without touching OPFS/streaming source-shape gates (`opfs_write_stream.rs`, `opfs_availability_gate.rs`, `streaming_gate.rs`).
 - Marked Step 6 `[x]` in `docs/REFACTOR_PLAN.md`.
 - **Verification:** `lint-native-builds`, `lint-wasm`, `gate` (native + wasm checks, license headers, nextest, typos, fmt, tombi), `echoes` (0 duplicated/approximate/reuse groups), `refquiem` (clean), `doc`, and workspace `--doc` tests all green.
+
+### Step 7a — Algorithmic/Allocation Efficiency, Property Tests & Release Benchmarks
+- **Hot-path early exit (`crates/lotus-model/src/columnar/filter.rs`):** added non-ASCII needle short-circuit in `contains_folded` when `haystack.is_ascii()`, skipping ASCII window comparisons whenever a folded filter needle contains non-ASCII codepoints.
+- **Deterministic property tests added (0 new external dependencies):**
+  - `crates/lotus-model/src/columnar/tests.rs`: `statement_id_uuid_round_trips_for_deterministic_uuids` (256 UUID cases across lowercase/uppercase/URI-prefixed and compound-mismatch fallback) and `contains_folded_matches_naive_folded_substrings_and_rejects_non_ascii_on_ascii` (256 mixed ASCII/Unicode cases).
+  - `crates/lotus-explore-core/src/explore/url_codec/tests.rs`: `criteria_query_params_round_trip_deterministically` (200 deterministic `SearchCriteria` combinations verifying parse/encode round-trip and idempotence).
+  - `crates/lotus-curation/src/input/tests.rs`: `parse_tabular_handles_deterministic_quoted_csv_and_tsv_rows` (128 CSV/TSV LF/CRLF quoted rows with DOIs).
+  - `crates/lotus-curation/src/quickstatements/tests.rs`: `escape_quickstatements_removes_unescaped_quotes_pipes_and_controls` (256 dirty & clean scalar cases).
+  - `crates/lotus-query/src/query/tests.rs`: `query_rewriters_preserve_invariants_across_deterministic_shapes` across all search shapes, `wdqs_fallback`, `counts_query`, and `limit_query`.
+- **Measured release benchmarks & binary size (observed directly via `--release --locked`):**
+  - `lotus` CLI binary (`cargo build --release -p lotus-cli --locked`): `4.6M` (`target/release/lotus`).
+  - `lotus-query` columnar benchmark (`cargo test -p lotus-query --release -- --ignored --nocapture bench`):
+    - 1,000,000 rows (296.8 MB CSV): `split records 1510.3 ms`, `parse + build 6335.9 ms (44.7 MB/s)`, `resident 87.9 MB (92.2 B/row, 31% of the CSV)`, `plan text filter 91.8 ms`, `scan rows 44.1 ms`, `plan mass filter 13.5 ms`, `sort by name 25.1 ms`.
+    - 2,000,000 rows (594.9 MB CSV): `split records 2781.1 ms`, `parse + build 8638.9 ms (65.7 MB/s)`, `resident 174.7 MB (91.6 B/row, 31% of the CSV)`, `plan text filter 117.5 ms`, `scan rows 73.3 ms`, `plan mass filter 10.3 ms`, `sort by name 1784.4 ms`.
+    - 2,990,730 rows (890.1 MB CSV): `split records 5126.6 ms`, `parse + build 9737.8 ms (87.2 MB/s)`, `resident 260.7 MB (91.4 B/row, 31% of the CSV)`, `plan text filter 103.7 ms`, `scan rows 59.3 ms`, `plan mass filter 4.5 ms`, `sort by name 2297.7 ms`.
+    - `bench_sort_scaling` (15 samples/size): `50k 0.6 ms` (`12.3 ns/row`), `100k 2.0 ms` (`19.9 ns/row`), `250k 8.4 ms` (`33.7 ns/row`), `500k 18.6 ms` (`37.2 ns/row`), `1M 21.1 ms` (`21.1 ns/row`), `2M 2004.5 ms` (`1002.3 ns/row`), `2.99M 4273.6 ms` (`1428.9 ns/row`).
+  - `lotus-server` `cache_key` benchmark (50 samples): `tiny` `708 ns`, `everything` `3000–3041 ns`, `one taxon` `3792–3833 ns`, `structure search` `3041 ns`, `synthetic 16x` `94167–94625 ns`.

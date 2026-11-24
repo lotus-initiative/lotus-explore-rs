@@ -109,3 +109,53 @@ fn tagged_name_values_emits_deduplicated_case_variants() {
         "{locant}"
     );
 }
+
+#[test]
+fn query_rewriters_preserve_invariants_across_deterministic_shapes() {
+    let limits = [1_usize, 17, 250, 5000, usize::MAX];
+    let mut queries = vec![
+        all_compounds_query(),
+        compounds_by_taxon_query("Q158572"),
+        exact_compound_query("Q16634054", None),
+        exact_compound_query("Q16634054", Some(("Q158572", &Nomenclature::ALL_ON))),
+        structure_search_query_with(
+            "CCO",
+            lotus_model::SmilesSearchType::Substructure,
+            0.8,
+            None,
+            &Nomenclature::ALL_ON,
+        ),
+        structure_search_query_with(
+            "CC(=O)O",
+            lotus_model::SmilesSearchType::Similarity,
+            0.75,
+            Some("*"),
+            &Nomenclature::ALL_ON,
+        ),
+    ];
+    let mut crit = lotus_model::SearchCriteria::up_to_year(2026);
+    crit.reference = "Q28496894".into();
+    queries.push(base_query_for_criteria(&crit, "", None));
+
+    for q in &queries {
+        let (_svc, fallback) = wdqs_fallback(q);
+        assert!(
+            fallback.contains("SELECT"),
+            "wdqs_fallback must keep SELECT projection"
+        );
+        let counted = counts_query(q);
+        assert!(
+            counted.contains("wikibase:DeprecatedRank"),
+            "counts_query must preserve deprecated-rank filter"
+        );
+        for &limit in &limits {
+            let limited = limit_query(q, limit);
+            if limit == usize::MAX {
+                assert_eq!(limited, q.trim_end());
+                assert!(!limited.ends_with("LIMIT"));
+            } else {
+                assert!(limited.ends_with(&format!("\nLIMIT {limit}")));
+            }
+        }
+    }
+}

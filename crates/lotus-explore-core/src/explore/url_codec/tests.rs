@@ -636,3 +636,99 @@ fn network_shareable_url_round_trips_criteria_and_viz_params() {
         Some("tripartite")
     );
 }
+
+#[test]
+fn criteria_query_params_round_trip_deterministically() {
+    let mut state = 0xA076_1D64_78BD_642F_u64;
+    let states = [
+        ElementState::Allowed,
+        ElementState::Required,
+        ElementState::Excluded,
+    ];
+    let taxa = ["", "*", "Gentiana lutea", "Q158572"];
+    let refs = ["", "Q28496894", "10.1021/np50001a001"];
+    let structures = ["", "CCO", "CC(=O)O"];
+    let search_types = [
+        SmilesSearchType::Exact,
+        SmilesSearchType::Substructure,
+        SmilesSearchType::Similarity,
+    ];
+
+    for _ in 0..200 {
+        let mut pull = || {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            usize::try_from(state >> 32).unwrap_or(0)
+        };
+        let pick_str = |choices: &[&str], idx: usize| {
+            choices
+                .get(idx % choices.len())
+                .copied()
+                .unwrap_or("")
+                .to_string()
+        };
+        let pick_state = |idx: usize| {
+            states
+                .get(idx % states.len())
+                .copied()
+                .unwrap_or(ElementState::Allowed)
+        };
+
+        let mut crit = SearchCriteria::up_to_year(2026);
+        crit.taxon = pick_str(&taxa, pull());
+        if !crit.taxon.is_empty() {
+            crit.taxon_names.accepted_synonyms = (pull() % 2) == 0;
+            crit.taxon_names.basionyms = (pull() % 2) == 0;
+            crit.taxon_names.protonyms = (pull() % 2) == 0;
+            crit.taxon_names.replacements = (pull() % 2) == 0;
+        }
+        crit.reference = pick_str(&refs, pull());
+        crit.structure = pick_str(&structures, pull());
+        if !crit.structure.is_empty() {
+            crit.structure_search = search_types
+                .get(pull() % search_types.len())
+                .copied()
+                .unwrap_or(SmilesSearchType::Exact);
+            if crit.structure_search == SmilesSearchType::Similarity {
+                let pct = 50 + (pull() % 51);
+                crit.structure_threshold = f64::from(u16::try_from(pct).unwrap_or(80)) / 100.0;
+            }
+        }
+        if pull() % 2 == 0 {
+            let low = pull() % 400;
+            let span = 10 + (pull() % 500);
+            crit.mass_min = f64::from(u16::try_from(low).unwrap_or(0));
+            crit.mass_max = f64::from(u16::try_from(low + span).unwrap_or(500));
+        }
+        if pull() % 2 == 0 {
+            let y0 = 1850 + u16::try_from(pull() % 100).unwrap_or(0);
+            let y1 = (y0 + 1 + u16::try_from(pull() % 75).unwrap_or(10)).min(2026);
+            crit.year_min = y0;
+            crit.year_max = y1;
+        }
+        if pull() % 2 == 0 {
+            crit.formula_enabled = true;
+            crit.c_min = u16::try_from(pull() % 10).unwrap_or(0);
+            crit.c_max = crit.c_min + u16::try_from(1 + pull() % 20).unwrap_or(10);
+            crit.o_min = u16::try_from(pull() % 5).unwrap_or(0);
+            crit.o_max = crit.o_min + u16::try_from(1 + pull() % 8).unwrap_or(4);
+            crit.f_state = pick_state(pull());
+            crit.cl_state = pick_state(pull());
+            crit.br_state = pick_state(pull());
+            crit.i_state = pick_state(pull());
+        }
+
+        let encoded = criteria_query_params(&crit, 2026);
+        let decoded = parse_criteria_from_params(&encoded, 2026);
+        assert_eq!(
+            decoded, crit,
+            "criteria round-trip failed for params={encoded:?}"
+        );
+        assert_eq!(
+            criteria_query_params(&decoded, 2026),
+            encoded,
+            "re-encoding must be idempotent"
+        );
+    }
+}

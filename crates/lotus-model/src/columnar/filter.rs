@@ -123,6 +123,9 @@ pub fn contains_folded(haystack: &str, needle: &[char]) -> bool {
         return true;
     }
     if haystack.is_ascii() {
+        if !needle.iter().all(char::is_ascii) {
+            return false;
+        }
         return haystack.as_bytes().windows(needle.len()).any(|window| {
             window
                 .iter()

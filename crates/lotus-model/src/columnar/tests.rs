@@ -237,3 +237,103 @@ fn sparse_strings_set_grows_past_gaps_and_returns_value_ids() {
     assert_eq!(strings.get(1), None);
     assert_eq!(strings.get(2), Some("second"));
 }
+
+fn next_splitmix(state: &mut u64) -> u64 {
+    *state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+    let mut z = *state;
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
+}
+
+#[test]
+fn statement_id_uuid_round_trips_for_deterministic_uuids() {
+    let mut seed = 0x517C_C1B7_2722_0A95_u64;
+    let empty_fallbacks = SparseStrings::new();
+    for _ in 0..256 {
+        let compound_num = u32::try_from(next_splitmix(&mut seed) % 1_000_000 + 1).unwrap_or(1);
+        let qid = format!("Q{compound_num}");
+        let hi = next_splitmix(&mut seed);
+        let lo = next_splitmix(&mut seed);
+        let raw_bytes = [hi.to_be_bytes(), lo.to_be_bytes()].concat();
+        let bytes: [u8; 16] = raw_bytes
+            .try_into()
+            .expect("concatenated halves are 16 bytes");
+        let hex = format!("{hi:016x}{lo:016x}");
+        let uuid_lower = format!(
+            "{}-{}-{}-{}-{}",
+            &hex[0..8],
+            &hex[8..12],
+            &hex[12..16],
+            &hex[16..20],
+            &hex[20..32]
+        );
+        let expected_canonical = format!("{qid}-{}", uuid_lower.to_ascii_uppercase());
+
+        for input in [
+            format!("{qid}-{uuid_lower}"),
+            expected_canonical.clone(),
+            format!("{}{qid}-{uuid_lower}", crate::WIKIDATA_STATEMENT_BASE),
+        ] {
+            let parsed =
+                StatementId::parse(statement_id::strip_statement_prefix(&input), compound_num);
+            assert!(
+                matches!(parsed, statement_id::ParsedStatement::Uuid(b) if b == bytes),
+                "UUID prefix match failed for {input}"
+            );
+            assert_eq!(
+                StatementId::Uuid(bytes).text(&qid, &empty_fallbacks),
+                Some(expected_canonical.clone()),
+                "StatementId::text canonical mismatch"
+            );
+        }
+
+        let mismatched =
+            StatementId::parse(&format!("Q{}-{uuid_lower}", compound_num + 1), compound_num);
+        assert!(
+            matches!(mismatched, statement_id::ParsedStatement::Other),
+            "mismatched compound prefix must fall back to Other"
+        );
+    }
+}
+
+#[test]
+fn contains_folded_matches_naive_folded_substrings_and_rejects_non_ascii_on_ascii() {
+    const ASCII_POOL: &[char] = &['a', 'B', 'c', 'D', '0', '9', '-', ' '];
+    const GREEK_POOL: &[char] = &['a', 'B', 'α', 'Β', '₁', '₀', ' '];
+    let mut seed = 0x243F_6A88_85A3_08D3_u64;
+
+    for i in 0..256 {
+        let hay_len = usize::try_from(next_splitmix(&mut seed) % 14).unwrap_or(0);
+        let needle_len = usize::try_from(next_splitmix(&mut seed) % 6).unwrap_or(0);
+        let pool = if i % 4 == 0 { GREEK_POOL } else { ASCII_POOL };
+        let haystack: String = (0..hay_len)
+            .map(|_| {
+                let idx = usize::try_from(next_splitmix(&mut seed)).unwrap_or(0) % pool.len();
+                pool.get(idx).copied().unwrap_or('a')
+            })
+            .collect();
+        let needle_src: String = (0..needle_len)
+            .map(|_| {
+                let idx = usize::try_from(next_splitmix(&mut seed)).unwrap_or(0) % GREEK_POOL.len();
+                GREEK_POOL.get(idx).copied().unwrap_or('a')
+            })
+            .collect();
+
+        let folded_hay: String = folded(&haystack).into_iter().collect();
+        let folded_needle_chars = folded(&needle_src);
+        let folded_needle: String = folded_needle_chars.iter().collect();
+
+        assert_eq!(
+            contains_folded(&haystack, &folded_needle_chars),
+            folded_hay.contains(&folded_needle),
+            "contains_folded disagreed with naive folded substring for hay={haystack:?}, needle={needle_src:?}"
+        );
+        if haystack.is_ascii() && !folded_needle_chars.iter().all(char::is_ascii) {
+            assert!(
+                !contains_folded(&haystack, &folded_needle_chars),
+                "non-ASCII needle must never match ASCII haystack {haystack:?}"
+            );
+        }
+    }
+}

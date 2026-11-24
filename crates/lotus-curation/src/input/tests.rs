@@ -325,3 +325,41 @@ fn parse_tabular_accepts_ten_column_jnp_template() {
     assert_eq!(rows[1].status.as_deref(), Some("known"));
     assert_eq!(rows[1].doi.as_deref(), Some("10.1271/BBB1961.47.353"));
 }
+
+#[test]
+fn parse_tabular_handles_deterministic_quoted_csv_and_tsv_rows() {
+    let taxa = ["Salvia rosmarinus", "Gentiana lutea", "Taxus baccata"];
+    for i in 0..128_u32 {
+        let h = i.wrapping_mul(2_654_435_761) ^ (i >> 3);
+        let suffix = h % 10_000;
+        let name = format!("Compound-{suffix}, alpha\"beta");
+        let smiles = format!(
+            "C{}O",
+            "C".repeat(usize::try_from((h >> 8) % 5 + 1).unwrap_or(1))
+        );
+        let taxon = taxa[usize::try_from(h).unwrap_or(0) % taxa.len()];
+        let doi_raw = format!("https://doi.org/10.{}/lotus.{suffix:x}", 1000 + (h % 8000));
+        let expected_doi = format!("10.{}/LOTUS.{suffix:X}", 1000 + (h % 8000));
+        let newline = if i % 2 == 0 { "\n" } else { "\r\n" };
+        let quoted_name = format!("\"{}\"", name.replace('"', "\"\""));
+
+        let csv = format!(
+            "name,smiles,organism,doi{newline}{quoted_name},{smiles},{taxon},{doi_raw}{newline}"
+        );
+        let csv_rows = parse_tabular(&csv).expect("deterministic CSV parses");
+        assert_eq!(csv_rows.len(), 1);
+        assert_eq!(csv_rows[0].name, name);
+        assert_eq!(csv_rows[0].smiles, smiles);
+        assert_eq!(csv_rows[0].taxon.as_deref(), Some(taxon));
+        assert_eq!(csv_rows[0].doi.as_deref(), Some(expected_doi.as_str()));
+
+        let tsv = format!(
+            "name\tsmiles\torganism\tdoi{newline}{quoted_name}\t{smiles}\t{taxon}\t{doi_raw}{newline}"
+        );
+        let tsv_rows = parse_tabular(&tsv).expect("deterministic TSV parses");
+        assert_eq!(
+            tsv_rows, csv_rows,
+            "CSV and TSV parse identically for case {i}"
+        );
+    }
+}
