@@ -128,7 +128,7 @@ test_tool = "nextest"
 #
 # One survivor remains elsewhere, not in this crate:
 #
-#   src/query.rs: replace && with || in with_filters
+#   src/query/filters.rs: replace && with || in with_filters
 #
 # Equivalent, not a gap. Every branch of that function writes to both the
 # `required` and `filters` buffers or to neither, so the two can never disagree

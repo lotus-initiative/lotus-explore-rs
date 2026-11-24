@@ -90,3 +90,13 @@
   - Stripped `[features] server`, `axum`, `clap`, `flate2`, `tokio`, `tower-http`, `utoipa`, `tower`, runtime `sha2`, `src/server/`, `src/cache_key*`, and `src/export*` from `apps/lotus-explore-rs`
   - Updated `Cargo.toml`, `Cargo.lock`, `Dockerfile`, `Makefile.toml`, `make/{lint,test,web}.toml`, `mk.local`, `apps/lotus-explore-rs/tests/doc_links.rs`, `README.md`, `docs/{ARCHITECTURE,FRONTENDS,DEBT}.md`, `apps/lotus-explore-rs/{README.md,docs/ARCHITECTURE.md}`
 - **Metrics after Step 4:** Workspace crates 10 → 11; `apps/lotus-explore-rs` dropped `server` feature + 8 server-only dependencies; `handlers/` max file is `export.rs` (363 lines; prepare 151, search 169, mod 46, export_query_shape 85) and `state/` max file is `cache.rs` (183 lines; metrics 128, mod 89, inflight 77); server OpenAPI & HTTP wire characterization tests preserved unchanged.
+
+### Step 5a — Decompose `crates/lotus-query/src/query.rs` and `crates/lotus-model/src/columnar.rs`
+- **Files created/removed/updated:**
+  - Replaced `crates/lotus-query/src/query.rs` (2,044 lines) with `crates/lotus-query/src/query/{mod,prefixes,nomenclature,builders,builders_body,compound_names,lookups_taxon,lookups_compound,structure,dictionary,filters,rewrite}.rs` (preserving `query/tests.rs` and every `pub use` export in `crates/lotus-query/src/lib.rs`)
+  - Replaced `crates/lotus-model/src/columnar.rs` (1,870 lines) with `crates/lotus-model/src/columnar/{mod,qid_dict,bitmask,sparse_strings,statement_id,access,diagnostics,sort,builder,builder_seed,filter}.rs` (preserving `columnar/tests.rs` and every `pub use` export in `crates/lotus-model/src/lib.rs`)
+  - Updated `CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, and `.cargo/mutants.toml` path references
+- **Metrics after Step 5a:**
+  - `crates/lotus-query/src/query/*.rs`: 2,044 lines → 11 prod files, max 290 total lines (`builders_body.rs`), `mod.rs` 51 lines
+  - `crates/lotus-model/src/columnar/*.rs`: 1,870 lines → 11 prod files, max 283 total lines (`builder.rs`), `mod.rs` 254 lines
+  - Zero public API breaks; `lotus-model` (including `--features diagnostics`) and `lotus-query` contract/characterization tests preserved untouched.
