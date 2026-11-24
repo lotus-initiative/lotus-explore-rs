@@ -279,7 +279,6 @@ fn human_docs_never_link_to_agent_files() -> Result<()> {
     let mut files = vec![
         root.join("README.md"),
         root.join("CONTRIBUTING.md"),
-        root.join("CHANGELOG.md"),
         root.join("SECURITY.md"),
         root.join(".github/PULL_REQUEST_TEMPLATE.md"),
     ];

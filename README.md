@@ -119,7 +119,6 @@ conventions, and how to refresh the fixtures.
 
 ## Documentation
 
-- [`CHANGELOG.md`](CHANGELOG.md) — what changed in each release
 - [`docs/cli.md`](docs/cli.md) — the `lotus` command, every flag, checked against `--help` by a test (`examples/curation_example.tsv` holds a sample curation sheet)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — the crates and their boundaries
 - [`docs/TAXON-SEARCH.md`](docs/TAXON-SEARCH.md) — how a taxon name becomes a QID, and the four nomenclatural relationships

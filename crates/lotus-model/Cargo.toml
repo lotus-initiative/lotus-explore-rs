@@ -37,7 +37,7 @@ testing = []
 # for collision resistance against an attacker who cannot reach this code.
 #
 # The domain is a SPARQL endpoint's answer, not user input, so the trade is free.
-rustc-hash = "2.1"
+rustc-hash = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 
