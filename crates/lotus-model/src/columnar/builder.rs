@@ -256,10 +256,9 @@ impl ColumnarBuilder {
 
     /// The number of distinct compound-taxon-reference triples.
     ///
-    /// This is the endpoint's `COUNT(DISTINCT CONCAT(…))`, the one number a local
-    /// count used to be unable to reproduce: the old parser deduplicated
-    /// *before* the rows existed, so it could only report a lower bound. Sorting
-    /// a copy of the id columns is the price of being exact, and the copy is
+    /// The endpoint's exact `COUNT(DISTINCT CONCAT(…))`, computed over all
+    /// stored rows without losing row multiplicity inside `ColumnarResultSet`.
+    /// Sorting a copy of the id columns gives the exact count, and the copy is
     /// dropped before [`build`](Self::build) returns.
     fn distinct_triples(&self) -> usize {
         let mut seen =

@@ -5,9 +5,8 @@
 //! The `LOTUS` projection carries a taxon's scientific name and its QID, and
 //! nothing else. The `Taxon` profile also wants a rank, which the explorer does
 //! not query, so [`taxon_jsonld`] takes one and omits the property when it is
-//! not given. It used to emit a placeholder, which is worse than nothing: a
-//! consumer reading `taxonRank` would take it for a value the data does not
-//! have.
+//! not given; omitting `taxonRank` avoids emitting a placeholder claim the data does
+//! not have.
 
 use crate::{property_value, wikidata_uri};
 use serde_json::{Value, json};

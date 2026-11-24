@@ -3,11 +3,8 @@
 
 //! Reading a curation input table (TSV or CSV).
 //!
-//! Both front-ends -- the web upload and `lotus curate` -- take the same file, and
-//! each used to have its own parser. They disagreed: this one matches columns by
-//! name and tolerates a spreadsheet's extra columns, the CLI's took whatever was
-//! in the first four fields. A file prepared for the web page then run through the
-//! CLI got a different answer, silently.
+//! Both front-ends -- the web upload and `lotus curate` -- share this parser so
+//! column matching by header name and extra spreadsheet columns behave identically.
 //!
 //! Delimiter (`\t` for TSV or `,` for CSV) is chosen from whichever splits the
 //! header line into more columns, and RFC-4180 quoted fields are unescaped. Columns are matched by name,

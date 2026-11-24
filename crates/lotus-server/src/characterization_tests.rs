@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Characterization tests pinning the HTTP API JSON schemas, aliases, and
-//! error/header contracts prior to extracting `crates/lotus-server`.
+//! error/header contracts for `lotus-server`.
 
 #![allow(
     clippy::expect_used,

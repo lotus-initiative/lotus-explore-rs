@@ -21,7 +21,7 @@ application is split across two crates:
   native HTTP API server lives in
   [`crates/lotus-server`](../../../crates/lotus-server/README.md).
 - **[`apps/lotus-explore-rs`](../README.md)** owns the Dioxus UI components and
-  pages, curation UI state (`src/features/curation/state/`), reactive hooks,
+  pages, curation UI state (`src/features/curation/page_controller.rs`), reactive hooks,
   browser/native effects (clipboard, `localStorage`, file downloads, URL
   history, `navigator.deviceMemory`), the `reqwest` HTTP client
   ([`src/sparql.rs`](../src/sparql.rs)), and the wall clock
@@ -46,7 +46,7 @@ src/
         results_pipeline/  Execution plan builder (`plan.rs`) and split-stream / full orchestration
         fetch_results/     Platform-specific CSV query execution (`wasm.rs` split-stream vs `native.rs`)
         resolve_taxon/     Taxon name / QID resolution and common-name fallback
-        resolve_structure/ Compound name / InChIKey / SMILES / QID resolution
+        resolve_structure.rs Compound name / InChIKey / SMILES / QID resolution
         resolve_reference.rs Reference Wikidata QID and DOI resolution
         api_pipeline.rs    Optional REST API fast-path execution
       download_dispatch.rs Formats and dispatches CSV/JSON/RDF/SPARQL downloads
@@ -90,7 +90,7 @@ When a user submits the search form or loads a shared URL:
    Before building the main occurrence query, `build_execution_plan` resolves
    free-text inputs in sequence:
    - [`service/resolve_taxon/`](../src/features/explore/service/resolve_taxon/) resolves taxon scientific or common names to Wikidata QIDs.
-   - [`service/resolve_structure/`](../src/features/explore/service/resolve_structure/) resolves compound QIDs, InChIKeys, labels/aliases, or exact structures.
+   - [`service/resolve_structure.rs`](../src/features/explore/service/resolve_structure.rs) resolves compound QIDs, InChIKeys, labels/aliases, or exact structures.
    - [`service/resolve_reference.rs`](../src/features/explore/service/resolve_reference.rs) resolves Wikidata QIDs or DOIs (`P356`).
 4. **Execution plan & fetch ([`features/explore/service/results_pipeline/plan.rs`](../src/features/explore/service/results_pipeline/plan.rs)):**
    `build_execution_plan` calls

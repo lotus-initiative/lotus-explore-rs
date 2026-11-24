@@ -195,12 +195,10 @@ re-exports. `lotus_model::SearchCriteria` at a call site says where the type
 lives; `crate::models::SearchCriteria` says only that the app once had a file
 called `models.rs`.
 
-**Half a serialisation contract is worse than none of it.** The URL parameter
-names used to be built by a model method and parsed by a DTO in a different
-crate, and a rename broke every link already in a browser's history with nothing
-failing. Both halves now live in `CriteriaQueryDto` (without stripping Molfile
-leading blank header lines or clearing taxon), and there are round-trip tests
-to keep them together. If you add a parameter, add it there.
+**Keep both halves of a serialisation contract together.** Both encoding and
+parsing of URL query parameters live together in `CriteriaQueryDto` (without
+stripping Molfile leading blank header lines or clearing taxon), guarded by
+round-trip tests. If you add a parameter, add it there.
 
 ## Tests
 

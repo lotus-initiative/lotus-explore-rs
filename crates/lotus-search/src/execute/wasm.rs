@@ -16,11 +16,9 @@ use wasm_bindgen_futures::JsFuture;
 /// control back would block the page. It costs a turn of the loop instead of the
 /// backoff, which is the right trade on a network failure.
 ///
-/// Not the legacy timer, which was here first and **panicked in the browser**: on
-/// `wasm32-unknown-unknown` it falls back to the unimplemented `std::time::Instant`, so the
-/// failure read `time not implemented on this platform` from inside a retry -- reached only
-/// once a request had already failed, exactly when nobody is watching the console. The
-/// build was green and the app died on its first network error.
+/// Unlike timer implementations backed by `std::time::Instant` (which panics on
+/// `wasm32-unknown-unknown` with `time not implemented on this platform`), this
+/// yields via an already-resolved JS promise.
 pub(super) async fn backoff(_duration: Duration) {
     // A client that cannot reach the endpoint will not reach it in a millisecond either, and
     // blocking the browser's only thread to find that out is worse than retrying at once.

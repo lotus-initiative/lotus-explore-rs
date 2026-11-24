@@ -44,12 +44,8 @@
 //! | --- | --- | --- | --- |
 //! | 1,000,000 | 84.1 MB | 88 B | 30% |
 //!
-//! These were re-measured after the reference node and the year-only projection
-//! arrived, against a fixture carrying the current columns. The earlier table
-//! quoted a wider row -- `ref_date` as a full `xsd:dateTime`, no `ref_node`, no
-//! `compound_smiles_conn` -- so it described a shape the parser no longer sees.
-//! It came out *smaller* despite the added column, because the projection change
-//! that shrank the CSV also shrank what the dictionaries hold.
+//! Measured against the current projection columns (`ref_date` as year-only,
+//! `ref_node`, and `compound_smiles_conn`):
 //!
 //! Scaling the measured rate: 2 million rows fit a 200 MB budget, and the whole
 //! graph -- 2,990,730 rows -- comes to about 254 MB. That last figure is a floor,

@@ -33,12 +33,11 @@ Measured against `https://qlever.dev/api/wikidata` on 2026-10-04:
 So a 429 is a measurement that **one query was too expensive**, and the only
 thing that answers it is a smaller query.
 
-Retrying it is the one response that cannot help, and this workspace used to do
-it — twice inside `execute` (`MAX_ATTEMPTS = 2`) and once more as a whole
-pipeline retry. One broad search could therefore spend the endpoint's entire
-30-second budget **four times**, which is precisely how a client becomes the kind
-of client an operator blocks. `429` is now out of the retryable set, and it
-carries as [`FetchError::TimedOut`] rather than as a status:
+Retrying a `429` is the one response that cannot help — retrying twice inside
+`execute` and once at pipeline level would spend the endpoint's 30-second budget
+multiple times on the same expensive query. `429` is excluded from the
+retryable set and surfaces as [`FetchError::TimedOut`] rather than a transient
+status:
 
 | Layer                                         | Was                                   | Now                                                   |
 | --------------------------------------------- | ------------------------------------- | ----------------------------------------------------- |
@@ -146,15 +145,12 @@ is the right trade for a taxon-scoped search and the wrong one for an
 unconstrained one, which is what makes the confirmation question worth asking of
 a human before the query is fired.
 
-## Curation: the heaviest thing here, now bounded
+## Curation: batched to stay bounded
 
-Curation used to be the worst of it by an order of magnitude. Every row asked
-four questions of its own — does this `InChIKey` exist, what is this taxon, what
-is this DOI, is this occurrence recorded — so a 200-row import was up to **800
-POSTs**, and the second pass over dependency rows repeated every one of them.
-
-All four questions are per row and all four have a batched form, so
-`services/prefetch.rs` asks each of them once, before the rows are walked:
+Unbatched per-row curation checks would send four queries per row (compound
+existence, taxon lookup, DOI lookup, and occurrence `ASK`). Instead,
+`services/prefetch.rs` batches all four lookups once per run before walking the
+rows:
 
 | Question                      | Was             | Now                                                      |
 | ----------------------------- | --------------- | -------------------------------------------------------- |

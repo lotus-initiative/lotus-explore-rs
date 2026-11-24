@@ -10,9 +10,8 @@
 //! Structure resolution — maps whatever is in the structure field to the
 //! compound it names and the structure the search service will be given.
 //!
-//! The counterpart to [`super::resolve_taxon`]: the field used to require
-//! something only the endpoint could interpret, and a reader typing
-//! `amarogentina` deserves the same answer as one typing a taxon name.
+//! The counterpart to [`super::resolve_taxon`]: inputs such as
+//! `amarogentina` resolve through compound lookup just as taxon names do.
 //!
 //! ## Everything is resolved, then the mode decides
 //!

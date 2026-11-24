@@ -3,8 +3,7 @@
 
 //! Wikidata identifier and DOI normalisation.
 //!
-//! The same three jobs were implemented six times across the workspace. These
-//! are the only copies.
+//! Single shared implementation used across the workspace.
 
 use super::{WIKIDATA_ENTITY_BASE, WIKIDATA_ENTITY_BASE_HTTPS};
 

@@ -25,11 +25,8 @@ const fn nomenclature_query_pairs(
 /// Serialise criteria to query parameters, omitting anything left at its
 /// default so a shared URL stays short enough to paste into a message.
 ///
-/// The inverse of [`super::parse_criteria_from_params`], and deliberately in the same
-/// place. The parameter names used to live on the model's own method while the
-/// parsing lived here, which meant a rename to either side silently broke
-/// every URL already in a browser's history and in someone's message. There is
-/// a round-trip test below to keep that from happening again.
+/// The inverse of [`super::parse_criteria_from_params`], kept alongside it so
+/// encoding and parsing share one parameter contract, pinned by round-trip tests.
 #[must_use]
 pub fn criteria_query_params(criteria: &SearchCriteria, year_max: u16) -> QueryParams {
     let mut params = QueryParams::new();
