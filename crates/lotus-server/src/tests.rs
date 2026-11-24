@@ -1494,3 +1494,12 @@ fn maybe_prune_cache_at_enforces_exact_deadline_boundary() {
     let next_deadline = *gate.lock().expect("gate lock");
     assert!(next_deadline > future, "next_prune must advance forward");
 }
+
+#[tokio::test]
+async fn shutdown_signal_waits_for_os_signal() {
+    let result = tokio::time::timeout(Duration::from_millis(20), crate::shutdown_signal()).await;
+    assert!(
+        result.is_err(),
+        "shutdown_signal must stay pending when no OS signal is delivered"
+    );
+}
