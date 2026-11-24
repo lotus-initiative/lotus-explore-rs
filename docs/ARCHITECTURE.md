@@ -76,12 +76,12 @@ When tracing a search result, count discrepancy, or export bug, follow the four 
 
 ### Stage 1: Input resolution (turning user text into Wikidata QIDs)
 
-- **Taxon (`crates/lotus-query/src/query/lookups_taxon.rs` + `crates/lotus-search/src/search.rs`):**
+- **Taxon (`crates/lotus-query/src/query/lookups_taxon.rs` + `crates/lotus-search/src/search/`):**
   - Empty string `""` means *all compounds, including untaxonomised ones*.
   - Wildcard `"*"` means *all compounds with at least one taxon occurrence*.
   - A bare QID (`Q16521`) is used without a network lookup.
   - Otherwise `taxon_lookup_query` checks scientific names (`wdt:P225` exact index match), falling back to `taxon_common_name_lookup_query` (`p:P1843/ps:P1843` scan). See [`TAXON-SEARCH.md`](TAXON-SEARCH.md).
-- **Structure / Compound (`crates/lotus-query/src/query/lookups_compound.rs` + `crates/lotus-search/src/search.rs`):**
+- **Structure / Compound (`crates/lotus-query/src/query/lookups_compound.rs` + `crates/lotus-search/src/search/`):**
   - Dispatched by shape (`lotus-model`):
     1. QID (`Q18216`) -> `compound_by_qid_query` (web app) or direct QID seed (CLI).
     2. InChIKey (`BSYNRYMUTXBXSQ-UHFFFAOYSA-N`) -> `compound_inchikey_query` (`wdt:P235`).
@@ -118,10 +118,10 @@ Every base query embeds `COMPOUND_PROPERTIES` and `REFERENCE_METADATA` near the 
 
 ### Stage 4: Streaming fold into `ColumnarResultSet`, table views, and exports
 
-- **`CsvColumnarReader` (`crates/lotus-query/src/parse/stream.rs`)** ingests either a 4-column occurrence stream + dictionary streams (`search_columnar` / browser path) or a 15-column CSV stream (WDQS fallback / fixtures).
+- **`CsvColumnarReader` (`crates/lotus-query/src/parse/stream/`)** ingests either a 4-column occurrence stream + dictionary streams (`search_columnar` / browser path) or a 15-column CSV stream (WDQS fallback / fixtures).
 - **`ColumnarResultSet` (`crates/lotus-model/src/columnar/`)** stores deduplicated per-entity arenas indexed by numeric QIDs plus a flat edge array.
 - **Client-side filtering, sorting, and graph projection (`crates/lotus-explore-core`)** operate directly on `ColumnarResultSet` indices in memory.
-- **Downloads (`crates/lotus-query/src/export_rows.rs`)** stream `ColumnarResultSet` rows through `RowExporter` to CSV, SPARQL JSON, or RDF/Turtle.
+- **Downloads (`crates/lotus-query/src/export_rows/`)** stream `ColumnarResultSet` rows through `RowExporter` to CSV, SPARQL JSON, or RDF/Turtle.
 
 ---
 

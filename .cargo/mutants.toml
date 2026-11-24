@@ -89,7 +89,7 @@ exclude_globs = ["apps/lotus-explore-rs/**", "crates/lotus-search/src/**/wasm.rs
 # and the InChIKey is the map key, so the two records are identical and keeping
 # either changes nothing.
 #
-#   lotus-search reqwest_client.rs: replace `build` with Ok(Default::default())
+#   lotus-search reqwest_client/transport.rs: replace `build` with Ok(Default::default())
 #
 # The native client differs from `reqwest::Client::default()` only in timeouts,
 # pool sizes and keepalive. Observing any of them takes a test that waits out an
@@ -99,7 +99,7 @@ exclude_re = [
   "DomainError::memory_limit",
   "MemoryLimit",
   "replace < with <= in preferred_over",
-  "replace build -> Result<reqwest::Client, String> with Ok",
+  "replace build -> Result<reqwest::Client, ClientBuildError> with Ok",
 ]
 
 # nextest is what the suite runs under elsewhere, and a mutant evaluated against

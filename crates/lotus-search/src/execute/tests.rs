@@ -367,7 +367,7 @@ fn every_request_identifies_the_client_first() {
 /// like a defect in this code.
 #[test]
 fn the_token_travels_as_a_bearer_authorization_header() {
-    let source = include_str!("../execute.rs");
+    let source = include_str!("budget.rs");
 
     // Spelled so this assertion cannot match the needle it searches for, which is
     // the mistake it is about.

@@ -42,16 +42,17 @@ fn set_of(n: usize) -> Arc<ColumnarResultSet> {
 #[test]
 fn download_only_suppresses_stats_and_matches() {
     let crit = SearchCriteria::up_to_year(YEAR);
-    let m = finalize(
-        &crit,
-        None,
-        &set_of(3),
-        true,
-        SparqlEndpoint::Qlever,
-        None,
-        YEAR,
-        NOW,
-    );
+    let set = set_of(3);
+    let m = finalize(FinalizeInputs {
+        criteria: &crit,
+        qid: None,
+        set: &set,
+        direct_download_mode: true,
+        endpoint: SparqlEndpoint::Qlever,
+        sparql_query: None,
+        year: YEAR,
+        now: NOW,
+    });
     assert_eq!(
         record_count(&m),
         None,
@@ -66,16 +67,16 @@ fn the_counts_come_from_the_set_and_never_disagree_with_it() {
     // the set held 3 is the bug the endpoint's `COUNT` query used to produce.
     let crit = SearchCriteria::up_to_year(YEAR);
     let set = set_of(3);
-    let m = finalize(
-        &crit,
-        None,
-        &set,
-        false,
-        SparqlEndpoint::Qlever,
-        Some("SELECT ?c WHERE {}"),
-        YEAR,
-        NOW,
-    );
+    let m = finalize(FinalizeInputs {
+        criteria: &crit,
+        qid: None,
+        set: &set,
+        direct_download_mode: false,
+        endpoint: SparqlEndpoint::Qlever,
+        sparql_query: Some("SELECT ?c WHERE {}"),
+        year: YEAR,
+        now: NOW,
+    });
 
     assert_eq!(
         record_count(&m),
@@ -92,16 +93,17 @@ fn the_counts_come_from_the_set_and_never_disagree_with_it() {
 #[test]
 fn an_empty_search_reports_zero_rather_than_no_answer() {
     let crit = SearchCriteria::up_to_year(YEAR);
-    let m = finalize(
-        &crit,
-        None,
-        &set_of(0),
-        false,
-        SparqlEndpoint::Qlever,
-        None,
-        YEAR,
-        NOW,
-    );
+    let set = set_of(0);
+    let m = finalize(FinalizeInputs {
+        criteria: &crit,
+        qid: None,
+        set: &set,
+        direct_download_mode: false,
+        endpoint: SparqlEndpoint::Qlever,
+        sparql_query: None,
+        year: YEAR,
+        now: NOW,
+    });
 
     assert_eq!(
         record_count(&m),

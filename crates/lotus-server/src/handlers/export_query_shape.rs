@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Source-level invariants for `handlers::export`.
 
-const HANDLERS: &str = include_str!("export.rs");
+const HANDLERS: &str = include_str!("export/stream.rs");
 
 /// The export path must never ask `QLever` for a `CONSTRUCT`.
 #[test]

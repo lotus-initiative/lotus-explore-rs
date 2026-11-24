@@ -12,7 +12,7 @@
 
 use super::{NOTICE_CLAUSE, REASON_CLOSE, REASON_OPEN, Reason, truncation_reason};
 
-/// The sentence `lotus_query::parse::stream::truncated_by_endpoint` writes.
+/// The sentence `lotus_query::parse::stream::fields::truncated_by_endpoint` writes.
 fn detail(reason: &str) -> String {
     format!(
         "the endpoint stopped sending before the result was complete, so these rows \
@@ -53,7 +53,7 @@ fn the_clause_this_matches_on_is_the_one_lotus_query_writes() {
 fn lotus_query_truncation_text() -> String {
     let path = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../crates/lotus-query/src/parse/stream.rs"
+        "/../../crates/lotus-query/src/parse/stream/fields.rs"
     );
     let source = std::fs::read_to_string(path).expect("the lotus-query source is readable");
     let at = source

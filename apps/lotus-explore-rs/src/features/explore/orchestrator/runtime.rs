@@ -168,16 +168,17 @@ fn build_search_succeeded_action(request: &SearchRequest, outcome: SearchOutcome
         endpoint,
     } = outcome;
 
-    let meta = finalize::finalize(
-        request.criteria(),
-        qid.as_deref(),
-        &set,
-        request.direct_download(),
+    let now = crate::clock::now_iso8601();
+    let meta = finalize::finalize(finalize::FinalizeInputs {
+        criteria: request.criteria(),
+        qid: qid.as_deref(),
+        set: &set,
+        direct_download_mode: request.direct_download(),
         endpoint,
-        (!query.trim().is_empty()).then_some(query.as_str()),
-        crate::clock::current_year(),
-        &crate::clock::now_iso8601(),
-    );
+        sparql_query: (!query.trim().is_empty()).then_some(query.as_str()),
+        year: crate::clock::current_year(),
+        now: &now,
+    });
 
     ExploreAction::SearchSucceeded {
         set,

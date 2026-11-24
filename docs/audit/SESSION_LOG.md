@@ -100,3 +100,18 @@
   - `crates/lotus-query/src/query/*.rs`: 2,044 lines → 11 prod files, max 290 total lines (`builders_body.rs`), `mod.rs` 51 lines
   - `crates/lotus-model/src/columnar/*.rs`: 1,870 lines → 11 prod files, max 283 total lines (`builder.rs`), `mod.rs` 254 lines
   - Zero public API breaks; `lotus-model` (including `--features diagnostics`) and `lotus-query` contract/characterization tests preserved untouched.
+
+### Step 5b-1 — Decompose Library & Server Crates + Introduce `FinalizeInputs`
+- **Files created/removed/updated:**
+  - `crates/lotus-server/src/handlers/export.rs` → `export/{mod,stream,url}.rs` (updated `export_query_shape.rs` include path to `export/stream.rs`)
+  - `crates/lotus-query/src/`: decomposed `parse.rs` → `parse/{mod,columns,compounds,counts,lookups}.rs`, `parse/stream.rs` → `parse/stream/{mod,fields,reader,splitter}.rs`, `export_rows.rs` → `export_rows/{mod,csv,json,turtle}.rs`, `bulk_export.rs` → `bulk_export/{mod,parse_id,queries_core,queries_enrich}.rs`
+  - `crates/lotus-search/src/`: decomposed `search.rs` → `search/{mod,query_plan,resolve_taxon,resolve_structure,resolve_reference,execute_search,stream_search}.rs`, `execute.rs` → `execute/{mod,budget,endpoints,error_format,fallback,retry}.rs` (keeping `execute/wasm.rs`), `reqwest_client.rs` → `reqwest_client/{mod,schedule,transport}.rs` (keeping `reqwest_client/wasm.rs`), replacing `Result<reqwest::Client, String>` with typed `ClientBuildError`
+  - `crates/lotus-curation/src/`: decomposed `wikidata_query.rs` → `wikidata_query/{mod,compound,occurrence,reference,statements,taxon,taxon_name}.rs`, `structure.rs` → `structure/{mod,convert,formula}.rs`, `knowledge.rs` → `knowledge/{mod,dependencies,lookup,result_row,statements}.rs`
+  - `crates/lotus-explore-core/src/`: decomposed `graph/project.rs` → `graph/project/{mod,edges,nodes,search}.rs`, `graph/model.rs` → `graph/model/{mod,payload,starters,types}.rs`, `explore/url_codec/criteria.rs` → `criteria/{mod,encode,decode}.rs`, `export/metadata.rs` → `metadata/{mod,schema,builder}.rs` (removing `clippy::too_many_lines` from `build_metadata_json`), and replaced the 8-arg `finalize(...)` signature with `FinalizeInputs<'a>` in `explore/service/finalize.rs` (removing `clippy::too_many_arguments`)
+  - Updated `CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, and `.cargo/mutants.toml`
+- **Metrics after Step 5b-1 (observed total lines via `wc -l`):**
+  - `lotus-server/handlers/export/`: max 233 (`stream.rs`; `url.rs` 133, `mod.rs` 24)
+  - `lotus-query/{parse,parse/stream,export_rows,bulk_export}/`: max 255 (`parse/stream/reader.rs`; `export_rows/mod.rs` 254, `turtle.rs` 187, `queries_core.rs` 173, `lookups.rs` 132)
+  - `lotus-search/{search,execute,reqwest_client}/`: max 221 (`stream_search.rs`; `mod.rs` 201, `fallback.rs` 185, `resolve_structure.rs` 171; pre-existing `reqwest_client/wasm.rs` kept intact at 415)
+  - `lotus-curation/{wikidata_query,structure,knowledge}/`: max 206 (`convert.rs`; `statements.rs` 182, `taxon_name.rs` 179, `lookup.rs` 154)
+  - `lotus-explore-core/{graph/project,graph/model,url_codec/criteria,export/metadata}/`: max 312 (`metadata/builder.rs`, 297 code/comment lines excl. header; `criteria/decode.rs` 281, `graph/project/nodes.rs` 262, `graph/model/types.rs` 237)

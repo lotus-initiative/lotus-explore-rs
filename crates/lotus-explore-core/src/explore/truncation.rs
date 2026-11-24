@@ -20,7 +20,7 @@
 /// The clause that identifies the message, before the endpoint's reason.
 ///
 /// Long enough to be unambiguous, and derived from the sentence
-/// `lotus_query::parse::stream::truncated_by_endpoint` writes. Both halves of
+/// `lotus_query::parse::stream::fields::truncated_by_endpoint` writes. Both halves of
 /// that pair live in one file on purpose: a change to the wording in `lotus-query`
 /// has to change this string too, and the tests below fail when it does not.
 const NOTICE_CLAUSE: &str = "the endpoint stopped sending before the result was complete";
