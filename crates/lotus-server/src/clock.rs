@@ -2,13 +2,9 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 //! Host wall clock for publication-year validation bounds.
-#![expect(
-    clippy::redundant_pub_crate,
-    reason = "private crate-root module uses pub(crate) because workspace denies unreachable_pub"
-)]
 
 /// Current UTC calendar year read from the system clock.
-pub(crate) fn current_year() -> u16 {
+pub fn current_year() -> u16 {
     let secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs().cast_signed());

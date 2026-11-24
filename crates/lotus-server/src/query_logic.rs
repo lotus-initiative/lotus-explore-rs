@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! SPARQL query construction, taxon resolution, and request transformation logic.
-#![expect(
-    clippy::redundant_pub_crate,
-    reason = "private crate-root module uses pub(crate) because workspace denies unreachable_pub"
-)]
 
 use crate::{
     errors::ApiError,
@@ -13,7 +9,7 @@ use crate::{
 };
 use lotus_model::SearchCriteria;
 
-pub(crate) fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
+pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
     let mut c = SearchCriteria {
         taxon: req.taxon.clone().unwrap_or_default(),
         reference: req.reference.clone().unwrap_or_default(),
@@ -143,7 +139,7 @@ fn check_reference(reference: &str) -> Result<(), ApiError> {
 }
 
 #[cfg(test)]
-pub(crate) fn build_execution_query(
+pub fn build_execution_query(
     criteria: &SearchCriteria,
     resolved_taxon_qid: Option<&str>,
 ) -> String {
@@ -156,7 +152,7 @@ pub(crate) fn build_execution_query(
 
 /// Delegates directly to [`lotus_search::build_execution_query_with`] so the
 /// server, CLI, and browser answer the same request with the same SPARQL.
-pub(crate) fn build_execution_query_with(
+pub fn build_execution_query_with(
     criteria: &SearchCriteria,
     resolved_taxon_qid: Option<&str>,
     resolved_inputs: &lotus_search::ResolvedInputs,
@@ -165,7 +161,7 @@ pub(crate) fn build_execution_query_with(
     lotus_search::build_execution_query_with(&request, resolved_taxon_qid, resolved_inputs)
 }
 
-pub(crate) async fn resolve_taxon_qid_cached(
+pub async fn resolve_taxon_qid_cached(
     state: &AppState,
     taxon_input: String,
 ) -> Result<(Option<String>, Option<String>), ApiError> {
@@ -185,7 +181,7 @@ pub(crate) async fn resolve_taxon_qid_cached(
     Ok(resolved)
 }
 
-pub(crate) async fn resolve_taxon_with<H: lotus_search::Http>(
+pub async fn resolve_taxon_with<H: lotus_search::Http>(
     http: &H,
     taxon_input: &str,
 ) -> Result<(Option<String>, Option<String>), ApiError> {
@@ -213,7 +209,7 @@ pub(crate) async fn resolve_taxon_with<H: lotus_search::Http>(
     Ok((resolution.qid, warning))
 }
 
-pub(crate) async fn resolve_search_inputs(
+pub async fn resolve_search_inputs(
     criteria: &SearchCriteria,
 ) -> Result<lotus_search::ResolvedInputs, ApiError> {
     let http = lotus_search::reqwest_client::ReqwestClient::new()
@@ -221,7 +217,7 @@ pub(crate) async fn resolve_search_inputs(
     resolve_search_inputs_with(&http, criteria).await
 }
 
-pub(crate) async fn resolve_search_inputs_with<H: lotus_search::Http>(
+pub async fn resolve_search_inputs_with<H: lotus_search::Http>(
     http: &H,
     criteria: &SearchCriteria,
 ) -> Result<lotus_search::ResolvedInputs, ApiError> {

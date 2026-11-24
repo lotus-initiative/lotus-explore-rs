@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Pure URL codec for explore state.
 
-use lotus_model::SearchCriteria;
 use std::collections::BTreeMap;
 
 mod criteria;
@@ -22,19 +21,6 @@ pub use startup::{InitialDownloadState, parse_startup_action_from_params};
 
 /// The URL query parameters of a search, keyed by parameter name.
 pub type QueryParams = BTreeMap<String, String>;
-
-/// The startup state decoded from a URL, before the adapter maps the locale.
-#[derive(Clone, Debug, PartialEq)]
-pub struct InitialUrlState {
-    /// The search criteria decoded from the URL.
-    pub criteria: SearchCriteria,
-    /// The raw locale selector, if the URL carried one.
-    pub locale: u8,
-    /// The download or execute action requested at startup.
-    pub download: InitialDownloadState,
-    /// Whether dark mode was requested.
-    pub dark_mode: bool,
-}
 
 /// Test whether a URL query-parameter value represents a boolean true flag.
 ///

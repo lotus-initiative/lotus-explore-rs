@@ -10,7 +10,7 @@ use serde_json::{Map, Value, json};
 /// `year` is the current year, because whether the year bounds mean anything
 /// is a question about today rather than about the search.
 #[must_use]
-pub fn criteria_to_filters_value(criteria: &SearchCriteria, year: u16) -> Value {
+pub(in crate::export) fn criteria_to_filters_value(criteria: &SearchCriteria, year: u16) -> Value {
     let mut filters = Map::new();
 
     if !criteria.structure.trim().is_empty() {

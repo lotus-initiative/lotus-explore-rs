@@ -14,7 +14,7 @@ use std::fmt::Write as _;
 /// The query hash covers the resolved QID, the taxon, and every serialized
 /// criterion; the result hash covers the ordered compound QIDs in `set`.
 #[must_use]
-pub fn compute_hashes(
+pub(in crate::explore) fn compute_hashes(
     qid: &str,
     criteria: &SearchCriteria,
     set: &ColumnarResultSet,
@@ -69,7 +69,7 @@ pub fn compute_hashes(
 )]
 /// Lowercase hexadecimal encoding of `bytes`.
 #[must_use]
-pub fn to_hex_lower(bytes: &[u8]) -> String {
+fn to_hex_lower(bytes: &[u8]) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut out = String::with_capacity(bytes.len() * 2);
     for &b in bytes {

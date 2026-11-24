@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-#![expect(
-    clippy::redundant_pub_crate,
-    reason = "items are re-exported pub(crate) to sibling modules from a private submodule"
-)]
 //! Single-flight `OnceCell` coalescing helpers for concurrent identical requests.
 
 use std::{
@@ -46,7 +42,7 @@ fn remove_inflight_cell<T>(
     }
 }
 
-pub(crate) fn search_inflight_cell(
+pub fn search_inflight_cell(
     state: &AppState,
     key: &str,
 ) -> Result<(InFlightSearch, bool), ApiError> {
@@ -57,11 +53,11 @@ pub(crate) fn search_inflight_cell(
     )
 }
 
-pub(crate) fn search_inflight_remove(state: &AppState, key: &str, cell: &InFlightSearch) {
+pub fn search_inflight_remove(state: &AppState, key: &str, cell: &InFlightSearch) {
     remove_inflight_cell(&state.search_inflight, key, cell);
 }
 
-pub(crate) fn export_inflight_cell(
+pub fn export_inflight_cell(
     state: &AppState,
     key: &str,
 ) -> Result<(InFlightExport, bool), ApiError> {
@@ -72,6 +68,6 @@ pub(crate) fn export_inflight_cell(
     )
 }
 
-pub(crate) fn export_inflight_remove(state: &AppState, key: &str, cell: &InFlightExport) {
+pub fn export_inflight_remove(state: &AppState, key: &str, cell: &InFlightExport) {
     remove_inflight_cell(&state.export_inflight, key, cell);
 }

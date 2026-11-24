@@ -4,7 +4,7 @@
 
 /// Classify a plain SPARQL/QLever error message.
 #[must_use]
-pub fn classify_sparql_error_text(message: &str) -> SparqlErrorClass {
+pub(super) fn classify_sparql_error_text(message: &str) -> SparqlErrorClass {
     let normalized = message.trim().to_ascii_lowercase();
 
     if normalized.contains("cache key") || normalized.contains("already present") {
@@ -36,7 +36,7 @@ pub fn classify_sparql_error_text(message: &str) -> SparqlErrorClass {
 
 /// The category of a SPARQL endpoint error message.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SparqlErrorClass {
+pub(super) enum SparqlErrorClass {
     /// Cache key conflict on upstream endpoint (transient, retry-safe).
     CacheConflict,
     /// Rate limit or query queue full (transient, backoff recommended).

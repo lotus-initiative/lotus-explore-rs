@@ -2,10 +2,6 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Minimal stderr logger for the native HTTP API server, replacing
 //! `tracing-subscriber`.
-#![expect(
-    clippy::redundant_pub_crate,
-    reason = "private crate-root module uses pub(crate) because workspace denies unreachable_pub"
-)]
 
 use std::io::Write as _;
 
@@ -34,7 +30,7 @@ impl log::Log for StderrLogger {
 }
 
 /// Installs the global `log` stderr logger using `RUST_LOG` (defaults to `info`).
-pub(crate) fn init() {
+pub fn init() {
     static LOGGER: StderrLogger = StderrLogger;
     let env_val = std::env::var("RUST_LOG").ok();
     let filter = parse_log_level(env_val.as_deref());
@@ -44,7 +40,7 @@ pub(crate) fn init() {
 }
 
 /// Parses a `RUST_LOG`-style directive string into a `log::LevelFilter`.
-pub(crate) fn parse_log_level(spec: Option<&str>) -> log::LevelFilter {
+pub fn parse_log_level(spec: Option<&str>) -> log::LevelFilter {
     let Some(raw) = spec else {
         return log::LevelFilter::Info;
     };

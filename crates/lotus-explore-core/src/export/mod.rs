@@ -6,6 +6,6 @@
 /// The name an export is written under.
 pub mod filename;
 /// The search's criteria as the metadata document's filter block.
-pub mod filters;
+mod filters;
 /// The Schema.org document that describes an export.
 pub mod metadata;

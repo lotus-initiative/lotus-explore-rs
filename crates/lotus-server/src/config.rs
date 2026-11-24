@@ -56,18 +56,18 @@ pub enum ConfigError {
 /// Validated runtime configuration for the HTTP API server.
 #[derive(Debug, Clone)]
 pub struct AppConfig {
-    pub(crate) host: String,
-    pub(crate) port: u16,
-    pub(crate) default_limit: usize,
-    pub(crate) request_timeout: Duration,
-    pub(crate) max_concurrency: usize,
+    pub host: String,
+    pub port: u16,
+    pub default_limit: usize,
+    pub request_timeout: Duration,
+    pub max_concurrency: usize,
     /// How many queries may be in flight to `QLever` at once.
-    pub(crate) upstream_concurrency: usize,
+    pub upstream_concurrency: usize,
     /// How long a search waits for an upstream permit before being shed.
-    pub(crate) upstream_queue_wait: Duration,
-    pub(crate) max_body_bytes: usize,
-    pub(crate) cors_allowed_origins: Option<Vec<HeaderValue>>,
-    pub(crate) public_dir: Option<std::path::PathBuf>,
+    pub upstream_queue_wait: Duration,
+    pub max_body_bytes: usize,
+    pub cors_allowed_origins: Option<Vec<HeaderValue>>,
+    pub public_dir: Option<std::path::PathBuf>,
 }
 
 /// Command-line and environment configuration for `lotus-server`.
@@ -126,7 +126,7 @@ impl Cli {
 
 impl AppConfig {
     /// Build configuration from the process command line and environment.
-    pub(crate) fn from_env() -> Result<Self, ConfigError> {
+    pub fn from_env() -> Result<Self, ConfigError> {
         let cli = Cli::parse();
         Self::from_provider(|name| cli.get(name))
     }
@@ -186,7 +186,7 @@ impl AppConfig {
         })
     }
 
-    pub(crate) fn bind_addr(&self) -> Result<SocketAddr, ConfigError> {
+    pub fn bind_addr(&self) -> Result<SocketAddr, ConfigError> {
         let addr = format!("{}:{}", self.host, self.port);
         addr.parse::<SocketAddr>()
             .map_err(|e| ConfigError::InvalidBindAddr {
@@ -256,7 +256,7 @@ fn parse_allowed_origins(value: Option<String>) -> Result<Option<Vec<HeaderValue
 }
 
 /// Build the CORS middleware layer described by `config`.
-pub(crate) fn build_cors_layer(config: &AppConfig) -> CorsLayer {
+pub fn build_cors_layer(config: &AppConfig) -> CorsLayer {
     let layer = CorsLayer::new().allow_methods(Any).allow_headers(Any);
     match &config.cors_allowed_origins {
         Some(origins) => layer.allow_origin(origins.clone()),

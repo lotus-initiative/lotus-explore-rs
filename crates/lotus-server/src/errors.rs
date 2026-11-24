@@ -9,30 +9,30 @@ use utoipa::ToSchema;
 /// JSON error envelope returned for failed API requests.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ErrorResponse {
-    pub(crate) error: String,
+    pub error: String,
 }
 
 /// Typed HTTP API error mapped to an Axum JSON response.
 #[derive(Debug)]
 pub struct ApiError {
-    pub(crate) status: StatusCode,
-    pub(crate) message: String,
+    pub status: StatusCode,
+    pub message: String,
     /// Seconds to wait before trying again, sent as `Retry-After`.
-    pub(crate) retry_after: Option<u64>,
+    pub retry_after: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct SharedApiError {
-    pub(crate) status: StatusCode,
-    pub(crate) message: String,
+pub struct SharedApiError {
+    pub status: StatusCode,
+    pub message: String,
     /// Carried through from leader to coalesced followers so a shed search's
     /// `Retry-After` reaches every caller.
-    pub(crate) retry_after: Option<u64>,
+    pub retry_after: Option<u64>,
 }
 
 impl ApiError {
     #[must_use]
-    pub(crate) fn upstream_overloaded(message: impl Into<String>, retry_after: u64) -> Self {
+    pub fn upstream_overloaded(message: impl Into<String>, retry_after: u64) -> Self {
         Self {
             status: StatusCode::SERVICE_UNAVAILABLE,
             message: message.into(),
@@ -41,7 +41,7 @@ impl ApiError {
     }
 
     #[must_use]
-    pub(crate) fn bad_request(message: impl Into<String>) -> Self {
+    pub fn bad_request(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::BAD_REQUEST,
             message: message.into(),
@@ -50,7 +50,7 @@ impl ApiError {
     }
 
     #[must_use]
-    pub(crate) fn upstream(message: impl Into<String>) -> Self {
+    pub fn upstream(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::BAD_GATEWAY,
             message: message.into(),
@@ -59,7 +59,7 @@ impl ApiError {
     }
 
     #[must_use]
-    pub(crate) fn overloaded(message: impl Into<String>) -> Self {
+    pub fn overloaded(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::SERVICE_UNAVAILABLE,
             message: message.into(),
@@ -68,7 +68,7 @@ impl ApiError {
     }
 
     #[must_use]
-    pub(crate) fn internal(message: impl Into<String>) -> Self {
+    pub fn internal(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             message: message.into(),
@@ -77,7 +77,7 @@ impl ApiError {
     }
 
     #[must_use]
-    pub(crate) fn timed_out(message: impl Into<String>) -> Self {
+    pub fn timed_out(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::GATEWAY_TIMEOUT,
             message: message.into(),
@@ -86,7 +86,7 @@ impl ApiError {
     }
 
     #[must_use]
-    pub(crate) fn from_fetch(context: &str, err: lotus_search::FetchError) -> Self {
+    pub fn from_fetch(context: &str, err: lotus_search::FetchError) -> Self {
         match err {
             err @ lotus_search::FetchError::TimedOut { .. } => {
                 Self::timed_out(format!("{context}: {err}"))
@@ -98,7 +98,7 @@ impl ApiError {
 
 impl SharedApiError {
     #[must_use]
-    pub(crate) fn timed_out(message: impl Into<String>) -> Self {
+    pub fn timed_out(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::GATEWAY_TIMEOUT,
             message: message.into(),

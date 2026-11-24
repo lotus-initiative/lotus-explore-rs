@@ -10,11 +10,8 @@ Exposes:
 - `POST /v1/export-url` and `GET /v1/export-file/{cache_key}/{format}` for streaming downloads
 - Optional precompressed static asset serving when `PUBLIC_DIR` is configured
 
-```rust
-use lotus_server::build_export_cache_key;
-
-let key = build_export_cache_key("SELECT ?c WHERE {}");
-assert!(key.starts_with("export:"));
+```sh
+cargo run --locked -p lotus-server --bin lotus-server
 ```
 
 ## License

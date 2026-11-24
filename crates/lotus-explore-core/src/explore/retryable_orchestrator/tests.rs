@@ -9,82 +9,10 @@ use crate::explore::types::{QueryStage, ValidationFault};
 use crate::ports::RepositoryError;
 
 #[test]
-fn compute_retry_schedule_returns_none_at_max_retries() {
-    let error = DomainError::Validation(ValidationFault::EmptyInput);
-    let schedule = retry_schedule_delay(&error, 3, 3);
-    assert_eq!(schedule, None);
-}
-
-#[test]
-fn compute_retry_schedule_returns_none_for_permanent_errors() {
-    let error = DomainError::Validation(ValidationFault::EmptyInput);
-    let schedule = retry_schedule_delay(&error, 0, 10);
-    assert_eq!(schedule, None);
-}
-
-#[test]
-fn compute_retry_schedule_returns_duration_for_transient_errors() {
-    let error = DomainError::Transport {
-        stage: QueryStage::ResultsQuery,
-        source: RepositoryError::network("connection refused"),
-    };
-    let schedule = retry_schedule_delay(&error, 0, 3);
-    assert!(schedule.is_some());
-    assert_eq!(schedule, Some(Duration::from_millis(200)));
-}
-
-#[test]
-fn should_preserve_results_on_results_query_error() {
-    let error = DomainError::Transport {
-        stage: QueryStage::ResultsQuery,
-        source: RepositoryError::network("timeout"),
-    };
-    assert!(preserve_results_on_error(&error));
-}
-
-#[test]
-fn should_not_preserve_results_on_taxon_search_error() {
-    let error = DomainError::Transport {
-        stage: QueryStage::TaxonSearch,
-        source: RepositoryError::network("timeout"),
-    };
-    assert!(!preserve_results_on_error(&error));
-}
-
-#[test]
-fn retry_eligibility_summary_for_transient_error() {
-    let error = DomainError::Transport {
-        stage: QueryStage::ResultsQuery,
-        source: RepositoryError::network("connection reset"),
-    };
-    let summary = retry_eligibility_summary(&error, 0, 3);
-    match summary {
-        RetryEligibility::Retryable {
-            backoff_ms,
-            next_attempt_number,
-        } => {
-            assert_eq!(backoff_ms, Some(200));
-            assert_eq!(next_attempt_number, 1);
-        }
-        _ => panic!("expected retryable error"),
-    }
-}
-
-#[test]
-fn retry_eligibility_summary_for_permanent_error() {
+fn plan_retry_marks_permanent_errors_without_retrying() {
     let error = DomainError::Validation(ValidationFault::TaxonTooLong);
-    let summary = retry_eligibility_summary(&error, 0, 3);
-    assert_eq!(summary, RetryEligibility::Permanent);
-}
-
-#[test]
-fn retry_eligibility_summary_max_retries_exceeded() {
-    let error = DomainError::Transport {
-        stage: QueryStage::ResultsQuery,
-        source: RepositoryError::network("timeout"),
-    };
-    let summary = retry_eligibility_summary(&error, 3, 3);
-    assert_eq!(summary, RetryEligibility::MaxRetriesExceeded);
+    let plan = plan_retry(&error, 0, 3);
+    assert_eq!(plan.eligibility, RetryEligibility::Permanent);
 }
 
 #[test]

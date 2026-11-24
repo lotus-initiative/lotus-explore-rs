@@ -4,7 +4,6 @@
 
 use crate::explore::transport_classification::classify_transport_error;
 use crate::explore::types::DomainError;
-use crate::ports::RepositoryError;
 
 /// Determines whether an error is recoverable and worth retrying.
 #[must_use]
@@ -14,7 +13,7 @@ pub fn is_retryable_error(error: &DomainError) -> bool {
         DomainError::Validation(_) => false,
 
         // Network errors MAY be transient — connection issues, timeouts, 502s.
-        DomainError::Transport { source, .. } => is_retryable_transport_error(source),
+        DomainError::Transport { source, .. } => classify_transport_error(source).is_retryable(),
 
         // Parse errors indicate data corruption or format change — don't retry.
         DomainError::Parse(_) => false,
@@ -23,18 +22,6 @@ pub fn is_retryable_error(error: &DomainError) -> bool {
         #[cfg(target_arch = "wasm32")]
         DomainError::MemoryLimit { .. } => false,
     }
-}
-
-/// Determines whether a repository/network error is transient and worth retrying.
-#[must_use]
-pub fn is_retryable_transport_error(error: &RepositoryError) -> bool {
-    classify_transport_error(error).is_retryable()
-}
-
-/// Determine whether a "Retry" button should be shown for this error.
-#[must_use]
-pub fn should_show_retry_button(error: &DomainError) -> bool {
-    is_retryable_error(error)
 }
 
 #[cfg(test)]

@@ -15,7 +15,8 @@ use tower::ServiceExt;
 use utoipa::OpenApi;
 
 use super::{
-    ApiDoc, build_export_cache_key, build_router,
+    ApiDoc, build_router,
+    cache_key::build_export_cache_key,
     config::AppConfig,
     state::{AppState, export_cache_put},
     types::{ExportUrlResponse, SearchRequest},

@@ -93,11 +93,7 @@ async fn prepare_query(
     })
 }
 
-#[expect(
-    clippy::redundant_pub_crate,
-    reason = "re-exported as pub(crate) through handlers module under #[cfg(test)]"
-)]
-pub(crate) fn apply_resolved_taxon(
+pub fn apply_resolved_taxon(
     criteria: &mut lotus_model::SearchCriteria,
     resolved_taxon_qid: Option<&str>,
 ) {

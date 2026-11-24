@@ -339,7 +339,7 @@ impl DomainError {
 
     /// Extract the query stage at which this error occurred, if applicable.
     #[must_use]
-    pub const fn query_stage(&self) -> QueryStage {
+    pub(crate) const fn query_stage(&self) -> QueryStage {
         match self {
             Self::Transport { stage, .. } => *stage,
             #[cfg(target_arch = "wasm32")]

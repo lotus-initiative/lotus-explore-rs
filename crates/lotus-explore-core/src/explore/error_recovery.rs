@@ -8,7 +8,7 @@ use crate::ports::RepositoryError;
 
 /// Encapsulates retry decision-making for a failed search operation.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RetryDecision {
+pub(in crate::explore) struct RetryDecision {
     /// Whether the search should be retried.
     pub should_retry: bool,
     /// If retrying, how long to wait (milliseconds) before attempting.
@@ -76,7 +76,10 @@ impl ErrorClass {
 
 /// Determine retry strategy for a failed search given the error and attempt count.
 #[must_use]
-pub fn classify_error_recovery(error: &DomainError, attempt: u32) -> RetryDecision {
+pub(in crate::explore) fn classify_error_recovery(
+    error: &DomainError,
+    attempt: u32,
+) -> RetryDecision {
     match error {
         DomainError::Validation(_) => RetryDecision {
             should_retry: false,
@@ -200,7 +203,7 @@ fn rate_limit_backoff_ms(attempt: u32) -> u64 {
 
 /// Determine whether partial results should be cleared after error at given stage.
 #[must_use]
-pub const fn should_clear_state_on_error(error_stage: QueryStage) -> bool {
+pub(in crate::explore) const fn should_clear_state_on_error(error_stage: QueryStage) -> bool {
     match error_stage {
         QueryStage::TaxonSearch | QueryStage::StructureSearch => true, // Everything downstream is invalid
         QueryStage::ResultsQuery => false, // Keep previous results visible

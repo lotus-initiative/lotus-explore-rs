@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-#![expect(
-    clippy::redundant_pub_crate,
-    reason = "items are re-exported pub(crate) to sibling modules from a private submodule"
-)]
 //! Bounded, TTL-pruned in-memory caches for taxon, search, and export responses.
 
 use std::{
@@ -19,24 +15,24 @@ use super::{
 use crate::types::{ExportUrlResponse, SearchResponse};
 
 #[derive(Clone, Debug)]
-pub(crate) struct CachedTaxonResolution {
-    pub(crate) inserted_at: Instant,
-    pub(crate) value: (Option<String>, Option<String>),
+pub struct CachedTaxonResolution {
+    pub inserted_at: Instant,
+    pub value: (Option<String>, Option<String>),
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct CachedSearchResponse {
-    pub(crate) inserted_at: Instant,
-    pub(crate) value: SearchResponse,
+pub struct CachedSearchResponse {
+    pub inserted_at: Instant,
+    pub value: SearchResponse,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct CachedExportResponse {
-    pub(crate) inserted_at: Instant,
-    pub(crate) value: ExportUrlResponse,
+pub struct CachedExportResponse {
+    pub inserted_at: Instant,
+    pub value: ExportUrlResponse,
 }
 
-pub(crate) fn search_cache_get(state: &AppState, key: &str) -> Option<SearchResponse> {
+pub fn search_cache_get(state: &AppState, key: &str) -> Option<SearchResponse> {
     let mut cache = state.search_cache.lock().ok()?;
     maybe_prune_cache(
         &mut cache,
@@ -48,7 +44,7 @@ pub(crate) fn search_cache_get(state: &AppState, key: &str) -> Option<SearchResp
     cache.get(key).map(|entry| entry.value.clone())
 }
 
-pub(crate) fn search_cache_put(state: &AppState, key: String, value: SearchResponse) {
+pub fn search_cache_put(state: &AppState, key: String, value: SearchResponse) {
     if let Ok(mut cache) = state.search_cache.lock() {
         maybe_prune_cache(
             &mut cache,
@@ -67,7 +63,7 @@ pub(crate) fn search_cache_put(state: &AppState, key: String, value: SearchRespo
     }
 }
 
-pub(crate) fn export_cache_get(state: &AppState, key: &str) -> Option<ExportUrlResponse> {
+pub fn export_cache_get(state: &AppState, key: &str) -> Option<ExportUrlResponse> {
     let mut cache = state.export_cache.lock().ok()?;
     maybe_prune_cache(
         &mut cache,
@@ -79,7 +75,7 @@ pub(crate) fn export_cache_get(state: &AppState, key: &str) -> Option<ExportUrlR
     cache.get(key).map(|entry| entry.value.clone())
 }
 
-pub(crate) fn export_cache_put(state: &AppState, key: String, value: ExportUrlResponse) {
+pub fn export_cache_put(state: &AppState, key: String, value: ExportUrlResponse) {
     if let Ok(mut cache) = state.export_cache.lock() {
         maybe_prune_cache(
             &mut cache,
@@ -98,10 +94,7 @@ pub(crate) fn export_cache_put(state: &AppState, key: String, value: ExportUrlRe
     }
 }
 
-pub(crate) fn taxon_cache_get(
-    state: &AppState,
-    key: &str,
-) -> Option<(Option<String>, Option<String>)> {
+pub fn taxon_cache_get(state: &AppState, key: &str) -> Option<(Option<String>, Option<String>)> {
     let mut cache = state.taxon_cache.lock().ok()?;
     maybe_prune_cache(
         &mut cache,
@@ -113,11 +106,7 @@ pub(crate) fn taxon_cache_get(
     cache.get(key).map(|entry| entry.value.clone())
 }
 
-pub(crate) fn taxon_cache_put(
-    state: &AppState,
-    key: String,
-    value: (Option<String>, Option<String>),
-) {
+pub fn taxon_cache_put(state: &AppState, key: String, value: (Option<String>, Option<String>)) {
     if let Ok(mut cache) = state.taxon_cache.lock() {
         maybe_prune_cache(
             &mut cache,
@@ -155,7 +144,7 @@ fn maybe_prune_cache<V, F>(
     );
 }
 
-pub(crate) fn maybe_prune_cache_at<V, F>(
+pub fn maybe_prune_cache_at<V, F>(
     cache: &mut HashMap<String, V>,
     prune_after: &Arc<Mutex<Instant>>,
     ttl: Duration,
@@ -179,7 +168,7 @@ pub(crate) fn maybe_prune_cache_at<V, F>(
     }
 }
 
-pub(crate) fn prune_cache<V, F>(
+pub fn prune_cache<V, F>(
     cache: &mut HashMap<String, V>,
     ttl: Duration,
     max_entries: usize,

@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-#![expect(
-    clippy::redundant_pub_crate,
-    reason = "items are re-exported pub(crate) to sibling modules from a private submodule"
-)]
 //! Atomic runtime counters for `/health` and Prometheus `/metrics`.
 
 use std::{
@@ -14,24 +10,24 @@ use std::{
 use crate::types::HealthResponse;
 
 #[derive(Debug)]
-pub(crate) struct RuntimeMetrics {
+pub struct RuntimeMetrics {
     started_at: Instant,
-    pub(crate) search_cache_hits: AtomicU64,
-    pub(crate) search_cache_misses: AtomicU64,
-    pub(crate) search_inflight_waits: AtomicU64,
-    pub(crate) search_upstream_hits: AtomicU64,
-    pub(crate) export_cache_hits: AtomicU64,
-    pub(crate) export_cache_misses: AtomicU64,
-    pub(crate) export_inflight_waits: AtomicU64,
-    pub(crate) export_upstream_hits: AtomicU64,
-    pub(crate) overload_rejections: AtomicU64,
+    pub search_cache_hits: AtomicU64,
+    pub search_cache_misses: AtomicU64,
+    pub search_inflight_waits: AtomicU64,
+    pub search_upstream_hits: AtomicU64,
+    pub export_cache_hits: AtomicU64,
+    pub export_cache_misses: AtomicU64,
+    pub export_inflight_waits: AtomicU64,
+    pub export_upstream_hits: AtomicU64,
+    pub overload_rejections: AtomicU64,
     /// Searches refused because every `QLever` slot was busy.
-    pub(crate) upstream_shed: AtomicU64,
-    pub(crate) request_timeouts: AtomicU64,
+    pub upstream_shed: AtomicU64,
+    pub request_timeouts: AtomicU64,
 }
 
 impl RuntimeMetrics {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             started_at: Instant::now(),
             search_cache_hits: AtomicU64::new(0),
@@ -48,7 +44,7 @@ impl RuntimeMetrics {
         }
     }
 
-    pub(crate) fn snapshot(&self) -> HealthResponse {
+    pub fn snapshot(&self) -> HealthResponse {
         HealthResponse {
             status: "ok",
             uptime_secs: self.started_at.elapsed().as_secs(),
@@ -66,7 +62,7 @@ impl RuntimeMetrics {
         }
     }
 
-    pub(crate) fn render_prometheus(&self) -> String {
+    pub fn render_prometheus(&self) -> String {
         let snapshot = self.snapshot();
         format!(
             concat!(

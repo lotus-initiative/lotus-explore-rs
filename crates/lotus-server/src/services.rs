@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Upstream SPARQL execution and capped/counted response assembly.
-#![expect(
-    clippy::redundant_pub_crate,
-    reason = "private crate-root module uses pub(crate) because workspace denies unreachable_pub"
-)]
 
 use lotus_model::DatasetStats;
 use lotus_search::{Endpoint, FetchError, ResponseFormat, Service, execute};
@@ -29,7 +25,7 @@ async fn execute_qlever_csv_bytes(sparql: &str) -> Result<Vec<u8>, FetchError> {
 
 /// Choose between the count query's totals and the exact totals computed from
 /// the displayed rows.
-pub(crate) fn resolve_count_stats(
+pub fn resolve_count_stats(
     capped: bool,
     fallback_stats: DatasetStats,
     stats_result: Result<DatasetStats, ApiError>,
@@ -47,7 +43,7 @@ pub(crate) fn resolve_count_stats(
     }
 }
 
-pub(crate) async fn build_search_response(
+pub async fn build_search_response(
     execution_query: &str,
     limit: usize,
     include_counts: bool,

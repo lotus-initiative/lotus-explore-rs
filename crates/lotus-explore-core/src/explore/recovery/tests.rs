@@ -3,6 +3,7 @@
 //! The tests for `recovery`, in their own file.
 
 use super::*;
+use crate::ports::RepositoryError;
 
 #[test]
 fn validation_errors_not_retryable() {
@@ -64,19 +65,6 @@ fn not_configured_transport_not_retryable() {
         source: RepositoryError::NotConfigured,
     };
     assert!(!is_retryable_error(&err));
-}
-
-#[test]
-fn retry_button_shown_only_for_retryable_errors() {
-    use crate::explore::types::{QueryStage, ValidationFault};
-    let validation_err = DomainError::Validation(ValidationFault::EmptyInput);
-    assert!(!should_show_retry_button(&validation_err));
-
-    let network_err = DomainError::Transport {
-        stage: QueryStage::ResultsQuery,
-        source: RepositoryError::network("timeout"),
-    };
-    assert!(should_show_retry_button(&network_err));
 }
 
 #[test]
