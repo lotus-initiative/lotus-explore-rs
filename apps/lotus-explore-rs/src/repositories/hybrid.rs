@@ -308,7 +308,13 @@ fn is_rate_limit_refusal(err: &FetchError) -> bool {
     }
 }
 
-#[allow(clippy::unused_async)]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(
+        clippy::unused_async,
+        reason = "async for parity with the wasm32 branch awaiting sleep_wall_clock"
+    )
+)]
 async fn sleep_ms(ms: u32) {
     #[cfg(target_arch = "wasm32")]
     lotus_search::reqwest_client::sleep_wall_clock(std::time::Duration::from_millis(u64::from(ms)))

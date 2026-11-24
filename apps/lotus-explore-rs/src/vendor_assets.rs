@@ -38,7 +38,11 @@ use dioxus::prelude::*;
 // volatile pointer, which `volatile_composites` rejects, and the shape is fixed
 // by the macro.
 #[used]
-#[allow(dead_code, clippy::volatile_composites)]
+#[allow(
+    dead_code,
+    clippy::volatile_composites,
+    reason = "bundled via manganis option_asset! macro and read only by dx bundler"
+)]
 static RDKIT: Option<manganis::Asset> = manganis::option_asset!(
     "/public/assets/vendor/rdkit",
     manganis::AssetOptions::folder()
@@ -48,17 +52,23 @@ static RDKIT: Option<manganis::Asset> = manganis::option_asset!(
 ///
 /// A folder for the same reason: `index.html` references `./static/...` chunks
 /// by relative path.
-// As `RDKIT` above.
 #[used]
-#[allow(dead_code, clippy::volatile_composites)]
+#[allow(
+    dead_code,
+    clippy::volatile_composites,
+    reason = "bundled via manganis option_asset! macro and read only by dx bundler"
+)]
 static KETCHER: Option<manganis::Asset> =
     manganis::option_asset!("/public/assets/ketcher", manganis::AssetOptions::folder());
 
 /// `Citation.js` (Scholia's bundle), which formats a resolved `DOI` as
 /// `QuickStatements` on the curation page.
-// As `RDKIT` above.
 #[used]
-#[allow(dead_code, clippy::volatile_composites)]
+#[allow(
+    dead_code,
+    clippy::volatile_composites,
+    reason = "bundled via manganis option_asset! macro and read only by dx bundler"
+)]
 static CITATION_JS: Option<manganis::Asset> = manganis::option_asset!(
     "/public/assets/vendor/citation-js",
     manganis::AssetOptions::folder()

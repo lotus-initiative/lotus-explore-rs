@@ -44,7 +44,10 @@ impl Drop for RunFinishGuard {
 // the argument bundle (callers hold it by `Clone` and pass it down, matching
 // the responder-store style); `replace_in_flight` needs only `&self` but the
 // callee does not outlive the caller's borrow, so by-value is the fit here.
-#[allow(clippy::needless_pass_by_value)]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "task_controller is a cheap Rc handle passed by value across callers"
+)]
 pub fn start_search<R: LotusRepository>(
     criteria: Signal<SearchCriteria>,
     command: SearchCommand,
@@ -197,7 +200,13 @@ fn build_search_succeeded_action(request: &SearchRequest, outcome: SearchOutcome
 // Async on both targets for signature parity: WASM awaits a JS timer while
 // the native branch only discards `backoff` (native sleeps happen upstream,
 // in `execute_search_with_retries`).
-#[allow(clippy::unused_async)]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(
+        clippy::unused_async,
+        reason = "async for parity with the wasm32 branch awaiting sleep_wall_clock"
+    )
+)]
 async fn delay_for(backoff: Duration) {
     if backoff.is_zero() {
         return;

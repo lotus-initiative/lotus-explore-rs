@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-// Doc comments mix backticked SPARQL terms, Wikidata QIDs/P-IDs, and
-// acronyms (QLever, WDQS) that are accurate as-is and read better without
-// backticks or re-wording.
-#![allow(clippy::doc_markdown)]
-
 use crate::i18n::{
     curation_note_dependencies_pending, curation_note_existing_complete,
     curation_note_existing_updates, curation_note_missing_doi, curation_note_new_compound,
@@ -26,12 +21,7 @@ mod chemical;
 pub mod enrichment;
 mod http_client;
 mod occurrence;
-// `pub(crate)` on `occurrence_cache` matches the pattern used by other
-// internal-only children of `services`; it is reachable from sibling tests
-// via the crate path. The nursery `redundant_pub_crate` lint would suggest
-// `pub`, which would widen the module's API surface.
-#[allow(clippy::redundant_pub_crate)]
-pub(crate) mod occurrence_cache;
+pub mod occurrence_cache;
 mod reference_metadata;
 pub mod wikidata;
 
@@ -48,7 +38,7 @@ type SparqlExecution<'a> = BoxFuture<'a, Result<String, FetchError>>;
 #[cfg(target_arch = "wasm32")]
 type SparqlExecution<'a> = LocalBoxFuture<'a, Result<String, FetchError>>;
 
-/// Execute a SPARQL query against QLever, falling back to WDQS when QLever is
+/// Execute a SPARQL query against `QLever`, falling back to `WDQS` when `QLever` is
 /// unavailable.
 pub async fn execute_sparql_with_wdqs_fallback(
     query: &str,

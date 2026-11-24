@@ -16,7 +16,10 @@
 // This lint is in `nursery`, which the workspace denies. Keep the deny and this
 // one allow: the other eighteen sites that are genuinely fixable are what the
 // rest of the deny is for.
-#![allow(clippy::future_not_send)]
+#![expect(
+    clippy::future_not_send,
+    reason = "on_phase captures a Dioxus Signal (RefCell) across .await"
+)]
 
 use crate::features::explore::service::{api_pipeline, results_pipeline};
 use crate::perf;

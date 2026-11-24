@@ -18,7 +18,10 @@ pub mod share_links;
 
 // The curation pipeline drives Dioxus signals and reqwest (WASM) futures,
 // which are `!Send`; see the `repositories` design note.
-#[allow(clippy::future_not_send)]
+#[expect(
+    clippy::future_not_send,
+    reason = "curation pipeline drives Dioxus Signal handles and wasm !Send HTTP futures"
+)]
 pub async fn curate_rows(
     locale: Locale,
     rows: Vec<CurationInputRow>,

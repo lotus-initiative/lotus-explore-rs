@@ -138,11 +138,21 @@ impl ResultsTableVirtualizationController {
     // the sibling `handle_scroll`). It uses neither `self` nor its argument,
     // because there is no browser to schedule a frame in.
     #[cfg(not(target_arch = "wasm32"))]
-    #[allow(clippy::unused_self, clippy::needless_pass_by_ref_mut)]
+    #[expect(
+        clippy::unused_self,
+        clippy::needless_pass_by_ref_mut,
+        reason = "native stub matching wasm32 mutating sync_after_render signature"
+    )]
     pub(super) const fn sync_after_render(&mut self, _total_rows: usize) {}
 
     // `total_rows` is consumed on WASM only; kept on native for signature parity.
-    #[allow(clippy::unused_self)]
+    #[cfg_attr(
+        not(target_arch = "wasm32"),
+        expect(
+            clippy::unused_self,
+            reason = "native stub matching wasm32 handle_scroll signature"
+        )
+    )]
     #[cfg_attr(not(target_arch = "wasm32"), allow(unused_variables))]
     pub(super) fn handle_scroll(&self, total_rows: usize) {
         #[cfg(target_arch = "wasm32")]

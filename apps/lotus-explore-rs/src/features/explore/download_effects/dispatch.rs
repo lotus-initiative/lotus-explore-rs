@@ -7,8 +7,6 @@ use lotus_query::ExportFormat;
 use std::sync::Arc;
 
 /// Narrow view of download readiness state to avoid repeating complex queries.
-// Cannot derive `Eq`: `Ready` holds `Arc<SearchCriteria>`, which has `f64` bounds.
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum DispatchPhase {
     /// No download pending — nothing to do.

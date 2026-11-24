@@ -75,7 +75,7 @@ fn annotate(error: &CurationError, phase: &str) -> CurationError {
 
 /// One row, reduced to what Wikidata is asked about it.
 ///
-/// Separate from the asking because the *asking* needs a runtime (RDKit runs
+/// Separate from the asking because the *asking* needs a runtime (`RDKit` runs
 /// through a Dioxus signal) and every question here is decided from these three
 /// values, which are testable without a browser.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -138,7 +138,7 @@ pub(super) async fn prefetch_for_keys(
 /// One query for every `InChIKey` in the batch.
 ///
 /// Converted here because the `InChIKey` is what the batch keys on and the
-/// conversion is local: RDKit in the browser, no network. A row whose structure
+/// conversion is local: `RDKit` in the browser, no network. A row whose structure
 /// cannot be read contributes no key, so this cannot precede conversion.
 async fn prefetch_compounds(
     rows: &[RowKeys<'_>],

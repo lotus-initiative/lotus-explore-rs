@@ -166,9 +166,6 @@ pub const fn should_autorun(
 
 /// Snapshot of commonly-queried UI state flags. Used to reduce signal reads and prevent
 /// unnecessary component re-renders.
-/// The booleans are independent flags read by separate components; packing them into a
-/// state-machine enum would couple unrelated rendering concerns.
-#[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct CurationUiState {
     pub processing: bool,
@@ -176,10 +173,12 @@ pub struct CurationUiState {
 }
 
 impl CurationUiState {
-    // `CurationPageController` is a bundle of Dioxus `Signal`s (Copy handles);
-    // passing it by value is the framework idiomatic style and avoids a borrow
-    // of a signal `Readable` guard.
-    #[allow(clippy::large_types_passed_by_value)]
+    // `CurationPageController` is a bundle of Dioxus `Signal`s (`Copy` handles);
+    // passing it by value avoids borrowing a signal guard across callers.
+    #[expect(
+        clippy::large_types_passed_by_value,
+        reason = "CurationPageController is a Copy bundle of Dioxus Signal handles"
+    )]
     pub fn from_controller(controller: CurationPageController) -> Self {
         Self {
             processing: *controller.processing.read(),

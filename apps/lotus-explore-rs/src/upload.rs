@@ -107,7 +107,11 @@ impl UploadBlobLines {
     #[must_use]
     pub fn new(blob: &UploadBlob) -> Self {
         // `Blob::size()` is f64; exact well below 2^53 for any real upload.
-        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "JS Blob::size() is an integer f64 below 2^53"
+        )]
         let total_bytes = blob.size() as u64;
         Self {
             blob: blob.clone(),
@@ -167,7 +171,10 @@ impl UploadBlobLines {
         let start = self.offset;
         let end = (self.offset + CHUNK_SIZE as u64).min(self.total_bytes);
         // The JS binding takes f64; offsets stay well below 2^53.
-        #[allow(clippy::cast_precision_loss)]
+        #[expect(
+            clippy::cast_precision_loss,
+            reason = "file chunk byte offsets stay well below 2^53"
+        )]
         let (start_f64, end_f64) = (start as f64, end as f64);
         let slice = self
             .blob
