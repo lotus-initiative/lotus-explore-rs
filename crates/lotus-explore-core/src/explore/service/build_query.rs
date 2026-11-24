@@ -60,48 +60,17 @@ pub fn build_sparql_query(
     crit: &SearchCriteria,
     taxon_qid: Option<&str>,
 ) -> String {
-    let nomenclature = lotus_query::Nomenclature::from(crit);
-
-    // Exact means this one compound, answered without the structure service: an
-    // index scan on the QID rather than a load and a scan of every candidate. The
-    // taxon filter, when there is one, still expands the nomenclature.
-    //
-    // It needs a compound, which is why resolution runs first for every input
-    // kind. Input that named nothing falls through to the service below, where
-    // `Exact` becomes the same-molecule search.
-    // All the compounds, not just the one the notice names. See `ResolvedStructure`.
     if crit.structure_search == SmilesSearchType::Exact && !resolved.compounds.is_empty() {
+        let nomenclature = lotus_query::Nomenclature::from(crit);
         let taxon = taxon_qid.and_then(|t| (t != "*").then_some((t, &nomenclature)));
         return lotus_query::exact_compounds_query(&resolved.compounds, taxon);
-    }
-
-    let structure = resolved.structure.as_str();
-    if structure.is_empty() {
-        return match taxon_qid {
-            Some(qid) if qid != "*" => {
-                lotus_query::compounds_by_taxon_query_with(qid, &nomenclature)
-            }
-            Some(_) => lotus_query::all_compounds_query(),
-            // `*` asks for an occurrence, and so does a reference: with them
-            // optional, its `VALUES ?r` joins every compound that has none.
-            None if crit.taxon.trim() == "*" || !crit.reference.trim().is_empty() => {
-                lotus_query::all_compounds_query()
-            }
-            None => lotus_query::all_compounds_including_untaxonomised_query(),
-        };
     }
 
     // The mode is used as asked for, molfiles included: the similarity service
     // was measured accepting a multi-line CTAB, so the format does not decide it.
     // `Some("*")` passes straight through so `structure_search_query_with`
     // requires an occurrence without expanding a `P171*` closure over Biota.
-    lotus_query::structure_search_query_with(
-        structure,
-        crit.structure_search,
-        crit.structure_threshold,
-        taxon_qid,
-        &nomenclature,
-    )
+    lotus_query::base_query_for_criteria(crit, resolved.structure.as_str(), taxon_qid)
 }
 
 /// Apply server-side filters.

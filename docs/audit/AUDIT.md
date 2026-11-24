@@ -18,7 +18,7 @@
 | Prod functions > 4 params | 72 (max 18 in `GraphToolbar`, 10 in `run_pubchem_tree`, 8 in `run_lotus_exporter` and `finalize`) |
 | Prod `Result<_, String>` sites | 61 |
 | Prod `#[allow(...)]` / `#![allow(...)]` | 58 (`24` `#[expect(...)]`) |
-| Junk-drawer files (`utils`/`helpers`/`common`) | 6 (`search_utils.rs`, `services/helpers.rs`, `results_graph/helpers.rs`, `results_table/sort_helpers.rs`, `ui/common.rs`, `utils/logging.rs`) |
+| Junk-drawer files (utility/helper/common modules) | 6 (`search_utils.rs`, `services/helpers.rs`, `results_graph/helpers.rs`, `results_table/sort_helpers.rs`, `ui/common.rs`, `utils/logging.rs`) |
 | Prod `pub` items across crates | `lotus-explore-core` 432, `lotus-model` 271, `lotus-query` 142, `lotus-curation` 128, `lotus-search` 124 (+ wildcard `pub use lotus_model::*;`), `lotus-jsonld` 88, `lotus-cli` 65 |
 | Supply chain / hygiene | `cargo machete`: clean; `cargo deny check`: pass (11 skipped duplicates in `deny.toml`); `cargo audit`: 0 advisories |
 

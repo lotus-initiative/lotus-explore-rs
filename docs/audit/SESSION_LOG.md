@@ -18,7 +18,7 @@
 | Prod `pub` items (non-app crates) | `lotus-explore-core`: 432, `lotus-model`: 271, `lotus-query`: 142, `lotus-curation`: 128, `lotus-search`: 124 (+ `lotus_model::*`), `lotus-jsonld`: 88, `lotus-cli`: 65, `lotus-web-assets`: 17 |
 | Prod `Result<_, String>` sites | 61 |
 | Prod `#[allow(...)]` / `#![allow(...)]` | 58 |
-| Junk-drawer files (`utils`/`helpers`/`common`) | 6 |
+| Junk-drawer files (utility/helper/common modules) | 6 |
 | `lotus-cli` release binary size | 5.5 MiB (`2.0 MiB` `.text`; `lotus_explore_core`: `107.4 KiB`, `lotus`: `119.2 KiB`, `lotus_search`: `32.0 KiB`) |
 
 ---
@@ -127,3 +127,15 @@
   - `crates/lotus-cli/src/`: `archive_cmd.rs` 273, `zenodo/publish.rs` 234, `curate/runner.rs` 248, `args/search.rs` 201, `zenodo/client.rs` 210, `curate/mod.rs` 186, `export_cmd.rs` 172, `zenodo/types.rs` 149, `search_cmd.rs` 131, `criteria.rs` 130, `main.rs` 120, `args/mod.rs` 113, `curate/report.rs` 78, `clock.rs` 45, `zenodo/mod.rs` 29 (`output.rs` left untouched at 308 lines total, <300 code lines)
   - `apps/lotus-explore-rs/build*`: `build.rs` 161, `build/ai.rs` 259, `build/headers.rs` 150, `build/site_files.rs` 135, `build/csp.rs` 116, `build/metadata.rs` 115, `build/mod.rs` 9
   - `lotus-cli` (90 unit + 34 `cli` + 5 `docs_in_sync`) and `lotus-explore-rs` (`buildrs` 23/23 + `doc_links` 2/2) all pass unchanged.
+
+### Step 6a — Deduplicate Query/QuickStatements Helpers & Eliminate Junk-Drawer Modules
+- **Deduplication:**
+  - Extracted `lotus_query::base_query_for_criteria(criteria, structure, taxon_qid)` (`crates/lotus-query/src/query/builders.rs`, re-exported at `query` and crate root) and routed both `lotus_search::build_base_query` (`crates/lotus-search/src/search/query_plan.rs`) and `lotus_explore_core::explore::service::build_query::build_sparql_query` through it (preserving existing `Exact` wildcard behavior strictly).
+  - Moved QuickStatements formatting helpers (`QS_REF_INFERRED_FROM_SMILES`, `QS_REF_INFERRED_FROM_ISOMERIC_SMILES`, `qs_mass_statement`, `qs_statement_with_refs`, `qs_canonical_smiles_statement`, `qs_inchi_statement`, `qs_inchikey_statement`, `qs_isomeric_smiles_statement`) and their unit tests into `crates/lotus-curation/src/quickstatements.rs` (`lib.rs` re-exports) and deleted `apps/lotus-explore-rs/src/features/curation/services/helpers.rs`.
+- **Junk-drawer elimination (0 `*util*`/`*helper*`/`*common*` non-test files left):**
+  - `crates/lotus-explore-core/src/explore/search_utils.rs` → `hashing.rs` (`sanitize_taxon_input` replaced by direct `lotus_model::standardize_taxon_name`; extra assertions kept in `lotus-model/src/identify/tests.rs`)
+  - `apps/lotus-explore-rs/src/utils/{mod,logging}.rs` → `src/services/event_log.rs` (`utils/` deleted)
+  - `apps/lotus-explore-rs/src/ui/common.rs` → `src/ui/content_phase.rs`
+  - `apps/lotus-explore-rs/src/components/results_graph/helpers.rs` → `src/components/results_graph/presentation.rs`
+  - `apps/lotus-explore-rs/src/components/results_table/sort_helpers.rs` → inlined `aria_sort_for` & `sort_icon_for` into `src/components/results_table/header_model.rs` (`sort_helpers.rs` deleted)
+  - `apps/lotus-explore-rs/src/i18n/helpers/` → `src/i18n/messages/`

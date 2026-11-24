@@ -373,9 +373,9 @@ pub fn t(locale: Locale, key: TextKey) -> &'static str {
     }
 }
 
-mod helpers;
+mod messages;
 
-pub use helpers::*;
+pub use messages::*;
 
 #[cfg(test)]
 mod tests;

@@ -43,7 +43,10 @@ pub use knowledge::{
     taxon_dependency_statements, to_result_row,
 };
 pub use quickstatements::{
+    QS_REF_INFERRED_FROM_ISOMERIC_SMILES, QS_REF_INFERRED_FROM_SMILES,
     build_quickstatements_bundle, escape_quickstatements, merge_new_compound_creates,
+    qs_canonical_smiles_statement, qs_inchi_statement, qs_inchikey_statement,
+    qs_isomeric_smiles_statement, qs_mass_statement, qs_statement_with_refs,
 };
 pub use structure::{
     ConvertedStructure, convert_structure, convert_structures, extract_formula_from_inchi,

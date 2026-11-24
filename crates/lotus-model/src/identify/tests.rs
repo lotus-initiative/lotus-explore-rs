@@ -174,6 +174,18 @@ fn a_taxon_name_is_standardised_before_it_is_looked_up() {
         " ",
         "an underscore becomes a space, and a lone underscore has no genus to recase"
     );
+    assert_eq!(
+        standardize_taxon_name("voacanga africana"),
+        "Voacanga africana"
+    );
+    assert_eq!(
+        standardize_taxon_name("VOACANGA africana"),
+        "Voacanga africana"
+    );
+    assert_eq!(
+        standardize_taxon_name("__gentiana_lutea__"),
+        "Gentiana lutea"
+    );
 }
 
 #[test]

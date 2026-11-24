@@ -4,7 +4,7 @@
 //! entity shape legend, ego breadcrumb, and honest overview-cap footer.
 
 use super::bridge::{CANVAS_ID, LABELS_ID};
-use super::helpers::{
+use super::presentation::{
     EntityShapeIcon, corroboration_unit, entity_badge_classes, entity_kind_label,
 };
 use crate::components::loading::{LotusLoader, query_phase_text, rows_so_far_text};

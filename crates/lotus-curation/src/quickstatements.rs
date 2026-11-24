@@ -170,6 +170,74 @@ fn add_to_create(statements: &mut Vec<String>, line: &str) {
     }
 }
 
+/// Reference QID for `S887` (`inferred from SMILES`).
+pub const QS_REF_INFERRED_FROM_SMILES: &str = "Q113907573";
+/// Reference QID for `S887` (`inferred from isomeric SMILES`).
+pub const QS_REF_INFERRED_FROM_ISOMERIC_SMILES: &str = "Q123282952";
+
+/// Format a Wikidata `QuickStatements` mass statement using the dalton unit (`U483261`),
+/// with an `S887` `inferred from SMILES` reference (`Q113907573`).
+#[must_use]
+pub fn qs_mass_statement(subject: &str, mass: f64) -> String {
+    format!("{subject}|P2067|+{mass:.6}U483261|S887|{QS_REF_INFERRED_FROM_SMILES}")
+}
+
+/// Build a `QuickStatements` statement with `S887` reference(s), e.g.
+/// `subject|prop|"value"|S887|Q113907573`.
+#[must_use]
+pub fn qs_statement_with_refs(subject: &str, prop: &str, value: &str, refs: &[&str]) -> String {
+    let mut stmt = format!("{subject}|{prop}|\"{}\"", escape_quickstatements(value));
+    for r in refs {
+        stmt.push_str("|S887|");
+        stmt.push_str(r);
+    }
+    stmt
+}
+
+/// Build a canonical SMILES (`P233`) statement, attaching `S887` `inferred from
+/// isomeric SMILES` when an isomeric SMILES is also present.
+#[must_use]
+pub fn qs_canonical_smiles_statement(
+    subject: &str,
+    canonical_smiles: &str,
+    has_isomeric: bool,
+) -> String {
+    if has_isomeric {
+        qs_statement_with_refs(
+            subject,
+            "P233",
+            canonical_smiles,
+            &[QS_REF_INFERRED_FROM_ISOMERIC_SMILES],
+        )
+    } else {
+        format!(
+            "{subject}|P233|\"{}\"",
+            escape_quickstatements(canonical_smiles)
+        )
+    }
+}
+
+/// Build an `InChI` (`P234`) statement with an `inferred from SMILES` reference.
+#[must_use]
+pub fn qs_inchi_statement(subject: &str, inchi: &str) -> String {
+    qs_statement_with_refs(subject, "P234", inchi, &[QS_REF_INFERRED_FROM_SMILES])
+}
+
+/// Build an `InChIKey` (`P235`) statement with an `inferred from SMILES` reference.
+#[must_use]
+pub fn qs_inchikey_statement(subject: &str, inchikey: &str) -> String {
+    qs_statement_with_refs(subject, "P235", inchikey, &[QS_REF_INFERRED_FROM_SMILES])
+}
+
+/// Build an isomeric SMILES (`P2017`) statement without any `S887` reference.
+#[must_use]
+pub fn qs_isomeric_smiles_statement(subject: &str, isomeric_smiles: &str) -> String {
+    format!(
+        "{subject}|P2017|\"{}\"",
+        escape_quickstatements(isomeric_smiles)
+    )
+}
+
 #[cfg(test)]
 #[path = "quickstatements/tests.rs"]
 mod tests;

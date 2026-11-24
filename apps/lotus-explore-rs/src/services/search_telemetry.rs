@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Centralized telemetry/logging helpers for the Explore search pipeline.
 
-use crate::utils::logging::{log_debug_evt, log_info_evt, log_timing_evt, log_warn_evt};
+use crate::services::event_log::{log_debug_evt, log_info_evt, log_timing_evt, log_warn_evt};
 use std::time::Duration;
 
 pub fn search_start() {

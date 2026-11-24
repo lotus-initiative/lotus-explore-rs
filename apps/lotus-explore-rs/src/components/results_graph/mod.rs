@@ -37,9 +37,9 @@ use std::sync::Arc;
 mod bridge;
 mod canvas_stage;
 mod empty_starter;
-mod helpers;
 mod history;
 mod inspector;
+mod presentation;
 mod toolbar;
 
 use bridge::{CANVAS_ID, GraphEvent, LABELS_ID};

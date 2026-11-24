@@ -1,18 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
+//! Query and result-set SHA-256 hashing helpers.
+
 #[cfg(test)]
 use lotus_model::CompoundEntry;
 use lotus_model::{ColumnarResultSet, SearchCriteria};
 use sha2::{Digest, Sha256};
 use std::fmt::Write as _;
-
-/// Normalize a taxon name: underscores become spaces, the first word is
-/// capitalized, and the remaining words are preserved.
-#[must_use]
-pub fn sanitize_taxon_input(taxon: &str) -> String {
-    lotus_model::standardize_taxon_name(taxon)
-}
 
 /// Compute the query hash and the result hash for a search.
 ///
@@ -85,5 +80,5 @@ pub fn to_hex_lower(bytes: &[u8]) -> String {
 }
 
 #[cfg(test)]
-#[path = "search_utils/tests.rs"]
+#[path = "hashing/tests.rs"]
 mod tests;

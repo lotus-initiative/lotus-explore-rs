@@ -15,7 +15,6 @@ mod render_model;
 mod row_cells;
 mod scroll_runtime;
 mod scroll_signals;
-mod sort_helpers;
 mod sort_model;
 mod table_filter_row;
 mod table_header;

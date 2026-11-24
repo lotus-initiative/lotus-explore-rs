@@ -23,9 +23,9 @@ mod structure;
 mod tests;
 
 pub use builders::{
-    all_compounds_including_untaxonomised_query, all_compounds_query, compounds_by_taxon_query,
-    compounds_by_taxon_query_with, compounds_by_taxon_query_with_resolved_closure,
-    exact_compound_query, exact_compounds_query,
+    all_compounds_including_untaxonomised_query, all_compounds_query, base_query_for_criteria,
+    compounds_by_taxon_query, compounds_by_taxon_query_with,
+    compounds_by_taxon_query_with_resolved_closure, exact_compound_query, exact_compounds_query,
 };
 pub use dictionary::{
     DICTIONARY_VALUES_LIMIT, compound_dictionary_query, counts_query, dictionary_queries,

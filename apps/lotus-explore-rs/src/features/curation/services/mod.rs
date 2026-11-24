@@ -19,14 +19,15 @@ use futures::future::BoxFuture;
 use futures::future::LocalBoxFuture;
 pub(super) use lotus_curation::{
     CurationError, CurationInputRow, CurationResultRow, CurationStatus, DependencyResolution,
-    MassResolution, WD_CHEMICAL_COMPOUND_QID, WD_OCCURS_IN_TAXON_PROP, WD_STEREOISOMER_GROUP_QID,
-    WD_TAXON_QID, WD_TYPE_CHEMICAL_ENTITY_QID, WikidataCompound, escape_quickstatements,
-    is_revised_row, normalize_doi, revised_row_statement,
+    MassResolution, QS_REF_INFERRED_FROM_SMILES, WD_CHEMICAL_COMPOUND_QID, WD_OCCURS_IN_TAXON_PROP,
+    WD_STEREOISOMER_GROUP_QID, WD_TAXON_QID, WD_TYPE_CHEMICAL_ENTITY_QID, WikidataCompound,
+    escape_quickstatements, has_stereo_marks as has_isomeric_smiles, is_revised_row, normalize_doi,
+    qs_canonical_smiles_statement, qs_inchi_statement, qs_inchikey_statement,
+    qs_isomeric_smiles_statement, qs_statement_with_refs, revised_row_statement,
 };
 
 mod chemical;
 mod enrichment;
-mod helpers;
 mod http_client;
 mod occurrence;
 // `pub(crate)` on `occurrence_cache` matches the pattern used by other
@@ -39,11 +40,6 @@ mod reference_metadata;
 pub mod wikidata;
 
 use chemical::{convert_smiles, has_undefined_stereo, resolve_exact_mass};
-use helpers::{
-    QS_REF_INFERRED_FROM_SMILES, has_isomeric_smiles, qs_canonical_smiles_statement,
-    qs_inchi_statement, qs_inchikey_statement, qs_isomeric_smiles_statement,
-    qs_statement_with_refs,
-};
 use reference_metadata::fetch_reference_quickstatements;
 use wikidata::normalize_taxon_lookup;
 
@@ -59,7 +55,9 @@ pub mod quickstatements;
 pub(crate) use chemical::extract_exact_mass_from_json;
 pub use enrichment::curate_single_row;
 #[cfg(test)]
-pub use helpers::{extract_formula_from_inchi, normalize_formula_for_wikidata, qs_mass_statement};
+pub use lotus_curation::{
+    extract_formula_from_inchi, normalize_formula_for_wikidata, qs_mass_statement,
+};
 pub use prefetch::prefetch_knowledge;
 
 #[cfg(not(target_arch = "wasm32"))]

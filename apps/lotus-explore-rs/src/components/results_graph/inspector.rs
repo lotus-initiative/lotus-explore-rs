@@ -7,7 +7,7 @@
 //! [`crate::components::results_table::depict_url_for_smiles`] for stereo-aware
 //! 2D CDK Depict SVGs.
 
-use super::helpers::{
+use super::presentation::{
     EntityShapeIcon, corroboration_unit, entity_badge_classes, entity_kind_label, projection_label,
     scholia_aria_key, scholia_url, wikidata_url,
 };

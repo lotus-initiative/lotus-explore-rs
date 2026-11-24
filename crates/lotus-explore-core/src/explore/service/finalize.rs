@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Result finalization service.
 
-use crate::explore::search_utils::compute_hashes;
+use crate::explore::hashing::compute_hashes;
 use crate::export::metadata::{MetadataInputs, SparqlEndpoint};
 use lotus_model::{ColumnarResultSet, SearchCriteria};
 use std::sync::Arc;

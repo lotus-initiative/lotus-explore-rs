@@ -33,11 +33,11 @@ use super::{
     revised_row_statement,
 };
 use crate::features::curation::repositories::CurationKnowledgeRepository;
-use crate::features::curation::services::helpers::{
-    extract_formula_from_inchi, normalize_formula_for_wikidata, qs_mass_statement,
-};
 use crate::i18n::Locale;
 use lotus_curation::WikidataCompound;
+use lotus_curation::{
+    extract_formula_from_inchi, normalize_formula_for_wikidata, qs_mass_statement,
+};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

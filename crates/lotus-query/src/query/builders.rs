@@ -124,3 +124,34 @@ fn compounds_query(
 ) -> String {
     compounds_query_with(compound_seed, taxon_qid, Occurrence::Required)
 }
+
+/// Select the base 15-column `SELECT` query for `criteria` given normalized
+/// `structure` text and an optional resolved `taxon_qid` (`Some("*")` means any
+/// recorded occurrence).
+#[must_use]
+pub fn base_query_for_criteria(
+    criteria: &lotus_model::SearchCriteria,
+    structure: &str,
+    taxon_qid: Option<&str>,
+) -> String {
+    let nomenclature = Nomenclature::from(criteria);
+    if !structure.is_empty() {
+        return super::structure_search_query_with(
+            structure,
+            criteria.structure_search,
+            criteria.structure_threshold,
+            taxon_qid,
+            &nomenclature,
+        );
+    }
+    match taxon_qid {
+        Some(qid) if qid != "*" => compounds_by_taxon_query_with(qid, &nomenclature),
+        Some(_) => all_compounds_query(),
+        // Nothing given is not `*`: without a taxon or reference filter, keep
+        // untaxonomised compounds; `*` or a reference asks for reported occurrences.
+        None if criteria.taxon.trim() == "*" || !criteria.reference.trim().is_empty() => {
+            all_compounds_query()
+        }
+        None => all_compounds_including_untaxonomised_query(),
+    }
+}

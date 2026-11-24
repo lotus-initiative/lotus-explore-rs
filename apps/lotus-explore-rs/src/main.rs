@@ -74,8 +74,6 @@ mod ui;
 #[cfg(any(target_arch = "wasm32", test))]
 mod upload;
 #[cfg(any(target_arch = "wasm32", test))]
-mod utils;
-#[cfg(any(target_arch = "wasm32", test))]
 mod vendor_assets;
 
 #[cfg(target_arch = "wasm32")]

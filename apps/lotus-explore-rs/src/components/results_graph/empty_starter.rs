@@ -6,7 +6,7 @@
 //! load: the user picks one of four curated starter cards, submits a quick entity
 //! lookup, or opens `/search` for full filters.
 
-use super::helpers::{EntityShapeIcon, entity_badge_classes};
+use super::presentation::{EntityShapeIcon, entity_badge_classes};
 use crate::app::routes::Route;
 use crate::components::ui::Button;
 use crate::i18n::{Locale, TextKey, t};

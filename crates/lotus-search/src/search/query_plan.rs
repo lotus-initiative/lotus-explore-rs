@@ -3,11 +3,7 @@
 //! Structure planning and SPARQL execution-query assembly.
 
 use lotus_model::{SearchCriteria, SmilesSearchType, normalize_structure};
-use lotus_query::{
-    Nomenclature, all_compounds_including_untaxonomised_query, all_compounds_query,
-    compounds_by_taxon_query_with, exact_compounds_query, structure_search_query_with,
-    with_filters,
-};
+use lotus_query::{Nomenclature, base_query_for_criteria, exact_compounds_query, with_filters};
 
 use crate::result::SearchRequest;
 
@@ -49,29 +45,8 @@ impl StructurePlan {
 /// `qid` is [`TaxonResolution::qid`](crate::TaxonResolution::qid), and the wildcard `*` means every taxon.
 #[must_use]
 pub fn build_base_query(criteria: &SearchCriteria, qid: Option<&str>) -> String {
-    let nomenclature = Nomenclature::from(criteria);
-    match StructurePlan::for_request(criteria) {
-        Some(plan) => structure_search_query_with(
-            &plan.structure,
-            plan.search,
-            plan.threshold,
-            qid,
-            &nomenclature,
-        ),
-        // Nothing given is not the same request as `*`: nothing given means "no constraint I
-        // can apply", including compounds with no organism recorded, while `*` explicitly
-        // asks for everything with an occurrence and keeps requiring one. Sending both to
-        // one query made an empty box answer the narrower question silently.
-        None if criteria.taxon.trim() == "*" => all_compounds_query(),
-        None => match qid {
-            Some(qid) if qid != "*" => compounds_by_taxon_query_with(qid, &nomenclature),
-            Some(_) => all_compounds_query(),
-            // A reference names occurrences: with them optional, its `VALUES ?r`
-            // joins every compound that has none.
-            None if !criteria.reference.trim().is_empty() => all_compounds_query(),
-            None => all_compounds_including_untaxonomised_query(),
-        },
-    }
+    let structure = StructurePlan::for_request(criteria).map_or_default(|plan| plan.structure);
+    base_query_for_criteria(criteria, &structure, qid)
 }
 
 /// The query that will actually be sent: the base query plus the active filters.

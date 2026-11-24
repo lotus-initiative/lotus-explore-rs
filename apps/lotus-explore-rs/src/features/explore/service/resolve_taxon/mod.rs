@@ -17,11 +17,11 @@ use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
 use crate::sparql;
 use lotus_explore_core::explore::search_metrics::SearchMetrics;
-use lotus_explore_core::explore::search_utils::sanitize_taxon_input;
 use lotus_explore_core::explore::types::{
     DomainError, LookupNotice, ParseFault, QueryStage, ValidationFault,
 };
 use lotus_model::TaxonMatch;
+use lotus_model::standardize_taxon_name as sanitize_taxon_input;
 
 /// Output of a successful taxon resolution.
 #[derive(Debug, Clone)]

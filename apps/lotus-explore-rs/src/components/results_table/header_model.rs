@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Pure model helpers for sortable results-table headers.
 
-use super::sort_helpers::{aria_sort_for, sort_icon_for};
 use crate::i18n::TextKey;
 use lotus_explore_core::sort::{SortColumn, SortDir, SortState};
 
@@ -67,6 +66,30 @@ pub(super) fn build_sortable_header_models(
 #[must_use]
 fn next_sort_is_descending(sort: SortState, col: SortColumn) -> bool {
     sort.col == col && sort.dir == SortDir::Asc
+}
+
+/// ARIA `aria-sort` value for a column header.
+fn aria_sort_for(state: SortState, col: SortColumn) -> &'static str {
+    if state.col != col {
+        "none"
+    } else if state.dir == SortDir::Asc {
+        "ascending"
+    } else {
+        "descending"
+    }
+}
+
+fn sort_icon_for(state: SortState, col: SortColumn) -> &'static str {
+    if state.col == col {
+        if state.dir == SortDir::Asc {
+            "▴"
+        } else {
+            "▾"
+        }
+    } else {
+        // Neutral indicator communicates that the column is sortable.
+        "⇅"
+    }
 }
 
 #[cfg(test)]

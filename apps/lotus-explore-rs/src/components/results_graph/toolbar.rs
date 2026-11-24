@@ -3,7 +3,9 @@
 //! Graph workspace controls bar: history, projection, 2D/3D mode, node finder,
 //! camera controls, simulation toggle, and PNG export.
 
-use super::helpers::{EntityShapeIcon, criteria_summary, entity_badge_classes, projection_label};
+use super::presentation::{
+    EntityShapeIcon, criteria_summary, entity_badge_classes, projection_label,
+};
 use crate::app::routes::Route;
 use crate::components::ui::Button;
 use crate::i18n::{TextKey, format_count, t};

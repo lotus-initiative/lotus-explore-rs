@@ -1,22 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! The tests for `search_utils`, in their own file.
+//! The tests for `hashing`, in their own file.
 
 use super::*;
 use std::sync::Arc;
-
-#[test]
-fn sanitizes_taxon_prefix_case_only() {
-    assert_eq!(
-        sanitize_taxon_input("voacanga africana"),
-        "Voacanga africana"
-    );
-    assert_eq!(
-        sanitize_taxon_input("VOACANGA africana"),
-        "Voacanga africana"
-    );
-    assert_eq!(sanitize_taxon_input("__gentiana_lutea__"), "Gentiana lutea");
-}
 
 #[test]
 fn hex_encoder_is_lowercase() {

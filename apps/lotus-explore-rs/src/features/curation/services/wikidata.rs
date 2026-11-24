@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-use super::helpers::{binding_value, extract_qid_from_uri};
 use super::{CurationError, WD_TAXON_QID, WikidataCompound, normalize_doi};
 use crate::sparql::{FetchError, ResponseFormat};
 pub(super) use lotus_curation::normalize_taxon_lookup;
+use lotus_curation::qid_from_uri as extract_qid_from_uri;
 use lotus_curation::{
     build_compound_lookup_query, build_occurrence_query, build_occurrence_with_ref_query,
     build_reference_lookup_query, build_single_taxon_lookup_query, build_taxon_lookup_query,
@@ -11,6 +11,14 @@ use lotus_curation::{
 };
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
+
+fn binding_value(binding: &Value, key: &str) -> Option<String> {
+    binding
+        .get(key)
+        .and_then(|v| v.get("value"))
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+}
 
 async fn execute_sparql_format(query: &str, format: ResponseFormat) -> Result<String, FetchError> {
     super::execute_sparql_with_wdqs_fallback(query, format).await
