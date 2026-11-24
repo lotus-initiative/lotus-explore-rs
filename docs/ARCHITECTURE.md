@@ -34,9 +34,9 @@ This layering prevents the same query, validation, or curation logic from being 
 
 ## Layering & Boundary Rules (Mechanically Checked)
 
-1. **Pure crates stay pure (`./mk local:check-wasm-pure`):**
+1. **Pure crates stay pure (`./mk check-wasm-pure`):**
    `lotus-model`, `lotus-query`, and `lotus-jsonld` have zero HTTP, clock, or async runtime dependencies and compile for `wasm32-unknown-unknown` in isolation. Because pure crates cannot read a clock, `SearchCriteria` has no `Default` — callers supply `year` via `SearchCriteria::up_to_year(year)`.
-2. **Transformation is separate from transport (`./mk local:check-wasm-search`):**
+2. **Transformation is separate from transport (`./mk check-wasm-search`):**
    `lotus-query` turns criteria into SPARQL strings and parses CSV bytes into model types. `lotus-search` owns endpoint selection, retry, QLever→WDQS fallback, and resolution over the `Http` trait (tested offline against [`Scripted`](../crates/lotus-search/src/testing.rs)). Crates that only need the `Http` trait (`lotus-curation`, `lotus-explore-core`, `lotus-export`) depend on `lotus-search` with `default-features = false` so `reqwest`/`tokio` are never pulled in unnecessarily.
 3. **Application core contains no UI framework (`./mk boundary`):**
    `lotus-explore-core` (and `lotus-export`, `lotus-server`) must never depend on or reference `dioxus`.

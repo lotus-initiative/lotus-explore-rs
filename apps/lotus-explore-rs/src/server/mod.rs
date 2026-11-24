@@ -12,6 +12,8 @@ mod state;
 mod types;
 
 #[cfg(test)]
+mod characterization_tests;
+#[cfg(test)]
 mod tests;
 
 use axum::{

@@ -9,7 +9,7 @@ Ordered migration plan implementing [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) ag
 | Step | Scope | Key Findings | Status | Verification | Rollback Point |
 | --- | --- | --- | --- | --- | --- |
 | **1a** | Phase 0 audit, target architecture, plan, session log | Baseline | `[x]` | `./mk test-fast -E 'test(repo_hygiene)' && ./mk typos && ./mk refquiem` | `7b88120` |
-| **1b** | Characterization / golden tests across query, export, server API | Rule 1 | `[ ]` | `./mk gate` | Commit 1 |
+| **1b** | Characterization / golden tests across query, export, server API | Rule 1 | `[x]` | `./mk gate` | Commit 1 |
 | **2** | Consolidate `lotus-model` (`Qid`/`Doi`, endpoints, normalizers), remove `lotus_model::*` wildcard, `lotus-curation` `default-features = false` | F3, F6 | `[ ]` | `./mk gate && ./mk deny && ./mk machete && ./mk echoes && ./mk refquiem && ./mk doc` | Commit 2 |
 | **3** | Extract `crates/lotus-export` (bulk ETL) from `lotus-explore-core`; decouple `lotus-cli` | F2, F5, F6 | `[ ]` | `./mk gate && ./mk deny && ./mk machete && ./mk echoes && ./mk refquiem && ./mk doc && ./mk local:boundary` | Commit 3 |
 | **4** | Unify API DTOs; extract `crates/lotus-server` from `apps/lotus-explore-rs` | F1, F4, F5, F6 | `[ ]` | `./mk gate && ./mk local:lint-native-builds && ./mk local:lint-wasm && ./mk test && ./mk deny && ./mk machete && ./mk echoes && ./mk refquiem && ./mk doc` | Commit 4 |

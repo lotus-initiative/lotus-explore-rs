@@ -37,3 +37,15 @@
   - Introduce zero new external dependencies; implement deterministic seeded property-test helpers directly in workspace test modules.
 - **Open questions:**
   - Check whether `lotus-cli` still needs any dependency on `lotus-explore-core` once `lotus-export` is extracted (appears removable).
+
+### Step 1b — Characterization Tests
+- **Files added/edited:**
+  - `crates/lotus-query/tests/characterization_query_surface.rs`
+  - `crates/lotus-explore-core/tests/characterization_exports.rs`
+  - `apps/lotus-explore-rs/src/server/characterization_tests.rs` (wired in `server/mod.rs`)
+  - `docs/ARCHITECTURE.md` (fixed `./mk check-wasm-pure` / `./mk check-wasm-search` task syntax for `doc_links`)
+- **Tests added:**
+  - 3 query/rewriter/exporter characterization tests (`six_base_query_shapes_match_pinned_contracts`, `query_rewriters_preserve_exact_semantics`, `row_exporter_formats_are_stable`)
+  - 4 export/DTO characterization tests (`pipeline_produces_exact_frozen_csv_and_metadata`, `write_archive_produces_deterministic_manifest_and_checksums`, `api_dto_wire_contract_is_pinned`, `metadata_and_filename_are_pinned`)
+  - 3 HTTP API wire/schema characterization tests (`health_and_openapi_schemas_pin_expected_fields`, `search_request_accepts_both_canonical_and_legacy_aliases`, `export_file_missing_cache_key_returns_400_json_error`)
+- **Decisions:** Pinned exact observed wire/CSV/JSON/SPARQL outputs rather than guessed substrings.
