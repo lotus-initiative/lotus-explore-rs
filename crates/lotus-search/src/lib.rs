@@ -39,17 +39,12 @@ pub use execute::{
     execute_streaming_with_fallback, execute_with_fallback, fetch_url, html_title,
 };
 pub use result::{ColumnarSearchResult, SearchRequest, SearchResult, TaxonNote, TaxonResolution};
-// Re-exported from `lotus-model` rather than from `search`, where it used to be a
-// second and wrong implementation. The reasoning is on the import in
-// `search.rs`; the short version is that the copy read an `InChIKey` as two
-// hyphen-separated blocks instead of three and so rejected every real one.
-pub use lotus_model::looks_like_inchikey;
 pub use search::{
     DEFAULT_ROW_LIMIT, ResolvedInputs, SearchError, StreamProgress, StructurePlan,
     StructureResolution, build_base_query, build_execution_query, build_execution_query_with,
     columnar_from_chunks, columnar_from_chunks_reporting, counts, enrich_columnar_reader,
-    feed_chunks_reporting, is_qid, normalize_structure, resolve_inputs, resolve_reference,
-    resolve_structure, resolve_taxon, search, search_columnar, standardize_taxon_name,
+    feed_chunks_reporting, resolve_inputs, resolve_reference, resolve_structure, resolve_taxon,
+    search, search_columnar,
 };
 
 #[cfg(feature = "reqwest")]
@@ -59,17 +54,7 @@ pub mod reqwest_client;
 #[cfg_attr(docsrs, doc(cfg(feature = "testing")))]
 pub mod testing;
 
-pub use lotus_model::*;
-
-/// `QLever`'s Wikidata endpoint. Faster than WDQS, and the default.
-pub const QLEVER_WIKIDATA: &str = "https://qlever.dev/api/wikidata";
-
-/// The Wikidata Query Service (v2, `QLever`-backed), used when `QLever` is unreachable.
-pub const WDQS_WIKIDATA: &str = "https://query-next.wikidata.org/sparql";
-
-/// WDQS v2's scholarly subgraph, which carries the reference properties P1476, P356
-/// and P577 that the main endpoint does not host locally.
-pub const WDQS_SCHOLARLY: &str = "https://query-scholarly-next.wikidata.org/sparql";
+pub use lotus_model::{QLEVER_WIKIDATA, WDQS_SCHOLARLY, WDQS_WIKIDATA};
 
 /// How this client identifies itself to `QLever` (`api-user-agent`) and native
 /// HTTP targets including Wikimedia's REST Gateway (`User-Agent`).

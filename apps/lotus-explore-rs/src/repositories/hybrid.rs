@@ -8,7 +8,7 @@ use crate::repositories::{LotusRepository, RepositoryError};
 use crate::sparql::wdqs_download_query;
 use crate::sparql::{self, FetchError, ResponseFormat};
 use lotus_model::ColumnarResultSet;
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 use std::cell::RefCell;
 
 thread_local! {

@@ -449,7 +449,7 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
         let trimmed = args.taxon.trim();
         let resolved = if trimmed.is_empty() || trimmed == "*" {
             None
-        } else if lotus_search::is_qid(trimmed) {
+        } else if lotus_model::is_qid(trimmed) {
             Some(trimmed.to_ascii_uppercase())
         } else {
             // A name has to be looked up to become a QID, and looking it up is
@@ -472,7 +472,7 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
         // printing the query would print a search for every reported compound and
         // present it as the query for the reference that was typed.
         let reference = criteria.reference.trim();
-        if !reference.is_empty() && !lotus_search::is_qid(reference) {
+        if !reference.is_empty() && !lotus_model::is_qid(reference) {
             anyhow::bail!(
                 "--explain does not resolve a DOI to its QID, because that needs \
                  the network. Pass a Wikidata QID (--reference Q23118), or drop \
@@ -482,10 +482,10 @@ async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
         // An exact structure search resolves a non-QID structure to a compound first,
         // and that resolution needs the network this flag avoids, so the printed
         // query is the pre-resolution one. Bare QIDs seed `VALUES ?c` directly.
-        let structure = lotus_search::normalize_structure(&criteria.structure);
+        let structure = lotus_model::normalize_structure(&criteria.structure);
         let mut resolved_inputs = lotus_search::ResolvedInputs::default();
         if !structure.is_empty() && criteria.structure_search == SmilesSearchType::Exact {
-            if lotus_search::is_qid(&structure) {
+            if lotus_model::is_qid(&structure) {
                 resolved_inputs
                     .compounds
                     .push(structure.to_ascii_uppercase());

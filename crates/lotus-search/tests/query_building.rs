@@ -12,10 +12,8 @@
 #![allow(unused_crate_dependencies)]
 #![allow(clippy::indexing_slicing)]
 
-use lotus_model::{SearchCriteria, SmilesSearchType};
-use lotus_search::{
-    ResolvedInputs, SearchRequest, build_execution_query_with, normalize_structure,
-};
+use lotus_model::{SearchCriteria, SmilesSearchType, normalize_structure};
+use lotus_search::{ResolvedInputs, SearchRequest, build_execution_query_with};
 
 const fn request(criteria: SearchCriteria) -> SearchRequest {
     SearchRequest::new(criteria, 2026)

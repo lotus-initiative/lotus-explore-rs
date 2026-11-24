@@ -14,7 +14,7 @@
 use super::*;
 use crate::api::SearchResponse;
 use crate::repositories::RepositoryError;
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 
 #[derive(Clone)]
 struct StubRepo {

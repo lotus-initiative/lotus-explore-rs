@@ -10,7 +10,7 @@
 //! derived from the stamp by this module, which is a string operation and
 //! needs no clock of its own.
 
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 
 fn export_search_type_suffix(criteria: &SearchCriteria) -> Option<&'static str> {
     (!criteria.structure.trim().is_empty()).then(|| criteria.structure_search.as_str())

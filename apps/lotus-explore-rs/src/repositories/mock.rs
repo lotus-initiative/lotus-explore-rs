@@ -14,7 +14,7 @@
 
 use crate::api::SearchResponse;
 use crate::repositories::{LotusRepository, RepositoryError};
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 
 /// Test-only mock repository for unit tests without network dependencies.
 #[derive(Clone)]

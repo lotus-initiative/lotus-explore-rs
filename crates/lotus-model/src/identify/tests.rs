@@ -155,3 +155,36 @@ fn normalize_doi_strips_doi_scheme_and_dx_resolver_prefixes() {
         "a bare doi: prefix with no identifier has no DOI"
     );
 }
+
+#[test]
+fn a_taxon_name_is_standardised_before_it_is_looked_up() {
+    assert_eq!(standardize_taxon_name("gentiana_lutea"), "Gentiana lutea");
+    assert_eq!(standardize_taxon_name("Gentiana_lutea"), "Gentiana lutea");
+    assert_eq!(standardize_taxon_name("gentiana lutea"), "Gentiana lutea");
+    assert_eq!(
+        standardize_taxon_name("gentiana LUTEA"),
+        "Gentiana LUTEA",
+        "only the genus is recased"
+    );
+    assert_eq!(standardize_taxon_name("gentianella"), "Gentianella");
+    assert_eq!(standardize_taxon_name(""), "");
+    assert_eq!(standardize_taxon_name("   "), "   ");
+    assert_eq!(
+        standardize_taxon_name("_"),
+        " ",
+        "an underscore becomes a space, and a lone underscore has no genus to recase"
+    );
+}
+
+#[test]
+fn a_bare_qid_is_recognised_and_nothing_else_is() {
+    assert!(is_qid("Q16521"));
+    assert!(is_qid("q16521"), "a lower-case q is still a QID");
+    assert!(!is_qid("Q"), "a lone Q is a search term, not an identifier");
+    assert!(!is_qid("q"), "nor in lower case");
+    assert!(!is_qid(""), "nor is an empty string");
+    assert!(!is_qid("Q16521a"), "nor a QID with a suffix");
+    assert!(!is_qid("P16521"), "a property is not an entity");
+    assert!(!is_qid("Q-16521"), "nor a QID with a sign");
+    assert!(!is_qid("Gentiana lutea"), "nor a name");
+}

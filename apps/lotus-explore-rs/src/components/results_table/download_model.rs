@@ -3,8 +3,8 @@
 //! Pure model helpers for results-toolbar download actions.
 
 use crate::i18n::TextKey;
+use lotus_model::SearchCriteria;
 use lotus_query::ExportFormat as DownloadFormat;
-use lotus_search::SearchCriteria;
 
 const QLEVER_UI: &str = "https://qlever.dev/wikidata";
 const WDQS_UI: &str = "https://query-next.wikidata.org";

@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use lotus_explore_core::explore::search_state::ExploreState;
+use lotus_model::SearchCriteria;
 use lotus_query::ExportFormat as DownloadFormat;
-use lotus_search::SearchCriteria;
 use std::sync::Arc;
 
 /// Narrow view of download readiness state to avoid repeating complex queries.

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Pure URL codec for explore state.
 
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 use std::collections::BTreeMap;
 
 mod criteria;

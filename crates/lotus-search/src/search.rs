@@ -15,7 +15,10 @@ use crate::error::{FetchError, ResponseFormat};
 use crate::result::{
     ColumnarSearchResult, SearchRequest, SearchResult, TaxonNote, TaxonResolution,
 };
-use lotus_model::{DatasetStats, SearchCriteria, SmilesSearchType, ValidationError};
+use lotus_model::{
+    DatasetStats, SearchCriteria, SmilesSearchType, ValidationError, is_qid, normalize_structure,
+    standardize_taxon_name,
+};
 use lotus_query::{
     CsvColumnarReader, parse_compounds_csv_capped, parse_counts_csv, parse_taxon_csv,
 };
@@ -57,21 +60,6 @@ impl StructurePlan {
             threshold: criteria.structure_threshold,
             is_molfile,
         })
-    }
-}
-
-/// Unify line endings, and trim anything that is not a molfile.
-#[must_use]
-pub fn normalize_structure(value: &str) -> String {
-    let unified = if value.contains('\r') {
-        value.replace("\r\n", "\n").replace('\r', "\n")
-    } else {
-        value.to_string()
-    };
-    if lotus_model::classify_structure(&unified).is_molfile() {
-        unified
-    } else {
-        unified.trim().to_string()
     }
 }
 
@@ -271,39 +259,6 @@ pub async fn resolve_taxon<H: Http>(http: &H, input: &str) -> Result<TaxonResolu
         looked_up,
         notes,
     })
-}
-
-/// A bare QID, uppercase or not. At least one digit, so a lone `Q` is a search
-/// term rather than an identifier.
-#[must_use]
-pub fn is_qid(value: &str) -> bool {
-    !value.is_empty()
-        && value.trim().len() == value.len()
-        && lotus_model::looks_like_reference_qid(value)
-}
-
-/// The name to look up: underscores become spaces, and the genus is
-/// capitalised, because taxon names arrive from spreadsheets in both shapes.
-#[must_use]
-pub fn standardize_taxon_name(input: &str) -> String {
-    let replaced = input.replace('_', " ");
-    let mut words = replaced.split_whitespace();
-    let Some(genus) = words.next() else {
-        return replaced;
-    };
-    let mut chars = genus.chars();
-    let mut out = String::with_capacity(replaced.len());
-    if let Some(c) = chars.next() {
-        out.extend(c.to_uppercase());
-        for c in chars {
-            out.extend(c.to_lowercase());
-        }
-    }
-    for word in words {
-        out.push(' ');
-        out.push_str(word);
-    }
-    out
 }
 
 /// The QID to filter on: an exact name match if there is one, else the first

@@ -14,8 +14,8 @@ use crate::i18n::{TextKey, t};
 use crate::perf;
 use crate::state::use_results_context;
 use dioxus::prelude::*;
+use lotus_model::SearchCriteria;
 use lotus_query::ExportFormat as DownloadFormat;
-use lotus_search::SearchCriteria;
 use std::sync::Arc;
 
 // `criteria_snapshot` is used on WASM only (threaded into the download

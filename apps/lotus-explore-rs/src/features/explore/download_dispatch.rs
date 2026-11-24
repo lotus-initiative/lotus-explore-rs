@@ -16,7 +16,7 @@ use lotus_explore_core::explore::actions::ExploreAction;
 use lotus_explore_core::explore::command::SearchCommand;
 use lotus_explore_core::explore::search_state::ExploreState;
 use lotus_explore_core::explore::types::{DomainError, ValidationFault};
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 // Only the browser arm hands rows to the in-memory export; a desktop write goes
 // back to the endpoint and never reads them.
 #[cfg(target_arch = "wasm32")]

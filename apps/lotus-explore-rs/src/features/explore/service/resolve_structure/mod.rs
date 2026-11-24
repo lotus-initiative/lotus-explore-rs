@@ -83,7 +83,7 @@ pub struct StructureResolution {
 /// exact-compound notices.
 #[must_use]
 pub fn passthrough_structure(input: &str) -> StructureResolution {
-    let normalized = lotus_search::normalize_structure(input);
+    let normalized = lotus_model::normalize_structure(input);
     if normalized.trim().is_empty() {
         return StructureResolution {
             resolved: ResolvedStructure::unresolved(""),
@@ -109,7 +109,7 @@ pub async fn resolve<R: LotusRepository>(
     repo: &R,
     metrics: &mut SearchMetrics,
 ) -> Result<StructureResolution, DomainError> {
-    let normalized = lotus_search::normalize_structure(input);
+    let normalized = lotus_model::normalize_structure(input);
     let trimmed = normalized.trim();
     if trimmed.is_empty() {
         return Ok(StructureResolution {

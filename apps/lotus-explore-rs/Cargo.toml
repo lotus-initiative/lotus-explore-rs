@@ -50,7 +50,7 @@ sha2 = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-dioxus-ssr = { version = "=0.7.10", default-features = false }
+dioxus-ssr = { workspace = true }
 futures = { workspace = true, features = ["executor"] }
 lotus-search = { workspace = true, features = ["testing"] }
 tower = { workspace = true }

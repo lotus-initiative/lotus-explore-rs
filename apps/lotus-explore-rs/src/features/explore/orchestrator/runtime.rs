@@ -22,7 +22,7 @@ use lotus_explore_core::explore::request::SearchRequest;
 use lotus_explore_core::explore::search_state::ExploreState;
 use lotus_explore_core::explore::service::finalize;
 use lotus_explore_core::explore::types::DomainError;
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 use std::time::Duration;
 
 const MAX_RETRIES: u32 = 3;

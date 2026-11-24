@@ -15,7 +15,7 @@
 use lotus_model::looks_like_inchikey;
 
 /// `QLever`'s public Wikidata SPARQL endpoint, the default for every bulk export.
-pub const QLEVER_WIKIDATA: &str = "https://qlever.dev/api/wikidata";
+pub use lotus_model::QLEVER_WIKIDATA;
 
 /// Wikidata's entity IRI prefix, stripped to recover a bare QID.
 pub const WIKIDATA_ENTITY_PREFIX: &str = "http://www.wikidata.org/entity/";

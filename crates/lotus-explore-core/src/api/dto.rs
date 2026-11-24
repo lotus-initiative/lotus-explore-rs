@@ -114,7 +114,7 @@ impl SearchRequest {
         year: u16,
     ) -> Self {
         let taxon = criteria.taxon.trim();
-        let smiles = lotus_search::normalize_structure(&criteria.structure);
+        let smiles = lotus_model::normalize_structure(&criteria.structure);
         let has_smiles = !smiles.is_empty();
         let formula_exact = criteria.formula_exact.trim();
 

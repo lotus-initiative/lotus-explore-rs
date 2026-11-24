@@ -3,8 +3,8 @@
 //! The tests for `build_query`, in their own file.
 
 use super::*;
+use lotus_model::SearchCriteria;
 use lotus_model::SmilesSearchType;
-use lotus_search::SearchCriteria;
 
 /// The year the tests pin. The core has no clock, so the year is an argument.
 const YEAR: u16 = 2026;

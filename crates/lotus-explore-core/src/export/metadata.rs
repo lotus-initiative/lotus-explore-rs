@@ -3,9 +3,11 @@
 
 use super::filters::criteria_to_filters_value;
 use lotus_jsonld::{Profile, edam, result_dataset_url};
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
+
+pub use lotus_model::SparqlEndpoint;
 
 /// The version the metadata document reports.
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -14,48 +16,9 @@ pub const APP_NAME: &str = "LOTUS Explorer";
 /// From the manifest, so the URL is declared once for the whole workspace.
 pub const APP_URL: &str = env!("CARGO_PKG_REPOSITORY");
 /// The endpoint the searches normally run against.
-pub const QLEVER_ENDPOINT: &str = "https://qlever.dev/api/wikidata";
+pub const QLEVER_ENDPOINT: &str = lotus_model::QLEVER_WIKIDATA;
 /// The endpoint the searches fall back to.
-pub const WDQS_ENDPOINT: &str = "https://query-next.wikidata.org/sparql";
-
-/// Represents the SPARQL endpoint used for a query.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum SparqlEndpoint {
-    /// `QLever` endpoint (default/preferred)
-    #[default]
-    Qlever,
-    /// Wikidata Query Service (fallback when `QLever` is unavailable)
-    Wdqs,
-}
-
-impl std::fmt::Display for SparqlEndpoint {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Qlever => write!(f, "QLever"),
-            Self::Wdqs => write!(f, "Wikidata Query Service"),
-        }
-    }
-}
-
-impl SparqlEndpoint {
-    /// The endpoint's URL, name and description, as the metadata document
-    /// reports them.
-    #[must_use]
-    pub const fn info(self) -> (&'static str, &'static str, &'static str) {
-        match self {
-            Self::Qlever => (
-                QLEVER_ENDPOINT,
-                "QLever Wikidata",
-                "Fast SPARQL endpoint for Wikidata (QLever)",
-            ),
-            Self::Wdqs => (
-                WDQS_ENDPOINT,
-                "Wikidata Query Service",
-                "Wikidata Query Service (QLever fallback)",
-            ),
-        }
-    }
-}
+pub const WDQS_ENDPOINT: &str = lotus_model::WDQS_WIKIDATA;
 
 #[derive(Serialize)]
 struct Organization<'a> {

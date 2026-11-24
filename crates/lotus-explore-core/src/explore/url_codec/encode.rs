@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 
 /// Build a shareable `/search?...` URL for `criteria`, or `None` when the
 /// criteria are all defaults.

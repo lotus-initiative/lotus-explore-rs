@@ -11,7 +11,7 @@ use std::fmt::Write as _;
 /// capitalized, and the remaining words are preserved.
 #[must_use]
 pub fn sanitize_taxon_input(taxon: &str) -> String {
-    lotus_search::standardize_taxon_name(taxon)
+    lotus_model::standardize_taxon_name(taxon)
 }
 
 /// Compute the query hash and the result hash for a search.

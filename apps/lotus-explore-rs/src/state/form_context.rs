@@ -4,7 +4,7 @@
 
 use dioxus::prelude::*;
 use lotus_explore_core::explore::form_actions::{FormAction, apply_form_action_mut};
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 
 #[derive(Clone, Copy)]
 pub struct FormCriteriaContext {

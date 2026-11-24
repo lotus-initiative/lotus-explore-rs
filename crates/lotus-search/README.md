@@ -9,12 +9,18 @@ two-method `Http` trait, so the whole use case including the fallback path is
 testable offline against a script of canned answers.
 
 ```rust
-use lotus_search::{is_qid, normalize_structure, standardize_taxon_name};
+use lotus_model::SearchCriteria;
+use lotus_search::{SearchRequest, build_execution_query};
 
-assert!(is_qid("Q131841"));
-assert!(!is_qid("Gentiana lutea"), "that is a name to look up");
-assert_eq!(normalize_structure("  CCO  "), "CCO");
-assert_eq!(standardize_taxon_name("  gentiana lutea "), "Gentiana lutea");
+let req = SearchRequest::new(
+    SearchCriteria {
+        taxon: "Q158572".into(),
+        ..SearchCriteria::up_to_year(2026)
+    },
+    2026,
+);
+let sparql = build_execution_query(&req, Some("Q158572"));
+assert!(sparql.contains("wd:Q158572"));
 ```
 
 See the [root README](../../README.md) for the crates and how they fit together.

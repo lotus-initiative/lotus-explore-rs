@@ -2,65 +2,8 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The tests for `search`, in their own file.
 
-use super::{build_base_query, is_ambiguous, is_qid, standardize_taxon_name};
+use super::{build_base_query, is_ambiguous};
 use lotus_model::{SearchCriteria, SmilesSearchType, TaxonMatch, TaxonNameSource};
-
-/// Underscores become spaces and the genus is capitalised, because taxon names
-/// arrive from spreadsheets in both shapes.
-///
-/// Both halves matter independently: an underscored name finds nothing as typed,
-/// and a lower-case genus is a different string from the one Wikidata stores.
-/// Mutation testing could replace this function with an empty string or with a
-/// constant and the suite noticed neither, because no test fed it anything.
-#[test]
-fn a_taxon_name_is_standardised_before_it_is_looked_up() {
-    assert_eq!(standardize_taxon_name("gentiana_lutea"), "Gentiana lutea");
-    assert_eq!(standardize_taxon_name("Gentiana_lutea"), "Gentiana lutea");
-    assert_eq!(standardize_taxon_name("gentiana lutea"), "Gentiana lutea");
-
-    // Only the genus is touched: a species epithet keeps the case it was given,
-    // because Wikidata stores `lutea` in lower case but `GENTIANA` is not a word.
-    assert_eq!(
-        standardize_taxon_name("gentiana LUTEA"),
-        "Gentiana LUTEA",
-        "only the genus is recased"
-    );
-
-    // A single word is still a genus.
-    assert_eq!(standardize_taxon_name("gentianella"), "Gentianella");
-
-    // Nothing in, nothing out. Input with no word in it is handed back
-    // unchanged rather than trimmed to nothing: `resolve_taxon` trims the input
-    // *before* calling this, so a blank box never reaches here, and a
-    // standardiser that silently rewrote blank input would be inventing a name
-    // the reader never typed.
-    assert_eq!(standardize_taxon_name(""), "");
-    assert_eq!(standardize_taxon_name("   "), "   ");
-    assert_eq!(
-        standardize_taxon_name("_"),
-        " ",
-        "an underscore becomes a space, and a lone underscore has no genus to recase"
-    );
-}
-
-/// A QID is a `Q` and at least one digit, and nothing looser.
-///
-/// The digit requirement is the interesting half: `Q` alone is a search term,
-/// and treating it as an identifier would send `wd:Q` to an endpoint that
-/// cannot answer it.
-#[test]
-fn a_bare_qid_is_recognised_and_nothing_else_is() {
-    assert!(is_qid("Q16521"));
-    assert!(is_qid("q16521"), "a lower-case q is still a QID");
-
-    assert!(!is_qid("Q"), "a lone Q is a search term, not an identifier");
-    assert!(!is_qid("q"), "nor in lower case");
-    assert!(!is_qid(""), "nor is an empty string");
-    assert!(!is_qid("Q16521a"), "nor a QID with a suffix");
-    assert!(!is_qid("P16521"), "a property is not an entity");
-    assert!(!is_qid("Q-16521"), "nor a QID with a sign");
-    assert!(!is_qid("Gentiana lutea"), "nor a name");
-}
 
 /// More than one candidate is ambiguous; exactly one is not.
 ///

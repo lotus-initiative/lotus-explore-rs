@@ -24,12 +24,11 @@ pub fn normalize_qid(value: &str) -> String {
 /// Extract the ASCII digit slice of a Wikidata QID, URI, or typed integer projection.
 ///
 /// Returns `None` for non-QIDs, blank nodes, or empty inputs without allocating.
-#[allow(
-    unreachable_pub,
-    reason = "identify is private; shared with sibling module columnar without widening public API"
+#[expect(
+    clippy::redundant_pub_crate,
+    reason = "private module cannot use `pub` because workspace denies `unreachable_pub`"
 )]
-#[must_use]
-pub fn strip_qid_digits(raw: &str) -> Option<&str> {
+pub(crate) fn strip_qid_digits(raw: &str) -> Option<&str> {
     let trimmed = raw.trim();
     // Both schemes, because Wikidata serves `http` and a mirror or a pasted
     // fixture can carry `https`, and dropping the second would turn a row that
@@ -105,13 +104,44 @@ pub fn non_empty(s: &str) -> Option<&str> {
     if t.is_empty() { None } else { Some(t) }
 }
 
+/// A bare QID, uppercase or not. At least one digit, so a lone `Q` is a search
+/// term rather than an identifier.
+#[must_use]
+pub fn is_qid(value: &str) -> bool {
+    !value.is_empty() && value.trim().len() == value.len() && crate::looks_like_reference_qid(value)
+}
+
+/// The name to look up: underscores become spaces, and the genus is
+/// capitalised, because taxon names arrive from spreadsheets in both shapes.
+#[must_use]
+pub fn standardize_taxon_name(input: &str) -> String {
+    let replaced = input.replace('_', " ");
+    let mut words = replaced.split_whitespace();
+    let Some(genus) = words.next() else {
+        return replaced;
+    };
+    let mut chars = genus.chars();
+    let mut out = String::with_capacity(replaced.len());
+    if let Some(c) = chars.next() {
+        out.extend(c.to_uppercase());
+        for c in chars {
+            out.extend(c.to_lowercase());
+        }
+    }
+    for word in words {
+        out.push(' ');
+        out.push_str(word);
+    }
+    out
+}
+
 /// Byte-level case-insensitive search. ASCII, because every needle here is an
 /// ASCII literal in a URL, DOI, or molfile marker.
-#[allow(
-    unreachable_pub,
-    reason = "identify is private; shared with sibling module structure without widening public API"
+#[expect(
+    clippy::redundant_pub_crate,
+    reason = "private module cannot use `pub` because workspace denies `unreachable_pub`"
 )]
-pub fn find_ascii_ci(haystack: &str, needle: &[u8]) -> Option<usize> {
+pub(crate) fn find_ascii_ci(haystack: &str, needle: &[u8]) -> Option<usize> {
     if needle.is_empty() {
         return None;
     }

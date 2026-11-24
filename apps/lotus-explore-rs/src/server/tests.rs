@@ -192,13 +192,13 @@ fn parses_comma_separated_cors_origins() {
 
 /// A molfile's newlines survive normalisation.
 ///
-/// Asserted against `lotus_search::normalize_structure` itself, the one
+/// Asserted against `lotus_model::normalize_structure` itself, the one
 /// implementation both front ends use; a molfile trimmed to one line is a molfile
 /// the structure service cannot read.
 #[test]
 fn normalized_structure_preserves_multiline_molfile() {
     let molfile = "\n  Mrv\n\n  0  0  0  0  0  0            999 V3000\nM  END\n";
-    let normalized = lotus_search::normalize_structure(molfile);
+    let normalized = lotus_model::normalize_structure(molfile);
     assert!(normalized.starts_with('\n'));
     assert!(normalized.contains("V3000"));
 }

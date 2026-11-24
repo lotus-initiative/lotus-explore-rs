@@ -11,7 +11,7 @@
 
 use crate::api::dto::SearchResponse;
 use lotus_model::ColumnarResultSet;
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::{Seek, Write};
 use std::sync::Arc;

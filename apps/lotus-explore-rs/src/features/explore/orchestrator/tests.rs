@@ -17,7 +17,7 @@ use lotus_explore_core::explore::outcome::SearchOutcome;
 use lotus_explore_core::explore::request::SearchRequest;
 use lotus_explore_core::explore::search_state::ExploreState;
 use lotus_explore_core::explore::types::{DomainError, ValidationFault};
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};

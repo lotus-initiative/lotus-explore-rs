@@ -233,3 +233,18 @@ pub fn classify_structure_input(text: &str) -> InputKind {
     }
     InputKind::Structure
 }
+
+/// Unify line endings, and trim anything that is not a molfile.
+#[must_use]
+pub fn normalize_structure(value: &str) -> String {
+    let unified = if value.contains('\r') {
+        value.replace("\r\n", "\n").replace('\r', "\n")
+    } else {
+        value.to_string()
+    };
+    if classify_structure(&unified).is_molfile() {
+        unified
+    } else {
+        unified.trim().to_string()
+    }
+}

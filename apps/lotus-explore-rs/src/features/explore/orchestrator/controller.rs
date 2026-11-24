@@ -4,7 +4,7 @@
 use crate::services::search_telemetry as telemetry;
 use dioxus::core::Task;
 use lotus_explore_core::explore::command::SearchCommand;
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 

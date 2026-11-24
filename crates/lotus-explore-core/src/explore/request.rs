@@ -4,7 +4,7 @@
 
 use crate::explore::actions::ExploreAction;
 use crate::explore::command::SearchCommand;
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 
 /// A search request: the criteria, why it was made, and its request token.
 #[derive(Clone, Debug, PartialEq)]

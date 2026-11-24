@@ -132,7 +132,7 @@ pub enum ArchiveError {
 }
 
 /// `QLever`'s public Wikidata SPARQL endpoint, the default for the archive.
-pub const DEFAULT_QLEVER_ENDPOINT: &str = "https://qlever.dev/api/wikidata";
+pub const DEFAULT_QLEVER_ENDPOINT: &str = lotus_model::QLEVER_WIKIDATA;
 
 /// SPARQL JSON response shape for the archive queries.
 #[derive(Deserialize)]

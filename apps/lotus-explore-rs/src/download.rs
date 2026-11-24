@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::perf;
 
 #[cfg(target_arch = "wasm32")]
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod local_file;

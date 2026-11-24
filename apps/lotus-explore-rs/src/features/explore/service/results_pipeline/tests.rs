@@ -9,7 +9,7 @@ use crate::repositories::mock::MockRepository;
 use lotus_explore_core::explore::ValidationFault;
 use lotus_explore_core::explore::command::SearchCommand;
 use lotus_explore_core::explore::request::SearchRequest;
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 
 #[test]
 fn download_only_builds_query_without_fetching_results() {

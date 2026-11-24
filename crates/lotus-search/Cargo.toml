@@ -27,7 +27,7 @@ reqwest = ["dep:futures", "dep:reqwest"]
 testing = []
 
 [dependencies]
-bytes = "1.12"
+bytes = { workspace = true }
 lotus-model = { workspace = true }
 lotus-query = { workspace = true }
 thiserror = { workspace = true }

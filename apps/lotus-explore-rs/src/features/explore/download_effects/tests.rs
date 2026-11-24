@@ -9,8 +9,8 @@ use super::metrics::{metrics_for_waiting_loading_phase, metrics_for_waiting_quer
 use super::startup::{StartupTriggerMode, should_trigger_startup_search};
 use crate::app_state::MetricsState;
 use lotus_explore_core::explore::search_state::ExploreState;
+use lotus_model::SearchCriteria;
 use lotus_query::ExportFormat as DownloadFormat;
-use lotus_search::SearchCriteria;
 
 /// The year the tests pin, so the filename they assert is the whole filename.
 const YEAR: u16 = 2026;

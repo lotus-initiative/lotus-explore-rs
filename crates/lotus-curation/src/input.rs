@@ -16,8 +16,8 @@
 //! for `taxon`, and `reference_doi` for `doi`. Only `name` and `smiles` are
 //! required: a row with no taxon and no DOI still has a compound to curate.
 
-use lotus_search::non_empty;
-pub use lotus_search::normalize_doi;
+use lotus_model::non_empty;
+pub use lotus_model::normalize_doi;
 
 use crate::{CurationError, CurationInputRow};
 

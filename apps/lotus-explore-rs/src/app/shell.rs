@@ -27,7 +27,7 @@ use crate::state::{
 use crate::ui::a11y_contract::{MAIN_PANEL_ID, PAGE_TITLE_ID, SKIP_TO_RESULTS_HREF};
 use dioxus::prelude::*;
 use lotus_explore_core::explore::ExploreState;
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 use std::sync::Arc;
 
 #[cfg(target_arch = "wasm32")]

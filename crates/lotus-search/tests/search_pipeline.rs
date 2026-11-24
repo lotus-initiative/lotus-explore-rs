@@ -176,12 +176,12 @@ async fn a_bare_qid_skips_the_lookup_entirely() {
 async fn a_lone_q_is_a_search_term_not_an_identifier() {
     // A QID has digits. Treating a bare `Q` as one would send a query the
     // endpoint cannot answer.
-    assert!(!lotus_search::is_qid("Q"));
-    assert!(!lotus_search::is_qid("q"));
-    assert!(lotus_search::is_qid("Q1"));
-    assert!(lotus_search::is_qid("q16521"));
-    assert!(!lotus_search::is_qid("Q12a3"));
-    assert!(!lotus_search::is_qid("Gentiana lutea"));
+    assert!(!lotus_model::is_qid("Q"));
+    assert!(!lotus_model::is_qid("q"));
+    assert!(lotus_model::is_qid("Q1"));
+    assert!(lotus_model::is_qid("q16521"));
+    assert!(!lotus_model::is_qid("Q12a3"));
+    assert!(!lotus_model::is_qid("Gentiana lutea"));
 }
 
 #[tokio::test]
@@ -196,7 +196,7 @@ async fn a_molfile_asked_for_as_similarity_runs_as_a_similarity_search() {
     let request = SearchRequest::new(
         SearchCriteria {
             structure: MOLFILE.into(),
-            structure_search: lotus_search::SmilesSearchType::Similarity,
+            structure_search: lotus_model::SmilesSearchType::Similarity,
             ..criteria("")
         },
         NOW,
@@ -223,7 +223,7 @@ async fn a_molfile_asked_for_as_substructure_still_runs_as_one() {
     let request = SearchRequest::new(
         SearchCriteria {
             structure: MOLFILE.into(),
-            structure_search: lotus_search::SmilesSearchType::Substructure,
+            structure_search: lotus_model::SmilesSearchType::Substructure,
             ..criteria("")
         },
         NOW,
@@ -249,7 +249,7 @@ async fn a_smiles_asked_for_as_similarity_keeps_its_cutoff() {
     let request = SearchRequest::new(
         SearchCriteria {
             structure: "c1ccccc1".into(),
-            structure_search: lotus_search::SmilesSearchType::Similarity,
+            structure_search: lotus_model::SmilesSearchType::Similarity,
             structure_threshold: 0.75,
             ..criteria("")
         },
@@ -649,7 +649,7 @@ async fn a_similarity_search_on_a_resolved_compound_sends_its_smiles_to_sachem()
     let request = SearchRequest::new(
         SearchCriteria {
             structure: "Berberine".into(),
-            structure_search: lotus_search::SmilesSearchType::Similarity,
+            structure_search: lotus_model::SmilesSearchType::Similarity,
             ..criteria("")
         },
         NOW,
@@ -680,7 +680,7 @@ async fn a_two_block_string_is_not_an_inchikey() {
     let http = Scripted::new(vec![(200, LOOKUP_CSV), (200, LOOKUP_CSV)]);
 
     assert!(
-        !lotus_search::looks_like_inchikey("DBOVHQOUSDWAPQ-WTONXPSSSA"),
+        !lotus_model::looks_like_inchikey("DBOVHQOUSDWAPQ-WTONXPSSSA"),
         "14 and 10 without the version block is not an InChIKey"
     );
 
@@ -1001,7 +1001,7 @@ async fn a_qid_in_the_structure_box_fetches_its_smiles_only_for_non_exact_search
         &http_exact,
         &SearchCriteria {
             structure: "q23118".into(),
-            structure_search: lotus_search::SmilesSearchType::Exact,
+            structure_search: lotus_model::SmilesSearchType::Exact,
             ..criteria("")
         },
     )
@@ -1016,7 +1016,7 @@ async fn a_qid_in_the_structure_box_fetches_its_smiles_only_for_non_exact_search
         &http_sim,
         &SearchCriteria {
             structure: "q23118".into(),
-            structure_search: lotus_search::SmilesSearchType::Similarity,
+            structure_search: lotus_model::SmilesSearchType::Similarity,
             ..criteria("")
         },
     )
@@ -1031,7 +1031,7 @@ async fn a_qid_in_the_structure_box_fetches_its_smiles_only_for_non_exact_search
         &http_missing,
         &SearchCriteria {
             structure: "Q999999999".into(),
-            structure_search: lotus_search::SmilesSearchType::Substructure,
+            structure_search: lotus_model::SmilesSearchType::Substructure,
             ..criteria("")
         },
     )

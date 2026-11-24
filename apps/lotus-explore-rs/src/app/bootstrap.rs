@@ -6,7 +6,7 @@ use crate::app_state::{AppState, DownloadState};
 use crate::features::explore::InitialUrlState;
 use crate::i18n::Locale;
 use lotus_explore_core::explore::ExploreState;
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 
 // Name mirrors the Dioxus `App{…}` component it feeds; `AppBootstrap` reads
 // naturally and renaming would obscure the shared `App` prefix convention.

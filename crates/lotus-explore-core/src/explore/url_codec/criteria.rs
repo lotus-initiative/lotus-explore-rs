@@ -158,7 +158,7 @@ pub fn criteria_query_params(criteria: &SearchCriteria, year_max: u16) -> QueryP
     }
 
     if !criteria.structure.trim().is_empty() {
-        let structure = lotus_search::normalize_structure(&criteria.structure);
+        let structure = lotus_model::normalize_structure(&criteria.structure);
         params.insert("structure".to_string(), structure);
         params.insert(
             "structure_search_type".to_string(),

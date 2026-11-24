@@ -9,7 +9,7 @@ use lotus_model::{SearchCriteria, SmilesSearchType};
 /// * Line endings are unified to `\n`.
 #[must_use]
 pub fn normalize_smiles(raw: &str) -> String {
-    lotus_search::normalize_structure(raw)
+    lotus_model::normalize_structure(raw)
 }
 
 /// What the structure field resolved to.

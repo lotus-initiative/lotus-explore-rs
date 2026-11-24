@@ -5,8 +5,8 @@
 #![allow(clippy::expect_used)]
 
 use super::*;
+use lotus_model::SearchCriteria;
 use lotus_model::{ColumnarResultSet, CompoundEntry};
-use lotus_search::SearchCriteria;
 use std::sync::Arc;
 
 /// The year the tests pin, so "is this year bound in the future?" has one

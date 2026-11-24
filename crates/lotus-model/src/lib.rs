@@ -16,9 +16,11 @@
 
 mod columnar;
 mod criteria;
+mod endpoints;
 mod entry;
 mod identify;
 mod percent;
+mod qid;
 mod reference;
 mod stats;
 mod structure;
@@ -30,15 +32,20 @@ pub use columnar::{
     Range, RawRow, SparseStrings, StatementId, contains_folded, folded, qid_text, write_qid,
 };
 pub use criteria::{SearchCriteria, TaxonNomenclature};
+pub use endpoints::{QLEVER_WIKIDATA, SparqlEndpoint, WDQS_SCHOLARLY, WDQS_WIKIDATA};
 pub use entry::{CompoundEntry, Rows, TaxonMatch, TaxonNameSource};
-pub use identify::{non_empty, normalize_doi, normalize_formula_subscripts, normalize_qid};
+pub use identify::{
+    is_qid, non_empty, normalize_doi, normalize_formula_subscripts, normalize_qid,
+    standardize_taxon_name,
+};
 pub use percent::{percent_decode, percent_encode};
+pub use qid::{Doi, InvalidDoiError, InvalidQidError, Qid};
 pub use reference::{looks_like_doi, looks_like_reference_qid, strip_doi_prefix};
 pub use stats::{DEFAULT_STRUCTURE_THRESHOLD, DatasetStats, ElementState, SmilesSearchType};
 pub use structure::{
     InputKind, REFERENCE_INPUT_EXAMPLES, STRUCTURE_INPUT_EXAMPLES, StructureKind,
     classify_structure, classify_structure_input, could_be_a_compound_name,
-    looks_like_a_compound_qid, looks_like_inchikey, names_a_compound,
+    looks_like_a_compound_qid, looks_like_inchikey, names_a_compound, normalize_structure,
 };
 pub use validate::{ValidationError, validate_criteria};
 

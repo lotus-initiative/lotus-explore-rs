@@ -4,7 +4,7 @@
 use crate::api::config::api_base_url;
 use lotus_explore_core::api::dto::{SearchRequest, SearchResponse};
 use lotus_explore_core::api::error::ApiClientError;
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 use std::time::Duration;

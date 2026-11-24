@@ -8,8 +8,8 @@ use super::{
     DOWNLOAD_QUERY_CSV_SPEC, DOWNLOAD_QUERY_JSON_SPEC, DOWNLOAD_QUERY_RDF_SPEC, SparqlEndpointUI,
     build_download_toolbar_model, build_download_toolbar_model_with_endpoint,
 };
+use lotus_model::SearchCriteria;
 use lotus_query::ExportFormat as DownloadFormat;
-use lotus_search::SearchCriteria;
 
 /// The year the tests pin, so the filename they assert is the whole filename.
 const YEAR: u16 = 2026;

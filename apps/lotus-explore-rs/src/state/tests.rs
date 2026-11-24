@@ -3,7 +3,7 @@
 //! The tests for `state`, in their own file.
 
 use lotus_explore_core::explore::{FormAction, apply_form_action};
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 
 #[test]
 fn apply_form_action_taxon_round_trips() {

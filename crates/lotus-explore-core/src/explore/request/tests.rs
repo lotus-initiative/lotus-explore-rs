@@ -6,7 +6,7 @@
 
 use super::SearchRequest;
 use crate::explore::command::SearchCommand;
-use lotus_search::SearchCriteria;
+use lotus_model::SearchCriteria;
 
 #[test]
 fn action_preserves_criteria_and_command() {
