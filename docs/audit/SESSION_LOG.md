@@ -172,8 +172,9 @@
 
 #### Mutation & Workspace Gate Verification
 - Targeted mutation sweep (`cargo mutants -p lotus-model -F filter.rs -- --locked`): `65 mutants tested in 9m: 65 caught` (0 missed, 0 unviable, 0 timeouts).
-- `./mk echoes`: `12 doctests (12 unique), 4710 functions (4694 unique), 0 duplicated groups, 11842 context blocks (3044 unique), 0 approximate groups, 0 dependency reuse opportunities (36 packages)`.
-- All workspace checks (`fmt-check`, `tombi-check`, `tombi-lint`, `typos`, `license-headers`, `check`, `lint`, `test-nextest`, `check-wasm-{pure,search,app}`, `lint-native-builds`, `lint-wasm`, `refquiem`, `doc`, workspace doctests) green prior to final doc commit; re-verified under `./mk ci`.
+- Full branch mutation closure (`./mk mutants-diff` + iterative `./mk mutants-diff --iterate`): started at 2,002 mutants (`206 missed, 1,573 caught, 221 unviable, 2 timeouts` across extracted crates and newly split files), killed survivors across `lotus-model`, `lotus-curation`, `lotus-query`, `lotus-explore-core`, `lotus-server`, and `lotus-cli`, documented 6 unobservable entrypoint/env/infinite-loop exclusions in `.cargo/mutants.toml` & `docs/DEBT.md`, and converged to `0 missed, 0 timeouts` (`6 mutants tested in 66s: 6 caught` on the final iteration).
+- `./mk echoes`: `12 doctests (12 unique), 4738 functions (4721 unique), 0 duplicated groups, 11887 context blocks (3064 unique), 0 approximate groups, 0 dependency reuse opportunities (36 packages)`.
+- `./mk commits` (`7b88120..HEAD`), `./mk ci-core`, `./mk local:{license-headers,check,lint-native-builds,boundary,lint-wasm,metadata,opt-levels}`, and `./mk mutants-diff --iterate` all exited 0 cleanly on `HEAD`.
 
 #### End-of-Refactor vs Baseline (`7b88120`) Metrics
 

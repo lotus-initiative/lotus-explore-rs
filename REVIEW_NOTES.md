@@ -40,8 +40,9 @@ These notes guide human review of the refactor from baseline commit `7b88120` to
    - Further decomposition of browser OPFS/streaming interop must respect the textual assertions in `opfs_write_stream.rs`, `opfs_availability_gate.rs`, and `streaming_gate.rs`.
 2. **Transitive dependency version splits from Dioxus 0.7 (`docs/DEBT.md`)**
    - `Cargo.toml` retains `[workspace.lints.clippy] multiple_crate_versions = "allow"`, paired with the 11 audited skips in `deny.toml` (`block-buffer`, `const-serialize*`, `cpufeatures`, `crypto-common`, `digest`, `getrandom`, `rustc-hash`, `sha2`, `syn`, `wasm-streams`). Re-audit when upgrading Dioxus.
-3. **Target-conditional `apps/lotus-explore-rs` lint exceptions (`docs/DEBT.md`)**
+3. **Target-conditional `apps/lotus-explore-rs` lint exceptions & mutation exclusions (`docs/DEBT.md`)**
    - `clippy::empty_enums` in `apps/lotus-explore-rs/src/main.rs` (Dioxus `Props` macro under clippy 1.100), `unreachable_code` on `mod route_table` in `src/app/routes.rs`, and `unreachable_pub` on `mod modules` in `build.rs` (compiled both standalone and inside `build_test.rs`).
+   - `.cargo/mutants.toml` carries `10` documented `exclude_re` entries (4 baseline + 6 for `fetch_assets`/`lotus-server` `main`/`run` entrypoints, `execute_qlever_csv_bytes` live-HTTP adapter, `archive_cmd` `std::env::var` wrappers covered via `_from` closures, and `RowExporter::next_chunk` non-`None` timeout). All remaining branch mutants converge to `0 missed, 0 timeouts` under `./mk mutants-diff --iterate`.
 4. **Full multi-million-row sort scaling**
    - `bench_sort_scaling` shows sub-40 ns/row up to 1M rows (21.1 ms at 1M) and 1,002–1,429 ns/row at 2M–2.99M rows (`2.0s` / `4.3s`). Worth profiling dictionary collation caching separately if interactive client-side sorts above 1M rows become common.
 
