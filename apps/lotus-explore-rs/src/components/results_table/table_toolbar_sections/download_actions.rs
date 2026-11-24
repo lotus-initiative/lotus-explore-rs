@@ -95,8 +95,7 @@ fn spawn_query_download(
         #[cfg(not(target_arch = "wasm32"))]
         let browser = BrowserDownload;
 
-        let outcome: Result<String, String> =
-            execute_download(format, browser, query, filename).await;
+        let outcome = execute_download(format, browser, query, filename).await;
 
         match &outcome {
             Ok(_) => log::info!(
@@ -110,7 +109,7 @@ fn spawn_query_download(
         }
         // On desktop the message is the path written to: a window has no download
         // shelf, so without it the UI looks like the click did nothing.
-        *download_notice.write() = Some(outcome.unwrap_or_else(|e| e));
+        *download_notice.write() = Some(outcome.unwrap_or_else(|e| e.to_string()));
         *download_busy.write() = false;
         *download_status.write() = None;
     });
@@ -156,7 +155,7 @@ fn dispatch_metadata_download_blob(
     let outcome = trigger_download(filename, "application/ld+json", body);
     *download_notice.write() = Some(match &outcome {
         Ok(()) => filename.to_string(),
-        Err(e) => e.clone(),
+        Err(e) => e.to_string(),
     });
     if let Err(e) = outcome {
         log::error!("event=download phase=table_dispatch state=error format=metadata reason={e}");

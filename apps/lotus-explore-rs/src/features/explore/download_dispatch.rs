@@ -200,7 +200,7 @@ pub fn use_download_dispatch_effect(
                     let browser = BrowserDownload;
 
                     if let Err(err) = execute_download(format, browser, query, filename).await {
-                        telemetry::download_dispatch_error(format.log_name(), &err);
+                        telemetry::download_dispatch_error(format.log_name(), &err.to_string());
                     }
                     dispatch_explore_action(explore, ExploreAction::DownloadDispatchFinished);
                 });

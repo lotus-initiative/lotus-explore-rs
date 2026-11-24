@@ -66,14 +66,55 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Why preloading the shipped wasm module failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum PreloadError {
+    ReadGlue {
+        path: std::path::PathBuf,
+        message: String,
+    },
+    NoWasmModule {
+        dir: std::path::PathBuf,
+    },
+    AmbiguousWasmModules {
+        dir: std::path::PathBuf,
+        candidates: String,
+    },
+    NoAnchor,
+}
+
+impl std::fmt::Display for PreloadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ReadGlue { path, message } => {
+                write!(f, "cannot read the JS glue {}: {message}", path.display())
+            }
+            Self::NoWasmModule { dir } => write!(
+                f,
+                "the glue names no .wasm that exists in {}/assets — is the bundle built?",
+                dir.display()
+            ),
+            Self::AmbiguousWasmModules { dir, candidates } => write!(
+                f,
+                "the glue names several modules present in {}/assets ({candidates}); refusing to guess",
+                dir.display()
+            ),
+            Self::NoAnchor => {
+                f.write_str("no <link rel=\"preload\" as=\"script\"> or <script type=\"module\">")
+            }
+        }
+    }
+}
+
+impl std::error::Error for PreloadError {}
+
 /// The exact module the shipped glue will fetch.
-fn find_wasm_module(dir: &Path, glue_name: &str) -> Result<String, String> {
+fn find_wasm_module(dir: &Path, glue_name: &str) -> Result<String, PreloadError> {
     let assets = dir.join("assets");
-    let glue = fs::read_to_string(assets.join(glue_name)).map_err(|err| {
-        format!(
-            "cannot read the JS glue {}: {err}",
-            assets.join(glue_name).display()
-        )
+    let glue_path = assets.join(glue_name);
+    let glue = fs::read_to_string(&glue_path).map_err(|err| PreloadError::ReadGlue {
+        path: glue_path,
+        message: err.to_string(),
     })?;
 
     let mut named: Vec<String> = glue
@@ -100,15 +141,13 @@ fn find_wasm_module(dir: &Path, glue_name: &str) -> Result<String, String> {
 
     match named.len() {
         1 => Ok(named.swap_remove(0)),
-        0 => Err(format!(
-            "the glue names no .wasm that exists in {}/assets — is the bundle built?",
-            dir.display()
-        )),
-        _ => Err(format!(
-            "the glue names several modules present in {}/assets ({}); refusing to guess",
-            dir.display(),
-            named.join(", ")
-        )),
+        0 => Err(PreloadError::NoWasmModule {
+            dir: dir.to_path_buf(),
+        }),
+        _ => Err(PreloadError::AmbiguousWasmModules {
+            dir: dir.to_path_buf(),
+            candidates: named.join(", "),
+        }),
     }
 }
 
@@ -118,11 +157,11 @@ fn find_wasm_module(dir: &Path, glue_name: &str) -> Result<String, String> {
 /// Split out of `main` because the offset arithmetic is where this goes wrong:
 /// inserted at the anchor rather than after it, a `<link>` lands in the middle of
 /// the tag it is meant to precede and the preload is silently dropped.
-fn insert_after_anchor(html: &str, link: &str) -> Result<String, String> {
+fn insert_after_anchor(html: &str, link: &str) -> Result<String, PreloadError> {
     let at = [GLUE_PRELOAD, MODULE_SCRIPT]
         .into_iter()
         .find_map(|needle| html.find(needle))
-        .ok_or("no <link rel=\"preload\" as=\"script\"> or <script type=\"module\">")?;
+        .ok_or(PreloadError::NoAnchor)?;
     // The newline is included, so the link starts a line rather than continuing
     // the anchor's. A document with no newline after the anchor gets the link
     // appended, which is still after it.

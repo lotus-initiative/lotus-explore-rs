@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
+use super::DownloadError;
 use super::SinkPreference;
 use super::file_sink::{FileSink, OpfsSink, opfs_available, take_file_sink};
 use crate::api;
@@ -39,7 +40,7 @@ pub(super) async fn execute_download_from_rows(
     set: &ColumnarResultSet,
     filename: &str,
     dl_timer: perf::TimerHandle,
-) -> Result<(), String> {
+) -> Result<(), DownloadError> {
     let safe = crate::upload::sanitize_filename(filename);
     let rows = set.row_count();
     log::info!(
@@ -190,9 +191,12 @@ impl Sink {
         }
     }
 
-    async fn write(&mut self, chunk: &[u8]) -> Result<(), String> {
+    async fn write(&mut self, chunk: &[u8]) -> Result<(), DownloadError> {
         match self {
-            Self::Unwritable { rows, limit } => Err(super::blob_path_message(*rows, *limit)),
+            Self::Unwritable { rows, limit } => Err(DownloadError::InMemoryLimit {
+                rows: *rows,
+                limit: *limit,
+            }),
             Self::File(file) => file.write(chunk).await,
             Self::Opfs(file) => file.write(chunk).await,
             Self::Blob(chunks) => {
@@ -203,9 +207,9 @@ impl Sink {
     }
 
     /// Close the file, or assemble the Blob and hand it to the browser.
-    async fn finish(self, filename: &str, mime: &str) -> Result<(), String> {
+    async fn finish(self, filename: &str, mime: &str) -> Result<(), DownloadError> {
         match self {
-            Self::Unwritable { rows, limit } => Err(super::blob_path_message(rows, limit)),
+            Self::Unwritable { rows, limit } => Err(DownloadError::InMemoryLimit { rows, limit }),
             Self::File(file) => file.close().await,
             Self::Opfs(file) => {
                 // `close` flushes and seals the entry; `hand_to_browser` then reads it
@@ -214,9 +218,9 @@ impl Sink {
                 file.close().await?;
                 file.hand_to_browser(filename, mime).await
             }
-            Self::Blob(chunks) => {
-                crate::upload::download_byte_chunks_as_blob(&chunks, filename, "", mime)
-            }
+            Self::Blob(chunks) => Ok(crate::upload::download_byte_chunks_as_blob(
+                &chunks, filename, "", mime,
+            )?),
         }
     }
 }
@@ -227,7 +231,7 @@ pub(super) async fn execute_download_wasm(
     query: Arc<str>,
     filename: String,
     dl_timer: perf::TimerHandle,
-) -> Result<(), String> {
+) -> Result<(), DownloadError> {
     // The API export is tried first, unconditionally.
     //
     // It used to be gated behind `!is_wdqs_fallback_used()`, which meant that any
@@ -299,7 +303,7 @@ async fn qlever_route(
     query: Arc<str>,
     filename: String,
     dl_timer: perf::TimerHandle,
-) -> Result<(), String> {
+) -> Result<(), DownloadError> {
     if is_wdqs_fallback_used() {
         log::warn!(
             "event=download format={} phase=fetch state=wdqs_fallback fallback=true",
@@ -334,7 +338,7 @@ async fn execute_download_wasm_wdqs(
     query: Arc<str>,
     filename: String,
     dl_timer: perf::TimerHandle,
-) -> Result<(), String> {
+) -> Result<(), DownloadError> {
     // For simple reference queries, use scholarly endpoint directly without transformation
     let (endpoint, wdqs_query) = wdqs_download_query(&query);
 
@@ -348,7 +352,7 @@ async fn execute_download_wasm_wdqs(
     let mut body =
         crate::sparql::execute_sparql_chunks_at(&prepared_query, endpoint, response_format)
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| DownloadError::Network(e.to_string()))?;
 
     // Copied into the JS heap per chunk, with the Rust buffer dropped before the
     // next is read. `with_capacity` is a guess: a chunk per read is typical, and
@@ -363,7 +367,7 @@ async fn execute_download_wasm_wdqs(
                 "event=download format={} phase=stream state=failed collected_bytes={bytes} error={e}",
                 format.log_name()
             );
-            e.to_string()
+            DownloadError::Network(e.to_string())
         })?;
 
         // `None` is the end of the body, which is how this loop ends. An empty
@@ -406,7 +410,7 @@ async fn execute_download_wasm_wdqs(
     let trigger_timer = perf::start_timer(&export_trigger_timer_label(format));
     if let Err(e) = crate::upload::download_byte_chunks_as_blob(&chunks, &filename, "", mime) {
         log::error!("download failed: filename={filename} mime={mime} error={e}");
-        return Err(e);
+        return Err(e.into());
     }
     let trigger_elapsed = perf::end_timer(&export_trigger_timer_label(format), trigger_timer);
     perf::log_timing(
@@ -434,7 +438,7 @@ async fn execute_download_wasm_browser_post(
     query: Arc<str>,
     filename: String,
     dl_timer: perf::TimerHandle,
-) -> Result<(), String> {
+) -> Result<(), DownloadError> {
     let prepared_query = format.prepared_query(query.as_ref());
     let action = format.qlever_action().to_string();
 

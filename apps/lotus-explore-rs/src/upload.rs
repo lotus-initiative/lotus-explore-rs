@@ -31,12 +31,32 @@ pub struct ExtractedFile {
     pub blob: UploadBlob,
 }
 
-/// Blob read error.
-#[derive(Debug, thiserror::Error)]
+/// Blob and download helper error.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum UploadError {
     /// A JS call failed.
     #[error("blob read error: {0}")]
     UploadBlob(String),
+
+    /// Failed to create a browser Blob or object URL.
+    #[cfg(target_arch = "wasm32")]
+    #[error("{0}")]
+    BlobCreate(String),
+
+    /// Failed to create or interact with a DOM download element.
+    #[cfg(target_arch = "wasm32")]
+    #[error("{0}")]
+    Dom(String),
+
+    /// Selected browser file cannot be inspected via `web_sys::File`.
+    #[cfg(target_arch = "wasm32")]
+    #[error("This file type is not supported in the browser.")]
+    UnsupportedFileType,
+
+    /// Selected browser file cannot be cast to a `Blob`.
+    #[cfg(target_arch = "wasm32")]
+    #[error("Unable to read the selected file as a blob.")]
+    NotABlob,
 
     /// App-level validation error, raised by the native stubs.
     #[cfg(not(target_arch = "wasm32"))]
@@ -180,7 +200,7 @@ impl UploadBlobLines {
 )]
 pub fn extract_blob_from_file_data(
     files: &[dioxus::html::FileData],
-) -> Result<Option<ExtractedFile>, String> {
+) -> Result<Option<ExtractedFile>, UploadError> {
     #[cfg(target_arch = "wasm32")]
     {
         use wasm_bindgen::JsCast;
@@ -191,13 +211,13 @@ pub fn extract_blob_from_file_data(
         };
 
         let Some(web_file) = file.inner().downcast_ref::<WebFile>() else {
-            return Err("This file type is not supported in the browser.".to_string());
+            return Err(UploadError::UnsupportedFileType);
         };
 
         let blob = web_file
             .clone()
             .dyn_into::<UploadBlob>()
-            .map_err(|_| "Unable to read the selected file as a blob.".to_string())?;
+            .map_err(|_| UploadError::NotABlob)?;
         Ok(Some(ExtractedFile { blob }))
     }
 
@@ -249,7 +269,7 @@ pub fn sanitize_filename(input: &str) -> String {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn blob_url_from_str(content: &str, mime: &str) -> Result<String, String> {
+fn blob_url_from_str(content: &str, mime: &str) -> Result<String, UploadError> {
     let parts = Array::new();
     parts.push(&JsValue::from_str(content));
 
@@ -259,9 +279,10 @@ fn blob_url_from_str(content: &str, mime: &str) -> Result<String, String> {
         UploadBlob::new_with_str_sequence_and_options(&parts, &options)
             .or_else(|_| UploadBlob::new_with_str_sequence(&parts))
     };
-    let blob = blob.map_err(|e| format!("failed to create blob: {e:?}"))?;
+    let blob =
+        blob.map_err(|e| UploadError::BlobCreate(format!("failed to create blob: {e:?}")))?;
     Url::create_object_url_with_blob(&blob)
-        .map_err(|e| format!("failed to create object URL: {e:?}"))
+        .map_err(|e| UploadError::BlobCreate(format!("failed to create object URL: {e:?}")))
 }
 
 /// Download bytes that arrived in pieces, as `{filename}{extension}` with `mime`.
@@ -279,14 +300,14 @@ fn blob_url_from_str(content: &str, mime: &str) -> Result<String, String> {
 /// this code controls.
 ///
 /// # Errors
-/// Returns a message if the download cannot be triggered.
+/// Returns an [`UploadError`] if the download cannot be triggered.
 #[cfg(target_arch = "wasm32")]
 pub fn download_byte_chunks_as_blob(
     chunks: &[js_sys::Uint8Array],
     filename: &str,
     extension: &str,
     mime: &str,
-) -> Result<(), String> {
+) -> Result<(), UploadError> {
     let safe_name = if extension.is_empty() {
         sanitize_filename(filename)
     } else {
@@ -308,25 +329,25 @@ pub fn download_byte_chunks_as_blob(
         UploadBlob::new_with_buffer_source_sequence_and_options(&parts, &options)
             .or_else(|_| UploadBlob::new_with_buffer_source_sequence(&parts))
     }
-    .map_err(|e| format!("failed to create blob: {e:?}"))?;
+    .map_err(|e| UploadError::BlobCreate(format!("failed to create blob: {e:?}")))?;
 
     let url = Url::create_object_url_with_blob(&blob)
-        .map_err(|e| format!("failed to create object URL: {e:?}"))?;
+        .map_err(|e| UploadError::BlobCreate(format!("failed to create object URL: {e:?}")))?;
     click_download_anchor(&url, &safe_name, false)
         .map(|_| ())
-        .map_err(|e| format!("download failed: {e}"))
+        .map_err(|e| UploadError::Dom(format!("download failed: {e}")))
 }
 
 /// Download `content` as `{filename}{extension}` with `mime`.
 /// # Errors
-/// Returns a message if the download cannot be triggered.
+/// Returns an [`UploadError`] if the download cannot be triggered.
 #[cfg(target_arch = "wasm32")]
 pub fn download_text_as_blob(
     content: &str,
     filename: &str,
     extension: &str,
     mime: &str,
-) -> Result<(), String> {
+) -> Result<(), UploadError> {
     let safe_name = if extension.is_empty() {
         sanitize_filename(filename)
     } else {
@@ -340,7 +361,7 @@ pub fn download_text_as_blob(
     let url = blob_url_from_str(content, mime)?;
     click_download_anchor(&url, &safe_name, false)
         .map(|_| ())
-        .map_err(|e| format!("download failed: {e}"))
+        .map_err(|e| UploadError::Dom(format!("download failed: {e}")))
 }
 
 /// Triggers a browser download of a URL: a `QLever` export URL, a remote file.
@@ -357,14 +378,16 @@ pub fn download_url(url: &str, filename: &str) -> bool {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn click_download_anchor(href: &str, filename: &str, new_tab: bool) -> Result<bool, String> {
-    let window = web_sys::window().ok_or("no window object")?;
-    let document = window.document().ok_or("no document object")?;
+fn click_download_anchor(href: &str, filename: &str, new_tab: bool) -> Result<bool, UploadError> {
+    let window = web_sys::window().ok_or_else(|| UploadError::Dom("no window object".into()))?;
+    let document = window
+        .document()
+        .ok_or_else(|| UploadError::Dom("no document object".into()))?;
     let anchor: HtmlAnchorElement = document
         .create_element("a")
-        .map_err(|e| format!("failed to create anchor: {e:?}"))?
+        .map_err(|e| UploadError::Dom(format!("failed to create anchor: {e:?}")))?
         .dyn_into::<HtmlAnchorElement>()
-        .map_err(|e| format!("failed to cast anchor: {e:?}"))?;
+        .map_err(|e| UploadError::Dom(format!("failed to cast anchor: {e:?}")))?;
 
     anchor.set_href(href);
     anchor.set_download(filename);
@@ -373,9 +396,11 @@ fn click_download_anchor(href: &str, filename: &str, new_tab: bool) -> Result<bo
         anchor.set_target("_blank");
     }
 
-    let body = document.body().ok_or("no document body")?;
+    let body = document
+        .body()
+        .ok_or_else(|| UploadError::Dom("no document body".into()))?;
     body.append_child(&anchor)
-        .map_err(|e| format!("failed to append anchor: {e:?}"))?;
+        .map_err(|e| UploadError::Dom(format!("failed to append anchor: {e:?}")))?;
     anchor.click();
     let _ = body.remove_child(&anchor);
 
@@ -384,17 +409,22 @@ fn click_download_anchor(href: &str, filename: &str, new_tab: bool) -> Result<bo
 
 /// POST a hidden form to download; for payloads too large for GET.
 /// # Errors
-/// Returns a message if the form cannot be created or submitted.
+/// Returns an [`UploadError`] if the form cannot be created or submitted.
 #[cfg(target_arch = "wasm32")]
-pub async fn submit_download_form(endpoint: &str, fields: &[(&str, &str)]) -> Result<(), String> {
-    let window = web_sys::window().ok_or("no window object")?;
-    let document = window.document().ok_or("no document object")?;
+pub async fn submit_download_form(
+    endpoint: &str,
+    fields: &[(&str, &str)],
+) -> Result<(), UploadError> {
+    let window = web_sys::window().ok_or_else(|| UploadError::Dom("no window object".into()))?;
+    let document = window
+        .document()
+        .ok_or_else(|| UploadError::Dom("no document object".into()))?;
 
     let form = document
         .create_element("form")
-        .map_err(|e| format!("failed to create form: {e:?}"))?
+        .map_err(|e| UploadError::Dom(format!("failed to create form: {e:?}")))?
         .dyn_into::<web_sys::HtmlFormElement>()
-        .map_err(|e| format!("failed to cast form: {e:?}"))?;
+        .map_err(|e| UploadError::Dom(format!("failed to cast form: {e:?}")))?;
     form.set_method("POST");
     form.set_action(endpoint);
     form.set_target("_blank");
@@ -404,21 +434,23 @@ pub async fn submit_download_form(endpoint: &str, fields: &[(&str, &str)]) -> Re
     for (name, value) in fields {
         let input = document
             .create_element("input")
-            .map_err(|e| format!("failed to create input {name}: {e:?}"))?
+            .map_err(|e| UploadError::Dom(format!("failed to create input {name}: {e:?}")))?
             .dyn_into::<web_sys::HtmlInputElement>()
-            .map_err(|e| format!("failed to cast input {name}: {e:?}"))?;
+            .map_err(|e| UploadError::Dom(format!("failed to cast input {name}: {e:?}")))?;
         input.set_type("hidden");
         input.set_name(name);
         input.set_value(value);
         form.append_child(&input)
-            .map_err(|e| format!("failed to append input {name}: {e:?}"))?;
+            .map_err(|e| UploadError::Dom(format!("failed to append input {name}: {e:?}")))?;
     }
 
-    let body = document.body().ok_or("no document body")?;
+    let body = document
+        .body()
+        .ok_or_else(|| UploadError::Dom("no document body".into()))?;
     body.append_child(&form)
-        .map_err(|e| format!("failed to append form: {e:?}"))?;
+        .map_err(|e| UploadError::Dom(format!("failed to append form: {e:?}")))?;
     form.submit()
-        .map_err(|e| format!("failed to submit form: {e:?}"))?;
+        .map_err(|e| UploadError::Dom(format!("failed to submit form: {e:?}")))?;
     let _ = body.remove_child(&form);
 
     // Awaited only to yield one browser turn so the submit takes effect.

@@ -40,6 +40,7 @@
 
 use std::cell::RefCell;
 
+use super::DownloadError;
 use js_sys::Reflect;
 use wasm_bindgen::{JsCast as _, JsValue};
 use wasm_bindgen_futures::JsFuture;
@@ -160,14 +161,15 @@ impl FileSink {
     ///
     /// The `await` belongs to the caller: this is sync glue around two promises, and
     /// making it `async` here would hide which of them can reject.
-    pub async fn open(picker: Picker) -> Result<Self, String> {
+    pub async fn open(picker: Picker) -> Result<Self, DownloadError> {
         let handle = JsFuture::from(picker)
             .await
             .map_err(|error| describe_js_error("the save dialog", &error))?;
 
         let create: Result<JsValue, _> = Reflect::get(&handle, &"createWritable".into());
-        let create = create
-            .map_err(|_| "the browser exposed no way to write the chosen file".to_string())?;
+        let create = create.map_err(|_| {
+            DownloadError::Browser("the browser exposed no way to write the chosen file".into())
+        })?;
         let create: js_sys::Function = create.unchecked_into();
         let writable = create
             .call0(&handle)
@@ -178,9 +180,9 @@ impl FileSink {
 
     /// Append one chunk. Resolves when the bytes are handed over, not when they land on
     /// the platter — which is what keeps the producer from running ahead of the disk.
-    pub async fn write(&self, chunk: &[u8]) -> Result<(), String> {
+    pub async fn write(&self, chunk: &[u8]) -> Result<(), DownloadError> {
         let write: js_sys::Function = Reflect::get(&self.writable, &"write".into())
-            .map_err(|_| "the open file is not writable".to_string())?
+            .map_err(|_| DownloadError::Browser("the open file is not writable".into()))?
             .unchecked_into();
         let array = js_sys::Uint8Array::from(chunk);
         let written: js_sys::Promise = write
@@ -197,9 +199,9 @@ impl FileSink {
     ///
     /// Failing here is a real failure even though every byte was written: without the
     /// close the file is left truncated, so this must not be reported as success.
-    pub async fn close(self) -> Result<(), String> {
+    pub async fn close(self) -> Result<(), DownloadError> {
         let close: js_sys::Function = Reflect::get(&self.writable, &"close".into())
-            .map_err(|_| "the open file cannot be closed".to_string())?
+            .map_err(|_| DownloadError::Browser("the open file cannot be closed".into()))?
             .unchecked_into();
         let closed: js_sys::Promise = close
             .call0(&self.writable)
@@ -213,7 +215,7 @@ impl FileSink {
 }
 
 /// A rejection worth putting in a log line.
-fn describe_js_error(what: &str, error: &JsValue) -> String {
+fn describe_js_error(what: &str, error: &JsValue) -> DownloadError {
     // `AbortError` is the user pressing Escape in the save dialog. Worth naming,
     // because it is the one rejection that is entirely expected and not a defect.
     let name = Reflect::get(error, &"name".into())
@@ -221,7 +223,7 @@ fn describe_js_error(what: &str, error: &JsValue) -> String {
         .and_then(|name| name.as_string())
         .unwrap_or_default();
     if name == "AbortError" {
-        return "the save dialog was cancelled".to_string();
+        return DownloadError::Browser("the save dialog was cancelled".into());
     }
     // An `ErrorEvent` stringifies to `"[object Error]"`, which tells nobody anything.
     // `message` is the part worth having; fall back to the name when there is none.
@@ -230,9 +232,9 @@ fn describe_js_error(what: &str, error: &JsValue) -> String {
         .and_then(|message| message.as_string())
         .unwrap_or_else(|| name.clone());
     if name.is_empty() {
-        format!("{what} failed: {detail}")
+        DownloadError::Browser(format!("{what} failed: {detail}"))
     } else {
-        format!("{what} failed: {name}: {detail}")
+        DownloadError::Browser(format!("{what} failed: {name}: {detail}"))
     }
 }
 
@@ -285,7 +287,7 @@ pub struct OpfsSink {
 
 impl OpfsSink {
     /// Open a temporary file in the exports directory and keep it writable.
-    pub async fn open(filename: &str) -> Result<Self, String> {
+    pub async fn open(filename: &str) -> Result<Self, DownloadError> {
         // The previous export goes now, not on a timer: by this point the browser is
         // finished with it, and the origin's quota is what a large export runs into.
         discard_previous_export().await;
@@ -314,10 +316,13 @@ impl OpfsSink {
         // code rather than a browser that cannot do it. There is already a capability
         // probe for `getDirectory` above; this is the second half of it, because a
         // browser can have OPFS and still not be able to write to a file in it.
-        let create = Reflect::get(&handle, &"createWritable".into())
-            .map_err(|_| "the export file cannot be opened for writing".to_string())?;
+        let create = Reflect::get(&handle, &"createWritable".into()).map_err(|_| {
+            DownloadError::Browser("the export file cannot be opened for writing".into())
+        })?;
         if !create.is_function() {
-            return Err("this browser has private storage but cannot write to it".to_string());
+            return Err(DownloadError::Browser(
+                "this browser has private storage but cannot write to it".into(),
+            ));
         }
         let create: js_sys::Function = create.unchecked_into();
         let pending = create
@@ -337,9 +342,9 @@ impl OpfsSink {
         })
     }
 
-    pub async fn write(&self, chunk: &[u8]) -> Result<(), String> {
+    pub async fn write(&self, chunk: &[u8]) -> Result<(), DownloadError> {
         let write: js_sys::Function = Reflect::get(&self.writable, &"write".into())
-            .map_err(|_| "the temporary export is not writable".to_string())?
+            .map_err(|_| DownloadError::Browser("the temporary export is not writable".into()))?
             .unchecked_into();
         let array = js_sys::Uint8Array::from(chunk);
         let written: js_sys::Promise = write
@@ -356,9 +361,9 @@ impl OpfsSink {
     ///
     /// Takes `&self` rather than `self` because [`OpfsSink::hand_to_browser`] needs the
     /// name afterwards to read the file back and delete it.
-    pub async fn close(&self) -> Result<(), String> {
+    pub async fn close(&self) -> Result<(), DownloadError> {
         let close: js_sys::Function = Reflect::get(&self.writable, &"close".into())
-            .map_err(|_| "the temporary export cannot be closed".to_string())?
+            .map_err(|_| DownloadError::Browser("the temporary export cannot be closed".into()))?
             .unchecked_into();
         let closed: js_sys::Promise = close
             .call0(&self.writable)
@@ -377,13 +382,13 @@ impl OpfsSink {
     /// rather than out of the tab's heap. Handing it the accumulated chunks instead
     /// would put the whole export back in memory, which is the case this exists to
     /// survive.
-    pub async fn hand_to_browser(&self, filename: &str, mime: &str) -> Result<(), String> {
+    pub async fn hand_to_browser(&self, filename: &str, mime: &str) -> Result<(), DownloadError> {
         let root = opfs_root().await?;
         let exports = directory_handle(&root, EXPORTS_DIR, false).await?;
         let entry = file_handle(&exports, &self.name, false).await?;
 
         let get_file: js_sys::Function = Reflect::get(&entry, &"getFile".into())
-            .map_err(|_| "the finished export cannot be read back".to_string())?
+            .map_err(|_| DownloadError::Browser("the finished export cannot be read back".into()))?
             .unchecked_into();
         let pending: JsValue = get_file
             .call0(&entry)
@@ -410,9 +415,11 @@ impl OpfsSink {
         // the export has already been written to disk by the time this runs.
         let _ = mime;
         let blob = file.clone().dyn_into::<web_sys::Blob>().map_err(|_| {
-            "this browser returned something from the export file that is not a \
-             Blob, so the download cannot be prepared from it"
-                .to_string()
+            DownloadError::Browser(
+                "this browser returned something from the export file that is not a \
+                 Blob, so the download cannot be prepared from it"
+                    .into(),
+            )
         })?;
         let url = web_sys::Url::create_object_url_with_blob(&blob)
             .map_err(|error| describe_js_error("preparing the download", &error))?;
@@ -426,7 +433,9 @@ impl OpfsSink {
             // Nothing was started, so nothing will read it: this is the one case where
             // the temporary can go immediately.
             let _ = remove_entry(&exports, &self.name).await;
-            return Err("the browser refused to start the download".to_string());
+            return Err(DownloadError::Browser(
+                "the browser refused to start the download".into(),
+            ));
         }
 
         // The temporary goes, but only once the browser has actually taken the file.
@@ -465,14 +474,20 @@ const EXPORTS_DIR: &str = "lotus-exports";
     clippy::redundant_closure_for_method_calls,
     reason = "the method path clippy suggests does not compile; JsValue is private in js_sys"
 )]
-async fn opfs_root() -> Result<JsValue, String> {
+async fn opfs_root() -> Result<JsValue, DownloadError> {
     let storage = web_sys::window()
         .map(|window| window.navigator().storage())
-        .ok_or_else(|| "this browser exposes no origin private file system".to_string())?;
+        .ok_or_else(|| {
+            DownloadError::Browser("this browser exposes no origin private file system".into())
+        })?;
     let get_directory: js_sys::Function = Reflect::get(&storage, &"getDirectory".into())
         .ok()
         .filter(|value| value.is_function())
-        .ok_or_else(|| "this browser cannot write to the origin private file system".to_string())?
+        .ok_or_else(|| {
+            DownloadError::Browser(
+                "this browser cannot write to the origin private file system".into(),
+            )
+        })?
         .unchecked_into();
     let root: JsValue = get_directory
         .call0(&storage)
@@ -483,9 +498,13 @@ async fn opfs_root() -> Result<JsValue, String> {
 }
 
 /// `getDirectoryHandle(name, { create })` on `parent`.
-async fn directory_handle(parent: &JsValue, name: &str, create: bool) -> Result<JsValue, String> {
+async fn directory_handle(
+    parent: &JsValue,
+    name: &str,
+    create: bool,
+) -> Result<JsValue, DownloadError> {
     let get: js_sys::Function = Reflect::get(parent, &"getDirectoryHandle".into())
-        .map_err(|_| "private storage does not support directories".to_string())?
+        .map_err(|_| DownloadError::Browser("private storage does not support directories".into()))?
         .unchecked_into();
     let options = js_sys::Object::new();
     Reflect::set(
@@ -493,7 +512,7 @@ async fn directory_handle(parent: &JsValue, name: &str, create: bool) -> Result<
         &"create".into(),
         &wasm_bindgen::JsValue::from_bool(create),
     )
-    .map_err(|_| "could not describe the private-storage request".to_string())?;
+    .map_err(|_| DownloadError::Browser("could not describe the private-storage request".into()))?;
     let name_value = wasm_bindgen::JsValue::from_str(name);
     let handle: JsValue = get
         .call2(parent, &name_value, &options)
@@ -516,9 +535,9 @@ async fn directory_handle(parent: &JsValue, name: &str, create: bool) -> Result<
 /// only reached by the browsers without one. Firefox reaching it turned a defect
 /// that was everywhere into a defect that looked like a browser limitation, and the
 /// reader paid for it in refused exports.
-async fn file_handle(parent: &JsValue, name: &str, create: bool) -> Result<JsValue, String> {
+async fn file_handle(parent: &JsValue, name: &str, create: bool) -> Result<JsValue, DownloadError> {
     let get: js_sys::Function = Reflect::get(parent, &"getFileHandle".into())
-        .map_err(|_| "private storage does not support files".to_string())?
+        .map_err(|_| DownloadError::Browser("private storage does not support files".into()))?
         .unchecked_into();
     let options = js_sys::Object::new();
     Reflect::set(
@@ -526,7 +545,7 @@ async fn file_handle(parent: &JsValue, name: &str, create: bool) -> Result<JsVal
         &"create".into(),
         &wasm_bindgen::JsValue::from_bool(create),
     )
-    .map_err(|_| "could not describe the private-storage request".to_string())?;
+    .map_err(|_| DownloadError::Browser("could not describe the private-storage request".into()))?;
     let name_value = wasm_bindgen::JsValue::from_str(name);
     let handle: JsValue = get
         .call2(parent, &name_value, &options)
@@ -537,7 +556,7 @@ async fn file_handle(parent: &JsValue, name: &str, create: bool) -> Result<JsVal
 }
 
 /// `removeEntry(name, { recursive })`, ignoring a missing entry.
-async fn remove_entry(parent: &JsValue, name: &str) -> Result<(), String> {
+async fn remove_entry(parent: &JsValue, name: &str) -> Result<(), DownloadError> {
     let remove: js_sys::Function = match Reflect::get(parent, &"removeEntry".into()) {
         Ok(remove) => remove.unchecked_into(),
         Err(_) => return Ok(()),

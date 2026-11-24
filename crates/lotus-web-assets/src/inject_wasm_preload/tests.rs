@@ -178,7 +178,7 @@ fn a_hash_with_a_non_alphanumeric_character_is_not_a_hash() {
     dir.asset("x-y_z.wasm", "\0asm");
     let err = find_wasm_module(dir.path(), "index-abc123.js");
     assert!(
-        matches!(err, Err(ref e) if e.contains("names no .wasm")),
+        matches!(err, Err(ref e) if e.to_string().contains("names no .wasm")),
         "an unrecognised name is not a module, got {err:?}"
     );
 }
@@ -189,7 +189,7 @@ fn a_trailing_dash_is_not_a_hash() {
     dir.asset("app-.wasm", "\0asm");
     let err = find_wasm_module(dir.path(), "index-abc123.js");
     assert!(
-        matches!(err, Err(ref e) if e.contains("names no .wasm")),
+        matches!(err, Err(ref e) if e.to_string().contains("names no .wasm")),
         "an empty hash is not a hash, got {err:?}"
     );
 }
@@ -215,7 +215,8 @@ fn an_ambiguous_bundle_is_refused_rather_than_guessed() {
     dir.asset("lotus-aaaa1111.wasm", "\0asm");
     let err = find_wasm_module(dir.path(), "index-abc123.js");
     match err {
-        Err(e) => {
+        Err(err) => {
+            let e = err.to_string();
             assert!(e.contains("refusing to guess"), "unexpected message: {e}");
             assert!(
                 e.contains("lotus-aaaa1111.wasm"),
@@ -276,7 +277,7 @@ fn the_anchor_may_be_the_module_script_when_there_is_no_preload() {
 fn no_anchor_is_an_error_rather_than_a_silent_append() {
     let err = insert_after_anchor("  <p>nothing here</p>\n", "LINK");
     assert!(
-        matches!(err, Err(ref e) if e.contains("no <link")),
+        matches!(err, Err(ref e) if e.to_string().contains("no <link")),
         "got {err:?}"
     );
 }
@@ -286,7 +287,7 @@ fn missing_glue_is_an_error_not_an_empty_module() {
     let dir = TempDir::new("noglue");
     let err = find_wasm_module(dir.path(), "index-abc123.js");
     assert!(
-        matches!(err, Err(ref e) if e.contains("cannot read the JS glue")),
+        matches!(err, Err(ref e) if e.to_string().contains("cannot read the JS glue")),
         "got {err:?}"
     );
 }

@@ -51,7 +51,8 @@ fn a_missing_capability_is_reported_as_a_capability() {
 
 /// The export is a file, so it has to be asked for by the file-handle method.
 ///
-/// This sink could never open, anywhere. `OpfsSink::open` requested the export
+/// This sink could never open, anywhere. `OpfsSink::open` (now returning
+/// `Result<OpfsSink, DownloadError>`) requested the export
 /// through `getDirectoryHandle`, which does not fail for a name that is not a
 /// directory yet: it makes one. So the handle it got back had no
 /// `createWritable`, and the probe above reported "this browser has private

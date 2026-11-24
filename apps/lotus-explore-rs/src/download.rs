@@ -11,9 +11,11 @@ use crate::perf;
 #[cfg(target_arch = "wasm32")]
 use lotus_model::SearchCriteria;
 
+mod error;
 #[cfg(not(target_arch = "wasm32"))]
 mod local_file;
 
+pub use error::DownloadError;
 #[cfg(not(target_arch = "wasm32"))]
 pub use local_file::{open_externally, save_png_data_url};
 #[cfg(target_arch = "wasm32")]
@@ -190,7 +192,7 @@ pub async fn execute_download(
     #[cfg_attr(not(target_arch = "wasm32"), allow(unused_variables))] browser: BrowserDownload,
     query: Arc<str>,
     filename: String,
-) -> Result<String, String> {
+) -> Result<String, DownloadError> {
     let dl_timer = perf::start_timer(export_timer_label(format));
     log::info!("event=download format={} state=started", format.log_name());
 
@@ -233,7 +235,11 @@ pub async fn execute_download(
 /// the download and shows its own UI -- so the signature is uniform and the
 /// browser arm is allowed to be infallible.
 #[cfg_attr(target_arch = "wasm32", allow(clippy::unnecessary_wraps))]
-pub fn trigger_download(filename: &str, mime: &str, content_or_url: &str) -> Result<(), String> {
+pub fn trigger_download(
+    filename: &str,
+    mime: &str,
+    content_or_url: &str,
+) -> Result<(), DownloadError> {
     #[cfg(target_arch = "wasm32")]
     {
         wasm::trigger_download(filename, mime, content_or_url);

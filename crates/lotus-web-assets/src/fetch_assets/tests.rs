@@ -22,7 +22,9 @@ fn a_failure_names_the_fetch_that_failed() {
         url: Some("http://127.0.0.1:1/none.zip".to_owned()),
     };
 
-    let message = run(&client, &target).expect_err("the vendored host does not resolve");
+    let message = run(&client, &target)
+        .expect_err("the vendored host does not resolve")
+        .to_string();
 
     assert!(
         message.starts_with("could not vendor the curation assets"),

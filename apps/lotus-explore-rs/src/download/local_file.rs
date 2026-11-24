@@ -13,6 +13,7 @@
 use std::path::{Path, PathBuf};
 
 use super::super::upload::sanitize_filename;
+use super::DownloadError;
 
 /// Write `content` to a file in the user's download directory.
 ///
@@ -22,20 +23,22 @@ use super::super::upload::sanitize_filename;
 /// button that did nothing.
 ///
 /// # Errors
-/// Returns a message if the download directory cannot be determined or the file
-/// cannot be written.
-pub fn download_text(content: &str, filename: &str) -> Result<PathBuf, String> {
+/// Returns a [`DownloadError`] if the download directory cannot be determined or
+/// the file cannot be written.
+pub fn download_text(content: &str, filename: &str) -> Result<PathBuf, DownloadError> {
     download_bytes(content.as_bytes(), filename)
 }
 
 /// Write raw `bytes` to a file in the user's download directory.
 ///
 /// # Errors
-/// Returns a message if the download directory cannot be determined or the file
-/// cannot be written.
-pub fn download_bytes(bytes: &[u8], filename: &str) -> Result<PathBuf, String> {
+/// Returns a [`DownloadError`] if the download directory cannot be determined or
+/// the file cannot be written.
+pub fn download_bytes(bytes: &[u8], filename: &str) -> Result<PathBuf, DownloadError> {
     let dir = download_dir().ok_or_else(|| {
-        "no download directory could be determined; set LOTUS_DOWNLOAD_DIR".to_string()
+        DownloadError::Io(
+            "no download directory could be determined; set LOTUS_DOWNLOAD_DIR".to_string(),
+        )
     })?;
     download_bytes_in(&dir, bytes, filename)
 }
@@ -44,11 +47,11 @@ pub fn download_bytes(bytes: &[u8], filename: &str) -> Result<PathBuf, String> {
 /// download directory.
 ///
 /// # Errors
-/// Returns a message if the data URL is malformed or the file cannot be written.
-pub fn save_png_data_url(data_url: &str, filename: &str) -> Result<PathBuf, String> {
+/// Returns a [`DownloadError`] if the data URL is malformed or the file cannot be written.
+pub fn save_png_data_url(data_url: &str, filename: &str) -> Result<PathBuf, DownloadError> {
     let encoded = data_url
         .strip_prefix("data:image/png;base64,")
-        .ok_or_else(|| "expected a base64 PNG data URL".to_string())?;
+        .ok_or_else(|| DownloadError::InvalidInput("expected a base64 PNG data URL".to_string()))?;
     let bytes = decode_base64(encoded)?;
     download_bytes(&bytes, filename)
 }
@@ -57,15 +60,23 @@ pub fn save_png_data_url(data_url: &str, filename: &str) -> Result<PathBuf, Stri
 ///
 /// Split out so the write path can be tested without touching the process
 /// environment, which is shared state and unsafe to mutate from a parallel test.
-pub fn download_text_in(dir: &Path, content: &str, filename: &str) -> Result<PathBuf, String> {
+pub fn download_text_in(
+    dir: &Path,
+    content: &str,
+    filename: &str,
+) -> Result<PathBuf, DownloadError> {
     download_bytes_in(dir, content.as_bytes(), filename)
 }
 
 /// [`download_bytes`], writing into a directory the caller chose.
 ///
 /// # Errors
-/// Returns a message if writing fails.
-pub fn download_bytes_in(dir: &Path, bytes: &[u8], filename: &str) -> Result<PathBuf, String> {
+/// Returns a [`DownloadError`] if writing fails.
+pub fn download_bytes_in(
+    dir: &Path,
+    bytes: &[u8],
+    filename: &str,
+) -> Result<PathBuf, DownloadError> {
     // `sanitize_filename` strips path separators, so the name cannot escape `dir`.
     let name = sanitize_filename(filename);
     let name = if name.is_empty() {
@@ -75,7 +86,8 @@ pub fn download_bytes_in(dir: &Path, bytes: &[u8], filename: &str) -> Result<Pat
     };
 
     let path = unique_path(dir, &name);
-    std::fs::write(&path, bytes).map_err(|e| format!("failed to write {}: {e}", path.display()))?;
+    std::fs::write(&path, bytes)
+        .map_err(|e| DownloadError::Io(format!("failed to write {}: {e}", path.display())))?;
     log::info!(
         "event=download phase=write state=success path={}",
         path.display()
@@ -83,7 +95,7 @@ pub fn download_bytes_in(dir: &Path, bytes: &[u8], filename: &str) -> Result<Pat
     Ok(path)
 }
 
-fn decode_base64(input: &str) -> Result<Vec<u8>, String> {
+fn decode_base64(input: &str) -> Result<Vec<u8>, DownloadError> {
     let mut out = Vec::with_capacity((input.len() / 4) * 3);
     let mut acc = 0u32;
     let mut bits = 0u8;
@@ -97,7 +109,11 @@ fn decode_base64(input: &str) -> Result<Vec<u8>, String> {
             b'0'..=b'9' => byte - b'0' + 52,
             b'+' => 62,
             b'/' => 63,
-            _ => return Err(format!("invalid base64 byte: {byte}")),
+            _ => {
+                return Err(DownloadError::InvalidInput(format!(
+                    "invalid base64 byte: {byte}"
+                )));
+            }
         };
         acc = (acc << 6) | u32::from(val);
         bits += 6;
@@ -159,10 +175,12 @@ fn unique_path(dir: &Path, name: &str) -> PathBuf {
 /// # Errors
 /// Returns a message if the URL is not http(s) or the opener fails. Only http
 /// and https are accepted, because the URL is handed to an external program.
-pub fn open_externally(url: &str) -> Result<(), String> {
+pub fn open_externally(url: &str) -> Result<(), DownloadError> {
     let url = url.trim();
     if !(url.starts_with("https://") || url.starts_with("http://")) {
-        return Err(format!("refusing to open a non-http URL: {url}"));
+        return Err(DownloadError::InvalidInput(format!(
+            "refusing to open a non-http URL: {url}"
+        )));
     }
 
     let (program, args): (&str, &[&str]) = if cfg!(target_os = "macos") {
@@ -179,7 +197,7 @@ pub fn open_externally(url: &str) -> Result<(), String> {
         .args(args)
         .spawn()
         .map(|_| ())
-        .map_err(|e| format!("failed to run {program}: {e}"))
+        .map_err(|e| DownloadError::Io(format!("failed to run {program}: {e}")))
 }
 
 #[cfg(test)]

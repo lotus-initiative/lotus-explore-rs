@@ -139,3 +139,14 @@
   - `apps/lotus-explore-rs/src/components/results_graph/helpers.rs` → `src/components/results_graph/presentation.rs`
   - `apps/lotus-explore-rs/src/components/results_table/sort_helpers.rs` → inlined `aria_sort_for` & `sort_icon_for` into `src/components/results_table/header_model.rs` (`sort_helpers.rs` deleted)
   - `apps/lotus-explore-rs/src/i18n/helpers/` → `src/i18n/messages/`
+
+### Step 6b — Replace Remaining Production `Result<_, String>` with Typed Error Enums
+- **Typed error conversions across all crates & app targets (`0` production `Result<_, String>` signatures remaining):**
+  - `crates/lotus-cli/src/curate/mod.rs`: `parse_tsv` now returns `Result<Vec<Finding>, lotus_curation::CurationError>` directly.
+  - `crates/lotus-web-assets/src/inject_wasm_preload.rs`: introduced `PreloadError` (`Display` + `Error`, `Clone + PartialEq + Eq`) replacing `String` errors in `find_wasm_module` and `insert_after_anchor` (existing assertions preserved verbatim with `.to_string()`).
+  - `crates/lotus-web-assets/src/fetch_assets/mod.rs`: introduced `FetchAssetsError` (`Vendor` / `Ketcher`) replacing `Result<(), String>` in `run` (preserving existing test assertion verbatim via `.to_string()`).
+  - `apps/lotus-explore-rs/src/api/client.rs`: replaced `OnceLock<Result<reqwest::Client, String>>` / `build_http_client() -> Result<reqwest::Client, String>` with `#[derive(thiserror::Error)] struct ClientInitError(#[from] reqwest::Error)`.
+  - `apps/lotus-explore-rs/src/upload.rs`: extended `UploadError` with `#[cfg(target_arch = "wasm32")]` variants (`BlobCreate`, `Dom`, `UnsupportedFileType`, `NotABlob`) and converted `extract_blob_from_file_data`, `blob_url_from_str`, `download_byte_chunks_as_blob`, `download_text_as_blob`, `click_download_anchor`, and `submit_download_form` (updated `sections/mod.rs` caller).
+  - `apps/lotus-explore-rs/src/download/error.rs`: introduced `pub enum DownloadError` (`#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]` with `InvalidInput`, `Io`, `Network`, `Browser`, `InMemoryLimit`, `is_gateway_error()`, and `From<UploadError>`); converted `download.rs`, `download/{local_file,native,wasm,file_sink}.rs`, `download_actions.rs`, and `download_dispatch.rs` without touching OPFS/streaming source-shape gates (`opfs_write_stream.rs`, `opfs_availability_gate.rs`, `streaming_gate.rs`).
+- Marked Step 6 `[x]` in `docs/REFACTOR_PLAN.md`.
+- **Verification:** `lint-native-builds`, `lint-wasm`, `gate` (native + wasm checks, license headers, nextest, typos, fmt, tombi), `echoes` (0 duplicated/approximate/reuse groups), `refquiem` (clean), `doc`, and workspace `--doc` tests all green.

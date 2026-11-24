@@ -27,16 +27,33 @@ pub mod vendor;
 
 use reqwest::blocking::Client;
 
+/// Which half of asset fetching failed.
+#[derive(Debug)]
+enum FetchAssetsError {
+    Vendor(String),
+    Ketcher(String),
+}
+
+impl std::fmt::Display for FetchAssetsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Vendor(err) => write!(f, "could not vendor the curation assets: {err}"),
+            Self::Ketcher(err) => write!(f, "could not fetch Ketcher: {err}"),
+        }
+    }
+}
+
+impl std::error::Error for FetchAssetsError {}
+
 /// Fetch everything the web client needs, stopping at the first failure.
-fn run(client: &Client, target: &ketcher::KetcherTarget) -> Result<(), String> {
-    vendor::fetch_curation_assets(client)
-        .map_err(|e| format!("could not vendor the curation assets: {e}"))?;
-    ketcher::fetch_ketcher(client, target).map_err(|e| format!("could not fetch Ketcher: {e}"))
+fn run(client: &Client, target: &ketcher::KetcherTarget) -> Result<(), FetchAssetsError> {
+    vendor::fetch_curation_assets(client).map_err(|e| FetchAssetsError::Vendor(e.to_string()))?;
+    ketcher::fetch_ketcher(client, target).map_err(|e| FetchAssetsError::Ketcher(e.to_string()))
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::builder().build()?;
-    run(&client, &ketcher::KetcherTarget::from_env()).map_err(std::io::Error::other)?;
+    run(&client, &ketcher::KetcherTarget::from_env())?;
     Ok(())
 }
 

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
+use super::DownloadError;
 use crate::download::{export_timer_label, export_trigger_timer_label};
 use crate::perf;
 use crate::sparql;
@@ -15,14 +16,14 @@ pub(super) async fn execute_download_with_fallback(
     query: Arc<str>,
     filename: String,
     dl_timer: perf::TimerHandle,
-) -> Result<String, String> {
+) -> Result<String, DownloadError> {
     // First try QLever, fallback to WDQS on 502
     let result = execute_download_direct(format, query.as_ref()).await;
 
     match result {
         Ok(body) => finalize_download(format, "direct", &body, dl_timer, &filename),
         Err(e) => {
-            if e.contains("502") || e.contains("Bad Gateway") || e.contains("gateway") {
+            if e.is_gateway_error() {
                 log::warn!(
                     "event=download format={} phase=fetch state=fallback reason=qlever_502",
                     format.log_name()
@@ -30,7 +31,7 @@ pub(super) async fn execute_download_with_fallback(
                 // Retry with WDQS using scholarly subgraph query
                 execute_download_wdqs(format, query, filename, dl_timer).await
             } else {
-                handle_download_error(format, &e, dl_timer)
+                handle_download_error(format, e, dl_timer)
             }
         }
     }
@@ -43,7 +44,7 @@ async fn execute_download_wdqs_endpoint(
     endpoint: &str,
     filename: &str,
     dl_timer: perf::TimerHandle,
-) -> Result<String, String> {
+) -> Result<String, DownloadError> {
     let prepared = format.prepared_query(query);
     execute_sparql_with_format_download(
         format,
@@ -61,7 +62,7 @@ async fn execute_download_wdqs(
     query: Arc<str>,
     filename: String,
     dl_timer: perf::TimerHandle,
-) -> Result<String, String> {
+) -> Result<String, DownloadError> {
     let (endpoint, wdqs_query) = wdqs_download_query(&query);
     if endpoint == WDQS_SCHOLARLY {
         log::warn!(
@@ -80,7 +81,7 @@ fn finalize_download(
     body: &str,
     dl_timer: perf::TimerHandle,
     filename: &str,
-) -> Result<String, String> {
+) -> Result<String, DownloadError> {
     let fetch_elapsed = perf::end_timer(export_timer_label(format), dl_timer);
     perf::log_timing(
         "download",
@@ -118,9 +119,9 @@ fn finalize_download(
 
 fn handle_download_error(
     format: DownloadFormat,
-    error: &str,
+    error: DownloadError,
     dl_timer: perf::TimerHandle,
-) -> Result<String, String> {
+) -> Result<String, DownloadError> {
     let elapsed = perf::end_timer(export_timer_label(format), dl_timer);
     perf::log_timing(
         "download",
@@ -136,24 +137,27 @@ fn handle_download_error(
         format.log_name(),
         error
     );
-    Err(error.to_string())
+    Err(error)
 }
 
-async fn execute_download_direct(format: DownloadFormat, query: &str) -> Result<String, String> {
+async fn execute_download_direct(
+    format: DownloadFormat,
+    query: &str,
+) -> Result<String, DownloadError> {
     let prepared_query = format.prepared_query(query);
     match format {
         DownloadFormat::Csv => sparql::execute_query(&prepared_query)
             .await
-            .map_err(|e| e.to_string()),
+            .map_err(|e| DownloadError::Network(e.to_string())),
         DownloadFormat::Json => {
             sparql::execute_sparql_format(&prepared_query, LotusResponseFormat::SparqlJson)
                 .await
-                .map_err(|e| e.to_string())
+                .map_err(|e| DownloadError::Network(e.to_string()))
         }
         DownloadFormat::Rdf => {
             sparql::execute_sparql_format(&prepared_query, LotusResponseFormat::Turtle)
                 .await
-                .map_err(|e| e.to_string())
+                .map_err(|e| DownloadError::Network(e.to_string()))
         }
     }
 }
@@ -165,12 +169,12 @@ async fn execute_sparql_with_format_download(
     response_format: LotusResponseFormat,
     filename: &str,
     dl_timer: perf::TimerHandle,
-) -> Result<String, String> {
+) -> Result<String, DownloadError> {
     use crate::sparql::execute_sparql_format_at as shared_execute;
 
     let body = shared_execute(query, endpoint, response_format)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| DownloadError::Network(e.to_string()))?;
 
     finalize_download(format, "wdqs", &body, dl_timer, filename)
 }
@@ -180,7 +184,7 @@ pub(super) fn trigger_download(
     filename: &str,
     mime: &str,
     content: &str,
-) -> Result<String, String> {
+) -> Result<String, DownloadError> {
     let _ = mime;
     // The result used to be dropped here, which turned a failed export into a
     // silent no-op: the user clicked download, nothing appeared, and no error

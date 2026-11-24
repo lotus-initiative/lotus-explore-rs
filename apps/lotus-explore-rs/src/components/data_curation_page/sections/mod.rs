@@ -272,7 +272,7 @@ pub fn TsvImportCard(
                                     }
                                 }
                                 Ok(None) => {}
-                                Err(err) => on_import_error.call(err),
+                                Err(err) => on_import_error.call(err.to_string()),
                             }
                         });
                     },

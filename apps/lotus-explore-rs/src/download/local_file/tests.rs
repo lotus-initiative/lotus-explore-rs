@@ -102,7 +102,9 @@ fn only_web_urls_are_handed_to_the_system_opener() {
         "data:text/html,<script>",
         "",
     ] {
-        let err = super::open_externally(bad).expect_err("should refuse");
+        let err = super::open_externally(bad)
+            .expect_err("should refuse")
+            .to_string();
         assert!(err.contains("non-http"), "{bad:?} was not refused: {err}");
     }
 }

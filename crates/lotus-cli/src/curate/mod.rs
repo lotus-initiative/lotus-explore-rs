@@ -109,8 +109,8 @@ pub struct CuratedReport {
 /// Columns are matched by name rather than position, because an export from a
 /// spreadsheet carries whatever else it has and a caller should not have to
 /// strip it first.
-pub fn parse_tsv(tsv: &str) -> Result<Vec<Finding>, String> {
-    lotus_curation::parse_tsv(tsv).map_err(|e| e.to_string())
+pub fn parse_tsv(tsv: &str) -> Result<Vec<Finding>, lotus_curation::CurationError> {
+    lotus_curation::parse_tsv(tsv)
 }
 
 /// The two findings that name the same compound in the same taxon with the same
@@ -131,7 +131,7 @@ pub async fn run(args: &CurateArgs) -> anyhow::Result<ExitCode> {
             .map_err(|e| anyhow::anyhow!("could not read {path}: {e}"))?,
     };
 
-    let findings = parse_tsv(&input).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let findings = parse_tsv(&input)?;
     if findings.is_empty() {
         eprintln!("lotus: no usable rows in the input");
         return Ok(ExitCode::FAILURE);

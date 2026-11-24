@@ -48,34 +48,33 @@ pub async fn export_urls(
     Ok(normalize_export_urls(&base, response))
 }
 
+#[derive(Debug, thiserror::Error)]
+#[error("failed to initialize HTTP client: {0}")]
+struct ClientInitError(#[from] reqwest::Error);
+
 fn http_client() -> Result<&'static reqwest::Client, ApiClientError> {
-    static CLIENT: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
+    static CLIENT: OnceLock<Result<reqwest::Client, ClientInitError>> = OnceLock::new();
     match CLIENT.get_or_init(build_http_client) {
         Ok(client) => Ok(client),
-        Err(message) => Err(ApiClientError::Network(format!(
-            "failed to initialize HTTP client: {message}"
-        ))),
+        Err(err) => Err(ApiClientError::Network(err.to_string())),
     }
 }
 
-fn build_http_client() -> Result<reqwest::Client, String> {
+fn build_http_client() -> Result<reqwest::Client, ClientInitError> {
     #[cfg(target_arch = "wasm32")]
     {
-        reqwest::Client::builder()
-            .build()
-            .map_err(|e| e.to_string())
+        Ok(reqwest::Client::builder().build()?)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        reqwest::Client::builder()
+        Ok(reqwest::Client::builder()
             .connect_timeout(Duration::from_secs(5))
             .timeout(API_REQUEST_TIMEOUT)
             .pool_idle_timeout(Duration::from_mins(1))
             .pool_max_idle_per_host(8)
             .tcp_keepalive(Duration::from_secs(30))
-            .build()
-            .map_err(|e| e.to_string())
+            .build()?)
     }
 }
 
