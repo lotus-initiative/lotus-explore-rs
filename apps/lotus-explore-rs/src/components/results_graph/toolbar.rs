@@ -7,10 +7,10 @@ use super::presentation::{
     EntityShapeIcon, criteria_summary, entity_badge_classes, projection_label,
 };
 use crate::app::routes::Route;
-use crate::components::ui::Button;
+use crate::components::ui::button::Button;
 use crate::i18n::{TextKey, format_count, t};
 use crate::state::use_app_state_context;
-use crate::ui::prelude::{SegmentedControl, SegmentedControlItem};
+use crate::ui::segmented_control::{SegmentedControl, SegmentedControlItem};
 use dioxus::prelude::*;
 use lotus_explore_core::filters::ColumnFilters;
 use lotus_explore_core::graph::{GraphProjection, NodeKey, NodeMatch, search_all_nodes};
@@ -48,7 +48,7 @@ pub(super) fn GraphToolbar(
     on_toggle_pause: EventHandler<()>,
     on_export_png: EventHandler<()>,
 ) -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let dark_mode = use_app_state_context().state.read().dark_mode;
     let mut finder_query = use_signal(String::new);
 

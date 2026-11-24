@@ -13,27 +13,30 @@ use crate::components::layout::structured_data::StructuredDataHead;
 use crate::components::results_viewport::ResultsViewport;
 use crate::components::welcome::SearchExamples;
 use crate::document_head::AppStylesheet;
-use crate::features::explore::{
-    ExploreInteractions, SearchTaskController, build_shareable_url, initial_url_state,
-    is_true_flag, use_download_dispatch_effect, use_startup_effect,
+use crate::features::explore::download_dispatch::{
+    use_download_dispatch_effect, use_startup_effect,
 };
-use crate::hooks::LocaleProvider;
+use crate::features::explore::interactions::ExploreInteractions;
+use crate::features::explore::orchestrator::SearchTaskController;
+use crate::features::explore::url_state::{build_shareable_url, initial_url_state};
+use crate::hooks::locale_provider::LocaleProvider;
 use crate::i18n::{Locale, TextKey, t};
-use crate::services::AppServices;
-use crate::state::{
-    AppStateContext, FormCriteriaContext, ResultsContext, use_app_state_context,
-    use_form_criteria_context, use_results_context,
-};
+use crate::services::app_services::AppServices;
+use crate::state::form_context::{FormCriteriaContext, use_form_criteria_context};
+use crate::state::{AppStateContext, ResultsContext, use_app_state_context, use_results_context};
 use crate::ui::a11y_contract::{MAIN_PANEL_ID, PAGE_TITLE_ID, SKIP_TO_RESULTS_HREF};
 use dioxus::prelude::*;
 use lotus_explore_core::explore::search_state::ExploreState;
+use lotus_explore_core::explore::url_codec::is_true_flag;
 use lotus_model::SearchCriteria;
 use std::sync::Arc;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 
-fn resolve_startup_dark_mode(startup: &crate::features::explore::InitialUrlState) -> bool {
+fn resolve_startup_dark_mode(
+    startup: &crate::features::explore::url_state::InitialUrlState,
+) -> bool {
     if startup.dark_mode {
         return true;
     }
@@ -42,7 +45,7 @@ fn resolve_startup_dark_mode(startup: &crate::features::explore::InitialUrlState
     {
         let params = crate::features::explore::url_state::read_url_query_params();
         if let Some(raw) = params.get("dark_mode") {
-            return crate::features::explore::url_state::is_true_flag(raw);
+            return lotus_explore_core::explore::url_codec::is_true_flag(raw);
         }
 
         // Check localStorage for persisted user preference before falling back to OS media query.
@@ -134,7 +137,7 @@ pub fn AppRoot() -> Element {
 
 #[component]
 fn AppRuntimeEffects() -> Element {
-    let mut locale = crate::hooks::use_locale_signal();
+    let mut locale = crate::hooks::use_locale::use_locale_signal();
     let mut app_state = use_app_state_context().state;
     let explore = use_results_context().explore;
     let criteria = use_form_criteria_context().criteria;
@@ -224,7 +227,7 @@ fn AppRuntimeEffects() -> Element {
 
 #[component]
 pub fn AppShell() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     rsx! {
         AppRuntimeEffects {}
         a {
@@ -261,13 +264,14 @@ pub fn AppShell() -> Element {
 
 #[component]
 pub(crate) fn ExplorePage() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let criteria = use_form_criteria_context().criteria;
     let explore = use_results_context().explore;
-    let searched_once = *crate::features::explore::use_lifecycle_selector(explore, |lifecycle| {
-        lifecycle.searched_once
-    })
-    .read();
+    let searched_once =
+        *crate::features::explore::selectors::use_lifecycle_selector(explore, |lifecycle| {
+            lifecycle.searched_once
+        })
+        .read();
     let shareable_url =
         use_memo(move || build_shareable_url(&criteria.read()).map(Arc::<str>::from));
 

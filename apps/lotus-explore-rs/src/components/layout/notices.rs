@@ -3,7 +3,7 @@
 //! Status, warning, and error notice components.
 
 use crate::components::copy_button::CopyButton;
-use crate::components::ui::Button;
+use crate::components::ui::button::Button;
 use crate::features::explore::interactions::use_explore_interactions;
 use crate::features::explore::selectors::{use_lifecycle_selector, use_result_selector};
 use crate::features::explore::url_state::absolute_share_url;
@@ -12,7 +12,7 @@ use crate::services::error_presenter::{
     error_hint_text, format_domain_error, format_taxon_warnings,
 };
 use crate::state::{use_app_state_context, use_results_context};
-use crate::ui::prelude::{NoticeBar, NoticeTone};
+use crate::ui::notice::{NoticeBar, NoticeTone};
 use dioxus::prelude::*;
 use lotus_explore_core::explore::recovery;
 use lotus_explore_core::explore::types::ErrorKind;
@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 #[component]
 pub fn ShareNotice(shareable_url: Memo<Option<Arc<str>>>) -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let dark_mode = use_app_state_context().state.read().dark_mode;
     let share_input_id = "share-url-field";
     let share = shareable_url.read();
@@ -68,7 +68,7 @@ pub fn ShareNotice(shareable_url: Memo<Option<Arc<str>>>) -> Element {
 
 #[component]
 pub fn LookupNotice() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let dark_mode = use_app_state_context().state.read().dark_mode;
     let explore = use_results_context().explore;
     let notices = use_result_selector(explore, |result| result.lookup_notices.clone());
@@ -98,7 +98,7 @@ pub fn LookupNotice() -> Element {
 
 #[component]
 pub fn ErrorNotice() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let dark_mode = use_app_state_context().state.read().dark_mode;
     let explore = use_results_context().explore;
     let interactions = use_explore_interactions();

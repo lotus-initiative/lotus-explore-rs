@@ -6,7 +6,7 @@
 //! the bundled path resolves directly as the iframe `src` URL.
 
 use crate::i18n::{TextKey, t};
-use crate::ui::prelude::{NoticeBar, NoticeTone};
+use crate::ui::notice::{NoticeBar, NoticeTone};
 use dioxus::prelude::*;
 
 /// Log reason recorded when the Ketcher assets are absent from this build.
@@ -31,7 +31,7 @@ impl EditorState {
 
 #[component]
 pub fn KetcherPanel() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let ketcher_ready = use_signal(|| false);
     let editor = use_signal(|| EditorState::Loading);
 

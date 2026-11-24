@@ -1,24 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::curation::{
-    CurationError, CurationInputRow, CurationResultRow, QuickStatementsBundle, parse_tsv_rows,
+use crate::curation::curate_rows;
+use crate::curation::share_links::{
+    initial_curation_autorun_from_url, initial_curation_rows_from_url,
 };
 use crate::features::curation::queue::append_unique_rows;
+use crate::features::curation::services::inputs::example_rows;
 use crate::features::curation::workflow;
-use crate::hooks::use_add_row_form;
-use crate::hooks::use_add_row_form::AddRowForm;
+use crate::hooks::use_add_row_form::{AddRowForm, use_add_row_form};
 use crate::i18n::{
-    Locale, msg_no_valid_tsv_rows, msg_running_checks, msg_tsv_import_complete,
-    msg_tsv_missing_column,
+    Locale, msg_add_row_before_generate, msg_examples_loaded, msg_no_valid_tsv_rows,
+    msg_running_checks, msg_second_pass_running, msg_tsv_import_complete, msg_tsv_missing_column,
 };
 use dioxus::prelude::*;
+use lotus_curation::{CurationError, CurationInputRow, CurationResultRow, QuickStatementsBundle};
 use std::sync::Arc;
-
-use crate::curation::{
-    curate_rows, example_rows, initial_curation_autorun_from_url, initial_curation_rows_from_url,
-};
-use crate::i18n::{msg_add_row_before_generate, msg_examples_loaded, msg_second_pass_running};
 
 #[derive(Clone, Copy)]
 pub struct CurationPageController {
@@ -225,7 +222,7 @@ pub fn import_tsv_rows(
     mut rows: Signal<Vec<CurationInputRow>>,
     mut status_message: Signal<Option<String>>,
 ) {
-    match parse_tsv_rows(content) {
+    match lotus_curation::parse_tsv(content) {
         Ok(parsed) => {
             if parsed.is_empty() {
                 status_message.set(Some(msg_no_valid_tsv_rows(locale)));

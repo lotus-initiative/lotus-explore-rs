@@ -4,7 +4,7 @@
 //!
 //! Reads structure SMILES, formula, mass, `InChIKey`, and DOIs straight from
 //! [`lotus_model::ColumnarResultSet`] with zero extra network calls, and reuses
-//! [`crate::components::results_table::depict_url_for_smiles`] for stereo-aware
+//! [`crate::components::results_table::row_cells::prepared::depict_url_for_smiles`] for stereo-aware
 //! 2D CDK Depict SVGs.
 
 use super::presentation::{
@@ -12,8 +12,8 @@ use super::presentation::{
     scholia_aria_key, scholia_url, wikidata_url,
 };
 use crate::components::copy_button::CopyButton;
-use crate::components::results_table::depict_url_for_smiles;
-use crate::components::ui::Button;
+use crate::components::results_table::row_cells::prepared::depict_url_for_smiles;
+use crate::components::ui::button::Button;
 use crate::i18n::{Locale, TextKey, format_count, t};
 use dioxus::prelude::*;
 use lotus_explore_core::filters::ColumnFilters;
@@ -64,7 +64,7 @@ pub(super) fn GraphInspector(
     on_filter_table: EventHandler<ColumnFilters>,
     on_pivot: EventHandler<(NodeKind, String)>,
 ) -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let selected_node = selected_idx.and_then(|idx| model.nodes.get(idx).map(|n| (idx, n)));
 
     let primary_note = if let Some((_, node)) = selected_node {

@@ -81,7 +81,7 @@ impl FilterEntity {
 /// not load.
 #[component]
 pub fn EntityFilters(entity: FilterEntity, primary: Element, advanced: Option<Element>) -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let heading_id = entity.heading_id();
 
     rsx! {
@@ -120,7 +120,7 @@ fn AdvancedFilters(
     body_id: String,
     children: Element,
 ) -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
 
     rsx! {
         details {

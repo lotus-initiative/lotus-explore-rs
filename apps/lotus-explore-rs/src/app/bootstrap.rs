@@ -3,7 +3,7 @@
 //! Pure app bootstrap state assembly.
 
 use crate::app_state::{AppState, DownloadState};
-use crate::features::explore::InitialUrlState;
+use crate::features::explore::url_state::InitialUrlState;
 use crate::i18n::Locale;
 use lotus_explore_core::explore::search_state::ExploreState;
 use lotus_model::SearchCriteria;

@@ -13,11 +13,11 @@
 use super::fetch_results;
 mod plan;
 
-use crate::repositories::LotusRepository;
 use lotus_explore_core::explore::outcome::ResultsPipelineOutcome;
 use lotus_explore_core::explore::request::SearchRequest;
 use lotus_explore_core::explore::search_metrics::SearchMetrics;
 use lotus_explore_core::explore::types::{DomainError, QueryPhase};
+use lotus_explore_core::ports::LotusRepository;
 
 pub async fn execute<R: LotusRepository>(
     request: &SearchRequest,

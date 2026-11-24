@@ -14,11 +14,11 @@ use crate::i18n::{
     warn_ambiguous_compound, warn_ambiguous_taxon, warn_compound_resolved, warn_input_standardized,
     warn_salt_or_mixture, warn_taxon_common_name, warn_wdqs_fallback,
 };
-use crate::repositories::RepositoryError;
 use lotus_explore_core::explore::truncation::{Reason, truncation_reason};
 use lotus_explore_core::explore::types::{
     DomainError, ErrorKind, LookupNotice, ParseFault, QueryStage, ValidationFault,
 };
+use lotus_explore_core::ports::RepositoryError;
 
 pub fn format_domain_error(locale: Locale, err: &DomainError) -> String {
     match err {

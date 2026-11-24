@@ -1,43 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::features::curation::repositories::{
-    CurationKnowledgeRepository, WikidataKnowledgeRepository,
-};
+use crate::features::curation::repositories::CurationKnowledgeRepository;
+use crate::features::curation::repositories::wikidata::WikidataKnowledgeRepository;
+use crate::features::curation::services::enrichment::curate_single_row;
 use crate::features::curation::services::occurrence_cache::OccurrenceAskCache;
-use crate::features::curation::services::{curate_single_row, inputs, pipeline};
-#[cfg(test)]
-use crate::features::curation::services::{
-    extract_exact_mass_from_json, extract_formula_from_inchi, normalize_formula_for_wikidata,
-    qs_mass_statement,
-};
+use crate::features::curation::services::pipeline;
 use crate::i18n::Locale;
-use lotus_curation as domain;
+use lotus_curation::{CurationError, CurationInputRow, CurationResultRow, QuickStatementsBundle};
 use std::sync::{Arc, Mutex};
-
-pub use lotus_curation::{
-    CurationError, CurationErrorKind, CurationInputRow, CurationResultRow, CurationStatus,
-    QuickStatementsBundle,
-};
 
 #[cfg(test)]
 mod contract_tests;
 
 #[path = "curation/share_links.rs"]
-mod share_links;
-#[cfg(test)]
-use share_links::{CURATION_ROWS_PARAM, curation_rows_from_query_params};
-pub use share_links::{
-    build_curation_share_url, initial_curation_autorun_from_url, initial_curation_rows_from_url,
-};
-
-pub fn example_rows() -> Vec<CurationInputRow> {
-    inputs::example_rows()
-}
-
-pub fn parse_tsv_rows(tsv: &str) -> Result<Vec<CurationInputRow>, CurationError> {
-    inputs::parse_tsv_rows(tsv)
-}
+pub mod share_links;
 
 // The curation pipeline drives Dioxus signals and reqwest (WASM) futures,
 // which are `!Send`; see the `repositories` design note.
@@ -73,7 +50,7 @@ pub async fn curate_rows(
     // structures are converted -- `convert_structure` is RDKit in the browser
     // and costs no network at all.
     let prefetched_compounds = Arc::new(
-        crate::features::curation::services::prefetch_knowledge(
+        crate::features::curation::services::prefetch::prefetch_knowledge(
             &rows,
             repository.as_ref(),
             prefetched_taxa.as_ref(),
@@ -104,17 +81,9 @@ pub async fn curate_rows(
                 )
             }
         },
-        row_uniqueness_key,
+        lotus_curation::row_uniqueness_key,
     )
     .await
-}
-
-pub fn build_quickstatements_bundle(results: &[CurationResultRow]) -> QuickStatementsBundle {
-    domain::build_quickstatements_bundle(results)
-}
-
-pub fn row_uniqueness_key(row: &CurationInputRow) -> String {
-    inputs::row_uniqueness_key(row)
 }
 
 #[cfg(test)]

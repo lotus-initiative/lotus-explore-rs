@@ -20,7 +20,6 @@
 
 use crate::features::explore::service::{api_pipeline, results_pipeline};
 use crate::perf;
-use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
 use lotus_explore_core::explore::outcome::SearchOutcome;
 use lotus_explore_core::explore::request::SearchRequest;
@@ -29,6 +28,7 @@ use lotus_explore_core::explore::service::{
     build_query::normalize_smiles, strategy::ExecutionStrategy,
 };
 use lotus_explore_core::explore::types::{DomainError, QueryPhase};
+use lotus_explore_core::ports::LotusRepository;
 
 pub struct SearchExecutor<R, P, G>
 where
@@ -66,7 +66,7 @@ where
         // explicitly enabled it (non-empty base URL). Otherwise we go direct to
         // SPARQL so a misconfigured/absent API never wastes a request on every
         // search (and never triggers the "builder error" fallback storm).
-        let api_enabled = crate::api::api_base_url().is_some_and(|b| !b.is_empty());
+        let api_enabled = crate::api::config::api_base_url().is_some_and(|b| !b.is_empty());
         let strategy = ExecutionStrategy::resolve(request.direct_download(), api_enabled);
         let smiles = normalize_smiles(&request.criteria().structure);
 

@@ -2,13 +2,13 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Loading and download-dispatching overlay components.
 
-use crate::components::ui::Button;
+use crate::components::ui::button::Button;
 use crate::features::explore::interactions::use_explore_interactions;
 use crate::features::explore::selectors::use_lifecycle_selector;
 use crate::i18n::{CountNoun, Locale, TextKey, t};
 use crate::i18n::{count_label, format_count};
 use crate::state::use_results_context;
-use crate::ui::prelude::{NoticeBar, NoticeTone};
+use crate::ui::notice::{NoticeBar, NoticeTone};
 use dioxus::prelude::*;
 use lotus_explore_core::explore::types::QueryPhase;
 
@@ -20,7 +20,7 @@ pub use lotus_loader::LotusLoader;
 /// propagate to `ResultsViewport` or its siblings.
 #[component]
 pub fn LoadingState() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let explore = use_results_context().explore;
     let query_phase = *use_lifecycle_selector(explore, |lifecycle| lifecycle.query_phase).read();
     // Subscribed to separately from the phase so that a row count ticking up does
@@ -57,7 +57,7 @@ pub fn LoadingState() -> Element {
 /// Spinner shown while a download file is being assembled.
 #[component]
 pub fn DownloadDispatchState() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     rsx! {
         div {
             role: "status",
@@ -75,7 +75,7 @@ pub fn DownloadDispatchState() -> Element {
 /// query has not materialized yet, offering the user a "Run search" escape.
 #[component]
 pub fn DownloadOnlyState() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let interactions = use_explore_interactions();
     rsx! {
         NoticeBar {

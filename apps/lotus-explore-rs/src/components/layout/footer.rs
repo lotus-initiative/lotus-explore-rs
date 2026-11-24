@@ -9,7 +9,7 @@
 )]
 //! Site footer component shared across pages.
 
-use crate::hooks::use_locale;
+use crate::hooks::use_locale::use_locale;
 use crate::i18n::{Locale, TextKey, t};
 use dioxus::prelude::*;
 

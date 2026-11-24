@@ -13,6 +13,9 @@
 use super::*;
 use crate::features::curation::repositories::{BoxedFuture, ResolveTaxonResult};
 use futures::executor::block_on;
+use lotus_curation::{
+    CurationError, CurationInputRow, CurationStatus, DependencyResolution, WikidataCompound,
+};
 use std::collections::HashMap as Map;
 use std::collections::HashSet;
 

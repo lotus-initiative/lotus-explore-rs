@@ -3,7 +3,7 @@
 //! Light / dark theme toggle in the page header.
 
 use crate::app::routes::Route;
-use crate::hooks::use_locale;
+use crate::hooks::use_locale::use_locale;
 use crate::i18n::{TextKey, t};
 use crate::state::use_app_state_context;
 use dioxus::prelude::*;

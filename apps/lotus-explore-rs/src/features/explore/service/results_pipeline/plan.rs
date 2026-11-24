@@ -15,13 +15,14 @@ use crate::features::explore::service::{
     resolve_structure::{self, StructureResolution},
     resolve_taxon::{self, TaxonResolution},
 };
-use crate::repositories::{LotusRepository, is_wdqs_fallback_used};
+use crate::repositories::hybrid::is_wdqs_fallback_used;
 use lotus_explore_core::explore::request::SearchRequest;
 use lotus_explore_core::explore::search_metrics::SearchMetrics;
 use lotus_explore_core::explore::service::build_query::{
     ResolvedStructure, apply_server_filters, build_sparql_query,
 };
 use lotus_explore_core::explore::types::{DomainError, QueryPhase};
+use lotus_explore_core::ports::LotusRepository;
 use lotus_model::SparqlEndpoint;
 
 pub(super) struct ResultsExecutionPlan {
@@ -63,7 +64,7 @@ impl ResultsExecutionPlan {
         if is_wdqs_fallback_used() {
             warnings.push(lotus_explore_core::explore::types::LookupNotice::WdqsFallback);
         }
-        let query = crate::repositories::get_wdqs_transformed_query()
+        let query = crate::repositories::hybrid::get_wdqs_transformed_query()
             .unwrap_or_else(|| self.execution_query.clone());
 
         ResultsPipelineOutcome {

@@ -14,7 +14,7 @@
 )]
 
 use super::*;
-use crate::api::SearchResponse;
+use lotus_explore_core::api::dto::SearchResponse;
 use lotus_explore_core::explore::command::SearchCommand;
 use lotus_model::SearchCriteria;
 use std::cell::RefCell;

@@ -7,7 +7,7 @@ use crate::app::routes::Route;
 use crate::components::layout::dark_mode_toggle::DarkModeToggle;
 use crate::components::layout::lang_switch::LangSwitch;
 use crate::components::layout::view_switch::ViewSwitch;
-use crate::hooks::use_locale;
+use crate::hooks::use_locale::use_locale;
 use crate::i18n::{TextKey, t};
 use crate::ui::a11y_contract::PAGE_TITLE_ID;
 use dioxus::prelude::*;

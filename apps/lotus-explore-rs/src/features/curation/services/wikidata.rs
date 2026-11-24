@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-use super::{CurationError, WD_TAXON_QID, WikidataCompound};
-use crate::sparql::{FetchError, ResponseFormat};
-pub(super) use lotus_curation::normalize_taxon_lookup;
-use lotus_curation::qid_from_uri as extract_qid_from_uri;
+use crate::features::curation::services::execute_sparql_with_wdqs_fallback;
 use lotus_curation::{
-    build_compound_lookup_query, build_occurrence_query, build_occurrence_with_ref_query,
-    build_reference_lookup_query, build_single_taxon_lookup_query, build_taxon_lookup_query,
-    escape_quickstatements, extract_canonical_taxon_name, qid_number, taxon_name_candidates,
+    CurationError, WD_TAXON_QID, WikidataCompound, build_compound_lookup_query,
+    build_occurrence_query, build_occurrence_with_ref_query, build_reference_lookup_query,
+    build_single_taxon_lookup_query, build_taxon_lookup_query, escape_quickstatements,
+    extract_canonical_taxon_name, normalize_taxon_lookup, qid_from_uri as extract_qid_from_uri,
+    qid_number, taxon_name_candidates,
 };
 use lotus_model::normalize_doi;
+use lotus_search::{FetchError, ResponseFormat};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 
@@ -22,7 +22,7 @@ fn binding_value(binding: &Value, key: &str) -> Option<String> {
 }
 
 async fn execute_sparql_format(query: &str, format: ResponseFormat) -> Result<String, FetchError> {
-    super::execute_sparql_with_wdqs_fallback(query, format).await
+    execute_sparql_with_wdqs_fallback(query, format).await
 }
 
 async fn execute_sparql_json(query: &str) -> Result<Value, CurationError> {

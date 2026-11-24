@@ -6,7 +6,7 @@
 
 use crate::features::curation::state::page_controller::rows_to_tsv;
 use crate::features::explore::selectors::toolbar_snapshot_from_result;
-use crate::ui::{ContentPhase, LifecycleBooleans};
+use crate::ui::content_phase::{ContentPhase, LifecycleBooleans};
 use lotus_explore_core::explore::search_state::ExploreState;
 use lotus_query::ExportFormat as DownloadFormat;
 
@@ -99,7 +99,7 @@ fn loading_outranks_a_dirty_form() {
 
 #[test]
 fn integration_curation_rows_tsv_round_trip_keeps_expected_header() {
-    let rows = vec![crate::curation::CurationInputRow {
+    let rows = vec![lotus_curation::CurationInputRow {
         name: "A name".to_string(),
         smiles: "CCO".to_string(),
         taxon: Some("Rosa canina".to_string()),
@@ -108,7 +108,7 @@ fn integration_curation_rows_tsv_round_trip_keeps_expected_header() {
     }];
 
     let tsv = rows_to_tsv(&rows);
-    let parsed = crate::curation::parse_tsv_rows(&tsv).expect("tsv should parse");
+    let parsed = lotus_curation::parse_tsv(&tsv).expect("tsv should parse");
 
     assert!(tsv.starts_with("name\tsmiles\ttaxon\tdoi\n"));
     assert_eq!(parsed.len(), 1);

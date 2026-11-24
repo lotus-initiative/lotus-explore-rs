@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use crate::app::routes::Route;
-use crate::components::ui::Button;
+use crate::components::ui::button::Button;
 use crate::features::explore::selectors::{use_result_arc_selector, use_result_selector};
 use crate::i18n::{TextKey, t};
 use crate::state::use_results_context;
@@ -12,7 +12,7 @@ use dioxus::prelude::*;
 mod download_model;
 mod header_model;
 mod render_model;
-mod row_cells;
+pub mod row_cells;
 mod scroll_runtime;
 mod scroll_signals;
 mod sort_model;
@@ -24,7 +24,6 @@ mod toolbar;
 mod virtualization_controller;
 mod virtualized_table;
 
-pub use row_cells::depict_url_for_smiles;
 use table_toolbar_sections::FilterStatus;
 use table_view_model::{apply_sort_and_filters, prepare_table_state};
 use toolbar::ResultsToolbar;
@@ -58,7 +57,7 @@ fn qid_for(prefix: &str, label: &str) -> std::sync::Arc<str> {
 pub fn ResultsTable() -> Element {
     let state = use_results_context();
     let explore = state.explore;
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
 
     // Narrow selectors — each memo fires only for its own slice of state.
     // `entries_arc` uses Arc pointer equality, so sort changes never cause

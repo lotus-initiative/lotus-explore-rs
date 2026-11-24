@@ -4,14 +4,14 @@
 //! Reads the active route and `use_locale()` for labels — zero props required.
 
 use crate::app::routes::Route;
-use crate::hooks::use_locale;
+use crate::hooks::use_locale::use_locale;
 use crate::i18n::faq::faq_nav_label;
 use crate::i18n::{
     view_label_curation_explorer, view_label_draw, view_label_explorer, view_label_network,
     view_switch_aria,
 };
 use crate::state::use_app_state_context;
-use crate::ui::prelude::{SegmentedControl, SegmentedControlItem};
+use crate::ui::segmented_control::{SegmentedControl, SegmentedControlItem};
 use dioxus::prelude::*;
 
 /// Five-button view switcher.

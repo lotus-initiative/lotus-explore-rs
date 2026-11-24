@@ -2,15 +2,12 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use crate::i18n::Locale;
-use lotus_explore_core::explore::url_codec::{QueryParams, parse_startup_action_from_params};
+use lotus_explore_core::explore::url_codec::{
+    GraphViewParams, InitialDownloadState, QueryParams, is_true_flag,
+    parse_criteria_from_params as parse_criteria_with_year, parse_startup_action_from_params,
+};
 use lotus_model::SearchCriteria;
 use std::collections::BTreeMap;
-
-pub use lotus_explore_core::explore::url_codec::{
-    GraphViewParams, InitialDownloadState, is_true_flag,
-    parse_criteria_from_params as parse_criteria_from_params_with_year,
-    parse_graph_view_from_params,
-};
 
 /// The app-facing startup state: the core's pure parse result plus the locale
 /// the adapter detected from the browser.
@@ -25,7 +22,7 @@ pub struct InitialUrlState {
 /// Parse the URL with the clock the adapter owns, keeping the app-facing
 /// signature free of the year argument the core requires.
 pub fn parse_criteria_from_params(params: &QueryParams) -> SearchCriteria {
-    parse_criteria_from_params_with_year(params, crate::clock::current_year())
+    parse_criteria_with_year(params, crate::clock::current_year())
 }
 
 /// Build a shareable URL with the year the adapter owns.

@@ -2,14 +2,14 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use crate::components::copy_button::CopyButton;
-use crate::features::explore::use_toolbar_result_snapshot;
+use crate::features::explore::selectors::use_toolbar_result_snapshot;
 use crate::i18n::{TextKey, t};
 use crate::state::use_results_context;
 use dioxus::prelude::*;
 
 #[component]
 pub fn QueryPanel() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let explore = use_results_context().explore;
     let toolbar_snapshot = use_toolbar_result_snapshot(explore);
 

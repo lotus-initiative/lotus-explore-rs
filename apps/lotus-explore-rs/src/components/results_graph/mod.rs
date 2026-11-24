@@ -9,22 +9,20 @@
 use crate::app::routes::Route;
 use crate::components::layout::notices::{ErrorNotice, LookupNotice, ShareNotice};
 use crate::components::loading::LoadingState;
-use crate::components::ui::Button;
+use crate::components::ui::button::Button;
 use crate::features::explore::interactions::{ExploreInteractions, use_explore_interactions};
 use crate::features::explore::selectors::{
-    use_lifecycle_selector, use_result_arc_selector, use_result_selector,
+    ExploreUiState, use_lifecycle_selector, use_result_arc_selector, use_result_selector,
 };
-use crate::features::explore::url_state::read_url_query_params;
-use crate::features::explore::{
-    ExploreUiState, GraphViewParams, build_network_shareable_url, network_query_params,
-    parse_graph_view_from_params,
+use crate::features::explore::url_state::{
+    build_network_shareable_url, network_query_params, read_url_query_params,
 };
 use crate::i18n::{TextKey, t};
-use crate::state::{
-    FormCriteriaContext, use_app_state_context, use_form_criteria_context, use_results_context,
-};
-use crate::ui::{ContentPhase, LifecycleBooleans};
+use crate::state::form_context::{FormCriteriaContext, use_form_criteria_context};
+use crate::state::{use_app_state_context, use_results_context};
+use crate::ui::content_phase::{ContentPhase, LifecycleBooleans};
 use dioxus::prelude::*;
+use lotus_explore_core::explore::url_codec::{GraphViewParams, parse_graph_view_from_params};
 use lotus_explore_core::filters::ColumnFilters;
 use lotus_explore_core::graph::{
     DEFAULT_EGO_MAX_NEIGHBORS, GraphEmptyReason, GraphModel, GraphProjection, GraphScope, NodeKey,
@@ -61,7 +59,7 @@ fn resolve_selected_index(model: &GraphModel, selected_key: Option<NodeKey>) -> 
 /// Full interactive network workspace mounted inside [`crate::pages::NetworkPage`].
 #[component]
 pub fn ResultsGraphWorkspace(#[props(default)] initial_view: Option<GraphViewParams>) -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let app_state = use_app_state_context().state;
     let dark_mode = app_state.read().dark_mode;
     let explore = use_results_context().explore;

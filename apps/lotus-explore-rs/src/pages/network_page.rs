@@ -4,7 +4,7 @@
 
 use crate::components::results_graph::ResultsGraphWorkspace;
 use crate::document_head::GraphScripts;
-use crate::hooks::use_locale;
+use crate::hooks::use_locale::use_locale;
 use crate::i18n::view_label_network;
 use dioxus::prelude::*;
 

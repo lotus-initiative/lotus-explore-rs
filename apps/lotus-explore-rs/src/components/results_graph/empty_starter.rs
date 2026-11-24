@@ -8,10 +8,10 @@
 
 use super::presentation::{EntityShapeIcon, entity_badge_classes};
 use crate::app::routes::Route;
-use crate::components::ui::Button;
+use crate::components::ui::button::Button;
 use crate::i18n::{Locale, TextKey, t};
 use crate::state::use_app_state_context;
-use crate::ui::prelude::{SegmentedControl, SegmentedControlItem};
+use crate::ui::segmented_control::{SegmentedControl, SegmentedControlItem};
 use dioxus::prelude::*;
 use lotus_explore_core::graph::{NETWORK_STARTERS, NetworkStarter, NodeKind};
 
@@ -69,7 +69,7 @@ fn starter_copy_keys(starter: &NetworkStarter) -> (TextKey, TextKey) {
 /// Interactive starter workspace rendered when no result set has been loaded yet.
 #[component]
 pub(super) fn NetworkEmptyStarter(on_run: EventHandler<lotus_model::SearchCriteria>) -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let dark_mode = use_app_state_context().state.read().dark_mode;
     let mut selected_kind = use_signal(|| NodeKind::Taxon);
     let mut query_text = use_signal(String::new);

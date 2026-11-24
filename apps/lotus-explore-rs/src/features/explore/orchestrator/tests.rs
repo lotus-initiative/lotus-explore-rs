@@ -97,7 +97,8 @@ fn validate_search_criteria_maps_shared_mass_validation_fault() {
     );
 }
 
-type PendingBodyResult = Result<lotus_search::ResponseBody, crate::repositories::RepositoryError>;
+type PendingBodyResult =
+    Result<lotus_search::ResponseBody, lotus_explore_core::ports::RepositoryError>;
 
 #[derive(Clone)]
 struct PendingRepo {
@@ -114,28 +115,33 @@ impl PartialEq for PendingRepo {
     clippy::unused_async_trait_impl,
     reason = "LotusRepository is an AFIT: the `async fn` spelling is fixed by the trait"
 )]
-impl crate::repositories::LotusRepository for PendingRepo {
+impl lotus_explore_core::ports::LotusRepository for PendingRepo {
     async fn api_search(
         &self,
         _criteria: &SearchCriteria,
         _limit: usize,
         _include_counts: bool,
-    ) -> Option<Result<crate::api::SearchResponse, crate::repositories::RepositoryError>> {
+    ) -> Option<
+        Result<
+            lotus_explore_core::api::dto::SearchResponse,
+            lotus_explore_core::ports::RepositoryError,
+        >,
+    > {
         None
     }
 
     async fn sparql_body(
         &self,
         _query: &str,
-    ) -> Result<lotus_search::ResponseBody, crate::repositories::RepositoryError> {
+    ) -> Result<lotus_search::ResponseBody, lotus_explore_core::ports::RepositoryError> {
         let rx = self.rx.lock().ok().and_then(|mut guard| guard.take());
         let Some(rx) = rx else {
-            return Err(crate::repositories::RepositoryError::network(
+            return Err(lotus_explore_core::ports::RepositoryError::network(
                 "pending test receiver already taken",
             ));
         };
         rx.await.unwrap_or_else(|_| {
-            Err(crate::repositories::RepositoryError::network(
+            Err(lotus_explore_core::ports::RepositoryError::network(
                 "pending test sender dropped",
             ))
         })

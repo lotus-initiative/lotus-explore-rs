@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::components::ui::SectionHeading;
-use crate::curation::{CurationResultRow, CurationStatus};
+use crate::components::ui::section_heading::SectionHeading;
 use crate::i18n::{
     Locale, TextKey, col_canonical_smiles, col_exact_mass, col_isomeric_smiles, col_name,
     col_original_smiles, col_status, curation_badge_mass_missing,
@@ -11,6 +10,7 @@ use crate::i18n::{
     label_new_item, t,
 };
 use dioxus::prelude::*;
+use lotus_curation::{CurationResultRow, CurationStatus};
 use std::sync::Arc;
 
 const NA_TEXT: &str = "n/a";

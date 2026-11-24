@@ -15,8 +15,8 @@
 //! search result, and from an agent that read the markup.
 
 use crate::app::routes::RouteQuery;
-use crate::components::layout::escape_faq_script_element;
-use crate::hooks::use_locale;
+use crate::components::layout::structured_data::escape_faq_script_element;
+use crate::hooks::use_locale::use_locale;
 use crate::i18n::faq::{FaqEntry, faq_chrome};
 use crate::i18n::faq_guide::{FaqBlock, SECTIONS, untranslated_notice};
 use crate::i18n::{ENTRIES, FaqCategory, faq_json_ld};

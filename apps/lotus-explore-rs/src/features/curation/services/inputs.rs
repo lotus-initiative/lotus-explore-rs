@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-pub use lotus_curation::parse_tsv as parse_tsv_rows;
-pub use lotus_curation::row_uniqueness_key;
-
 use lotus_curation::CurationInputRow;
 
 pub fn example_rows() -> Vec<CurationInputRow> {

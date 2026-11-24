@@ -9,7 +9,7 @@
 
 #![allow(clippy::indexing_slicing)]
 
-use crate::curation::CurationInputRow;
+use lotus_curation::CurationInputRow;
 
 #[test]
 fn queue_rows_removal_logic_preserves_other_rows() {

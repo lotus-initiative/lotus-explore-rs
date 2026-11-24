@@ -4,8 +4,8 @@
 
 use crate::features::explore::orchestrator::{SearchTaskController, start_search};
 use crate::features::explore::search_state::dispatch_explore_action;
-use crate::repositories::HybridRepository;
-use crate::state::FormCriteriaContext;
+use crate::repositories::hybrid::HybridRepository;
+use crate::state::form_context::FormCriteriaContext;
 use dioxus::prelude::*;
 use lotus_explore_core::explore::actions::ExploreAction;
 use lotus_explore_core::explore::command::SearchCommand;

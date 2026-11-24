@@ -14,7 +14,7 @@ use dioxus::prelude::*;
 
 #[component]
 pub(super) fn VirtualizedResultsTable(table_view_model: Memo<TableViewModel>) -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let interactions = use_explore_interactions();
     // Virtualization is driven by the rows on screen, which is the sorted order
     // minus whatever the column filters exclude — not by the rows the search

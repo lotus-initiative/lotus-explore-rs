@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Focused, reusable form input components.
 
-use crate::components::ui::Button;
-use crate::hooks::use_locale;
+use crate::components::ui::button::Button;
+use crate::hooks::use_locale::use_locale;
 use crate::i18n::{TextKey, t};
 use dioxus::prelude::*;
 

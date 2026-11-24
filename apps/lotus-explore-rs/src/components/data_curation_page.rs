@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::curation::build_curation_share_url;
+use crate::curation::share_links::build_curation_share_url;
 use crate::document_head::CurationScripts;
 use crate::features::curation::state::page_controller::CurationUiState;
-use crate::features::curation::use_curation_page_controller;
+use crate::features::curation::state::page_controller::use_curation_page_controller;
 use dioxus::prelude::*;
 use std::sync::Arc;
 
 use super::curation_results_table::CurationResultsTable;
-use crate::components::ui::SectionHeading;
+use crate::components::ui::section_heading::SectionHeading;
 
 mod sections;
 use sections::{
@@ -18,7 +18,7 @@ use sections::{
 
 #[component(lazy)]
 pub fn DataCurationPage() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let mut controller = use_curation_page_controller(locale);
     let shareable_url = use_memo(move || {
         build_curation_share_url(controller.rows.read().as_slice(), locale, true)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-use crate::features::explore::use_toolbar_result_snapshot;
+use crate::features::explore::selectors::use_toolbar_result_snapshot;
 use crate::i18n::{CountNoun, TextKey, count_label, format_count, t};
 use crate::state::use_results_context;
 use dioxus::prelude::*;
@@ -23,7 +23,7 @@ fn StatBadge(
     plus: bool,
     stripe: StatStripe,
 ) -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let mut display_value = format_count(locale, value);
     if plus {
         display_value.push('+');
@@ -86,7 +86,7 @@ fn StatBadge(
 
 #[component]
 pub fn StatBar() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let explore = use_results_context().explore;
     let toolbar_snapshot = use_toolbar_result_snapshot(explore);
     let snapshot_ref = toolbar_snapshot.read();
@@ -163,7 +163,7 @@ pub fn StatBar() -> Element {
 
 #[component]
 pub fn CappedRowsNotice() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let explore = use_results_context().explore;
     let toolbar_snapshot = use_toolbar_result_snapshot(explore);
 

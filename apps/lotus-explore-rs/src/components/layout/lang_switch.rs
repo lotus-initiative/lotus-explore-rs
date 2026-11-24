@@ -5,10 +5,10 @@
 //! [`use_locale_signal`] — zero props required.
 
 use crate::app::routes::Route;
-use crate::hooks::{use_locale, use_locale_signal};
+use crate::hooks::use_locale::{use_locale, use_locale_signal};
 use crate::i18n::{Locale, TextKey, t};
 use crate::state::use_app_state_context;
-use crate::ui::prelude::{SegmentedControl, SegmentedControlItem};
+use crate::ui::segmented_control::{SegmentedControl, SegmentedControlItem};
 use dioxus::prelude::*;
 
 /// Four-button language switcher (EN / FR / DE / IT).

@@ -20,22 +20,21 @@ use super::occurrence_cache::{
     OccurrenceAskCache, compound_has_taxon_cached, compound_has_taxon_with_ref_cached,
 };
 use super::{
-    CurationError, CurationInputRow, CurationResultRow, CurationStatus, DependencyResolution,
-    MassResolution, QS_REF_INFERRED_FROM_SMILES, WD_CHEMICAL_COMPOUND_QID,
-    WD_STEREOISOMER_GROUP_QID, WD_TYPE_CHEMICAL_ENTITY_QID, convert_smiles,
-    curation_note_dependencies_pending, curation_note_existing_complete,
+    convert_smiles, curation_note_dependencies_pending, curation_note_existing_complete,
     curation_note_existing_updates, curation_note_missing_doi, curation_note_new_compound,
     curation_note_revised, curation_pending_reference, curation_pending_taxon,
-    escape_quickstatements, fetch_reference_quickstatements, has_isomeric_smiles,
-    has_undefined_stereo, is_revised_row, normalize_taxon_lookup, qs_canonical_smiles_statement,
-    qs_inchi_statement, qs_inchikey_statement, qs_isomeric_smiles_statement,
-    qs_statement_with_refs, resolve_exact_mass, revised_row_statement,
+    fetch_reference_quickstatements, has_undefined_stereo, resolve_exact_mass,
 };
 use crate::features::curation::repositories::CurationKnowledgeRepository;
 use crate::i18n::Locale;
-use lotus_curation::WikidataCompound;
 use lotus_curation::{
-    extract_formula_from_inchi, normalize_formula_for_wikidata, qs_mass_statement,
+    CurationError, CurationInputRow, CurationResultRow, CurationStatus, DependencyResolution,
+    MassResolution, QS_REF_INFERRED_FROM_SMILES, WD_CHEMICAL_COMPOUND_QID,
+    WD_STEREOISOMER_GROUP_QID, WD_TYPE_CHEMICAL_ENTITY_QID, WikidataCompound,
+    escape_quickstatements, extract_formula_from_inchi, has_stereo_marks as has_isomeric_smiles,
+    is_revised_row, normalize_formula_for_wikidata, normalize_taxon_lookup,
+    qs_canonical_smiles_statement, qs_inchi_statement, qs_inchikey_statement,
+    qs_isomeric_smiles_statement, qs_mass_statement, qs_statement_with_refs, revised_row_statement,
 };
 use lotus_model::normalize_doi;
 use std::collections::HashMap;

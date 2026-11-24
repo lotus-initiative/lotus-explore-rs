@@ -12,8 +12,8 @@
     reason = "LotusRepository is an AFIT: the `async fn` spelling is fixed by the trait"
 )]
 
-use crate::api::SearchResponse;
-use crate::repositories::{LotusRepository, RepositoryError};
+use lotus_explore_core::api::dto::SearchResponse;
+use lotus_explore_core::ports::{LotusRepository, RepositoryError};
 use lotus_model::SearchCriteria;
 
 /// Test-only mock repository for unit tests without network dependencies.

@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
-mod wikidata;
+pub mod wikidata;
 
 use lotus_curation::{CurationError, WikidataCompound};
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::pin::Pin;
-
-pub use wikidata::WikidataKnowledgeRepository;
 
 /// Type alias for boxed async results. Avoids `async-trait` macro expansion bloat.
 pub type BoxedFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;

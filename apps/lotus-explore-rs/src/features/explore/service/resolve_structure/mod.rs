@@ -58,12 +58,12 @@
 
 use crate::features::explore::structure_cache::{self, CachedCompound};
 use crate::perf;
-use crate::repositories::LotusRepository;
 use lotus_explore_core::explore::search_metrics::SearchMetrics;
 use lotus_explore_core::explore::service::build_query::ResolvedStructure;
 use lotus_explore_core::explore::types::{
     DomainError, LookupNotice, ParseFault, QueryStage, ValidationFault,
 };
+use lotus_explore_core::ports::LotusRepository;
 use lotus_model::{looks_like_a_compound_qid, looks_like_inchikey, names_a_compound};
 
 /// What the structure field resolved to, plus whatever is worth telling the

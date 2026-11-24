@@ -9,7 +9,7 @@ use lotus_explore_core::sort::{SortColumn, SortState};
 
 #[component]
 pub fn TableHeader(current_sort: SortState, on_sort_toggle: EventHandler<SortColumn>) -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let headers = build_sortable_header_models(current_sort);
 
     rsx! {
@@ -35,7 +35,7 @@ fn SortableColumnHeader(
     header: SortableHeaderModel,
     on_toggle: EventHandler<SortColumn>,
 ) -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let label_text = t(locale, header.label);
     let sort_aria = aria_sort_toggle(locale, label_text, header.next_descending);
     rsx! {

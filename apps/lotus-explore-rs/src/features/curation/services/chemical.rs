@@ -23,7 +23,7 @@
     reason = "`on_phase` captures a Dioxus `Signal`, which is a `RefCell` and not `Sync`"
 )]
 
-use super::{CurationError, MassResolution};
+use lotus_curation::{CurationError, MassResolution};
 use serde::Deserialize;
 #[cfg(test)]
 use serde_json::Value;

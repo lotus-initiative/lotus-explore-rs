@@ -7,7 +7,7 @@ use super::file_sink::{FileSink, OpfsSink, opfs_available, take_file_sink};
 use crate::api;
 use crate::download::{export_timer_label, export_trigger_timer_label};
 use crate::perf;
-use crate::repositories::is_wdqs_fallback_used;
+use crate::repositories::hybrid::is_wdqs_fallback_used;
 use crate::sparql::wdqs_download_query;
 use lotus_model::ColumnarResultSet;
 use lotus_model::{QLEVER_WIKIDATA, SearchCriteria};
@@ -248,7 +248,7 @@ pub(super) async fn execute_download_wasm(
     // This changes nothing about what is in the file. Both routes export the
     // server-side `query` and neither applies the client-side column filters, so the
     // download matches the result set rather than the filtered view either way.
-    match api::export_urls(&criteria).await {
+    match api::client::export_urls(&criteria).await {
         Ok(urls) => {
             let Some(url) = api_export_url(format, &urls) else {
                 log::warn!(
@@ -478,7 +478,10 @@ async fn execute_download_wasm_browser_post(
 /// `None` when the field is present but empty, which is what a backend that has not
 /// finished an export format returns. An empty string is not a usable URL, and
 /// handing one to the browser would produce a download of the current page.
-fn api_export_url(format: DownloadFormat, urls: &api::ExportUrlResponse) -> Option<&str> {
+fn api_export_url(
+    format: DownloadFormat,
+    urls: &lotus_explore_core::api::dto::ExportUrlResponse,
+) -> Option<&str> {
     let url = match format {
         DownloadFormat::Csv => super::gz_or_plain_url(urls.csv_gz_url.as_deref(), &urls.csv_url),
         DownloadFormat::Json => super::gz_or_plain_url(urls.json_gz_url.as_deref(), &urls.json_url),

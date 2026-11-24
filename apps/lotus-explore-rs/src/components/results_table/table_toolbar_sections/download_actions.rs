@@ -7,9 +7,9 @@ use super::super::download_model::{
     DOWNLOAD_QUERY_RDF_SPEC, DownloadQuerySpec, SparqlEndpointUI,
     build_download_toolbar_model_with_endpoint,
 };
-use crate::components::ui::Button;
+use crate::components::ui::button::Button;
 use crate::download::{BrowserDownload, execute_download, trigger_download};
-use crate::features::explore::use_toolbar_result_snapshot;
+use crate::features::explore::selectors::use_toolbar_result_snapshot;
 use crate::i18n::{TextKey, t};
 use crate::perf;
 use crate::state::use_results_context;
@@ -323,7 +323,7 @@ fn DownloadMetadataButton(
 
 #[component]
 pub fn DownloadActionsGroup() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let explore = use_results_context().explore;
 
     // Each selector subscribes to exactly one field, so the component re-renders

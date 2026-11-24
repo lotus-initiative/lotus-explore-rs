@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Reusable "copy to clipboard" button.
 
-use crate::components::ui::Button;
+use crate::components::ui::button::Button;
 use crate::i18n::{Locale, TextKey, t};
 use dioxus::prelude::*;
 use std::sync::Arc;

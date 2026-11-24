@@ -10,9 +10,10 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::indexing_slicing)]
 
-use super::{CurationInputRow, CurationResultRow, CurationStatus, QuickStatementsBundle};
-use crate::curation::{
-    build_quickstatements_bundle, example_rows, parse_tsv_rows, row_uniqueness_key,
+use crate::features::curation::services::inputs::example_rows;
+use lotus_curation::{
+    CurationInputRow, CurationResultRow, CurationStatus, QuickStatementsBundle,
+    build_quickstatements_bundle, parse_tsv as parse_tsv_rows, row_uniqueness_key,
 };
 
 fn input(name: &str, smiles: &str, taxon: Option<&str>, doi: Option<&str>) -> CurationInputRow {

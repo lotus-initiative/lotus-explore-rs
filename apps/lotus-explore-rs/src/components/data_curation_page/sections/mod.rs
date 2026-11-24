@@ -2,8 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Curation-page UI sections: share bar, status notice, add-row, table.
 
-use crate::components::ui::{Button, SectionHeading};
-use crate::curation::{CurationInputRow, QuickStatementsBundle};
+use crate::components::ui::{button::Button, section_heading::SectionHeading};
 use crate::features::curation::services::quickstatements::build_qs_dev_link;
 use crate::hooks::use_add_row_form::AddRowForm;
 use crate::i18n::{
@@ -15,13 +14,14 @@ use crate::i18n::{
     hint_scroll_curation_results, msg_delay_advice, msg_two_step_hint, placeholder_doi_optional,
     placeholder_molecule_name, placeholder_taxon_optional, t,
 };
-use crate::ui::prelude::{NoticeBar, NoticeTone};
+use crate::ui::notice::{NoticeBar, NoticeTone};
 use crate::upload::{extract_blob_from_file_data, read_blob_string};
 use dioxus::prelude::*;
+use lotus_curation::{CurationInputRow, QuickStatementsBundle};
 use std::sync::Arc;
 
 use crate::components::copy_button::CopyButton;
-use crate::features::explore::absolute_share_url;
+use crate::features::explore::url_state::absolute_share_url;
 
 #[component]
 pub fn ShareBar(locale: Locale, share: Arc<str>) -> Element {

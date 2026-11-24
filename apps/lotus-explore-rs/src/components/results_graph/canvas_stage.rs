@@ -8,11 +8,11 @@ use super::presentation::{
     EntityShapeIcon, corroboration_unit, entity_badge_classes, entity_kind_label,
 };
 use crate::components::loading::{LotusLoader, query_phase_text, rows_so_far_text};
-use crate::components::ui::Button;
+use crate::components::ui::button::Button;
 use crate::features::explore::selectors::use_lifecycle_selector;
 use crate::i18n::{TextKey, aria_graph_kind_toggle, format_count, graph_two_type_note, t};
 use crate::state::use_results_context;
-use crate::ui::prelude::{NoticeBar, NoticeTone};
+use crate::ui::notice::{NoticeBar, NoticeTone};
 use dioxus::prelude::*;
 use lotus_explore_core::explore::types::QueryPhase;
 use lotus_explore_core::graph::{
@@ -37,7 +37,7 @@ pub(super) fn GraphCanvasStage(
     on_change_max_nodes: EventHandler<usize>,
     on_projection_change: EventHandler<GraphProjection>,
 ) -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let explore = use_results_context().explore;
     let query_phase = *use_lifecycle_selector(explore, |l| l.query_phase).read();
     let rows_so_far = *use_lifecycle_selector(explore, |l| l.rows_so_far).read();

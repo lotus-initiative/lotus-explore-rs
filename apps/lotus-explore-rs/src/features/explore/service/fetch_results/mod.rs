@@ -11,12 +11,12 @@
 //! This module is **Dioxus-free**: the phase-change callback (`fetching`)
 //! is a plain `Fn()` closure so that tests can supply a no-op.
 
-use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
 use lotus_explore_core::explore::search_metrics::SearchMetrics;
 use lotus_explore_core::explore::types::DomainError;
 #[cfg(target_arch = "wasm32")]
 use lotus_explore_core::explore::types::QueryStage;
+use lotus_explore_core::ports::LotusRepository;
 use lotus_model::ColumnarResultSet;
 use std::sync::Arc;
 
@@ -121,7 +121,7 @@ pub(super) async fn fetch<
     hooks: FetchHooks<OnFetching, OnProcessing, OnProgress>,
 ) -> Result<FetchResult, DomainError> {
     // Clear any previous WDQS fallback state from taxon resolution or other operations
-    crate::repositories::reset_wdqs_fallback_flag();
+    crate::repositories::hybrid::reset_wdqs_fallback_flag();
 
     let plan = plan_full_results_fetch(execution_query);
     let FetchHooks {

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The "Structure editor" tab: a full-pane Ketcher molecule editor.
 
-use crate::hooks::use_locale;
+use crate::hooks::use_locale::use_locale;
 use crate::i18n::view_label_draw;
 use crate::pages::ketcher_panel::KetcherPanel;
 use dioxus::prelude::*;

@@ -17,13 +17,9 @@
 
 use lotus_model::{WDQS_SCHOLARLY, WDQS_WIKIDATA};
 use lotus_search::reqwest_client::ReqwestClient;
-use lotus_search::{Endpoint, Service, execute_streaming};
-
-pub use lotus_search::{FetchError, HttpResponse, ResponseBody, ResponseFormat, execute};
-
-// Reading the answer is part of talking to the endpoint, so these are reachable
-// from here too. They are implemented in `lotus-query`.
-pub use lotus_query::parse_taxon_csv;
+use lotus_search::{
+    Endpoint, FetchError, ResponseBody, ResponseFormat, Service, execute, execute_streaming,
+};
 
 /// The endpoint for a service name, so a caller can pass a URL it already had.
 fn endpoint_for(url: &str) -> Endpoint {

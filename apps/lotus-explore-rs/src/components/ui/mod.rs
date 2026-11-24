@@ -7,7 +7,3 @@
 pub mod button;
 pub mod card;
 pub mod section_heading;
-
-pub use button::Button;
-pub use card::Card;
-pub use section_heading::SectionHeading;

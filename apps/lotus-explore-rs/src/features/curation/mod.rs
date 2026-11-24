@@ -7,5 +7,3 @@ pub mod repositories;
 pub mod services;
 pub mod state;
 pub mod workflow;
-
-pub use state::page_controller::use_curation_page_controller;

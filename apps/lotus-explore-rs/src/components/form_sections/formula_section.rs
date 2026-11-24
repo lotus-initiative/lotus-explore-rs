@@ -3,7 +3,7 @@
 
 use crate::features::explore::selectors::use_criteria_selector;
 use crate::i18n::{TextKey, t};
-use crate::state::use_form_criteria_context;
+use crate::state::form_context::use_form_criteria_context;
 use dioxus::prelude::*;
 use lotus_explore_core::explore::form_actions::FormAction;
 use lotus_model::ElementState;
@@ -17,7 +17,7 @@ fn ElemStateSelect(
     value: ElementState,
     on_change: EventHandler<ElementState>,
 ) -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let select_id = format!("{}-select", label.to_lowercase());
 
     rsx! {
@@ -48,7 +48,7 @@ fn NumPair(
     on_min: EventHandler<u16>,
     on_max: EventHandler<u16>,
 ) -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let min_id = format!("{}-min", label.to_lowercase());
     let max_id = format!("{}-max", label.to_lowercase());
 
@@ -102,7 +102,7 @@ fn NumPair(
 /// Formula filter controls section - reads and writes `FormCriteriaContext`.
 #[component]
 pub fn FormulaSection() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let ctx = use_form_criteria_context();
     let criteria = use_criteria_selector(ctx.criteria, |c| FormulaSectionState {
         formula_enabled: c.formula_enabled,

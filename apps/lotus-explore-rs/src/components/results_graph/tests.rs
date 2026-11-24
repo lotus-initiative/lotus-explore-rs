@@ -14,14 +14,15 @@ use crate::app_state::AppState;
 use crate::components::results_table::ResultsTable;
 use crate::features::explore::interactions::ExploreInteractions;
 use crate::features::explore::orchestrator::SearchTaskController;
-use crate::features::explore::{GraphViewParams, parse_graph_view_from_params};
 use crate::i18n::{Locale, TextKey, t};
-use crate::repositories::HybridRepository;
-use crate::state::{AppStateContext, FormCriteriaContext, ResultsContext};
+use crate::repositories::hybrid::HybridRepository;
+use crate::state::form_context::FormCriteriaContext;
+use crate::state::{AppStateContext, ResultsContext};
 use lotus_explore_core::explore::actions::ExploreAction;
 use lotus_explore_core::explore::command::SearchCommand;
 use lotus_explore_core::explore::search_state::{ExploreState, reduce_mut};
 use lotus_explore_core::explore::url_codec::QueryParams;
+use lotus_explore_core::explore::url_codec::{GraphViewParams, parse_graph_view_from_params};
 use lotus_explore_core::graph::{
     DEFAULT_MAX_NODES, GraphEmptyReason, GraphModel, GraphProjection, GraphScope, NodeKind,
     build_graph,

@@ -7,18 +7,18 @@ use crate::components::loading::{DownloadDispatchState, DownloadOnlyState, Loadi
 use crate::components::results_table::ResultsTable;
 use crate::i18n::{TextKey, t};
 use crate::state::use_results_context;
-use crate::ui::{ContentPhase, LifecycleBooleans};
+use crate::ui::content_phase::{ContentPhase, LifecycleBooleans};
 use dioxus::prelude::*;
 use std::sync::Arc;
 
 #[component]
 pub fn ResultsViewport() -> Element {
-    use crate::features::explore::ExploreUiState;
+    use crate::features::explore::selectors::ExploreUiState;
     use crate::features::explore::selectors::use_result_selector;
 
     let state = use_results_context();
     let explore = state.explore;
-    let form = crate::state::use_form_criteria_context();
+    let form = crate::state::form_context::use_form_criteria_context();
     // The results on screen belong to the criteria as they were when the search
     // ran. Editing the form does not re-run it, so this is what tells the viewport
     // the table no longer describes the query above it.
@@ -90,7 +90,7 @@ pub fn ResultsViewport() -> Element {
 /// "Your search criteria changed. Run the search again to see results for them."
 #[component]
 fn StaleNotice() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     rsx! {
         div {
             class: "empty-state",
@@ -125,7 +125,7 @@ fn StaleNotice() -> Element {
 /// is close enough to act on and not exact enough to report as fact.
 #[component]
 fn QueryDisplay(query: std::sync::Arc<str>) -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     rsx! {
         section {
             id: "query-display",

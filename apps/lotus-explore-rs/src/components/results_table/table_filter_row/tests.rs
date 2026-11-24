@@ -5,10 +5,11 @@
 #![allow(clippy::expect_used)]
 
 use super::*;
-use crate::features::explore::ExploreInteractions;
+use crate::features::explore::interactions::ExploreInteractions;
 use crate::features::explore::orchestrator::SearchTaskController;
-use crate::repositories::HybridRepository;
-use crate::state::{FormCriteriaContext, ResultsContext};
+use crate::repositories::hybrid::HybridRepository;
+use crate::state::ResultsContext;
+use crate::state::form_context::FormCriteriaContext;
 use lotus_explore_core::explore::search_state::ExploreState;
 use lotus_model::SearchCriteria;
 

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Application-level services and dependency container.
 
-use crate::repositories::HybridRepository;
+use crate::repositories::hybrid::HybridRepository;
 
 /// Application-wide singleton dependencies, provided via Dioxus context.
 ///

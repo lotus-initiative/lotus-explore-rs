@@ -2,10 +2,10 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Hook for managing the "add one row" form state in the data curation page.
 
-use crate::curation::CurationInputRow;
 use crate::features::curation::queue::{append_unique_rows, non_empty_trimmed};
 use crate::i18n::{Locale, msg_duplicate_row_skipped, msg_name_smiles_required};
 use dioxus::prelude::*;
+use lotus_curation::CurationInputRow;
 
 /// Reactive handle for the "add one row" form signals.
 /// Because every field is a [`Signal`] (which is `Copy`), this struct is

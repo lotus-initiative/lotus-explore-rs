@@ -5,5 +5,3 @@ pub mod app_services;
 pub mod error_presenter;
 pub mod event_log;
 pub mod search_telemetry;
-
-pub use app_services::AppServices;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
-//! The tests for `dispatch`, in their own file.
+//! The tests for `search_state`, in their own file.
 
 use super::*;
 use lotus_explore_core::explore::types::QueryPhase;

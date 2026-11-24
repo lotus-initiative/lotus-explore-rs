@@ -27,7 +27,7 @@
 use dioxus::prelude::*;
 use serde_json::Value;
 
-use super::CurationError;
+use lotus_curation::CurationError;
 
 /// Call a method on the `RDKit` bridge and return its answer, after the bridge
 /// loads `RDKit` internally.

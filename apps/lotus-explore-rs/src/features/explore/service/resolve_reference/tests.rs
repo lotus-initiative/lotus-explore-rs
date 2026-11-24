@@ -11,8 +11,8 @@
     reason = "LotusRepository is an AFIT: the `async fn` spelling is fixed by the trait"
 )]
 use super::*;
-use crate::api::SearchResponse;
-use crate::repositories::RepositoryError;
+use lotus_explore_core::api::dto::SearchResponse;
+use lotus_explore_core::ports::RepositoryError;
 use lotus_model::SearchCriteria;
 
 #[derive(Debug, Clone, Default)]

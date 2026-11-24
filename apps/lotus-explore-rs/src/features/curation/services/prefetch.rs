@@ -19,9 +19,8 @@
 )]
 
 use super::occurrence_cache::{OccurrenceAskCache, record_pairs_cached, record_triples_cached};
-use super::{CurationError, CurationInputRow, wikidata};
 use crate::features::curation::repositories::CurationKnowledgeRepository;
-use lotus_curation::WikidataCompound;
+use lotus_curation::{CurationError, CurationInputRow, WikidataCompound};
 use lotus_model::normalize_doi;
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
@@ -183,7 +182,8 @@ fn collect_asks(
         };
         // `None` for a genus or a name Wikidata does not have: the row loop will
         // create the taxon, and there is nothing to ask about until it exists.
-        let Some(taxon) = wikidata::normalize_taxon_lookup(taxon_name).and_then(|k| taxa.get(&k))
+        let Some(taxon) =
+            lotus_curation::normalize_taxon_lookup(taxon_name).and_then(|k| taxa.get(&k))
         else {
             continue;
         };

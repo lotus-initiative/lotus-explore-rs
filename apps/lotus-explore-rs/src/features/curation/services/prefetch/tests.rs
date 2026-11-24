@@ -9,7 +9,7 @@ use crate::features::curation::repositories::{
     BoxedFuture, OccurrencePair, OccurrenceTriple, ResolveTaxonResult,
 };
 use futures::executor::block_on;
-use lotus_curation::WikidataCompound;
+use lotus_curation::{CurationError, WikidataCompound};
 use std::sync::Mutex;
 
 /// A repository that counts what it was asked, and answers everything.

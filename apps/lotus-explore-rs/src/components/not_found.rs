@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
 use crate::app::routes::{Route, RouteQuery};
-use crate::hooks::use_locale;
+use crate::hooks::use_locale::use_locale;
 use crate::i18n::{TextKey, t};
 use dioxus::prelude::*;
 

@@ -46,7 +46,7 @@ pub fn FieldExamples(
     /// Fill the field. The owner knows how; this does not.
     onfill: EventHandler<String>,
 ) -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let heading_id = format!("{target}-examples-heading");
 
     rsx! {

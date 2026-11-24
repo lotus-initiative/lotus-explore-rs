@@ -12,13 +12,15 @@ use crate::components::form_sections::{
     EntityFilters, FieldExamples, FilterEntity, FormulaSection, MassRangeInput, TaxonInput,
     TaxonNomenclatureFilters, YearRangeInput,
 };
-use crate::features::explore::use_criteria_selector;
+use crate::features::explore::selectors::use_criteria_selector;
 use lotus_explore_core::explore::form_actions::FormAction;
 
 use crate::components::form_inputs::{ResetFiltersButton, SearchButton};
-use crate::features::explore::{use_explore_interactions, use_lifecycle_selector};
+use crate::features::explore::interactions::use_explore_interactions;
+use crate::features::explore::selectors::use_lifecycle_selector;
 use crate::i18n::{TextKey, t, threshold_label};
-use crate::state::{use_form_criteria_context, use_results_context};
+use crate::state::form_context::use_form_criteria_context;
+use crate::state::use_results_context;
 use crate::ui::a11y_contract::SEARCH_PANEL_BODY_ID;
 use dioxus::prelude::*;
 
@@ -36,7 +38,7 @@ pub fn SearchPanel() -> Element {
     let state = use_results_context();
     let form_ctx = use_form_criteria_context();
     let interactions = use_explore_interactions();
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
 
     let loading = *use_lifecycle_selector(state.explore, |lifecycle| lifecycle.loading).read();
     let is_dirty = form_ctx.is_dirty();
@@ -170,7 +172,7 @@ fn ReferenceFilters() -> Element {
 /// The reference identifier field: a Wikidata QID or a DOI.
 #[component]
 fn ReferenceInput() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let ctx = use_form_criteria_context();
     let reference = use_criteria_selector(ctx.criteria, |criteria| criteria.reference.clone());
 
@@ -214,7 +216,7 @@ fn ReferenceInput() -> Element {
 /// input it currently holds.
 #[component]
 fn StructureInput() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let ctx = use_form_criteria_context();
     // Only the field this draws. The search mode and threshold live in the advanced
     // panel, and subscribing to them would re-render this field on every slider tick.
@@ -263,7 +265,7 @@ fn StructureInput() -> Element {
 /// The threshold follows the mode, so it sits here rather than in the primary slot.
 #[component]
 fn StructureSearchOptions() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let ctx = use_form_criteria_context();
     let structure_fields = use_criteria_selector(ctx.criteria, |criteria| {
         (criteria.structure_search, criteria.structure_threshold)

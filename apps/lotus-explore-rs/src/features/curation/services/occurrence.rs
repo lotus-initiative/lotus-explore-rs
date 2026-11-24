@@ -6,7 +6,7 @@
 //! resolved, and the same choice is made twice — for an existing compound and for
 //! a created one — so it is made once here.
 
-use super::WD_OCCURS_IN_TAXON_PROP;
+use lotus_curation::WD_OCCURS_IN_TAXON_PROP;
 
 /// The taxon and reference a row resolved to.
 ///

@@ -3,12 +3,13 @@
 //! [`HybridRepository`] — the production `LotusRepository` implementation.
 
 use crate::api;
-use crate::api::SearchResponse;
-use crate::repositories::{LotusRepository, RepositoryError};
+use crate::sparql;
 use crate::sparql::wdqs_download_query;
-use crate::sparql::{self, FetchError, ResponseFormat};
+use lotus_explore_core::api::dto::SearchResponse;
+use lotus_explore_core::ports::{LotusRepository, RepositoryError};
 use lotus_model::ColumnarResultSet;
 use lotus_model::SearchCriteria;
+use lotus_search::{FetchError, ResponseFormat};
 use std::cell::RefCell;
 
 thread_local! {
@@ -103,14 +104,14 @@ impl LotusRepository for HybridRepository {
     ) -> Option<Result<SearchResponse, RepositoryError>> {
         // The API fast-path is opt-in: treat an empty (auto-detected dev) base URL
         // the same as "not configured" so we never build a malformed relative URL.
-        if api::api_base_url().is_none_or(|b| b.is_empty()) {
+        if api::config::api_base_url().is_none_or(|b| b.is_empty()) {
             return Some(Err(RepositoryError::NotConfigured));
         }
         // Call the transport client directly, mapping ApiClientError → RepositoryError
         // via the existing `From` implementation.  Bypassing the ApiLayer / AppError
         // intermediary eliminates a 4-hop conversion chain with no semantic benefit.
         Some(
-            api::search(criteria, limit, include_counts)
+            api::client::search(criteria, limit, include_counts)
                 .await
                 .map_err(RepositoryError::from),
         )

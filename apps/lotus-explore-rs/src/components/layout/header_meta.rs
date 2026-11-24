@@ -4,9 +4,9 @@
 //! Reads from [`crate::state::ResultsContext`] and `use_locale()` — zero props.
 
 use crate::components::copy_button::CopyButton;
-use crate::features::explore::use_header_meta_snapshot;
+use crate::features::explore::selectors::use_header_meta_snapshot;
 use crate::i18n::{TextKey, t};
-use crate::state::use_form_criteria_context;
+use crate::state::form_context::use_form_criteria_context;
 use crate::state::use_results_context;
 use dioxus::prelude::*;
 use std::sync::Arc;
@@ -69,7 +69,7 @@ fn ResultHashMetaItem(locale: crate::i18n::Locale, full_hash: Arc<str>) -> Eleme
 pub fn HeaderMetaSection() -> Element {
     let explore = use_results_context().explore;
     let form_ctx = use_form_criteria_context();
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let header_snapshot = use_header_meta_snapshot(explore);
 
     let mut criteria_effect_ready = use_signal(|| false);

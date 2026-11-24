@@ -10,10 +10,3 @@
 pub mod hybrid;
 #[cfg(test)]
 pub mod mock;
-
-// Re-export WDQS fallback tracking functions from hybrid.rs
-pub use hybrid::{get_wdqs_transformed_query, is_wdqs_fallback_used, reset_wdqs_fallback_flag};
-
-pub use hybrid::HybridRepository;
-
-pub use lotus_explore_core::ports::{LotusRepository, RepositoryError};

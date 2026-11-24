@@ -13,13 +13,12 @@ mod match_selection;
 
 use crate::features::explore::taxon_cache;
 use crate::perf;
-use crate::repositories::LotusRepository;
 use crate::services::search_telemetry as telemetry;
-use crate::sparql;
 use lotus_explore_core::explore::search_metrics::SearchMetrics;
 use lotus_explore_core::explore::types::{
     DomainError, LookupNotice, ParseFault, QueryStage, ValidationFault,
 };
+use lotus_explore_core::ports::LotusRepository;
 use lotus_model::TaxonMatch;
 use lotus_model::standardize_taxon_name as sanitize_taxon_input;
 
@@ -204,7 +203,7 @@ async fn lookup<R: LotusRepository>(
     metrics.add_network(elapsed);
     telemetry::taxon_sparql_done(elapsed);
 
-    sparql::parse_taxon_csv(csv.as_ref()).map_err(|e| {
+    lotus_query::parse_taxon_csv(csv.as_ref()).map_err(|e| {
         DomainError::Parse(ParseFault::TaxonCsv {
             details: e.to_string(),
         })

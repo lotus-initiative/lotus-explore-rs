@@ -4,7 +4,7 @@
 use crate::features::explore::interactions::use_explore_interactions;
 use crate::features::explore::selectors::use_criteria_selector;
 use crate::i18n::{TextKey, t};
-use crate::state::use_form_criteria_context;
+use crate::state::form_context::use_form_criteria_context;
 use dioxus::prelude::*;
 use lotus_explore_core::explore::form_actions::FormAction;
 use lotus_model::SearchCriteria;
@@ -109,7 +109,7 @@ impl NomenclatureToggle {
 
 #[component]
 pub fn TaxonInput() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let ctx = use_form_criteria_context();
     let interactions = use_explore_interactions();
     let taxon = use_criteria_selector(ctx.criteria, |c| c.taxon.clone());
@@ -171,7 +171,7 @@ pub fn TaxonInput() -> Element {
 /// option.
 #[component]
 pub fn TaxonNomenclatureFilters() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let ctx = use_form_criteria_context();
     // A selector per toggle rather than one selector for the set: each checkbox
     // re-renders on its own value changing, and a single selector holding all
@@ -214,7 +214,7 @@ pub fn TaxonNomenclatureFilters() -> Element {
 
 #[component]
 pub fn MassRangeInput() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let ctx = use_form_criteria_context();
     let mass_range = use_criteria_selector(ctx.criteria, |c| (c.mass_min, c.mass_max));
     let (min_value, max_value) = *mass_range.read();
@@ -282,7 +282,7 @@ pub fn MassRangeInput() -> Element {
 
 #[component]
 pub fn YearRangeInput() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let ctx = use_form_criteria_context();
     let year_range = use_criteria_selector(ctx.criteria, |c| (c.year_min, c.year_max));
     let (min_value, max_value) = *year_range.read();

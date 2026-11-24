@@ -41,7 +41,7 @@ fn label_for(locale: Locale, column: SortColumn) -> String {
 
 #[component]
 pub(super) fn TableFilterRow() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
     let state = use_results_context();
     let interactions = use_explore_interactions();
     let filters = use_result_selector(state.explore, |result| result.filters.clone());

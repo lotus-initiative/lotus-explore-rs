@@ -13,8 +13,8 @@
 )]
 
 use super::*;
-use crate::api::SearchResponse;
-use crate::repositories::{LotusRepository, RepositoryError};
+use lotus_explore_core::api::dto::SearchResponse;
+use lotus_explore_core::ports::{LotusRepository, RepositoryError};
 use lotus_model::SearchCriteria;
 
 /// Stub that always returns a fixed SPARQL CSV response; API not configured.

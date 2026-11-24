@@ -12,23 +12,18 @@ use crate::i18n::{
     curation_note_revised, curation_pending_reference, curation_pending_taxon,
 };
 use crate::sparql::wdqs_download_query;
-use crate::sparql::{FetchError, ResponseFormat};
 #[cfg(not(target_arch = "wasm32"))]
 use futures::future::BoxFuture;
 #[cfg(target_arch = "wasm32")]
 use futures::future::LocalBoxFuture;
-pub(super) use lotus_curation::{
-    CurationError, CurationInputRow, CurationResultRow, CurationStatus, DependencyResolution,
-    MassResolution, QS_REF_INFERRED_FROM_SMILES, WD_CHEMICAL_COMPOUND_QID, WD_OCCURS_IN_TAXON_PROP,
-    WD_STEREOISOMER_GROUP_QID, WD_TAXON_QID, WD_TYPE_CHEMICAL_ENTITY_QID, WikidataCompound,
-    escape_quickstatements, has_stereo_marks as has_isomeric_smiles, is_revised_row,
-    qs_canonical_smiles_statement, qs_inchi_statement, qs_inchikey_statement,
-    qs_isomeric_smiles_statement, qs_statement_with_refs, revised_row_statement,
-};
 use lotus_model::QLEVER_WIKIDATA;
+use lotus_search::{FetchError, ResponseFormat};
 
+#[cfg(test)]
+pub mod chemical;
+#[cfg(not(test))]
 mod chemical;
-mod enrichment;
+pub mod enrichment;
 mod http_client;
 mod occurrence;
 // `pub(crate)` on `occurrence_cache` matches the pattern used by other
@@ -42,24 +37,11 @@ pub mod wikidata;
 
 use chemical::{convert_smiles, has_undefined_stereo, resolve_exact_mass};
 use reference_metadata::fetch_reference_quickstatements;
-use wikidata::normalize_taxon_lookup;
 
 pub mod inputs;
 pub mod pipeline;
 pub mod prefetch;
 pub mod quickstatements;
-
-#[cfg(test)]
-// Test-only re-export; `pub(crate)` matches the other test-gated re-exports
-// below. The nursery `redundant_pub_crate` lint would suggest `pub`.
-#[allow(clippy::redundant_pub_crate)]
-pub(crate) use chemical::extract_exact_mass_from_json;
-pub use enrichment::curate_single_row;
-#[cfg(test)]
-pub use lotus_curation::{
-    extract_formula_from_inchi, normalize_formula_for_wikidata, qs_mass_statement,
-};
-pub use prefetch::prefetch_knowledge;
 
 #[cfg(not(target_arch = "wasm32"))]
 type SparqlExecution<'a> = BoxFuture<'a, Result<String, FetchError>>;

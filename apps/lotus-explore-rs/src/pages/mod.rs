@@ -5,6 +5,3 @@
 pub mod draw_page;
 pub mod ketcher_panel;
 pub mod network_page;
-
-pub use draw_page::DrawPage;
-pub use network_page::NetworkPage;

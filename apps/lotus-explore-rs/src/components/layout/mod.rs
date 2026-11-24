@@ -9,5 +9,4 @@ pub mod notices;
 pub mod page_header;
 pub mod simple_analytics_badge;
 pub mod structured_data;
-pub use structured_data::escape_faq_script_element;
 pub mod view_switch;

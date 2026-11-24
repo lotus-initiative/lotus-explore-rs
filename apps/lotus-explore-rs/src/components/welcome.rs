@@ -3,15 +3,15 @@
 //! Search examples shown below the search form.
 
 use crate::components::copy_button::CopyButton;
-use crate::components::ui::Card;
-use crate::features::explore::absolute_current_url_with_query;
+use crate::components::ui::card::Card;
+use crate::features::explore::url_state::absolute_current_url_with_query;
 use crate::i18n::{TextKey, t};
 use dioxus::prelude::*;
 use std::sync::Arc;
 
 #[component]
 pub fn SearchExamples() -> Element {
-    let locale = crate::hooks::use_locale();
+    let locale = crate::hooks::use_locale::use_locale();
 
     rsx! {
         section {

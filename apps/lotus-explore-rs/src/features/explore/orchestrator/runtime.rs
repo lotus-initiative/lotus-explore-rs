@@ -12,7 +12,7 @@ use super::controller::SearchTaskController;
 use crate::features::explore::executor::do_search;
 use crate::features::explore::lifecycle::{ErrorHandlingOutcome, SearchLifecycleCoordinator};
 use crate::features::explore::search_state::dispatch_explore_action;
-use crate::repositories::{LotusRepository, reset_wdqs_fallback_flag};
+use crate::repositories::hybrid::reset_wdqs_fallback_flag;
 use crate::services::search_telemetry as telemetry;
 use dioxus::prelude::*;
 use lotus_explore_core::explore::actions::ExploreAction;
@@ -22,6 +22,7 @@ use lotus_explore_core::explore::request::SearchRequest;
 use lotus_explore_core::explore::search_state::ExploreState;
 use lotus_explore_core::explore::service::finalize;
 use lotus_explore_core::explore::types::DomainError;
+use lotus_explore_core::ports::LotusRepository;
 use lotus_model::SearchCriteria;
 use std::time::Duration;
 

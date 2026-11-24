@@ -8,13 +8,14 @@
     reason = "`on_phase` captures a Dioxus `Signal`, which is a `RefCell` and not `Sync`"
 )]
 
-use crate::curation::{
-    CurationError, CurationErrorKind, CurationInputRow, CurationResultRow, CurationStatus,
-    QuickStatementsBundle, build_quickstatements_bundle, curate_rows, row_uniqueness_key,
-};
+use crate::curation::curate_rows;
 use crate::i18n::{
     Locale, msg_curation_failed, msg_curation_rate_limited, msg_done_review_copy,
     msg_prerequisites_pending, msg_second_pass_done, msg_second_pass_still_pending_count,
+};
+use lotus_curation::{
+    CurationError, CurationErrorKind, CurationInputRow, CurationResultRow, CurationStatus,
+    QuickStatementsBundle, build_quickstatements_bundle, row_uniqueness_key,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
