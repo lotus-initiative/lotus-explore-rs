@@ -56,6 +56,9 @@ pub mod testing;
 /// Base URI for Wikidata entities (`Q123` → `<BASE>Q123`).
 pub const WIKIDATA_ENTITY_BASE: &str = "http://www.wikidata.org/entity/";
 
+/// HTTPS variant of [`WIKIDATA_ENTITY_BASE`], accepted when parsing mirrors or pasted URIs.
+pub const WIKIDATA_ENTITY_BASE_HTTPS: &str = "https://www.wikidata.org/entity/";
+
 /// Base URI for Wikidata reification statements (`S1` → `<BASE>statement/S1`).
 pub const WIKIDATA_STATEMENT_BASE: &str = "http://www.wikidata.org/entity/statement/";
 

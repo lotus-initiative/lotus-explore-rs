@@ -302,22 +302,23 @@ fn blob_url_from_str(content: &str, mime: &str) -> Result<String, UploadError> {
 /// # Errors
 /// Returns an [`UploadError`] if the download cannot be triggered.
 #[cfg(target_arch = "wasm32")]
+fn target_download_filename(filename: &str, extension: &str) -> String {
+    let name = sanitize_filename(filename);
+    if extension.is_empty() || name.ends_with(extension) {
+        name
+    } else {
+        format!("{name}{extension}")
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
 pub fn download_byte_chunks_as_blob(
     chunks: &[js_sys::Uint8Array],
     filename: &str,
     extension: &str,
     mime: &str,
 ) -> Result<(), UploadError> {
-    let safe_name = if extension.is_empty() {
-        sanitize_filename(filename)
-    } else {
-        let name = sanitize_filename(filename);
-        if name.ends_with(extension) {
-            name
-        } else {
-            format!("{name}{extension}")
-        }
-    };
+    let safe_name = target_download_filename(filename, extension);
 
     let parts = Array::new();
     for chunk in chunks {
@@ -348,16 +349,7 @@ pub fn download_text_as_blob(
     extension: &str,
     mime: &str,
 ) -> Result<(), UploadError> {
-    let safe_name = if extension.is_empty() {
-        sanitize_filename(filename)
-    } else {
-        let name = sanitize_filename(filename);
-        if name.ends_with(extension) {
-            name
-        } else {
-            format!("{name}{extension}")
-        }
-    };
+    let safe_name = target_download_filename(filename, extension);
     let url = blob_url_from_str(content, mime)?;
     click_download_anchor(&url, &safe_name, false)
         .map(|_| ())

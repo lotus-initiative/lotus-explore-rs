@@ -2,8 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Wikidata QID extraction and archive pagination for bulk export.
 
-/// Wikidata's entity IRI prefix, stripped to recover a bare QID.
-const WIKIDATA_ENTITY_PREFIX: &str = "http://www.wikidata.org/entity/";
+use lotus_model::{WIKIDATA_ENTITY_BASE, WIKIDATA_ENTITY_BASE_HTTPS};
 
 /// Extract a bare QID (`Q153`) from a Wikidata entity IRI.
 ///
@@ -12,8 +11,8 @@ const WIKIDATA_ENTITY_PREFIX: &str = "http://www.wikidata.org/entity/";
 #[must_use]
 pub fn extract_qid(value: &str) -> &str {
     value
-        .strip_prefix(WIKIDATA_ENTITY_PREFIX)
-        .or_else(|| value.strip_prefix("https://www.wikidata.org/entity/"))
+        .strip_prefix(WIKIDATA_ENTITY_BASE)
+        .or_else(|| value.strip_prefix(WIKIDATA_ENTITY_BASE_HTTPS))
         .unwrap_or(value)
 }
 

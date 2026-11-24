@@ -74,13 +74,14 @@ fn trimmed_optional_arc(value: Option<&Arc<str>>) -> Option<Arc<str>> {
 }
 
 fn trimmed_statement_id_arc(value: Option<&Arc<str>>) -> Option<Arc<str>> {
-    const STMT_PREFIX: &str = "http://www.wikidata.org/entity/statement/";
     let arc = value?;
     let trimmed = arc.trim();
     if trimmed.is_empty() {
         return None;
     }
-    let stripped = trimmed.strip_prefix(STMT_PREFIX).unwrap_or(trimmed);
+    let stripped = trimmed
+        .strip_prefix(lotus_model::WIKIDATA_STATEMENT_BASE)
+        .unwrap_or(trimmed);
     if stripped.len() == arc.len() {
         Some(Arc::clone(arc))
     } else {

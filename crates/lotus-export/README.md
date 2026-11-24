@@ -8,12 +8,11 @@ Full-graph bulk ETL pipelines for LOTUS over an injected `lotus_search::Http` tr
 
 ```rust
 use lotus_export::archive::{WriteArchiveInput, write_archive};
-use lotus_export::archive::DEFAULT_QLEVER_ENDPOINT;
 
 let artifacts = write_archive(&WriteArchiveInput {
     fetched_at: "2026-03-04T05:06:07Z",
     archive_filename: "lotus-2026-03-04.tar.gz",
-    endpoint: DEFAULT_QLEVER_ENDPOINT,
+    endpoint: lotus_model::QLEVER_WIKIDATA,
     source_records: 0,
     missing_inchi_key_records: &[],
     records: &[],

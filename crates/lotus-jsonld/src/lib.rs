@@ -53,7 +53,7 @@ pub(crate) fn stamp(mut node: serde_json::Value, profile: Profile) -> serde_json
 /// The Wikidata entity URI for a QID.
 #[must_use]
 pub(crate) fn wikidata_uri(qid: &str) -> String {
-    format!("http://www.wikidata.org/entity/{qid}")
+    format!("{}{qid}", lotus_model::WIKIDATA_ENTITY_BASE)
 }
 
 /// The canonical URL for a LOTUS concept, as a `sameAs` target.

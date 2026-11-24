@@ -95,7 +95,7 @@ fn metadata_json_shows_wdqs_when_fallback_used() {
         year: YEAR,
         date_created: NOW,
     });
-    assert!(body.contains(&format!("\"url\": \"{WDQS_ENDPOINT}\"")));
+    assert!(body.contains(&format!("\"url\": \"{}\"", lotus_model::WDQS_WIKIDATA)));
     assert!(body.contains("Wikidata Query Service"));
     assert!(body.contains("QLever fallback"));
 }

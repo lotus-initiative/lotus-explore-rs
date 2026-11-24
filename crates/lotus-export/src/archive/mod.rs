@@ -27,9 +27,6 @@ use self::dedup::deduplicate_by_inchi_key;
 use self::fetch::QleverClient;
 pub use self::tar_writer::{WriteArchiveInput, write_archive};
 
-/// `QLever`'s public Wikidata SPARQL endpoint, the default for the archive.
-pub const DEFAULT_QLEVER_ENDPOINT: &str = lotus_model::QLEVER_WIKIDATA;
-
 /// The Wikidata property from which a SMILES value was obtained.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "lowercase")]

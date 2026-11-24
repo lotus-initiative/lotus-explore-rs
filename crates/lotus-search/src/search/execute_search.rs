@@ -5,9 +5,7 @@
 use lotus_model::{DatasetStats, ValidationError};
 use lotus_query::{counts_query, limit_query, parse_compounds_csv_capped, parse_counts_csv};
 
-use super::query_plan::build_execution_query_with;
-use super::resolve_structure::resolve_inputs;
-use super::resolve_taxon::resolve_taxon;
+use super::query_plan::prepare_query;
 use crate::client::Http;
 use crate::error::{FetchError, ResponseFormat};
 use crate::result::{SearchRequest, SearchResult};
@@ -43,25 +41,7 @@ pub async fn search<H: Http>(
     http: &H,
     request: &SearchRequest,
 ) -> Result<SearchResult, SearchError> {
-    let year_max = request.year_max;
-    lotus_model::validate_criteria(&request.criteria, year_max).map_err(SearchError::Invalid)?;
-
-    let taxon = resolve_taxon(http, &request.criteria.taxon)
-        .await
-        .map_err(|e| SearchError::Transport {
-            stage: "taxon",
-            source: e,
-        })?;
-
-    let resolved =
-        resolve_inputs(http, &request.criteria)
-            .await
-            .map_err(|e| SearchError::Transport {
-                stage: "structure or reference",
-                source: e,
-            })?;
-
-    let query = build_execution_query_with(request, taxon.qid.as_deref(), &resolved);
+    let (query, taxon) = prepare_query(http, request).await?;
     let limit = request.limit.unwrap_or(DEFAULT_ROW_LIMIT);
     // One row past the limit, so a result larger than the limit is visible as
     // one: an endpoint asked for exactly `limit` rows never sends more, and the

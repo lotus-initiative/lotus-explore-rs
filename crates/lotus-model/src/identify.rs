@@ -6,9 +6,7 @@
 //! The same three jobs were implemented six times across the workspace. These
 //! are the only copies.
 
-use super::WIKIDATA_ENTITY_BASE;
-
-const WIKIDATA_ENTITY_BASE_HTTPS: &str = "https://www.wikidata.org/entity/";
+use super::{WIKIDATA_ENTITY_BASE, WIKIDATA_ENTITY_BASE_HTTPS};
 
 /// Reduce a Wikidata entity URI, typed literal, or bare QID to a bare QID.
 ///

@@ -5,7 +5,11 @@
 use lotus_model::{SearchCriteria, SmilesSearchType, normalize_structure};
 use lotus_query::{Nomenclature, base_query_for_criteria, exact_compounds_query, with_filters};
 
-use crate::result::SearchRequest;
+use super::execute_search::SearchError;
+use super::resolve_structure::resolve_inputs;
+use super::resolve_taxon::resolve_taxon;
+use crate::client::Http;
+use crate::result::{SearchRequest, TaxonResolution};
 
 /// How a structure search should be run, once the structure is known.
 #[derive(Debug, Clone, PartialEq)]
@@ -111,4 +115,32 @@ pub fn build_execution_query_with(
     };
 
     with_filters(&base, &criteria, request.year_max)
+}
+
+/// Validate criteria, resolve taxon and structure/reference inputs, and assemble
+/// the filtered execution query.
+pub(super) async fn prepare_query<H: Http>(
+    http: &H,
+    request: &SearchRequest,
+) -> Result<(String, TaxonResolution), SearchError> {
+    lotus_model::validate_criteria(&request.criteria, request.year_max)
+        .map_err(SearchError::Invalid)?;
+
+    let taxon = resolve_taxon(http, &request.criteria.taxon)
+        .await
+        .map_err(|e| SearchError::Transport {
+            stage: "taxon",
+            source: e,
+        })?;
+
+    let resolved =
+        resolve_inputs(http, &request.criteria)
+            .await
+            .map_err(|e| SearchError::Transport {
+                stage: "structure or reference",
+                source: e,
+            })?;
+
+    let query = build_execution_query_with(request, taxon.qid.as_deref(), &resolved);
+    Ok((query, taxon))
 }

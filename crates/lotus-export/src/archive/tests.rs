@@ -281,7 +281,7 @@ fn write_archive_produces_checksums_and_manifest() {
     let artifacts = write_archive(&WriteArchiveInput {
         fetched_at: "2026-09-17T00:00:00Z",
         archive_filename: "lotus-wikidata-smiles-20260917T000000Z.tar.gz",
-        endpoint: DEFAULT_QLEVER_ENDPOINT,
+        endpoint: lotus_model::QLEVER_WIKIDATA,
         source_records: 1,
         missing_inchi_key_records: &missing,
         records: &records,
