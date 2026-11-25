@@ -39,3 +39,7 @@ lcov.info
 /mutants.out*/
 .DS_Store
 mutants.out*/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
