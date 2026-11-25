@@ -6,7 +6,7 @@ use crate::i18n::Locale;
 use dioxus::prelude::*;
 
 /// Read the current locale value from context.
-/// Must be called inside a tree wrapped by [`super::LocaleProvider`].
+/// Must be called inside a tree wrapped by [`super::locale_provider::LocaleProvider`].
 /// Returns a plain `Locale` copy — subscribe only to locale changes.
 #[must_use]
 pub fn use_locale() -> Locale {

@@ -56,7 +56,7 @@ fn resolve_selected_index(model: &GraphModel, selected_key: Option<NodeKey>) -> 
     selected_key.and_then(|key| model.index_of(key))
 }
 
-/// Full interactive network workspace mounted inside [`crate::pages::NetworkPage`].
+/// Full interactive network workspace mounted inside [`crate::pages::network_page::NetworkPage`].
 #[component]
 pub fn ResultsGraphWorkspace(#[props(default)] initial_view: Option<GraphViewParams>) -> Element {
     let locale = crate::hooks::use_locale::use_locale();
