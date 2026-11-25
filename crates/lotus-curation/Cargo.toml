@@ -12,7 +12,7 @@ publish = false
 
 [dependencies]
 lotus-model = { workspace = true }
-lotus-search = { workspace = true, default-features = false }
+lotus-search = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

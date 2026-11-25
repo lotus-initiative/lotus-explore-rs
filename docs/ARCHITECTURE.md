@@ -39,12 +39,12 @@ One canonical term per concept across crates, CLI flags, UI, and tests:
 | [`lotus-query`](../crates/lotus-query/README.md) | Pure Domain | Pure SPARQL query builders, query rewriters, streaming CSV/JSON fold, and row exporters | `lotus-model` |
 | [`lotus-jsonld`](../crates/lotus-jsonld/README.md) | Pure Domain | Bioschemas JSON-LD, CodeMeta (`codemeta.json`), and `CITATION.cff` generation | `lotus-model` |
 | [`lotus-search`](../crates/lotus-search/README.md) | Application | Transport-abstracted SPARQL execution, retry/fallback, and input resolution | `lotus-model`, `lotus-query` |
-| [`lotus-curation`](../crates/lotus-curation/README.md) | Application | Curation TSV/CSV ingestion (`parse_tabular`), Wikidata reconciliation queries, and QuickStatements V1 bundling | `lotus-model`, `lotus-search` (`default-features = false`) |
-| [`lotus-explore-core`](../crates/lotus-explore-core/README.md) | Application | Framework-free explorer state machine, URL codec, client filter/sort, graph projection, and API DTOs | `lotus-model`, `lotus-query`, `lotus-search` (`default-features = false`), `lotus-jsonld` |
-| [`lotus-export`](../crates/lotus-export/README.md) | Application | Full-graph bulk ETL pipelines (frozen CSV export, PubChem trees, Zenodo archive) over injectable `Http` | `lotus-model`, `lotus-query`, `lotus-search` (`default-features = false`) |
-| [`lotus-server`](../crates/lotus-server/README.md) | Adapter | Native Axum OpenAPI HTTP server binary (`/v1/*`, `/health`, `/metrics`, static SPA hosting) | `lotus-model`, `lotus-query`, `lotus-search`, `lotus-explore-core` (`openapi`) |
-| [`lotus-cli`](../crates/lotus-cli/README.md) | Adapter | The `lotus` terminal binary (`search`, `curate`, `export`, `export-pubchem-tree`, `archive`) | `lotus-model`, `lotus-query`, `lotus-search`, `lotus-curation`, `lotus-jsonld`, `lotus-export` |
-| [`apps/lotus-explore-rs`](../apps/lotus-explore-rs/README.md) | Adapter | Dioxus WASM web client and browser platform adapters | `lotus-model`, `lotus-query`, `lotus-search`, `lotus-curation`, `lotus-explore-core` |
+| [`lotus-curation`](../crates/lotus-curation/README.md) | Application | Curation TSV/CSV ingestion (`parse_tabular`), Wikidata reconciliation queries, and QuickStatements V1 bundling | `lotus-model`, `lotus-search` |
+| [`lotus-explore-core`](../crates/lotus-explore-core/README.md) | Application | Framework-free explorer state machine, URL codec, client filter/sort, graph projection, and API DTOs | `lotus-model`, `lotus-query`, `lotus-search`, `lotus-jsonld` |
+| [`lotus-export`](../crates/lotus-export/README.md) | Application | Full-graph bulk ETL pipelines (frozen CSV export, PubChem trees, Zenodo archive) over injectable `Http` | `lotus-model`, `lotus-query`, `lotus-search` |
+| [`lotus-server`](../crates/lotus-server/README.md) | Adapter | Native Axum OpenAPI HTTP server binary (`/v1/*`, `/health`, `/metrics`, static SPA hosting) | `lotus-model`, `lotus-query`, `lotus-search` (`reqwest`), `lotus-explore-core` (`openapi`) |
+| [`lotus-cli`](../crates/lotus-cli/README.md) | Adapter | The `lotus` terminal binary (`search`, `curate`, `export`, `export-pubchem-tree`, `archive`) | `lotus-model`, `lotus-query`, `lotus-search` (`reqwest`), `lotus-curation`, `lotus-jsonld`, `lotus-export` |
+| [`apps/lotus-explore-rs`](../apps/lotus-explore-rs/README.md) | Adapter | Dioxus WASM web client and browser platform adapters | `lotus-model`, `lotus-query`, `lotus-search` (`reqwest`), `lotus-curation`, `lotus-explore-core` |
 | `lotus-web-assets` | Adapter | Host-only build and container utilities (`fetch-assets`, `inject-wasm-preload`, `lotus-healthcheck`) | *(none)* |
 
 ---
@@ -54,7 +54,7 @@ One canonical term per concept across crates, CLI flags, UI, and tests:
 1. **Pure crates stay pure (`./mk check-wasm-pure`):**
    `lotus-model`, `lotus-query`, and `lotus-jsonld` have zero HTTP, clock, or async runtime dependencies and compile for `wasm32-unknown-unknown` in isolation. Because pure crates cannot read a clock, `SearchCriteria` has no `Default` — callers supply `year` via `SearchCriteria::up_to_year(year)`.
 2. **Transformation is separate from transport (`./mk check-wasm-search`):**
-   `lotus-query` turns criteria into SPARQL strings and parses CSV bytes into model types. `lotus-search` owns endpoint selection, retry, QLever→WDQS fallback, and resolution over the `Http` trait (tested offline against [`Scripted`](../crates/lotus-search/src/testing.rs)). Crates that only need the `Http` trait (`lotus-curation`, `lotus-explore-core`, `lotus-export`) depend on `lotus-search` with `default-features = false` so `reqwest`/`tokio` are never pulled in unnecessarily.
+   `lotus-query` turns criteria into SPARQL strings and parses CSV bytes into model types. `lotus-search` owns endpoint selection, retry, QLever→WDQS fallback, and resolution over the `Http` trait (tested offline against [`Scripted`](../crates/lotus-search/src/testing.rs)). `[workspace.dependencies]` declares `lotus-search` with `default-features = false` so crates that only need the `Http` trait (`lotus-curation`, `lotus-explore-core`, `lotus-export`) never pull in `reqwest`/`tokio`, while adapter crates opt into `features = ["reqwest"]`.
 3. **Application core contains no UI framework (`./mk boundary`):**
    `lotus-explore-core` (and `lotus-export`, `lotus-server`) must never depend on or reference `dioxus`.
 4. **Error handling strategy:**

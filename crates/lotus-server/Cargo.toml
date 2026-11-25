@@ -24,7 +24,7 @@ log = { workspace = true }
 lotus-explore-core = { workspace = true, features = ["openapi"] }
 lotus-model = { workspace = true }
 lotus-query = { workspace = true }
-lotus-search = { workspace = true }
+lotus-search = { workspace = true, features = ["reqwest"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

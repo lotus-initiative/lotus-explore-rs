@@ -26,7 +26,7 @@ lotus-export = { workspace = true }
 lotus-jsonld = { workspace = true }
 lotus-model = { workspace = true }
 lotus-query = { workspace = true }
-lotus-search = { workspace = true }
+lotus-search = { workspace = true, features = ["reqwest"] }
 reqwest = { workspace = true, features = ["default-tls", "gzip", "json"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
