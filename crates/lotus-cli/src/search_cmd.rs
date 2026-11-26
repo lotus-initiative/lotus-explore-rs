@@ -7,7 +7,7 @@ use std::process::ExitCode;
 
 use lotus_model::SmilesSearchType;
 
-use crate::args::SearchArgs;
+use crate::args::{LogLevel, SearchArgs};
 use crate::clock::current_year;
 use crate::criteria::criteria_from_args;
 use crate::output::write_rows;
@@ -16,19 +16,37 @@ pub async fn search(args: SearchArgs) -> anyhow::Result<ExitCode> {
     if !(0.0..=1.0).contains(&args.threshold) {
         anyhow::bail!("--threshold {} is outside 0..=1", args.threshold);
     }
-    let year_max = args.year_max.unwrap_or_else(current_year);
-    let criteria = criteria_from_args(&args, year_max);
-    lotus_model::validate_criteria(&criteria, year_max)?;
+    let clock_year = current_year();
+    let criteria = criteria_from_args(&args, clock_year);
+    lotus_model::validate_criteria(&criteria, clock_year)?;
 
-    let request = lotus_search::SearchRequest::new(criteria.clone(), year_max)
+    let request = lotus_search::SearchRequest::new(criteria.clone(), clock_year)
         .with_limit(args.limit.unwrap_or(usize::MAX));
 
     if args.explain {
         return explain_search(&args.taxon, &criteria, &request);
     }
 
+    if matches!(args.log, LogLevel::Info | LogLevel::Debug) {
+        eprintln!(
+            "lotus: [info] executing search (year_max={}, limit={:?})",
+            criteria.year_max, args.limit
+        );
+    }
+
     let http = lotus_search::reqwest_client::ReqwestClient::new()?;
     let result = lotus_search::search(&http, &request).await?;
+
+    if args.log == LogLevel::Debug {
+        eprintln!("lotus: [debug] SPARQL:\n{}", result.query);
+    }
+    if matches!(args.log, LogLevel::Info | LogLevel::Debug) {
+        eprintln!(
+            "lotus: [info] returned {} row(s) (truncated={})",
+            result.rows.len(),
+            result.truncated
+        );
+    }
 
     if let Some(taxon) = &result.taxon {
         for note in &taxon.notes {
@@ -103,6 +121,16 @@ fn explain_search(
                  run."
             );
         }
+    } else if !structure.is_empty()
+        && (lotus_model::is_qid(&structure)
+            || lotus_model::looks_like_inchikey(&structure)
+            || lotus_model::could_be_a_compound_name(&structure))
+    {
+        eprintln!(
+            "lotus: this is the query before the structure identifier is resolved. A \
+             substructure or similarity search resolves {structure:?} to its SMILES \
+             first, so this is not the query that will run."
+        );
     }
 
     let query =

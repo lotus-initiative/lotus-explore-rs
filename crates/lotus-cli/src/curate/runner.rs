@@ -80,24 +80,36 @@ pub(super) fn not_checked_row(finding: &CurationInputRow) -> lotus_curation::Cur
     }
 
     let name = escape_quickstatements(finding.name.trim());
-    let mut compound_block = format!(
-        "## {name}\nCREATE\nLAST|{PROPERTY_NAME}|\"{name}\"\n\
-         LAST|P31|{entity_type}\n\
-         LAST|P279|{compound_class}\n\
-         LAST|{PROPERTY_CANONICAL_SMILES}|\"{canonical}\"",
-        entity_type = lotus_curation::WD_TYPE_CHEMICAL_ENTITY_QID,
-        compound_class = lotus_curation::WD_CHEMICAL_COMPOUND_QID,
-        canonical = escape_quickstatements(&canonical),
-    );
-    if isomeric_smiles.is_some() {
-        use std::fmt::Write as _;
-        let _ = write!(
-            compound_block,
-            "\nLAST|{PROPERTY_ISOMERIC_SMILES}|\"{isomeric}\"",
-            isomeric = escape_quickstatements(raw_smiles),
+    let statements = if canonical.trim().is_empty() && isomeric_smiles.is_none() {
+        vec![format!(
+            "## {name}\n# no SMILES provided; cannot build compound creation statements."
+        )]
+    } else {
+        let mut compound_block = format!(
+            "## {name}\nCREATE\nLAST|{PROPERTY_NAME}|\"{name}\"\n\
+             LAST|P31|{entity_type}\n\
+             LAST|P279|{compound_class}",
+            entity_type = lotus_curation::WD_TYPE_CHEMICAL_ENTITY_QID,
+            compound_class = lotus_curation::WD_CHEMICAL_COMPOUND_QID,
         );
-    }
-    let statements = vec![compound_block];
+        if !canonical.trim().is_empty() {
+            use std::fmt::Write as _;
+            let _ = write!(
+                compound_block,
+                "\nLAST|{PROPERTY_CANONICAL_SMILES}|\"{canonical}\"",
+                canonical = escape_quickstatements(&canonical),
+            );
+        }
+        if isomeric_smiles.is_some() {
+            use std::fmt::Write as _;
+            let _ = write!(
+                compound_block,
+                "\nLAST|{PROPERTY_ISOMERIC_SMILES}|\"{isomeric}\"",
+                isomeric = escape_quickstatements(raw_smiles),
+            );
+        }
+        vec![compound_block]
+    };
     let named = |field: Option<&str>| field.map(str::trim).is_some_and(|v| !v.is_empty());
     let unresolved: Vec<&str> = [
         named(finding.taxon.as_deref()).then_some("taxon"),
@@ -191,6 +203,13 @@ pub(super) async fn curate_findings(
 
         let smiles = convertible_smiles(findings);
         let converted = lotus_curation::convert_structures(&http, &smiles).await?;
+        if converted.len() != smiles.len() {
+            anyhow::bail!(
+                "structure conversion returned {} result(s) for {} SMILES",
+                converted.len(),
+                smiles.len()
+            );
+        }
 
         let mut by_smiles: std::collections::HashMap<&str, &lotus_curation::ConvertedStructure> =
             std::collections::HashMap::new();

@@ -623,6 +623,42 @@ fn explain_warns_about_nothing_when_no_structure_needs_resolving() {
         ]),
         ""
     );
+    let warn = explain_stderr(&[
+        "--structure",
+        "aspirin",
+        "--structure-search",
+        "substructure",
+    ]);
+    assert!(
+        warn.contains("before the structure identifier is resolved"),
+        "expected resolution warning for compound name under substructure, got: {warn}"
+    );
+}
+
+#[test]
+fn search_year_max_filters_query_and_rejects_future_years() {
+    let ok = lotus()
+        .args(["search", "--taxon", "*", "--year-max", "2020", "--explain"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8(ok.get_output().stdout.clone()).expect("UTF-8");
+    assert!(
+        stdout.contains("YEAR(?ref_date) <= 2020"),
+        "--year-max 2020 must reach the SPARQL filter: {stdout}"
+    );
+
+    lotus()
+        .args(["search", "--taxon", "*", "--year-max", "9999", "--explain"])
+        .assert()
+        .failure();
+}
+
+#[test]
+fn export_rejects_invalid_now_before_network() {
+    lotus()
+        .args(["export", "--now", "not-a-timestamp"])
+        .assert()
+        .failure();
 }
 
 /// `lotus` with every proxy pointed at a closed loopback port, so a command

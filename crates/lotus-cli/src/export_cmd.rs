@@ -32,21 +32,22 @@ impl<W: Write> ExportProgress<W> {
     }
 
     pub fn step(&mut self, table: &'static str) {
-        if self.is_terminal {
+        if self.is_terminal && self.total > 0 {
+            let completed = self.completed.min(self.total);
             #[expect(
                 clippy::cast_possible_truncation,
                 reason = "completed <= total and PROGRESS_BAR_WIDTH is 40, so the quotient fits in usize"
             )]
-            let filled = ((self.completed * PROGRESS_BAR_WIDTH as u64) / self.total) as usize;
-            let rest = PROGRESS_BAR_WIDTH - filled;
+            let filled = ((completed * PROGRESS_BAR_WIDTH as u64) / self.total) as usize;
+            let rest = PROGRESS_BAR_WIDTH.saturating_sub(filled);
             let _ = write!(
                 self.writer,
                 "\r\x1b[2K[\x1b[36m{:=<filled$}>\x1b[34m{:->rest$}\x1b[0m] {}/{} Fetching {table}",
-                "", "", self.completed, self.total
+                "", "", completed, self.total
             );
             let _ = self.writer.flush();
         }
-        self.completed += 1;
+        self.completed = self.completed.saturating_add(1);
     }
 
     pub fn finish(&mut self) {
@@ -67,7 +68,13 @@ impl<W: Write> ExportProgress<W> {
 /// performs none, so it stays wasm-clean.
 pub async fn export(args: ExportArgs) -> anyhow::Result<ExitCode> {
     let year = args.year.unwrap_or_else(current_year);
-    let now = args.now.unwrap_or_else(now_iso_utc);
+    let now = match args.now {
+        Some(raw) => {
+            crate::clock::parse_iso_utc(&raw)?;
+            raw
+        }
+        None => now_iso_utc(),
+    };
 
     let http = lotus_search::reqwest_client::ReqwestClient::new()?;
     let endpoint = lotus_search::Endpoint::new(lotus_search::Service::Qlever);

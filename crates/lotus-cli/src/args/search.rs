@@ -166,7 +166,7 @@ pub enum LogLevel {
 #[derive(Debug, Clone, Copy)]
 pub struct Range {
     pub min: u16,
-    pub max: u16,
+    pub max: Option<u16>,
 }
 
 impl std::str::FromStr for Range {
@@ -177,16 +177,19 @@ impl std::str::FromStr for Range {
         match value.split_once("..") {
             Some((min, "")) => Ok(Self {
                 min: min.parse().map_err(|_| bad())?,
-                max: u16::MAX,
+                max: None,
             }),
             Some(("", max)) => Ok(Self {
                 min: 0,
-                max: max.parse().map_err(|_| bad())?,
+                max: Some(max.parse().map_err(|_| bad())?),
             }),
             Some((min, max)) => {
                 let min: u16 = min.parse().map_err(|_| bad())?;
                 let max: u16 = max.parse().map_err(|_| bad())?;
-                Ok(Self { min, max })
+                Ok(Self {
+                    min,
+                    max: Some(max),
+                })
             }
             None => {
                 // A bare number is an upper bound: `--carbon 5` reads as "at
@@ -194,7 +197,10 @@ impl std::str::FromStr for Range {
                 // A lower bound alone selects almost nothing, so `20..` is how
                 // you ask for that.
                 let max: u16 = value.parse().map_err(|_| bad())?;
-                Ok(Self { min: 0, max })
+                Ok(Self {
+                    min: 0,
+                    max: Some(max),
+                })
             }
         }
     }

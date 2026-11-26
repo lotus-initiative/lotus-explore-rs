@@ -42,6 +42,13 @@ fn validate_source_code_url_rejects_non_hex_sha() {
 }
 
 #[test]
+fn validate_source_code_url_rejects_empty_or_whitespace_host() {
+    assert!(validate_source_code_url(&format!("https:///commit/{VALID_SHA}")).is_err());
+    assert!(validate_source_code_url(&format!("https://:443/commit/{VALID_SHA}")).is_err());
+    assert!(validate_source_code_url(&format!("https://bad host/commit/{VALID_SHA}")).is_err());
+}
+
+#[test]
 fn parse_iso_utc_parses_valid_rfc3339() {
     let dt = parse_iso_utc("2025-01-15T12:30:00Z").expect("valid RFC3339");
     assert_eq!(dt.year, 2025);

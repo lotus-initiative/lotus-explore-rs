@@ -135,7 +135,22 @@ pub async fn run(args: &CurateArgs) -> anyhow::Result<ExitCode> {
         );
     }
 
+    if matches!(args.log, LogLevel::Info | LogLevel::Debug) && !args.quiet {
+        eprintln!(
+            "lotus: [info] curating {} unique row(s) (offline={})",
+            unique.len(),
+            args.offline
+        );
+    }
+
     let report = curate_findings(&unique, args.offline).await?;
+
+    if args.log == LogLevel::Debug && !args.quiet {
+        eprintln!(
+            "lotus: [debug] generated {} statement block(s)",
+            report.statements.len()
+        );
+    }
 
     // Worth saying out loud, because a bundle that reads like a finished curation
     // is the one output of this command that can do damage. Under `--offline`

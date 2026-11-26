@@ -13,8 +13,13 @@ use crate::zenodo;
 ///
 /// Returns the canonical string or a clap-style error ready for `anyhow`.
 pub fn validate_source_code_url(url: &str) -> anyhow::Result<String> {
-    if !url.starts_with("https://") {
+    let Some(rest) = url.strip_prefix("https://") else {
         anyhow::bail!("SOURCE_CODE_URL must be an https URL");
+    };
+    let authority = rest.split('/').next().unwrap_or("");
+    let host = authority.split(':').next().unwrap_or("");
+    if authority.is_empty() || host.is_empty() || authority.chars().any(char::is_whitespace) {
+        anyhow::bail!("SOURCE_CODE_URL must include a non-empty host");
     }
     let Some((_, revision)) = url.rsplit_once("/commit/") else {
         anyhow::bail!("SOURCE_CODE_URL must have a /commit/<sha> suffix");

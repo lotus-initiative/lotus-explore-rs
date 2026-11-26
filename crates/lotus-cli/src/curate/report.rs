@@ -49,11 +49,11 @@ pub(super) fn write_report<W: Write>(
                 writeln!(
                     out,
                     "{}\t{}\t{}\t{}\t{}\t{}",
-                    row.input.name,
-                    row.input.smiles,
-                    row.input.taxon.as_deref().unwrap_or(""),
-                    row.input.doi.as_deref().unwrap_or(""),
-                    row.wikidata_qid.as_deref().unwrap_or(""),
+                    sanitize_tsv_cell(&row.input.name),
+                    sanitize_tsv_cell(&row.input.smiles),
+                    sanitize_tsv_cell(row.input.taxon.as_deref().unwrap_or("")),
+                    sanitize_tsv_cell(row.input.doi.as_deref().unwrap_or("")),
+                    sanitize_tsv_cell(row.wikidata_qid.as_deref().unwrap_or("")),
                     status_key(&row.status),
                 )?;
             }
@@ -75,4 +75,17 @@ pub(super) fn write_report<W: Write>(
         }
     }
     Ok(())
+}
+
+fn sanitize_tsv_cell(value: &str) -> String {
+    value
+        .chars()
+        .map(|c| {
+            if matches!(c, '\t' | '\r' | '\n') {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect()
 }

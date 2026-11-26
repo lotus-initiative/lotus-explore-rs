@@ -70,3 +70,15 @@ fn non_terminal_stderr_emits_no_progress_escapes() {
         "non-TTY stderr must stay quiet so piped logs are not polluted with ANSI escapes"
     );
 }
+
+#[test]
+fn zero_or_exceeded_total_does_not_divide_by_zero_or_underflow() {
+    let mut zero = ExportProgress::new(Vec::new(), true, 0);
+    zero.step("t");
+    assert_eq!(zero.writer, [] as [u8; 0]);
+
+    let mut small = ExportProgress::new(Vec::new(), true, 1);
+    small.step("t1");
+    small.step("t2");
+    assert_ne!(small.writer, [] as [u8; 0]);
+}

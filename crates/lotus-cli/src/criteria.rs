@@ -12,8 +12,8 @@ use crate::args::{Range, SearchArgs};
 /// "passed, meaning the opposite" unless this is the thing under test. With the
 /// mapping inlined, a dropped `!` turned `--no-basionyms` into a way of
 /// *enabling* the basionym search and every test still passed.
-pub fn criteria_from_args(args: &SearchArgs, year_max: u16) -> lotus_model::SearchCriteria {
-    let mut criteria = lotus_model::SearchCriteria::up_to_year(year_max);
+pub fn criteria_from_args(args: &SearchArgs, clock_year: u16) -> lotus_model::SearchCriteria {
+    let mut criteria = lotus_model::SearchCriteria::up_to_year(clock_year);
 
     criteria.taxon.clone_from(&args.taxon);
     // The model defaults all four to on and each flag is a negation, so these
@@ -31,7 +31,7 @@ pub fn criteria_from_args(args: &SearchArgs, year_max: u16) -> lotus_model::Sear
     criteria.mass_max = args.mass_max;
     criteria.reference = args.reference.clone().unwrap_or_default();
     criteria.year_min = args.year_min;
-    criteria.year_max = year_max;
+    criteria.year_max = args.year_max.unwrap_or(clock_year);
     criteria.formula_exact = args.formula.clone().unwrap_or_default();
     apply_ranges(
         &mut criteria,
@@ -64,11 +64,7 @@ pub fn apply_ranges(
     let set = |range: Option<Range>, min: &mut u16, max: &mut u16, default_max: u16| {
         if let Some(range) = range {
             *min = range.min;
-            *max = if range.max == u16::MAX {
-                default_max
-            } else {
-                range.max
-            };
+            *max = range.max.unwrap_or(default_max);
         }
     };
     set(

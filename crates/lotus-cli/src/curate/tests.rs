@@ -352,6 +352,16 @@ fn not_checked_row_populates_canonical_and_isomeric_smiles_and_p31() {
     let blank = super::not_checked_row(&finding("   "));
     assert_eq!(blank.canonical_smiles, None);
     assert_eq!(blank.isomeric_smiles, None);
+    assert!(
+        !blank.quickstatements[0].contains("CREATE"),
+        "blank SMILES must not emit CREATE: {:?}",
+        blank.quickstatements
+    );
+    assert!(
+        !blank.quickstatements[0].contains("P233"),
+        "blank SMILES must not emit P233: {:?}",
+        blank.quickstatements
+    );
 }
 
 /// `P703` (found in taxon) and `P248` (stated in) take items. Offline, the taxon

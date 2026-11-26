@@ -4,7 +4,7 @@
 
 mod search;
 
-pub use search::{Range, SearchArgs};
+pub use search::{LogLevel, Range, SearchArgs};
 
 use crate::curate;
 use clap::{Parser, Subcommand};
@@ -82,9 +82,9 @@ pub struct ExportPubchemTreeArgs {
 
 /// Archive LOTUS SMILES from Wikidata as a tar.gz with manifest and checksums.
 ///
-/// By default the archive is written to disk and validated without contacting
-/// Zenodo (`--dry-run`). Real publishing requires `--publish` **and** the
-/// `ZENODO_TOKEN` environment variable; CI never sets either.
+/// By default the archive is written to disk without contacting Zenodo. Pass
+/// `--publish --dry-run` to validate Zenodo metadata without uploading, or
+/// `--publish` with `ZENODO_TOKEN` to publish.
 #[derive(Debug, clap::Args)]
 pub struct ArchiveArgs {
     /// Directory to write the archive files into. Defaults to the current
@@ -92,8 +92,8 @@ pub struct ArchiveArgs {
     #[arg(short, long, value_name = "DIR")]
     pub output: Option<std::path::PathBuf>,
 
-    /// Validate the Zenodo metadata and upload plan without contacting Zenodo.
-    /// This is the default; pass `--publish` without `--dry-run` to push.
+    /// Validate the Zenodo metadata and upload plan without contacting Zenodo
+    /// (requires `--publish`).
     #[arg(long, requires = "publish")]
     pub dry_run: bool,
 

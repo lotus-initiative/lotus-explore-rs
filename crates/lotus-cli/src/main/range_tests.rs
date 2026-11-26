@@ -26,7 +26,10 @@ fn a_bare_number_is_an_upper_bound() {
         let range = parse(value).expect("a bare number parses");
         assert_eq!(
             (range.min, range.max),
-            (0, value.parse::<u16>().expect("the fixture is a number")),
+            (
+                0,
+                Some(value.parse::<u16>().expect("the fixture is a number"))
+            ),
             "--carbon {value} means at most {value}, not at least"
         );
     }
@@ -51,12 +54,12 @@ fn a_lower_bound_only_spelling_sets_min_and_leaves_max_open() {
 
     assert_eq!(
         (trailing_dots.min, trailing_dots.max),
-        (20, u16::MAX),
+        (20, None),
         "`20..` sets the lower bound to 20 and leaves the upper bound open"
     );
     assert_eq!(
         (leading_dots.min, leading_dots.max),
-        (0, 20),
+        (0, Some(20)),
         "`..20` sets the upper bound to 20"
     );
     assert_eq!(
@@ -80,6 +83,22 @@ fn a_lower_bound_only_spelling_sets_min_and_leaves_max_open() {
         (20, lotus_model::element_max::C),
         "`apply_ranges` resolves an open upper bound to the element's default max"
     );
+
+    let explicit_max = parse("10..65535").expect("parses");
+    super::apply_ranges(
+        &mut criteria,
+        Some(explicit_max),
+        None,
+        None,
+        None,
+        None,
+        None,
+    );
+    assert_eq!(
+        (criteria.c_min, criteria.c_max),
+        (10, u16::MAX),
+        "an explicit 65535 max must not be rewritten to the default max"
+    );
 }
 
 #[test]
@@ -88,10 +107,14 @@ fn a_two_sided_range_is_the_only_way_to_get_a_lower_bound() {
         parse("5").expect("parses"),
         parse("10..20").expect("parses"),
     );
-    assert_eq!((upper.min, upper.max), (0, 5), "a bare number is a ceiling");
+    assert_eq!(
+        (upper.min, upper.max),
+        (0, Some(5)),
+        "a bare number is a ceiling"
+    );
     assert_eq!(
         (both.min, both.max),
-        (10, 20),
+        (10, Some(20)),
         "and `10..20` is the one form that has both"
     );
 
@@ -106,7 +129,7 @@ fn a_two_sided_range_is_the_only_way_to_get_a_lower_bound() {
     let inverted = parse("20..10").expect("syntactically valid range parses");
     assert_eq!(
         (inverted.min, inverted.max),
-        (20, 10),
+        (20, Some(10)),
         "inverted ranges parse syntactically so semantic validation exits with code 1"
     );
     let mut criteria = lotus_model::SearchCriteria::up_to_year(2026);
@@ -116,7 +139,7 @@ fn a_two_sided_range_is_the_only_way_to_get_a_lower_bound() {
         "semantic validation must reject an inverted element range"
     );
     let exact = parse("10..10").expect("an exact range parses");
-    assert_eq!((exact.min, exact.max), (10, 10));
+    assert_eq!((exact.min, exact.max), (10, Some(10)));
 }
 
 #[test]

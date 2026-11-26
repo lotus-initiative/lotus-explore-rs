@@ -162,7 +162,7 @@ fn every_subcommand_is_documented() {
         if word.is_empty() || word == "help" || word.starts_with('-') {
             continue;
         }
-        if !word.chars().all(|c| c.is_ascii_lowercase()) {
+        if !word.chars().all(|c| c.is_ascii_lowercase() || c == '-') {
             continue;
         }
         assert!(
