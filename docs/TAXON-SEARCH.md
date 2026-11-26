@@ -330,7 +330,7 @@ link is a rename, crossing a parent link is descent into a different organism.
 **Each property carries its own `^`.** Writing `^a|b` rather than `^a|^b` is a
 silent bug — `^` binds to the single path after it, so it means "inverse of a,
 or b" and everything after the first is read forwards only. The query still
-returns rows and simply returns a different set, which is the worst shape a
+returns rows and returns a different set, which is the worst shape a
 query bug can take. A test asserts each enabled property appears both forward
 and backward.
 

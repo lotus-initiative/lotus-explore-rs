@@ -11,7 +11,7 @@
 //!
 //! That difference is invisible until it is fatal. A two-million-row export is
 //! roughly 600 MB of CSV; decoded into a `String` in a tab budgeted for 200 MB
-//! it is a killed tab with no error, and the download button simply does
+//! it is a killed tab with no error, and the download button does
 //! nothing on a large result.
 //!
 //! The identifier is matched *with* its parenthesis, so a comment explaining

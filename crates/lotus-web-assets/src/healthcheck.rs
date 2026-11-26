@@ -39,7 +39,7 @@ const TIMEOUT: Duration = Duration::from_secs(3);
 /// `GET <path> HTTP/1.0` against `host:port`.
 ///
 /// HTTP/1.0 rather than 1.1 so the server closes the connection when it is
-/// done and this can simply read to end-of-stream. HTTP/1.1 would need
+/// done and this can read to end-of-stream. HTTP/1.1 would need
 /// `Content-Length` handling to know when to stop, and this reads a response it
 /// only needs the status line of.
 ///

@@ -108,7 +108,7 @@ not found`, with the input quoted back, rather than rows for a search they did n
 ask for. That is the taxon field's rule, for the same reason.
 
 A **structure** that Wikidata has no compound for is not a miss at all. It is a
-good structure that is simply not in the database, and searching it is what the
+good structure that is not yet in the database, and searching it is what the
 reader asked for. Nothing about a SMILES is a claim that can turn out to be wrong,
 which is why this is the one asymmetry in the resolver — and why refusing it would
 break every structure search there ever was.

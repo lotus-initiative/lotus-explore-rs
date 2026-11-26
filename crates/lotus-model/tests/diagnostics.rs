@@ -8,7 +8,7 @@
 //! count suggests -- the number is the justification for the whole columnar
 //! design, and there are two functions computing it independently. Nothing said
 //! they agreed, and nothing would notice if a column were added to one and not
-//! the other: the reported figure would simply be wrong, and the figure is what
+//! the other: the reported figure would be wrong, and the figure is what
 //! a reader checks the design against.
 
 // The panic lints keep library code free of panics on external input. A test

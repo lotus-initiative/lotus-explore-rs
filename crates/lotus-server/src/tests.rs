@@ -1405,7 +1405,7 @@ fn state_caches_prune_bounds_and_inflight_removal_behave_consistently() {
         Some("SELECT 1".to_string())
     );
 
-    // Force immediate prune check across the `<` / `<=` / `+` boundary in maybe_prune_cache.
+    // Force immediate prune check across the `<` / `<=` / `+` boundary in maybe_prune_cache_at.
     *state.search_cache_prune_after.lock().expect("prune lock") = Instant::now()
         .checked_sub(Duration::from_secs(1))
         .expect("past instant");

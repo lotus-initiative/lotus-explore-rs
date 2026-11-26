@@ -672,7 +672,7 @@ async fn a_similarity_search_on_a_resolved_compound_sends_its_smiles_to_sachem()
 /// The two-block string that is *not* an `InChIKey` is not treated as one.
 ///
 /// This is the other half of the same mistake and it is the reason the old
-/// predicate could not simply have been loosened: it accepted
+/// predicate could not just have been loosened: it accepted
 /// `DBOVHQOUSDWAPQ-WTONXPSSSA`, which is an `InChIKey` missing its version block,
 /// and would have sent it down the identifier route.
 #[tokio::test]

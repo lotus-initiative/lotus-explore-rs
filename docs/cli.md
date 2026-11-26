@@ -58,7 +58,7 @@ for the test that runs every example in this file.
 | `--no-replacements`                                                            | Ignore replacement names and what they replaced (`P694`)                    |
 | `--structure`                                                                  | Compound name, InChIKey, Wikidata QID, SMILES, or MDL molfile (V2000/V3000) |
 | `--structure-search`                                                           | `exact` (default), `substructure` or `similarity`                           |
-| `--threshold`                                                                  | Tanimoto cutoff for a similarity search, 0 to 1, scored by the IDSM service |
+| `--threshold`                                                                  | Tanimoto cutoff for a similarity search, in (0, 1], scored by the IDSM service |
 | `--mass-min`, `--mass-max`                                                     | Molecular mass range, in daltons                                            |
 | `--year-min`, `--year-max`                                                     | Publication year range                                                      |
 | `--formula`                                                                    | Exact molecular formula; subscripts are accepted                            |

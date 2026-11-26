@@ -44,7 +44,7 @@
 //! there is nothing to guess at when it matches nothing. Searching for a structure
 //! literally spelled `aspirin` would return a confusingly empty result instead of
 //! saying the name is unknown. A structure is not a claim at all, so a structure
-//! Wikidata has no compound for is not a miss: it is a good structure simply not in
+//! Wikidata has no compound for is not a miss: it is a good structure absent from
 //! the database, and searching it is what the reader asked for. This is the one
 //! asymmetry with the other three routes, and it keeps every structure search that
 //! ever working still working.
@@ -149,7 +149,7 @@ pub async fn resolve<R: LotusRepository>(
             }))
         }
         // A structure with no Wikidata compound. Not a miss: a good structure
-        // simply not in the database. Nothing in a structure is a claim that
+        // absent from the database. Nothing in a structure is a claim that
         // can turn out wrong.
         None => Ok(StructureResolution {
             resolved: ResolvedStructure::unresolved(canonical_input),

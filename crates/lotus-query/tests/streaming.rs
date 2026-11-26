@@ -130,8 +130,8 @@ fn a_final_row_without_a_trailing_newline_is_not_truncation() {
     // The other half of the contract, and the reason truncation is only detectable
     // inside a quote: CSV lets the last record omit its terminator, so a body ending on
     // a complete row is indistinguishable from a body cut between fields -- and treating
-    // it as truncated would reject well-formed responses from an endpoint that simply
-    // does not end with a newline.
+    // it as truncated would reject well-formed responses from an endpoint that
+    // omits the trailing newline.
     let mut splitter = CsvSplitter::new();
     let mut out = Vec::new();
     splitter.feed(b"Q1,name\nQ2,other", &mut out);

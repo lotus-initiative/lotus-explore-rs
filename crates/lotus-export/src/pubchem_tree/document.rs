@@ -64,7 +64,7 @@ impl TreeKind {
                 overview: "This JSON contains a hierarchical tree of chemical compounds classified using NPClassifier (pathway → superclass → class).",
                 description: "NPClassifier-based hierarchical classification of natural products",
                 notes: [
-                    "NPClassifier provides a comprehensive classification for natural products.",
+                    "NPClassifier provides a three-level classification for natural products.",
                     "Hierarchy: pathway → superclass → class → InChIKey",
                     "Multiple classifications are possible for a single compound.",
                     "See https://npclassifier.gnps2.org/ for more information.",

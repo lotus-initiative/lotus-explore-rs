@@ -107,7 +107,7 @@ fn render(format: ExportFormat, set: &ColumnarResultSet) -> String {
 /// The exporter speaks a different dialect -- it emits `compound_smiles`,
 /// `ref` and `ref_year`, while the query projects `compound_smiles_iso`,
 /// `compound_smiles_conn`, `ref_qid` and `ref_date`. That difference is real and
-/// deliberate, and it is why this cannot simply be `render(ExportFormat::Csv, ..)`:
+/// deliberate, and it is why this cannot just be `render(ExportFormat::Csv, ..)`:
 /// a round trip through the exporter would test the exporter against itself.
 fn query_dialect_csv(set: &ColumnarResultSet) -> String {
     let mut out = String::new();

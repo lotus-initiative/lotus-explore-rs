@@ -18,7 +18,7 @@
   // adds the `<script>` tag itself, from a path Rust got back from the bundler.
   // This file used to build the URL itself, and a path assembled at runtime is
   // invisible to `dx`: it embeds only the assets Rust names, so the file was
-  // simply not in a desktop bundle and the request 404ed.
+  // absent from a desktop bundle and the request 404ed.
   //
   // The wasm module is the one URL that cannot be a `src`, because the loader
   // looks it up by name relative to itself and the bundled copy is

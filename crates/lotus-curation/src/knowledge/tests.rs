@@ -381,7 +381,7 @@ mod unit {
     #[test]
     fn a_row_without_a_doi_is_not_told_it_is_missing_one() {
         // The note is conditional on a DOI being present. Mutation testing
-        // found the guard could be dropped, which made every row that simply
+        // found the guard could be dropped, which made every row that
         // has no DOI claim that Wikidata is missing a reference for it.
         let lookup = compound_qid("Q153");
 

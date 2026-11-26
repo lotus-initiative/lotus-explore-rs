@@ -94,7 +94,7 @@ It does not have to be. The closure is a function of `(taxon, nomenclature)` alo
 and does not depend on any user filter, so it is cacheable per taxon. Amortised,
 the cost is ~0 and the saving is the full 4.9 s per search.
 
-**Why this is not simply committed:** it changes what the query _is_. The query
+**Why this is not committed directly:** it changes what the query _is_. The query
 text stops being a pure function of the form input and becomes a function of
 `(taxon, nomenclature, closure-at-time-T)`. Consequences, all of which a caller
 has to agree to:
@@ -347,7 +347,7 @@ them into a `BTreeSet` to assign ranks is `O(distinct log distinct)` _string_
 comparisons, and filling the rank lookup is the same again. The sort it was meant
 to accelerate then does `O(n log n)` integer comparisons instead of `O(n log n)`
 string comparisons -- so the string work is paid twice rather than once. The
-premise that ranking removes the comparisons is simply false; it only changes
+premise that ranking removes the comparisons is false; it only changes
 which loop pays for them.
 
 The one shape where it would pay is grouping by _dictionary slot_ rather than by

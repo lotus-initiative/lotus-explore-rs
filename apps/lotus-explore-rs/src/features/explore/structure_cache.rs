@@ -78,7 +78,7 @@ pub enum CompoundNotice {
 /// What the cache knows about an input.
 ///
 /// Three states, not two: only "never looked up" is worth asking again, which is
-/// why a miss is remembered rather than simply absent.
+/// why a miss is remembered rather than omitted.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Cached {
     /// Looked up, and it named a compound.

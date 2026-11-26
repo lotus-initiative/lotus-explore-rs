@@ -31,7 +31,7 @@ fn no_user_visible_text_is_hardcoded_in_the_page() {
     }
 
     // And positively: the lookup has to be used, or the assertions above would pass
-    // against a page that simply deleted its heading.
+    // against a page that omitted its heading.
     assert!(
         rendered.contains("faq_chrome(locale)"),
         "the page must resolve its furniture through `faq_chrome`"

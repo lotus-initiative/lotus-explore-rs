@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! The flags-to-criteria mapping, checked without a network or a binary.
 //!
-//! `criteria_from_args` is the whole of the CLI's contribution to a search, and
+//! `criteria_from_args(args, clock_year)` is the whole of the CLI's contribution to a search, and
 //! otherwise reachable only by running `lotus search` and reading the SPARQL it
 //! prints. That cannot cover these flags: `--explain` deliberately skips taxon
 //! resolution, so a taxon-filtered query is never built and the nomenclatural

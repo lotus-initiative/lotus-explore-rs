@@ -137,7 +137,7 @@ The expectation is that `s` lets LLVM inline and vectorise before
 `wasm-opt -Oz`, producing output that is both smaller and faster. On this
 workspace it produces a binary 10.2 % larger raw and 4.2 % larger brotli. Since
 LCP is transfer-bound and the last 4 % of transfer is worth \~80 ms, the larger
-binary is simply worse on the only axis that matters. `opt-level = "z"` stays,
+binary is worse on the only axis that matters. `opt-level = "z"` stays,
 in `Cargo.toml`, in `Dioxus.toml`'s `wasm_opt.level`, and in the `--rustc-args`
 of every `dx` invocation in `make/web.toml`, so all three entry points agree.
 `./mk opt-levels` asserts it and is in the gate.

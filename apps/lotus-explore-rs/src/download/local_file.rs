@@ -23,8 +23,8 @@ use super::DownloadError;
 /// button that did nothing.
 ///
 /// # Errors
-/// Returns a [`DownloadError`] if the download directory cannot be determined or
-/// the file cannot be written.
+/// Returns a [`DownloadError`] (`Io`, `InvalidInput`, etc.; `Cancelled` is wasm-only)
+/// if the download directory cannot be determined or the file cannot be written.
 pub fn download_text(content: &str, filename: &str) -> Result<PathBuf, DownloadError> {
     download_bytes(content.as_bytes(), filename)
 }
@@ -32,8 +32,8 @@ pub fn download_text(content: &str, filename: &str) -> Result<PathBuf, DownloadE
 /// Write raw `bytes` to a file in the user's download directory.
 ///
 /// # Errors
-/// Returns a [`DownloadError`] if the download directory cannot be determined or
-/// the file cannot be written.
+/// Returns a [`DownloadError`] (`Io`, `InvalidInput`, etc.; `Cancelled` is wasm-only)
+/// if the download directory cannot be determined or the file cannot be written.
 pub fn download_bytes(bytes: &[u8], filename: &str) -> Result<PathBuf, DownloadError> {
     let dir = download_dir().ok_or_else(|| {
         DownloadError::Io(
@@ -47,7 +47,8 @@ pub fn download_bytes(bytes: &[u8], filename: &str) -> Result<PathBuf, DownloadE
 /// download directory.
 ///
 /// # Errors
-/// Returns a [`DownloadError`] if the data URL is malformed or the file cannot be written.
+/// Returns a [`DownloadError`] if the data URL is malformed or the file cannot be
+/// written (`Cancelled` is wasm-only).
 pub fn save_png_data_url(data_url: &str, filename: &str) -> Result<PathBuf, DownloadError> {
     let encoded = data_url
         .strip_prefix("data:image/png;base64,")
@@ -71,7 +72,7 @@ pub fn download_text_in(
 /// [`download_bytes`], writing into a directory the caller chose.
 ///
 /// # Errors
-/// Returns a [`DownloadError`] if writing fails.
+/// Returns a [`DownloadError`] if writing fails (`Cancelled` is wasm-only).
 pub fn download_bytes_in(
     dir: &Path,
     bytes: &[u8],

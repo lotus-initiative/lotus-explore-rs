@@ -32,7 +32,7 @@ const STRUCTURE_LOOKUP_LIMIT: usize = 5;
 /// query that follows is an index scan on a single QID rather than over every candidate.
 ///
 /// A miss is not an error here, unlike the other three lookups. A SMILES Wikidata does not
-/// have is a good structure that is simply not a compound in the database, and the search
+/// have is a good structure that is absent from the database, and the search
 /// carries on with the reader's own structure. A name matching nothing is a claim about a
 /// compound that does not exist; a structure is not a claim at all.
 ///

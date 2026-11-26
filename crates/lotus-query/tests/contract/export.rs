@@ -221,7 +221,7 @@ fn a_taxon_lookup_is_an_exact_values_match() {
 //
 // Each assertion below is a bug that shipped. They are pinned here because the
 // failure mode in every case is the same and it is invisible: the query runs,
-// the endpoint is happy, and the answer is simply empty.
+// the endpoint is happy, and the answer is empty.
 
 #[test]
 fn a_common_name_lookup_walks_the_statement_path_not_the_truthy_one() {

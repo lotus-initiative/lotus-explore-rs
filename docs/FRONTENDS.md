@@ -64,7 +64,7 @@ Two things are specific to the web build:
   the first paint from flashing an unstyled page.
 - **Every file under `public/` is reachable.** A dev server, and the deployed
   site, serve the whole tree. The curation bridges therefore load RDKit by
-  requesting `assets/vendor/rdkit/RDKit_minimal.js` and it simply resolves.
+  requesting `assets/vendor/rdkit/RDKit_minimal.js` and it resolves directly.
 
 ## CLI
 

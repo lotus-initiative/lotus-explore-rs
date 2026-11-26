@@ -62,7 +62,7 @@ pub enum FetchError {
     /// behaviour. A network failure is worth repeating; this is a body that began arriving and
     /// ran out, and repeating it re-downloads however many hundreds of megabytes already
     /// arrived to arrive in the same place. Not a parse failure either: the CSV read fine,
-    /// there is simply less of it than the query asked for, so the honest outcome is to refuse
+    /// there is less of it than the query asked for, so the honest outcome is to refuse
     /// the answer rather than report the part that came.
     #[error("the result set was cut short after {bytes_read} bytes: {reason}")]
     Truncated {

@@ -352,7 +352,7 @@ pub const SECTIONS: &[GuideSection] = &[
             ),
             FaqBlock::Text(
                 "A structure that Wikidata has no compound for is not a miss. It is a good \
-                 structure that is simply not in the database, and searching it is what you \
+                 structure that is absent from the database, and searching it is what you \
                  asked for.",
             ),
             FaqBlock::Heading("Names that look like structures"),

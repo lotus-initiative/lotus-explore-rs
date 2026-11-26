@@ -49,8 +49,9 @@ impl<'a, H: Http + 'a> QleverClient<'a, H> {
         Self { http, endpoint }
     }
 
-    /// Executes every stable page of [`ARCHIVE_SMILES_QUERY`] and returns the
-    /// already ordered, duplicate-free source records.
+    /// Executes every page of [`ARCHIVE_SMILES_QUERY`] (ordered by `?compound
+    /// ?smilesKind ?smiles` and excluding deprecated `P703` ranks) and returns
+    /// the duplicate-free source records.
     ///
     /// # Errors
     /// Returns [`ArchiveError::Fetch`] when the endpoint fails to answer.

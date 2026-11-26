@@ -581,7 +581,7 @@ fn the_preamble_is_written_exactly_once_and_before_the_data() {
 fn an_occurrence_with_no_statement_falls_back_to_the_direct_taxon_edge() {
     // Lossy -- the taxon is attached to the compound rather than to a statement
     // the occurrence was derived from -- but it keeps the occurrence in the
-    // graph, which is the point. Without the arm the occurrence is simply gone
+    // graph, which is the point. Without the arm the occurrence is dropped
     // from the export, silently.
     let row = CompoundEntry {
         statement: None,

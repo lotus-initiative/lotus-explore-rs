@@ -8,7 +8,10 @@ the named test fails if it breaks.
 - SMILES case is chemistry (`c` aromatic, `Co` cobalt). Never case-fold a
   structure. Taxon and DOI do fold. Test: `smiles_that_differ_only_in_case_are_different_findings`.
 - `P703` and `P248` take items. Never emit a quoted string for them; with no
-  resolved QID, emit nothing and say so in the row note (`--offline`).
+  resolved QID, emit nothing and say so in the row note (`--offline`). Compound-only
+  rows (`dependencies: None`) also emit no `P703` placeholder.
+- Curation Wikidata lookups (`fetch_compounds_by_inchikeys`, taxon/reference batching)
+  chunk requests and break QID ties deterministically by lowest `lotus_curation::qid_number`.
 - A new item is reachable only through `LAST` inside its own `CREATE` block.
   One new compound in several rows must be one `CREATE` carrying every
   occurrence: call `lotus_curation::merge_new_compound_creates` on the batch
