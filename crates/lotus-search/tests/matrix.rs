@@ -80,12 +80,13 @@ impl TaxonArg {
 
     /// Whether this taxon argument asks for compounds with an occurrence.
     ///
-    /// `Absent` does not: nothing given includes compounds nobody tied to an organism, and
-    /// answering the narrower question silently is the bug the optional block avoids.
+    /// `Absent` does not unless another constraint (such as a reference) asks
+    /// for reported occurrences: nothing given includes compounds nobody tied to
+    /// an organism, and answering the narrower question silently is the bug the
+    /// optional block avoids.
     ///
-    /// `Wildcard` does, but only where the taxon reaches the query as a filter. A structure
-    /// search resolves compound identities first, so `*` there is "every taxon" expressed by
-    /// *not* filtering -- see `a_structure_search_keeps_the_occurrence_optional`.
+    /// `Wildcard` asks for reported occurrences (`*`) across both structure and
+    /// non-structure searches.
     const fn requires_occurrence(self) -> bool {
         match self {
             Self::Absent => false,
@@ -334,7 +335,7 @@ fn a_wildcard_taxon_requires_an_occurrence_and_an_empty_taxon_does_not() {
 fn an_absent_taxon_makes_one_optional_block_not_one_per_triple() {
     for cell in MATRIX
         .iter()
-        .filter(|c| c.taxon == TaxonArg::Absent && (c.structure || !c.reference))
+        .filter(|c| c.taxon == TaxonArg::Absent && !c.reference)
     {
         let query = query_for(cell);
         assert!(
@@ -363,49 +364,32 @@ fn an_absent_taxon_makes_one_optional_block_not_one_per_triple() {
     }
 }
 
-/// A structure search over *every* taxon keeps the occurrence optional.
+/// A structure search without a taxon or reference keeps the occurrence optional;
+/// specifying a taxon, `*`, or a reference makes it required.
 ///
-/// The compound is already known when the rows are wanted -- a name or exact-structure search
-/// resolves to Wikidata identities first -- so a compound nobody tied to an organism is
-/// exactly the compound being looked for.
-///
-/// Within a named taxon the opposite holds, deliberately: the occurrence is required, since a
-/// match that is not an occurrence in the requested taxon is not an answer. So this covers
-/// the no-taxon and wildcard cells; `taxon=specific` is asserted as required.
+/// A structure search with no taxon or reference filter includes compounds
+/// without recorded occurrences, whereas naming a taxon, `*`, or a reference
+/// requires a recorded occurrence matching that scope.
 #[test]
 fn a_structure_search_without_a_named_taxon_keeps_the_occurrence_optional() {
-    for cell in MATRIX
-        .iter()
-        .filter(|c| c.structure && c.taxon != TaxonArg::Specific)
-    {
+    for cell in MATRIX.iter().filter(|c| c.structure) {
         let query = query_for(cell);
-        assert!(
-            occurrence_is_optional(&query),
-            "{}: a structure search over every taxon must not require an occurrence\n{query}",
-            label(cell)
-        );
-    }
-
-    for cell in MATRIX
-        .iter()
-        .filter(|c| c.structure && c.taxon == TaxonArg::Specific)
-    {
-        let query = query_for(cell);
-        assert!(
+        let required = cell.taxon.requires_occurrence() || cell.reference;
+        assert_eq!(
             !occurrence_is_optional(&query),
-            "{}: a match outside the requested taxon must not come back\n{query}",
+            required,
+            "{}: structure occurrence requirement mismatch (expected required={required})\n{query}",
             label(cell)
         );
     }
 }
 
-/// A reference binds `?r` as a `VALUES`, outside the optional block.
+/// A reference binds `?r` as a `VALUES`, paired with required occurrence and
+/// `BOUND(?statement_id)`.
 ///
-/// Two things follow, only the first obvious. A `FILTER(?r = wd:Q…)` is wrong for an
-/// unbound `?r` -- a compound with no occurrence, precisely what a structure search exists
-/// to find -- because comparing against an error drops it. And because the `VALUES` sits
-/// outside the block, a reference *with* no taxon returns only the compounds that reference
-/// reported, though the block is optional: an unbound `?r` cannot join.
+/// `FILTER(?r = wd:Q…)` drops occurrence-less compounds when `?r` is unbound;
+/// `VALUES ?r` in SPARQL 1.1 algebra joins unbound `?r` by compatibility unless
+/// the base query requires `P703` and `FILTER(BOUND(?statement_id))` enforces it.
 #[test]
 fn a_reference_binds_the_reference_item_as_a_values() {
     for cell in MATRIX.iter().filter(|c| c.reference) {

@@ -47,7 +47,7 @@ pub fn taxon_has_compounds_query(taxon_qid: &str) -> String {
 #[must_use]
 pub fn has_data_row(csv: &[u8]) -> bool {
     csv.split(|byte| *byte == b'\n')
-        .filter(|line| !line.is_empty())
+        .filter(|line| !line.trim_ascii().is_empty())
         .nth(1)
         .is_some()
 }

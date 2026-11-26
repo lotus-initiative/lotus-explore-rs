@@ -150,8 +150,8 @@ fn query_rewriters_preserve_exact_semantics() {
         "occurrences_query must project 4 columns without ?compoundLabel: {occ}"
     );
     assert!(
-        occ.contains("?r wdt:P577 ?ref_date ."),
-        "occurrences_query must re-add ?ref_date binding when year filter is active: {occ}"
+        occ.contains("BIND(COALESCE(?r, wd:Q0) AS ?_year_ref)\n?_year_ref wdt:P577 ?ref_date ."),
+        "occurrences_query must re-add guarded ?ref_date binding when year filter is active: {occ}"
     );
 
     let counts = counts_query(&filtered);
@@ -160,8 +160,8 @@ fn query_rewriters_preserve_exact_semantics() {
         "counts_query must project aggregate counters: {counts}"
     );
     assert!(
-        counts.contains("?r wdt:P577 ?ref_date ."),
-        "counts_query must preserve ?ref_date binding when year filter is active: {counts}"
+        counts.contains("BIND(COALESCE(?r, wd:Q0) AS ?_year_ref)\n?_year_ref wdt:P577 ?ref_date ."),
+        "counts_query must preserve guarded ?ref_date binding when year filter is active: {counts}"
     );
 
     let limited = limit_query(&base, 25);

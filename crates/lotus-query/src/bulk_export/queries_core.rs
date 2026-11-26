@@ -42,7 +42,10 @@ SELECT ?compound ?compound_smiles_can ?compound_smiles_iso ?compound_cid WHERE {
   {
     SELECT DISTINCT ?compound WHERE {
       ?compound wdt:P235 ?inchikey ;
-                wdt:P703 ?taxon .
+                p:P703 ?statement .
+      ?statement ps:P703 ?taxon ;
+                 wikibase:rank ?_rank .
+      FILTER(?_rank != wikibase:DeprecatedRank)
     }
   }
   OPTIONAL { ?compound wdt:P233 ?compound_smiles_can . }
@@ -65,7 +68,10 @@ SELECT ?taxon ?taxon_name ?taxon_ncbi ?taxon_ott ?taxon_gbif ?taxon_parent ?taxo
   {
     SELECT DISTINCT ?taxon WHERE {
       ?compound wdt:P235 ?inchikey ;
-                wdt:P703 ?taxon .
+                p:P703 ?statement .
+      ?statement ps:P703 ?taxon ;
+                 wikibase:rank ?_rank .
+      FILTER(?_rank != wikibase:DeprecatedRank)
     }
   }
   OPTIONAL { ?taxon wdt:P225 ?taxon_name . }

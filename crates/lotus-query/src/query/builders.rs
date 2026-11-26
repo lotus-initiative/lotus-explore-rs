@@ -136,11 +136,14 @@ pub fn base_query_for_criteria(
 ) -> String {
     let nomenclature = Nomenclature::from(criteria);
     if !structure.is_empty() {
+        let effective_taxon = taxon_qid.or_else(|| {
+            (criteria.taxon.trim() == "*" || !criteria.reference.trim().is_empty()).then_some("*")
+        });
         return super::structure_search_query_with(
             structure,
             criteria.structure_search,
             criteria.structure_threshold,
-            taxon_qid,
+            effective_taxon,
             &nomenclature,
         );
     }

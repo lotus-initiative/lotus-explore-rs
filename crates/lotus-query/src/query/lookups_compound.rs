@@ -155,7 +155,7 @@ WHERE {{
 {COMPOUND_LOOKUP_PROPERTIES}
   BIND(\"inchikey\" AS ?matched_by)
 }}",
-        escape_sparql_string(inchikey)
+        escape_sparql_string(&inchikey.trim().to_ascii_uppercase())
     )
 }
 

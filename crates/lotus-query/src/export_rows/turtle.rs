@@ -39,7 +39,14 @@ pub(super) fn push_triples(out: &mut String, set: &ColumnarResultSet, row: usize
 
     let subject = format!("wd:{compound}");
     emit(out, &subject, "wdt:P235", &quote(set.inchikey(row)));
-    emit(out, &subject, "wdt:P233", &quote(set.smiles(row)));
+    if let Some(smiles) = set.smiles(row) {
+        let predicate = if smiles.contains(['@', '/', '\\']) {
+            "wdt:P2017"
+        } else {
+            "wdt:P233"
+        };
+        emit(out, &subject, predicate, &quote(Some(smiles)));
+    }
     emit(out, &subject, "wdt:P2067", &number(set.mass(row)));
     emit(out, &subject, "wdt:P274", &quote(set.formula(row)));
     if let Some(label) = set.compound_label(row) {
@@ -61,7 +68,7 @@ pub(super) fn push_triples(out: &mut String, set: &ColumnarResultSet, row: usize
     // Bracketed: a bare URI is not a Turtle IRI, and the endpoint's own export
     // emits them bracketed. Unbracketed, a strict parser rejects the file.
     let statement = (!statement.trim().is_empty())
-        .then(|| format!("<{WIKIDATA_STATEMENT_BASE}{}>", statement.trim()));
+        .then(|| bracket_iri(WIKIDATA_STATEMENT_BASE, statement.trim()));
 
     match (&statement, &taxon) {
         (Some(statement_uri), Some(taxon)) => {
@@ -89,9 +96,9 @@ pub(super) fn push_triples(out: &mut String, set: &ColumnarResultSet, row: usize
         .filter(|n| !n.is_empty())
         .map(|hash| {
             if hash.starts_with("http://") || hash.starts_with("https://") {
-                format!("<{hash}>")
+                bracket_iri("", &hash)
             } else {
-                format!("<{WIKIDATA_REFERENCE_BASE}{hash}>")
+                bracket_iri(WIKIDATA_REFERENCE_BASE, &hash)
             }
         });
     let publication = set
@@ -121,12 +128,12 @@ pub(super) fn push_triples(out: &mut String, set: &ColumnarResultSet, row: usize
         );
         emit(out, publication, "wdt:P356", &quote(set.reference_doi(row)));
         if let Some(year) = set.pub_year(row) {
-            emit(
-                out,
-                publication,
-                "wdt:P577",
-                &format!("\"{year}\"^^xsd:gYear"),
-            );
+            let year_lit = if year < 0 {
+                format!("\"-{:04}\"^^xsd:gYear", year.unsigned_abs())
+            } else {
+                format!("\"{year:04}\"^^xsd:gYear")
+            };
+            emit(out, publication, "wdt:P577", &year_lit);
         }
     }
 }
@@ -165,6 +172,21 @@ pub(super) fn number(value: Option<f64>) -> String {
         })
 }
 
+fn bracket_iri(base: &str, local: &str) -> String {
+    let mut iri = String::with_capacity(base.len() + local.len() + 2);
+    iri.push('<');
+    iri.push_str(base);
+    for ch in local.chars() {
+        if ch <= '\u{20}' || matches!(ch, '<' | '>' | '"' | '{' | '}' | '|' | '^' | '`' | '\\') {
+            let _ = write!(iri, "%{:02X}", u32::from(ch));
+        } else {
+            iri.push(ch);
+        }
+    }
+    iri.push('>');
+    iri
+}
+
 /// A Turtle object: a quoted literal, or nothing for a missing value.
 fn quote(value: Option<&str>) -> String {
     let Some(value) = value.map(str::trim).filter(|v| !v.is_empty()) else {
@@ -179,6 +201,9 @@ fn quote(value: Option<&str>) -> String {
             '\n' => out.push_str("\\n"),
             '\r' => out.push_str("\\r"),
             '\t' => out.push_str("\\t"),
+            c if c.is_control() => {
+                let _ = write!(out, "\\u{:04x}", u32::from(c));
+            }
             other => out.push(other),
         }
     }

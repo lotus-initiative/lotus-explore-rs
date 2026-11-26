@@ -21,6 +21,7 @@ fn has_data_row_detects_non_empty_row_after_header() {
     assert!(!has_data_row(b"a,b"));
     assert!(!has_data_row(b"a,b\n"));
     assert!(!has_data_row(b"a,b\n\n"));
+    assert!(!has_data_row(b"a,b\r\n\r\n"));
     assert!(has_data_row(b"a,b\n1,2\n"));
     assert!(has_data_row(b"a,b\n\n1,2"));
 }
@@ -218,5 +219,10 @@ fn base_query_for_criteria_and_normalize_digits_expr_match_exact_outputs() {
             r#"STR(?f), "₀", "0"), "₁", "1"), "₂", "2"), "₃", "3"), "₄", "4"),"#,
             r#" "₅", "5"), "₆", "6"), "₇", "7"), "₈", "8"), "₉", "9")"#,
         )
+    );
+    assert!(
+        compound_inchikey_query(" bsYnryMutxBxSq-uhfffaoysa-n ")
+            .contains("\"BSYNRYMUTXBXSQ-UHFFFAOYSA-N\""),
+        "compound_inchikey_query must trim and uppercase InChIKeys"
     );
 }

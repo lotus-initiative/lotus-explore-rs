@@ -414,8 +414,8 @@ fn the_counts_query_binds_the_reference_date_inside_the_year_filters_group() {
         .find("FILTER(BOUND(?ref_date)")
         .expect("the year filter survives");
     let bind_at = counts
-        .find("?r wdt:P577 ?ref_date .")
-        .expect("the reference date is rebound");
+        .find("BIND(COALESCE(?r, wd:Q0) AS ?_year_ref)\n?_year_ref wdt:P577 ?ref_date .")
+        .expect("the reference date is rebound via sentinel");
     assert!(
         bind_at < filter_at,
         "the binding comes after the filter, outside its group:\n{counts}"
@@ -498,13 +498,36 @@ fn the_element_count_prefers_a_token_that_carries_digits() {
     );
 
     assert!(
-        filtered.contains(r#"REGEX(?_formula_tokens, "\\|C([0-9]+)(\\||$)")"#),
+        filtered.contains(r#"REGEX(?_formula_tokens, "\\|C([0-9]+)(\\||$|[^a-z0-9])")"#),
         "a digit-bearing token is what the count is read from: {filtered}"
     );
     assert!(
-        filtered.contains(r#"REPLACE(?_formula_tokens, "^.*?\\|C([0-9]+)(\\||$).*", "$1")"#),
+        filtered
+            .contains(r#"REPLACE(?_formula_tokens, "^.*?\\|C([0-9]+)(\\||$|[^a-z0-9]).*", "$1")"#),
         "and it is anchored and lazy, so it stops at the first such token \
          rather than running on to the last |C of any kind: {filtered}"
+    );
+}
+
+#[test]
+fn reference_filter_guards_optional_occurrences_and_requires_p703_on_structure() {
+    let mut crit = criteria();
+    crit.reference = "Q112143478".to_string();
+    crit.structure = "CCO".to_string();
+    crit.structure_search = lotus_model::SmilesSearchType::Substructure;
+
+    let base = lotus_query::base_query_for_criteria(&crit, "CCO", None);
+    assert!(
+        base.contains("?c p:P703 ?statement_id .") && !base.contains("OPTIONAL {\n    ?c p:P703"),
+        "structure query with a reference filter must require P703 occurrences:\n{base}"
+    );
+
+    let optional_base = lotus_query::exact_compounds_query(&["Q18216".to_string()], None);
+    let filtered = with_filters(&optional_base, &crit, NOW);
+    assert!(
+        filtered.contains("VALUES ?r { wd:Q112143478 }")
+            && filtered.contains("FILTER(BOUND(?statement_id))"),
+        "reference filter must guard against unbound optional occurrences:\n{filtered}"
     );
 }
 

@@ -51,7 +51,10 @@ SELECT ?compound ?compound_smiles_can ?compound_smiles_iso ?compound_cid WHERE {
   {
     SELECT DISTINCT ?compound WHERE {
       ?compound wdt:P235 ?inchikey ;
-                wdt:P703 ?taxon .
+                p:P703 ?statement .
+      ?statement ps:P703 ?taxon ;
+                 wikibase:rank ?_rank .
+      FILTER(?_rank != wikibase:DeprecatedRank)
     }
   }
   OPTIONAL { ?compound wdt:P233 ?compound_smiles_can . }
@@ -68,7 +71,10 @@ SELECT ?taxon ?taxon_name ?taxon_ncbi ?taxon_ott ?taxon_gbif ?taxon_parent ?taxo
   {
     SELECT DISTINCT ?taxon WHERE {
       ?compound wdt:P235 ?inchikey ;
-                wdt:P703 ?taxon .
+                p:P703 ?statement .
+      ?statement ps:P703 ?taxon ;
+                 wikibase:rank ?_rank .
+      FILTER(?_rank != wikibase:DeprecatedRank)
     }
   }
   OPTIONAL { ?taxon wdt:P225 ?taxon_name . }
@@ -141,7 +147,10 @@ SELECT DISTINCT ?taxon ?taxon_parent WHERE {
         r"
 SELECT DISTINCT ?compound ?compound_inchikey ?taxon WHERE {
   ?compound wdt:P235 ?compound_inchikey ;
-        wdt:P703 ?taxon .
+        p:P703 ?statement .
+  ?statement ps:P703 ?taxon ;
+             wikibase:rank ?_rank .
+  FILTER(?_rank != wikibase:DeprecatedRank)
 }",
     ),
     (
@@ -242,6 +251,17 @@ fn archive_queries_are_paged_by_offset() {
     assert!(page.contains("OFFSET 50000"));
     // The LIMIT is a constant, never derived from the offset argument.
     assert_eq!(page.matches("LIMIT").count(), 1);
+}
+
+#[test]
+fn archive_queries_exclude_deprecated_p703_statements() {
+    for q in [ARCHIVE_SMILES_QUERY, ARCHIVE_SMILES_WITHOUT_INCHIKEY_QUERY] {
+        assert!(q.contains("p:P703 ?statement"), "{q}");
+        assert!(
+            q.contains("FILTER(?_rank != wikibase:DeprecatedRank)"),
+            "{q}"
+        );
+    }
 }
 
 #[test]

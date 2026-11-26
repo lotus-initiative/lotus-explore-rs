@@ -784,3 +784,40 @@ fn row_exporter_next_chunk_yields_bounded_chunks_and_terminates_with_none() {
         "exporter must return None once exhausted"
     );
 }
+
+#[test]
+fn turtle_export_distinguishes_isomeric_smiles_pads_years_and_escapes_iris_and_controls() {
+    let iso_row = CompoundEntry {
+        smiles: Some(arc("C[C@H](O)C(=O)O\u{0007}")),
+        reference_qid: arc("Q777"),
+        pub_year: Some(500),
+        statement: Some(arc("Q1$S1 with space")),
+        reference_node: arc("abc<def>"),
+        ..empty_row()
+    };
+    let bce_row = CompoundEntry {
+        compound_qid: arc("Q99"),
+        smiles: Some(arc("CCO")),
+        pub_year: Some(-300),
+        reference_qid: arc("Q888"),
+        ..empty_row()
+    };
+    let set = set_of(&[iso_row, bce_row]);
+    let rdf = render(ExportFormat::Rdf, &set);
+
+    assert!(
+        rdf.contains("wdt:P2017 \"C[C@H](O)C(=O)O\\u0007\""),
+        "{rdf}"
+    );
+    assert!(rdf.contains("wd:Q99 wdt:P233 \"CCO\" ."), "{rdf}");
+    assert!(rdf.contains("\"0500\"^^xsd:gYear"), "{rdf}");
+    assert!(rdf.contains("\"-0300\"^^xsd:gYear"), "{rdf}");
+    assert!(
+        rdf.contains("<http://www.wikidata.org/entity/statement/Q1$S1%20with%20space>"),
+        "{rdf}"
+    );
+    assert!(
+        rdf.contains("<http://www.wikidata.org/reference/abc%3Cdef%3E>"),
+        "{rdf}"
+    );
+}

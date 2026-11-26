@@ -52,7 +52,7 @@ impl CsvSplitter {
     /// Whether a record is part-read and so the next chunk continues it.
     #[must_use]
     pub const fn is_mid_record(&self) -> bool {
-        self.field_count != 0 || !self.line.is_empty() || self.quote_pending
+        self.field_count != 0 || !self.line.is_empty() || self.in_quotes || self.quote_pending
     }
 
     /// Split `chunk`, appending every record it completes to `out`.
@@ -153,8 +153,9 @@ impl CsvSplitter {
         // byte is still in-quotes with a pending quote -- a complete row. An *unresolved*
         // flag is the opposite: the quote opened and nothing closed it.
         let truncated = self.in_quotes && !self.quote_pending;
+        let has_pending = self.is_mid_record();
         self.quote_pending = false;
-        if self.is_mid_record() {
+        if has_pending {
             self.end_record(&mut on_record);
         }
         truncated

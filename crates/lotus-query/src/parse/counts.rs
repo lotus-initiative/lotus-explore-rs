@@ -28,16 +28,30 @@ pub fn parse_counts_csv(bytes: &[u8]) -> Result<DatasetStats, ParseError> {
         Some(Err(e)) => return Err(ParseError::new(e)),
         None => return Err(ParseError::new("the count query returned no row")),
     };
-    let read = |name: &str| -> usize {
-        index(name)
-            .and_then(|i| record.get(i))
-            .map(str::trim)
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(0)
+    let read_optional = |name: &str| -> Result<usize, ParseError> {
+        let Some(col) = index(name) else {
+            return Ok(0);
+        };
+        let raw = record.get(col).map_or_default(str::trim);
+        if raw.is_empty() {
+            return Ok(0);
+        }
+        raw.parse::<usize>()
+            .map_err(|_| ParseError::new(format!("invalid count value for {name}: {raw:?}")))
     };
 
-    let n_entries = read("n_entries");
-    let reported_unique = read("n_entries_unique");
+    let Some(entries_col) = index("n_entries") else {
+        return Err(ParseError::new(
+            "the count query response is missing n_entries",
+        ));
+    };
+    let entries_raw = record.get(entries_col).map_or_default(str::trim);
+    let n_entries = entries_raw.parse::<usize>().map_err(|_| {
+        ParseError::new(format!(
+            "invalid count value for n_entries: {entries_raw:?}"
+        ))
+    })?;
+    let reported_unique = read_optional("n_entries_unique")?;
 
     Ok(DatasetStats {
         n_entries,
@@ -46,8 +60,8 @@ pub fn parse_counts_csv(bytes: &[u8]) -> Result<DatasetStats, ParseError> {
         } else {
             reported_unique
         },
-        n_compounds: read("n_compounds"),
-        n_taxa: read("n_taxa"),
-        n_references: read("n_references"),
+        n_compounds: read_optional("n_compounds")?,
+        n_taxa: read_optional("n_taxa")?,
+        n_references: read_optional("n_references")?,
     })
 }

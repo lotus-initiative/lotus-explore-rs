@@ -155,7 +155,27 @@ fn wdqs_fallback_routes_doi_lookups_to_scholarly_and_rewrites_main_reference_met
         rewritten_main.contains("SERVICE <https://query-scholarly-next.wikidata.org/sparql>"),
         "{rewritten_main}"
     );
-    assert!(!rewritten_main.contains("?_ref_source"), "{rewritten_main}");
+    assert!(
+        rewritten_main.contains("BIND(COALESCE(?r, wd:Q0) AS ?_ref_source)"),
+        "fallback must keep coalesce guard before scholarly SERVICE: {rewritten_main}"
+    );
+    assert!(
+        rewritten_main.contains("?_ref_source wdt:P1476 ?ref_title."),
+        "fallback scholarly SERVICE must query ?_ref_source rather than raw ?r: {rewritten_main}"
+    );
+
+    let ref_dict_small = reference_dictionary_query(&[1, 2]);
+    let (svc, rewritten) = wdqs_fallback(&ref_dict_small);
+    assert_eq!(svc, FallbackService::Scholarly);
+    assert_eq!(rewritten, ref_dict_small);
+
+    let combined = entity_dictionary_query(&[1], &[2]);
+    let (svc, rewritten) = wdqs_fallback(&combined);
+    assert_eq!(svc, FallbackService::Main);
+    assert!(
+        rewritten.contains("SERVICE <https://query-scholarly-next.wikidata.org/sparql>"),
+        "entity dictionary query must federate reference OPTIONAL blocks: {rewritten}"
+    );
 }
 
 #[test]
@@ -169,7 +189,7 @@ fn occurrences_and_dictionary_queries_respect_projection_and_values_bounds() {
     let occ = occurrences_query(&filtered);
     assert!(!occ.contains("?compoundLabel"));
     assert!(!occ.contains("?ref_title"));
-    assert!(occ.contains("?r wdt:P577 ?ref_date .\nFILTER(BOUND(?ref_date)"));
+    assert!(occ.contains("BIND(COALESCE(?r, wd:Q0) AS ?_year_ref)\n?_year_ref wdt:P577 ?ref_date .\nFILTER(BOUND(?ref_date)"));
 
     assert_eq!(dictionary_queries(&[], &[]), Vec::<String>::new());
     assert_eq!(

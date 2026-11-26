@@ -44,13 +44,14 @@ pub(super) fn truncation_notice(tail: &[u8]) -> Option<&'static str> {
         .windows(TRUNCATION_NOTICE_MARKER.len())
         .rposition(|window| window == TRUNCATION_NOTICE_MARKER)?;
     let text = String::from_utf8_lossy(tail.get(at..)?);
-    text.lines().map(str::trim).find_map(|line| {
+    let matched = text.lines().map(str::trim).find_map(|line| {
         let line = line.strip_suffix('.').unwrap_or(line);
         TRUNCATION_REASONS
             .iter()
             .find(|reason| line.eq_ignore_ascii_case(reason))
             .copied()
-    })
+    });
+    Some(matched.unwrap_or("the endpoint truncated the response"))
 }
 
 /// The message a truncation produces, carrying the endpoint's own reason.
@@ -107,10 +108,21 @@ pub(super) fn raw_row<'a>(record: &'a [Vec<u8>], columns: &'a Columns) -> RawRow
             .unwrap_or_default(),
         ref_title: optional(field_bytes(record, columns.ref_title)),
         ref_doi: optional(field_bytes(record, columns.ref_doi)),
-        pub_year: optional(field_bytes(record, columns.ref_date))
-            .and_then(|v| v.split(['-', 'T']).next())
-            .and_then(|year| year.parse().ok()),
+        pub_year: optional(field_bytes(record, columns.ref_date)).and_then(parse_pub_year),
         statement: optional(field_bytes(record, columns.statement)),
+    }
+}
+
+fn parse_pub_year(value: &str) -> Option<i16> {
+    let (negative, rest) = value.strip_prefix('-').map_or_else(
+        || (false, value.strip_prefix('+').unwrap_or(value)),
+        |r| (true, r),
+    );
+    let digits = rest.split(['-', 'T']).next()?;
+    if negative {
+        format!("-{digits}").parse().ok()
+    } else {
+        digits.parse().ok()
     }
 }
 

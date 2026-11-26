@@ -35,6 +35,7 @@ fn payload(rows: usize) -> String {
             let _ = write!(csv, "C1=CC=CC=C1CCN{row:06}CCCCO");
         }
         csv.push(',');
+        csv.push(',');
         if row % 10 == 3 {
             let _ = write!(csv, "{}", 100.0 + f64::from((row % 400) as u16));
         }

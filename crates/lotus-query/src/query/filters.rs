@@ -115,6 +115,7 @@ pub fn with_filters(base: &str, criteria: &SearchCriteria, year_max: u16) -> Str
     // `wd:Q23118`, and every gate that admits a reference admits a lowercase one.
     if let Some(qid) = sanitize_qid(&criteria.reference) {
         let _ = writeln!(required, "VALUES ?r {{ wd:{qid} }}");
+        let _ = writeln!(filters, "FILTER(BOUND(?statement_id))");
     }
 
     formula_filter(criteria, &mut required, &mut filters);
@@ -242,19 +243,20 @@ fn normalized_exact_formula(criteria: &SearchCriteria) -> Option<String> {
 /// Hence a digit-bearing token is preferred, and the greedy match is kept only for formulas
 /// with none -- where a single bare token does mean one atom (`CH4`), which the old
 /// empty-capture branch already got right.
+/// Counts require digits whenever any counted token exists; bare uncounted symbols
+/// (`|N|`, `|H)`, end-of-string) only reach the second branch and evaluate to `1`.
+/// Terminators allow `|`, end-of-string, or any character outside `[a-z0-9]` so
+/// charged ions (`O4⁺`), hydrates (`N2·2`), and parenthesized groups (`H4(`) match
+/// without matching two-letter element names (`Cl`, `Ca`).
 fn bind_element_count(out: &mut String, symbol: &str) -> String {
     let var = format!("?_count_{}", symbol.to_ascii_lowercase());
-    let pattern = format!(r"\\|{symbol}([0-9]*)(\\||$)");
-    let captured = format!(r#"REPLACE(?_formula_tokens, ".*{pattern}.*", "$1")"#);
-    // Anchored and lazy, so it stops at the first token that actually carries a
-    // count instead of running on to the last `|C` of any kind.
-    let with_count = format!(r"\\|{symbol}([0-9]+)(\\||$)");
+    let pattern = format!(r"\\|{symbol}(\\||$|[^a-z0-9])");
+    let with_count = format!(r"\\|{symbol}([0-9]+)(\\||$|[^a-z0-9])");
     let counted = format!(r#"REPLACE(?_formula_tokens, "^.*?{with_count}.*", "$1")"#);
     let _ = writeln!(
         out,
         "BIND(IF(REGEX(?_formula_tokens, \"{with_count}\"), xsd:integer({counted}), \
-         IF(REGEX(?_formula_tokens, \"{pattern}\"), IF(STRLEN({captured}) = 0, 1, \
-         xsd:integer({captured})), 0)) AS {var})"
+         IF(REGEX(?_formula_tokens, \"{pattern}\"), 1, 0)) AS {var})"
     );
     var
 }

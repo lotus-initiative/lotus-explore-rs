@@ -23,7 +23,6 @@ pub struct CsvColumnarReader {
     extra_entities: ColumnarBuilder,
     columns: Option<Columns>,
     header: Option<Vec<String>>,
-    rows_read: usize,
     bytes_read: usize,
     enrich_only: bool,
     /// The last [`TRUNCATION_NOTICE_WINDOW`] bytes of the body, for the notice.
@@ -55,7 +54,6 @@ impl CsvColumnarReader {
         self.keep_tail(chunk);
         let columns = &mut self.columns;
         let header = &mut self.header;
-        let rows_read = &mut self.rows_read;
         let builder = &mut self.builder;
         let extra_entities = &mut self.extra_entities;
         let enrich_only = self.enrich_only;
@@ -63,14 +61,13 @@ impl CsvColumnarReader {
             Self::absorb_record(
                 columns,
                 header,
-                rows_read,
                 builder,
                 extra_entities,
                 enrich_only,
                 record,
             );
         });
-        Ok(self.rows_read)
+        Ok(self.builder.row_count())
     }
 
     /// Extend the tail window with `chunk`, keeping only the last window's worth.
@@ -90,7 +87,6 @@ impl CsvColumnarReader {
     fn absorb_record(
         columns: &mut Option<Columns>,
         header: &mut Option<Vec<String>>,
-        rows_read: &mut usize,
         builder: &mut ColumnarBuilder,
         extra_entities: &mut ColumnarBuilder,
         enrich_only: bool,
@@ -103,18 +99,17 @@ impl CsvColumnarReader {
                     extra_entities.intern_dictionary_row(row);
                 }
             } else {
-                *rows_read += 1;
                 builder.push(row);
             }
         } else {
-            // `trim` keeps a byte-order mark, which would rename the first column
-            // and lose every row for want of a `compound`.
+            // Strip BOM before trimming so whitespace after a BOM does not leave
+            // the BOM attached to the first column name.
             let names: Vec<String> = record
                 .iter()
                 .map(|field| {
                     String::from_utf8_lossy(field)
-                        .trim()
                         .trim_start_matches('\u{feff}')
+                        .trim()
                         .to_owned()
                 })
                 .collect();
@@ -143,7 +138,7 @@ impl CsvColumnarReader {
     /// How many rows have been added.
     #[must_use]
     pub const fn row_count(&self) -> usize {
-        self.rows_read
+        self.builder.row_count()
     }
 
     /// How many bytes have been fed.
@@ -220,7 +215,6 @@ impl CsvColumnarReader {
         }
         let columns = &mut self.columns;
         let header = &mut self.header;
-        let rows_read = &mut self.rows_read;
         let builder = &mut self.builder;
         let extra_entities = &mut self.extra_entities;
         let enrich_only = self.enrich_only;
@@ -228,7 +222,6 @@ impl CsvColumnarReader {
             Self::absorb_record(
                 columns,
                 header,
-                rows_read,
                 builder,
                 extra_entities,
                 enrich_only,

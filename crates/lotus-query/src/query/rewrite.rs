@@ -84,21 +84,51 @@ pub enum FallbackService {
 #[must_use]
 pub fn wdqs_fallback(query: &str) -> (FallbackService, String) {
     const SCHOLARLY_REF: &str = "
+  BIND(COALESCE(?r, wd:Q0) AS ?_ref_source)
   SERVICE <https://query-scholarly-next.wikidata.org/sparql> {
-    OPTIONAL { ?r wdt:P1476 ?ref_title. }
-    OPTIONAL { ?r wdt:P356 ?ref_doi. }
-    OPTIONAL { ?r wdt:P577 ?ref_date. }
+    OPTIONAL { ?_ref_source wdt:P1476 ?ref_title. }
+    OPTIONAL { ?_ref_source wdt:P356 ?ref_doi. }
+    OPTIONAL { ?_ref_source wdt:P577 ?ref_date. }
   }
 ";
+    const DICT_REF_TWO: &str = "\
+  OPTIONAL { ?r wdt:P1476 ?ref_title . }
+  OPTIONAL { ?r wdt:P356 ?ref_doi . }
+  OPTIONAL { ?r wdt:P577 ?ref_date . }";
+    const SCHOLARLY_DICT_REF_TWO: &str = "\
+  SERVICE <https://query-scholarly-next.wikidata.org/sparql> {
+    OPTIONAL { ?r wdt:P1476 ?ref_title . }
+    OPTIONAL { ?r wdt:P356 ?ref_doi . }
+    OPTIONAL { ?r wdt:P577 ?ref_date . }
+  }";
+    const DICT_REF_FOUR: &str = "\
+    OPTIONAL { ?r wdt:P1476 ?ref_title . }
+    OPTIONAL { ?r wdt:P356 ?ref_doi . }
+    OPTIONAL { ?r wdt:P577 ?ref_date . }";
+    const SCHOLARLY_DICT_REF_FOUR: &str = "\
+    SERVICE <https://query-scholarly-next.wikidata.org/sparql> {
+      OPTIONAL { ?r wdt:P1476 ?ref_title . }
+      OPTIONAL { ?r wdt:P356 ?ref_doi . }
+      OPTIONAL { ?r wdt:P577 ?ref_date . }
+    }";
 
-    if is_reference_lookup(query) {
+    if is_reference_lookup(query) || is_values_reference_dictionary(query) {
         (FallbackService::Scholarly, query.to_string())
     } else {
-        (
-            FallbackService::Main,
-            query.replace(REFERENCE_METADATA, SCHOLARLY_REF),
-        )
+        let rewritten = query
+            .replace(REFERENCE_METADATA, SCHOLARLY_REF)
+            .replace(DICT_REF_FOUR, SCHOLARLY_DICT_REF_FOUR)
+            .replace(DICT_REF_TWO, SCHOLARLY_DICT_REF_TWO);
+        (FallbackService::Main, rewritten)
     }
+}
+
+/// A `VALUES ?r`-scoped reference dictionary enrichment query without compound patterns.
+fn is_values_reference_dictionary(query: &str) -> bool {
+    query.contains("VALUES ?r {")
+        && !query.contains("VALUES ?c {")
+        && !query.contains("p:P703")
+        && !query.contains("SERVICE")
 }
 
 /// A bare `SELECT ?ref … wdt:P356` with no `SERVICE` or `OPTIONAL`, i.e. a

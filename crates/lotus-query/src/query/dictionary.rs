@@ -53,7 +53,9 @@ pub fn counts_query(base: &str) -> String {
     //
     // Rebinding is not a workaround: the metadata OPTIONAL and this triple both supply
     // `?ref_date` from `?r wdt:P577`, and the filter's own `BOUND()` drops dateless rows
-    // either way, so both queries count the same set.
+    // either way, so both queries count the same set. Wrapping `?r` in `COALESCE(?r, wd:Q0)`
+    // prevents an unbound `?r` (on optional-occurrence queries) from enumerating every dated
+    // item in Wikidata.
     //
     // The triple goes immediately before the filter, inside the same group. Appended at
     // the end it would land after the base query's closing brace -- outside the filter's
@@ -61,7 +63,7 @@ pub fn counts_query(base: &str) -> String {
     if stripped.contains("FILTER(BOUND(?ref_date)") {
         stripped = stripped.replacen(
             "FILTER(BOUND(?ref_date)",
-            "?r wdt:P577 ?ref_date .\nFILTER(BOUND(?ref_date)",
+            "BIND(COALESCE(?r, wd:Q0) AS ?_year_ref)\n?_year_ref wdt:P577 ?ref_date .\nFILTER(BOUND(?ref_date)",
             1,
         );
     }
@@ -102,7 +104,7 @@ pub fn occurrences_query(base: &str) -> String {
         .replace(COMPOUND_PROPERTIES, "")
         .replace(
             "FILTER(BOUND(?ref_date)",
-            "?r wdt:P577 ?ref_date .\nFILTER(BOUND(?ref_date)",
+            "BIND(COALESCE(?r, wd:Q0) AS ?_year_ref)\n?_year_ref wdt:P577 ?ref_date .\nFILTER(BOUND(?ref_date)",
         )
 }
 

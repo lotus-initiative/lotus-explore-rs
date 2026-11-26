@@ -33,12 +33,15 @@ pub(super) fn compounds_query_with_closure(
     occurrence: Occurrence,
     roots: &[String],
 ) -> String {
-    let ancestry = taxon_qid.map_or_else(String::new, |(qid, nomenclature)| {
-        format!(
-            "\n          {}",
-            taxon_ancestry_pattern_with_roots(qid, *nomenclature, roots)
-        )
-    });
+    let ancestry =
+        taxon_qid
+            .filter(|(qid, _)| *qid != "*")
+            .map_or_else(String::new, |(qid, nomenclature)| {
+                format!(
+                    "\n          {}",
+                    taxon_ancestry_pattern_with_roots(qid, *nomenclature, roots)
+                )
+            });
 
     // What makes `?c` a chemical entity rather than anything else with a
     // `found in taxon` statement.
@@ -58,10 +61,10 @@ pub(super) fn compounds_query_with_closure(
 
     let Some(qid) = compound_seed else {
         return match occurrence {
-            Occurrence::Required => taxon_qid
-                .map_or_else(all_required_compounds_query_body, |_| {
-                    taxon_compounds_query_body(&ancestry)
-                }),
+            Occurrence::Required => match taxon_qid {
+                Some((q, _)) if q != "*" => taxon_compounds_query_body(&ancestry),
+                _ => all_required_compounds_query_body(),
+            },
             Occurrence::Optional => optional_compounds_query_body(chemical, &ancestry),
         };
     };
@@ -177,7 +180,7 @@ WHERE {{
                 {{
                   SELECT *
                   WHERE {{
-                    ?c wdt:P235 ?_ik ;
+                    ?c wdt:P235 ?compound_inchikey ;
                        p:P703 ?statement_id .
                     ?statement_id ps:P703 ?t ;
                                   wikibase:rank ?_stmt_rank .
@@ -252,6 +255,13 @@ fn seeded_compounds_core(
               ?t wdt:P225 ?taxon_name .{ancestry}"
     );
     if has_taxon {
+        let taxon_closure = if ancestry.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "\n          {{\n            SELECT DISTINCT ?t\n            WHERE {{{ancestry}\n            }}\n          }}"
+            )
+        };
         (
             format!(
                 "VALUES ?c {{ {seeded} }}
@@ -262,12 +272,7 @@ fn seeded_compounds_core(
                         prov:wasDerivedFrom ?ref_node .\
           FILTER(?_stmt_rank != wikibase:DeprecatedRank) \
           ?ref_node pr:P248 ?r .\
-          ?t wdt:P225 ?taxon_name .
-          {{
-            SELECT DISTINCT ?t
-            WHERE {{{ancestry}
-            }}
-          }}"
+          ?t wdt:P225 ?taxon_name .{taxon_closure}"
             ),
             REFERENCE_METADATA,
         )

@@ -6,7 +6,10 @@
 pub const COMPOUND_INCHIKEY_TAXON_QUERY: &str = select_distinct!(
     "?compound ?compound_inchikey ?taxon",
     "  ?compound wdt:P235 ?compound_inchikey ;",
-    "        wdt:P703 ?taxon .",
+    "        p:P703 ?statement .",
+    "  ?statement ps:P703 ?taxon ;",
+    "             wikibase:rank ?_rank .",
+    "  FILTER(?_rank != wikibase:DeprecatedRank)",
 );
 
 /// Compound-parent (P279) pairs, constrained to compounds under chemical compound (Q11173).
@@ -61,10 +64,16 @@ pub const REFERENCE_PMID_COMPOUND_TAXON_QUERY: &str = occurrence_reference!(
 /// caller.
 pub const ARCHIVE_SMILES_QUERY: &str = r#"
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
 
 SELECT DISTINCT ?compound ?inchiKey ?smiles ?smilesKind WHERE {
-  ?compound wdt:P703 ?taxon ;
+  ?compound p:P703 ?statement ;
             wdt:P235 ?inchiKey .
+  ?statement ps:P703 ?taxon ;
+             wikibase:rank ?_rank .
+  FILTER(?_rank != wikibase:DeprecatedRank)
   {
     ?compound wdt:P233 ?smiles .
     BIND("canonical" AS ?smilesKind)
@@ -82,9 +91,15 @@ ORDER BY ?compound ?smilesKind ?smiles
 /// deduplicated. Paged with LIMIT/OFFSET by the caller.
 pub const ARCHIVE_SMILES_WITHOUT_INCHIKEY_QUERY: &str = r#"
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
 
 SELECT DISTINCT ?compound ?smiles ?smilesKind WHERE {
-  ?compound wdt:P703 ?taxon .
+  ?compound p:P703 ?statement .
+  ?statement ps:P703 ?taxon ;
+             wikibase:rank ?_rank .
+  FILTER(?_rank != wikibase:DeprecatedRank)
   FILTER NOT EXISTS { ?compound wdt:P235 ?inchiKey }
   {
     ?compound wdt:P233 ?smiles .

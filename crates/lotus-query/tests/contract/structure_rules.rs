@@ -280,11 +280,13 @@ fn every_shape_requires_the_compound_to_be_a_chemical_entity() {
         );
         // It has to be required, not merely present somewhere: inside an OPTIONAL
         // it excludes nothing, which is the mistake the first attempt made.
+        let mut required_only = query.clone();
+        for group in optionals(&query) {
+            required_only = required_only.replacen(group, "", 1);
+        }
         assert!(
-            !optionals(&query)
-                .iter()
-                .any(|group| group.contains("wdt:P235 ?compound_inchikey")),
-            "{label}: the InChIKey requirement is inside an OPTIONAL, so it does \\
+            required_only.contains("wdt:P235 ?compound_inchikey"),
+            "{label}: the InChIKey requirement is only inside an OPTIONAL, so it does \\
              not filter anything"
         );
     }

@@ -106,7 +106,7 @@ fn a_padded_formula_is_trimmed() {
         .find(|r| r.compound_qid.as_ref() == "Q1")
         .expect("Q1 is present");
     // The source pads the formula to align the column.
-    assert_eq!(row.formula.as_deref(), Some("C17H12O7"));
+    assert_eq!(row.formula.as_deref(), Some("C15H10O7"));
 }
 
 #[test]

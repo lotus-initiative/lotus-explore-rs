@@ -175,9 +175,12 @@ impl<'a> RowExporter<'a> {
         }
     }
 
-    /// Clone the buffered bytes out, leaving the buffer empty and able to refill.
+    /// Swap the buffered chunk out and preallocate the next chunk buffer.
     fn take(&mut self) -> String {
-        std::mem::take(&mut self.chunk)
+        std::mem::replace(
+            &mut self.chunk,
+            String::with_capacity(CHUNK_TARGET + CHUNK_TARGET / 8),
+        )
     }
 
     fn push_preamble(&mut self) {

@@ -412,3 +412,55 @@ fn utf8_bom_is_stripped_by_all_small_csv_parsers() {
     assert_eq!(compounds.len(), 1, "compound header must survive BOM");
     assert_eq!(compounds[0].qid, "Q18216");
 }
+
+#[test]
+fn counts_csv_rejects_missing_n_entries_and_invalid_values() {
+    let missing_col =
+        parse_counts_csv(b"n_compounds\n5\n").expect_err("missing n_entries must fail");
+    assert!(missing_col.message().contains("n_entries"), "{missing_col}");
+
+    let bad_val =
+        parse_counts_csv(b"n_entries,n_compounds\nabc,5\n").expect_err("non-numeric must fail");
+    assert!(bad_val.message().contains("n_entries"), "{bad_val}");
+
+    let bad_opt = parse_counts_csv(b"n_entries,n_compounds\n5,xyz\n")
+        .expect_err("bad optional count must fail");
+    assert!(bad_opt.message().contains("n_compounds"), "{bad_opt}");
+}
+
+#[test]
+fn stream_reader_handles_bce_years_unknown_truncation_bom_whitespace_and_quote_eof() {
+    use crate::parse::stream::{CsvColumnarReader, CsvSplitter};
+
+    let bce = b"compound,taxon,ref_qid,ref_year\nQ1,Q2,Q3,-0300-01-01T00:00:00Z\nQ4,Q2,Q5,-45\n";
+    let set = crate::parse_compounds_columnar(&bce[..]).expect("BCE years parse");
+    assert_eq!(set.pub_year(0), Some(-300));
+    assert_eq!(set.pub_year(1), Some(-45));
+
+    let unknown_trunc = b"compound,taxon\nQ1,Q2\n!!!!>># Custom failure reason\n";
+    let err = crate::parse_compounds_columnar(&unknown_trunc[..])
+        .expect_err("unknown !!!!>># notice must still fail");
+    assert!(err.message().contains("endpoint"), "{err}");
+
+    let bom_ws = b"\xEF\xBB\xBF compound,taxon\nQ1,Q2\n";
+    let bom_set = crate::parse_compounds_columnar(&bom_ws[..]).expect("BOM+space header parses");
+    assert_eq!(bom_set.row_count(), 1);
+
+    let mut reader = CsvColumnarReader::new();
+    let count = reader.feed(b"compound,taxon\n,Q2\nQ1,Q2\n").expect("feeds");
+    assert_eq!(count, 1, "feed count matches skipped empty-compound row");
+    assert_eq!(reader.row_count(), 1);
+
+    let mut splitter = CsvSplitter::new();
+    let mut records = Vec::new();
+    splitter.feed(b"\"", &mut records);
+    assert!(
+        splitter.is_mid_record(),
+        "open quote at start must count as mid-record"
+    );
+    assert!(
+        splitter.end_of_input(&mut records),
+        "open quote at EOF is truncated"
+    );
+    assert_eq!(records.len(), 1);
+}
