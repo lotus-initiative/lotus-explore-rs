@@ -105,6 +105,15 @@ fn parsed_json_query_preserves_encoded_ampersands() {
 }
 
 #[test]
+fn unmatched_quote_or_paren_in_plain_param_does_not_swallow_next_param() {
+    let q = RouteQuery::from_decoded("structure=C1(C&lang=fr&taxon=a\"b&dark_mode=true");
+    assert_eq!(q.get("structure"), Some("C1(C"));
+    assert_eq!(q.get("lang"), Some("fr"));
+    assert_eq!(q.get("taxon"), Some("a\"b"));
+    assert_eq!(q.get("dark_mode"), Some("true"));
+}
+
+#[test]
 fn root_and_search_are_distinct_routes_showing_the_same_view() {
     let landing = "/".parse::<Route>();
     let search = "/search".parse::<Route>();

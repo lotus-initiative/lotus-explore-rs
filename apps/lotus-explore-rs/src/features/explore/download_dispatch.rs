@@ -161,6 +161,7 @@ pub fn use_download_dispatch_effect(
                 query,
                 filename,
                 format,
+                has_fetched_rows,
                 // Unused on a desktop write, which asks the endpoint again rather
                 // than embedding the criteria in a file it builds in memory.
                 #[cfg(not(target_arch = "wasm32"))]
@@ -185,16 +186,14 @@ pub fn use_download_dispatch_effect(
                     query.contains("SELECT"),
                     query.len(),
                 );
+                #[cfg(target_arch = "wasm32")]
+                let rows = has_fetched_rows.then(|| Arc::clone(&explore.read().result.set));
+                #[cfg(not(target_arch = "wasm32"))]
+                let _ = has_fetched_rows;
                 spawn(async move {
                     telemetry::download_dispatch_started(format.log_name());
-                    // Read out of the live result state: the rows for this search are
-                    // already here, so the export is a walk over them rather than a
-                    // second execution of the query.
                     #[cfg(target_arch = "wasm32")]
-                    let browser = BrowserDownload::new(
-                        criteria,
-                        Some(Arc::clone(&explore.read().result.set)),
-                    );
+                    let browser = BrowserDownload::new(criteria, rows);
 
                     #[cfg(not(target_arch = "wasm32"))]
                     let browser = BrowserDownload;

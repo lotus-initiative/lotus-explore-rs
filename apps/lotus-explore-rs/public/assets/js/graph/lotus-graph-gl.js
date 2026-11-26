@@ -589,19 +589,21 @@ void main() {
     for (let i = 1; i < n; i += 1) {
       if (state.degrees[i] > state.degrees[hub]) hub = i;
     }
+    const hubWeights = new Float32Array(n);
+    hubWeights.fill(1);
+    for (let k = 0; k < state.nEdges; k += 1) {
+      const a = state.edges[k * 2];
+      const b = state.edges[k * 2 + 1];
+      if (a === hub && b < n) {
+        hubWeights[b] = state.edgeWeights[k];
+      } else if (b === hub && a < n) {
+        hubWeights[a] = state.edgeWeights[k];
+      }
+    }
     const others = [];
     for (let i = 0; i < n; i += 1) {
       if (i !== hub) {
-        let w = 1;
-        for (let k = 0; k < state.nEdges; k += 1) {
-          const a = state.edges[k * 2];
-          const b = state.edges[k * 2 + 1];
-          if ((a === hub && b === i) || (b === hub && a === i)) {
-            w = state.edgeWeights[k];
-            break;
-          }
-        }
-        others.push({ idx: i, weight: w });
+        others.push({ idx: i, weight: hubWeights[i] });
       }
     }
     others.sort((a, b) => b.weight - a.weight || a.idx - b.idx);
@@ -675,7 +677,20 @@ void main() {
     const pos = state.pos3d;
     const alpha = state.alpha;
     const samples = Math.min(n - 1, MAX_REPULSION_SAMPLES);
-    const stride = n - 1 <= MAX_REPULSION_SAMPLES ? 1 : Math.max(1, Math.floor((n - 1) / MAX_REPULSION_SAMPLES));
+    let stride = n - 1 <= MAX_REPULSION_SAMPLES ? 1 : Math.max(1, Math.floor((n - 1) / MAX_REPULSION_SAMPLES));
+    if (stride > 1) {
+      const gcd = (x, y) => {
+        while (y !== 0) {
+          const t = x % y;
+          x = y;
+          y = t;
+        }
+        return x;
+      };
+      while (gcd(stride, n) !== 1) {
+        stride += 1;
+      }
+    }
     const repScale = (n > MAX_REPULSION_SAMPLES ? (n - 1) / samples : 1) * 520.0 * alpha;
 
     for (let i = 0; i < n; i += 1) {
@@ -1181,14 +1196,15 @@ void main() {
       (e) => {
         e.preventDefault();
         const factor = Math.exp(Math.max(-0.25, Math.min(0.25, e.deltaY * 0.0018)));
-        const nextDist = Math.max(36, Math.min(3600, state.cam.distGoal * factor));
+        const minDist = state.mode === "2d" ? 89 : 36;
+        const nextDist = Math.max(minDist, Math.min(3600, state.cam.distGoal * factor));
         if (state.mode === "2d") {
           const rect = canvas.getBoundingClientRect();
           const ndcX = ((e.clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1;
           const ndcY = 1 - ((e.clientY - rect.top) / Math.max(1, rect.height)) * 2;
           const aspect = Math.max(0.1, rect.width / Math.max(1, rect.height));
-          const oldH = state.cam.distGoal * 0.45;
-          const newH = nextDist * 0.45;
+          const oldH = Math.max(40, state.cam.distGoal * 0.45);
+          const newH = Math.max(40, nextDist * 0.45);
           state.cam.txGoal += ndcX * aspect * (oldH - newH);
           state.cam.tyGoal += ndcY * (oldH - newH);
         }
@@ -1479,6 +1495,27 @@ void main() {
         state.resizeObserver.disconnect();
         state.resizeObserver = null;
       }
+      if (state.gl) {
+        const gl = state.gl;
+        if (state.programs) {
+          Object.values(state.programs).forEach((entry) => {
+            if (entry && entry.prog) gl.deleteProgram(entry.prog);
+          });
+        }
+        if (state.vaos) {
+          Object.values(state.vaos).forEach((vao) => {
+            if (vao) gl.deleteVertexArray(vao);
+          });
+        }
+        if (state.buffers) {
+          Object.values(state.buffers).forEach((buf) => {
+            if (buf) gl.deleteBuffer(buf);
+          });
+        }
+      }
+      state.programs = null;
+      state.vaos = null;
+      state.buffers = null;
       if (state.canvas) {
         state.canvas.style.width = "";
         state.canvas.style.height = "";

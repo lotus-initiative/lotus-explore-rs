@@ -47,6 +47,9 @@ impl CurationPageController {
     }
 
     pub fn process(mut self) {
+        if *self.processing.read() {
+            return;
+        }
         if self.rows.read().is_empty() {
             self.status_message
                 .set(Some(msg_add_row_before_generate(self.locale)));
@@ -104,6 +107,9 @@ impl CurationPageController {
     }
 
     pub fn run_second_pass(mut self) {
+        if *self.processing.read() {
+            return;
+        }
         let pending_inputs = workflow::second_pass_inputs(self.result_rows.read().as_ref());
         if pending_inputs.is_empty() {
             self.awaiting_second_pass.set(false);

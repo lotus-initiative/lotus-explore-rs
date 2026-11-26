@@ -50,7 +50,7 @@ pub(super) async fn execute_download_from_rows(
     let mut exporter = RowExporter::new(format, set);
     let mut bytes = 0usize;
 
-    let mut sink = open_sink(&safe, rows, format).await;
+    let mut sink = open_sink(&safe, rows, format).await?;
 
     // One chunk produced, handed over, and released before the next is asked for.
     // Holding the exporter's buffer and the JavaScript copy at once is two copies of
@@ -115,7 +115,11 @@ pub(super) async fn execute_download_from_rows(
 ///
 /// Every step down is logged with its reason, because "the download was slow" and "the
 /// browser made us buffer 600 MB" look identical from the outside.
-async fn open_sink(filename: &str, rows: usize, format: ExportFormat) -> Sink {
+async fn open_sink(
+    filename: &str,
+    rows: usize,
+    format: ExportFormat,
+) -> Result<Sink, DownloadError> {
     debug_assert_eq!(
         super::SINK_PREFERENCE[0],
         SinkPreference::UserChosenFile,
@@ -124,10 +128,13 @@ async fn open_sink(filename: &str, rows: usize, format: ExportFormat) -> Sink {
 
     if let Some(picker) = take_file_sink() {
         match FileSink::open(picker).await {
-            Ok(sink) => return Sink::File(sink),
+            Ok(sink) => return Ok(Sink::File(sink)),
+            Err(DownloadError::Cancelled) => {
+                log::info!("event=download sink=file state=cancelled");
+                return Err(DownloadError::Cancelled);
+            }
             Err(reason) => {
-                // Cancelling the dialog, or a browser that has the API and would not
-                // grant it.
+                // Cancelling or a browser that has the API and would not grant it.
                 log::warn!("event=download sink=file state=fallback reason={reason}");
             }
         }
@@ -137,7 +144,7 @@ async fn open_sink(filename: &str, rows: usize, format: ExportFormat) -> Sink {
         match OpfsSink::open(filename).await {
             Ok(sink) => {
                 log::info!("event=download sink=opfs state=selected");
-                return Sink::Opfs(sink);
+                return Ok(Sink::Opfs(sink));
             }
             Err(reason) => {
                 log::warn!("event=download sink=opfs state=fallback reason={reason}");
@@ -146,23 +153,20 @@ async fn open_sink(filename: &str, rows: usize, format: ExportFormat) -> Sink {
     }
 
     if !super::blob_path_can_carry(rows, format) {
-        // Reached on a browser with neither a save picker nor private storage: old
-        // WebKit, and anything in private browsing on some engines. The export would be
-        // assembled in memory and take the tab with it, so it is refused here instead.
         log::warn!(
             "event=download sink=blob state=refused rows={rows} limit={}",
             super::blob_path_ceiling(format)
         );
-        return Sink::Unwritable {
+        return Ok(Sink::Unwritable {
             rows,
             limit: super::blob_path_ceiling(format),
-        };
+        });
     }
     log::warn!(
         "event=download sink=blob state=selected rows={rows} detail=\"assembled in memory; \
          only safe because the result is small enough\""
     );
-    Sink::Blob(Vec::new())
+    Ok(Sink::Blob(Vec::new()))
 }
 
 /// Where an export's bytes are being sent.

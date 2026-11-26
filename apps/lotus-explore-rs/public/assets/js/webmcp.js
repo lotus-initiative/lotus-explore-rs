@@ -226,18 +226,27 @@
         setField("#formula-exact", input.formula_exact);
         checkField("#formula-enabled", input.formula_enabled);
         if (input.stype) chooseRadio(input.stype);
+        var prevTbody = document.querySelector("table tbody");
+        var prevSnapshot = prevTbody ? prevTbody.textContent : "";
+        var sawBusyOrClear = !document.querySelector("table tbody tr");
         submitAndSummarise(form, "Search submitted.");
         return new Promise(function (resolve) {
-          // The query is a network round trip to QLever, so a fixed delay would
-          // either be too short to see rows or too long to be worth waiting for.
-          // Poll for the first rows and report whatever is there.
           var deadline = Date.now() + 30000;
+          var settled = false;
           (function poll() {
-            if (document.querySelector("table tbody tr")) {
+            var busy = Boolean(document.querySelector('[aria-busy="true"]'));
+            if (busy || !document.querySelector("table tbody tr")) {
+              sawBusyOrClear = true;
+            }
+            var curTbody = document.querySelector("table tbody");
+            var curSnapshot = curTbody ? curTbody.textContent : "";
+            var changed = curSnapshot !== prevSnapshot;
+            if (!busy && document.querySelector("table tbody tr") && (sawBusyOrClear || changed)) {
               resolve(summariseResults());
               return;
             }
-            if (Date.now() > deadline) {
+            if (!settled && Date.now() > deadline) {
+              settled = true;
               resolve(
                 "The search was submitted but no result rows appeared within 30s.",
               );

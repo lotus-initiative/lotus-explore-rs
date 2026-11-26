@@ -51,7 +51,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rerun-if-changed=public");
     println!("cargo:rerun-if-changed=src");
     println!("cargo:rerun-if-changed=index.html");
-    println!("cargo:rerun-if-changed=../../crates/lotus/src");
     println!("cargo:rerun-if-changed={}", metadata_path.display());
 
     let raw = fs::read_to_string(&metadata_path)?;

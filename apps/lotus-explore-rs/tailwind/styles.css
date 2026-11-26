@@ -4,7 +4,16 @@
 @source "../src/**/*.rs";
 
 /* App theme uses data-theme on <html>, not the .dark class. */
-@custom-variant dark (&:where([data-theme="dark"] *, :root:not([data-theme="light"]) *));
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
 
 /* =========================================================================
    CSS Variables - Design Tokens
@@ -178,7 +187,7 @@ video {
 }
 
 /* Dark mode theme */
-:is([data-theme="dark"], :root:not([data-theme="light"])) {
+:root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #0a0f19;
   --bg2: #0a0f19;
@@ -205,22 +214,59 @@ video {
   --shadow-md: 0 4px 8px rgb(0 0 0 / 50%);
   --critical-text: #e8edf5;
   --critical-muted: #d0d9e5;
-
-  /* Same three-plane hierarchy as light, inverted for the dark canvas. */
   --shell-page-bg: #0a0f19;
   --shell-chrome-bg: #1c2637;
   --shell-raised-bg: #131b29;
   --panel-bg: #131b29;
   --panel-bg-soft: #18212f;
   --panel-border: var(--border-soft);
-
-  /* On the dark canvas these need far more white than the light theme needs
-       black, or the badge text lands under 4.5:1 on its own tint. */
   --footer-wd-compound: color-mix(in srgb, var(--wd-compound) 40%, white);
   --footer-wd-taxon: color-mix(in srgb, var(--wd-taxon) 65%, white);
   --footer-wd-reference: color-mix(in srgb, var(--wd-reference) 50%, white);
   --footer-wd-entries: color-mix(in srgb, var(--wd-entries) 45%, white);
   --footer-wd-structure: var(--footer-wd-entries);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0a0f19;
+    --bg2: #0a0f19;
+    --surface: #131b29;
+    --surface2: #131b29;
+    --border: #76869e;
+    --border-soft: #38475a;
+    --text: #eef4fb;
+    --text2: #d5deea;
+    --text3: #b8c5d6;
+    --accent: #8cbcff;
+    --accent2: #5e98f3;
+    --btn-primary-bg: #0b5cab;
+    --btn-primary-hover-bg: #285fcc;
+    --green: #4cc38a;
+    --red: #ff8a80;
+    --yellow: #f0b35e;
+    --purple: #c3a0ff;
+    --glass: rgb(22 27 34 / 78%);
+    --ring: 0 0 0 3px rgb(140 188 255 / 28%);
+    --focus-ring: 0 0 0 3px rgb(140 188 255 / 35%);
+    --shadow-xs: 0 1px 2px rgb(0 0 0 / 30%);
+    --shadow-sm: 0 1px 3px rgb(0 0 0 / 40%);
+    --shadow-md: 0 4px 8px rgb(0 0 0 / 50%);
+    --critical-text: #e8edf5;
+    --critical-muted: #d0d9e5;
+    --shell-page-bg: #0a0f19;
+    --shell-chrome-bg: #1c2637;
+    --shell-raised-bg: #131b29;
+    --panel-bg: #131b29;
+    --panel-bg-soft: #18212f;
+    --panel-border: var(--border-soft);
+    --footer-wd-compound: color-mix(in srgb, var(--wd-compound) 40%, white);
+    --footer-wd-taxon: color-mix(in srgb, var(--wd-taxon) 65%, white);
+    --footer-wd-reference: color-mix(in srgb, var(--wd-reference) 50%, white);
+    --footer-wd-entries: color-mix(in srgb, var(--wd-entries) 45%, white);
+    --footer-wd-structure: var(--footer-wd-entries);
+  }
 }
 
 [data-theme="light"] {
@@ -715,10 +761,18 @@ legend {
   user-select: none;
 }
 
-:is([data-theme="dark"], :root:not([data-theme="light"])) .lotus-graph-label {
+:root[data-theme="dark"] .lotus-graph-label {
   text-shadow:
     0 0 5px rgb(10 15 25 / 96%),
     0 1px 2px rgb(10 15 25 / 94%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .lotus-graph-label {
+    text-shadow:
+      0 0 5px rgb(10 15 25 / 96%),
+      0 1px 2px rgb(10 15 25 / 94%);
+  }
 }
 
 .lotus-graph-label.is-taxon {
@@ -815,13 +869,24 @@ input[type="range"]::-moz-range-track {
     --accent: #064080;
   }
 
-  :is([data-theme="dark"], :root:not([data-theme="light"])) {
+  :root[data-theme="dark"] {
     --border: #cbd5e1;
     --border-soft: #64748b;
     --text: #ffffff;
     --text2: #f1f5f9;
     --text3: #e2e8f0;
     --accent: #b3d4ff;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --border: #cbd5e1;
+      --border-soft: #64748b;
+      --text: #ffffff;
+      --text2: #f1f5f9;
+      --text3: #e2e8f0;
+      --accent: #b3d4ff;
+    }
   }
 }
 

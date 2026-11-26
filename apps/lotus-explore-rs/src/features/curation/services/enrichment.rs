@@ -173,19 +173,13 @@ struct Row<'a> {
 }
 
 impl Row<'_> {
-    /// What the row resolved to, for the `P703` statement.
-    fn resolved(&self) -> Resolved<'_> {
-        Resolved {
-            taxon_qid: self
-                .dependencies
-                .as_ref()
-                .and_then(|deps| deps.taxon_qid.as_deref()),
-            reference_qid: self
-                .dependencies
-                .as_ref()
-                .and_then(|deps| deps.reference_qid.as_deref()),
+    /// What the row resolved to, for the `P703` statement, or `None` for compound-only rows.
+    fn resolved(&self) -> Option<Resolved<'_>> {
+        self.dependencies.as_ref().map(|deps| Resolved {
+            taxon_qid: deps.taxon_qid.as_deref(),
+            reference_qid: deps.reference_qid.as_deref(),
             row_has_doi: self.doi.is_some(),
-        }
+        })
     }
 
     /// The statements that must be submitted before the row's own.
@@ -374,7 +368,9 @@ async fn occurrence_statement(
     repository: &dyn CurationKnowledgeRepository,
     occurrence_ask_cache: &Mutex<OccurrenceAskCache>,
 ) -> Result<Option<String>, CurationError> {
-    let resolved = row.resolved();
+    let Some(resolved) = row.resolved() else {
+        return Ok(None);
+    };
     let Some(statement) = resolved.statement_for(&existing.qid) else {
         return Ok(None);
     };
@@ -412,19 +408,31 @@ fn pending_messages<'a>(row: &'a Row<'_>) -> &'a [String] {
 async fn create_new(row: &Row<'_>) -> Result<CurationResultRow, CurationError> {
     let structure = row.structure;
     let mass_resolution = resolve_exact_mass(&row.input.smiles, &structure.canonical_smiles).await;
+    // A structure the toolkit cannot read is not "no undefined stereo", so the
+    // flag stays off rather than claiming the compound is fully specified.
+    let undefined_stereo = has_undefined_stereo(&row.input.smiles)
+        .await
+        .unwrap_or(false);
+    Ok(build_new_compound_row(
+        row,
+        mass_resolution,
+        undefined_stereo,
+    ))
+}
 
+fn build_new_compound_row(
+    row: &Row<'_>,
+    mass_resolution: lotus_curation::MassResolution,
+    undefined_stereo: bool,
+) -> CurationResultRow {
+    let structure = row.structure;
     let mut lines = vec!["CREATE".into()];
     lines.push(format!(
         "LAST|Len|\"{}\"",
         escape_quickstatements(&row.input.name)
     ));
     lines.push("LAST|Den|\"chemical compound\"".into());
-    // A structure the toolkit cannot read is not "no undefined stereo", so the
-    // flag stays off rather than claiming the compound is fully specified.
-    if has_undefined_stereo(&row.input.smiles)
-        .await
-        .unwrap_or(false)
-    {
+    if undefined_stereo {
         lines.push(format!("LAST|P31|{WD_STEREOISOMER_GROUP_QID}"));
     } else {
         lines.push(format!("LAST|P31|{WD_TYPE_CHEMICAL_ENTITY_QID}"));
@@ -454,12 +462,14 @@ async fn create_new(row: &Row<'_>) -> Result<CurationResultRow, CurationError> {
     if let Some(mass) = mass_resolution.exact_mass {
         lines.push(qs_mass_statement("LAST", mass));
     }
-    if let Some(statement) = row.resolved().statement_for_new() {
+    if let Some(resolved) = row.resolved()
+        && let Some(statement) = resolved.statement_for_new()
+    {
         lines.push(statement);
     }
 
     let (status, note) = row.pending_outcome();
-    Ok(CurationResultRow {
+    CurationResultRow {
         input: row.input.clone(),
         canonical_smiles: Some(structure.canonical_smiles.clone()),
         isomeric_smiles: has_stereo_marks(&structure.isomeric_smiles)
@@ -474,7 +484,7 @@ async fn create_new(row: &Row<'_>) -> Result<CurationResultRow, CurationError> {
         note,
         dependency_blocks: row.dependency_blocks(),
         quickstatements: lines,
-    })
+    }
 }
 
 async fn resolve_row_dependencies(

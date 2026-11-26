@@ -88,6 +88,7 @@ fn dispatch_phase_ready_when_all_preconditions_met() {
         criteria,
         query,
         format,
+        has_fetched_rows,
         ..
     } = phase
     {
@@ -95,9 +96,28 @@ fn dispatch_phase_ready_when_all_preconditions_met() {
         assert_eq!(criteria.taxon, "Rosa");
         assert!(query.contains("SELECT"));
         assert_eq!(format, ExportFormat::Json);
+        assert!(has_fetched_rows);
     } else {
         panic!("expected Ready phase, got {:?}", phase);
     }
+}
+
+#[test]
+fn dispatch_phase_marks_download_only_mode_without_fetched_rows() {
+    let mut explore = ExploreState::default();
+    explore.lifecycle.download_only_mode = true;
+    explore.result.sparql_query = Some(std::sync::Arc::from("SELECT * WHERE {}"));
+    let phase = classify_dispatch_phase(Some(ExportFormat::Csv), &explore, YEAR, NOW);
+    assert!(
+        matches!(
+            phase,
+            DispatchPhase::Ready {
+                has_fetched_rows: false,
+                ..
+            }
+        ),
+        "download_only_mode must set has_fetched_rows=false so startup export does not write 0 rows: {phase:?}"
+    );
 }
 
 #[test]

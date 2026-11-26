@@ -25,8 +25,11 @@ pub enum DispatchPhase {
         query: Arc<str>,
         /// Filename to use for downloaded file.
         filename: String,
-        /// Download format (for telemetry).
+        /// Format pending — ready to dispatch download.
         format: ExportFormat,
+        /// False for `?download=true` startup exports, whose `result.set` is an empty
+        /// placeholder because row fetching was skipped.
+        has_fetched_rows: bool,
     },
 }
 
@@ -62,5 +65,6 @@ pub fn classify_dispatch_phase(
         query,
         filename,
         format,
+        has_fetched_rows: !explore.lifecycle.download_only_mode,
     }
 }

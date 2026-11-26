@@ -171,8 +171,11 @@ impl FileSink {
             DownloadError::Browser("the browser exposed no way to write the chosen file".into())
         })?;
         let create: js_sys::Function = create.unchecked_into();
-        let writable = create
+        let pending = create
             .call0(&handle)
+            .map_err(|error| describe_js_error("opening the chosen file", &error))?;
+        let writable = JsFuture::from(pending.unchecked_into::<js_sys::Promise>())
+            .await
             .map_err(|error| describe_js_error("opening the chosen file", &error))?;
 
         Ok(Self { writable })
@@ -223,7 +226,7 @@ fn describe_js_error(what: &str, error: &JsValue) -> DownloadError {
         .and_then(|name| name.as_string())
         .unwrap_or_default();
     if name == "AbortError" {
-        return DownloadError::Browser("the save dialog was cancelled".into());
+        return DownloadError::Cancelled;
     }
     // An `ErrorEvent` stringifies to `"[object Error]"`, which tells nobody anything.
     // `message` is the part worth having; fall back to the name when there is none.

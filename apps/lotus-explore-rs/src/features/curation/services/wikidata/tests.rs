@@ -68,3 +68,33 @@ fn parse_ask_boolean_requires_valid_boolean_field() {
         "string boolean field must error instead of defaulting to false"
     );
 }
+
+#[test]
+fn taxon_and_reference_ties_keep_lowest_qid_number_regardless_of_row_order() {
+    let taxon_json = serde_json::json!({"results": {"bindings": [
+        {"lookup": {"value": "gentiana"}, "taxon": {"value": "http://www.wikidata.org/entity/Q100"}},
+        {"lookup": {"value": "gentiana"}, "taxon": {"value": "http://www.wikidata.org/entity/Q20"}},
+        {"lookup": {"value": "gentiana"}, "taxon": {"value": "http://www.wikidata.org/entity/Q999"}}
+    ]}});
+    assert_eq!(
+        taxon_qids_from_json(&taxon_json)
+            .get("gentiana")
+            .map(String::as_str),
+        Some("Q20")
+    );
+    assert_eq!(
+        extract_lowest_qid_from_json(&taxon_json, "taxon").as_deref(),
+        Some("Q20")
+    );
+
+    let ref_json = serde_json::json!({"results": {"bindings": [
+        {"lookup": {"value": "10.1/x"}, "ref": {"value": "http://www.wikidata.org/entity/Q200"}},
+        {"lookup": {"value": "10.1/x"}, "ref": {"value": "http://www.wikidata.org/entity/Q30"}}
+    ]}});
+    assert_eq!(
+        reference_qids_from_json(&ref_json)
+            .get("10.1/x")
+            .map(String::as_str),
+        Some("Q30")
+    );
+}

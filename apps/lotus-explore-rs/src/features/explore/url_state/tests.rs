@@ -18,6 +18,15 @@ fn deployment_base_path_preserves_repository_prefix() {
         deployment_base_path("/lotus-explore-rs/"),
         "/lotus-explore-rs"
     );
+    assert_eq!(super::resolve_base_prefix(Some("/"), "/unknown/page"), "");
+    assert_eq!(
+        super::resolve_base_prefix(Some("/lotus-explore-rs/"), "/other"),
+        "/lotus-explore-rs"
+    );
+    assert_eq!(
+        super::resolve_base_prefix(None, "/lotus-explore-rs/search"),
+        "/lotus-explore-rs"
+    );
 }
 
 #[test]

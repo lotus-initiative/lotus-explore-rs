@@ -187,18 +187,25 @@ fn AppRuntimeEffects() -> Element {
         let theme = if dark_mode { "dark" } else { "light" };
         let icon = crate::features::explore::url_state::theme_icon_href(dark_mode);
         let chrome = crate::features::explore::url_state::theme_chrome_color(dark_mode);
-        document::eval(&format!(
-            "var el = document.documentElement; \
-             el.setAttribute('lang', '{lang}'); \
-             el.setAttribute('data-theme', '{theme}'); \
-             var icon = document.querySelector('link[rel=\"icon\"][type=\"image/svg+xml\"]'); \
-             if (icon) icon.href = '{icon}'; \
-             var metas = document.querySelectorAll('meta[name=\"theme-color\"]'); \
-             for (var m = 0; m < metas.length; m += 1) {{ \
-               metas[m].setAttribute('content', '{chrome}'); \
-               metas[m].removeAttribute('media'); \
-             }}"
-        ));
+        if let (Ok(lang_js), Ok(theme_js), Ok(icon_js), Ok(chrome_js)) = (
+            serde_json::to_string(lang),
+            serde_json::to_string(theme),
+            serde_json::to_string(&icon),
+            serde_json::to_string(chrome),
+        ) {
+            document::eval(&format!(
+                "var el = document.documentElement; \
+                 el.setAttribute('lang', {lang_js}); \
+                 el.setAttribute('data-theme', {theme_js}); \
+                 var icon = document.querySelector('link[rel=\"icon\"][type=\"image/svg+xml\"]'); \
+                 if (icon) icon.href = {icon_js}; \
+                 var metas = document.querySelectorAll('meta[name=\"theme-color\"]'); \
+                 for (var m = 0; m < metas.length; m += 1) {{ \
+                   metas[m].setAttribute('content', {chrome_js}); \
+                   metas[m].removeAttribute('media'); \
+                 }}"
+            ));
+        }
     });
 
     use_effect(move || {

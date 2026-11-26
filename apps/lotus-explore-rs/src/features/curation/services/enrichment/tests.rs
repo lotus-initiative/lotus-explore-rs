@@ -419,3 +419,28 @@ fn revised_row_suppresses_create_and_occurrence_statements_in_web_enrichment() {
     assert_eq!(existing.wikidata_qid.as_deref(), Some("Q1503"));
     assert_ne!(existing.note, novel.note);
 }
+
+#[test]
+fn compound_only_row_without_taxon_emits_no_p703_placeholder() {
+    let fixture = Fixture::new();
+    let compound_only = fixture.row(None);
+    assert_eq!(
+        occurrence_for(&compound_only, &NotRecorded),
+        None,
+        "compound-only existing row must not emit P703|[NEW_TAXON_QID]"
+    );
+
+    let created = build_new_compound_row(
+        &compound_only,
+        lotus_curation::MassResolution {
+            exact_mass: Some(180.16),
+            warning: None,
+        },
+        false,
+    );
+    let joined = created.quickstatements.join("\n");
+    assert!(
+        !joined.contains("P703") && !joined.contains("NEW_TAXON_QID"),
+        "compound-only new row must not emit P703|[NEW_TAXON_QID]: {joined}"
+    );
+}

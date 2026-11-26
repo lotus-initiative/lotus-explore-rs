@@ -36,10 +36,24 @@
       return bridge.loadPromise;
     }
 
+    const SCRIPT_TIMEOUT_MS = 15000;
+
     bridge.loadPromise = new Promise((resolve, reject) => {
       const src = citationJsSrc();
       const existing = document.querySelector(`script[src="${src}"]`);
+      let timer = null;
+      const cleanup = () => {
+        if (timer !== null) {
+          clearTimeout(timer);
+          timer = null;
+        }
+      };
+      const fail = (err) => {
+        cleanup();
+        reject(err);
+      };
       const complete = () => {
+        cleanup();
         try {
           let CiteCtor = null;
           if (typeof globalThis.Cite === "function") {
@@ -63,11 +77,22 @@
         }
       };
 
+      timer = setTimeout(() => {
+        fail(new Error("Timed out loading citation.js"));
+      }, SCRIPT_TIMEOUT_MS);
+
       if (existing) {
+        if (
+          typeof globalThis.Cite === "function" ||
+          typeof require === "function"
+        ) {
+          complete();
+          return;
+        }
         existing.addEventListener("load", complete, { once: true });
         existing.addEventListener(
           "error",
-          () => reject(new Error("citation.js failed to load")),
+          () => fail(new Error("citation.js failed to load")),
           { once: true },
         );
         return;
@@ -80,7 +105,7 @@
       script.addEventListener("load", complete, { once: true });
       script.addEventListener(
         "error",
-        () => reject(new Error("citation.js failed to load")),
+        () => fail(new Error("citation.js failed to load")),
         { once: true },
       );
       document.head.appendChild(script);
@@ -100,16 +125,29 @@
   }
 
   async function fetchDoiCslJson(doi) {
-    const response = await fetch(`https://doi.org/${encodeURIComponent(doi)}`, {
-      headers: {
-        Accept:
-          "application/vnd.citationstyles.csl+json, application/json;q=0.9",
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`DOI metadata fetch failed: HTTP ${response.status}`);
+    const controller =
+      typeof AbortController === "function" ? new AbortController() : null;
+    const timeoutId = controller
+      ? setTimeout(() => controller.abort(), 15000)
+      : null;
+    try {
+      const response = await fetch(
+        `https://doi.org/${encodeURIComponent(doi)}`,
+        {
+          headers: {
+            Accept:
+              "application/vnd.citationstyles.csl+json, application/json;q=0.9",
+          },
+          signal: controller ? controller.signal : undefined,
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`DOI metadata fetch failed: HTTP ${response.status}`);
+      }
+      return await response.json();
+    } finally {
+      if (timeoutId !== null) clearTimeout(timeoutId);
     }
-    return await response.json();
   }
 
   bridge.quickStatements = async function quickStatements(doi) {

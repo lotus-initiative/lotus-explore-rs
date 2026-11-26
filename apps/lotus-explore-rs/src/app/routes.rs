@@ -414,29 +414,50 @@ fn parse_decoded_query(query: &str) -> BTreeMap<String, String> {
 fn split_decoded_query(query: &str) -> Vec<&str> {
     let mut parts = Vec::new();
     let mut start = 0;
+    let mut json_mode = false;
+    let mut seen_eq = false;
     let mut depth = 0usize;
     let mut in_string = false;
     let mut escaped = false;
     for (index, ch) in query.char_indices() {
-        if in_string {
-            if escaped {
-                escaped = false;
-            } else if ch == '\\' {
-                escaped = true;
-            } else if ch == '"' {
-                in_string = false;
+        if !seen_eq {
+            if ch == '=' {
+                seen_eq = true;
+                let rest = &query[index + 1..];
+                json_mode = rest.starts_with('[') || rest.starts_with('{');
+            } else if ch == '&' {
+                parts.push(&query[start..index]);
+                start = index + 1;
             }
             continue;
         }
-        match ch {
-            '"' => in_string = true,
-            '[' | '{' | '(' => depth = depth.saturating_add(1),
-            ']' | '}' | ')' => depth = depth.saturating_sub(1),
-            '&' if depth == 0 => {
-                parts.push(&query[start..index]);
-                start = index + ch.len_utf8();
+        if json_mode {
+            if in_string {
+                if escaped {
+                    escaped = false;
+                } else if ch == '\\' {
+                    escaped = true;
+                } else if ch == '"' {
+                    in_string = false;
+                }
+                continue;
             }
-            _ => {}
+            match ch {
+                '"' if depth > 0 => in_string = true,
+                '[' | '{' => depth = depth.saturating_add(1),
+                ']' | '}' => depth = depth.saturating_sub(1),
+                '&' if depth == 0 => {
+                    parts.push(&query[start..index]);
+                    start = index + 1;
+                    seen_eq = false;
+                    json_mode = false;
+                }
+                _ => {}
+            }
+        } else if ch == '&' {
+            parts.push(&query[start..index]);
+            start = index + 1;
+            seen_eq = false;
         }
     }
     parts.push(&query[start..]);

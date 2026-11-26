@@ -47,19 +47,29 @@ fn json_bindings_len(json: &Value) -> usize {
         .map_or(0, Vec::len)
 }
 
-fn first_json_binding(json: &Value) -> Option<&Value> {
-    json.get("results")
-        .and_then(|v| v.get("bindings"))
-        .and_then(Value::as_array)
-        .and_then(|arr| arr.first())
+fn choose_lowest_qid(map: &mut HashMap<String, String>, key: String, qid: &str) {
+    match map.entry(key) {
+        std::collections::hash_map::Entry::Vacant(slot) => {
+            slot.insert(qid.to_string());
+        }
+        std::collections::hash_map::Entry::Occupied(mut slot) => {
+            if qid_number(qid) < qid_number(slot.get()) {
+                slot.insert(qid.to_string());
+            }
+        }
+    }
 }
 
-fn extract_first_qid_from_json(json: &Value, var_name: &str) -> Option<String> {
-    first_json_binding(json)
-        .and_then(|binding| binding.get(var_name))
-        .and_then(|v| v.get("value"))
-        .and_then(Value::as_str)
-        .and_then(extract_qid_from_uri)
+fn extract_lowest_qid_from_json(json: &Value, var_name: &str) -> Option<String> {
+    json_bindings(json)
+        .filter_map(|binding| {
+            binding
+                .get(var_name)
+                .and_then(|v| v.get("value"))
+                .and_then(Value::as_str)
+                .and_then(extract_qid_from_uri)
+        })
+        .min_by_key(|qid| qid_number(qid))
         .map(str::to_owned)
 }
 
@@ -78,8 +88,23 @@ pub async fn fetch_compounds_by_inchikeys<'a>(
         return Ok(HashMap::new());
     }
 
-    let json = execute_sparql_json(&build_compound_lookup_query(&keys)).await?;
-    Ok(compounds_by_key(&json))
+    let mut resolved = HashMap::new();
+    for chunk in keys.chunks(OCCURRENCE_CHUNK) {
+        let json = execute_sparql_json(&build_compound_lookup_query(chunk)).await?;
+        for (k, v) in compounds_by_key(&json) {
+            match resolved.entry(k) {
+                std::collections::hash_map::Entry::Vacant(slot) => {
+                    slot.insert(v);
+                }
+                std::collections::hash_map::Entry::Occupied(mut slot) => {
+                    if qid_number(&v.qid) < qid_number(&slot.get().qid) {
+                        slot.insert(v);
+                    }
+                }
+            }
+        }
+    }
+    Ok(resolved)
 }
 
 /// One item per `InChIKey`, from the lookup's bindings.
@@ -266,11 +291,21 @@ pub async fn resolve_reference_qids_batch<'a>(
         return Ok(HashMap::new());
     }
 
-    let query = build_reference_lookup_query(&normalized_dois);
-    let json = execute_sparql_json(&query).await?;
+    let mut resolved = HashMap::new();
+    for chunk in normalized_dois.chunks(OCCURRENCE_CHUNK) {
+        let query = build_reference_lookup_query(chunk);
+        let json = execute_sparql_json(&query).await?;
+        for (lookup, qid) in reference_qids_from_json(&json) {
+            choose_lowest_qid(&mut resolved, lookup, &qid);
+        }
+    }
 
-    let mut resolved = HashMap::with_capacity(json_bindings_len(&json));
-    for binding in json_bindings(&json) {
+    Ok(resolved)
+}
+
+fn reference_qids_from_json(json: &Value) -> HashMap<String, String> {
+    let mut resolved = HashMap::with_capacity(json_bindings_len(json));
+    for binding in json_bindings(json) {
         let Some(lookup) = binding_value(binding, "lookup") else {
             continue;
         };
@@ -282,10 +317,9 @@ pub async fn resolve_reference_qids_batch<'a>(
         else {
             continue;
         };
-        resolved.insert(lookup, qid.into());
+        choose_lowest_qid(&mut resolved, lookup, qid);
     }
-
-    Ok(resolved)
+    resolved
 }
 
 pub async fn resolve_taxon_qids_batch<'a>(
@@ -315,11 +349,21 @@ pub async fn resolve_taxon_qids_batch<'a>(
         return Ok(HashMap::new());
     }
 
-    let query = build_taxon_lookup_query(&lookups);
-    let json = execute_sparql_json(&query).await?;
+    let mut resolved = HashMap::new();
+    for chunk in lookups.chunks(OCCURRENCE_CHUNK) {
+        let query = build_taxon_lookup_query(chunk);
+        let json = execute_sparql_json(&query).await?;
+        for (lookup, qid) in taxon_qids_from_json(&json) {
+            choose_lowest_qid(&mut resolved, lookup, &qid);
+        }
+    }
 
-    let mut resolved = HashMap::with_capacity(json_bindings_len(&json));
-    for binding in json_bindings(&json) {
+    Ok(resolved)
+}
+
+fn taxon_qids_from_json(json: &Value) -> HashMap<String, String> {
+    let mut resolved = HashMap::with_capacity(json_bindings_len(json));
+    for binding in json_bindings(json) {
         let Some(lookup) = binding_value(binding, "lookup") else {
             continue;
         };
@@ -332,10 +376,9 @@ pub async fn resolve_taxon_qids_batch<'a>(
             continue;
         };
 
-        resolved.insert(lookup, qid.into());
+        choose_lowest_qid(&mut resolved, lookup, qid);
     }
-
-    Ok(resolved)
+    resolved
 }
 
 pub(super) async fn resolve_taxon_qid(name: &str) -> Result<Option<String>, CurationError> {
@@ -343,7 +386,7 @@ pub(super) async fn resolve_taxon_qid(name: &str) -> Result<Option<String>, Cura
         return Ok(None);
     };
     let json = execute_sparql_json(&query).await?;
-    Ok(extract_first_qid_from_json(&json, "taxon"))
+    Ok(extract_lowest_qid_from_json(&json, "taxon"))
 }
 
 fn parse_ask_boolean(parsed: &Value) -> Result<bool, CurationError> {

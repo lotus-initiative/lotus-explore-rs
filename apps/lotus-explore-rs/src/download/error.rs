@@ -20,6 +20,10 @@ pub enum DownloadError {
     #[cfg(target_arch = "wasm32")]
     #[error("{0}")]
     Browser(String),
+    /// User cancelled the native file save picker dialog.
+    #[cfg(target_arch = "wasm32")]
+    #[error("the save dialog was cancelled")]
+    Cancelled,
     /// Export exceeds the in-memory Blob ceiling when no streaming file sink is available.
     #[cfg(target_arch = "wasm32")]
     #[error("{}", super::blob_path_message(*rows, *limit))]

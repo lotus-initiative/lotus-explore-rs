@@ -83,19 +83,30 @@ fn deployment_base_path(pathname: &str) -> String {
     path.to_string()
 }
 
+fn resolve_base_prefix(attr: Option<&str>, pathname: &str) -> String {
+    if let Some(raw) = attr {
+        let trimmed = raw.trim();
+        if !trimmed.is_empty() {
+            return trimmed.trim_end_matches('/').to_string();
+        }
+    }
+    deployment_base_path(pathname)
+}
+
 #[cfg(target_arch = "wasm32")]
 pub fn deployment_href(path: &str) -> String {
-    let mut prefix = web_sys::window()
+    let attr = web_sys::window()
         .and_then(|window| window.document())
         .and_then(|document| document.document_element())
-        .and_then(|element| element.get_attribute("data-lotus-base-path"))
-        .map_or_else(String::new, |value| value.trim_end_matches('/').to_string());
-    if prefix.is_empty() {
-        let pathname = web_sys::window()
+        .and_then(|element| element.get_attribute("data-lotus-base-path"));
+    let pathname = if attr.as_deref().is_none_or(|v| v.trim().is_empty()) {
+        web_sys::window()
             .and_then(|window| window.location().pathname().ok())
-            .unwrap_or_default();
-        prefix = deployment_base_path(&pathname);
-    }
+            .unwrap_or_default()
+    } else {
+        String::new()
+    };
+    let mut prefix = resolve_base_prefix(attr.as_deref(), &pathname);
     prefix.push_str(path);
     prefix
 }
