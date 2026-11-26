@@ -35,12 +35,12 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
         c.structure_search = v.into();
     }
     if let Some(v) = req.similarity_threshold {
-        if v <= 0.0 {
+        if !v.is_finite() || v <= 0.0 || v > 1.0 {
             return Err(ApiError::bad_request(
-                "similarity_threshold must be greater than 0",
+                "similarity_threshold must be a finite number in (0, 1]",
             ));
         }
-        c.structure_threshold = v.clamp(0.05, 1.0);
+        c.structure_threshold = v;
     }
     if let Some(v) = req.mass_min {
         c.mass_min = v;

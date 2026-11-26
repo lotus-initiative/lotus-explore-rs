@@ -7,7 +7,7 @@ use super::*;
 #[test]
 fn the_qlever_url_carries_the_query_and_the_action() {
     let url = qlever_export_url("SELECT ?s WHERE { ?s ?p ?o }", ExportFormat::Csv);
-    assert!(url.starts_with(QLEVER_WIKIDATA), "{url}");
+    assert!(url.starts_with(lotus_model::QLEVER_WIKIDATA), "{url}");
     assert!(url.contains("action=csv_export"), "{url}");
     assert!(url.contains("query="), "{url}");
 }
@@ -41,11 +41,11 @@ fn the_api_url_is_the_one_the_server_serves() {
 
 #[test]
 fn a_cache_key_cannot_escape_its_path_segment() {
-    assert!(
-        api_export_file_url("a/../b", ExportFormat::Csv)
-            .matches('/')
-            .count()
-            > 3,
-        "a key with a slash changes the path"
+    let url = api_export_file_url("a/../b", ExportFormat::Csv);
+    assert_eq!(
+        url.matches('/').count(),
+        4,
+        "a percent-encoded key must stay in its single path segment: {url}"
     );
+    assert!(url.contains("%2F"), "slashes must be encoded: {url}");
 }

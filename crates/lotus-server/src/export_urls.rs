@@ -3,7 +3,6 @@
 
 //! Download URL builders for `QLever` direct exports and cached `/v1/export-file` routes.
 
-use lotus_model::QLEVER_WIKIDATA;
 use lotus_query::ExportFormat;
 
 /// The `QLever` URL for a query in a format.
@@ -12,8 +11,10 @@ use lotus_query::ExportFormat;
 /// that makes it triples rather than rows.
 #[must_use]
 pub fn qlever_export_url(query: &str, format: ExportFormat) -> String {
+    let endpoint = lotus_search::Endpoint::new(lotus_search::Service::Qlever);
     format!(
-        "{QLEVER_WIKIDATA}?query={}&action={}",
+        "{}?query={}&action={}",
+        endpoint.url(),
         lotus_model::percent_encode(&format.prepared_query(query)),
         format.qlever_action()
     )
@@ -22,7 +23,11 @@ pub fn qlever_export_url(query: &str, format: ExportFormat) -> String {
 /// The server's own URL for a cached export.
 #[must_use]
 pub fn api_export_file_url(cache_key: &str, format: ExportFormat) -> String {
-    format!("/v1/export-file/{cache_key}/{}", format.extension())
+    format!(
+        "/v1/export-file/{}/{}",
+        lotus_model::percent_encode(cache_key),
+        format.extension()
+    )
 }
 
 #[cfg(test)]

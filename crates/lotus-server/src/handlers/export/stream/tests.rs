@@ -149,7 +149,20 @@ async fn push_chunk_and_stream_helpers_handle_closed_channels_and_status() {
     assert!(push_chunk(&tx_open, &mut empty_encoder, b"").await);
 
     assert!(check_upstream_status(200).is_ok());
-    assert!(check_upstream_status(502).is_err());
+    assert_eq!(
+        check_upstream_status(502).err().map(|e| e.status),
+        Some(StatusCode::BAD_GATEWAY)
+    );
+    assert_eq!(
+        check_upstream_status(504).err().map(|e| e.status),
+        Some(StatusCode::GATEWAY_TIMEOUT)
+    );
+    let err_429 = check_upstream_status(429).err();
+    assert_eq!(
+        err_429.as_ref().map(|e| e.status),
+        Some(StatusCode::SERVICE_UNAVAILABLE)
+    );
+    assert!(err_429.and_then(|e| e.retry_after).is_some());
     assert_eq!(sanitized_attachment(Some("  ")), None);
     assert_eq!(
         sanitized_attachment(Some("export.csv")).as_deref(),

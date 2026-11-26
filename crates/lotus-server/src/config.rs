@@ -187,6 +187,9 @@ impl AppConfig {
     }
 
     pub fn bind_addr(&self) -> Result<SocketAddr, ConfigError> {
+        if let Ok(ip) = self.host.parse::<std::net::IpAddr>() {
+            return Ok(SocketAddr::new(ip, self.port));
+        }
         let addr = format!("{}:{}", self.host, self.port);
         addr.parse::<SocketAddr>()
             .map_err(|e| ConfigError::InvalidBindAddr {

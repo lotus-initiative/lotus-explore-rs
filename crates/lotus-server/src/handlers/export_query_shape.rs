@@ -14,8 +14,9 @@ fn the_export_never_asks_the_endpoint_for_a_construct() {
          that wrapping implies"
     );
     assert!(
-        HANDLERS.contains("qlever_export_url(&cached.query, ExportFormat::Csv)"),
-        "the export must fetch the SELECT; asking for any other format upstream \
+        HANDLERS.contains("ExportFormat::Csv.qlever_action()")
+            && HANDLERS.contains("ResponseFormat::Csv.accept()"),
+        "the export must fetch the SELECT as CSV; asking for any other format upstream \
          reintroduces endpoint-side materialisation"
     );
 }

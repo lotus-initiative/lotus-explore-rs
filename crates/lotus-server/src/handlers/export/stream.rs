@@ -71,12 +71,21 @@ pub async fn export_file(
     )
     .await
     .map_err(ApiError::from)?;
-    let select_url = crate::export_urls::qlever_export_url(&cached.query, ExportFormat::Csv);
+    let endpoint = lotus_search::Endpoint::new(lotus_search::Service::Qlever);
+    let form_body = format!(
+        "query={}&action={}",
+        lotus_model::percent_encode(&cached.query),
+        ExportFormat::Csv.qlever_action(),
+    );
     let http = lotus_search::reqwest_client::ReqwestClient::new()
         .map_err(|e| ApiError::upstream(format!("could not open the export client: {e}")))?;
     let response = timeout(
         state.request_timeout,
-        http.get(&select_url, lotus_search::ResponseFormat::Csv.accept()),
+        http.post(
+            endpoint.url(),
+            lotus_search::ResponseFormat::Csv.accept(),
+            form_body,
+        ),
     )
     .await
     .map_err(|_| {
@@ -146,30 +155,43 @@ async fn pump_export<H>(
     let mut encoder = compress.then(|| GzEncoder::new(Vec::new(), Compression::default()));
     let mut reader = (format != ExportFormat::Csv).then(CsvColumnarReader::new);
     let mut failed = false;
+    let mut aborted = false;
 
     loop {
-        match response.chunk().await {
-            Ok(Some(chunk)) => match reader.as_mut() {
-                Some(reader) => {
-                    if let Err(e) = reader.feed(&chunk) {
-                        log("parse_failed", e.to_string());
-                        failed = true;
-                        break;
-                    }
-                }
-                None => {
-                    if !push_chunk(&tx, &mut encoder, &chunk).await {
-                        break;
-                    }
-                }
-            },
-            Ok(None) => break,
-            Err(e) => {
-                log("upstream_truncated", e.to_string());
-                failed = true;
+        tokio::select! {
+            biased;
+            () = tx.closed() => {
+                aborted = true;
                 break;
             }
+            chunk = response.chunk() => match chunk {
+                Ok(Some(chunk)) => match reader.as_mut() {
+                    Some(reader) => {
+                        if let Err(e) = reader.feed(&chunk) {
+                            log("parse_failed", e.to_string());
+                            failed = true;
+                            break;
+                        }
+                    }
+                    None => {
+                        if !push_chunk(&tx, &mut encoder, &chunk).await {
+                            aborted = true;
+                            break;
+                        }
+                    }
+                },
+                Ok(None) => break,
+                Err(e) => {
+                    log("upstream_truncated", e.to_string());
+                    failed = true;
+                    break;
+                }
+            }
         }
+    }
+
+    if aborted {
+        return;
     }
 
     if let (false, Some(reader)) = (failed, reader) {
@@ -178,6 +200,7 @@ async fn pump_export<H>(
                 let mut exporter = RowExporter::new(format, &set);
                 while let Some(chunk) = exporter.next_chunk() {
                     if !push_chunk(&tx, &mut encoder, chunk.as_bytes()).await {
+                        aborted = true;
                         break;
                     }
                 }
@@ -187,6 +210,10 @@ async fn pump_export<H>(
                 failed = true;
             }
         }
+    }
+
+    if aborted {
+        return;
     }
 
     if failed {
@@ -199,9 +226,16 @@ async fn pump_export<H>(
     }
 
     if let Some(encoder) = encoder {
-        let finished = encoder.finish().unwrap_or_default();
-        if !finished.is_empty() {
-            let _ = tx.send(Ok(Bytes::from(finished))).await;
+        match encoder.finish() {
+            Ok(finished) => {
+                if !finished.is_empty() {
+                    let _ = tx.send(Ok(Bytes::from(finished))).await;
+                }
+            }
+            Err(err) => {
+                log("gzip_finish_failed", err.to_string());
+                let _ = tx.send(Err(err)).await;
+            }
         }
     }
 }
@@ -232,12 +266,23 @@ async fn push_chunk(
 }
 
 fn check_upstream_status(status: u16) -> Result<(), ApiError> {
-    if !(200..300).contains(&status) {
-        return Err(ApiError::upstream(format!(
-            "export upstream returned HTTP {status}"
+    if (200..300).contains(&status) {
+        return Ok(());
+    }
+    if matches!(status, 408 | 504) {
+        return Err(ApiError::timed_out(format!(
+            "export upstream timed out with HTTP {status}"
         )));
     }
-    Ok(())
+    if matches!(status, 429 | 503) {
+        return Err(ApiError::upstream_overloaded(
+            format!("export upstream rate-limited or unavailable (HTTP {status})"),
+            5,
+        ));
+    }
+    Err(ApiError::upstream(format!(
+        "export upstream returned HTTP {status}"
+    )))
 }
 
 fn sanitized_attachment(filename: Option<&str>) -> Option<String> {

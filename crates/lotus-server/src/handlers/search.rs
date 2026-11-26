@@ -13,10 +13,19 @@ use crate::{
     dto::{SearchRequest, SearchResponse},
     errors::{ApiError, ErrorResponse, SharedApiError},
     services::build_search_response,
-    state::{
-        AppState, search_cache_get, search_cache_put, search_inflight_cell, search_inflight_remove,
-    },
+    state::{AppState, search_cache_get, search_cache_put, search_inflight_guard},
 };
+
+fn attach_caller_context(
+    mut response: SearchResponse,
+    prepared: &PreparedSearchRequest,
+) -> SearchResponse {
+    response
+        .resolved_taxon_qid
+        .clone_from(&prepared.resolved_taxon_qid);
+    response.warning.clone_from(&prepared.warning);
+    response
+}
 
 async fn cached_search_response(
     state: &AppState,
@@ -33,7 +42,7 @@ async fn cached_search_response(
             .search_cache_hits
             .fetch_add(1, Ordering::Relaxed);
         log::debug!("event=search state=cache_hit");
-        return Ok(cached);
+        return Ok(attach_caller_context(cached, prepared));
     }
     state
         .metrics
@@ -41,8 +50,8 @@ async fn cached_search_response(
         .fetch_add(1, Ordering::Relaxed);
     log::debug!("event=search state=cache_miss");
 
-    let (cell, is_leader) = search_inflight_cell(state, &cache_key)?;
-    if is_leader {
+    let guard = search_inflight_guard(state, &cache_key)?;
+    if guard.is_leader() {
         state
             .metrics
             .search_upstream_hits
@@ -61,12 +70,11 @@ async fn cached_search_response(
     let upstream_queue_wait = state.upstream_queue_wait;
     let upstream_permits = state.upstream_permits.clone();
     let execution_query = prepared.execution_query.clone();
-    let resolved_taxon_qid = prepared.resolved_taxon_qid.clone();
-    let warning = prepared.warning.clone();
     let limit = prepared.limit;
     let include_counts = prepared.include_counts;
 
-    let response = cell
+    let response = guard
+        .cell()
         .get_or_init(|| async move {
             let _upstream_permit =
                 match acquire_upstream_permit(&upstream_permits, upstream_queue_wait, &metrics)
@@ -77,13 +85,7 @@ async fn cached_search_response(
                 };
             timeout(
                 request_timeout,
-                build_search_response(
-                    &execution_query,
-                    limit,
-                    include_counts,
-                    resolved_taxon_qid,
-                    warning,
-                ),
+                build_search_response(&execution_query, limit, include_counts, None, None),
             )
             .await
             .map_err(|_| {
@@ -95,12 +97,12 @@ async fn cached_search_response(
         })
         .await
         .clone();
-    search_inflight_remove(state, &cache_key, &cell);
+    guard.finish();
 
     match response {
         Ok(response) => {
             search_cache_put(state, cache_key, response.clone());
-            Ok(response)
+            Ok(attach_caller_context(response, prepared))
         }
         Err(err) => Err(err.into()),
     }

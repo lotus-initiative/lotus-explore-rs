@@ -35,7 +35,10 @@ use axum::{
     routing::{any, get, get_service, post},
 };
 use tower_http::{
-    compression::CompressionLayer,
+    compression::{
+        CompressionLayer,
+        predicate::{DefaultPredicate, NotForContentType, Predicate as _},
+    },
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
     services::{ServeDir, ServeFile},
 };
@@ -125,7 +128,11 @@ fn build_router(max_body_bytes: usize, config: &AppConfig, state: AppState) -> R
 
     router
         .layer(SetRequestIdLayer::new(X_REQUEST_ID, MakeRequestUuid))
-        .layer(CompressionLayer::new())
+        .layer(
+            CompressionLayer::new().compress_when(
+                DefaultPredicate::new().and(NotForContentType::new("application/gzip")),
+            ),
+        )
         .layer(build_cors_layer(config))
         .layer(middleware::from_fn(add_security_headers))
 }

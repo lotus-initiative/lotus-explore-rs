@@ -19,7 +19,7 @@ use crate::{
     query_logic::{
         apply_request, build_execution_query_with, resolve_search_inputs, resolve_taxon_qid_cached,
     },
-    state::{AppState, RuntimeMetrics},
+    state::{AppState, RuntimeMetrics, taxon_cache_get},
 };
 
 /// Retry delay advertised when upstream query slots are saturated.
@@ -56,6 +56,24 @@ async fn prepare_query(
         ));
     }
 
+    let taxon_trimmed = criteria.taxon.trim();
+    let taxon_needs_permit = !taxon_trimmed.is_empty()
+        && taxon_trimmed != "*"
+        && !lotus_model::is_qid(taxon_trimmed)
+        && taxon_cache_get(state, &taxon_trimmed.to_lowercase()).is_none();
+    let taxon_permit = if taxon_needs_permit {
+        Some(
+            acquire_upstream_permit(
+                &state.upstream_permits,
+                state.upstream_queue_wait,
+                &state.metrics,
+            )
+            .await
+            .map_err(ApiError::from)?,
+        )
+    } else {
+        None
+    };
     let (resolved_taxon_qid, warning) = timeout(
         state.request_timeout,
         resolve_taxon_qid_cached(state, criteria.taxon.clone()),
@@ -69,9 +87,31 @@ async fn prepare_query(
         log::warn!("event={event} state=timeout phase=taxon");
         ApiError::timed_out("taxon resolution timed out")
     })??;
+    drop(taxon_permit);
 
     apply_resolved_taxon(&mut criteria, resolved_taxon_qid.as_deref());
 
+    let structure = criteria.structure.trim();
+    let reference = criteria.reference.trim();
+    let structure_needs_lookup = !structure.is_empty()
+        && criteria.structure_search == lotus_model::SmilesSearchType::Exact
+        && !lotus_model::looks_like_a_compound_qid(structure);
+    let reference_needs_lookup =
+        !reference.is_empty() && !lotus_model::looks_like_reference_qid(reference);
+    let inputs_need_permit = structure_needs_lookup || reference_needs_lookup;
+    let inputs_permit = if inputs_need_permit {
+        Some(
+            acquire_upstream_permit(
+                &state.upstream_permits,
+                state.upstream_queue_wait,
+                &state.metrics,
+            )
+            .await
+            .map_err(ApiError::from)?,
+        )
+    } else {
+        None
+    };
     let resolved_inputs = timeout(state.request_timeout, resolve_search_inputs(&criteria))
         .await
         .map_err(|_| {
@@ -82,6 +122,7 @@ async fn prepare_query(
             log::warn!("event={event} state=timeout phase=inputs");
             ApiError::timed_out("input resolution timed out")
         })??;
+    drop(inputs_permit);
 
     let execution_query =
         build_execution_query_with(&criteria, resolved_taxon_qid.as_deref(), &resolved_inputs);

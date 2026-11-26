@@ -523,7 +523,27 @@ async fn export_file_rejects_unsupported_format() {
     let config = test_config();
     let app = build_router(config.max_body_bytes, &config, AppState::new(&config));
 
-    let response = app
+    let unsupported = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/v1/export-file/some-key/xyz")
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("unsupported format response");
+
+    assert_eq!(unsupported.status(), StatusCode::BAD_REQUEST);
+    assert!(content_type_header(&unsupported).starts_with("application/json"));
+
+    let json = body_json(unsupported).await;
+    assert_eq!(
+        json.get("error").and_then(serde_json::Value::as_str),
+        Some("Unsupported export format")
+    );
+
+    let ttl = app
         .oneshot(
             Request::builder()
                 .uri("/v1/export-file/some-key/ttl")
@@ -531,16 +551,13 @@ async fn export_file_rejects_unsupported_format() {
                 .expect("request"),
         )
         .await
-        .expect("unsupported format response");
-
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    assert!(content_type_header(&response).starts_with("application/json"));
-
-    let json = body_json(response).await;
-    assert!(
-        json.get("error")
-            .and_then(serde_json::Value::as_str)
-            .is_some()
+        .expect("ttl format response");
+    assert_eq!(ttl.status(), StatusCode::BAD_REQUEST);
+    let ttl_json = body_json(ttl).await;
+    assert_eq!(
+        ttl_json.get("error").and_then(serde_json::Value::as_str),
+        Some("Export link expired or is unknown. Regenerate the export URL."),
+        "ttl must be recognized as valid Rdf format before cache-key lookup"
     );
 }
 
@@ -771,7 +788,7 @@ fn apply_request_rejects_inverted_element_ranges() {
 }
 
 #[test]
-fn apply_request_clamps_similarity_threshold() {
+fn apply_request_validates_similarity_threshold() {
     fn make_req(threshold: f64) -> SearchRequest {
         SearchRequest {
             taxon: Some("*".to_string()),
@@ -809,22 +826,21 @@ fn apply_request_clamps_similarity_threshold() {
         }
     }
 
-    // threshold = 0 must be rejected
-    assert!(
-        apply_request(&make_req(0.0)).is_err(),
-        "threshold 0 should be rejected"
-    );
+    for invalid in [0.0, -0.1, 1.01, 2.0, f64::NAN, f64::INFINITY] {
+        assert!(
+            apply_request(&make_req(invalid)).is_err(),
+            "out-of-range/non-finite threshold {invalid} must be rejected"
+        );
+    }
 
-    // threshold = 2.0 is clamped to 1.0
-    let c = apply_request(&make_req(2.0)).expect("over-one threshold");
-    assert!(
-        c.structure_threshold <= 1.0,
-        "threshold should be clamped to maximum 1.0"
-    );
-
-    // threshold = 0.5 is within range
-    let c = apply_request(&make_req(0.5)).expect("valid threshold");
-    assert!((c.structure_threshold - 0.5).abs() < f64::EPSILON);
+    for valid in [0.01, 0.5, 1.0] {
+        let c = apply_request(&make_req(valid)).expect("valid threshold");
+        assert!(
+            (c.structure_threshold - valid).abs() < f64::EPSILON,
+            "valid threshold {valid} must not be clamped, got {}",
+            c.structure_threshold
+        );
+    }
 }
 
 //
@@ -1502,4 +1518,156 @@ async fn shutdown_signal_waits_for_os_signal() {
         result.is_err(),
         "shutdown_signal must stay pending when no OS signal is delivered"
     );
+}
+
+#[test]
+fn cache_rejects_expired_entry_and_bounds_size_before_prune_interval() {
+    use crate::dto::{SearchResponse, SearchStats};
+    use crate::state::{
+        CachedSearchResponse, MAX_SEARCH_CACHE_ENTRIES, search_cache_get, search_cache_put,
+    };
+
+    let config = test_config();
+    let state = AppState::new(&config);
+    let sample = SearchResponse {
+        resolved_taxon_qid: None,
+        warning: None,
+        query: "SELECT 1".into(),
+        rows: vec![],
+        total_matches: 0,
+        stats: SearchStats {
+            compounds: 0,
+            taxa: 0,
+            references: 0,
+            entries: 0,
+            unique_entries: 0,
+        },
+    };
+    if let Ok(mut guard) = state.search_cache.lock() {
+        guard.insert(
+            "expired".into(),
+            CachedSearchResponse {
+                inserted_at: Instant::now()
+                    .checked_sub(Duration::from_secs(600))
+                    .expect("past"),
+                value: sample.clone(),
+            },
+        );
+    }
+    assert!(
+        search_cache_get(&state, "expired").is_none(),
+        "expired cache entry must not be served even before prune interval"
+    );
+
+    for idx in 0..MAX_SEARCH_CACHE_ENTRIES + 25 {
+        search_cache_put(&state, format!("k-{idx}"), sample.clone());
+    }
+    assert!(
+        state.search_cache.lock().expect("lock").len() <= MAX_SEARCH_CACHE_ENTRIES,
+        "search cache must stay bounded even between prune ticks"
+    );
+}
+
+#[test]
+fn inflight_guard_removes_entry_when_dropped_early() {
+    let config = test_config();
+    let state = AppState::new(&config);
+    {
+        let guard = crate::state::search_inflight_guard(&state, "cancel-key").expect("guard");
+        assert!(guard.is_leader());
+        assert_eq!(state.search_inflight.lock().expect("lock").len(), 1);
+    }
+    assert_eq!(
+        state.search_inflight.lock().expect("lock").len(),
+        0,
+        "dropping the only inflight guard must remove its entry"
+    );
+}
+
+#[tokio::test]
+async fn search_cache_hit_preserves_caller_taxon_warning_and_qid() {
+    use crate::dto::{SearchResponse, SearchStats};
+    use crate::state::search_cache_put;
+
+    let config = test_config();
+    let state = AppState::new(&config);
+    taxon_cache_put(
+        &state,
+        "gentiana syn".into(),
+        (
+            Some("Q158572".into()),
+            Some("Resolved synonym Gentiana syn -> Q158572".into()),
+        ),
+    );
+    let mut criteria = lotus_model::SearchCriteria::up_to_year(crate::clock::current_year());
+    criteria.taxon = "Q158572".into();
+    let req = lotus_search::SearchRequest::new(criteria.clone(), crate::clock::current_year());
+    let query = lotus_search::build_execution_query(&req, Some("Q158572"));
+    let cache_key = crate::cache_key::build_search_cache_key(&query, config.default_limit, true);
+    search_cache_put(
+        &state,
+        cache_key,
+        SearchResponse {
+            resolved_taxon_qid: Some("LEAKED".into()),
+            warning: Some("LEAKED WARNING".into()),
+            query,
+            rows: vec![],
+            total_matches: 0,
+            stats: SearchStats {
+                compounds: 0,
+                taxa: 0,
+                references: 0,
+                entries: 0,
+                unique_entries: 0,
+            },
+        },
+    );
+    let app = build_router(config.max_body_bytes, &config, state);
+
+    let syn_resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/search")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(r#"{"taxon":"Gentiana syn"}"#))
+                .expect("syn req"),
+        )
+        .await
+        .expect("syn resp");
+    assert_eq!(syn_resp.status(), StatusCode::OK);
+    let syn_json = body_json(syn_resp).await;
+    assert_eq!(syn_json["resolved_taxon_qid"], "Q158572");
+    assert_eq!(
+        syn_json["warning"],
+        "Resolved synonym Gentiana syn -> Q158572"
+    );
+
+    let qid_resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/search")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(r#"{"taxon":"Q158572"}"#))
+                .expect("qid req"),
+        )
+        .await
+        .expect("qid resp");
+    assert_eq!(qid_resp.status(), StatusCode::OK);
+    let qid_json = body_json(qid_resp).await;
+    assert_eq!(qid_json["resolved_taxon_qid"], "Q158572");
+    assert!(
+        qid_json["warning"].is_null(),
+        "direct QID lookup must not inherit synonym warning: {qid_json}"
+    );
+}
+
+#[test]
+fn config_bind_addr_accepts_unbracketed_ipv6() {
+    let mut config = test_config();
+    config.host = "::1".into();
+    let addr = config.bind_addr().expect("IPv6 host must bind");
+    assert_eq!(addr.to_string(), "[::1]:8787");
 }

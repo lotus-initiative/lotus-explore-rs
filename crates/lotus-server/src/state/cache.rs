@@ -34,29 +34,41 @@ pub struct CachedExportResponse {
 
 pub fn search_cache_get(state: &AppState, key: &str) -> Option<SearchResponse> {
     let mut cache = state.search_cache.lock().ok()?;
-    maybe_prune_cache(
+    let now = Instant::now();
+    maybe_prune_cache_at(
         &mut cache,
         &state.search_cache_prune_after,
         SEARCH_CACHE_TTL,
         MAX_SEARCH_CACHE_ENTRIES,
+        now,
         |entry| entry.inserted_at,
     );
-    cache.get(key).map(|entry| entry.value.clone())
+    get_fresh(&mut cache, key, SEARCH_CACHE_TTL, now, |e| e.inserted_at).map(|entry| entry.value)
 }
 
 pub fn search_cache_put(state: &AppState, key: String, value: SearchResponse) {
     if let Ok(mut cache) = state.search_cache.lock() {
-        maybe_prune_cache(
+        let now = Instant::now();
+        maybe_prune_cache_at(
             &mut cache,
             &state.search_cache_prune_after,
             SEARCH_CACHE_TTL,
             MAX_SEARCH_CACHE_ENTRIES,
+            now,
+            |entry| entry.inserted_at,
+        );
+        ensure_capacity(
+            &mut cache,
+            &key,
+            SEARCH_CACHE_TTL,
+            MAX_SEARCH_CACHE_ENTRIES,
+            now,
             |entry| entry.inserted_at,
         );
         cache.insert(
             key,
             CachedSearchResponse {
-                inserted_at: Instant::now(),
+                inserted_at: now,
                 value,
             },
         );
@@ -65,29 +77,41 @@ pub fn search_cache_put(state: &AppState, key: String, value: SearchResponse) {
 
 pub fn export_cache_get(state: &AppState, key: &str) -> Option<ExportUrlResponse> {
     let mut cache = state.export_cache.lock().ok()?;
-    maybe_prune_cache(
+    let now = Instant::now();
+    maybe_prune_cache_at(
         &mut cache,
         &state.export_cache_prune_after,
         EXPORT_CACHE_TTL,
         MAX_EXPORT_CACHE_ENTRIES,
+        now,
         |entry| entry.inserted_at,
     );
-    cache.get(key).map(|entry| entry.value.clone())
+    get_fresh(&mut cache, key, EXPORT_CACHE_TTL, now, |e| e.inserted_at).map(|entry| entry.value)
 }
 
 pub fn export_cache_put(state: &AppState, key: String, value: ExportUrlResponse) {
     if let Ok(mut cache) = state.export_cache.lock() {
-        maybe_prune_cache(
+        let now = Instant::now();
+        maybe_prune_cache_at(
             &mut cache,
             &state.export_cache_prune_after,
             EXPORT_CACHE_TTL,
             MAX_EXPORT_CACHE_ENTRIES,
+            now,
+            |entry| entry.inserted_at,
+        );
+        ensure_capacity(
+            &mut cache,
+            &key,
+            EXPORT_CACHE_TTL,
+            MAX_EXPORT_CACHE_ENTRIES,
+            now,
             |entry| entry.inserted_at,
         );
         cache.insert(
             key,
             CachedExportResponse {
-                inserted_at: Instant::now(),
+                inserted_at: now,
                 value,
             },
         );
@@ -96,52 +120,82 @@ pub fn export_cache_put(state: &AppState, key: String, value: ExportUrlResponse)
 
 pub fn taxon_cache_get(state: &AppState, key: &str) -> Option<(Option<String>, Option<String>)> {
     let mut cache = state.taxon_cache.lock().ok()?;
-    maybe_prune_cache(
+    let now = Instant::now();
+    maybe_prune_cache_at(
         &mut cache,
         &state.taxon_cache_prune_after,
         TAXON_CACHE_TTL,
         MAX_TAXON_CACHE_ENTRIES,
+        now,
         |entry| entry.inserted_at,
     );
-    cache.get(key).map(|entry| entry.value.clone())
+    get_fresh(&mut cache, key, TAXON_CACHE_TTL, now, |e| e.inserted_at).map(|entry| entry.value)
 }
 
 pub fn taxon_cache_put(state: &AppState, key: String, value: (Option<String>, Option<String>)) {
     if let Ok(mut cache) = state.taxon_cache.lock() {
-        maybe_prune_cache(
+        let now = Instant::now();
+        maybe_prune_cache_at(
             &mut cache,
             &state.taxon_cache_prune_after,
             TAXON_CACHE_TTL,
             MAX_TAXON_CACHE_ENTRIES,
+            now,
+            |entry| entry.inserted_at,
+        );
+        ensure_capacity(
+            &mut cache,
+            &key,
+            TAXON_CACHE_TTL,
+            MAX_TAXON_CACHE_ENTRIES,
+            now,
             |entry| entry.inserted_at,
         );
         cache.insert(
             key,
             CachedTaxonResolution {
-                inserted_at: Instant::now(),
+                inserted_at: now,
                 value,
             },
         );
     }
 }
 
-fn maybe_prune_cache<V, F>(
+fn get_fresh<V: Clone, F>(
     cache: &mut HashMap<String, V>,
-    prune_after: &Arc<Mutex<Instant>>,
+    key: &str,
+    ttl: Duration,
+    now: Instant,
+    inserted_at: F,
+) -> Option<V>
+where
+    F: Fn(&V) -> Instant,
+{
+    let is_fresh = cache
+        .get(key)
+        .is_some_and(|entry| now.saturating_duration_since(inserted_at(entry)) <= ttl);
+    if is_fresh {
+        cache.get(key).cloned()
+    } else {
+        cache.remove(key);
+        None
+    }
+}
+
+fn ensure_capacity<V, F>(
+    cache: &mut HashMap<String, V>,
+    incoming_key: &str,
     ttl: Duration,
     max_entries: usize,
+    now: Instant,
     inserted_at: F,
 ) where
     F: Fn(&V) -> Instant,
 {
-    maybe_prune_cache_at(
-        cache,
-        prune_after,
-        ttl,
-        max_entries,
-        Instant::now(),
-        inserted_at,
-    );
+    if cache.contains_key(incoming_key) || cache.len() < max_entries {
+        return;
+    }
+    prune_cache_at(cache, ttl, max_entries.saturating_sub(1), now, inserted_at);
 }
 
 pub fn maybe_prune_cache_at<V, F>(
@@ -164,10 +218,11 @@ pub fn maybe_prune_cache_at<V, F>(
     });
 
     if should_prune {
-        prune_cache(cache, ttl, max_entries, inserted_at);
+        prune_cache_at(cache, ttl, max_entries, now, inserted_at);
     }
 }
 
+#[cfg(test)]
 pub fn prune_cache<V, F>(
     cache: &mut HashMap<String, V>,
     ttl: Duration,
@@ -176,16 +231,29 @@ pub fn prune_cache<V, F>(
 ) where
     F: Fn(&V) -> Instant,
 {
-    let now = Instant::now();
-    cache.retain(|_, value| now.duration_since(inserted_at(value)) <= ttl);
-    while cache.len() > max_entries {
-        let Some(oldest_key) = cache
-            .iter()
-            .min_by_key(|(_, value)| inserted_at(value))
-            .map(|(key, _)| key.clone())
-        else {
-            break;
-        };
+    prune_cache_at(cache, ttl, max_entries, Instant::now(), inserted_at);
+}
+
+fn prune_cache_at<V, F>(
+    cache: &mut HashMap<String, V>,
+    ttl: Duration,
+    max_entries: usize,
+    now: Instant,
+    inserted_at: F,
+) where
+    F: Fn(&V) -> Instant,
+{
+    cache.retain(|_, value| now.saturating_duration_since(inserted_at(value)) <= ttl);
+    if cache.len() <= max_entries {
+        return;
+    }
+    let excess = cache.len() - max_entries;
+    let mut entries: Vec<(String, Instant)> = cache
+        .iter()
+        .map(|(k, v)| (k.clone(), inserted_at(v)))
+        .collect();
+    entries.sort_unstable_by_key(|(_, ts)| *ts);
+    for (oldest_key, _) in entries.into_iter().take(excess) {
         cache.remove(&oldest_key);
     }
 }

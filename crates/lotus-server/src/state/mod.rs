@@ -27,9 +27,11 @@ pub use self::cache::{
 };
 #[cfg(test)]
 pub use self::cache::{CachedSearchResponse, maybe_prune_cache_at, prune_cache};
+#[cfg(test)]
 pub use self::inflight::{
     export_inflight_cell, export_inflight_remove, search_inflight_cell, search_inflight_remove,
 };
+pub use self::inflight::{export_inflight_guard, search_inflight_guard};
 pub use self::metrics::RuntimeMetrics;
 
 pub const TAXON_CACHE_TTL: Duration = Duration::from_hours(24);

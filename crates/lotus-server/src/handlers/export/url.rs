@@ -11,9 +11,7 @@ use super::super::prepare::{PreparedExportRequest, prepare_export_request};
 use crate::{
     dto::{ExportUrlResponse, SearchRequest},
     errors::{ApiError, ErrorResponse, SharedApiError},
-    state::{
-        AppState, export_cache_get, export_cache_put, export_inflight_cell, export_inflight_remove,
-    },
+    state::{AppState, export_cache_get, export_cache_put, export_inflight_guard},
 };
 
 async fn cached_export_urls(
@@ -34,8 +32,8 @@ async fn cached_export_urls(
         .fetch_add(1, Ordering::Relaxed);
     log::debug!("event=export state=cache_miss");
 
-    let (cell, is_leader) = export_inflight_cell(state, &prepared.cache_key)?;
-    if is_leader {
+    let guard = export_inflight_guard(state, &prepared.cache_key)?;
+    if guard.is_leader() {
         state
             .metrics
             .export_upstream_hits
@@ -51,7 +49,8 @@ async fn cached_export_urls(
 
     let query = prepared.query.clone();
     let cache_key = prepared.cache_key.clone();
-    let response = cell
+    let response = guard
+        .cell()
         .get_or_init(|| async move {
             Ok::<_, SharedApiError>(ExportUrlResponse {
                 csv_url: crate::export_urls::qlever_export_url(&query, ExportFormat::Csv),
@@ -68,7 +67,7 @@ async fn cached_export_urls(
         })
         .await
         .clone();
-    export_inflight_remove(state, &prepared.cache_key, &cell);
+    guard.finish();
 
     match response {
         Ok(response) => {

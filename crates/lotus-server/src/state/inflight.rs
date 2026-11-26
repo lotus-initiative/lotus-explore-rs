@@ -42,6 +42,84 @@ fn remove_inflight_cell<T>(
     }
 }
 
+/// Drops an in-flight cell from `map` if all callers finished or dropped early.
+pub struct InflightGuard<T> {
+    map: Arc<Mutex<HashMap<String, Arc<OnceCell<T>>>>>,
+    key: String,
+    cell: Arc<OnceCell<T>>,
+    is_leader: bool,
+    completed: bool,
+}
+
+impl<T> InflightGuard<T> {
+    #[must_use]
+    pub const fn cell(&self) -> &Arc<OnceCell<T>> {
+        &self.cell
+    }
+
+    #[must_use]
+    pub const fn is_leader(&self) -> bool {
+        self.is_leader
+    }
+
+    /// Explicitly remove the entry once `cell.get_or_init(...)` finishes cleanly.
+    pub fn finish(mut self) {
+        self.completed = true;
+        remove_inflight_cell(&self.map, &self.key, &self.cell);
+    }
+}
+
+impl<T> Drop for InflightGuard<T> {
+    fn drop(&mut self) {
+        if self.completed {
+            return;
+        }
+        // Only remove on early cancellation when this guard holds the last active
+        // external reference besides the map entry itself (strong_count <= 2).
+        if let Ok(mut inflight) = self.map.lock()
+            && inflight.get(&self.key).is_some_and(|current| {
+                Arc::ptr_eq(current, &self.cell) && Arc::strong_count(current) <= 2
+            })
+        {
+            inflight.remove(&self.key);
+        }
+    }
+}
+
+pub fn search_inflight_guard(
+    state: &AppState,
+    key: &str,
+) -> Result<
+    InflightGuard<Result<crate::dto::SearchResponse, crate::errors::SharedApiError>>,
+    ApiError,
+> {
+    let (cell, is_leader) = search_inflight_cell(state, key)?;
+    Ok(InflightGuard {
+        map: Arc::clone(&state.search_inflight),
+        key: key.to_string(),
+        cell,
+        is_leader,
+        completed: false,
+    })
+}
+
+pub fn export_inflight_guard(
+    state: &AppState,
+    key: &str,
+) -> Result<
+    InflightGuard<Result<crate::dto::ExportUrlResponse, crate::errors::SharedApiError>>,
+    ApiError,
+> {
+    let (cell, is_leader) = export_inflight_cell(state, key)?;
+    Ok(InflightGuard {
+        map: Arc::clone(&state.export_inflight),
+        key: key.to_string(),
+        cell,
+        is_leader,
+        completed: false,
+    })
+}
+
 pub fn search_inflight_cell(
     state: &AppState,
     key: &str,
@@ -53,6 +131,7 @@ pub fn search_inflight_cell(
     )
 }
 
+#[cfg(test)]
 pub fn search_inflight_remove(state: &AppState, key: &str, cell: &InFlightSearch) {
     remove_inflight_cell(&state.search_inflight, key, cell);
 }
@@ -68,6 +147,7 @@ pub fn export_inflight_cell(
     )
 }
 
+#[cfg(test)]
 pub fn export_inflight_remove(state: &AppState, key: &str, cell: &InFlightExport) {
     remove_inflight_cell(&state.export_inflight, key, cell);
 }
