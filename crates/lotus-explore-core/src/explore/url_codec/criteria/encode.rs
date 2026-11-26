@@ -70,10 +70,13 @@ fn insert_reference_and_structure_params(criteria: &SearchCriteria, params: &mut
             criteria.structure_search.as_str().to_string(),
         );
         if criteria.structure_search == SmilesSearchType::Similarity {
-            params.insert(
-                "similarity_threshold".to_string(),
-                format!("{:.2}", criteria.structure_threshold),
-            );
+            let scaled = criteria.structure_threshold * 100.0;
+            let formatted = if (scaled.round() - scaled).abs() < 1e-9 {
+                format!("{:.2}", criteria.structure_threshold)
+            } else {
+                format!("{}", criteria.structure_threshold)
+            };
+            params.insert("similarity_threshold".to_string(), formatted);
         }
     }
 }

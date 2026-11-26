@@ -66,3 +66,14 @@ fn plan_retry_caps_rate_limit_retries() {
     let plan = plan_retry(&error, 1, 3);
     assert_eq!(plan.eligibility, RetryEligibility::MaxRetriesExceeded);
 }
+
+#[test]
+fn plan_retry_respects_zero_max_retries_even_on_rate_limit() {
+    let error = DomainError::Transport {
+        stage: QueryStage::ResultsQuery,
+        source: RepositoryError::parse("Too many requests"),
+    };
+    let plan = plan_retry(&error, 0, 0);
+    assert_eq!(plan.error_class, ErrorClass::RateLimit);
+    assert_eq!(plan.eligibility, RetryEligibility::MaxRetriesExceeded);
+}

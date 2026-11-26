@@ -420,6 +420,42 @@ fn search_all_nodes_finds_entities_outside_cap_and_ego_focuses_exact_neighborhoo
 }
 
 #[test]
+fn ego_disconnected_from_projection_is_empty_and_blank_compound_falls_back_to_qid() {
+    let entries = vec![make_row("Q1", "Alpha", "Q20", "TaxonTwo", "Q100", None)];
+    let set = ColumnarResultSet::from_entries(&entries);
+    let rows = all_rows(&set);
+    let disconnected_taxon_ego = build_graph(
+        &set,
+        &rows,
+        GraphProjection::CompoundReference,
+        GraphScope::Ego {
+            center: NodeKey::new(NodeKind::Taxon, 20),
+            max_neighbors: 50,
+        },
+    );
+    assert_eq!(
+        disconnected_taxon_ego.empty_reason,
+        Some(GraphEmptyReason::CenterNotInRows),
+        "ego center absent from projected edges must not yield an isolated edge-less graph"
+    );
+
+    let blank_label_set =
+        ColumnarResultSet::from_entries(&[make_row("Q55", "   ", "Q10", "   ", "Q100", None)]);
+    let blank_rows = all_rows(&blank_label_set);
+    let blank_model = build_graph(
+        &blank_label_set,
+        &blank_rows,
+        GraphProjection::CompoundTaxon,
+        GraphScope::Overview { max_nodes: 10 },
+    );
+    assert!(
+        blank_model.nodes.iter().any(|n| n.label == "Q55"),
+        "blank compound label must fall back to QID: {:?}",
+        blank_model.nodes
+    );
+}
+
+#[test]
 fn payload_parallel_arrays_and_neighbors_match_model() {
     let entries = vec![
         make_row("Q1", "Alpha", "Q10", "TaxonOne", "Q100", Some("Ref1")),

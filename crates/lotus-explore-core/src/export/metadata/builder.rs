@@ -23,15 +23,23 @@ pub fn build_metadata_json(inp: MetadataInputs<'_>) -> String {
     let filters = criteria_to_filters_value(inp.criteria, inp.year);
     let effective_taxon = resolve_effective_taxon(&inp);
     let chem = filters.get("chemical_structure").cloned();
-    let (dataset_name, description) = build_title_and_description(&effective_taxon, chem.as_ref());
-    let providers = build_providers(chem.is_some());
+    let sachem = uses_sachem(inp.criteria);
+    let (dataset_name, description) =
+        build_title_and_description(&effective_taxon, chem.as_ref(), sachem);
+    let providers = build_providers(sachem);
     let dataset_url = result_dataset_url(
         &lotus_model::percent_encode(&effective_taxon),
         inp.query_hash,
     );
     let about_terms = build_about_terms(inp.qid, &effective_taxon);
-    let search_params = build_search_params(&effective_taxon, inp.qid, chem.as_ref(), &filters);
-    let chemical_search_service = chem.is_some().then_some(ChemicalSearchService {
+    let search_params = build_search_params(
+        inp.criteria,
+        &effective_taxon,
+        inp.qid,
+        chem.as_ref(),
+        &filters,
+    );
+    let chemical_search_service = sachem.then_some(ChemicalSearchService {
         name: "SACHEM",
         provider: "IDSM",
         endpoint: "https://idsm.elixir-czech.cz/sparql/endpoint/",
@@ -98,7 +106,24 @@ fn resolve_effective_taxon(inp: &MetadataInputs<'_>) -> String {
     }
 }
 
-fn build_title_and_description(effective_taxon: &str, chem: Option<&Value>) -> (String, String) {
+fn uses_sachem(criteria: &lotus_model::SearchCriteria) -> bool {
+    let structure = criteria.structure.trim();
+    if structure.is_empty() {
+        return false;
+    }
+    if criteria.structure_search != lotus_model::SmilesSearchType::Exact {
+        return true;
+    }
+    !lotus_model::looks_like_a_compound_qid(structure)
+        && !lotus_model::looks_like_inchikey(structure)
+        && !lotus_model::could_be_a_compound_name(structure)
+}
+
+fn build_title_and_description(
+    effective_taxon: &str,
+    chem: Option<&Value>,
+    sachem: bool,
+) -> (String, String) {
     chem.map_or_else(
         || {
             (
@@ -111,6 +136,11 @@ fn build_title_and_description(effective_taxon: &str, chem: Option<&Value>) -> (
                 .get("search_type")
                 .and_then(|v| v.as_str())
                 .unwrap_or("substructure");
+            let backend = if sachem {
+                "chemical search (SACHEM/IDSM)"
+            } else {
+                "compound lookup (Wikidata)"
+            };
             (
                 format!(
                     "LOTUS Data — {} search in {effective_taxon}",
@@ -118,7 +148,7 @@ fn build_title_and_description(effective_taxon: &str, chem: Option<&Value>) -> (
                 ),
                 format!(
                     "Chemical compounds from {effective_taxon}. Retrieved via LOTUS \
-                     Explorer with {st} chemical search (SACHEM/IDSM)."
+                     Explorer with {st} {backend}."
                 ),
             )
         },
@@ -165,6 +195,7 @@ fn build_about_terms(qid: Option<&str>, effective_taxon: &str) -> Vec<Value> {
 }
 
 fn build_search_params(
+    criteria: &lotus_model::SearchCriteria,
     effective_taxon: &str,
     qid: Option<&str>,
     chem: Option<&Value>,
@@ -179,6 +210,21 @@ fn build_search_params(
             _ => Value::Null,
         },
     );
+    let reference = criteria.reference.trim();
+    if !reference.is_empty() {
+        search_params.insert("reference".into(), Value::String(reference.to_string()));
+    }
+    if criteria.taxon_names != lotus_model::TaxonNomenclature::default() {
+        search_params.insert(
+            "taxon_nomenclature".into(),
+            json!({
+                "accepted_synonyms": criteria.taxon_names.accepted_synonyms,
+                "basionyms": criteria.taxon_names.basionyms,
+                "protonyms": criteria.taxon_names.protonyms,
+                "replacements": criteria.taxon_names.replacements,
+            }),
+        );
+    }
 
     if let Some(c) = chem {
         search_params.insert(

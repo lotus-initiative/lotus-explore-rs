@@ -64,21 +64,15 @@ pub fn classify_transport_error(error: &RepositoryError) -> TransportFailureKind
 
 fn classify_http_error(status: u16, body: &str) -> TransportFailureKind {
     if status == 429 {
-        // QLever uses 429 for two unrelated things, and the body is the only
-        // thing that tells them apart: "Operation timed out" is the query
-        // outstaying its budget, while "too many" is a request-rate refusal.
-        // Both are 429, and treating the first as the second is what produced
-        // four full-length queries for one search.
-        //
-        // "time limit" is how `lotus_search::FetchError::TimedOut` words it, and
-        // that error is a 429 by the time it reaches here whichever endpoint
-        // reported the timeout -- WDQS v2's `gateway_timeout`/`backend_timeout`
-        // or Blazegraph's echoed query, not QLever's "Operation timed out".
-        return if body.contains("timed out") || body.contains("time limit") {
+        return if mentions_timeout(body) && !says_slow_down(body) {
             TransportFailureKind::QueryTooExpensive
         } else {
             TransportFailureKind::RateLimit
         };
+    }
+
+    if (status == 504 || (status >= 500 && mentions_timeout(body))) && !says_slow_down(body) {
+        return TransportFailureKind::QueryTooExpensive;
     }
 
     match classify_sparql_error_text(body) {
@@ -108,18 +102,21 @@ fn says_slow_down(body: &str) -> bool {
     body.contains("too many") || body.contains("rate limit")
 }
 
+/// Whether a body indicates an upstream query execution timeout.
+fn mentions_timeout(body: &str) -> bool {
+    let body = body.to_ascii_lowercase();
+    body.contains("timed out") || body.contains("time limit") || body.contains("timeout")
+}
+
 fn classify_parse_error(detail: &str) -> TransportFailureKind {
-    // Before the SPARQL classes: a body that ends in the endpoint's truncation
-    // notice is a parse failure to `lotus-query` and a partial result to the
-    // reader, and nothing else in that detail looks like either. Without this,
-    // `ErrorKind::Truncated` is never reached for the common case, so the
-    // truncation hint is not shown and a retry is decided as though the query
-    // had been rejected.
     if super::truncation::truncation_reason(detail).is_some() {
         return TransportFailureKind::Truncated;
     }
     match classify_sparql_error_text(detail) {
         SparqlErrorClass::CacheConflict => TransportFailureKind::CacheConflict,
+        SparqlErrorClass::RateLimit if mentions_timeout(detail) && !says_slow_down(detail) => {
+            TransportFailureKind::QueryTooExpensive
+        }
         SparqlErrorClass::RateLimit => TransportFailureKind::RateLimit,
         SparqlErrorClass::QuerySyntax => TransportFailureKind::QuerySyntax,
         SparqlErrorClass::NoResults | SparqlErrorClass::Unknown => TransportFailureKind::Parse,

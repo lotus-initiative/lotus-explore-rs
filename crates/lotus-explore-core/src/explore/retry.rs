@@ -23,7 +23,7 @@ pub fn plan_retry(error: &DomainError, attempt_count: u32, max_retries: u32) -> 
     // (taxon resolution + COUNT + display queries). Cap rate-limit retries far
     // below the generic budget so the endpoint is respected instead of hammered.
     let effective_max = if recovery.error_class == ErrorClass::RateLimit {
-        1
+        max_retries.min(1)
     } else {
         max_retries
     };

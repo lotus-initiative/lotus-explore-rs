@@ -48,6 +48,20 @@ const TIMEOUT: Duration = Duration::from_secs(3);
 /// times out, or the peer does not answer with an HTTP status line in the 2xx
 /// or 3xx range.
 pub fn request(host: &str, port: u16, path: &str) -> std::io::Result<u16> {
+    if host.bytes().any(|b| b.is_ascii_control() || b == b' ')
+        || path.bytes().any(|b| b.is_ascii_control() || b == b' ')
+        || !path.starts_with('/')
+    {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "invalid host or request path",
+        ));
+    }
+    let host_header = if host.contains(':') && !host.starts_with('[') {
+        format!("[{host}]")
+    } else {
+        host.to_owned()
+    };
     let addr = (host, port)
         .to_socket_addrs()?
         .next()
@@ -58,7 +72,7 @@ pub fn request(host: &str, port: u16, path: &str) -> std::io::Result<u16> {
 
     write!(
         stream,
-        "GET {path} HTTP/1.0\r\nHost: {host}\r\nUser-Agent: lotus-healthcheck\r\nConnection: close\r\n\r\n"
+        "GET {path} HTTP/1.0\r\nHost: {host_header}\r\nUser-Agent: lotus-healthcheck\r\nConnection: close\r\n\r\n"
     )?;
     stream.flush()?;
 
@@ -68,11 +82,14 @@ pub fn request(host: &str, port: u16, path: &str) -> std::io::Result<u16> {
     // asserted on, and reading the rest of an export response to look at
     // something already known would be the slow way to learn nothing.
     let head = read_status_head(&mut stream)?;
-    let status = head
-        .split_whitespace()
-        .nth(1)
-        .and_then(|code| code.parse::<u16>().ok())
-        .ok_or_else(|| std::io::Error::other("no HTTP status line in the response"))?;
+    let mut parts = head.split_whitespace();
+    let version = parts.next().unwrap_or_default();
+    let status = if version.starts_with("HTTP/") {
+        parts.next().and_then(|code| code.parse::<u16>().ok())
+    } else {
+        None
+    }
+    .ok_or_else(|| std::io::Error::other("no HTTP status line in the response"))?;
 
     // 2xx and 3xx both mean the server is up and routing. A 3xx is a redirect
     // to somewhere, not a failure to answer, and treating it as unhealthy would

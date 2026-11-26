@@ -163,12 +163,36 @@ fn parse_criteria_rejects_non_positive_similarity_threshold() {
 }
 
 #[test]
-fn parse_criteria_clamps_low_positive_similarity_threshold() {
+fn parse_criteria_preserves_low_positive_and_rejects_out_of_bounds_threshold() {
     let mut params = QueryParams::new();
     params.insert("similarity_threshold".into(), "0.01".into());
-
     let crit = parse_criteria_from_params(&params, 2026);
-    assert_eq!(crit.structure_threshold, 0.05);
+    assert!((crit.structure_threshold - 0.01).abs() < f64::EPSILON);
+
+    for bad in ["NaN", "inf", "1.5", "-0.2", "0"] {
+        let mut bad_params = QueryParams::new();
+        bad_params.insert("similarity_threshold".into(), bad.into());
+        let parsed = parse_criteria_from_params(&bad_params, 2026);
+        assert_eq!(
+            parsed.structure_threshold,
+            SearchCriteria::up_to_year(2026).structure_threshold,
+            "invalid threshold {bad} must fall back to default rather than clamping"
+        );
+    }
+
+    let fine = SearchCriteria {
+        structure: "CCO".into(),
+        structure_search: SmilesSearchType::Similarity,
+        structure_threshold: 0.875,
+        ..SearchCriteria::up_to_year(2026)
+    };
+    let encoded = criteria_query_params(&fine, 2026);
+    assert_eq!(
+        encoded.get("similarity_threshold").map(String::as_str),
+        Some("0.875")
+    );
+    let decoded = parse_criteria_from_params(&encoded, 2026);
+    assert!((decoded.structure_threshold - 0.875).abs() < f64::EPSILON);
 }
 
 #[test]

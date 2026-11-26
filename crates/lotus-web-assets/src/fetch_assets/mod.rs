@@ -51,6 +51,26 @@ fn run(client: &Client, target: &ketcher::KetcherTarget) -> Result<(), FetchAsse
     ketcher::fetch_ketcher(client, target).map_err(|e| FetchAssetsError::Ketcher(e.to_string()))
 }
 
+#[cfg(test)]
+fn run_with_vendor(
+    client: &Client,
+    vendor_root: &std::path::Path,
+    vendor_state: &std::path::Path,
+    rdkit_metadata_url: &str,
+    github_base_url: &str,
+    target: &ketcher::KetcherTarget,
+) -> Result<(), FetchAssetsError> {
+    vendor::fetch_curation_assets_from(
+        client,
+        vendor_root,
+        vendor_state,
+        rdkit_metadata_url,
+        github_base_url,
+    )
+    .map_err(|e| FetchAssetsError::Vendor(e.to_string()))?;
+    ketcher::fetch_ketcher(client, target).map_err(|e| FetchAssetsError::Ketcher(e.to_string()))
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::builder().build()?;
     run(&client, &ketcher::KetcherTarget::from_env())?;

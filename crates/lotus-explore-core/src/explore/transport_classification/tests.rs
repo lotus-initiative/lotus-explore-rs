@@ -88,3 +88,25 @@ fn a_client_error_mentioning_timeout_is_not_a_rate_limit() {
         TransportFailureKind::RateLimit
     );
 }
+
+#[test]
+fn gateway_timeout_and_capitalized_429_timeout_are_not_retried_as_rate_limit() {
+    for err in [
+        RepositoryError::Http {
+            status: 429,
+            body: "Operation Timed Out after 30s".into(),
+        },
+        RepositoryError::Http {
+            status: 504,
+            body: "Gateway Timeout".into(),
+        },
+        RepositoryError::Http {
+            status: 500,
+            body: "Upstream query timeout".into(),
+        },
+    ] {
+        let kind = classify_transport_error(&err);
+        assert_eq!(kind, TransportFailureKind::QueryTooExpensive, "{err:?}");
+        assert!(!kind.is_retryable(), "{err:?}");
+    }
+}

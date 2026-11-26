@@ -64,7 +64,11 @@ impl CriteriaQueryDto {
                     .or_else(|| params.get("smiles_threshold"))
                     .map(String::as_str),
             ),
-            mass_filter: parse_range_when_enabled(params, "mass_filter", "mass_min", "mass_max"),
+            mass_filter: parse_range_when_enabled(params, "mass_filter", "mass_min", "mass_max")
+                .map(|r: RangeF64Dto| RangeF64Dto {
+                    min: r.min.filter(|v| v.is_finite() && *v >= 0.0),
+                    max: r.max.filter(|v| v.is_finite() && *v >= 0.0),
+                }),
             year_filter: parse_range_when_enabled(params, "year_filter", "year_start", "year_end"),
             formula_filter: FormulaQueryDto::parse(params),
         }
@@ -276,6 +280,5 @@ fn parse_search_type(value: &str) -> SmilesSearchType {
 fn parse_positive_threshold(value: Option<&str>) -> Option<f64> {
     value
         .and_then(|raw| raw.parse::<f64>().ok())
-        .filter(|v| v.is_finite() && *v > 0.0)
-        .map(|v| v.clamp(0.05, 1.0))
+        .filter(|v| v.is_finite() && *v > 0.0 && *v <= 1.0)
 }

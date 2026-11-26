@@ -62,7 +62,12 @@ pub fn build_sparql_query(
 ) -> String {
     if crit.structure_search == SmilesSearchType::Exact && !resolved.compounds.is_empty() {
         let nomenclature = lotus_query::Nomenclature::from(crit);
-        let taxon = taxon_qid.and_then(|t| (t != "*").then_some((t, &nomenclature)));
+        let has_reference = !crit.reference.trim().is_empty();
+        let taxon = match taxon_qid {
+            Some(t) if t != "*" => Some((t, &nomenclature)),
+            Some("*") | None if has_reference => Some(("*", &nomenclature)),
+            _ => None,
+        };
         return lotus_query::exact_compounds_query(&resolved.compounds, taxon);
     }
 

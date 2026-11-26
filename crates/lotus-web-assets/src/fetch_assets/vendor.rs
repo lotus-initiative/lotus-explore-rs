@@ -226,22 +226,38 @@ fn write_state(path: &Path, state: &BTreeMap<String, String>) -> io::Result<()> 
 pub fn fetch_curation_assets(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
     let root = PathBuf::from(setting("CURATION_ASSET_DIR", DEFAULT_CURATION_DIR));
     let state_path = PathBuf::from(setting("CURATION_ASSET_STATE", DEFAULT_CURATION_STATE));
+    fetch_curation_assets_from(
+        client,
+        &root,
+        &state_path,
+        RDKIT_LATEST_METADATA,
+        GITHUB_BASE_URL,
+    )
+}
+
+pub(crate) fn fetch_curation_assets_from(
+    client: &Client,
+    root: &Path,
+    state_path: &Path,
+    rdkit_metadata_url: &str,
+    github_base_url: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let rdkit_version = resolve_metadata_version(
         client,
-        RDKIT_LATEST_METADATA,
+        rdkit_metadata_url,
         &setting("RDKIT_VERSION", "latest"),
     )?;
     let citation_commit = resolve_github_ref(
         client,
-        GITHUB_BASE_URL,
+        github_base_url,
         SCHOLIA_REPO,
         &setting("CITATION_JS_REF", "main"),
     )?;
     let mut state =
-        fs::read_to_string(&state_path).map_or_else(|_| BTreeMap::new(), |raw| parse_state(&raw));
+        fs::read_to_string(state_path).map_or_else(|_| BTreeMap::new(), |raw| parse_state(&raw));
 
     for asset in assets(rdkit_version, citation_commit) {
-        asset.refresh(client, &root, &mut state, &state_path)?;
+        asset.refresh(client, root, &mut state, state_path)?;
     }
     Ok(())
 }

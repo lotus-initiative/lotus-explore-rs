@@ -183,6 +183,7 @@ pub(super) fn materialize_node_text(
         NodeKind::Compound => {
             let label = set
                 .compound_label(sample_row)
+                .filter(|name| !name.trim().is_empty())
                 .map_or_else(|| qid_text.clone(), str::to_owned);
             let formula = set.formula(sample_row).filter(|f| !f.trim().is_empty());
             let mass = set.mass(sample_row);

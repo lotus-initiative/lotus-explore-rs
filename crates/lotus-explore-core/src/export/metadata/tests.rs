@@ -254,3 +254,33 @@ fn endpoints_display_as_their_names() {
     assert_eq!(SparqlEndpoint::Qlever.to_string(), "QLever");
     assert_eq!(SparqlEndpoint::Wdqs.to_string(), "Wikidata Query Service");
 }
+
+#[test]
+fn exact_qid_lookup_omits_sachem_and_records_reference_and_nomenclature() {
+    let mut criteria = SearchCriteria {
+        taxon: "Gentiana".into(),
+        reference: "10.7554/eLife.70780".into(),
+        structure: "Q23118".into(),
+        structure_search: lotus_model::SmilesSearchType::Exact,
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    criteria.taxon_names.basionyms = false;
+    let doc = document(&criteria, Some("Q158572"));
+
+    assert_eq!(doc.pointer("/chemical_search_service"), None);
+    assert!(
+        !at(&doc, "/description")
+            .as_str()
+            .unwrap_or_default()
+            .contains("SACHEM"),
+        "exact Wikidata compound QID lookup must not credit SACHEM: {doc}"
+    );
+    assert_eq!(
+        at(&doc, "/search_parameters/reference"),
+        json!("10.7554/eLife.70780")
+    );
+    assert_eq!(
+        at(&doc, "/search_parameters/taxon_nomenclature/basionyms"),
+        json!(false)
+    );
+}

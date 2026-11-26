@@ -6,25 +6,39 @@
 #![allow(clippy::panic, clippy::expect_used)]
 
 use super::*;
+use crate::test_support::{MockServer, http_status, temp_dir};
 
 #[test]
 fn a_failure_names_the_fetch_that_failed() {
-    // `example.invalid` never resolves, so the first job fails. The message
-    // has to say which one, or a developer reading a failed `fetch-assets`
-    // cannot tell which half of the vendor tree is stale.
+    let dir = temp_dir("fetch-assets-fail");
+    let state = dir.join("state");
+    // Retryable 503 answers ATTEMPTS times (3) on the local mock server.
+    let server = MockServer::start(vec![
+        http_status(503, "down"),
+        http_status(503, "down"),
+        http_status(503, "down"),
+    ]);
     let client = Client::builder()
         .timeout(std::time::Duration::from_millis(300))
         .build()
         .unwrap_or_else(|e| panic!("cannot build a client: {e}"));
     let target = ketcher::KetcherTarget {
-        dir: std::env::temp_dir(),
+        dir: dir.join("ketcher"),
         requested: "1.0.0".to_owned(),
         url: Some("http://127.0.0.1:1/none.zip".to_owned()),
     };
 
-    let message = run(&client, &target)
-        .expect_err("the vendored host does not resolve")
-        .to_string();
+    let message = run_with_vendor(
+        &client,
+        &dir.join("vendor"),
+        &state,
+        &server.url("/rdkit.json"),
+        &server.url("/github"),
+        &target,
+    )
+    .expect_err("mock upstream returns 503")
+    .to_string();
+    let _ = std::fs::remove_dir_all(&dir);
 
     assert!(
         message.starts_with("could not vendor the curation assets"),

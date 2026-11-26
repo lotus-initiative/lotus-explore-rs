@@ -67,9 +67,20 @@ fn is_unused_entry(name: &str) -> bool {
 /// This is the zip-slip guard. `fetch-assets` runs with the developer's
 /// privileges, so a `..` segment in a downloaded release would otherwise write
 /// anywhere on the machine.
+const MAX_EXTRACTED_BYTES: u64 = 256 * 1024 * 1024;
+
 fn is_unsafe_entry_path(relative: &str) -> bool {
+    let has_drive_prefix = relative.len() >= 2
+        && relative.as_bytes().get(1) == Some(&b':')
+        && relative
+            .as_bytes()
+            .first()
+            .is_some_and(u8::is_ascii_alphabetic);
     relative.is_empty()
         || relative.starts_with('/')
+        || relative.contains('\\')
+        || relative.contains('\0')
+        || has_drive_prefix
         // Per segment rather than `contains("..")`, which also rejects the
         // perfectly ordinary `a..b.js` and silently drops it from the vendor.
         || relative.split('/').any(|segment| segment == "..")
@@ -93,9 +104,9 @@ fn common_prefix<'a>(names: impl Iterator<Item = &'a str>) -> Option<String> {
         if is_macos_junk(name) {
             continue;
         }
-        let Some(first) = name.split('/').next() else {
-            continue;
-        };
+        // Only a directory wrapper (`prefix/...`) can be stripped; a single root
+        // file without `/` would otherwise strip to `""` and vanish.
+        let (first, _) = name.split_once('/')?;
         if !first.is_empty() {
             top_levels.insert(first);
         }
@@ -178,6 +189,7 @@ fn extract(
         .collect();
     let strip_prefix = common_prefix(names?.iter().map(String::as_str));
     let mut tally = Tally::default();
+    let mut total_written: u64 = 0;
 
     for index in 0..archive.len() {
         let mut file = archive.by_index(index)?;
@@ -201,9 +213,17 @@ fn extract(
             continue;
         };
         fs::create_dir_all(parent)?;
+        let remaining = MAX_EXTRACTED_BYTES.saturating_sub(total_written);
+        let mut limited = io::Read::take(&mut file, remaining.saturating_add(1));
         let mut out = BufWriter::new(fs::File::create(&out_path)?);
-        io::copy(&mut file, &mut out)?;
+        let written = io::copy(&mut limited, &mut out)?;
         out.flush()?;
+        total_written = total_written.saturating_add(written);
+        if total_written > MAX_EXTRACTED_BYTES {
+            return Err(
+                format!("archive exceeds {MAX_EXTRACTED_BYTES} byte extraction limit").into(),
+            );
+        }
         tally.record_extracted();
     }
     Ok(tally)

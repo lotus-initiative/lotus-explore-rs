@@ -77,6 +77,15 @@ pub fn build_graph(
             available_kind_counts,
         );
     }
+    if let GraphScope::Ego { center, .. } = scope
+        && edge_map.keys().all(|&(a, b)| a != center && b != center)
+    {
+        return empty_graph(
+            effective_projection,
+            GraphEmptyReason::CenterNotInRows,
+            available_kind_counts,
+        );
+    }
 
     let degree_map = compute_degrees(&edge_map);
     let total_distinct_nodes = degree_map.len();

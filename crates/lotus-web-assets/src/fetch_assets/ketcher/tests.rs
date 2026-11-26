@@ -47,6 +47,7 @@ fn one_top_level_directory_is_stripped_and_several_are_not() {
     // Empty and root-only names carry no directory.
     assert_eq!(common_prefix(["/x.js"].into_iter()), None);
     assert_eq!(common_prefix(["/x.js", "/y.js"].into_iter()), None);
+    assert_eq!(common_prefix(["index.html"].into_iter()), None);
     assert_eq!(common_prefix(std::iter::empty()), None);
 }
 
@@ -59,6 +60,9 @@ fn an_archive_entry_cannot_escape_the_target_directory() {
         "../outside.js",
         "static/../../outside.js",
         "/etc/passwd",
+        "..\\outside.js",
+        "C:outside.js",
+        "bad\0name.js",
         "",
     ] {
         assert!(

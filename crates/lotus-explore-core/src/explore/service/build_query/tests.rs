@@ -224,6 +224,16 @@ fn an_exact_search_filters_by_a_real_taxon_and_not_by_the_wildcard() {
         build_sparql_query(&resolved, &crit, Some("*")),
         lotus_query::exact_compounds_query(&compounds, None)
     );
+
+    let with_ref = SearchCriteria {
+        reference: "10.7554/eLife.70780".into(),
+        ..crit
+    };
+    assert_eq!(
+        build_sparql_query(&resolved, &with_ref, Some("*")),
+        lotus_query::exact_compounds_query(&compounds, Some(("*", &nomenclature))),
+        "exact compound + reference without named taxon must require an occurrence"
+    );
 }
 
 #[test]
