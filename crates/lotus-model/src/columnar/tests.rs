@@ -95,6 +95,8 @@ fn shaped_set() -> ColumnarResultSet {
         reference_years: vec![None; 6],
         // 3, 2, 8
         statement_fallbacks: column(&[Some("abc"), Some("defgh"), None]),
+        // 2, 1, 6
+        reference_node_hashes: column(&[Some("a1b2c3"), None]),
         ..ColumnarResultSet::default()
     }
 }
@@ -120,6 +122,7 @@ fn every_dictionary_cost_is_the_documented_arithmetic() {
             ("reference dois", 2, 16 + 6 + 2 * 4),
             ("reference years", 6, 24),
             ("statement fallbacks", 2, 2 * 16 + 8 + 3 * 4),
+            ("reference nodes", 2, 16 + 6 + 2 * 4),
         ]
     );
 }
@@ -127,9 +130,9 @@ fn every_dictionary_cost_is_the_documented_arithmetic() {
 #[cfg(feature = "diagnostics")]
 #[test]
 fn the_total_is_the_sum_of_the_itemised_costs() {
-    let itemised = 48 + 53 + 21 + 51 + 82 + 32 + 32 + 28 + 80 + 94 + 30 + 24 + 52;
-    assert_eq!(itemised, 627);
-    assert_eq!(shaped_set().total_dictionary_bytes(), 627);
+    let itemised = 48 + 53 + 21 + 51 + 82 + 32 + 32 + 28 + 80 + 94 + 30 + 24 + 52 + 30;
+    assert_eq!(itemised, 657);
+    assert_eq!(shaped_set().total_dictionary_bytes(), 657);
 }
 
 #[test]
@@ -268,24 +271,49 @@ fn statement_id_uuid_round_trips_for_deterministic_uuids() {
             &hex[16..20],
             &hex[20..32]
         );
-        let expected_canonical = format!("{qid}-{}", uuid_lower.to_ascii_uppercase());
+        let uuid_upper = uuid_lower.to_ascii_uppercase();
+        let expected_lower = format!("{qid}-{uuid_lower}");
+        let expected_upper = format!("{qid}-{uuid_upper}");
 
-        for input in [
-            format!("{qid}-{uuid_lower}"),
-            expected_canonical.clone(),
-            format!("{}{qid}-{uuid_lower}", crate::WIKIDATA_STATEMENT_BASE),
+        for (input, want_upper) in [
+            (expected_lower.clone(), false),
+            (
+                format!("{}{expected_lower}", crate::WIKIDATA_STATEMENT_BASE),
+                false,
+            ),
+            (
+                format!("https://www.wikidata.org/entity/statement/{expected_lower}"),
+                false,
+            ),
+            (expected_upper.clone(), true),
+            (
+                format!("{}{expected_upper}", crate::WIKIDATA_STATEMENT_BASE),
+                true,
+            ),
         ] {
             let parsed =
                 StatementId::parse(statement_id::strip_statement_prefix(&input), compound_num);
-            assert!(
-                matches!(parsed, statement_id::ParsedStatement::Uuid(b) if b == bytes),
-                "UUID prefix match failed for {input}"
-            );
-            assert_eq!(
-                StatementId::Uuid(bytes).text(&qid, &empty_fallbacks),
-                Some(expected_canonical.clone()),
-                "StatementId::text canonical mismatch"
-            );
+            if want_upper {
+                assert!(
+                    matches!(parsed, statement_id::ParsedStatement::Uuid(b) if b == bytes),
+                    "uppercase UUID match failed for {input}"
+                );
+                assert_eq!(
+                    StatementId::Uuid(bytes).text(&qid, &empty_fallbacks),
+                    Some(expected_upper.clone()),
+                    "StatementId::text uppercase mismatch"
+                );
+            } else {
+                assert!(
+                    matches!(parsed, statement_id::ParsedStatement::UuidLower(b) if b == bytes),
+                    "lowercase UUID match failed for {input}"
+                );
+                assert_eq!(
+                    StatementId::UuidLower(bytes).text(&qid, &empty_fallbacks),
+                    Some(expected_lower.clone()),
+                    "StatementId::text lowercase mismatch"
+                );
+            }
         }
 
         let mismatched =
@@ -336,4 +364,54 @@ fn contains_folded_matches_naive_folded_substrings_and_rejects_non_ascii_on_asci
             );
         }
     }
+}
+
+#[test]
+fn seed_from_grows_bitmask_when_called_after_pushing_more_entities() {
+    let mut prev = ColumnarBuilder::new();
+    for i in 1..=70_u32 {
+        prev.push(RawRow {
+            compound_qid: &format!("Q{i}"),
+            name: &format!("Compound {i}"),
+            reference_qid: &format!("Q{}", 1000 + i),
+            ref_title: Some("Ref"),
+            ..RawRow::default()
+        });
+    }
+    let prev_set = prev.build();
+
+    let mut next = ColumnarBuilder::new();
+    next.push(RawRow {
+        compound_qid: "Q1",
+        reference_qid: "Q1001",
+        ..RawRow::default()
+    });
+    next.seed_from(&prev_set);
+    // Push >64 additional entities so Bitmask must grow on the second seed_from call.
+    for i in 2..=70_u32 {
+        next.push(RawRow {
+            compound_qid: &format!("Q{i}"),
+            reference_qid: &format!("Q{}", 1000 + i),
+            ..RawRow::default()
+        });
+    }
+    next.seed_from(&prev_set);
+    assert_eq!(next.compound_qids().count(), 0);
+    assert_eq!(next.reference_qids().count(), 0);
+}
+
+#[test]
+fn plan_filter_normalizes_unicode_subscripts_in_formula_filter() {
+    let mut builder = ColumnarBuilder::new();
+    builder.push(RawRow {
+        compound_qid: "Q1",
+        formula: Some("C₁₅H₁₀O₇"),
+        ..RawRow::default()
+    });
+    let set = builder.build();
+    let plan = set.plan_filter(&crate::FilterSpec {
+        formula: "C₁₅H₁₀O₇".into(),
+        ..Default::default()
+    });
+    assert_eq!(plan.surviving_count(&set), 1);
 }

@@ -24,7 +24,7 @@ fn entry(compound: &str, taxon: &str, reference: &str) -> CompoundEntry {
     CompoundEntry {
         compound_qid: arc(compound),
         name: arc(&format!("{compound}-name")),
-        inchikey: Some(arc("AAAAAAAAAAAAAA-BBBBBBBBBBB-C")),
+        inchikey: Some(arc("AAAAAAAAAAAAAA-BBBBBBBBBB-C")),
         smiles: Some(arc("CCO")),
         mass: Some(100.0),
         formula: Some(arc("C2H6O")),

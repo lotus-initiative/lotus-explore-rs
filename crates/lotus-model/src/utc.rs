@@ -191,7 +191,18 @@ pub const fn year_from_days_since_epoch(days: i64) -> u16 {
     reason = "month (1..=12) and day (1..=31) fit in u8; era shift guarantees non-negative doe"
 )]
 const fn civil_from_days(days: i64) -> (i32, u8, u8) {
-    let z = days + DAYS_TO_UNIX_EPOCH;
+    // Clamp before adding DAYS_TO_UNIX_EPOCH so extreme i64 inputs stay within
+    // i32::MIN..=i32::MAX calendar years without overflow or sign wrap.
+    const MIN_DAYS: i64 = -700_000_000_000;
+    const MAX_DAYS: i64 = 700_000_000_000;
+    let clamped = if days < MIN_DAYS {
+        MIN_DAYS
+    } else if days > MAX_DAYS {
+        MAX_DAYS
+    } else {
+        days
+    };
+    let z = clamped + DAYS_TO_UNIX_EPOCH;
     let era = z.div_euclid(DAYS_PER_400_YEARS);
     let doe = (z - era * DAYS_PER_400_YEARS) as u64;
     let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;

@@ -44,7 +44,7 @@ pub fn looks_like_doi(text: &str) -> bool {
     let Some((prefix, suffix)) = body.split_once('/') else {
         return false;
     };
-    // `10.` and four or more digits: the DOI prefix is `NNNN` with at least three.
+    // `10.` followed by a registrant code of three or more digits.
     let digits = prefix.strip_prefix("10.").unwrap_or("");
     digits.len() >= 3
         && digits.bytes().all(|b| b.is_ascii_digit())
@@ -82,7 +82,7 @@ pub fn strip_doi_prefix(text: &str) -> &str {
         {
             // `head` is exactly `prefix.len()` bytes and matched it byte for byte,
             // so the remainder starts on a character boundary.
-            return lowered.get(prefix.len()..).unwrap_or(lowered);
+            return lowered.get(prefix.len()..).unwrap_or(lowered).trim_start();
         }
     }
     lowered

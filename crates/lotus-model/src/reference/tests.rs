@@ -43,6 +43,7 @@ fn a_doi_arrives_with_any_of_the_prefixes_a_reader_pastes() {
     for text in [
         "10.1000/xyz",
         "doi:10.1000/xyz",
+        "doi: 10.1000/xyz",
         "https://doi.org/10.1000/xyz",
         "http://dx.doi.org/10.1000/xyz",
     ] {

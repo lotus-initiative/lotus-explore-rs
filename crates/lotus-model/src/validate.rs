@@ -20,10 +20,10 @@ use thiserror::Error;
     reason = "each variant's `#[error]` message is its documentation; a doc comment would restate it"
 )]
 pub enum ValidationError {
-    #[error("taxon is longer than {limit} characters")]
+    #[error("taxon is longer than {limit} bytes")]
     TaxonTooLong { limit: usize },
 
-    #[error("structure is longer than {limit} characters")]
+    #[error("structure is longer than {limit} bytes")]
     StructureTooLong { limit: usize },
 
     #[error("a one-character lowercase structure is not a molecule")]
@@ -47,11 +47,11 @@ pub enum ValidationError {
     #[error("{element} minimum count is above the maximum")]
     ElementRangeInverted { element: &'static str },
 
-    #[error("similarity search needs a threshold above 0")]
+    #[error("similarity search needs a finite threshold in (0, 1]")]
     SimilarityThresholdInvalid,
 
     #[error(
-        "reference must be a Wikidata QID such as Q23118 or a DOI such as \
+        "reference must be a Wikidata QID such as Q112143478 or a DOI such as \
          10.1000/xyz"
     )]
     ReferenceNotAIdentifier,
@@ -134,7 +134,9 @@ pub fn validate_criteria(criteria: &SearchCriteria, year_max: u16) -> Result<(),
     }
 
     if criteria.structure_search == super::SmilesSearchType::Similarity
-        && criteria.structure_threshold <= 0.0
+        && (!criteria.structure_threshold.is_finite()
+            || criteria.structure_threshold <= 0.0
+            || criteria.structure_threshold > 1.0)
     {
         return Err(ValidationError::SimilarityThresholdInvalid);
     }

@@ -143,7 +143,7 @@ pub struct RawRow<'a> {
     pub inchikey: Option<&'a str>,
     /// SMILES, if the compound has one.
     pub smiles: Option<&'a str>,
-    /// Monoisotopic mass in daltons, if the compound has one.
+    /// Wikidata mass (P2067) in daltons, if the compound has one.
     pub mass: Option<f64>,
     /// Molecular formula, if the compound has one.
     pub formula: Option<&'a str>,
@@ -153,7 +153,7 @@ pub struct RawRow<'a> {
     pub taxon_name: &'a str,
     /// Wikidata QID of the reference; empty when there is none.
     pub reference_qid: &'a str,
-    /// Wikidata QID of the reference *node* (`prov:wasDerivedFrom`), which is not
+    /// Hash of the reference *node* (`prov:wasDerivedFrom`), which is not
     /// the publication named by `reference_qid` via `pr:P248`. Empty when the
     /// occurrence has no reference. Kept for the provenance graph, not for display.
     pub reference_node: &'a str,

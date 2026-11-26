@@ -91,17 +91,16 @@ impl ColumnarResultSet {
         self.reference_qid(row).map(qid_text)
     }
 
-    /// The reference node's QID for `row`, if the occurrence names one.
+    /// The reference node's hash for `row`, if the occurrence names one.
     #[must_use]
     pub fn reference_node_text(&self, row: usize) -> Option<String> {
         self.reference_node_hashes.get(row).map(str::to_string)
     }
 
-    /// The compound's label, falling back to its QID.
+    /// The compound's label, or `None` when absent.
     ///
-    /// The fallback is the one the table applies to a row with no label, kept
-    /// here so a caller reading the set and a caller rebuilding a [`CompoundEntry`]
-    /// agree on what the cell says.
+    /// See [`compound_label_or_qid`](Self::compound_label_or_qid) for the
+    /// fallback used when displaying a nameless compound.
     #[must_use]
     pub fn compound_label(&self, row: usize) -> Option<&str> {
         let id = *self.compound_ids.get(row)?;

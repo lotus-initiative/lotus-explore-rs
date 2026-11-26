@@ -6,6 +6,8 @@ use super::qid_dict::parse_numeric_qid;
 use super::sparse_strings::SparseStrings;
 use crate::WIKIDATA_STATEMENT_BASE;
 
+const WIKIDATA_STATEMENT_BASE_HTTPS: &str = "https://www.wikidata.org/entity/statement/";
+
 /// The statement backing one occurrence.
 ///
 /// On Wikidata a statement is `<compound QID>-<UUID>`, and the UUID is random:
@@ -22,8 +24,10 @@ pub enum StatementId {
     /// The row cites no statement.
     #[default]
     Absent,
-    /// The `{QID}-{UUID}` form, with the UUID alone.
+    /// The `{QID}-{UUID}` form, uppercase UUID bytes.
     Uuid([u8; 16]),
+    /// The `{QID}-{UUID}` form, lowercase UUID bytes.
+    UuidLower([u8; 16]),
     /// Anything else, as an id into the set's fallback strings.
     Other(u32),
 }
@@ -32,6 +36,7 @@ pub enum StatementId {
 pub(super) enum ParsedStatement {
     Absent,
     Uuid([u8; 16]),
+    UuidLower([u8; 16]),
     /// Text that is not in the UUID form, kept as a borrowed slice where possible.
     Other,
 }
@@ -59,7 +64,13 @@ impl StatementId {
             && prefix.strip_prefix('Q').and_then(parse_numeric_qid) == Some(compound_numeric)
             && let Some(bytes) = parse_uuid(uuid)
         {
-            return ParsedStatement::Uuid(bytes);
+            let has_lower = uuid.bytes().any(|b| b.is_ascii_lowercase());
+            let has_upper = uuid.bytes().any(|b| b.is_ascii_uppercase());
+            return match (has_upper, has_lower) {
+                (_, false) => ParsedStatement::Uuid(bytes),
+                (false, true) => ParsedStatement::UuidLower(bytes),
+                (true, true) => ParsedStatement::Other,
+            };
         }
         ParsedStatement::Other
     }
@@ -69,7 +80,10 @@ impl StatementId {
     pub fn text(&self, compound_qid: &str, fallbacks: &SparseStrings) -> Option<String> {
         match *self {
             Self::Absent => None,
-            Self::Uuid(bytes) => Some(format!("{compound_qid}-{}", format_uuid(&bytes))),
+            Self::Uuid(bytes) => Some(format!("{compound_qid}-{}", format_uuid(&bytes, true))),
+            Self::UuidLower(bytes) => {
+                Some(format!("{compound_qid}-{}", format_uuid(&bytes, false)))
+            }
             Self::Other(id) => fallbacks.value(id as usize).map(ToOwned::to_owned),
         }
     }
@@ -80,6 +94,7 @@ pub(super) fn strip_statement_prefix(cell: &str) -> &str {
     let trimmed = cell.trim();
     trimmed
         .strip_prefix(WIKIDATA_STATEMENT_BASE)
+        .or_else(|| trimmed.strip_prefix(WIKIDATA_STATEMENT_BASE_HTTPS))
         .unwrap_or(trimmed)
 }
 
@@ -123,19 +138,23 @@ fn parse_uuid(text: &str) -> Option<[u8; 16]> {
     (at == out.len() && !low_half).then_some(out)
 }
 
-/// The hyphenated uppercase form of a UUID.
-fn format_uuid(bytes: &[u8; 16]) -> String {
-    const HEX: &[u8; 16] = b"0123456789ABCDEF";
+/// The hyphenated form of a UUID in uppercase or lowercase hex.
+fn format_uuid(bytes: &[u8; 16], uppercase: bool) -> String {
+    let hex: &[u8; 16] = if uppercase {
+        b"0123456789ABCDEF"
+    } else {
+        b"0123456789abcdef"
+    };
     let mut out = String::with_capacity(36);
     for (index, byte) in bytes.iter().enumerate() {
         if matches!(index, 4 | 6 | 8 | 10) {
             out.push('-');
         }
         out.push(char::from(
-            HEX.get((byte >> 4) as usize).copied().unwrap_or(b'0'),
+            hex.get((byte >> 4) as usize).copied().unwrap_or(b'0'),
         ));
         out.push(char::from(
-            HEX.get((byte & 0x0f) as usize).copied().unwrap_or(b'0'),
+            hex.get((byte & 0x0f) as usize).copied().unwrap_or(b'0'),
         ));
     }
     out

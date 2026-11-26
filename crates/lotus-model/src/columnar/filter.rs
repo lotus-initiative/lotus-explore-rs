@@ -45,7 +45,8 @@ impl ColumnarResultSet {
         }
 
         if !spec.formula.trim().is_empty() {
-            let needle = folded(&spec.formula);
+            let normalized = crate::normalize_formula_subscripts(&spec.formula);
+            let needle = folded(&normalized);
             plan.formula = Some(build_mask(self.compounds.len(), |slot, _id| {
                 self.compound_formulas
                     .get(slot)

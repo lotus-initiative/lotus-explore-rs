@@ -20,6 +20,14 @@ impl Bitmask {
         }
     }
 
+    /// Ensure the mask has storage for at least `len` ids, preserving existing bits.
+    pub(super) fn resize(&mut self, len: usize) {
+        let needed = len.div_ceil(64);
+        if self.words.len() < needed {
+            self.words.resize(needed, 0);
+        }
+    }
+
     /// Add `id`, ignoring [`NO_VALUE`] and out-of-range ids.
     pub fn insert(&mut self, id: u32) {
         if id == NO_VALUE {

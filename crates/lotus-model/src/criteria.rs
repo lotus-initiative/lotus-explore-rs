@@ -278,7 +278,10 @@ impl SearchCriteria {
     /// Whether the mass range is narrower than the full 0..=10,000 span.
     #[must_use]
     pub fn has_mass_filter(&self) -> bool {
-        self.mass_min > 0.0 || self.mass_max < MASS_MAX
+        !self.mass_min.is_finite()
+            || !self.mass_max.is_finite()
+            || self.mass_min > 0.0
+            || self.mass_max < MASS_MAX
     }
 
     /// Whether the year range is narrower than `year_max`.

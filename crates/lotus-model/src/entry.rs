@@ -18,7 +18,7 @@ pub struct CompoundEntry {
     /// `SMILES`, preferring the isomeric form (P2017) over the
     /// connection-table one (P233).
     pub smiles: Option<Arc<str>>,
-    /// Monoisotopic mass (P2067), in daltons.
+    /// Wikidata mass (P2067), in daltons (monoisotopic or molecular depending on the source item).
     pub mass: Option<f64>,
     /// Molecular formula (P274), with subscript digits normalised to ASCII.
     pub formula: Option<Arc<str>>,
@@ -28,7 +28,7 @@ pub struct CompoundEntry {
     pub taxon_name: Arc<str>,
     /// Wikidata QID of the cited reference. Empty when there is none.
     pub reference_qid: Arc<str>,
-    /// Wikidata QID of the reference node (`prov:wasDerivedFrom`), distinct from
+    /// Reference node hash (`prov:wasDerivedFrom`), distinct from
     /// `reference_qid`, which is the publication it points at via `pr:P248`.
     pub reference_node: Arc<str>,
     /// Reference title (P1476).
@@ -37,7 +37,7 @@ pub struct CompoundEntry {
     pub ref_doi: Option<Arc<str>>,
     /// Publication year, from P577.
     pub pub_year: Option<i16>,
-    /// Wikidata statement QID backing the occurrence, without the
+    /// Wikidata statement id backing the occurrence, without the
     /// `entity/statement/` prefix.
     pub statement: Option<Arc<str>>,
 }

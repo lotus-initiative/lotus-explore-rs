@@ -87,6 +87,11 @@ impl ColumnarResultSet {
                 self.statement_fallbacks.distinct_len(),
                 sparse(&self.statement_fallbacks),
             ),
+            (
+                "reference nodes",
+                self.reference_node_hashes.len(),
+                sparse(&self.reference_node_hashes),
+            ),
         ]
     }
 

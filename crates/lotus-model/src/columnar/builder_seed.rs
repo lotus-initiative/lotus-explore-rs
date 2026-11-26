@@ -12,9 +12,7 @@ impl ColumnarBuilder {
     /// present in `previous`, so dictionary enrichment only queries the
     /// endpoint for entities not yet seen.
     pub fn seed_from(&mut self, previous: &ColumnarResultSet) {
-        if self.seeded_compounds.words.is_empty() {
-            self.seeded_compounds = Bitmask::with_len(self.set.compounds.len());
-        }
+        self.seeded_compounds.resize(self.set.compounds.len());
         for slot in 0..self.set.compounds.len() {
             let slot_id = slot_to_id(slot);
             if let Some(prev_id) = self
@@ -39,9 +37,7 @@ impl ColumnarBuilder {
             }
         }
 
-        if self.seeded_references.words.is_empty() {
-            self.seeded_references = Bitmask::with_len(self.set.references.len());
-        }
+        self.seeded_references.resize(self.set.references.len());
         for slot in 0..self.set.references.len() {
             let slot_id = slot_to_id(slot);
             if let Some(prev_id) = self

@@ -125,15 +125,26 @@ fn an_element_count_above_that_elements_ceiling_is_rejected() {
 
 #[test]
 fn similarity_needs_a_threshold() {
-    let c = SearchCriteria {
-        structure_search: SmilesSearchType::Similarity,
-        structure_threshold: 0.0,
-        ..criteria()
-    };
-    assert_eq!(
-        validate_criteria(&c, 2026),
-        Err(ValidationError::SimilarityThresholdInvalid)
-    );
+    for bad in [0.0, -0.1, 1.01, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        let c = SearchCriteria {
+            structure_search: SmilesSearchType::Similarity,
+            structure_threshold: bad,
+            ..criteria()
+        };
+        assert_eq!(
+            validate_criteria(&c, 2026),
+            Err(ValidationError::SimilarityThresholdInvalid),
+            "threshold {bad:?} must be rejected"
+        );
+    }
+    for ok in [0.01, 0.7, 1.0] {
+        let c = SearchCriteria {
+            structure_search: SmilesSearchType::Similarity,
+            structure_threshold: ok,
+            ..criteria()
+        };
+        assert_eq!(validate_criteria(&c, 2026), Ok(()));
+    }
 }
 
 #[test]
@@ -317,6 +328,7 @@ fn a_qid_or_a_doi_reference_validates() {
     for doi in [
         "10.1000/xyz",
         "doi:10.1000/xyz",
+        "doi: 10.1000/xyz",
         "https://doi.org/10.1000/xyz",
     ] {
         let c = SearchCriteria {

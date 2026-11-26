@@ -89,6 +89,7 @@ impl ColumnarBuilder {
                     match StatementId::parse(cell, numeric) {
                         ParsedStatement::Absent => StatementId::Absent,
                         ParsedStatement::Uuid(bytes) => StatementId::Uuid(bytes),
+                        ParsedStatement::UuidLower(bytes) => StatementId::UuidLower(bytes),
                         ParsedStatement::Other => {
                             // No slot, and no prediction: the id comes from the interning table.
                             // This column is a plain id -> string map rather than a slot-keyed one,
@@ -103,7 +104,7 @@ impl ColumnarBuilder {
         self.set.taxon_ids.push(taxon_id);
         // The reference node is a `prov:wasDerivedFrom` URI, not a QID, so it
         // cannot go in `references` -- that is a `QidDictionary` of u32s. A
-        // `SparseStrings` keyed by row keeps the 64-hex hash interned instead of
+        // `SparseStrings` keyed by row keeps the 40-hex hash interned instead of
         // copied per row, the same way `statement_fallbacks` does.
         if let Some(node) = crate::non_empty(row.reference_node) {
             self.set.reference_node_hashes.set(row_index, Some(node));
@@ -258,8 +259,8 @@ impl ColumnarBuilder {
     ///
     /// The endpoint's exact `COUNT(DISTINCT CONCAT(…))`, computed over all
     /// stored rows without losing row multiplicity inside `ColumnarResultSet`.
-    /// Sorting a copy of the id columns gives the exact count, and the copy is
-    /// dropped before [`build`](Self::build) returns.
+    /// An `FxHashSet` over the id columns gives the exact count and is dropped
+    /// before [`build`](Self::build) returns.
     fn distinct_triples(&self) -> usize {
         let mut seen =
             FxHashSet::with_capacity_and_hasher(self.set.compound_ids.len(), FxBuildHasher);

@@ -11,6 +11,7 @@ use super::{ElementState, SmilesSearchType};
 
 #[test]
 fn each_search_type_prints_exactly_its_own_spelling() {
+    assert_eq!(SmilesSearchType::Exact.to_string(), "exact");
     assert_eq!(SmilesSearchType::Substructure.to_string(), "substructure");
     assert_eq!(SmilesSearchType::Similarity.to_string(), "similarity");
 }
@@ -47,7 +48,11 @@ fn parsing_is_case_and_whitespace_insensitive() {
 #[test]
 fn printing_then_parsing_returns_the_same_value() {
     // A round trip is what keeps a shared link working after a rename.
-    for search in [SmilesSearchType::Substructure, SmilesSearchType::Similarity] {
+    for search in [
+        SmilesSearchType::Exact,
+        SmilesSearchType::Substructure,
+        SmilesSearchType::Similarity,
+    ] {
         assert_eq!(SmilesSearchType::parse(&search.to_string()), search);
     }
     for state in [

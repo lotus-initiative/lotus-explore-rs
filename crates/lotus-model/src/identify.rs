@@ -30,10 +30,11 @@ pub(crate) fn strip_qid_digits(raw: &str) -> Option<&str> {
     // Both schemes, because Wikidata serves `http` and a mirror or a pasted
     // fixture can carry `https`, and dropping the second would turn a row that
     // used to render into a dropped one.
-    let stripped = trimmed
+    let entity_rest = trimmed
         .strip_prefix(WIKIDATA_ENTITY_BASE)
-        .or_else(|| trimmed.strip_prefix(WIKIDATA_ENTITY_BASE_HTTPS))
-        .unwrap_or(trimmed);
+        .or_else(|| trimmed.strip_prefix(WIKIDATA_ENTITY_BASE_HTTPS));
+    let had_entity_prefix = entity_rest.is_some();
+    let stripped = entity_rest.unwrap_or(trimmed);
 
     // Drop a `"…"^^<…#integer>` wrapper, then any remaining quotes.
     let lexical = stripped
@@ -42,16 +43,20 @@ pub(crate) fn strip_qid_digits(raw: &str) -> Option<&str> {
         .unwrap_or(stripped)
         .trim_matches('"');
     // A bare number is how the `xsd:integer(STRAFTER(STR(?c), "Q"))` projection
-    // renders, and how some exports write it.
-    let digits = lexical.strip_prefix('Q').unwrap_or(lexical);
+    // renders, and how some exports write it. Entity URIs still require `Q`/`q`.
+    let digits = if had_entity_prefix {
+        lexical.strip_prefix(['Q', 'q'])?
+    } else {
+        lexical.strip_prefix(['Q', 'q']).unwrap_or(lexical)
+    };
     (!digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit())).then_some(digits)
 }
 
 /// Canonicalise a DOI: strip a `doi.org/` prefix and upper-case the rest.
 ///
 /// Wikidata stores P356 values upper-cased and unprefixed, so an upper-cased
-/// value matches an `ASK` that Wikidata will answer. Returns `None` for input
-/// with no DOI in it.
+/// value matches an `ASK` that Wikidata will answer. Returns `None` for empty
+/// or prefix-only input.
 #[must_use]
 pub fn normalize_doi(value: &str) -> Option<String> {
     let trimmed = value.trim();

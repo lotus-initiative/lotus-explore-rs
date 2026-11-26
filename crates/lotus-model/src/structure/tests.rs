@@ -44,8 +44,6 @@ fn either_v3000_marker_is_enough_on_its_own() {
     );
 }
 
-// ── Which inputs are offered to the compound-name lookup ────────────────
-
 #[test]
 fn an_inchikey_is_recognised_by_its_own_shape() {
     // The real key for gentianine, and a synthetic one.
@@ -94,11 +92,13 @@ fn a_name_and_an_inchikey_are_both_looked_up() {
 
 #[test]
 fn a_near_miss_inchikey_is_rejected() {
-    // Right shape, wrong blocks; and a lowercase key, which the standard
+    // Right shape, wrong blocks; lowercase or digits, which the IUPAC standard
     // does not allow.
     assert!(!looks_like_inchikey("BEHABCJQKGGRQ-XLPZGREQSA-N"));
     assert!(!looks_like_inchikey("BEHABCJQKGGRQN-XLPZGREQSA-NN"));
     assert!(!looks_like_inchikey("behabcjqkggrqn-xlpgreqsa-n"));
+    assert!(!looks_like_inchikey("12345678901234-1234567890-1"));
+    assert!(!looks_like_inchikey("BEHABCJQKGGRQ1-XLPZGREQSA-N"));
     assert!(!looks_like_inchikey(""));
 }
 
@@ -111,6 +111,8 @@ fn chemical_names_are_offered_to_the_name_lookup() {
         "green tea",
         "s-(+)-carvone",
         "Aspirin",
+        "boron",
+        "sorbol",
     ] {
         assert!(could_be_a_compound_name(name), "{name} should be looked up");
     }
@@ -287,6 +289,13 @@ fn salts_and_smiles_with_digits_stay_structures() {
         "s1cccc1-c2cccc2",
         "Cl-c1ccccc1",
         "Br-c1ccccc1",
+        "CCl",
+        "CCCl",
+        "ClCCl",
+        "ClC(Cl)Cl",
+        "CC(Cl)C",
+        "CCBr",
+        "C(Cl)Br",
     ] {
         assert!(
             !could_be_a_compound_name(input),

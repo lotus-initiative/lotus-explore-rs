@@ -111,6 +111,7 @@ fn every_dictionary_is_named_and_counted() {
         "compound names",
         "compound inchikeys",
         "statement fallbacks",
+        "reference nodes",
     ] {
         assert!(
             costs.iter().any(|(name, _, _)| *name == expected),

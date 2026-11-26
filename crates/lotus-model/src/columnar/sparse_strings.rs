@@ -92,6 +92,9 @@ impl SparseStrings {
         let Ok(id) = u32::try_from(self.values.len()) else {
             return NO_VALUE;
         };
+        if id == NO_VALUE {
+            return NO_VALUE;
+        }
         let shared: Arc<str> = Arc::from(value);
         self.values.push(Arc::clone(&shared));
         self.index.insert(shared, id);

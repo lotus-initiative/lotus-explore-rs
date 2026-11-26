@@ -66,6 +66,8 @@ fn year_from_days_matches_epoch_leap_and_century_boundaries() {
         (45_999, 2_095),
         (-1_000_000, 0),
         (100_000_000, u16::MAX),
+        (i64::MIN, 0),
+        (i64::MAX, u16::MAX),
     ];
     for (days, expected) in cases {
         assert_eq!(year_from_days_since_epoch(days), expected, "{days} days");

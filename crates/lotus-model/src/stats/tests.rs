@@ -22,7 +22,11 @@ fn a_default_search_asks_for_that_one_compound() {
 
 #[test]
 fn search_type_and_element_state_round_trip_through_their_spellings() {
-    for v in [SmilesSearchType::Substructure, SmilesSearchType::Similarity] {
+    for v in [
+        SmilesSearchType::Exact,
+        SmilesSearchType::Substructure,
+        SmilesSearchType::Similarity,
+    ] {
         assert_eq!(SmilesSearchType::parse(v.as_str()), v);
     }
     for v in [

@@ -53,13 +53,16 @@ pub fn classify_structure(text: &str) -> StructureKind {
 
 /// Whether a string is an `InChIKey`.
 ///
-/// The shape is fixed by the standard: two 14-character blocks and a one-character
-/// version, separated by hyphens, all uppercase. Recognising it by shape rather
-/// than by pattern-matching an endpoint's answer is what makes the identifier
-/// route unambiguous -- a SMILES can never be mistaken for one, and vice versa.
+/// The shape is fixed by the IUPAC standard: a 14-character connectivity block,
+/// a 10-character stereochemistry/isotope/version block, and a 1-character
+/// protonation flag, separated by hyphens, all uppercase ASCII letters.
+/// Recognising it by shape rather than by pattern-matching an endpoint's answer
+/// is what makes the identifier route unambiguous -- a SMILES can never be
+/// mistaken for one, and vice versa.
 #[must_use]
 pub fn looks_like_inchikey(text: &str) -> bool {
-    let Some((first, rest)) = text.split_once('-') else {
+    let trimmed = text.trim();
+    let Some((first, rest)) = trimmed.split_once('-') else {
         return false;
     };
     let Some((second, third)) = rest.split_once('-') else {
@@ -68,11 +71,9 @@ pub fn looks_like_inchikey(text: &str) -> bool {
     third.len() == 1
         && first.len() == 14
         && second.len() == 10
-        && [first, second, third].into_iter().all(|block| {
-            block
-                .bytes()
-                .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit())
-        })
+        && [first, second, third]
+            .into_iter()
+            .all(|block| block.bytes().all(|b| b.is_ascii_uppercase()))
 }
 
 /// What the reference field's example button offers: a DOI from the *Journal
@@ -148,12 +149,10 @@ const fn is_non_smiles_lowercase(ch: char) -> bool {
 /// `p`, `s`, `l`, `r`).
 ///
 /// Parentheses, `+`, and `±` *are* allowed, for stereodescriptors: `s-(+)-carvone`,
-/// `(±)-3-carene`, and `(−)-epicatechin` are real names. That admits a structure like `C(C)`, the
-/// one misclassification that can reach the name lookup, and its cost is bounded:
-/// a lookup matching nothing is reported as "compound not found" rather than
-/// answered, so the reader learns the input was read as a name instead of getting
-/// a plausible wrong answer. Refusing a structure that looks like a name costs a
-/// round trip; admitting one costs a question the reader must notice.
+/// `(±)-3-carene`, and `(−)-epicatechin` are real names. Acyclic halogenated
+/// SMILES without digits (e.g. `CCCl`, `ClC(Cl)Cl`, `CCBr`) are excluded by
+/// checking that strings containing only SMILES-subset lowercase letters do not
+/// carry internal uppercase letters or parentheses.
 #[must_use]
 pub fn could_be_a_compound_name(text: &str) -> bool {
     let trimmed = text.trim();
@@ -169,6 +168,11 @@ pub fn could_be_a_compound_name(text: &str) -> bool {
             )
     });
     if !alphabet_is_name_shaped || !trimmed.chars().any(char::is_lowercase) {
+        return false;
+    }
+    if !trimmed.chars().any(is_non_smiles_lowercase)
+        && (trimmed.chars().skip(1).any(char::is_uppercase) || trimmed.contains(['(', ')']))
+    {
         return false;
     }
     if trimmed.chars().any(|c| c.is_ascii_digit()) {

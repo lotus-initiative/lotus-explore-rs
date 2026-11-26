@@ -28,6 +28,11 @@ fn qids_arrive_in_four_shapes_and_leave_as_one() {
         normalize_qid("\"456\"^^<http://www.w3.org/2001/XMLSchema#integer>"),
         "Q456"
     );
+    assert_eq!(
+        normalize_qid("https://www.wikidata.org/entity/q12345"),
+        "Q12345"
+    );
+    assert_eq!(normalize_qid("q16521"), "Q16521");
     assert_eq!(normalize_qid("456"), "Q456");
 }
 
@@ -43,6 +48,7 @@ fn a_non_entity_yields_nothing() {
         "   ",
         "Q",
         "http://example.org/Q1",
+        "http://www.wikidata.org/entity/123",
     ] {
         assert_eq!(normalize_qid(input), "", "input {input:?}");
     }

@@ -53,6 +53,9 @@ impl QidDictionary {
         let Ok(id) = u32::try_from(self.order.len()) else {
             return NO_VALUE;
         };
+        if id == NO_VALUE {
+            return NO_VALUE;
+        }
         self.index.insert(numeric, id);
         self.order.push(numeric);
         id

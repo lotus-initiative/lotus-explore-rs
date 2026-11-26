@@ -65,7 +65,7 @@ pub const WIKIDATA_STATEMENT_BASE: &str = "http://www.wikidata.org/entity/statem
 /// Namespace of a Wikidata *reference node* -- the thing a statement is
 /// `prov:wasDerivedFrom`.
 ///
-/// Not a QID and not a statement: `http://www.wikidata.org/reference/<64 hex>`.
+/// Not a QID and not a statement: `http://www.wikidata.org/reference/<40 hex>`.
 /// Anything that tries to read a `Q<digits>` out of one gets a cast error, so this
 /// is stripped explicitly instead, the same way [`WIKIDATA_STATEMENT_BASE`] is.
 pub const WIKIDATA_REFERENCE_BASE: &str = "http://www.wikidata.org/reference/";
