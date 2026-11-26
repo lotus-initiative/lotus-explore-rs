@@ -226,6 +226,32 @@ fn different_compounds_and_existing_items_are_left_alone() {
     assert_eq!(rows, before);
 }
 
+#[test]
+fn pending_dependencies_rows_for_same_new_compound_still_merge_creates() {
+    let mut first = new_compound(
+        "A",
+        "LFQSCWFLJHTTHZ-UHFFFAOYSA-N",
+        &["## A", "CREATE\n  LAST|Len|\"A\"\n  LAST|P703|Q1"],
+    );
+    first.status = CurationStatus::PendingDependencies;
+    first.wikidata_qid = None;
+
+    let mut second = new_compound(
+        "B",
+        "LFQSCWFLJHTTHZ-UHFFFAOYSA-N",
+        &["## B", "CREATE\n  LAST|Len|\"B\"\n  LAST|P703|Q2"],
+    );
+    second.status = CurationStatus::PendingDependencies;
+    second.wikidata_qid = None;
+
+    let mut rows = vec![first, second];
+    merge_new_compound_creates(&mut rows);
+
+    let bundle = build_quickstatements_bundle(&rows);
+    assert_eq!(bundle.main.matches("CREATE").count(), 1, "{}", bundle.main);
+    assert!(bundle.main.contains("LAST|P703|Q2"), "{}", bundle.main);
+}
+
 /// A row with no `InChIKey` has nothing to be the same compound by, so two
 /// such rows are never merged, however alike their statements look.
 #[test]

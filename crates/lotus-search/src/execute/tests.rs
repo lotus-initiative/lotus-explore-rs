@@ -851,3 +851,30 @@ fn compact_reads_wdqs_proxy_json_message() {
         "Endpoint https://query-scholarly.wikidata.org/sparql is not allowed for query federation."
     );
 }
+
+#[tokio::test]
+async fn qlever_host_check_rejects_lookalike_and_query_hosts() {
+    for attacker in [
+        "https://evil.example/?url=qlever.dev",
+        "https://evil.example/qlever.dev/sparql",
+        "https://qlever.dev.evil.example/api",
+        "not-a-url/qlever.dev",
+    ] {
+        assert!(
+            query_budget_from(attacker, |_| Some("secret".to_string())).is_none(),
+            "non-qlever host {attacker} must not get a QLever budget"
+        );
+        assert!(
+            !super::fallback::is_qlever_query_timeout(attacker, 429, "timeout"),
+            "non-qlever 429 from {attacker} must not be classified as QLever timeout"
+        );
+    }
+    assert!(
+        query_budget_from("https://qlever.dev/api/wikidata", |_| None).is_some(),
+        "qlever.dev must still receive QLever budget"
+    );
+    assert!(
+        query_budget_from("https://sparql.qlever.dev:8443/api", |_| None).is_some(),
+        "subdomain with port must still match qlever.dev"
+    );
+}

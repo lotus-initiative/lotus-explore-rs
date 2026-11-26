@@ -61,4 +61,5 @@ fn every_edam_constant_is_a_canonical_four_digit_edam_iri() {
             );
         }
     }
+    assert_eq!(FORMAT_INCHIKEY, "http://edamontology.org/format_1199");
 }

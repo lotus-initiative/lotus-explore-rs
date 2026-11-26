@@ -25,16 +25,8 @@ const fn bare() -> SearchCriteria {
     SearchCriteria::up_to_year(2026)
 }
 
-/// The QID a `*` taxon is rewritten to when the query is by compound.
-const WILDCARD_AS_QID: &str = "Q2382443";
-
 #[test]
-fn an_exact_compound_search_by_wildcard_taxon_asks_for_a_named_taxon() {
-    // The compound QIDs come from a structure lookup that resolved them, and the
-    // taxon is `*` -- every taxon with a recorded occurrence. Passed through as
-    // written, the endpoint has no taxon to constrain and the result set is
-    // everything, which is not what "this compound, in every taxon" means: the
-    // query has to name the taxon the wildcard stands for.
+fn an_exact_compound_search_by_wildcard_taxon_requires_occurrence_without_biota_closure() {
     let mut criteria = bare();
     criteria.structure_search = SmilesSearchType::Exact;
     let resolved = ResolvedInputs {
@@ -44,29 +36,34 @@ fn an_exact_compound_search_by_wildcard_taxon_asks_for_a_named_taxon() {
     };
 
     let wildcard = build_execution_query_with(&request(criteria.clone()), Some("*"), &resolved);
-    let named =
-        build_execution_query_with(&request(criteria.clone()), Some(WILDCARD_AS_QID), &resolved);
-    assert_eq!(
-        wildcard, named,
-        "a wildcard taxon on an exact compound search must ask for the same \
-         query as the taxon the wildcard stands for"
+    assert!(
+        wildcard.contains("?c p:P703 ?statement_id .")
+            && !wildcard.contains("OPTIONAL {\n            { SELECT * WHERE {"),
+        "wildcard taxon on an exact compound search must require P703 occurrences:\n{wildcard}"
     );
     assert!(
-        wildcard.contains(WILDCARD_AS_QID),
-        "and that query must name it: {wildcard}"
+        !wildcard.contains("Q2382443") && !wildcard.contains("P171*"),
+        "wildcard taxon must not walk P171* Biota closure:\n{wildcard}"
     );
-    // Not "no asterisk": `P171*` is a legitimate property path and the query
-    // has one. What must not happen is the asterisk being used as a taxon value.
     assert!(
         !wildcard.contains("wd:*") && !wildcard.contains("VALUES ?taxon { * }"),
         "the wildcard must not reach the endpoint as a taxon: {wildcard}"
+    );
+
+    let mut with_ref = criteria.clone();
+    with_ref.reference = "Q112143478".to_string();
+    let ref_only = build_execution_query_with(&request(with_ref), None, &resolved);
+    assert!(
+        ref_only.contains("?c p:P703 ?statement_id .")
+            && !ref_only.contains("OPTIONAL {\n            { SELECT * WHERE {"),
+        "exact compound search with a reference filter must require P703 occurrences:\n{ref_only}"
     );
 
     // And a named taxon is passed through untouched -- the rewrite is for the
     // wildcard, not for every taxon.
     let other = build_execution_query_with(&request(criteria), Some("Q16521"), &resolved);
     assert!(
-        other.contains("Q16521") && !other.contains(WILDCARD_AS_QID),
+        other.contains("Q16521") && !other.contains("Q2382443"),
         "a named taxon must be used as written: {other}"
     );
 }

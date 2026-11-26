@@ -53,8 +53,8 @@ pub const FORMAT_SMILES: &str = "http://edamontology.org/format_1196";
 /// EDAM `format_1197` — `InChI`.
 pub const FORMAT_INCHI: &str = "http://edamontology.org/format_1197";
 
-/// EDAM `format_1198` — `InChIKey`.
-pub const FORMAT_INCHIKEY: &str = "http://edamontology.org/format_1198";
+/// EDAM `format_1199` — `InChIKey`.
+pub const FORMAT_INCHIKEY: &str = "http://edamontology.org/format_1199";
 
 /// EDAM `format_3815` — Molfile.
 pub const FORMAT_MOLFILE: &str = "http://edamontology.org/format_3815";

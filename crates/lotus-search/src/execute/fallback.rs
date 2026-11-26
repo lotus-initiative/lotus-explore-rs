@@ -154,9 +154,7 @@ pub(super) async fn send_response<H: Http>(
 /// Whether a `429` came from `QLever` cancelling a query that outran its time
 /// budget rather than reverse-proxy / REST Gateway rate limiting.
 pub(super) fn is_qlever_query_timeout(endpoint: &str, status: u16, message: &str) -> bool {
-    status == 429
-        && endpoint.contains(super::budget::QLever::HOST)
-        && !is_rate_limit_message(message)
+    status == 429 && super::budget::is_qlever_host(endpoint) && !is_rate_limit_message(message)
 }
 
 fn is_rate_limit_message(message: &str) -> bool {

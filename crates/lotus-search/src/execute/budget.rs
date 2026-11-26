@@ -41,12 +41,29 @@ pub(super) fn query_budget(endpoint: &str) -> Option<String> {
     query_budget_from(endpoint, |name| std::env::var(name).ok())
 }
 
+/// Whether `endpoint`'s authority host is `qlever.dev` or a subdomain of it.
+///
+/// Substring matching on the whole URL would send `LOTUS_QLEVER_TOKEN` to an
+/// attacker domain carrying `qlever.dev` in its path, query, or subdomain prefix.
+pub(super) fn is_qlever_host(endpoint: &str) -> bool {
+    let after_scheme = endpoint
+        .strip_prefix("https://")
+        .or_else(|| endpoint.strip_prefix("http://"))
+        .unwrap_or("");
+    let authority = after_scheme.split(['/', '?', '#']).next().unwrap_or("");
+    let host_port = authority
+        .rsplit_once('@')
+        .map_or(authority, |(_, rest)| rest);
+    let host = host_port.split(':').next().unwrap_or("");
+    host.eq_ignore_ascii_case(QLever::HOST) || host.to_ascii_lowercase().ends_with(".qlever.dev")
+}
+
 /// Like [`query_budget`], but with the environment supplied by the caller.
 pub(super) fn query_budget_from<F>(endpoint: &str, mut env: F) -> Option<String>
 where
     F: FnMut(&str) -> Option<String>,
 {
-    if !endpoint.contains(QLever::HOST) {
+    if !is_qlever_host(endpoint) {
         return None;
     }
     let authenticated = access_token_from(&mut env).is_some();
@@ -68,7 +85,7 @@ where
 /// Headers sent with every SPARQL POST request.
 pub(super) fn request_headers(endpoint: &str) -> Vec<(&'static str, String)> {
     let mut headers = vec![("api-user-agent", QLever::CLIENT_ID.to_string())];
-    if endpoint.contains(QLever::HOST)
+    if is_qlever_host(endpoint)
         && let Some(token) = access_token()
     {
         headers.push((ACCESS_TOKEN_HEADER, format!("Bearer {token}")));

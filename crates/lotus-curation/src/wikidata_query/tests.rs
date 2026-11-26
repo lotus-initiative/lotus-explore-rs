@@ -232,7 +232,12 @@ fn the_occurrence_query_asks_rather_than_selects() {
     let query = has_occurrence_query("Q1", "Q2");
     assert!(query.contains("ASK"), "{query}");
     assert!(!query.contains("SELECT"), "{query}");
-    assert!(query.contains("wd:Q1 wdt:P703 wd:Q2"), "{query}");
+    assert!(query.contains("wd:Q1 p:P703 ?stmt"), "{query}");
+    assert!(query.contains("?stmt ps:P703 wd:Q2"), "{query}");
+    assert!(
+        query.contains("FILTER(?rank != wikibase:DeprecatedRank)"),
+        "{query}"
+    );
 
     let ref_query = has_occurrence_with_ref_query("Q1", "Q2", "Q3");
     assert!(ref_query.contains("ASK"), "{ref_query}");
@@ -427,6 +432,11 @@ fn a_batched_query_asks_for_exactly_the_keys_it_was_given() {
 fn a_batched_occurrence_query_names_its_pairs_as_items_not_literals() {
     let query = build_occurrence_query(&[("Q153".to_string(), "Q15978631".to_string())]);
     assert!(query.contains("(wd:Q153 wd:Q15978631)"), "{query}");
+    assert!(query.contains("?compound p:P703 ?stmt"), "{query}");
+    assert!(
+        query.contains("FILTER(?rank != wikibase:DeprecatedRank)"),
+        "{query}"
+    );
     assert!(
         !query.contains("\"Q153\""),
         "a QID is not a literal:\n{query}"

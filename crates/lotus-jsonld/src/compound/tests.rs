@@ -12,7 +12,7 @@ fn entry() -> CompoundEntry {
     CompoundEntry {
         compound_qid: Arc::from("Q1234"),
         name: Arc::from("Quercetin"),
-        inchikey: Some(Arc::from("IIYFPWUAQGXNF-FGGY-VCPS-NA-NSA")),
+        inchikey: Some(Arc::from("REFJWTPEDVJJIY-UHFFFAOYSA-N")),
         smiles: Some(Arc::from("O=c1c(O)c(-c2ccc(O)c(O)c2)oc2cc(O)cc(O)c12")),
         mass: Some(302.236),
         formula: Some(Arc::from("C15H10O7")),
@@ -50,7 +50,7 @@ fn the_inchikey_resolves_to_pubchem() {
         node["sameAs"]
             .as_array()
             .expect("an array")
-            .contains(&json!(pubchem_uri("IIYFPWUAQGXNF-FGGY-VCPS-NA-NSA")))
+            .contains(&json!(pubchem_uri("REFJWTPEDVJJIY-UHFFFAOYSA-N")))
     );
     assert_eq!(
         node["identifier"][1]["encodingFormat"],

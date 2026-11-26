@@ -84,7 +84,11 @@ pub fn merge_new_compound_creates(rows: &mut [CurationResultRow]) {
     let mut first_for_key = std::collections::HashMap::<String, usize>::new();
     for idx in 0..rows.len() {
         let Some(row) = rows.get(idx) else { continue };
-        if row.status != crate::CurationStatus::NewCompound {
+        if !matches!(
+            row.status,
+            crate::CurationStatus::NewCompound | crate::CurationStatus::PendingDependencies
+        ) || row.wikidata_qid.is_some()
+        {
             continue;
         }
         let Some(key) = row.inchikey.clone().filter(|k| !k.trim().is_empty()) else {

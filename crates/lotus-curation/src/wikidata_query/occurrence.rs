@@ -5,12 +5,17 @@
 use super::statements::property;
 use crate::CURATION_SPARQL_PREFIXES;
 
-/// Whether a compound already has an occurrence in a taxon.
+/// Whether a compound already has an occurrence in a taxon (excluding deprecated statements).
 #[must_use]
 pub fn has_occurrence_query(compound_qid: &str, taxon_qid: &str) -> String {
     format!(
         "{CURATION_SPARQL_PREFIXES}\n\
-         ASK {{ wd:{compound} wdt:{occurs} wd:{taxon} }}",
+         ASK {{\n  \
+           wd:{compound} p:{occurs} ?stmt .\n  \
+           ?stmt ps:{occurs} wd:{taxon} ;\n        \
+                 wikibase:rank ?rank .\n  \
+           FILTER(?rank != wikibase:DeprecatedRank)\n\
+         }}",
         compound = compound_qid,
         occurs = property::OCCURS_IN_TAXON,
         taxon = taxon_qid,
@@ -39,7 +44,7 @@ pub fn has_occurrence_with_ref_query(compound_qid: &str, taxon_qid: &str, ref_qi
     )
 }
 
-/// The batched `(compound, taxon)` occurrence query.
+/// The batched `(compound, taxon)` occurrence query (excluding deprecated statements).
 #[must_use]
 pub fn build_occurrence_query(pairs: &[(String, String)]) -> String {
     let values = pairs
@@ -51,7 +56,10 @@ pub fn build_occurrence_query(pairs: &[(String, String)]) -> String {
         "{CURATION_SPARQL_PREFIXES}\n\
          SELECT DISTINCT ?compound ?taxon WHERE {{\n  \
            VALUES (?compound ?taxon) {{ {values} }}\n  \
-           ?compound wdt:{occurs} ?taxon .\n\
+           ?compound p:{occurs} ?stmt .\n  \
+           ?stmt ps:{occurs} ?taxon ;\n        \
+                 wikibase:rank ?rank .\n  \
+           FILTER(?rank != wikibase:DeprecatedRank)\n\
          }}",
         occurs = property::OCCURS_IN_TAXON,
     )

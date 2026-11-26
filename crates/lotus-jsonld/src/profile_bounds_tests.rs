@@ -21,7 +21,7 @@ fn a_compound_entry() -> CompoundEntry {
     CompoundEntry {
         compound_qid: Arc::from("Q1234"),
         name: Arc::from("Quercetin"),
-        inchikey: Some(Arc::from("IIYFPWUAQGXNF-FGGY-VCPS-NA-NSA")),
+        inchikey: Some(Arc::from("REFJWTPEDVJJIY-UHFFFAOYSA-N")),
         smiles: Some(Arc::from("c1ccccc1")),
         mass: Some(302.236),
         formula: Some(Arc::from("C15H10O7")),

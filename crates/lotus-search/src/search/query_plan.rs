@@ -104,10 +104,9 @@ pub fn build_execution_query_with(
     let base = if !resolved.compounds.is_empty()
         && criteria.structure_search == lotus_model::SmilesSearchType::Exact
     {
-        let taxon = match qid {
-            Some("*") => Some("Q2382443"),
-            other => other,
-        };
+        let taxon = qid.or_else(|| {
+            (criteria.taxon.trim() == "*" || !criteria.reference.trim().is_empty()).then_some("*")
+        });
         let nomenclature = Nomenclature::from(&criteria);
         exact_compounds_query(&resolved.compounds, taxon.map(|t| (t, &nomenclature)))
     } else {
