@@ -106,7 +106,7 @@ pub fn DownloadDispatchState() -> Element {
             class: "flex flex-col items-center justify-center gap-3 p-12 text-center text-muted",
             LotusLoader {}
             p { class: "max-w-[28ch] text-body text-text", "{t(locale, TextKey::PreparingDownload)}" }
-            p { class: "max-w-[36ch] text-body text-subtle", "{t(locale, TextKey::ExampleApiUrls)}" }
+            p { class: "max-w-[36ch] text-body text-subtle", "{t(locale, TextKey::LoadingHint)}" }
         }
     }
 }
@@ -123,7 +123,7 @@ pub fn DownloadOnlyState() -> Element {
             tone: NoticeTone::Warning,
             role: "status",
             aria_live: "polite",
-            span { class: "notice-value flex-1 min-w-0 text-ui text-muted max-w-[72ch]", "{t(locale, TextKey::ExampleApiUrls)}" }
+            span { class: "notice-value flex-1 min-w-0 text-ui text-muted max-w-[72ch]", "{t(locale, TextKey::DownloadOnlyHint)}" }
             Button {
                 r#type: "button",
                 label: t(locale, TextKey::RunSearch).to_string(),

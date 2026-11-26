@@ -89,6 +89,43 @@ fn DownloadDispatchSubject() -> Element {
     rsx! { DownloadDispatchState {} }
 }
 
+#[component]
+fn DownloadOnlySubject() -> Element {
+    use_context_provider(|| Signal::new(Locale::En));
+    let explore = use_signal(ExploreState::default);
+    let criteria = use_signal(|| SearchCriteria::up_to_year(2026));
+    let baseline = use_signal(|| SearchCriteria::up_to_year(2026));
+    let form = FormCriteriaContext::new(criteria, baseline);
+    let interactions = ExploreInteractions::new(
+        criteria,
+        form,
+        explore,
+        SearchTaskController::new(),
+        HybridRepository,
+    );
+    use_context_provider(|| ResultsContext::new(explore));
+    use_context_provider(|| form);
+    use_context_provider(|| interactions);
+    rsx! { DownloadOnlyState {} }
+}
+
+#[test]
+fn download_states_show_download_copy_rather_than_api_url_examples() {
+    let dispatch_html = render_with_contexts(DownloadDispatchSubject);
+    assert!(
+        dispatch_html.contains(t(Locale::En, TextKey::LoadingHint)),
+        "expected LoadingHint in DownloadDispatchState:\n{dispatch_html}"
+    );
+    assert!(!dispatch_html.contains(t(Locale::En, TextKey::ExampleApiUrls)));
+
+    let download_only_html = render_with_contexts(DownloadOnlySubject);
+    assert!(
+        download_only_html.contains(t(Locale::En, TextKey::DownloadOnlyHint)),
+        "expected DownloadOnlyHint in DownloadOnlyState:\n{download_only_html}"
+    );
+    assert!(!download_only_html.contains(t(Locale::En, TextKey::ExampleApiUrls)));
+}
+
 #[test]
 fn lotus_loader_renders_flower_only_svg_with_entity_tokens() {
     let html = render_with_contexts(LoaderSubject);

@@ -32,7 +32,7 @@ use lotus_model::STRUCTURE_INPUT_EXAMPLES;
 use lotus_model::SmilesSearchType;
 
 /// JSON Schema for search form autofill / MCP tooling introspection.
-const SEARCH_SCHEMA: &str = r#"{"type":"object","properties":{"taxon":{"type":"string","description":"Taxon name, Wikidata QID, or * for all taxa"},"reference":{"type":"string","description":"Reference as a Wikidata QID or a DOI"},"smiles":{"type":"string","description":"Structure, compound name or InChIKey. A name or InChIKey is resolved to its Wikidata compound; anything else is sent to the structure service as written."},"mass_min":{"type":"number","description":"Minimum molecular mass in Da"},"mass_max":{"type":"number","description":"Maximum molecular mass in Da"},"year_min":{"type":"integer","description":"Minimum publication year"},"year_max":{"type":"integer","description":"Maximum publication year"},"formula_exact":{"type":"string","description":"Exact molecular formula filter, e.g. C7H5O5N"},"formula_enabled":{"type":"boolean","description":"Whether the formula filter is applied"},"stype":{"type":"string","enum":["exact","substructure","similarity"],"description":"How the resolved compound is searched: that compound only, or every compound containing / similar to it"},"similarity_threshold":{"type":"number","minimum":0,"maximum":1,"description":"Minimum Tanimoto similarity threshold (0.0 to 1.0) when stype is similarity"}},"additionalProperties":true}"#;
+const SEARCH_SCHEMA: &str = r#"{"type":"object","properties":{"taxon":{"type":"string","description":"Taxon name, Wikidata QID, or * for all taxa"},"reference":{"type":"string","description":"Reference as a Wikidata QID or a DOI"},"smiles":{"type":"string","description":"Structure, compound name or InChIKey. A name or InChIKey is resolved to its Wikidata compound; anything else is sent to the structure service as written."},"mass_min":{"type":"number","description":"Minimum molecular mass in Da"},"mass_max":{"type":"number","description":"Maximum molecular mass in Da"},"year_min":{"type":"integer","description":"Minimum publication year"},"year_max":{"type":"integer","description":"Maximum publication year"},"formula_exact":{"type":"string","description":"Exact molecular formula filter, e.g. C7H5NO5"},"formula_enabled":{"type":"boolean","description":"Whether the formula filter is applied"},"stype":{"type":"string","enum":["exact","substructure","similarity"],"description":"How the resolved compound is searched: that compound only, or every compound containing / similar to it"},"similarity_threshold":{"type":"number","exclusiveMinimum":0,"maximum":1,"description":"Minimum Tanimoto similarity threshold (in (0.0, 1.0]) when stype is similarity"}},"additionalProperties":true}"#;
 
 pub fn SearchPanel() -> Element {
     let state = use_results_context();
@@ -337,11 +337,11 @@ fn StructureSearchOptions() -> Element {
                         name: "similarity_threshold",
                         autocomplete: "off",
                         r#type: "range",
-                        min: "0.0",
+                        min: "0.01",
                         max: "1.0",
                         step: "0.01",
                         value: "{similarity_threshold}",
-                        aria_valuemin: "0",
+                        aria_valuemin: "0.01",
                         aria_valuemax: "1",
                         aria_valuenow: "{similarity_threshold}",
                         class: "min-h-[44px] w-full bg-transparent accent-accent cursor-pointer focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",

@@ -239,8 +239,8 @@ pub fn MassRangeInput() -> Element {
                         r#type: "number",
                          autocomplete: "off",
                         min: "0",
-                        max: "10000",
-                        step: "1",
+                        max: "{lotus_model::MASS_MAX}",
+                        step: "any",
                         value: "{min_value}",
                         class: "resize-field w-full min-h-[44px] rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         oninput: move |e| {
@@ -264,8 +264,8 @@ pub fn MassRangeInput() -> Element {
                         r#type: "number",
                         autocomplete: "off",
                         min: "0",
-                        max: "10000",
-                        step: "1",
+                        max: "{lotus_model::MASS_MAX}",
+                        step: "any",
                         value: "{max_value}",
                         class: "resize-field w-full min-h-[44px] rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         oninput: move |e| {

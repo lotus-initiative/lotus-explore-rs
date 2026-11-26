@@ -40,7 +40,7 @@ pub const fn it_t(key: TextKey) -> &'static str {
         }
         TextKey::DuplicateRowsHint => "Perché alcuni composti compaiono più di una volta?",
         TextKey::DuplicateRowsExplain => {
-            "Ogni riga è un composto così come un riferimento lo riporta: un composto trovato da tre articoli occupa tre righe che differiscono solo per il riferimento. Le occorrenze sono distinte, i composti no. Il numero più piccolo accanto al conteggio delle righe indica quanti composti distinti contiene il risultato."
+            "Ogni riga rappresenta un record composto-taxon-riferimento proveniente da Wikidata. Un composto riportato in più taxa o articoli compare su più righe, e la stessa tripla composto-taxon-riferimento può ripetersi se corrispondono più dichiarazioni o sinonimi. Il numero più piccolo accanto al conteggio delle voci indica le triple composto-taxon-riferimento distinte; i composti distinti sono contati separatamente."
         }
         TextKey::QueryHash => "Hash della query",
         TextKey::ResultHash => "Hash del risultato",
@@ -153,6 +153,9 @@ pub const fn it_t(key: TextKey) -> &'static str {
         TextKey::DatasetStatistics => "Statistiche del dataset",
         TextKey::DownloadResults => "Scarica i risultati",
         TextKey::PreparingDownload => "Preparazione download...",
+        TextKey::DownloadOnlyHint => {
+            "Nessun risultato ancora recuperato per questo link di download. Avvia la ricerca per generare l'esportazione."
+        }
         TextKey::StartingCsvDownload => "Avvio download CSV...",
         TextKey::PreparingJsonDownload => "Preparazione download JSON...",
         TextKey::PreparingRdfDownload => "Preparazione download RDF...",

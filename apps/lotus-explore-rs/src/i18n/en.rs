@@ -40,7 +40,7 @@ pub const fn en_t(key: TextKey) -> &'static str {
         }
         TextKey::DuplicateRowsHint => "Why are some compounds listed more than once?",
         TextKey::DuplicateRowsExplain => {
-            "Each row is one compound as reported by one reference, so a compound found by three papers occupies three rows that differ only in the reference. The occurrences are distinct; the compounds are not. The smaller number beside the row count is how many distinct compounds are in the result."
+            "Each row is a compound-taxon-reference record from Wikidata. A compound reported across multiple taxa or articles appears on multiple rows, and the same compound-taxon-reference triple can repeat if multiple statements or aliases match. The smaller number beside the entry count shows distinct compound-taxon-reference triples; distinct compounds are counted separately."
         }
         TextKey::QueryHash => "Query hash",
         TextKey::ResultHash => "Result hash",
@@ -143,6 +143,9 @@ pub const fn en_t(key: TextKey) -> &'static str {
         TextKey::DatasetStatistics => "Dataset statistics",
         TextKey::DownloadResults => "Download results",
         TextKey::PreparingDownload => "Preparing download...",
+        TextKey::DownloadOnlyHint => {
+            "No results have been fetched yet for this download link. Run search to generate the export."
+        }
         TextKey::StartingCsvDownload => "Starting CSV download...",
         TextKey::PreparingJsonDownload => "Preparing JSON download...",
         TextKey::PreparingRdfDownload => "Preparing RDF download...",

@@ -42,7 +42,7 @@ pub const fn fr_t(key: TextKey) -> &'static str {
             "Pourquoi certains composés apparaissent-ils plusieurs fois ?"
         }
         TextKey::DuplicateRowsExplain => {
-            "Chaque ligne est un composé tel qu'un document le rapporte : un composé trouvé par trois articles occupe trois lignes qui ne diffèrent que par la référence. Les occurrences sont distinctes, les composés non. Le nombre plus petit à côté du nombre de lignes est le nombre de composés distincts."
+            "Chaque ligne correspond à un enregistrement composé-taxon-référence issu de Wikidata. Un composé rapporté dans plusieurs taxons ou articles occupe plusieurs lignes, et un même triplet composé-taxon-référence peut se répéter lorsque plusieurs déclarations ou synonymes correspondent. Le nombre plus petit à côté du nombre d'entrées indique les triplets composé-taxon-référence distincts ; les composés distincts sont comptés séparément."
         }
         TextKey::QueryHash => "Hash de la requête",
         TextKey::ResultHash => "Hash du résultat",
@@ -160,6 +160,9 @@ pub const fn fr_t(key: TextKey) -> &'static str {
         TextKey::DatasetStatistics => "Statistiques du jeu de données",
         TextKey::DownloadResults => "Télécharger les résultats",
         TextKey::PreparingDownload => "Préparation du téléchargement...",
+        TextKey::DownloadOnlyHint => {
+            "Aucun résultat n'a encore été récupéré pour ce lien de téléchargement. Lancez la recherche pour générer l'export."
+        }
         TextKey::StartingCsvDownload => "Démarrage du téléchargement CSV...",
         TextKey::PreparingJsonDownload => "Préparation du téléchargement JSON...",
         TextKey::PreparingRdfDownload => "Préparation du téléchargement RDF...",

@@ -174,10 +174,16 @@ fn structure_search_radios_expose_explicit_values_and_reference_links_datalist()
         r#"value="substructure""#,
         r#"value="similarity""#,
         r#"list="reference-suggestions""#,
+        "C7H5NO5",
+        "exclusiveMinimum&#34;:0",
     ] {
         assert!(
             html.contains(expected),
             "expected search panel markup to contain {expected}:\n{html}"
         );
     }
+    assert!(
+        !html.contains("C7H5O5N"),
+        "non-Hill formula C7H5O5N must not appear:\n{html}"
+    );
 }

@@ -183,7 +183,7 @@
       year_max: { type: "integer", description: "Maximum publication year." },
       formula_exact: {
         type: "string",
-        description: "Exact molecular formula filter, e.g. C7H5O5N.",
+        description: "Exact molecular formula filter, e.g. C7H5NO5.",
       },
       formula_enabled: {
         type: "boolean",
@@ -194,6 +194,13 @@
         enum: ["exact", "substructure", "similarity"],
         description:
           "How the resolved compound is searched: that compound only, or every compound containing / similar to it.",
+      },
+      similarity_threshold: {
+        type: "number",
+        exclusiveMinimum: 0,
+        maximum: 1,
+        description:
+          "Minimum Tanimoto similarity threshold (in (0.0, 1.0]) when stype is similarity.",
       },
     },
     additionalProperties: true,
@@ -226,6 +233,7 @@
         setField("#formula-exact", input.formula_exact);
         checkField("#formula-enabled", input.formula_enabled);
         if (input.stype) chooseRadio(input.stype);
+        setField("#threshold-input", input.similarity_threshold);
         var prevTbody = document.querySelector("table tbody");
         var prevSnapshot = prevTbody ? prevTbody.textContent : "";
         var sawBusyOrClear = !document.querySelector("table tbody tr");

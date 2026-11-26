@@ -40,7 +40,7 @@ pub const fn de_t(key: TextKey) -> &'static str {
         }
         TextKey::DuplicateRowsHint => "Warum stehen manche Verbindungen mehrfach in der Liste?",
         TextKey::DuplicateRowsExplain => {
-            "Jede Zeile ist eine Verbindung, so wie eine Quelle sie berichtet: Eine in drei Papers gefundene Verbindung belegt drei Zeilen, die sich nur in der Referenz unterscheiden. Die Funde sind verschieden, die Verbindungen nicht. Die kleinere Zahl neben der Zeilenzahl ist die Anzahl verschiedener Verbindungen."
+            "Jede Zeile ist ein Verbindung-Taxon-Referenz-Eintrag aus Wikidata. Eine in mehreren Taxa oder Artikeln berichtete Verbindung belegt mehrere Zeilen, und dasselbe Verbindung-Taxon-Referenz-Tripel kann mehrfach vorkommen, wenn mehrere Aussagen oder Synonyme zutreffen. Die kleinere Zahl neben der Eintragszahl gibt die verschiedenen Verbindung-Taxon-Referenz-Tripel an; verschiedene Verbindungen werden separat gezählt."
         }
         TextKey::QueryHash => "Abfrage-Hash",
         TextKey::ResultHash => "Ergebnis-Hash",
@@ -149,6 +149,9 @@ pub const fn de_t(key: TextKey) -> &'static str {
         TextKey::DatasetStatistics => "Datensatz-Statistiken",
         TextKey::DownloadResults => "Ergebnisse herunterladen",
         TextKey::PreparingDownload => "Download wird vorbereitet...",
+        TextKey::DownloadOnlyHint => {
+            "Für diesen Download-Link wurden noch keine Ergebnisse abgerufen. Suche starten, um den Export zu erzeugen."
+        }
         TextKey::StartingCsvDownload => "CSV-Download wird gestartet...",
         TextKey::PreparingJsonDownload => "JSON-Download wird vorbereitet...",
         TextKey::PreparingRdfDownload => "RDF-Download wird vorbereitet...",

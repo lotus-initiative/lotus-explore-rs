@@ -45,6 +45,7 @@ fn NumPair(
     label: &'static str,
     min_value: u16,
     max_value: u16,
+    limit_max: u16,
     on_min: EventHandler<u16>,
     on_max: EventHandler<u16>,
 ) -> Element {
@@ -65,7 +66,7 @@ fn NumPair(
                         autocomplete: "off",
                         class: "resize-field tabular-nums w-full min-h-[44px] rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         min: "0",
-                        max: "10000",
+                        max: "{limit_max}",
                         aria_label: "{label} {t(locale, TextKey::MinCountAria)}",
                         value: "{min_value}",
                         oninput: move |e| {
@@ -84,7 +85,7 @@ fn NumPair(
                         autocomplete: "off",
                         class: "resize-field tabular-nums w-full min-h-[44px] rounded-xl border border-border bg-surface px-2.5 py-1.5 text-body text-text shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                         min: "0",
-                        max: "10000",
+                        max: "{limit_max}",
                         aria_label: "{label} {t(locale, TextKey::MaxCountAria)}",
                         value: "{max_value}",
                         oninput: move |e| {
@@ -152,7 +153,7 @@ pub fn FormulaSection() -> Element {
                         input {
                             id: "formula-exact",
                             name: "formula_exact",
-                            "toolparamdescription": "Exact molecular formula filter, e.g. C7H5O5N.",
+                            "toolparamdescription": "Exact molecular formula filter, e.g. C7H5NO5.",
                             r#type: "text",
                             class: "resize-field w-full min-h-[44px] rounded-xl border border-border bg-surface px-3 py-2 text-body text-text placeholder:text-subtle shadow-xs focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
                             autocomplete: "off",
@@ -168,6 +169,7 @@ pub fn FormulaSection() -> Element {
                             label: "C",
                             min_value: criteria.c_min,
                             max_value: criteria.c_max,
+                            limit_max: lotus_model::element_max::C,
                             on_min: move |v| ctx.update(FormAction::CMin(v)),
                             on_max: move |v| ctx.update(FormAction::CMax(v)),
                         }
@@ -175,6 +177,7 @@ pub fn FormulaSection() -> Element {
                             label: "H",
                             min_value: criteria.h_min,
                             max_value: criteria.h_max,
+                            limit_max: lotus_model::element_max::H,
                             on_min: move |v| ctx.update(FormAction::HMin(v)),
                             on_max: move |v| ctx.update(FormAction::HMax(v)),
                         }
@@ -182,6 +185,7 @@ pub fn FormulaSection() -> Element {
                             label: "N",
                             min_value: criteria.n_min,
                             max_value: criteria.n_max,
+                            limit_max: lotus_model::element_max::N,
                             on_min: move |v| ctx.update(FormAction::NMin(v)),
                             on_max: move |v| ctx.update(FormAction::NMax(v)),
                         }
@@ -189,6 +193,7 @@ pub fn FormulaSection() -> Element {
                             label: "O",
                             min_value: criteria.o_min,
                             max_value: criteria.o_max,
+                            limit_max: lotus_model::element_max::O,
                             on_min: move |v| ctx.update(FormAction::OMin(v)),
                             on_max: move |v| ctx.update(FormAction::OMax(v)),
                         }
@@ -196,6 +201,7 @@ pub fn FormulaSection() -> Element {
                             label: "P",
                             min_value: criteria.p_min,
                             max_value: criteria.p_max,
+                            limit_max: lotus_model::element_max::P,
                             on_min: move |v| ctx.update(FormAction::PMin(v)),
                             on_max: move |v| ctx.update(FormAction::PMax(v)),
                         }
@@ -203,6 +209,7 @@ pub fn FormulaSection() -> Element {
                             label: "S",
                             min_value: criteria.s_min,
                             max_value: criteria.s_max,
+                            limit_max: lotus_model::element_max::S,
                             on_min: move |v| ctx.update(FormAction::SMin(v)),
                             on_max: move |v| ctx.update(FormAction::SMax(v)),
                         }

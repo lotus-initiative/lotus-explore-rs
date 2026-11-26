@@ -220,6 +220,7 @@ pub enum TextKey {
     DatasetStatistics,
     DownloadResults,
     PreparingDownload,
+    DownloadOnlyHint,
     StartingCsvDownload,
     PreparingJsonDownload,
     PreparingRdfDownload,

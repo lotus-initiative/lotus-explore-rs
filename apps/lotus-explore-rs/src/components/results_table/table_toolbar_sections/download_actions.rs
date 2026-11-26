@@ -337,8 +337,8 @@ pub fn DownloadActionsGroup() -> Element {
     });
     let toolbar_snapshot = use_toolbar_result_snapshot(explore);
 
-    let snapshot = toolbar_snapshot.read();
-    let toolbar_model = use_signal(|| {
+    let toolbar_model = use_memo(move || {
+        let snapshot = toolbar_snapshot.read();
         let now = crate::clock::now_iso8601();
         build_download_toolbar_model_with_endpoint(
             &criteria.read(),
@@ -362,6 +362,7 @@ pub fn DownloadActionsGroup() -> Element {
         notice: use_signal(|| None),
     };
 
+    let snapshot = toolbar_snapshot.read();
     let sparql_query_value = snapshot.sparql_query.clone();
     let metadata_json_value = snapshot.metadata_json.clone();
     let toolbar = toolbar_model.read();
@@ -436,7 +437,7 @@ pub fn DownloadActionsGroup() -> Element {
                         li {
                             DownloadMetadataButton {
                                 metadata_json: body.clone(),
-                                toolbar_model,
+                                toolbar_model: ReadSignal::from(toolbar_model),
                                 locale,
                                 disabled: *signals.busy.read(),
                                 download_notice: signals.notice,

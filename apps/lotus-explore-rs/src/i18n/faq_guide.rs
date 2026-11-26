@@ -122,8 +122,8 @@ pub const SECTIONS: &[GuideSection] = &[
                 ],
                 &[
                     "*",
-                    "No taxon constraint at all — every organism",
-                    "one lookup",
+                    "Any organism with a recorded occurrence (excludes compounds without a taxon)",
+                    "none",
                 ],
             ]),
             FaqBlock::Heading("Why the common-name lookup is a second request"),

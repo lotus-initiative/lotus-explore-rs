@@ -205,7 +205,7 @@ pub mod taxon_nomenclature {
 }
 
 /// Upper bound for the mass range, in daltons.
-pub(crate) const MASS_MAX: f64 = 10_000.0;
+pub const MASS_MAX: f64 = 10_000.0;
 
 /// Earliest plausible publication year. Earlier means a parsing fault, not
 /// history: the LOTUS sources are modern.

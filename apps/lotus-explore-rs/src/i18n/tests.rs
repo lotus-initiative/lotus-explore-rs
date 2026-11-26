@@ -146,3 +146,14 @@ fn graph_two_type_note_and_legend_toggle_aria_are_localized_and_label_in_name() 
         }
     }
 }
+
+#[test]
+fn duplicate_rows_explanation_names_triples_across_all_locales() {
+    for locale in [Locale::En, Locale::Fr, Locale::De, Locale::It] {
+        let text = t(locale, TextKey::DuplicateRowsExplain).to_lowercase();
+        assert!(
+            text.contains("triple") || text.contains("tripel"),
+            "{locale:?} DuplicateRowsExplain must explain compound-taxon-reference triples: {text}"
+        );
+    }
+}
