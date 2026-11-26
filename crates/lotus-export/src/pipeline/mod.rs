@@ -92,6 +92,7 @@ pub enum ExportError {
 
 /// Read one SPARQL CSV payload into row maps.
 pub(crate) fn read_csv_rows(bytes: &[u8]) -> Result<Vec<Row>, csv::Error> {
+    let bytes = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(bytes);
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
         .flexible(true)

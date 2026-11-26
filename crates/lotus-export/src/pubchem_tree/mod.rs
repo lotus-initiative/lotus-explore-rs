@@ -50,9 +50,6 @@ pub struct PubchemTreeOptions<'a> {
 }
 
 /// The six JSON documents produced by [`run_pubchem_tree`].
-///
-/// `npclassifier_full` and `npclassifier_pubchem` are empty strings only when
-/// no loaded structure matches a row in the `NPClassifier` cache.
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct PubchemTreeOutputs {
     /// Full biological taxonomy tree (`lotus_biological_tree.json`).
@@ -123,19 +120,13 @@ pub async fn run_pubchem_tree<H: Http>(
     );
 
     let sparql_endpoint = options.endpoint.url();
-    let (npclassifier_full, npclassifier_pubchem) = if npclassifier.is_empty() {
-        (String::new(), String::new())
-    } else {
-        (
-            render(&FullDocument::new(
-                TreeKind::NpClassifier,
-                &npclassifier,
-                options.now,
-                sparql_endpoint,
-            ))?,
-            render(&compact::npclassifier(&npclassifier))?,
-        )
-    };
+    let npclassifier_full = render(&FullDocument::new(
+        TreeKind::NpClassifier,
+        &npclassifier,
+        options.now,
+        sparql_endpoint,
+    ))?;
+    let npclassifier_pubchem = render(&compact::npclassifier(&npclassifier))?;
 
     Ok(PubchemTreeOutputs {
         biological_full: render(&FullDocument::new(

@@ -13,6 +13,10 @@ use serde::{Serialize, Serializer};
 pub(super) trait TreeNode {
     /// The `Name` the node is written and sorted under.
     fn name(&self) -> &str;
+    /// Optional disambiguator (such as QID) when sibling names collide in compact maps.
+    fn disambiguator(&self) -> Option<&str> {
+        None
+    }
     /// This node plus every node under its `Children` (not its `Compounds`).
     fn node_count(&self) -> usize;
 }
@@ -146,6 +150,10 @@ impl TreeNode for TaxonNode {
         &self.name
     }
 
+    fn disambiguator(&self) -> Option<&str> {
+        Some(&self.identifiers.qid)
+    }
+
     fn node_count(&self) -> usize {
         1 + count_nodes(&self.children)
     }
@@ -163,6 +171,10 @@ pub(super) struct ChemicalNode {
 impl TreeNode for ChemicalNode {
     fn name(&self) -> &str {
         &self.compound.name
+    }
+
+    fn disambiguator(&self) -> Option<&str> {
+        Some(&self.compound.identifiers.qid)
     }
 
     fn node_count(&self) -> usize {

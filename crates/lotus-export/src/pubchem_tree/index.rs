@@ -80,16 +80,24 @@ impl Index {
         let mut compounds: HashMap<String, CompoundProps> = HashMap::new();
         let columns: [Column<'_>; 5] = [
             (&data.compound_smiles_can, "compound_smiles_can", |p, v| {
-                p.smiles_can = Some(v.to_string());
+                if let Some(s) = non_empty(v) {
+                    p.smiles_can = Some(s);
+                }
             }),
             (&data.compound_smiles_iso, "compound_smiles_iso", |p, v| {
-                p.smiles_iso = Some(v.to_string());
+                if let Some(s) = non_empty(v) {
+                    p.smiles_iso = Some(s);
+                }
             }),
             (&data.compound_smarts, "compound_smarts", |p, v| {
-                p.smarts = non_empty(v);
+                if let Some(s) = non_empty(v) {
+                    p.smarts = Some(s);
+                }
             }),
             (&data.compound_cxsmiles, "compound_cxsmiles", |p, v| {
-                p.cxsmiles = non_empty(v);
+                if let Some(s) = non_empty(v) {
+                    p.cxsmiles = Some(s);
+                }
             }),
             (&data.compound_taxon, "compound_inchikey", |p, v| {
                 p.inchikeys.extend(non_empty(v));
@@ -101,8 +109,10 @@ impl Index {
         for row in &data.compound_label {
             let entry = compounds.entry(qid(row, "compound")).or_default();
             let is_mul = cell(row, "lang") == "mul";
-            if is_mul || !entry.label_is_mul {
-                entry.label = Some(cell(row, "compound_label").to_string());
+            if (is_mul || !entry.label_is_mul)
+                && let Some(label) = non_empty(cell(row, "compound_label"))
+            {
+                entry.label = Some(label);
                 entry.label_is_mul = is_mul;
             }
         }
@@ -114,7 +124,9 @@ impl Index {
             "taxon",
             "taxon_name",
             |t, v| {
-                t.name = Some(v.to_string());
+                if let Some(name) = non_empty(v) {
+                    t.name = Some(name);
+                }
             },
         );
         fill(
@@ -123,15 +135,17 @@ impl Index {
             "taxon",
             "taxon_ncbi",
             |t, v| {
-                t.ncbi = non_empty(v);
+                if let Some(ncbi) = non_empty(v) {
+                    t.ncbi = Some(ncbi);
+                }
             },
         );
 
         let mut references: HashMap<String, HashMap<String, BTreeMap<String, ReferenceProps>>> =
             HashMap::new();
-        let mut cite =
-            |rows: &[Row], column: &str, set: fn(&mut ReferenceProps, Option<String>)| {
-                for row in rows {
+        let mut cite = |rows: &[Row], column: &str, set: fn(&mut ReferenceProps, String)| {
+            for row in rows {
+                if let Some(val) = non_empty(cell(row, column)) {
                     let reference = references
                         .entry(qid(row, "compound"))
                         .or_default()
@@ -139,11 +153,12 @@ impl Index {
                         .or_default()
                         .entry(qid(row, "reference"))
                         .or_default();
-                    set(reference, non_empty(cell(row, column)));
+                    set(reference, val);
                 }
-            };
-        cite(&data.reference_doi, "doi", |r, doi| r.doi = doi);
-        cite(&data.reference_pmid, "pmid", |r, pmid| r.pmid = pmid);
+            }
+        };
+        cite(&data.reference_doi, "doi", |r, doi| r.doi = Some(doi));
+        cite(&data.reference_pmid, "pmid", |r, pmid| r.pmid = Some(pmid));
 
         Self {
             compounds,
@@ -221,6 +236,9 @@ impl Hierarchy {
         for row in rows {
             let child = qid(row, child_column);
             let parent = qid(row, parent_column);
+            if child.is_empty() || parent.is_empty() {
+                continue;
+            }
             hierarchy
                 .parents_of
                 .entry(child.clone())
@@ -228,7 +246,25 @@ impl Hierarchy {
                 .push(parent.clone());
             hierarchy.children_of.entry(parent).or_default().push(child);
         }
+        for list in hierarchy
+            .parents_of
+            .values_mut()
+            .chain(hierarchy.children_of.values_mut())
+        {
+            list.sort_unstable();
+            list.dedup();
+        }
         hierarchy
+    }
+
+    /// All distinct QIDs appearing as parents or children, sorted by QID.
+    pub(super) fn all_qids(&self) -> Vec<&String> {
+        let qids: BTreeSet<&String> = self
+            .children_of
+            .keys()
+            .chain(self.parents_of.keys())
+            .collect();
+        qids.into_iter().collect()
     }
 
     /// The parents in row order, a parent listed once per row.

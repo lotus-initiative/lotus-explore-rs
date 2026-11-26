@@ -88,14 +88,16 @@ impl SmilesIndex {
                 continue;
             };
             for smiles in props.smiles() {
-                entries
+                let entry = entries
                     .entry(smiles.clone())
                     .or_insert_with(|| SmilesEntry {
                         qid: compound.clone(),
                         inchikeys: BTreeSet::new(),
-                    })
-                    .inchikeys
-                    .extend(props.inchikeys.iter().cloned());
+                    });
+                if compound < entry.qid {
+                    entry.qid.clone_from(&compound);
+                }
+                entry.inchikeys.extend(props.inchikeys.iter().cloned());
             }
         }
         Self(entries)

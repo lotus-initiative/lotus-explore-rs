@@ -3,7 +3,7 @@
 //! The two trees read from Wikidata hierarchies: taxa under Biota (`P171`) with
 //! their compounds, and compounds under chemical compound (`Q11173`) via `P279`.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use super::fetch::PubChemData;
 use super::index::{Hierarchy, Index, qid};
@@ -12,12 +12,13 @@ use super::nodes::{ChemicalNode, TaxonCompound, TaxonIdentifiers, TaxonNode, sor
 /// Build the biological tree: every taxon with a compound, every ancestor of
 /// one, and the compounds with an `InChIKey` as leaves.
 pub(super) fn biological_tree(data: &PubChemData, index: &Index) -> Vec<TaxonNode> {
-    let mut taxon_compounds: HashMap<String, Vec<String>> = HashMap::new();
+    let mut taxon_compounds: HashMap<String, BTreeSet<String>> = HashMap::new();
     for row in &data.compound_taxon {
-        taxon_compounds
-            .entry(qid(row, "taxon"))
-            .or_default()
-            .push(qid(row, "compound"));
+        let compound = qid(row, "compound");
+        let taxon = qid(row, "taxon");
+        if !compound.is_empty() && !taxon.is_empty() {
+            taxon_compounds.entry(taxon).or_default().insert(compound);
+        }
     }
     let taxa = Hierarchy::new(&data.taxon_parent, "taxon", "taxon_parent");
 
@@ -56,14 +57,27 @@ pub(super) fn biological_tree(data: &PubChemData, index: &Index) -> Vec<TaxonNod
         relevant: &relevant,
         visited: HashSet::new(),
     };
-    sort_by_name(roots.into_iter().filter_map(|r| builder.node(r)).collect())
+    let mut nodes: Vec<TaxonNode> = roots.into_iter().filter_map(|r| builder.node(r)).collect();
+    // Deterministic cycle breaking: pick lowest unvisited QID in any remaining
+    // cyclic component so cyclic P171 edges do not drop entire subtrees.
+    while let Some(next) = relevant
+        .iter()
+        .copied()
+        .filter(|t| !builder.visited.contains(t))
+        .min()
+    {
+        if let Some(node) = builder.node(next) {
+            nodes.push(node);
+        }
+    }
+    sort_by_name(nodes)
 }
 
 /// What one biological-tree walk reads, and the taxa it has placed.
 struct BiologicalTree<'a> {
     index: &'a Index,
     taxa: &'a Hierarchy,
-    taxon_compounds: &'a HashMap<String, Vec<String>>,
+    taxon_compounds: &'a HashMap<String, BTreeSet<String>>,
     relevant: &'a HashSet<&'a str>,
     visited: HashSet<&'a str>,
 }
@@ -116,13 +130,20 @@ impl<'a> BiologicalTree<'a> {
 pub(super) fn chemical_tree(data: &PubChemData, index: &Index) -> Vec<ChemicalNode> {
     let classes = Hierarchy::new(&data.compound_parent, "compound", "compound_parent");
     let mut visited = HashSet::new();
-    sort_by_name(
-        classes
-            .roots()
-            .into_iter()
-            .filter_map(|root| chemical_node(root, &classes, index, &mut visited))
-            .collect(),
-    )
+    let mut nodes: Vec<ChemicalNode> = classes
+        .roots()
+        .into_iter()
+        .filter_map(|root| chemical_node(root, &classes, index, &mut visited))
+        .collect();
+    // Break any cyclic P279 component deterministically by sorted QID.
+    for qid in classes.all_qids() {
+        if !visited.contains(qid.as_str())
+            && let Some(node) = chemical_node(qid, &classes, index, &mut visited)
+        {
+            nodes.push(node);
+        }
+    }
+    sort_by_name(nodes)
 }
 
 /// The compound's node, or `None` when it was placed already or neither it

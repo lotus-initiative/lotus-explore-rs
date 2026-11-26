@@ -12,8 +12,8 @@ use super::nodes::{
     ChemicalNode, ClassMember, CompoundNode, Pathway, Reference, TaxonNode, TreeNode,
 };
 
-/// One level: its QID when it has one, and its children by name. A key that
-/// two children share keeps the later child.
+/// One level: its QID when it has one, and its children by name (with colliding
+/// sibling names disambiguated by QID).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(super) struct Branch<C> {
     #[serde(rename = "QID", skip_serializing_if = "Option::is_none")]
@@ -24,12 +24,23 @@ pub(super) struct Branch<C> {
 
 impl<C> Branch<C> {
     /// A branch over `nodes`, which has no `children` key when there are none.
+    /// Sibling name collisions are disambiguated rather than overwriting an earlier sibling.
     fn new<N: TreeNode>(qid: Option<String>, nodes: &[N], convert: impl Fn(&N) -> C) -> Self {
         let children = (!nodes.is_empty()).then(|| {
-            nodes
-                .iter()
-                .map(|n| (n.name().to_string(), convert(n)))
-                .collect()
+            let mut map = BTreeMap::new();
+            for node in nodes {
+                let name = node.name().to_string();
+                let key = if map.contains_key(&name) {
+                    match node.disambiguator().filter(|d| !d.is_empty()) {
+                        Some(d) => format!("{name} ({d})"),
+                        None => name,
+                    }
+                } else {
+                    name
+                };
+                map.insert(key, convert(node));
+            }
+            map
         });
         Self { qid, children }
     }
@@ -108,14 +119,18 @@ impl OrganismCompound {
         if references.is_empty() {
             return;
         }
-        let list = self.references.get_or_insert_default();
         for r in references {
+            if r.doi.is_none() && r.pmid.is_none() {
+                continue;
+            }
             let key = (r.doi.clone(), r.pmid.clone());
-            if self.cited.insert(key) && (r.doi.is_some() || r.pmid.is_some()) {
-                list.push(CompactReference {
-                    doi: r.doi.clone(),
-                    pmid: r.pmid.clone(),
-                });
+            if self.cited.insert(key) {
+                self.references
+                    .get_or_insert_default()
+                    .push(CompactReference {
+                        doi: r.doi.clone(),
+                        pmid: r.pmid.clone(),
+                    });
             }
         }
     }

@@ -96,9 +96,9 @@ pub fn write_archive(input: &WriteArchiveInput<'_>) -> Result<ArchiveArtifacts, 
             append_member(&mut archive, "missing-inchikey.csv", &missing_inchi_key_csv)?;
             append_member(&mut archive, "smiles-parse-errors.csv", &errors_csv)?;
             append_member(&mut archive, "manifest.json", &manifest_bytes)?;
-            archive.finish()?;
+            let encoder = archive.into_inner()?;
+            encoder.finish()?;
         }
-        // Dropping the Builder and GzEncoder here finalizes tar and gzip.
         buffer
     };
 

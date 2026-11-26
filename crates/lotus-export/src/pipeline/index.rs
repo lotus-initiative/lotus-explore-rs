@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use lotus_query::extract_qid;
+use super::ExportError;
 
 /// One non-deprecated occurrence triplet from
 /// [`COMPOUND_TAXON_REFERENCE_QUERY`](lotus_query::COMPOUND_TAXON_REFERENCE_QUERY),
@@ -74,41 +74,65 @@ fn set_col(
     }
 }
 
+fn require_col(
+    headers: &csv::StringRecord,
+    table: &'static str,
+    column: &'static str,
+) -> Result<(), ExportError> {
+    if headers.iter().any(|h| h == column) {
+        Ok(())
+    } else {
+        Err(ExportError::MissingColumn { table, column })
+    }
+}
+
 /// Index a CSV payload by QID without allocating per-row `HashMap`s.
 fn index_csv_records<V: Default>(
     bytes: &[u8],
-    key_col: &str,
+    table: &'static str,
+    key_col: &'static str,
     mut populate: impl FnMut(&mut V, &csv::StringRecord, &csv::StringRecord),
-) -> Result<HashMap<String, V>, csv::Error> {
+) -> Result<HashMap<String, V>, ExportError> {
+    let bytes = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(bytes);
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
         .flexible(true)
         .from_reader(bytes);
     let headers = reader.headers()?.clone();
+    require_col(&headers, table, key_col)?;
     let mut index = HashMap::new();
     for record in reader.records() {
         let record = record?;
-        let key = extract_qid(record_col(&headers, &record, key_col)).to_string();
+        let key = lotus_query::extract_qid(record_col(&headers, &record, key_col)).to_string();
+        if key.is_empty() {
+            continue;
+        }
         populate(index.entry(key).or_default(), &headers, &record);
     }
     Ok(index)
 }
 
 /// Parse the occurrence triplets table directly into [`TripletRow`] records.
-pub(super) fn read_triplets(bytes: &[u8]) -> Result<Vec<TripletRow>, csv::Error> {
+pub(super) fn read_triplets(bytes: &[u8]) -> Result<Vec<TripletRow>, ExportError> {
+    let bytes = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(bytes);
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(true)
         .flexible(true)
         .from_reader(bytes);
     let headers = reader.headers()?.clone();
+    for column in ["compound", "compound_inchikey", "taxon", "reference"] {
+        require_col(&headers, "compound_taxon_reference", column)?;
+    }
     let mut rows = Vec::new();
     for record in reader.records() {
         let record = record?;
         rows.push(TripletRow {
-            compound_qid: extract_qid(record_col(&headers, &record, "compound")).to_string(),
+            compound_qid: lotus_query::extract_qid(record_col(&headers, &record, "compound"))
+                .to_string(),
             compound_inchikey: record_col(&headers, &record, "compound_inchikey").to_string(),
-            taxon_qid: extract_qid(record_col(&headers, &record, "taxon")).to_string(),
-            reference_qid: extract_qid(record_col(&headers, &record, "reference")).to_string(),
+            taxon_qid: lotus_query::extract_qid(record_col(&headers, &record, "taxon")).to_string(),
+            reference_qid: lotus_query::extract_qid(record_col(&headers, &record, "reference"))
+                .to_string(),
         });
     }
     Ok(rows)
@@ -117,9 +141,10 @@ pub(super) fn read_triplets(bytes: &[u8]) -> Result<Vec<TripletRow>, csv::Error>
 /// Build `compound QID → CompoundProps` from the consolidated compounds CSV.
 pub(super) fn build_compound_index(
     bytes: &[u8],
-) -> Result<HashMap<String, CompoundProps>, csv::Error> {
+) -> Result<HashMap<String, CompoundProps>, ExportError> {
     index_csv_records(
         bytes,
+        "compounds",
         "compound",
         |entry: &mut CompoundProps, headers, record| {
             set_col(
@@ -140,24 +165,30 @@ pub(super) fn build_compound_index(
 }
 
 /// Build `taxon QID → TaxonProps` from the consolidated taxa CSV.
-pub(super) fn build_taxon_index(bytes: &[u8]) -> Result<HashMap<String, TaxonProps>, csv::Error> {
-    index_csv_records(bytes, "taxon", |entry: &mut TaxonProps, headers, record| {
-        set_col(&mut entry.name, headers, record, "taxon_name");
-        set_col(&mut entry.ncbi, headers, record, "taxon_ncbi");
-        set_col(&mut entry.ott, headers, record, "taxon_ott");
-        set_col(&mut entry.gbif, headers, record, "taxon_gbif");
-        set_col(&mut entry.parent, headers, record, "taxon_parent");
-        set_col(&mut entry.rank, headers, record, "taxon_rank");
-        set_col(&mut entry.rank_label, headers, record, "taxon_rank_label");
-    })
+pub(super) fn build_taxon_index(bytes: &[u8]) -> Result<HashMap<String, TaxonProps>, ExportError> {
+    index_csv_records(
+        bytes,
+        "taxa",
+        "taxon",
+        |entry: &mut TaxonProps, headers, record| {
+            set_col(&mut entry.name, headers, record, "taxon_name");
+            set_col(&mut entry.ncbi, headers, record, "taxon_ncbi");
+            set_col(&mut entry.ott, headers, record, "taxon_ott");
+            set_col(&mut entry.gbif, headers, record, "taxon_gbif");
+            set_col(&mut entry.parent, headers, record, "taxon_parent");
+            set_col(&mut entry.rank, headers, record, "taxon_rank");
+            set_col(&mut entry.rank_label, headers, record, "taxon_rank_label");
+        },
+    )
 }
 
 /// Build `reference QID → ReferenceProps` from the consolidated references CSV.
 pub(super) fn build_reference_index(
     bytes: &[u8],
-) -> Result<HashMap<String, ReferenceProps>, csv::Error> {
+) -> Result<HashMap<String, ReferenceProps>, ExportError> {
     index_csv_records(
         bytes,
+        "references",
         "reference",
         |entry: &mut ReferenceProps, headers, record| {
             set_col(&mut entry.doi, headers, record, "doi");

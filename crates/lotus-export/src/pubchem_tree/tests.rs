@@ -928,3 +928,131 @@ async fn run_pubchem_tree_propagates_npclassifier_cache_errors() {
         "error should report the upstream HTTP status: {err}"
     );
 }
+
+#[test]
+fn trees_preserve_cycles_deduplicate_and_disambiguate_siblings() {
+    let bio_data = PubChemData {
+        compound_taxon: vec![
+            row_map(&[
+                ("compound", "Q4"),
+                ("compound_inchikey", "IK4B"),
+                ("taxon", "Q101"),
+            ]),
+            row_map(&[
+                ("compound", "Q4"),
+                ("compound_inchikey", "IK4A"),
+                ("taxon", "Q101"),
+            ]),
+            row_map(&[
+                ("compound", "Q1"),
+                ("compound_inchikey", "IK1"),
+                ("taxon", "Q102"),
+            ]),
+        ],
+        taxon_ncbi: vec![row_map(&[("taxon", "Q101"), ("taxon_ncbi", "999")])],
+        taxon_name: vec![
+            row_map(&[("taxon", "Q101"), ("taxon_name", "Homonym")]),
+            row_map(&[("taxon", "Q101"), ("taxon_name", "")]),
+            row_map(&[("taxon", "Q102"), ("taxon_name", "Homonym")]),
+            row_map(&[("taxon", "Q900"), ("taxon_name", "Root")]),
+        ],
+        taxon_parent: vec![
+            row_map(&[("taxon", "Q101"), ("taxon_parent", "Q102")]),
+            row_map(&[("taxon", "Q102"), ("taxon_parent", "Q101")]),
+            row_map(&[("taxon", "Q101"), ("taxon_parent", "Q900")]),
+            row_map(&[("taxon", "Q102"), ("taxon_parent", "Q900")]),
+        ],
+        compound_smiles_can: vec![
+            row_map(&[("compound", "Q4"), ("compound_smiles_can", "CCO")]),
+            row_map(&[("compound", "Q4"), ("compound_smiles_can", "")]),
+        ],
+        compound_parent: vec![
+            row_map(&[("compound", "Q4"), ("compound_parent", "Q50")]),
+            row_map(&[("compound", "Q50"), ("compound_parent", "Q4")]),
+        ],
+        reference_doi: vec![row_map(&[
+            ("compound", "Q4"),
+            ("taxon", "Q101"),
+            ("reference", "R1"),
+            ("doi", ""),
+        ])],
+        ..Default::default()
+    };
+    let idx = Index::new(&bio_data);
+    assert_eq!(
+        idx.compounds
+            .get("Q4")
+            .and_then(|c| c.smiles_can.as_deref()),
+        Some("CCO")
+    );
+
+    let mut pure_cycle = bio_data.clone();
+    pure_cycle.taxon_parent.truncate(2);
+    let pure_idx = Index::new(&pure_cycle);
+    let bio = trees::biological_tree(&pure_cycle, &pure_idx);
+    assert!(!bio.is_empty(), "cyclic P171 component must not be dropped");
+    assert_eq!(
+        bio[0].compounds.len(),
+        1,
+        "Q4 must not duplicate per InChIKey"
+    );
+
+    let mut sib_data = bio_data.clone();
+    sib_data.taxon_parent.drain(0..2);
+    let sib_idx = Index::new(&sib_data);
+    let compact_bio = written(&compact::biological(&trees::biological_tree(
+        &sib_data, &sib_idx,
+    )));
+    let root_children = &compact_bio["children"]["Root"]["children"];
+    assert!(
+        root_children.get("Homonym").is_some() && root_children.get("Homonym (Q102)").is_some(),
+        "sibling homonym taxa must be disambiguated rather than overwritten: {compact_bio}"
+    );
+    assert!(
+        compact_bio["children"]["Root"]["children"]["Homonym"]["children"]["999"]["compounds"]
+            ["IK4A"]
+            .get("references")
+            .is_none(),
+        "empty DOI+PMID reference must not emit \"references\": []"
+    );
+
+    let chem = trees::chemical_tree(&bio_data, &idx);
+    assert!(
+        !chem.is_empty(),
+        "cyclic P279 component must not be dropped"
+    );
+}
+
+#[tokio::test]
+async fn empty_npclassifier_renders_valid_json_documents() {
+    let http = Scripted::new(vec![
+        (200, "compound,compound_inchikey,taxon\n"),
+        (200, "taxon,taxon_ncbi\n"),
+        (200, "taxon,taxon_name\n"),
+        (200, "taxon,taxon_parent\n"),
+        (200, "compound,compound_smiles_can\n"),
+        (200, "compound,compound_smiles_iso\n"),
+        (200, "compound,compound_smarts\n"),
+        (200, "compound,compound_cxsmiles\n"),
+        (200, "compound,compound_label\n"),
+        (200, "compound,compound_parent\n"),
+        (200, "compound,taxon,reference,doi\n"),
+        (200, "compound,taxon,reference,pmid\n"),
+        (200, "smiles,pathway,superclass,class,error\n"),
+    ]);
+    let outputs = run_pubchem_tree(
+        &http,
+        &PubchemTreeOptions {
+            endpoint: Endpoint::new(Service::Qlever),
+            now: NOW,
+        },
+        |_| {},
+    )
+    .await
+    .expect("empty pipeline succeeds");
+    assert_eq!(parse(&outputs.npclassifier_full)["tree"], json!([]));
+    assert_eq!(
+        parse(&outputs.npclassifier_pubchem),
+        json!({"children": {}})
+    );
+}

@@ -218,3 +218,33 @@ async fn pipeline_propagates_fetch_errors() {
     assert_eq!(stages, ["compound_taxon_reference"]);
     assert!(matches!(err, ExportError::Fetch(_)));
 }
+
+#[tokio::test]
+async fn pipeline_rejects_missing_columns_and_strips_utf8_bom() {
+    let bom_triplets = format!("\u{FEFF}{}", triplet_csv());
+    let http = script(vec![
+        csv(200, &bom_triplets),
+        csv(200, &compounds_csv()),
+        csv(200, &taxa_csv()),
+        csv(200, &references_csv()),
+    ]);
+    let (_, _, summary) = run_lotus_exporter(&http, &options(), |_| {})
+        .await
+        .expect("BOM-prefixed CSV should parse cleanly");
+    assert_eq!(summary.rows_written, 2);
+
+    let bad_http = script(vec![csv(200, "wrong_col,taxon,reference\nQ1,Q2,Q3\n")]);
+    let err = run_lotus_exporter(&bad_http, &options(), |_| {})
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(
+            err,
+            ExportError::MissingColumn {
+                table: "compound_taxon_reference",
+                column: "compound"
+            }
+        ),
+        "missing triplet column must return MissingColumn, got: {err:?}"
+    );
+}
