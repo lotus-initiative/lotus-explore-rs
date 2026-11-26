@@ -54,7 +54,7 @@ jobs:
           tool: cargo-binstall
 
       - name: Build the archive CLI
-        run: cargo build --release -p lotus-cli
+        run: cargo build --release --locked -p lotus-cli
 
       - name: Run archive (dry-run, no Zenodo contact)
         if: ${{ inputs.publish != true }}

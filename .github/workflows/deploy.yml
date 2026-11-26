@@ -83,9 +83,10 @@ jobs:
           test -f _final_site/assets/js/webmcp.js
           test -f _final_site/404.html
           test -f _final_site/search/index.html
+          test -f _final_site/network/index.html
           test -f _final_site/curation/index.html
-
           test -f _final_site/draw/index.html
+          test -f _final_site/faq/index.html
           test ! -e _final_site/tailwind/styles.css
           test ! -e _final_site/assets/styles.css
           ! grep -Eq '(@import "tailwindcss"|@source)' _final_site/assets/lotus-explore.css
@@ -100,7 +101,8 @@ jobs:
         run: |
           for f in assets/ketcher/index.html \
                    assets/vendor/rdkit/RDKit_minimal.js \
-                   assets/vendor/rdkit/RDKit_minimal.wasm; do
+                   assets/vendor/rdkit/RDKit_minimal.wasm \
+                   assets/vendor/citation-js/citation.js; do
             test -f "_final_site/$f" || {
               echo "::error::missing $f from the export"; exit 1; }
           done

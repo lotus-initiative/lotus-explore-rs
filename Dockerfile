@@ -319,7 +319,7 @@ EXPOSE 8080
 # the query `lotus search` runs. A statically linked musl build into distroless/cc
 # means no libc to keep patched and no loader to be found at runtime, which is the
 # whole reason for choosing musl over the default glibc target.
-FROM gcr.io/distroless/cc-debian12:nonroot AS cli
+FROM gcr.io/distroless/cc-debian13:nonroot AS cli
 
 ARG VCS_REF=unknown
 
