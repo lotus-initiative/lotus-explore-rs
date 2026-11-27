@@ -1765,6 +1765,28 @@ fn apply_request_characterizes_bounds_and_formula_enabling() {
             .expect("br_state enables formula")
             .formula_enabled
     );
+
+    assert!(
+        !apply_request(&minimal_search_request())
+            .expect("minimal request keeps formula disabled")
+            .formula_enabled
+    );
+
+    let mut blank_formula = minimal_search_request();
+    blank_formula.formula_exact = Some("   ".into());
+    assert!(
+        !apply_request(&blank_formula)
+            .expect("whitespace formula keeps formula disabled")
+            .formula_enabled
+    );
+
+    let mut eq_c = minimal_search_request();
+    eq_c.c_min = Some(5);
+    eq_c.c_max = Some(5);
+    assert!(
+        apply_request(&eq_c).is_ok(),
+        "equal element min and max bounds must be accepted"
+    );
 }
 
 #[tokio::test]

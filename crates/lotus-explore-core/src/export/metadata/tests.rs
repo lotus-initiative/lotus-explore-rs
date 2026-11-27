@@ -214,6 +214,10 @@ fn a_structure_search_names_its_mode_and_reports_its_filters() {
         })
     );
     assert_eq!(
+        at(&doc, "/chemical_search_service/endpoint"),
+        json!(lotus_model::IDSM_SACHEM_ENDPOINT)
+    );
+    assert_eq!(
         at(&doc, "/search_parameters/filters"),
         json!({
             "chemical_structure": {
@@ -222,6 +226,22 @@ fn a_structure_search_names_its_mode_and_reports_its_filters() {
                 "similarity_threshold": 0.8,
             }
         })
+    );
+}
+
+#[test]
+fn exact_smiles_search_credits_sachem_endpoint() {
+    let criteria = SearchCriteria {
+        taxon: "*".into(),
+        structure: "CCO".into(),
+        structure_search: lotus_model::SmilesSearchType::Exact,
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+    let doc = document(&criteria, Some("*"));
+    assert_eq!(at(&doc, "/chemical_search_service/name"), json!("SACHEM"));
+    assert_eq!(
+        at(&doc, "/chemical_search_service/endpoint"),
+        json!(lotus_model::IDSM_SACHEM_ENDPOINT)
     );
 }
 

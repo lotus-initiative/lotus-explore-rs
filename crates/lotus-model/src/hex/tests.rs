@@ -18,6 +18,10 @@ fn push_hex_lower_appends_after_existing_prefix() {
     let mut buf = String::from("search:");
     push_hex_lower(&mut buf, &[0x0a, 0xf0]);
     assert_eq!(buf, "search:0af0");
+
+    let mut exact = String::new();
+    push_hex_lower(&mut exact, &[0u8; 5]);
+    assert_eq!(exact.capacity(), 10);
 }
 
 #[test]

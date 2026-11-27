@@ -85,3 +85,34 @@ fn a_halogen_constraint_alone_is_a_formula_block_without_an_exact_formula() {
         json!({ "molecular_formula": { "halogens": { "bromine": "excluded" } } })
     );
 }
+
+#[test]
+fn every_element_and_halogen_maps_to_its_full_metadata_key() {
+    let criteria = SearchCriteria {
+        taxon: "*".into(),
+        formula_enabled: true,
+        n_min: 1,
+        o_min: 2,
+        p_min: 3,
+        s_min: 4,
+        cl_state: ElementState::Required,
+        i_state: ElementState::Excluded,
+        ..SearchCriteria::up_to_year(YEAR)
+    };
+
+    assert_eq!(
+        criteria_to_filters_value(&criteria, YEAR),
+        json!({
+            "molecular_formula": {
+                "nitrogen": { "min": 1, "max": element_max::N },
+                "oxygen": { "min": 2, "max": element_max::O },
+                "phosphorus": { "min": 3, "max": element_max::P },
+                "sulfur": { "min": 4, "max": element_max::S },
+                "halogens": {
+                    "chlorine": "required",
+                    "iodine": "excluded",
+                },
+            }
+        })
+    );
+}
