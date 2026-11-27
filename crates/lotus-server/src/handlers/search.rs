@@ -7,7 +7,9 @@ use std::{sync::atomic::Ordering, time::Instant};
 use axum::{Json, extract::State};
 use tokio::time::timeout;
 
-use super::prepare::{PreparedSearchRequest, acquire_upstream_permit, prepare_search_request};
+use super::prepare::{
+    PreparedSearchRequest, acquire_upstream_permit, prepare_search_request, reject_overloaded,
+};
 use crate::{
     cache_key::build_search_cache_key,
     dto::{SearchRequest, SearchResponse},
@@ -129,14 +131,10 @@ pub async fn search(
     Json(req): Json<SearchRequest>,
 ) -> Result<Json<SearchResponse>, ApiError> {
     let req_started = Instant::now();
-    let _permit = state.request_permits.try_acquire().map_err(|_| {
-        state
-            .metrics
-            .overload_rejections
-            .fetch_add(1, Ordering::Relaxed);
-        log::warn!("event=search state=rejected reason=overloaded");
-        ApiError::overloaded("Server is busy, retry shortly")
-    })?;
+    let _permit = state
+        .request_permits
+        .try_acquire()
+        .map_err(|_| reject_overloaded(&state, "search"))?;
 
     let prepared = prepare_search_request(&state, &req).await?;
     log::info!(

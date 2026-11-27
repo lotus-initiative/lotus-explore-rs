@@ -23,7 +23,17 @@ use crate::{
 };
 
 /// Retry delay advertised when upstream query slots are saturated.
-const UPSTREAM_RETRY_AFTER_SECS: u64 = 5;
+pub(super) const UPSTREAM_RETRY_AFTER_SECS: u64 = 5;
+
+/// Record overload metrics, log, and return the `503` response.
+pub(super) fn reject_overloaded(state: &AppState, event: &'static str) -> ApiError {
+    state
+        .metrics
+        .overload_rejections
+        .fetch_add(1, Ordering::Relaxed);
+    log::warn!("event={event} state=rejected reason=overloaded");
+    ApiError::overloaded("Server is busy, retry shortly")
+}
 
 struct PreparedQuery {
     execution_query: String,

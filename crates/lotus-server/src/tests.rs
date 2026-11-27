@@ -1672,13 +1672,13 @@ fn config_bind_addr_accepts_unbracketed_ipv6() {
     assert_eq!(addr.to_string(), "[::1]:8787");
 }
 
-#[test]
-fn apply_request_characterizes_toggles_bounds_and_formula_enabling() {
-    fn base_req() -> SearchRequest {
-        serde_json::from_str(r#"{"taxon":"*"}"#).expect("minimal SearchRequest")
-    }
+fn minimal_search_request() -> SearchRequest {
+    serde_json::from_str(r#"{"taxon":"*"}"#).expect("minimal SearchRequest")
+}
 
-    let mut full = base_req();
+#[test]
+fn apply_request_characterizes_toggles_and_full_fields() {
+    let mut full = minimal_search_request();
     full.reference = Some("10.7554/eLife.70780".into());
     full.taxon_accepted_synonyms = Some(false);
     full.taxon_basionyms = Some(false);
@@ -1718,9 +1718,12 @@ fn apply_request_characterizes_toggles_bounds_and_formula_enabling() {
     assert_eq!(c.cl_state, lotus_model::ElementState::Excluded);
     assert_eq!(c.br_state, lotus_model::ElementState::Allowed);
     assert_eq!(c.i_state, lotus_model::ElementState::Required);
+}
 
+#[test]
+fn apply_request_characterizes_bounds_and_formula_enabling() {
     for bad_t in [0.0, -0.5, 1.5, f64::NAN] {
-        let mut req = base_req();
+        let mut req = minimal_search_request();
         req.similarity_threshold = Some(bad_t);
         let err = apply_request(&req).expect_err("bad threshold must fail");
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
@@ -1729,25 +1732,25 @@ fn apply_request_characterizes_toggles_bounds_and_formula_enabling() {
             "similarity_threshold must be a finite number in (0, 1]"
         );
     }
-    let mut exact_one = base_req();
+    let mut exact_one = minimal_search_request();
     exact_one.similarity_threshold = Some(1.0);
     assert!(apply_request(&exact_one).is_ok());
 
-    let mut inv_c = base_req();
+    let mut inv_c = minimal_search_request();
     inv_c.c_min = Some(10);
     inv_c.c_max = Some(5);
     let err = apply_request(&inv_c).expect_err("c_min > c_max");
     assert_eq!(err.status, StatusCode::BAD_REQUEST);
     assert_eq!(err.message, "Element min must be <= max");
 
-    let mut inv_s = base_req();
+    let mut inv_s = minimal_search_request();
     inv_s.s_min = Some(5);
     inv_s.s_max = Some(2);
     let err = apply_request(&inv_s).expect_err("s_min > s_max");
     assert_eq!(err.status, StatusCode::BAD_REQUEST);
     assert_eq!(err.message, "Element min must be <= max");
 
-    let mut only_h = base_req();
+    let mut only_h = minimal_search_request();
     only_h.h_max = Some(20);
     assert!(
         apply_request(&only_h)
@@ -1755,7 +1758,7 @@ fn apply_request_characterizes_toggles_bounds_and_formula_enabling() {
             .formula_enabled
     );
 
-    let mut only_br = base_req();
+    let mut only_br = minimal_search_request();
     only_br.br_state = Some(lotus_explore_core::api::dto::ApiElementState::Excluded);
     assert!(
         apply_request(&only_br)

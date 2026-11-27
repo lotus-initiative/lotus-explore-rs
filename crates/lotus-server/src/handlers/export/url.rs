@@ -7,7 +7,7 @@ use std::{sync::atomic::Ordering, time::Instant};
 use axum::{Json, extract::State};
 use lotus_query::ExportFormat;
 
-use super::super::prepare::{PreparedExportRequest, prepare_export_request};
+use super::super::prepare::{PreparedExportRequest, prepare_export_request, reject_overloaded};
 use crate::{
     dto::{ExportUrlResponse, SearchRequest},
     errors::{ApiError, ErrorResponse, SharedApiError},
@@ -99,14 +99,10 @@ pub async fn export_urls(
     Json(req): Json<SearchRequest>,
 ) -> Result<Json<ExportUrlResponse>, ApiError> {
     let req_started = Instant::now();
-    let _permit = state.request_permits.try_acquire().map_err(|_| {
-        state
-            .metrics
-            .overload_rejections
-            .fetch_add(1, Ordering::Relaxed);
-        log::warn!("event=export state=rejected reason=overloaded");
-        ApiError::overloaded("Server is busy, retry shortly")
-    })?;
+    let _permit = state
+        .request_permits
+        .try_acquire()
+        .map_err(|_| reject_overloaded(&state, "export"))?;
 
     let prepared = prepare_export_request(&state, &req).await?;
     log::info!("event=export state=start");

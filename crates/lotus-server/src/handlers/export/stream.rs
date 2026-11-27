@@ -15,7 +15,9 @@ use lotus_query::{CsvColumnarReader, ExportFormat, RowExporter};
 use lotus_search::Http as _;
 use tokio::time::timeout;
 
-use super::super::prepare::acquire_upstream_permit;
+use super::super::prepare::{
+    UPSTREAM_RETRY_AFTER_SECS, acquire_upstream_permit, reject_overloaded,
+};
 use crate::{
     dto::ExportFileQuery,
     errors::{ApiError, ErrorResponse},
@@ -49,14 +51,7 @@ pub async fn export_file(
 ) -> Result<Response, ApiError> {
     let permit = Arc::clone(&state.request_permits)
         .try_acquire_owned()
-        .map_err(|_| {
-            state
-                .metrics
-                .overload_rejections
-                .fetch_add(1, Ordering::Relaxed);
-            log::warn!("event=export_file state=rejected reason=overloaded");
-            ApiError::overloaded("Server is busy, retry shortly")
-        })?;
+        .map_err(|_| reject_overloaded(&state, "export_file"))?;
 
     let format = ExportFormat::parse(&format_raw)
         .ok_or_else(|| ApiError::bad_request("Unsupported export format"))?;
@@ -277,7 +272,7 @@ fn check_upstream_status(status: u16) -> Result<(), ApiError> {
     if matches!(status, 429 | 503) {
         return Err(ApiError::upstream_overloaded(
             format!("export upstream rate-limited or unavailable (HTTP {status})"),
-            5,
+            UPSTREAM_RETRY_AFTER_SECS,
         ));
     }
     Err(ApiError::upstream(format!(

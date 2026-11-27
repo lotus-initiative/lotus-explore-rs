@@ -18,19 +18,29 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
     };
 
     check_reference(&c.reference)?;
+    apply_taxon_nomenclature(&mut c.taxon_names, req);
+    apply_structure_and_ranges(&mut c, req)?;
+    apply_formula_fields(&mut c, req)?;
 
+    validated(c)
+}
+
+const fn apply_taxon_nomenclature(names: &mut lotus_model::TaxonNomenclature, req: &SearchRequest) {
     if let Some(v) = req.taxon_accepted_synonyms {
-        c.taxon_names.accepted_synonyms = v;
+        names.accepted_synonyms = v;
     }
     if let Some(v) = req.taxon_basionyms {
-        c.taxon_names.basionyms = v;
+        names.basionyms = v;
     }
     if let Some(v) = req.taxon_protonyms {
-        c.taxon_names.protonyms = v;
+        names.protonyms = v;
     }
     if let Some(v) = req.taxon_replacements {
-        c.taxon_names.replacements = v;
+        names.replacements = v;
     }
+}
+
+fn apply_structure_and_ranges(c: &mut SearchCriteria, req: &SearchRequest) -> Result<(), ApiError> {
     if let Some(v) = req.smiles_search_type {
         c.structure_search = v.into();
     }
@@ -54,29 +64,27 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
     if let Some(v) = req.year_max {
         c.year_max = v;
     }
+    Ok(())
+}
 
-    let has_formula_input = req
-        .formula_exact
+fn has_formula_input(req: &SearchRequest) -> bool {
+    req.formula_exact
         .as_deref()
         .is_some_and(|v| !v.trim().is_empty())
-        || req.c_min.is_some()
-        || req.c_max.is_some()
-        || req.h_min.is_some()
-        || req.h_max.is_some()
-        || req.n_min.is_some()
-        || req.n_max.is_some()
-        || req.o_min.is_some()
-        || req.o_max.is_some()
-        || req.p_min.is_some()
-        || req.p_max.is_some()
-        || req.s_min.is_some()
-        || req.s_max.is_some()
+        || [
+            req.c_min, req.c_max, req.h_min, req.h_max, req.n_min, req.n_max, req.o_min, req.o_max,
+            req.p_min, req.p_max, req.s_min, req.s_max,
+        ]
+        .into_iter()
+        .any(|v| v.is_some())
         || req.f_state.is_some()
         || req.cl_state.is_some()
         || req.br_state.is_some()
-        || req.i_state.is_some();
+        || req.i_state.is_some()
+}
 
-    c.formula_enabled = has_formula_input;
+fn apply_formula_fields(c: &mut SearchCriteria, req: &SearchRequest) -> Result<(), ApiError> {
+    c.formula_enabled = has_formula_input(req);
     if let Some(v) = req.formula_exact.as_deref() {
         c.formula_exact = v.trim().to_string();
     }
@@ -101,13 +109,7 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
     apply_opt!(req.s_min => c.s_min);
     apply_opt!(req.s_max => c.s_max);
 
-    if c.c_min > c.c_max
-        || c.h_min > c.h_max
-        || c.n_min > c.n_max
-        || c.o_min > c.o_max
-        || c.p_min > c.p_max
-        || c.s_min > c.s_max
-    {
+    if c.element_ranges().iter().any(|(_, min, max, _)| min > max) {
         return Err(ApiError::bad_request("Element min must be <= max"));
     }
 
@@ -116,7 +118,7 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
     apply_opt!(req.br_state.map(Into::into) => c.br_state);
     apply_opt!(req.i_state.map(Into::into)  => c.i_state);
 
-    validated(c)
+    Ok(())
 }
 
 fn validated(criteria: SearchCriteria) -> Result<SearchCriteria, ApiError> {
