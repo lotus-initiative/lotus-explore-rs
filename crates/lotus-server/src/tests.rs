@@ -1589,7 +1589,8 @@ async fn search_cache_hit_preserves_caller_taxon_warning_and_qid() {
     use crate::dto::{SearchResponse, SearchStats};
     use crate::state::search_cache_put;
 
-    let config = test_config();
+    let mut config = test_config();
+    config.request_timeout = Duration::from_millis(50);
     let state = AppState::new(&config);
     taxon_cache_put(
         &state,
