@@ -68,7 +68,7 @@ fn an_ordinary_value_is_left_alone() {
 fn the_csv_header_names_every_column() {
     let out = render(|o, r| write_delimited(o, r, b','), &[entry()]);
     let header = out.lines().next().expect("a header line");
-    assert_eq!(header, COLUMNS.join(","));
+    assert_eq!(header, COLUMNS.map(Column::header).join(","));
 }
 
 #[test]

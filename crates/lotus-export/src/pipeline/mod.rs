@@ -190,49 +190,65 @@ pub async fn run_lotus_exporter<H: Http>(
     options: &PipelineOptions<'_>,
     mut on_progress: impl FnMut(&'static str),
 ) -> Result<(String, String, ExportSummary), ExportError> {
-    let triplet_bytes = fetch_export_bytes(
-        http,
-        &options.endpoint,
-        COMPOUND_TAXON_REFERENCE_QUERY,
-        "compound_taxon_reference",
-        &mut on_progress,
-    )
-    .await?;
-    let triplets = read_triplets(&triplet_bytes)?;
+    let triplets = {
+        let bytes = fetch_export_bytes(
+            http,
+            &options.endpoint,
+            COMPOUND_TAXON_REFERENCE_QUERY,
+            "compound_taxon_reference",
+            &mut on_progress,
+        )
+        .await?;
+        read_triplets(&bytes)?
+    };
     let triplet_count = triplets.len();
 
-    let compound_bytes = fetch_export_bytes(
-        http,
-        &options.endpoint,
-        EXPORT_COMPOUNDS_QUERY,
-        "compounds",
-        &mut on_progress,
-    )
-    .await?;
-    let compounds = build_compound_index(&compound_bytes)?;
+    let compounds = {
+        let bytes = fetch_export_bytes(
+            http,
+            &options.endpoint,
+            EXPORT_COMPOUNDS_QUERY,
+            "compounds",
+            &mut on_progress,
+        )
+        .await?;
+        build_compound_index(&bytes)?
+    };
 
-    let taxon_bytes = fetch_export_bytes(
-        http,
-        &options.endpoint,
-        EXPORT_TAXA_QUERY,
-        "taxa",
-        &mut on_progress,
-    )
-    .await?;
-    let taxa = build_taxon_index(&taxon_bytes)?;
+    let taxa = {
+        let bytes = fetch_export_bytes(
+            http,
+            &options.endpoint,
+            EXPORT_TAXA_QUERY,
+            "taxa",
+            &mut on_progress,
+        )
+        .await?;
+        build_taxon_index(&bytes)?
+    };
 
-    let reference_bytes = fetch_export_bytes(
-        http,
-        &options.endpoint,
-        EXPORT_REFERENCES_QUERY,
-        "references",
-        &mut on_progress,
-    )
-    .await?;
-    let references = build_reference_index(&reference_bytes)?;
+    let references = {
+        let bytes = fetch_export_bytes(
+            http,
+            &options.endpoint,
+            EXPORT_REFERENCES_QUERY,
+            "references",
+            &mut on_progress,
+        )
+        .await?;
+        build_reference_index(&bytes)?
+    };
 
     let mut buffer = Vec::new();
     let rows_written = write_joined_rows(&triplets, &compounds, &taxa, &references, &mut buffer)?;
+    let summary = ExportSummary {
+        triplets: triplet_count,
+        compounds: compounds.len(),
+        taxa: taxa.len(),
+        references: references.len(),
+        rows_written,
+    };
+    drop((triplets, compounds, taxa, references));
 
     let frozen_csv = String::from_utf8(buffer)
         .map_err(|e| ExportError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
@@ -261,17 +277,7 @@ pub async fn run_lotus_exporter<H: Http>(
     ];
     let metadata_csv = serialize_metadata_csv(&meta_lines)?;
 
-    Ok((
-        frozen_csv,
-        metadata_csv,
-        ExportSummary {
-            triplets: triplet_count,
-            compounds: compounds.len(),
-            taxa: taxa.len(),
-            references: references.len(),
-            rows_written,
-        },
-    ))
+    Ok((frozen_csv, metadata_csv, summary))
 }
 
 #[cfg(test)]

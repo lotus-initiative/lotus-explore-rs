@@ -14,20 +14,99 @@ use lotus_model::CompoundEntry;
 use lotus_search::SearchResult;
 use sha2::Digest;
 
+#[derive(Clone, Copy)]
+enum Column {
+    CompoundQid,
+    CompoundName,
+    Inchikey,
+    Smiles,
+    Mass,
+    Formula,
+    TaxonQid,
+    TaxonName,
+    ReferenceQid,
+    ReferenceTitle,
+    ReferenceDoi,
+    PubYear,
+    Statement,
+}
+
+impl Column {
+    const fn header(self) -> &'static str {
+        match self {
+            Self::CompoundQid => "compound_qid",
+            Self::CompoundName => "compound_name",
+            Self::Inchikey => "inchikey",
+            Self::Smiles => "smiles",
+            Self::Mass => "mass",
+            Self::Formula => "formula",
+            Self::TaxonQid => "taxon_qid",
+            Self::TaxonName => "taxon_name",
+            Self::ReferenceQid => "reference_qid",
+            Self::ReferenceTitle => "reference_title",
+            Self::ReferenceDoi => "reference_doi",
+            Self::PubYear => "pub_year",
+            Self::Statement => "statement",
+        }
+    }
+
+    fn value(self, entry: &CompoundEntry) -> Cow<'_, str> {
+        match self {
+            Self::CompoundQid => Cow::Borrowed(&entry.compound_qid),
+            Self::CompoundName => Cow::Borrowed(&entry.name),
+            Self::Inchikey => Cow::Borrowed(entry.inchikey.as_deref().unwrap_or_default()),
+            Self::Smiles => Cow::Borrowed(entry.smiles.as_deref().unwrap_or_default()),
+            Self::Mass => entry
+                .mass
+                .map_or(Cow::Borrowed(""), |m| Cow::Owned(format!("{m}"))),
+            Self::Formula => Cow::Borrowed(entry.formula.as_deref().unwrap_or_default()),
+            Self::TaxonQid => Cow::Borrowed(&entry.taxon_qid),
+            Self::TaxonName => Cow::Borrowed(&entry.taxon_name),
+            Self::ReferenceQid => Cow::Borrowed(&entry.reference_qid),
+            Self::ReferenceTitle => Cow::Borrowed(entry.ref_title.as_deref().unwrap_or_default()),
+            Self::ReferenceDoi => Cow::Borrowed(entry.ref_doi.as_deref().unwrap_or_default()),
+            Self::PubYear => entry
+                .pub_year
+                .map_or(Cow::Borrowed(""), |y| Cow::Owned(y.to_string())),
+            Self::Statement => Cow::Borrowed(entry.statement.as_deref().unwrap_or_default()),
+        }
+    }
+
+    #[cfg(test)]
+    fn parse(name: &str) -> Option<Self> {
+        match name {
+            "compound_qid" => Some(Self::CompoundQid),
+            "compound_name" => Some(Self::CompoundName),
+            "inchikey" => Some(Self::Inchikey),
+            "smiles" => Some(Self::Smiles),
+            "mass" => Some(Self::Mass),
+            "formula" => Some(Self::Formula),
+            "taxon_qid" => Some(Self::TaxonQid),
+            "taxon_name" => Some(Self::TaxonName),
+            "reference_qid" => Some(Self::ReferenceQid),
+            "reference_title" => Some(Self::ReferenceTitle),
+            "reference_doi" => Some(Self::ReferenceDoi),
+            "pub_year" => Some(Self::PubYear),
+            "statement" => Some(Self::Statement),
+            _ => None,
+        }
+    }
+}
+
 /// The columns a table or a delimited file carries, in order.
-const COLUMNS: [&str; 12] = [
-    "compound_qid",
-    "compound_name",
-    "inchikey",
-    "smiles",
-    "mass",
-    "formula",
-    "taxon_qid",
-    "taxon_name",
-    "reference_qid",
-    "reference_title",
-    "reference_doi",
-    "pub_year",
+const COLUMNS: [Column; 12] = [
+    Column::CompoundQid,
+    Column::CompoundName,
+    Column::Inchikey,
+    Column::Smiles,
+    Column::Mass,
+    Column::Formula,
+    Column::TaxonQid,
+    Column::TaxonName,
+    Column::ReferenceQid,
+    Column::ReferenceTitle,
+    Column::ReferenceDoi,
+    Column::PubYear,
 ];
 
 /// How a result set is written.
@@ -85,36 +164,18 @@ pub fn write_rows<W: Write>(
     Ok(())
 }
 
+#[cfg(test)]
 fn cell<'a>(entry: &'a CompoundEntry, column: &str) -> Cow<'a, str> {
-    match column {
-        "compound_qid" => Cow::Borrowed(&entry.compound_qid),
-        "compound_name" => Cow::Borrowed(&entry.name),
-        "inchikey" => Cow::Borrowed(entry.inchikey.as_deref().unwrap_or_default()),
-        "smiles" => Cow::Borrowed(entry.smiles.as_deref().unwrap_or_default()),
-        "mass" => entry
-            .mass
-            .map_or(Cow::Borrowed(""), |m| Cow::Owned(format!("{m}"))),
-        "formula" => Cow::Borrowed(entry.formula.as_deref().unwrap_or_default()),
-        "taxon_qid" => Cow::Borrowed(&entry.taxon_qid),
-        "taxon_name" => Cow::Borrowed(&entry.taxon_name),
-        "reference_qid" => Cow::Borrowed(&entry.reference_qid),
-        "reference_title" => Cow::Borrowed(entry.ref_title.as_deref().unwrap_or_default()),
-        "reference_doi" => Cow::Borrowed(entry.ref_doi.as_deref().unwrap_or_default()),
-        "pub_year" => entry
-            .pub_year
-            .map_or(Cow::Borrowed(""), |y| Cow::Owned(y.to_string())),
-        "statement" => Cow::Borrowed(entry.statement.as_deref().unwrap_or_default()),
-        _ => Cow::Borrowed(""),
-    }
+    Column::parse(column).map_or(Cow::Borrowed(""), |col| col.value(entry))
 }
 
 fn write_delimited<W: Write>(out: &mut W, rows: &[CompoundEntry], sep: u8) -> anyhow::Result<()> {
     let mut buf = String::new();
-    join_into(&mut buf, COLUMNS.iter().copied(), sep);
+    join_into(&mut buf, COLUMNS.map(Column::header), sep);
     out.write_all(buf.as_bytes())?;
     for row in rows {
         buf.clear();
-        join_into(&mut buf, COLUMNS.iter().map(|c| cell(row, c)), sep);
+        join_into(&mut buf, COLUMNS.map(|c| c.value(row)), sep);
         out.write_all(buf.as_bytes())?;
     }
     Ok(())
@@ -154,17 +215,17 @@ fn quote(value: &str, sep: u8) -> Cow<'_, str> {
 /// The columns a table shows. A structure column is the widest thing in a
 /// result set and the least useful at a glance, so it is left out here and
 /// kept in the machine-readable formats.
-const SHOWN: [&str; 10] = [
-    "compound_qid",
-    "compound_name",
-    "formula",
-    "mass",
-    "taxon_name",
-    "reference_doi",
-    "pub_year",
-    "inchikey",
-    "reference_title",
-    "statement",
+const SHOWN: [Column; 10] = [
+    Column::CompoundQid,
+    Column::CompoundName,
+    Column::Formula,
+    Column::Mass,
+    Column::TaxonName,
+    Column::ReferenceDoi,
+    Column::PubYear,
+    Column::Inchikey,
+    Column::ReferenceTitle,
+    Column::Statement,
 ];
 
 /// A table, aligned by the widest value per column.
@@ -175,9 +236,10 @@ fn write_table<W: Write>(out: &mut W, rows: &[CompoundEntry]) -> anyhow::Result<
     }
 
     let body: Vec<[Cow<'_, str>; SHOWN.len()]> =
-        rows.iter().map(|row| SHOWN.map(|c| cell(row, c))).collect();
+        rows.iter().map(|row| SHOWN.map(|c| c.value(row))).collect();
 
-    let mut widths: [usize; SHOWN.len()] = SHOWN.map(str::len);
+    let headers = SHOWN.map(Column::header);
+    let mut widths: [usize; SHOWN.len()] = headers.map(str::len);
     for line in &body {
         for (width, value) in widths.iter_mut().zip(line) {
             *width = (*width).max(value.chars().count());
@@ -198,7 +260,7 @@ fn write_table<W: Write>(out: &mut W, rows: &[CompoundEntry]) -> anyhow::Result<
         line
     };
 
-    writeln!(out, "{}", render(&SHOWN))?;
+    writeln!(out, "{}", render(&headers))?;
     for line in &body {
         let refs = line.each_ref().map(Cow::as_ref);
         writeln!(out, "{}", render(&refs))?;

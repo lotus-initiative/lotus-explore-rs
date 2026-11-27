@@ -38,19 +38,19 @@ pub(super) fn push_triples(out: &mut String, set: &ColumnarResultSet, row: usize
     }
 
     let subject = format!("wd:{compound}");
-    emit(out, &subject, "wdt:P235", &quote(set.inchikey(row)));
+    emit_quoted(out, &subject, "wdt:P235", set.inchikey(row));
     if let Some(smiles) = set.smiles(row) {
         let predicate = if smiles.contains(['@', '/', '\\']) {
             "wdt:P2017"
         } else {
             "wdt:P233"
         };
-        emit(out, &subject, predicate, &quote(Some(smiles)));
+        emit_quoted(out, &subject, predicate, Some(smiles));
     }
     emit(out, &subject, "wdt:P2067", &number(set.mass(row)));
-    emit(out, &subject, "wdt:P274", &quote(set.formula(row)));
+    emit_quoted(out, &subject, "wdt:P274", set.formula(row));
     if let Some(label) = set.compound_label(row) {
-        emit(out, &subject, "rdfs:label", &quote(Some(label)));
+        emit_quoted(out, &subject, "rdfs:label", Some(label));
     }
 
     // The occurrence is emitted as the reified statement chain the endpoint's
@@ -84,7 +84,7 @@ pub(super) fn push_triples(out: &mut String, set: &ColumnarResultSet, row: usize
     if let Some(taxon) = &taxon
         && let Some(label) = set.taxon_label(row)
     {
-        emit(out, &format!("wd:{taxon}"), "wdt:P225", &quote(Some(label)));
+        emit_quoted(out, &format!("wd:{taxon}"), "wdt:P225", Some(label));
     }
 
     // `prov:wasDerivedFrom` names the reference *node*, and `pr:P248` links
@@ -120,13 +120,8 @@ pub(super) fn push_triples(out: &mut String, set: &ColumnarResultSet, row: usize
 
     // Title, DOI and year live on the publication, not on the reference node.
     if let Some(publication) = &publication {
-        emit(
-            out,
-            publication,
-            "wdt:P1476",
-            &quote(set.reference_title(row)),
-        );
-        emit(out, publication, "wdt:P356", &quote(set.reference_doi(row)));
+        emit_quoted(out, publication, "wdt:P1476", set.reference_title(row));
+        emit_quoted(out, publication, "wdt:P356", set.reference_doi(row));
         if let Some(year) = set.pub_year(row) {
             let year_lit = if year < 0 {
                 format!("\"-{:04}\"^^xsd:gYear", year.unsigned_abs())
@@ -187,26 +182,15 @@ fn bracket_iri(base: &str, local: &str) -> String {
     iri
 }
 
-/// A Turtle object: a quoted literal, or nothing for a missing value.
-fn quote(value: Option<&str>) -> String {
+/// Write a Turtle triple whose object is a quoted string literal directly into `out`.
+fn emit_quoted(out: &mut String, subject: &str, predicate: &str, value: Option<&str>) {
     let Some(value) = value.map(str::trim).filter(|v| !v.is_empty()) else {
-        return String::new();
+        return;
     };
-    let mut out = String::with_capacity(value.len() + 2);
-    out.push('"');
-    for ch in value.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if c.is_control() => {
-                let _ = write!(out, "\\u{:04x}", u32::from(c));
-            }
-            other => out.push(other),
-        }
+    if subject.is_empty() {
+        return;
     }
-    out.push('"');
-    out
+    let _ = write!(out, "{subject} {predicate} ");
+    super::push_escaped_quoted(out, value);
+    out.push_str(" .\n");
 }

@@ -50,21 +50,5 @@ pub(super) fn push_row<'a>(
 
 /// Append `value` as a JSON string, quotes included.
 pub(super) fn json_string(out: &mut String, value: &str) {
-    out.push('"');
-    for ch in value.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            // Control characters have no shorthand and must be escaped, or the file
-            // is not valid JSON. A taxon name can carry one.
-            ch if ch.is_control() => {
-                let _ = write!(out, "\\u{:04x}", ch as u32);
-            }
-            other => out.push(other),
-        }
-    }
-    out.push('"');
+    super::push_escaped_quoted(out, value);
 }

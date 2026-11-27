@@ -255,3 +255,25 @@ fn render_qid(value: Option<String>) -> Cow<'static, str> {
 fn statement_text(set: &ColumnarResultSet, row: usize) -> String {
     set.statement_text(row).unwrap_or_default()
 }
+
+/// Append `value` enclosed in double quotes using JSON / Turtle literal escapes.
+fn push_escaped_quoted(out: &mut String, value: &str) {
+    use std::fmt::Write as _;
+    out.push('"');
+    for ch in value.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            // Control characters have no shorthand and must be escaped, or the file
+            // is not valid JSON/Turtle. A taxon name can carry one.
+            ch if ch.is_control() => {
+                let _ = write!(out, "\\u{:04x}", u32::from(ch));
+            }
+            other => out.push(other),
+        }
+    }
+    out.push('"');
+}
