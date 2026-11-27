@@ -125,7 +125,16 @@ fn an_element_count_above_that_elements_ceiling_is_rejected() {
 
 #[test]
 fn similarity_needs_a_threshold() {
-    for bad in [0.0, -0.1, 1.01, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+    for bad in [
+        0.0,
+        -0.1,
+        1.0 + f64::EPSILON,
+        1.0001,
+        1.01,
+        f64::NAN,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+    ] {
         let c = SearchCriteria {
             structure_search: SmilesSearchType::Similarity,
             structure_threshold: bad,
@@ -137,7 +146,7 @@ fn similarity_needs_a_threshold() {
             "threshold {bad:?} must be rejected"
         );
     }
-    for ok in [0.01, 0.7, 1.0] {
+    for ok in [f64::MIN_POSITIVE, 0.01, 0.7, 1.0] {
         let c = SearchCriteria {
             structure_search: SmilesSearchType::Similarity,
             structure_threshold: ok,

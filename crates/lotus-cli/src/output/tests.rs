@@ -587,3 +587,77 @@ fn write_jsonld_uses_supplied_and_live_rfc3339_timestamps() {
         .expect("datePublished string");
     lotus_model::utc::UtcDateTime::parse_rfc3339_utc(stamp).expect("RFC 3339 UTC timestamp");
 }
+
+#[test]
+fn delimited_and_table_outputs_match_exact_golden_bytes() {
+    let row_one = CompoundEntry {
+        compound_qid: Arc::from("Q10"),
+        name: Arc::from("Acid \"alpha\", pure"),
+        inchikey: Some(Arc::from("AAAAAAAAAAAAAA-BBBBBBBBBB-N")),
+        smiles: Some(Arc::from("CCO")),
+        mass: Some(46.041_865),
+        formula: Some(Arc::from("C2H6O")),
+        taxon_qid: Arc::from("Q20"),
+        taxon_name: Arc::from("Rosa\tcanina"),
+        reference_qid: Arc::from("Q30"),
+        reference_node: Arc::from(""),
+        ref_title: Some(Arc::from("Line1\nLine2")),
+        ref_doi: Some(Arc::from("10.1000/abc")),
+        pub_year: Some(2020),
+        statement: Some(Arc::from("Q10$11111111-1111-1111-1111-111111111111")),
+    };
+    let row_two = CompoundEntry {
+        compound_qid: Arc::from("Q11"),
+        name: Arc::from("Simple"),
+        inchikey: None,
+        smiles: None,
+        mass: None,
+        formula: None,
+        taxon_qid: Arc::from("Q21"),
+        taxon_name: Arc::from("Gentiana lutea"),
+        reference_qid: Arc::from("Q31"),
+        reference_node: Arc::from(""),
+        ref_title: None,
+        ref_doi: None,
+        pub_year: None,
+        statement: None,
+    };
+    let rows = [row_one, row_two];
+
+    let csv = render(|o, r| write_delimited(o, r, b','), &rows);
+    assert_eq!(
+        csv,
+        concat!(
+            "compound_qid,compound_name,inchikey,smiles,mass,formula,taxon_qid,taxon_name,reference_qid,reference_title,reference_doi,pub_year\n",
+            "Q10,\"Acid \"\"alpha\"\", pure\",AAAAAAAAAAAAAA-BBBBBBBBBB-N,CCO,46.041865,C2H6O,Q20,Rosa\tcanina,Q30,\"Line1\nLine2\",10.1000/abc,2020\n",
+            "Q11,Simple,,,,,Q21,Gentiana lutea,Q31,,,\n"
+        ),
+        "exact CSV bytes changed"
+    );
+
+    let tsv = render(|o, r| write_delimited(o, r, b'\t'), &rows);
+    assert_eq!(
+        tsv,
+        concat!(
+            "compound_qid\tcompound_name\tinchikey\tsmiles\tmass\tformula\ttaxon_qid\ttaxon_name\treference_qid\treference_title\treference_doi\tpub_year\n",
+            "Q10\t\"Acid \"\"alpha\"\", pure\"\tAAAAAAAAAAAAAA-BBBBBBBBBB-N\tCCO\t46.041865\tC2H6O\tQ20\t\"Rosa\tcanina\"\tQ30\t\"Line1\nLine2\"\t10.1000/abc\t2020\n",
+            "Q11\tSimple\t\t\t\t\tQ21\tGentiana lutea\tQ31\t\t\t\n"
+        ),
+        "exact TSV bytes changed"
+    );
+
+    let table = render(
+        write_table,
+        std::slice::from_ref(rows.get(1).expect("row two")),
+    );
+    assert_eq!(
+        table,
+        concat!(
+            "compound_qid  compound_name  formula  mass  taxon_name      reference_doi  pub_year  inchikey  reference_title  statement\n",
+            "Q11           Simple                        Gentiana lutea\n",
+            "\n",
+            "1 row(s)\n"
+        ),
+        "exact aligned table bytes changed"
+    );
+}

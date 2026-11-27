@@ -1671,3 +1671,146 @@ fn config_bind_addr_accepts_unbracketed_ipv6() {
     let addr = config.bind_addr().expect("IPv6 host must bind");
     assert_eq!(addr.to_string(), "[::1]:8787");
 }
+
+#[test]
+fn apply_request_characterizes_toggles_bounds_and_formula_enabling() {
+    fn base_req() -> SearchRequest {
+        serde_json::from_str(r#"{"taxon":"*"}"#).expect("minimal SearchRequest")
+    }
+
+    let mut full = base_req();
+    full.reference = Some("10.7554/eLife.70780".into());
+    full.taxon_accepted_synonyms = Some(false);
+    full.taxon_basionyms = Some(false);
+    full.taxon_protonyms = Some(false);
+    full.taxon_replacements = Some(false);
+    full.smiles = Some("CCO".into());
+    full.smiles_search_type = Some(lotus_explore_core::api::dto::ApiSmilesSearchType::Similarity);
+    full.similarity_threshold = Some(0.01);
+    full.mass_min = Some(10.0);
+    full.mass_max = Some(500.0);
+    full.year_min = Some(1990);
+    full.year_max = Some(2024);
+    full.formula_exact = Some(" C2H6O ".into());
+    full.f_state = Some(lotus_explore_core::api::dto::ApiElementState::Required);
+    full.cl_state = Some(lotus_explore_core::api::dto::ApiElementState::Excluded);
+    full.br_state = Some(lotus_explore_core::api::dto::ApiElementState::Allowed);
+    full.i_state = Some(lotus_explore_core::api::dto::ApiElementState::Required);
+
+    let c = apply_request(&full).expect("valid full request");
+    assert!(!c.taxon_names.accepted_synonyms);
+    assert!(!c.taxon_names.basionyms);
+    assert!(!c.taxon_names.protonyms);
+    assert!(!c.taxon_names.replacements);
+    assert_eq!(c.structure, "CCO");
+    assert_eq!(
+        c.structure_search,
+        lotus_model::SmilesSearchType::Similarity
+    );
+    assert!((c.structure_threshold - 0.01).abs() < f64::EPSILON);
+    assert!((c.mass_min - 10.0).abs() < f64::EPSILON);
+    assert!((c.mass_max - 500.0).abs() < f64::EPSILON);
+    assert_eq!(c.year_min, 1990);
+    assert_eq!(c.year_max, 2024);
+    assert!(c.formula_enabled);
+    assert_eq!(c.formula_exact, "C2H6O");
+    assert_eq!(c.f_state, lotus_model::ElementState::Required);
+    assert_eq!(c.cl_state, lotus_model::ElementState::Excluded);
+    assert_eq!(c.br_state, lotus_model::ElementState::Allowed);
+    assert_eq!(c.i_state, lotus_model::ElementState::Required);
+
+    for bad_t in [0.0, -0.5, 1.5, f64::NAN] {
+        let mut req = base_req();
+        req.similarity_threshold = Some(bad_t);
+        let err = apply_request(&req).expect_err("bad threshold must fail");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(
+            err.message,
+            "similarity_threshold must be a finite number in (0, 1]"
+        );
+    }
+    let mut exact_one = base_req();
+    exact_one.similarity_threshold = Some(1.0);
+    assert!(apply_request(&exact_one).is_ok());
+
+    let mut inv_c = base_req();
+    inv_c.c_min = Some(10);
+    inv_c.c_max = Some(5);
+    let err = apply_request(&inv_c).expect_err("c_min > c_max");
+    assert_eq!(err.status, StatusCode::BAD_REQUEST);
+    assert_eq!(err.message, "Element min must be <= max");
+
+    let mut inv_s = base_req();
+    inv_s.s_min = Some(5);
+    inv_s.s_max = Some(2);
+    let err = apply_request(&inv_s).expect_err("s_min > s_max");
+    assert_eq!(err.status, StatusCode::BAD_REQUEST);
+    assert_eq!(err.message, "Element min must be <= max");
+
+    let mut only_h = base_req();
+    only_h.h_max = Some(20);
+    assert!(
+        apply_request(&only_h)
+            .expect("h_max enables formula")
+            .formula_enabled
+    );
+
+    let mut only_br = base_req();
+    only_br.br_state = Some(lotus_explore_core::api::dto::ApiElementState::Excluded);
+    assert!(
+        apply_request(&only_br)
+            .expect("br_state enables formula")
+            .formula_enabled
+    );
+}
+
+#[tokio::test]
+async fn request_overload_rejects_with_503_across_search_and_export_routes() {
+    use std::sync::atomic::Ordering;
+
+    let mut config = test_config();
+    config.max_concurrency = 0;
+    let state = AppState::new(&config);
+    let metrics = state.metrics.clone();
+    let app = build_router(config.max_body_bytes, &config, state);
+
+    let search_resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/search")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(r#"{"taxon":"*"}"#))
+                .expect("search req"),
+        )
+        .await
+        .expect("search resp");
+    assert_eq!(search_resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+
+    let export_url_resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/export-url")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(r#"{"taxon":"*"}"#))
+                .expect("export url req"),
+        )
+        .await
+        .expect("export url resp");
+    assert_eq!(export_url_resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+
+    let export_file_resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/v1/export-file/export:missing/csv")
+                .body(Body::empty())
+                .expect("export file req"),
+        )
+        .await
+        .expect("export file resp");
+    assert_eq!(export_file_resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(metrics.overload_rejections.load(Ordering::Relaxed), 3);
+}

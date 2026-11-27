@@ -98,3 +98,63 @@ fn taxon_and_reference_ties_keep_lowest_qid_number_regardless_of_row_order() {
         Some("Q30")
     );
 }
+
+#[test]
+fn permutation_invariance_holds_for_compound_taxon_and_reference_json_ties() {
+    let compound_rows = [
+        serde_json::json!({
+            "key": {"value": "K1"},
+            "compound": {"value": "http://www.wikidata.org/entity/Q100"},
+            "canonical": {"value": "CCC"}
+        }),
+        serde_json::json!({
+            "key": {"value": "K1"},
+            "compound": {"value": "http://www.wikidata.org/entity/Q20"},
+            "canonical": {"value": "CCO"}
+        }),
+        serde_json::json!({
+            "key": {"value": "K1"},
+            "compound": {"value": "http://www.wikidata.org/entity/Q200"}
+        }),
+    ];
+    for order in [[0, 1, 2], [2, 1, 0], [1, 2, 0]] {
+        let bindings = order
+            .into_iter()
+            .filter_map(|i| compound_rows.get(i).cloned())
+            .collect::<Vec<_>>();
+        let resolved = compounds_by_key(&serde_json::json!({"results": {"bindings": bindings}}));
+        let kept = resolved.get("K1").expect("compound entry");
+        assert_eq!(kept.qid, "Q20");
+        assert_eq!(kept.canonical_smiles.as_deref(), Some("CCO"));
+    }
+
+    let taxon_rows = [
+        serde_json::json!({"lookup": {"value": "gentiana"}, "taxon": {"value": "http://www.wikidata.org/entity/Q300"}}),
+        serde_json::json!({"lookup": {"value": "gentiana"}, "taxon": {"value": "http://www.wikidata.org/entity/Q20"}}),
+        serde_json::json!({"lookup": {"value": "gentiana"}, "taxon": {"value": "http://www.wikidata.org/entity/Q100"}}),
+    ];
+    for order in [[0, 1, 2], [2, 0, 1], [1, 2, 0]] {
+        let bindings = order
+            .into_iter()
+            .filter_map(|i| taxon_rows.get(i).cloned())
+            .collect::<Vec<_>>();
+        let resolved =
+            taxon_qids_from_json(&serde_json::json!({"results": {"bindings": bindings}}));
+        assert_eq!(resolved.get("gentiana").map(String::as_str), Some("Q20"));
+    }
+
+    let ref_rows = [
+        serde_json::json!({"lookup": {"value": "10.1/x"}, "ref": {"value": "http://www.wikidata.org/entity/Q200"}}),
+        serde_json::json!({"lookup": {"value": "10.1/x"}, "ref": {"value": "http://www.wikidata.org/entity/Q30"}}),
+        serde_json::json!({"lookup": {"value": "10.1/x"}, "ref": {"value": "http://www.wikidata.org/entity/Q40"}}),
+    ];
+    for order in [[0, 1, 2], [2, 1, 0], [1, 0, 2]] {
+        let bindings = order
+            .into_iter()
+            .filter_map(|i| ref_rows.get(i).cloned())
+            .collect::<Vec<_>>();
+        let resolved =
+            reference_qids_from_json(&serde_json::json!({"results": {"bindings": bindings}}));
+        assert_eq!(resolved.get("10.1/x").map(String::as_str), Some("Q30"));
+    }
+}
