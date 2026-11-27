@@ -7,6 +7,12 @@ extend-exclude = [
   "**/i18n/**",
 ]
 
+[default]
+extend-ignore-re = [
+  # Git commit hashes cited in backticks (e.g. `ba3bc00`).
+  "`[0-9a-f]{7,40}`",
+]
+
 [default.extend-words]
 LOD = "LOD"
 
