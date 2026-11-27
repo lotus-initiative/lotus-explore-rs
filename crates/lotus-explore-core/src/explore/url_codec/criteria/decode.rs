@@ -3,7 +3,7 @@
 //! Query-parameter decoding into [`SearchCriteria`].
 
 use super::super::{QueryParams, is_true_flag};
-use super::{CriteriaQueryDto, FormulaQueryDto, PartialNomenclature, RangeF64Dto, RangeU16Dto};
+use super::{CriteriaQueryDto, FormulaQueryDto, PartialNomenclature, RangeDto};
 use lotus_model::{ElementState, SearchCriteria, SmilesSearchType};
 use std::str::FromStr;
 
@@ -65,7 +65,7 @@ impl CriteriaQueryDto {
                     .map(String::as_str),
             ),
             mass_filter: parse_range_when_enabled(params, "mass_filter", "mass_min", "mass_max")
-                .map(|r: RangeF64Dto| RangeF64Dto {
+                .map(|r: RangeDto<f64>| RangeDto {
                     min: r.min.filter(|v| v.is_finite() && *v >= 0.0),
                     max: r.max.filter(|v| v.is_finite() && *v >= 0.0),
                 }),
@@ -171,28 +171,12 @@ impl FormulaQueryDto {
     }
 }
 
-impl RangeF64Dto {
+impl<T> RangeDto<T> {
     fn apply(
         self,
         criteria: &mut SearchCriteria,
-        set_min: impl FnOnce(&mut SearchCriteria, f64),
-        set_max: impl FnOnce(&mut SearchCriteria, f64),
-    ) {
-        if let Some(value) = self.min {
-            set_min(criteria, value);
-        }
-        if let Some(value) = self.max {
-            set_max(criteria, value);
-        }
-    }
-}
-
-impl RangeU16Dto {
-    fn apply(
-        self,
-        criteria: &mut SearchCriteria,
-        set_min: impl FnOnce(&mut SearchCriteria, u16),
-        set_max: impl FnOnce(&mut SearchCriteria, u16),
+        set_min: impl FnOnce(&mut SearchCriteria, T),
+        set_max: impl FnOnce(&mut SearchCriteria, T),
     ) {
         if let Some(value) = self.min {
             set_min(criteria, value);
@@ -218,51 +202,22 @@ fn parse_param<T: FromStr>(params: &QueryParams, name: &str) -> Option<T> {
 
 /// The `(min, max)` of a range parameter pair, if the range is switched on.
 ///
-/// Shared by the two `Range*Dto` types because the rule is the same for both and
-/// was written out once per type: a range is absent unless its `enabled` flag is
-/// present and true, and the bounds are read whether or not the range is on, so a
-/// stale bound cannot leak in from the URL. The element type was the only thing
-/// that varied, so it is the only thing that varies here. A third range type is
-/// the case where this stops being tidiness and starts paying.
-fn parse_range_when_enabled<T, D>(
+/// Shared across numeric range filters: a range is absent unless its `enabled`
+/// flag is present and true, and the bounds are read whether or not the range
+/// is on, so a stale bound cannot leak in from the URL.
+fn parse_range_when_enabled<T: FromStr>(
     params: &QueryParams,
     enabled_key: &str,
     min_key: &str,
     max_key: &str,
-) -> Option<D>
-where
-    T: FromStr,
-    D: RangeDto<T>,
-{
+) -> Option<RangeDto<T>> {
     params
         .get(enabled_key)
         .is_some_and(|v| is_true_flag(v))
-        .then(|| D::from_bounds(parse_param(params, min_key), parse_param(params, max_key)))
-}
-
-/// A range parameter pair, built from its bounds.
-///
-/// The one thing a `Range*Dto` is, so that [`parse_range_when_enabled`] can build
-/// whichever one it is asked for. Without this the two call sites each wanted a
-/// function returning `(min, max)` and a three-line `map` onto their own type --
-/// and those two three-line wrappers were themselves identical, which is what the
-/// second round of `cargo echoes` reported. Removing them is the fix; a second
-/// helper to deduplicate them would have been the third function for the job.
-trait RangeDto<T> {
-    /// This DTO over `T`.
-    fn from_bounds(min: Option<T>, max: Option<T>) -> Self;
-}
-
-impl RangeDto<f64> for RangeF64Dto {
-    fn from_bounds(min: Option<f64>, max: Option<f64>) -> Self {
-        Self { min, max }
-    }
-}
-
-impl RangeDto<u16> for RangeU16Dto {
-    fn from_bounds(min: Option<u16>, max: Option<u16>) -> Self {
-        Self { min, max }
-    }
+        .then(|| RangeDto {
+            min: parse_param(params, min_key),
+            max: parse_param(params, max_key),
+        })
 }
 
 fn parse_element_state(params: &QueryParams, name: &str) -> Option<ElementState> {

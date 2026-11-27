@@ -38,22 +38,8 @@ pub struct TaxonResolution {
 }
 
 #[must_use]
-// Bounds are established two lines below: every index reads `bytes[0]` and
-// `bytes[1]` only after the `bytes.len() > 1` guard, and reading the first
-// byte of a non-empty slice can never panic.
-#[allow(
-    clippy::indexing_slicing,
-    reason = "both reads are behind a `len() > 1` guard, and byte 0 of a non-empty slice is always in bounds"
-)]
 pub fn requires_remote_lookup(taxon: &str) -> bool {
-    if taxon.is_empty() || taxon == "*" {
-        return false;
-    }
-    // QIDs are always ASCII — use byte-level check to avoid Unicode iterator.
-    let bytes = taxon.as_bytes();
-    !(bytes.len() > 1
-        && matches!(bytes[0], b'Q' | b'q')
-        && bytes[1..].iter().all(u8::is_ascii_digit))
+    !taxon.is_empty() && taxon != "*" && !lotus_model::is_qid(taxon)
 }
 
 /// Resolve a free-text taxon name (or QID, or wildcard) to a Wikidata QID.

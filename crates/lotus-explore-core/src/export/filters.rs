@@ -50,58 +50,22 @@ pub(in crate::export) fn criteria_to_filters_value(criteria: &SearchCriteria, ye
             mf.insert("exact_formula".into(), Value::String(exact.into()));
         }
 
-        for (name, min, max, default_max) in [
-            (
-                "carbon",
-                criteria.c_min,
-                criteria.c_max,
-                lotus_model::element_max::C,
-            ),
-            (
-                "hydrogen",
-                criteria.h_min,
-                criteria.h_max,
-                lotus_model::element_max::H,
-            ),
-            (
-                "nitrogen",
-                criteria.n_min,
-                criteria.n_max,
-                lotus_model::element_max::N,
-            ),
-            (
-                "oxygen",
-                criteria.o_min,
-                criteria.o_max,
-                lotus_model::element_max::O,
-            ),
-            (
-                "phosphorus",
-                criteria.p_min,
-                criteria.p_max,
-                lotus_model::element_max::P,
-            ),
-            (
-                "sulfur",
-                criteria.s_min,
-                criteria.s_max,
-                lotus_model::element_max::S,
-            ),
-        ] {
+        for (symbol, min, max, default_max) in criteria.element_ranges() {
             if min > 0 || max < default_max {
-                mf.insert(name.into(), json!({ "min": min, "max": max }));
+                mf.insert(
+                    element_full_name(symbol).into(),
+                    json!({ "min": min, "max": max }),
+                );
             }
         }
 
         let mut hal = Map::new();
-        for (name, state) in [
-            ("fluorine", criteria.f_state),
-            ("chlorine", criteria.cl_state),
-            ("bromine", criteria.br_state),
-            ("iodine", criteria.i_state),
-        ] {
+        for (symbol, state) in criteria.halogen_states() {
             if state != ElementState::Allowed {
-                hal.insert(name.into(), Value::String(state.as_str().into()));
+                hal.insert(
+                    element_full_name(symbol).into(),
+                    Value::String(state.as_str().into()),
+                );
             }
         }
         if !hal.is_empty() {
@@ -114,6 +78,22 @@ pub(in crate::export) fn criteria_to_filters_value(criteria: &SearchCriteria, ye
     }
 
     Value::Object(filters)
+}
+
+fn element_full_name(symbol: &str) -> &'static str {
+    match symbol {
+        "C" => "carbon",
+        "H" => "hydrogen",
+        "N" => "nitrogen",
+        "O" => "oxygen",
+        "P" => "phosphorus",
+        "S" => "sulfur",
+        "F" => "fluorine",
+        "Cl" => "chlorine",
+        "Br" => "bromine",
+        "I" => "iodine",
+        _ => "",
+    }
 }
 
 #[cfg(test)]

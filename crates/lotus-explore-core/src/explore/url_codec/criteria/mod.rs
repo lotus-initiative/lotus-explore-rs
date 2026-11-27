@@ -66,14 +66,11 @@ struct FormulaQueryDto {
     i_state: Option<ElementState>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
-struct RangeF64Dto {
-    min: Option<f64>,
-    max: Option<f64>,
-}
+type RangeF64Dto = RangeDto<f64>;
+type RangeU16Dto = RangeDto<u16>;
 
 #[derive(Clone, Debug, Default, PartialEq)]
-struct RangeU16Dto {
-    min: Option<u16>,
-    max: Option<u16>,
+struct RangeDto<T> {
+    min: Option<T>,
+    max: Option<T>,
 }

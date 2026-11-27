@@ -65,19 +65,23 @@ fn qlever_unavailability_includes_502_and_network_failures() {
         status: 502,
         message: "upstream gateway error (HTML payload)".into(),
     };
-    assert!(is_qlever_unavailable(&gateway));
-    assert!(is_qlever_unavailable(&FetchError::Network(
-        "connection failed".into()
-    )));
-    assert!(!is_qlever_unavailable(&FetchError::Http {
-        status: 500,
-        message: "boom".into()
-    }));
-    assert!(!is_qlever_unavailable(&FetchError::Http {
-        status: 400,
-        message: "bad query".into()
-    }));
-    assert!(!is_qlever_unavailable(&FetchError::Empty));
+    assert!(gateway.is_endpoint_unavailable());
+    assert!(FetchError::Network("connection failed".into()).is_endpoint_unavailable());
+    assert!(
+        !FetchError::Http {
+            status: 500,
+            message: "boom".into()
+        }
+        .is_endpoint_unavailable()
+    );
+    assert!(
+        !FetchError::Http {
+            status: 400,
+            message: "bad query".into()
+        }
+        .is_endpoint_unavailable()
+    );
+    assert!(!FetchError::Empty.is_endpoint_unavailable());
 }
 
 #[test]

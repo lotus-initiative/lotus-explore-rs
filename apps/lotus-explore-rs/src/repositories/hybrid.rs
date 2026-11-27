@@ -122,7 +122,7 @@ impl LotusRepository for HybridRepository {
         query: &str,
     ) -> Result<lotus_search::ResponseBody, RepositoryError> {
         match with_rate_limit_backoff(|| sparql::execute_sparql_body(query)).await {
-            Err(err) if is_qlever_unavailable(&err) => {
+            Err(err) if err.is_endpoint_unavailable() => {
                 log::warn!("event=qlever_unavailable action=fallback_wdqs_scholarly");
                 let (endpoint, wdqs_query) = prepare_wdqs_fallback_query(query);
                 sparql::execute_sparql_body_at(&wdqs_query, endpoint)
@@ -159,7 +159,7 @@ impl LotusRepository for HybridRepository {
         query: &str,
     ) -> Result<tempfile::NamedTempFile, RepositoryError> {
         match with_rate_limit_backoff(|| sparql::execute_sparql_tempfile(query)).await {
-            Err(err) if is_qlever_unavailable(&err) => {
+            Err(err) if err.is_endpoint_unavailable() => {
                 log::warn!("event=qlever_unavailable action=fallback_wdqs_scholarly");
                 let (endpoint, wdqs_query) = prepare_wdqs_fallback_query(query);
                 sparql::execute_sparql_tempfile_at(&wdqs_query, endpoint)
@@ -354,7 +354,7 @@ async fn open_chunks_with_wdqs_fallback(
 ) -> Result<lotus_search::ChunkedBody, RepositoryError> {
     match with_rate_limit_backoff(|| sparql::execute_sparql_chunks(qlever_query)).await {
         Ok(chunks) => Ok(chunks),
-        Err(err) if is_qlever_unavailable(&err) => {
+        Err(err) if err.is_endpoint_unavailable() => {
             log::warn!("event=qlever_unavailable action=fallback_wdqs_scholarly");
             let (endpoint, wdqs_query) = prepare_wdqs_fallback_query(full_query);
             sparql::execute_sparql_chunks_at(&wdqs_query, endpoint, ResponseFormat::Csv)
@@ -424,16 +424,6 @@ where
         .map_err(|e| RepositoryError::parse(e.to_string()))
 }
 
-/// True when `QLever` is unavailable and the query should be retried against WDQS.
-/// The transport layer already retries transient failures, so reaching this layer means the
-/// in-endpoint attempts were exhausted.
-fn is_qlever_unavailable(err: &FetchError) -> bool {
-    matches!(
-        err,
-        FetchError::Http { status: 502, .. } | FetchError::Network(_)
-    )
-}
-
 fn map_fetch_error(err: FetchError) -> RepositoryError {
     match err {
         FetchError::Http { status, message } => RepositoryError::Http {
@@ -442,8 +432,8 @@ fn map_fetch_error(err: FetchError) -> RepositoryError {
         },
         FetchError::Network(msg) => RepositoryError::network(msg),
         FetchError::Parse(msg) => RepositoryError::parse(msg),
-        // Deliberately not a network error. `is_qlever_unavailable` reads
-        // `Network` as "the endpoint is down, try WDQS", and a body that stopped
+        // Deliberately not a network error. `FetchError::is_endpoint_unavailable`
+        // reads `Network` as "the endpoint is down, try WDQS", and a body that stopped
         // half way says nothing about whether the endpoint is reachable.
         FetchError::Truncated { .. } => RepositoryError::truncated(err.to_string()),
         // Not a network error either, and the same reason: a query QLever

@@ -115,14 +115,10 @@ fn insert_formula_params(criteria: &SearchCriteria, params: &mut QueryParams) {
             params.insert(format!("{key}_max"), max.to_string());
         }
     }
-    for (label, state) in [
-        ("f", criteria.f_state),
-        ("cl", criteria.cl_state),
-        ("br", criteria.br_state),
-        ("i", criteria.i_state),
-    ] {
+    for (label, state) in criteria.halogen_states() {
         if state != ElementState::Allowed {
-            params.insert(format!("{label}_state"), state.as_str().to_string());
+            let key = label.to_ascii_lowercase();
+            params.insert(format!("{key}_state"), state.as_str().to_string());
         }
     }
 }
