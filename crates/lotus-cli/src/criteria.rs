@@ -113,14 +113,5 @@ pub fn apply_ranges(
 /// until `formula_enabled` is set -- asking it here would be circular.
 #[must_use]
 pub fn flags_ask_for_formula(criteria: &lotus_model::SearchCriteria) -> bool {
-    use lotus_model::ElementState;
-    !criteria.formula_exact.trim().is_empty()
-        || criteria
-            .element_ranges()
-            .iter()
-            .any(|(_, min, max, default_max)| *min > 0 || *max < *default_max)
-        || criteria.f_state != ElementState::Allowed
-        || criteria.cl_state != ElementState::Allowed
-        || criteria.br_state != ElementState::Allowed
-        || criteria.i_state != ElementState::Allowed
+    criteria.has_formula_criteria()
 }

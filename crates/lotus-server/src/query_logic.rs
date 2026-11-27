@@ -35,7 +35,7 @@ pub fn apply_request(req: &SearchRequest) -> Result<SearchCriteria, ApiError> {
         c.structure_search = v.into();
     }
     if let Some(v) = req.similarity_threshold {
-        if !v.is_finite() || v <= 0.0 || v > 1.0 {
+        if !lotus_model::is_valid_structure_threshold(v) {
             return Err(ApiError::bad_request(
                 "similarity_threshold must be a finite number in (0, 1]",
             ));

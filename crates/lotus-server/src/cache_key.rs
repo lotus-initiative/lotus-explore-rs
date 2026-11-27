@@ -43,20 +43,8 @@ fn prefixed_sha256_hex(prefix: &str, bytes: impl AsRef<[u8]>) -> String {
     let bytes = bytes.as_ref();
     let mut out = String::with_capacity(prefix.len() + bytes.len() * 2);
     out.push_str(prefix);
-    for &byte in bytes {
-        let high = usize::from(byte >> 4);
-        let low = usize::from(byte & 0x0f);
-        out.push(hex_char(high).unwrap_or('0'));
-        out.push(hex_char(low).unwrap_or('0'));
-    }
+    lotus_model::push_hex_lower(&mut out, bytes);
     out
-}
-
-/// The character for a nibble, or `None` if the input was not a nibble.
-const HEX: &[u8; 16] = b"0123456789abcdef";
-
-fn hex_char(nibble: usize) -> Option<char> {
-    HEX.get(nibble).map(|&c| char::from(c))
 }
 
 #[cfg(test)]

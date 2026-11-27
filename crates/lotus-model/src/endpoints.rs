@@ -13,6 +13,9 @@ pub const WDQS_WIKIDATA: &str = "https://query-next.wikidata.org/sparql";
 /// and P577 that the main endpoint does not host locally.
 pub const WDQS_SCHOLARLY: &str = "https://query-scholarly-next.wikidata.org/sparql";
 
+/// IDSM's Sachem chemical structure SPARQL endpoint.
+pub const IDSM_SACHEM_ENDPOINT: &str = "https://idsm.elixir-czech.cz/sparql/endpoint/";
+
 /// Represents the SPARQL endpoint used for a query.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum SparqlEndpoint {

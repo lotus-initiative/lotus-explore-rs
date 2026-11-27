@@ -55,7 +55,7 @@ pub struct SearchArgs {
     pub mass_min: f64,
 
     /// Highest molecular mass, in daltons.
-    #[arg(long, default_value_t = 10_000.0)]
+    #[arg(long, default_value_t = lotus_model::MASS_MAX)]
     pub mass_max: f64,
 
     /// Restrict to compounds a reference reports. A DOI (`10.1021/JF60160A010`)
@@ -65,7 +65,7 @@ pub struct SearchArgs {
     pub reference: Option<String>,
 
     /// Earliest publication year.
-    #[arg(long, default_value_t = 1800)]
+    #[arg(long, default_value_t = lotus_model::YEAR_MIN)]
     pub year_min: u16,
 
     /// Latest publication year. Defaults to this year.

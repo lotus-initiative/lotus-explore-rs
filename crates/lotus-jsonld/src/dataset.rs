@@ -9,7 +9,10 @@
 //! before — is indexable and useless, so the distribution here is a description
 //! of how to obtain the data rather than a fake file.
 
-use crate::{Profile, SOFTWARE, doi_uri, edam, property_value, result_dataset_url, wikidata_uri};
+use crate::{
+    CC0_LICENSE_URL, LOTUS_PAPER_DOI, LOTUS_PAPER_TITLE, LOTUS_WIKIDATA_QID, Profile, SOFTWARE,
+    doi_uri, edam, property_value, result_dataset_url, wikidata_uri,
+};
 use serde_json::{Value, json};
 
 /// What a result set is, and how to describe it.
@@ -91,7 +94,7 @@ pub fn result_set_jsonld(set: &ResultSet<'_>) -> Value {
             edam::TOPIC_TAXONOMY,
         ],
         "about": edam_topics(),
-        "license": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "license": CC0_LICENSE_URL,
         "creator": { "@type": "Organization", "name": "LOTUS Initiative" },
         "version": SOFTWARE.version,
         "datePublished": set.generated,
@@ -122,15 +125,15 @@ pub fn dataset_jsonld() -> Value {
     crate::stamp(
         json!({
         "@type": "Dataset",
-        "@id": "https://lotus-initiative.github.io/lotus-explore-rs",
+        "@id": SOFTWARE.url,
         "name": "LOTUS",
         "description": "The LOTUS knowledge base of chemical structures and biological \
                         sources, stored in Wikidata and queried over SPARQL.",
-        "url": "https://lotus-initiative.github.io/lotus-explore-rs",
+        "url": SOFTWARE.url,
         "identifier": [
             property_value(
                 "wikidata",
-                "Q104225190",
+                LOTUS_WIKIDATA_QID,
                 "uri",
                 "http://wikiba.se/ontology#WikidataItem",
             ),
@@ -145,7 +148,7 @@ pub fn dataset_jsonld() -> Value {
             edam::TOPIC_TAXONOMY,
         ],
         "about": edam_topics(),
-        "license": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "license": CC0_LICENSE_URL,
         "version": SOFTWARE.version,
         "datePublished": SOFTWARE.date_published,
         "creator": { "@type": "Organization", "name": "LOTUS Initiative" },
@@ -154,7 +157,7 @@ pub fn dataset_jsonld() -> Value {
         // The paper that describes the knowledge base, which is also what a
         // reader of this dataset should be pointed at.
         "citation": lotus_citation(),
-        "sameAs": [wikidata_uri("Q104225190")],
+        "sameAs": [wikidata_uri(LOTUS_WIKIDATA_QID)],
         "distribution": [
             {
                 "@type": "DataDownload",
@@ -195,18 +198,18 @@ fn measured_variables() -> Value {
 fn lotus_citation() -> Value {
     json!({
         "@type": "ScholarlyArticle",
-        "name": "The LOTUS initiative for open knowledge management in natural products research",
-        "identifier": doi_uri("10.7554/eLife.70780"),
-        "url": doi_uri("10.7554/eLife.70780"),
+        "name": LOTUS_PAPER_TITLE,
+        "identifier": doi_uri(LOTUS_PAPER_DOI),
+        "url": doi_uri(LOTUS_PAPER_DOI),
     })
 }
 
 fn data_catalog() -> Value {
     json!({
         "@type": "DataCatalog",
-        "@id": "https://lotus-initiative.github.io/lotus-explore-rs",
+        "@id": SOFTWARE.url,
         "name": "LOTUS",
-        "url": "https://lotus-initiative.github.io/lotus-explore-rs",
+        "url": SOFTWARE.url,
     })
 }
 

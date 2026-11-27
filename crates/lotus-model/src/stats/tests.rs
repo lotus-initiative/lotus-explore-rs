@@ -43,3 +43,17 @@ fn an_unrecognised_spelling_falls_back_to_the_default() {
     assert_eq!(SmilesSearchType::parse("fuzzy"), SmilesSearchType::Exact);
     assert_eq!(ElementState::parse("maybe"), ElementState::Allowed);
 }
+
+#[test]
+fn structure_threshold_accepts_only_finite_values_in_unit_half_open_interval() {
+    assert!(!is_valid_structure_threshold(0.0));
+    assert!(!is_valid_structure_threshold(-0.0));
+    assert!(!is_valid_structure_threshold(-0.1));
+    assert!(!is_valid_structure_threshold(1.0 + f64::EPSILON));
+    assert!(!is_valid_structure_threshold(f64::NAN));
+    assert!(!is_valid_structure_threshold(f64::INFINITY));
+    assert!(!is_valid_structure_threshold(f64::NEG_INFINITY));
+    assert!(is_valid_structure_threshold(f64::MIN_POSITIVE));
+    assert!(is_valid_structure_threshold(0.5));
+    assert!(is_valid_structure_threshold(1.0));
+}

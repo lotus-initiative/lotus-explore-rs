@@ -3,7 +3,7 @@
 //! The project itself, as a Bioschemas `SoftwareApplication`, plus the two
 //! citation files that say the same thing in the formats registries read.
 
-use crate::{Profile, doi_uri, edam, property_value};
+use crate::{LOTUS_PAPER_DOI, LOTUS_WIKIDATA_URL, Profile, doi_uri, edam, property_value};
 use serde_json::{Value, json};
 
 /// What the software is called, and how to cite it.
@@ -59,8 +59,6 @@ pub struct Software {
     pub paper: Option<Paper>,
 }
 
-const ELIFE_PAPER_DOI: &str = "10.7554/eLife.70780";
-
 /// Authors of the LOTUS initiative eLife paper (`10.7554/eLife.70780`), matching
 /// `public/docs/references.bib`.
 const ELIFE_PAPER_AUTHORS: &[(&str, &str)] = &[
@@ -98,7 +96,7 @@ fn author_organization() -> Value {
     json!({
         "@type": "Organization",
         "name": "LOTUS Initiative",
-        "url": "https://www.wikidata.org/wiki/Q104225190",
+        "url": LOTUS_WIKIDATA_URL,
     })
 }
 
@@ -210,7 +208,7 @@ fn lotus_paper(paper: &Paper) -> Value {
         "url": doi_uri(paper.doi),
         "datePublished": paper.year.to_string(),
     });
-    if paper.doi.eq_ignore_ascii_case(ELIFE_PAPER_DOI)
+    if paper.doi.eq_ignore_ascii_case(LOTUS_PAPER_DOI)
         && let Some(object) = node.as_object_mut()
     {
         let authors: Vec<Value> = ELIFE_PAPER_AUTHORS
@@ -357,10 +355,9 @@ pub fn citation_cff(software: &Software) -> String {
     // `name` and an `alias` rather than invented given and family names. A
     // citation that attributes the software to a person who did not write it is
     // worse than one that attributes it to the group that did.
-    fields.push(
-        "authors:\n  - name: \"The LOTUS consortium\"\n    website: \"https://www.wikidata.org/wiki/Q104225190\""
-            .to_string(),
-    );
+    fields.push(format!(
+        "authors:\n  - name: \"The LOTUS consortium\"\n    website: \"{LOTUS_WIKIDATA_URL}\""
+    ));
 
     // The paper this tool exists to serve. `references` rather than
     // `preferred-citation`: the citable work is the software, and the LOTUS

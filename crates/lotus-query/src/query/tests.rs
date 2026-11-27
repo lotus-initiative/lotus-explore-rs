@@ -5,6 +5,11 @@
 use super::*;
 
 #[test]
+fn idsm_prefix_matches_canonical_model_endpoint() {
+    assert!(prefixes::PREFIXES_WITH_STRUCTURE.contains(lotus_model::IDSM_SACHEM_ENDPOINT));
+}
+
+#[test]
 fn taxon_has_compounds_query_limits_occurrence_probe_to_one_row() {
     let probe = taxon_has_compounds_query("Q158572");
     assert_eq!(

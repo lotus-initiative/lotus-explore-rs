@@ -280,5 +280,5 @@ fn parse_search_type(value: &str) -> SmilesSearchType {
 fn parse_positive_threshold(value: Option<&str>) -> Option<f64> {
     value
         .and_then(|raw| raw.parse::<f64>().ok())
-        .filter(|v| v.is_finite() && *v > 0.0 && *v <= 1.0)
+        .filter(|v| lotus_model::is_valid_structure_threshold(*v))
 }

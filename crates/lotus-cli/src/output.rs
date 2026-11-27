@@ -293,14 +293,7 @@ fn write_jsonld_at<W: Write>(
 }
 
 fn hash(value: &str) -> String {
-    use std::fmt::Write as _;
-    let digest = sha2::Sha256::digest(value.as_bytes());
-    digest
-        .iter()
-        .fold(String::with_capacity(64), |mut acc, byte| {
-            let _ = write!(acc, "{byte:02x}");
-            acc
-        })
+    lotus_model::encode_hex_lower(&sha2::Sha256::digest(value.as_bytes()))
 }
 
 #[cfg(test)]

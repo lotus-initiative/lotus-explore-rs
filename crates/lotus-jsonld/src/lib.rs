@@ -96,6 +96,25 @@ pub fn result_dataset_url(name_slug: &str, query_hash: &str) -> String {
     format!("https://lotus-initiative.github.io/lotus-explore-rs/#dataset/{name_slug}/{query_hash}")
 }
 
+/// The canonical DOI (without resolver prefix) of the foundational LOTUS article.
+pub const LOTUS_PAPER_DOI: &str = "10.7554/eLife.70780";
+
+/// The canonical `doi.org` URL of the foundational LOTUS article.
+pub const LOTUS_PAPER_URL: &str = "https://doi.org/10.7554/eLife.70780";
+
+/// The canonical title of the foundational LOTUS article.
+pub const LOTUS_PAPER_TITLE: &str =
+    "The LOTUS initiative for open knowledge management in natural products research";
+
+/// Wikidata item QID for the LOTUS knowledge base / consortium.
+pub const LOTUS_WIKIDATA_QID: &str = "Q104225190";
+
+/// Wikidata entity URL for the LOTUS knowledge base / consortium.
+pub const LOTUS_WIKIDATA_URL: &str = "https://www.wikidata.org/wiki/Q104225190";
+
+/// Creative Commons Zero 1.0 Universal license URL (for Wikidata / LOTUS data).
+pub const CC0_LICENSE_URL: &str = "https://creativecommons.org/publicdomain/zero/1.0/";
+
 /// The project itself, for a page that describes the software.
 pub const SOFTWARE: crate::software::Software = crate::software::Software {
     name: "LOTUS Explorer",
@@ -104,7 +123,7 @@ pub const SOFTWARE: crate::software::Software = crate::software::Software {
     url: "https://lotus-initiative.github.io/lotus-explore-rs",
     repository: env!("CARGO_PKG_REPOSITORY"),
     issue_tracker: concat!(env!("CARGO_PKG_REPOSITORY"), "/issues"),
-    // None: the software has no DOI of its own. `10.7554/eLife.70780` is the
+    // None: the software has no DOI of its own. `LOTUS_PAPER_DOI` is the
     // LOTUS article, credited under `references`; claiming it here told citation
     // tools that this program is that paper.
     doi: None,
@@ -138,8 +157,8 @@ pub const SOFTWARE: crate::software::Software = crate::software::Software {
         "rust",
     ],
     paper: Some(crate::software::Paper {
-        title: "The LOTUS initiative for open knowledge management in natural products research",
-        doi: "10.7554/eLife.70780",
+        title: LOTUS_PAPER_TITLE,
+        doi: LOTUS_PAPER_DOI,
         year: 2022,
     }),
 };

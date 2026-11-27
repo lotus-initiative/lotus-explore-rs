@@ -184,7 +184,10 @@ const QS_REF_INFERRED_FROM_ISOMERIC_SMILES: &str = "Q123282952";
 /// with an `S887` `inferred from SMILES` reference (`Q113907573`).
 #[must_use]
 pub fn qs_mass_statement(subject: &str, mass: f64) -> String {
-    format!("{subject}|P2067|+{mass:.6}U483261|S887|{QS_REF_INFERRED_FROM_SMILES}")
+    format!(
+        "{subject}|{}|+{mass:.6}U483261|S887|{QS_REF_INFERRED_FROM_SMILES}",
+        crate::property::EXACT_MASS
+    )
 }
 
 /// Build a `QuickStatements` statement with `S887` reference(s), e.g.
@@ -210,13 +213,14 @@ pub fn qs_canonical_smiles_statement(
     if has_isomeric {
         qs_statement_with_refs(
             subject,
-            "P233",
+            crate::property::CANONICAL_SMILES,
             canonical_smiles,
             &[QS_REF_INFERRED_FROM_ISOMERIC_SMILES],
         )
     } else {
         format!(
-            "{subject}|P233|\"{}\"",
+            "{subject}|{}|\"{}\"",
+            crate::property::CANONICAL_SMILES,
             escape_quickstatements(canonical_smiles)
         )
     }
@@ -225,20 +229,31 @@ pub fn qs_canonical_smiles_statement(
 /// Build an `InChI` (`P234`) statement with an `inferred from SMILES` reference.
 #[must_use]
 pub fn qs_inchi_statement(subject: &str, inchi: &str) -> String {
-    qs_statement_with_refs(subject, "P234", inchi, &[QS_REF_INFERRED_FROM_SMILES])
+    qs_statement_with_refs(
+        subject,
+        crate::property::INCHI,
+        inchi,
+        &[QS_REF_INFERRED_FROM_SMILES],
+    )
 }
 
 /// Build an `InChIKey` (`P235`) statement with an `inferred from SMILES` reference.
 #[must_use]
 pub fn qs_inchikey_statement(subject: &str, inchikey: &str) -> String {
-    qs_statement_with_refs(subject, "P235", inchikey, &[QS_REF_INFERRED_FROM_SMILES])
+    qs_statement_with_refs(
+        subject,
+        crate::property::INCHIKEY,
+        inchikey,
+        &[QS_REF_INFERRED_FROM_SMILES],
+    )
 }
 
 /// Build an isomeric SMILES (`P2017`) statement without any `S887` reference.
 #[must_use]
 pub fn qs_isomeric_smiles_statement(subject: &str, isomeric_smiles: &str) -> String {
     format!(
-        "{subject}|P2017|\"{}\"",
+        "{subject}|{}|\"{}\"",
+        crate::property::ISOMERIC_SMILES,
         escape_quickstatements(isomeric_smiles)
     )
 }

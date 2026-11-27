@@ -17,6 +17,7 @@ mod columnar;
 mod criteria;
 mod endpoints;
 mod entry;
+mod hex;
 mod identify;
 mod percent;
 mod reference;
@@ -30,15 +31,21 @@ pub use columnar::{
     Range, RawRow, SparseStrings, StatementId, contains_folded, folded, qid_text, write_qid,
 };
 pub use criteria::{SearchCriteria, TaxonNomenclature};
-pub use endpoints::{QLEVER_WIKIDATA, SparqlEndpoint, WDQS_SCHOLARLY, WDQS_WIKIDATA};
+pub use endpoints::{
+    IDSM_SACHEM_ENDPOINT, QLEVER_WIKIDATA, SparqlEndpoint, WDQS_SCHOLARLY, WDQS_WIKIDATA,
+};
 pub use entry::{CompoundEntry, Rows, TaxonMatch, TaxonNameSource};
+pub use hex::{encode_hex_lower, push_hex_lower};
 pub use identify::{
     is_qid, non_empty, normalize_doi, normalize_formula_subscripts, normalize_qid,
     standardize_taxon_name,
 };
 pub use percent::{percent_decode, percent_encode};
 pub use reference::{looks_like_doi, looks_like_reference_qid, strip_doi_prefix};
-pub use stats::{DEFAULT_STRUCTURE_THRESHOLD, DatasetStats, ElementState, SmilesSearchType};
+pub use stats::{
+    DEFAULT_STRUCTURE_THRESHOLD, DatasetStats, ElementState, SmilesSearchType,
+    is_valid_structure_threshold,
+};
 pub use structure::{
     REFERENCE_INPUT_EXAMPLES, STRUCTURE_INPUT_EXAMPLES, StructureKind, classify_structure,
     could_be_a_compound_name, looks_like_a_compound_qid, looks_like_inchikey, names_a_compound,

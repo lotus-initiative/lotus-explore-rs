@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 #[test]
 fn hex_encoder_is_lowercase() {
-    assert_eq!(to_hex_lower(&[0xAB, 0xCD, 0xEF]), "abcdef");
+    assert_eq!(lotus_model::encode_hex_lower(&[0xAB, 0xCD, 0xEF]), "abcdef");
 }
 
 fn row(compound_qid: &str) -> CompoundEntry {

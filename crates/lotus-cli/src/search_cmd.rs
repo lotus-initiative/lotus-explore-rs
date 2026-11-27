@@ -121,11 +121,7 @@ fn explain_search(
                  run."
             );
         }
-    } else if !structure.is_empty()
-        && (lotus_model::is_qid(&structure)
-            || lotus_model::looks_like_inchikey(&structure)
-            || lotus_model::could_be_a_compound_name(&structure))
-    {
+    } else if !structure.is_empty() && lotus_model::names_a_compound(&structure) {
         eprintln!(
             "lotus: this is the query before the structure identifier is resolved. A \
              substructure or similarity search resolves {structure:?} to its SMILES \

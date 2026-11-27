@@ -293,13 +293,10 @@ impl SearchCriteria {
         self.year_min > YEAR_MIN || self.year_max < year_max
     }
 
-    /// Whether formula filtering applies, which needs both the flag and a value
-    /// that is not the default.
+    /// Whether any formula value, element count bound, or halogen state differs
+    /// from the unconstrained default (ignoring [`Self::formula_enabled`]).
     #[must_use]
-    pub fn has_formula_filter(&self) -> bool {
-        if !self.formula_enabled {
-            return false;
-        }
+    pub fn has_formula_criteria(&self) -> bool {
         if !self.formula_exact.trim().is_empty() {
             return true;
         }
@@ -313,6 +310,13 @@ impl SearchCriteria {
         self.halogen_states()
             .iter()
             .any(|(_, state)| *state != ElementState::Allowed)
+    }
+
+    /// Whether formula filtering applies, which needs both the flag and a value
+    /// that is not the default.
+    #[must_use]
+    pub fn has_formula_filter(&self) -> bool {
+        self.formula_enabled && self.has_formula_criteria()
     }
 
     /// Whether any nomenclatural relationship is being followed.

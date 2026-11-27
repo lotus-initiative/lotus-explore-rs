@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Deterministic `.tar.gz`, manifest JSON, and `SHA256SUMS` serialization.
 
-use std::fmt::Write as _;
-
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use lotus_query::{ARCHIVE_PAGE_SIZE, ARCHIVE_SMILES_QUERY, ARCHIVE_SMILES_WITHOUT_INCHIKEY_QUERY};
@@ -152,9 +150,7 @@ fn write_checksums(files: &[(&[u8], &str)]) -> String {
         let mut hasher = Sha256::new();
         hasher.update(contents);
         let digest = hasher.finalize();
-        for byte in digest {
-            let _ = write!(output, "{byte:02x}");
-        }
+        lotus_model::push_hex_lower(&mut output, &digest);
         output.push_str("  ");
         output.push_str(label);
         output.push('\n');

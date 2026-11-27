@@ -8,7 +8,10 @@ use super::schema::{
     Organization, Provenance, ScholarlyArticle, SparqlEndpointInfo,
 };
 use super::{APP_NAME, APP_URL, APP_VERSION, MetadataInputs};
-use lotus_jsonld::{Profile, edam, result_dataset_url};
+use lotus_jsonld::{
+    CC0_LICENSE_URL, LOTUS_PAPER_TITLE, LOTUS_PAPER_URL, LOTUS_WIKIDATA_URL, Profile, SOFTWARE,
+    edam, result_dataset_url,
+};
 use serde_json::{Map, Value, json};
 
 // Called with an inline-constructed `MetadataInputs` at both call sites;
@@ -42,7 +45,7 @@ pub fn build_metadata_json(inp: MetadataInputs<'_>) -> String {
     let chemical_search_service = sachem.then_some(ChemicalSearchService {
         name: "SACHEM",
         provider: "IDSM",
-        endpoint: "https://idsm.elixir-czech.cz/sparql/endpoint/",
+        endpoint: lotus_model::IDSM_SACHEM_ENDPOINT,
     });
 
     let dataset = DatasetMetadata {
@@ -59,7 +62,7 @@ pub fn build_metadata_json(inp: MetadataInputs<'_>) -> String {
         version: APP_VERSION,
         date_created: inp.date_created.to_string(),
         date_published: inp.date_created.to_string(),
-        license: "https://creativecommons.org/publicdomain/zero/1.0/",
+        license: CC0_LICENSE_URL,
         creator: Creator {
             type_: "SoftwareApplication",
             name: APP_NAME,
@@ -69,16 +72,16 @@ pub fn build_metadata_json(inp: MetadataInputs<'_>) -> String {
         provider: providers,
         citation: vec![ScholarlyArticle {
             type_: "ScholarlyArticle",
-            name: "The LOTUS initiative for open knowledge management in natural products research",
-            identifier: "https://doi.org/10.7554/eLife.70780",
-            url: "https://doi.org/10.7554/eLife.70780",
+            name: LOTUS_PAPER_TITLE,
+            identifier: LOTUS_PAPER_URL,
+            url: LOTUS_PAPER_URL,
         }],
         distribution: build_distributions(),
         included_in_data_catalog: json!({
             "@type": "DataCatalog",
-            "@id": "https://lotus-initiative.github.io/lotus-explore-rs",
+            "@id": SOFTWARE.url,
             "name": "LOTUS",
-            "url": "https://lotus-initiative.github.io/lotus-explore-rs",
+            "url": SOFTWARE.url,
         }),
         measurement_technique: "SPARQL 1.1 over the Wikidata graph",
         number_of_records: inp.number_of_records_override,
@@ -114,9 +117,7 @@ fn uses_sachem(criteria: &lotus_model::SearchCriteria) -> bool {
     if criteria.structure_search != lotus_model::SmilesSearchType::Exact {
         return true;
     }
-    !lotus_model::looks_like_a_compound_qid(structure)
-        && !lotus_model::looks_like_inchikey(structure)
-        && !lotus_model::could_be_a_compound_name(structure)
+    !lotus_model::names_a_compound(structure)
 }
 
 fn build_title_and_description(
@@ -160,7 +161,7 @@ fn build_providers(has_chem: bool) -> Vec<Organization<'static>> {
         Organization {
             type_: "Organization",
             name: "LOTUS Initiative",
-            url: "https://www.wikidata.org/wiki/Q104225190",
+            url: LOTUS_WIKIDATA_URL,
         },
         Organization {
             type_: "Organization",

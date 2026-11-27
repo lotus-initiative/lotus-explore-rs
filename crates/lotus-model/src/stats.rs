@@ -70,6 +70,12 @@ pub enum SmilesSearchType {
 /// none of them the compound that was named.
 pub const DEFAULT_STRUCTURE_THRESHOLD: f64 = 1.0;
 
+/// Whether a Tanimoto similarity cutoff is a finite number in `(0, 1]`.
+#[must_use]
+pub const fn is_valid_structure_threshold(value: f64) -> bool {
+    value.is_finite() && value > 0.0 && value <= 1.0
+}
+
 impl SmilesSearchType {
     /// Whether answering this one requires the structure service.
     ///

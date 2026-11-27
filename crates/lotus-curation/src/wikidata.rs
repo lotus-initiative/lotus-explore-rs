@@ -29,6 +29,6 @@ pub const WD_TYPE_CHEMICAL_ENTITY_QID: &str = "Q113145171";
 /// The Wikidata class for the group of stereoisomers a structure belongs to.
 pub const WD_STEREOISOMER_GROUP_QID: &str = "Q59199015";
 /// The Wikidata property linking a compound to a taxon it occurs in.
-pub const WD_OCCURS_IN_TAXON_PROP: &str = "P703";
+pub const WD_OCCURS_IN_TAXON_PROP: &str = crate::property::OCCURS_IN_TAXON;
 /// Wikidata's *taxon* class (`Q16521`), used as `P31` target in taxon lookups and creation blocks.
 pub const WD_TAXON_QID: &str = "Q16521";

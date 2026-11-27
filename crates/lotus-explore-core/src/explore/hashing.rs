@@ -36,7 +36,7 @@ pub(in crate::explore) fn compute_hashes(
         }
         let _ = write!(query_source, "{k}={v}");
     }
-    let query_hash = to_hex_lower(&Sha256::digest(query_source.as_bytes()));
+    let query_hash = lotus_model::encode_hex_lower(&Sha256::digest(query_source.as_bytes()));
 
     // The compound dictionary is already the distinct set of QIDs: iterate it and
     // stream each one into the hasher, nothing collected or sorted.
@@ -56,27 +56,9 @@ pub(in crate::explore) fn compute_hashes(
             result_hasher.update(text);
         }
     }
-    let result_hash = to_hex_lower(&result_hasher.finalize());
+    let result_hash = lotus_model::encode_hex_lower(&result_hasher.finalize());
 
     (query_hash, result_hash)
-}
-
-// `HEX` has 16 entries and both nibble extracts (`b >> 4`, `b & 0x0f`)
-// are always in `0..=15`, so the indexes are provably in bounds.
-#[allow(
-    clippy::indexing_slicing,
-    reason = "`HEX` has 16 entries and both nibbles are masked to 4 bits, so neither index exceeds 15"
-)]
-/// Lowercase hexadecimal encoding of `bytes`.
-#[must_use]
-fn to_hex_lower(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut out = String::with_capacity(bytes.len() * 2);
-    for &b in bytes {
-        out.push(HEX[(b >> 4) as usize] as char);
-        out.push(HEX[(b & 0x0f) as usize] as char);
-    }
-    out
 }
 
 #[cfg(test)]

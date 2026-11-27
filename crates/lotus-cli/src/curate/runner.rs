@@ -7,17 +7,9 @@
 use lotus_curation::escape_quickstatements;
 
 use lotus_curation::CurationInputRow;
+use lotus_curation::property;
 
 use super::CuratedReport;
-
-/// The properties a LOTUS row is written against, from the Wikidata projection.
-///
-/// `P233` is the canonical SMILES and `P2017` the isomeric one. Both are emitted
-/// because the explorer queries both: a row with only `P233` matches a
-/// structure search by canonical form and not by the form the chemist submitted.
-const PROPERTY_CANONICAL_SMILES: &str = "P233";
-const PROPERTY_ISOMERIC_SMILES: &str = "P2017";
-const PROPERTY_NAME: &str = "Len";
 
 /// Curate one row against Wikidata.
 ///
@@ -86,9 +78,10 @@ pub(super) fn not_checked_row(finding: &CurationInputRow) -> lotus_curation::Cur
         )]
     } else {
         let mut compound_block = format!(
-            "## {name}\nCREATE\nLAST|{PROPERTY_NAME}|\"{name}\"\n\
+            "## {name}\nCREATE\nLAST|{label}|\"{name}\"\n\
              LAST|P31|{entity_type}\n\
              LAST|P279|{compound_class}",
+            label = property::LABEL,
             entity_type = lotus_curation::WD_TYPE_CHEMICAL_ENTITY_QID,
             compound_class = lotus_curation::WD_CHEMICAL_COMPOUND_QID,
         );
@@ -96,7 +89,8 @@ pub(super) fn not_checked_row(finding: &CurationInputRow) -> lotus_curation::Cur
             use std::fmt::Write as _;
             let _ = write!(
                 compound_block,
-                "\nLAST|{PROPERTY_CANONICAL_SMILES}|\"{canonical}\"",
+                "\nLAST|{prop}|\"{canonical}\"",
+                prop = property::CANONICAL_SMILES,
                 canonical = escape_quickstatements(&canonical),
             );
         }
@@ -104,7 +98,8 @@ pub(super) fn not_checked_row(finding: &CurationInputRow) -> lotus_curation::Cur
             use std::fmt::Write as _;
             let _ = write!(
                 compound_block,
-                "\nLAST|{PROPERTY_ISOMERIC_SMILES}|\"{isomeric}\"",
+                "\nLAST|{prop}|\"{isomeric}\"",
+                prop = property::ISOMERIC_SMILES,
                 isomeric = escape_quickstatements(raw_smiles),
             );
         }
@@ -242,7 +237,7 @@ pub(super) async fn curate_findings(
     Ok(CuratedReport {
         rows,
         statements,
-        citation: "https://doi.org/10.7554/eLife.70780",
+        citation: lotus_jsonld::LOTUS_PAPER_URL,
     })
 }
 

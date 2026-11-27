@@ -134,9 +134,7 @@ pub fn validate_criteria(criteria: &SearchCriteria, year_max: u16) -> Result<(),
     }
 
     if criteria.structure_search == super::SmilesSearchType::Similarity
-        && (!criteria.structure_threshold.is_finite()
-            || criteria.structure_threshold <= 0.0
-            || criteria.structure_threshold > 1.0)
+        && !super::is_valid_structure_threshold(criteria.structure_threshold)
     {
         return Err(ValidationError::SimilarityThresholdInvalid);
     }
