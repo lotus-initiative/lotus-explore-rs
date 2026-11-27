@@ -47,7 +47,7 @@ pub(super) async fn fetch_all_pubchem_data<H: Http>(
         on_progress: &mut impl FnMut(&'static str),
     ) -> Result<Vec<Row>, ExportError> {
         on_progress(name);
-        fetch_csv_rows(http, endpoint, query, name).await
+        fetch_csv_rows(http, endpoint, query).await
     }
     Ok(PubChemData {
         compound_taxon: fetch(

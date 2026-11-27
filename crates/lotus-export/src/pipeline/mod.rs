@@ -132,7 +132,6 @@ pub(crate) async fn fetch_csv_rows<H: Http>(
     http: &H,
     endpoint: &Endpoint,
     query: &str,
-    _table: &'static str,
 ) -> Result<Vec<Row>, ExportError> {
     let body = fetch_csv_bytes(http, endpoint, query).await?;
     read_csv_rows(&body).map_err(ExportError::Csv)

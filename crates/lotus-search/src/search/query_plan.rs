@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 //! Structure planning and SPARQL execution-query assembly.
 
-use lotus_model::{SearchCriteria, SmilesSearchType, normalize_structure};
+use lotus_model::{SearchCriteria, normalize_structure};
 use lotus_query::{Nomenclature, base_query_for_criteria, exact_compounds_query, with_filters};
 
 use super::execute_search::SearchError;
@@ -11,45 +11,12 @@ use super::resolve_taxon::resolve_taxon;
 use crate::client::Http;
 use crate::result::{SearchRequest, TaxonResolution};
 
-/// How a structure search should be run, once the structure is known.
-#[derive(Debug, Clone, PartialEq)]
-struct StructurePlan {
-    /// The normalised structure text.
-    structure: String,
-    /// The search to run, as asked for. A molfile takes either mode: the
-    /// similarity service was measured accepting a multi-line CTAB literal and
-    /// answering a cutoff search, so the format does not decide the mode.
-    search: SmilesSearchType,
-    /// Tanimoto cutoff, when `search` is a similarity search.
-    threshold: f64,
-    /// Whether the structure is a molfile rather than a SMILES string.
-    is_molfile: bool,
-}
-
-impl StructurePlan {
-    /// Whether the request is a structure search at all.
-    #[must_use]
-    fn for_request(criteria: &SearchCriteria) -> Option<Self> {
-        let structure = normalize_structure(&criteria.structure);
-        if structure.is_empty() {
-            return None;
-        }
-        let is_molfile = lotus_model::classify_structure(&structure).is_molfile();
-        Some(Self {
-            structure,
-            search: criteria.structure_search,
-            threshold: criteria.structure_threshold,
-            is_molfile,
-        })
-    }
-}
-
 /// The base query for a criteria and an already-resolved taxon.
 ///
 /// `qid` is [`TaxonResolution::qid`](crate::TaxonResolution::qid), and the wildcard `*` means every taxon.
 #[must_use]
 pub fn build_base_query(criteria: &SearchCriteria, qid: Option<&str>) -> String {
-    let structure = StructurePlan::for_request(criteria).map_or_default(|plan| plan.structure);
+    let structure = normalize_structure(&criteria.structure);
     base_query_for_criteria(criteria, &structure, qid)
 }
 

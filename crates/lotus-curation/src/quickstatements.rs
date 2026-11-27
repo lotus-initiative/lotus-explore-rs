@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // SPDX-FileCopyrightText: Contributors to the lotus-explore-rs project
 
+use std::collections::HashSet;
+use std::fmt::Write as _;
+
 use crate::{CurationResultRow, QuickStatementsBundle};
 
 /// Escape a value for a `QuickStatements` scalar.
@@ -22,8 +25,6 @@ pub fn escape_quickstatements(value: &str) -> String {
     }
     out
 }
-use std::collections::HashSet;
-use std::fmt::Write as _;
 
 /// Bundle a batch of curated rows into statements ready to paste.
 ///

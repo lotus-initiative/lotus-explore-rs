@@ -26,18 +26,6 @@ macro_rules! dispatch {
             }
         }
     };
-    // no args → String (with cfg)
-    ($name:ident with_cfg $cfg:literal) => {
-        #[$cfg]
-        pub fn $name(locale: Locale) -> String {
-            match locale {
-                Locale::En => en::$name(),
-                Locale::Fr => fr::$name(),
-                Locale::De => de::$name(),
-                Locale::It => it::$name(),
-            }
-        }
-    };
     // one &str arg → String
     ($name:ident, $arg:ident: &str) => {
         pub fn $name(locale: Locale, $arg: &str) -> String {
