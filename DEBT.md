@@ -8,7 +8,7 @@ Note: `docs/DEBT.md` remains the repository's lint-suppression and ratchet regis
 
 ## 1. Coverage Ledger
 
-All **793** git-tracked files across the 11 workspace crates are accounted for below (`42` refactored, `11` safety-net / regression test updates, `729` reviewed with no structural edits required, `11` N/A with explicit justification):
+All **793** git-tracked files across the 11 workspace crates are accounted for below (`43` refactored, `11` safety-net / regression test updates, `728` reviewed with no structural edits required, `11` N/A with explicit justification):
 
 | File | Status | Notes |
 | --- | --- | --- |
@@ -44,7 +44,7 @@ All **793** git-tracked files across the 11 workspace crates are accounted for b
 | `.mk/tools.sh` | Reviewed | Reviewed against DRY, SOLID, efficiency, and boundary rules; no structural debt change warranted. |
 | `.refquiem.toml` | Reviewed | Reviewed configuration, manifest, workflow, schema, or documentation. |
 | `.tombi.toml` | Reviewed | Reviewed configuration, manifest, workflow, schema, or documentation. |
-| `.typos.toml` | Reviewed | Reviewed configuration, manifest, workflow, schema, or documentation. |
+| `.typos.toml` | Refactored | Added `[default] extend-ignore-re` for backticked hex commit hashes (`2dbc90a`). |
 | `.vscode/settings.json` | Reviewed | Reviewed configuration, manifest, workflow, schema, or documentation. |
 | `AGENTS.md` | Reviewed | Reviewed configuration, manifest, workflow, schema, or documentation. |
 | `AUDIT.md` | Reviewed | Reviewed configuration, manifest, workflow, schema, or documentation. |
@@ -752,7 +752,7 @@ All **793** git-tracked files across the 11 workspace crates are accounted for b
 | `crates/lotus-server/src/state/inflight.rs` | Reviewed | Reviewed against DRY, SOLID, efficiency, and boundary rules; no structural debt change warranted. |
 | `crates/lotus-server/src/state/metrics.rs` | Reviewed | Reviewed against DRY, SOLID, efficiency, and boundary rules; no structural debt change warranted. |
 | `crates/lotus-server/src/state/mod.rs` | Refactored | Re-exported unified `CachedExportResponse` / `CachedTaxonResolution` aliases (`019445f`). |
-| `crates/lotus-server/src/tests.rs` | Tests added | Added `apply_request`, overload 503 (`999d7ae`), and boundary mutant-killing tests (`6c9d200`). |
+| `crates/lotus-server/src/tests.rs` | Tests added | Added `apply_request`, overload 503 (`999d7ae`), boundary mutant-killing tests (`6c9d200`), and bounded `request_timeout` in `search_cache_hit_preserves_caller_taxon_warning_and_qid` (`b5ba51b`). |
 | `crates/lotus-web-assets/Cargo.toml` | Reviewed | Reviewed configuration, manifest, workflow, schema, or documentation. |
 | `crates/lotus-web-assets/src/fetch_assets/http.rs` | Reviewed | Reviewed against DRY, SOLID, efficiency, and boundary rules; no structural debt change warranted. |
 | `crates/lotus-web-assets/src/fetch_assets/http/tests.rs` | Reviewed | Reviewed against DRY, SOLID, efficiency, and boundary rules; no structural debt change warranted. |
@@ -812,7 +812,7 @@ All **793** git-tracked files across the 11 workspace crates are accounted for b
 
 | ID | Category | Location | Evidence | Fix | Risk | Status | Commit |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| DEBT-00 | Safety net | `validate/tests.rs`, `output/tests.rs`, `wikidata/tests.rs`, `server/tests.rs` | Baseline gaps on threshold edges, CLI CSV/TSV/table exact bytes, curation QID permutation invariance, and route overload / request parsing | Added characterization and property tests before any production edit | None | Done | `999d7ae`, `6c9d200` |
+| DEBT-00 | Safety net | `validate/tests.rs`, `output/tests.rs`, `wikidata/tests.rs`, `server/tests.rs` | Baseline gaps on threshold edges, CLI CSV/TSV/table exact bytes, curation QID permutation invariance, and route overload / request parsing | Added characterization and property tests before any production edit | None | Done | `999d7ae`, `6c9d200`, `b5ba51b` |
 | DEBT-01 | Dead code | `crates/lotus-search/src/search/query_plan.rs` | Unused private intermediate struct wrapping fields already read directly downstream | Deleted unused struct and called `base_query_for_criteria` with `normalize_structure` | Low | Done | `dd2e884` |
 | DEBT-02 | Dead code | `crates/lotus-export/src/{pipeline/mod.rs,pubchem_tree/fetch.rs}` | Unused `_table: &'static str` parameter in `fetch_csv_rows` | Removed unused parameter and updated call site | Low | Done | `dd2e884` |
 | DEBT-03 | Dead code | `apps/lotus-explore-rs/src/i18n/messages/errors.rs` | Unused conditional macro arm in `dispatch!` | Removed dead macro arm | Low | Done | `dd2e884` |
@@ -841,7 +841,7 @@ All **793** git-tracked files across the 11 workspace crates are accounted for b
 
 ## 3. Baseline → After Metrics
 
-All measurements collected sequentially on Apple M1 Pro (8 cores, 16 GiB RAM), `rustc 1.100.0`, `cargo 1.100.0`. Note: post-refactor test/coverage/benchmark runs below were measured at `ba3bc00` (after all production changes) and final `nextest` test count / `./mk ci` were verified at `HEAD` after adding mutant-killing tests (`6c9d200`).
+All measurements collected sequentially on Apple M1 Pro (8 cores, 16 GiB RAM), `rustc 1.100.0`, `cargo 1.100.0`. Note: production-code benchmarks and coverage below were measured at `ba3bc00` (final production change); `MK_BASE=a2f09a3 ./mk mutants-diff` passed after the final Rust test edit (`b5ba51b`), and `MK_BASE=a2f09a3 ./mk ci-core` passed on clean `HEAD`. When `./mk ci` runs unparameterized against unpushed `origin/main` (`fe50374`, 12 pre-session audit commits behind baseline `a2f09a3`), all non-mutant gates pass (`wasm` included) while `mutants-diff` fails strictly on pre-existing `origin/main..a2f09a3` survivors (`63` missed, `1` timeout) with `0` survivors in `a2f09a3..HEAD`.
 
 | Metric | Baseline (`a2f09a3`) | After Refactoring | Delta |
 | --- | --- | --- | --- |
@@ -866,7 +866,7 @@ All measurements collected sequentially on Apple M1 Pro (8 cores, 16 GiB RAM), `
 | `bench_cache_key` tiny (208 B) / 16x (49,040 B) / hex (ns) | 709 / 52,000 / 375 ns | **667 / 51,833 / 333 ns** | Improved across sizes (-11% hex median) |
 | `bench_a_million_rows` parse+build / resident | 13,376.9 ms / 150.1 MB | 9,924.0 ms / 150.1 MB | No regression; memory unchanged |
 | Golden corpus (`8/8` CLI outputs vs `SHA256SUMS`) | Baseline oracle | **8/8 `OK`** (SHA-256 bit-for-bit identical) | 0 byte drift |
-| Diff mutation sweep (`MK_BASE=a2f09a3 ./mk mutants-diff --iterate`) | — | 164 tested (`142` caught incl. `6c9d200` test additions, `21` unviable, `0` missed, `1` timeout whose panic assertion already failed in `0.024s`) | 0 missed mutants |
+| Diff mutation sweep (`MK_BASE=a2f09a3 ./mk mutants-diff`) | — | **177 tested in 15m: 156 caught, 21 unviable, 0 missed, 0 timeouts** (`b5ba51b`) | **0 missed, 0 timeouts** |
 
 ---
 
@@ -912,7 +912,6 @@ Per the behavior-preservation contract, the following cross-crate discrepancies 
 - **Native HTTP client construction (`crates/lotus-search/src/reqwest_client/mod.rs`):** Verified `ReqwestClient::new()` already shares a process-wide `OnceLock<Client>` and returns a `Copy` wrapper over `&'static reqwest::Client`, so there is no per-call connection-pool allocation to fix.
 - **UI asset CSP/metadata HTML (`apps/lotus-explore-rs/{index.html,build/headers.rs,footer.rs}`):** Static frontend HTML/footer URLs live outside Rust domain crates and were left decoupled rather than introducing build-script codegen for four fixed strings.
 - **Transitive Dioxus version skips (`deny.toml`) & test-only Clippy complexity (`wikidata_query/tests.rs:102`, `graph/tests.rs:772`):** Documented upstream Dioxus transitive dependencies and pre-existing assertion-heavy test functions do not affect runtime architecture or shipping code.
-- **Timeout on `taxon_cache_get` mutant (`crates/lotus-server/src/state/cache.rs:111`):** Replacing `taxon_cache_get` with `Some((None, None))` already fails `state_caches_prune_bounds_and_inflight_removal_behave_consistently` in `0.024s`; `cargo-mutants` recorded a timeout because a concurrent async test hit its `nextest` signal deadline under cancellation. Left untouched to avoid modifying unrelated server integration test scheduling.
 
 ---
 
@@ -920,4 +919,4 @@ Per the behavior-preservation contract, the following cross-crate discrepancies 
 
 - **In-memory four-table join (`crates/lotus-export/src/pipeline/mod.rs`):** While raw byte payloads and lookup maps are now dropped at the earliest safe phase boundaries (DEBT-22), `run_lotus_exporter` still holds all indexed tables simultaneously in RAM and serializes `frozen.csv` in memory per its wasm-clean contract.
 - **Divergent cross-surface logic (`FINDING-01` .. `FINDING-03`):** Functional differences between CLI/server (`lotus-search`) and browser (`apps/lotus-explore-rs` / `lotus-explore-core`) remain open until maintainer confirmation of the intended scientific behavior.
-- **WASM bundle size / `apps/lotus-explore-rs` mutant coverage:** Dioxus UI components (`~2,700` mutants) remain excluded from default `./mk mutants` via `.cargo/mutants.toml` (`./mk local:mutants-ui` remains opt-in), and release WASM bundle artifacts were not rebuilt on disk during this refactoring pass (checked via `./mk local:lint-wasm`).
+- **WASM bundle size / `apps/lotus-explore-rs` mutant coverage:** Dioxus UI components (`~2,700` mutants) remain excluded from default `./mk mutants` via `.cargo/mutants.toml` (`./mk local:mutants-ui` remains opt-in); release WASM compilation and packaging were verified via `./mk local:lint-wasm` and `./mk wasm` (`dx build --release`).
